@@ -422,7 +422,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleCubAbility,
         // The roll it threw goes back, for the Monocub's card.
         answer: "reply",
-        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
+        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room, or for Tinker (E72 C13) a public, unfinished, unfrozen project there that a living student worked on this time of day; an id that is neither is refused as a missing one" }
     },
     [ACTION_CUB_ANSWER]: {
         label: "DRPG.Bridge.what.monocub.answer",

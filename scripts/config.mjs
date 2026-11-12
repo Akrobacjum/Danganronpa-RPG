@@ -3271,6 +3271,29 @@ export const MONOCUB = {
             resolve: "askHope",
             caps: null,
             thresholds: []
+        },
+        /**
+         * TINKER (E72 C13, 12.11.2026; the owner's DC23, DC24, DC35; the inventory's row 73): Confusion aimed at a
+         * project. A public, unfinished, unfrozen project in the Monocub's room that a living student worked on this
+         * time of day (monocub.mjs `CUB_TARGETS.project`); 1 action and 1 Hope, taken on the GM after the conditions; a
+         * flat 2d12, 12 or more moves it one step forward or back (`scoreTinker`), a double gives the Hope back. A
+         * project it would finish holds one short (default, owner may revise): no completion card, no trap armed. Its
+         * tier says its words through `DRPG.Monocub.*Step` (monocub.mjs TIER_WORDS), so the row holds no sentence.
+         */
+        tinker: {
+            label: "Tinker",
+            icon: "fa-screwdriver-wrench",
+            cost: 1,
+            hopeCost: 1,
+            target: "project",
+            choices: ["help", "hinder"],
+            locks: ["eclipse", "classTrial"],
+            roll: "flat2d12",
+            resolve: "tinker",
+            refusedSay: "DRPG.Monocub.tinkerRefused",
+            intro: "DRPG.Monocub.tinkerIntro",
+            caps: null,
+            thresholds: [{ min: 12, grants: "step" }]
         }
     }
 };

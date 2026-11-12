@@ -98,6 +98,8 @@ export const SETTINGS = {
     mineCubs: "mineCubs",
     /** The Monocubs' moves on each student this day (E72 C4): a GM store (gm-stores.mjs `cubTargetStore`), no copy. */
     gmCubTargets: "gmCubTargets",
+    /** Who worked on each project this time of day (E72 C13): a GM store (gm-stores.mjs `projectWorkStore`), no copy. */
+    gmProjectWork: "gmProjectWork",
     /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
@@ -2810,6 +2812,13 @@ export function registerSettings() {
     });
     // The Monocubs' moves on each student this day (E72 C4): the GMs' store alone; nothing redraws from it.
     game.settings.register(MODULE_ID, SETTINGS.gmCubTargets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Who worked on each project this time of day (E72 C13): the GMs' store alone; nothing redraws from it.
+    game.settings.register(MODULE_ID, SETTINGS.gmProjectWork, {
         scope: "client",
         config: false,
         type: Object,

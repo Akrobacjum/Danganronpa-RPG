@@ -17644,6 +17644,129 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["who worked on a project this time of day is the GMs' row, written for a player's, a Call's and a Reroll's progress and not for a GM's own, a Monocub's or a step back (E72 C13)", async () => {
+        /*
+         * E72 C13, 12.11.2026; the owner's DC23 ("a living worker this time of day"). gm-stores.mjs `projectWorkStore` is
+         * written by projects.mjs `applyProjectChange` after a change that moved the bar forward, for the kinds that are
+         * a student's own work. One project of the suite's; five changes through the one entry, each naming a character
+         * of its own: a GM's +1 ("gm"), a Monocub's ("monocub"), a player's -1, then a player's +1, a Call's and a
+         * Reroll's. Read: the characters `workersNow` names after each. Red at b22d2d0: no store, no `workersNow`.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const [a, b, c, d, e] = ["SUITEE72C13WGM00", "SUITEE72C13WCUB0", "SUITEE72C13WBACK", "SUITEE72C13WPLAY", "SUITEE72C13WCALL"];
+        const f = "SUITEE72C13WRERO";
+        let id = null;
+        const read = [];
+        try {
+            ok(typeof P.workersNow === "function" && Boolean(S.projectWorkStore), "projects.mjs has no workersNow or gm-stores.mjs no projectWorkStore (E72 C13)");
+            if (typeof P.workersNow !== "function" || !S.projectWorkStore) return;
+            id = (await P.createProject({ name: "SUITE E72 C13 work", target: 10, room: null }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            await P.applyProjectChange(id, { delta: 2 }, { by: { kind: "gm", actorId: a } });
+            const steps = [["gm", 1, a], ["monocub", 1, b], ["player", -1, c], ["player", 1, d], ["call", 1, e], ["reroll", 1, f]];
+            for (const [kind, delta, actorId] of steps) {
+                await P.applyProjectChange(id, { delta }, { by: { kind, actorId } });
+                read.push(P.workersNow(id));
+            }
+        } finally {
+            if (id) {
+                await P.deleteProject(id).catch(() => {});
+                if (S.projectWorkStore?.has?.(id)) await S.projectWorkStore.drop(id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[], [], [], [d], [d, e], [d, e, f]]),
+            "the work this time of day is not the student's own forward changes ([the workers named after a GM's +1, a Monocub's, a player's -1, a player's +1, a Call's, a Reroll's])");
+    }],
+
+    ["a Monocub's Tinker moves a public project in its room that a living student worked on this time of day: 12 or more is +1 or -1, a double gives the Hope back, a project it would finish holds one short, and a secret project, one nobody worked on or an unknown id is refused with nothing paid (E72 C13)", async () => {
+        /*
+         * E72 C13, 12.11.2026; audit S18-52, S18-64, the owner's DC23, DC24, DC35. Tinker is the Monocub's Confusion aimed at
+         * a project (the inventory's row 73, its own row `tinker` of config.mjs MONOCUB.abilities): a public, unfinished,
+         * unfrozen project in the Monocub's room that a living student worked on this time of day (gm-stores.mjs
+         * `projectWorkStore`, written by the one entry `applyProjectChange` for a player's, a Call's or a Reroll's progress);
+         * 1 action and 1 Hope, taken on the GM after the conditions; 12 or more moves it +1 or -1 (`kind` "monocub"); a double
+         * gives the Hope back. A project it would finish holds one short (default, owner may revise: no completion card, no
+         * trap armed). A Monocub and a living worker alone in a room with four projects of the suite's: public (worked on),
+         * idle (nobody worked), edge (worked on, one short of its target) and secret (worked on). Read: the picker's list;
+         * then, with scripted dice, each move's answer and [public's progress, edge's progress, actions, Hope] after it.
+         * Red at b22d2d0: no tinker row.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "a Monocub and a living worker stood in one room by their tokens");
+        const [cub, worker] = cast(2);
+        const M = await import("./monocub.mjs");
+        const P = await import("./projects.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const S = await import("./gm-stores.mjs");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const had = { actions: cub.system.resources.actions.value, hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const real = CONFIG.Dice.randomUniform;
+        const made = [];
+        let back = null;
+        const read = {};
+        try {
+            ok(Boolean(MONOCUB.abilities?.tinker), "config.mjs MONOCUB.abilities has no tinker row - a Monocub cannot Tinker (E72 C13)");
+            if (!MONOCUB.abilities?.tinker) return;
+            ({ back } = await aloneTogether(cub, worker));
+            const where = (await import("./movement.mjs")).locateActor(cub)?.room ?? null;
+            const make = async (name, target, secret = false) => {
+                const project = await P.createProject({ name: `SUITE E72 C13 ${name}`, target, room: where, secret });
+                must(project?.id, "could not create a project - this would measure nothing");
+                made.push(project.id);
+                return project.id;
+            };
+            const ids = { public: await make("public", 6), idle: await make("idle", 6), edge: await make("edge", 2), secret: await make("secret", 6, true) };
+            for (const id of [ids.public, ids.edge, ids.secret]) await P.addProgress(id, 1, { actorId: worker.id, kind: "player" });
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 5, "system.resources.hope.value": 4 }, { reason: "gmRuling" });
+            await settle();
+            const nameOf = id => Object.keys(ids).find(k => ids[k] === id) ?? "other";
+            read.listed = (await M.cubTargets(cub, "tinker")).map(p => nameOf(p.id)).sort();
+            const progress = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+            const state = () => [progress(ids.public), progress(ids.edge), actionsLeft(cub), cub.system.resources.hope.value];
+            const tinker = async (id, choice, faces) => {
+                const script = faces.map(face => 1 - (face - 0.5) / 12);
+                CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+                let out = null;
+                try { out = await M.cubAbilityOnGm({ actorId: cub.id, key: "tinker", targetId: id, choice }); } finally { CONFIG.Dice.randomUniform = real; }
+                await settle();
+                return [out ? [out.total, out.isCritical] : null, ...state()];
+            };
+            read.help = await tinker(ids.public, "help", [6, 7]);
+            read.double = await tinker(ids.public, "hinder", [5, 5]);
+            read.hinder = await tinker(ids.public, "hinder", [6, 7]);
+            read.edge = await tinker(ids.edge, "help", [6, 7]);
+            read.secret = await tinker(ids.secret, "help", [6, 7]);
+            read.idle = await tinker(ids.idle, "help", [6, 7]);
+            read.unknown = await tinker("SUITEE72C13NONE0", "help", [6, 7]);
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            for (const id of made) if (S.projectWorkStore?.has?.(id)) await S.projectWorkStore.drop(id);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.actions.value": had.actions, "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore) {
+                if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+                else if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            }
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            listed: ["edge", "idle", "public"],
+            help: [[13, false], 2, 1, 4, 3], double: [[10, true], 2, 1, 3, 3], hinder: [[13, false], 1, 1, 2, 2],
+            edge: [[13, false], 1, 1, 1, 1], secret: [null, 1, 1, 1, 1], idle: [null, 1, 1, 1, 1], unknown: [null, 1, 1, 1, 1]
+        }), "Tinker's list or a move is not as DC23/DC24 ask ({the list; each move: [total, double] or refused, then [public's progress, "
+            + "edge's progress, actions, Hope]})");
+    }],
+
     ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in a Seal's code and words (E72 C10)", async () => {
         /*
          * E72 C10, 12.11.2026; the owner's amendments of 28.10, 04.11 and 06.11; Q-E72-5's default. A Monocub paid for a
@@ -48934,6 +49057,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.cubTargetStore.has(id),
                 back: id => S.cubTargetStore.get(id)?.chapter === 99 && S.cubTargetStore.get(id)?.today === 1
+            },
+            // Who worked on a project this time of day (E72 C13): a row of another season's chapter, which counts nothing.
+            projectWork: {
+                seed: async () => {
+                    await S.projectWorkStore.patch("SUITEE05BACKUPPJ", { chapter: 99, epoch: -1, day: 1, timeOfDay: "morning", actorIds: [holder.id] });
+                    return "SUITEE05BACKUPPJ";
+                },
+                gone: (report, id) => !S.projectWorkStore.has(id),
+                back: id => S.projectWorkStore.get(id)?.chapter === 99 && S.projectWorkStore.get(id)?.actorIds?.[0] === holder.id
             },
             // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
             eclipseMoves: {

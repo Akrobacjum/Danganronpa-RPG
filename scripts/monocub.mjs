@@ -698,8 +698,52 @@ export const CUB_TARGETS = Object.freeze({
             if (!sameRoom(actor, target)) return "they are not in the same room";
             return null;
         }
+    },
+    /**
+     * A PROJECT, FOR TINKER (E72 C13, 12.11.2026; the owner's DC23, DC24). `resolve` reads the id a packet names as a
+     * project (projects.mjs `allProjects`), null for none, so an unknown id is refused as a missing one. `list`: the
+     * projects in the Monocub's room on its scene that are public, unfinished and unfrozen - the room's own Work list
+     * (`projectsAvailableIn`) narrowed as a Sabotage's targets are (no repair), and never a secret project, even one this
+     * player is in on. `refuses` asks the same of the one named and, on a GM, that a living student worked on it this
+     * time of day (projects.mjs `workersNow`, the GMs' row; the picker on a player's browser cannot read it).
+     */
+    project: {
+        async resolve(id) {
+            const { allProjects } = await import("./projects.mjs");
+            return allProjects().find(p => p.id === id) ?? null;
+        },
+        async list(actor) {
+            const P = await import("./projects.mjs");
+            const { isSecret } = await import("./projects-secrecy.mjs");
+            const { locateActor } = await import("./movement.mjs");
+            const place = locateActor(actor);
+            return P.projectsAvailableIn(place).filter(p => P.standsAtProject(place, p.id) && !isSecret(p.id) && !p.repairs);
+        },
+        async refuses(actor, target) {
+            if (!target?.id) return "there is no such project";
+            const P = await import("./projects.mjs");
+            const { isSecret } = await import("./projects-secrecy.mjs");
+            const { locateActor } = await import("./movement.mjs");
+            const project = P.allProjects().find(p => p.id === target.id);
+            if (!project) return "there is no such project";
+            if (isSecret(project.id)) return "there is no such project";
+            if (project.complete) return "the project is finished";
+            if (P.isFrozen(project.id) || project.repairs) return "the project is frozen";
+            if (!P.standsAtProject(locateActor(actor), project.id)) return "the project is not in the Monocub's room";
+            if (game.user?.isGM && !P.workersNow(project.id).some(id => {
+                const worker = game.actors.get(id);
+                return worker && !isDeadForGm(worker) && !isMonocub(worker);
+            })) return "nobody living worked on the project this time of day";
+            return null;
+        }
     }
 });
+
+/** The target a packet's id names for `row`: the row's rule's own reading, a character otherwise. */
+async function targetOf(row, id) {
+    const rule = row ? CUB_TARGETS[row.target] : null;
+    return rule?.resolve ? rule.resolve(id) : (game.actors.get(id) ?? null);
+}
 
 /** Who the ability under `key` could be aimed at from where this Monocub stands: the picker's list. */
 export async function cubTargets(actor, key) {
@@ -777,7 +821,9 @@ async function postCubRoll(actor, row, roll, total, isCritical, choice) {
  */
 const TIER_WORDS = Object.freeze({
     bonus: { both: "DRPG.Monocub.grantBonus", help: "DRPG.Monocub.helpBonus", hinder: "DRPG.Monocub.hinderBonus" },
-    advantage: { both: "DRPG.Monocub.grantAdvantage", help: "DRPG.Monocub.helpAdvantage", hinder: "DRPG.Monocub.hinderAdvantage" }
+    advantage: { both: "DRPG.Monocub.grantAdvantage", help: "DRPG.Monocub.helpAdvantage", hinder: "DRPG.Monocub.hinderAdvantage" },
+    // Tinker's one tier (E72 C13): the project one step forward or back.
+    step: { both: "DRPG.Monocub.grantStep", help: "DRPG.Monocub.helpStep", hinder: "DRPG.Monocub.hinderStep" }
 });
 
 /** What a tier grants, in words: `which` is "both" (the window) or the choice (the card). */
@@ -870,8 +916,8 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
     }
 
     // The target rule asked here too (ACT-12, 17.09): the honest "nobody here" said before the GM is asked.
-    if (await CUB_TARGETS[row.target].refuses(actor, game.actors.get(targetId))) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
+    if (await CUB_TARGETS[row.target].refuses(actor, await targetOf(row, targetId))) {
+        ui.notifications.warn(game.i18n.localize(row.target === "project" ? "DRPG.Monocub.noProjectHere" : "DRPG.Monocub.nobodyHere"));
         return null;
     }
 
@@ -970,7 +1016,7 @@ export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
     return serialWrite(`drpg-cub-ability:${actorId}`, async () => {
         const actor = game.actors.get(actorId);
         const row = abilityRow(key);
-        const target = game.actors.get(targetId);
+        const target = await targetOf(row, targetId);
         const why = row ? await cubAbilityRefusalOnGm(actor, row, key, target, choice) : cubAbilityRefusal(actor, key, choice);
         if (why) {
             warn(`Refused a Monocub's "${key}" by ${actor?.name ?? actorId}: ${why}.`);
@@ -1010,7 +1056,7 @@ export async function cubAbilityDialog(actor, key) {
 
     const targets = await CUB_TARGETS[row.target].list(actor);
     if (!targets.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
+        ui.notifications.warn(game.i18n.localize(row.target === "project" ? "DRPG.Monocub.noProjectHere" : "DRPG.Monocub.nobodyHere"));
         return null;
     }
 
@@ -1028,7 +1074,7 @@ export async function cubAbilityDialog(actor, key) {
     const result = await callWindow({
         kind: "hope", title: row.label, once: `drpg-cub-ability-${key}`,
         header: callHeader({ label: row.label, cost: row.hopeCost }, "hope", {
-            effect: game.i18n.localize("DRPG.Monocub.meddleIntro"),
+            effect: game.i18n.localize(row.intro ?? "DRPG.Monocub.meddleIntro"),
             price: plural("DRPG.Monocub.meddleCostShort", { hope: row.hopeCost, actions: row.cost }, "actions")
         }),
         body: `<form>
@@ -1144,7 +1190,42 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
  * `(actor, target, choice, total, isCritical, row)`. A second ability is one row and
  * one entry here.
  */
-export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle, redeem: redeemHope, askHope: postHopeAsk });
+export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle, redeem: redeemHope, askHope: postHopeAsk, tinker: scoreTinker });
+
+/**
+ * TINKER, SCORED ON THE GM'S THROW (E72 C13; the owner's DC23, DC24). 12 or more moves the project one step, forward
+ * for Help, back for Hinder, through the one entry as a Monocub's change (projects.mjs `applyProjectChange`, kind
+ * "monocub"); a step that would finish it holds one short (default, owner may revise: no completion card, no trap
+ * armed). A double gives the row's Hope back. The Monocub is told on a veiled card what moved, by the project's name
+ * (it is public, and in the Monocub's room); the room saw the roll and its direction, never the project.
+ */
+async function scoreTinker(actor, target, choice, total, isCritical, row) {
+    const help = choice === "help";
+    const esc = foundry.utils.escapeHTML;
+    const P = await import("./projects.mjs");
+    let said;
+    if (resolveThreshold(total, row.thresholds)) {
+        const project = P.allProjects().find(p => p.id === target.id);
+        if (help && project && project.start > 0 && project.current + 1 >= project.start) {
+            said = game.i18n.format("DRPG.Monocub.tinkerHeld", { name: esc(project.name) });
+        } else {
+            const done = await P.applyProjectChange(target.id, { delta: help ? 1 : -1 },
+                { by: { kind: "monocub", userId: ownerOf(actor)?.id ?? game.user.id, actorId: actor.id } });
+            said = done?.changed
+                ? game.i18n.format(help ? "DRPG.Monocub.tinkerForward" : "DRPG.Monocub.tinkerBack", { name: esc(done.name ?? target.name) })
+                : game.i18n.format("DRPG.Monocub.tinkerStill", { name: esc(target.name) });
+        }
+    } else {
+        said = game.i18n.localize("DRPG.Monocub.meddleFailed");
+    }
+    if (isCritical && row.hopeCost > 0) {
+        await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") + row.hopeCost }, { reason: "refund" });
+        said += ` ${game.i18n.localize("DRPG.Monocub.tinkerHopeBack")}`;
+    }
+    await whisperToOwner(actor, `<p>${said}</p>`, { veiled: true });
+    log(`${actor.name} (a Monocub) used Tinker on "${target.name}" (${choice}, ${total}${isCritical ? ", a double" : ""}).`);
+    return { success: true };
+}
 
 /**
  * REDEEM (E72 C5; audit S18-60, the owner's DC22): +1 Hope from nothing, on the GM, after its blocks held (once a game

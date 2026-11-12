@@ -405,6 +405,8 @@ export const ELEMENTS = {
     "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "confusion",
     // E72 C5: the Monocub's Redeem and Ask for Hope, the inventory's rows 70 and 71 (batch 4's approved drawings).
     "MONOCUB.abilities.redeem": "redeem", "MONOCUB.abilities.askHope": "ask-hope", "TRAP_TRIGGERS.alone": "alone",
+    // E72 C13: the Monocub's Tinker, the inventory's row 73 (batch 4's approved drawing).
+    "MONOCUB.abilities.tinker": "tinker",
     "TRAP_TRIGGERS.enters": "enters", "TRAP_TRIGGERS.search": "search", "TRAP_TRIGGERS.rest": "rest",
     "TRAP_TRIGGERS.item": "item-used", "TRAP_TRIGGERS.project": "hourglass", "TRAP_TRIGGERS.sabotage": "tamper",
     "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
@@ -537,6 +539,7 @@ export const SAME = [
     [["MONOCUB.abilities.meddle", "F69"], "the Monocub's Confusion: today's meddle and E72's Confusion tile are one ability (config.mjs MONOCUB.abilities.meddle; the owner, 11.11)"],
     [["MONOCUB.abilities.redeem", "F70"], "the Monocub's Redeem: the inventory's row 70 is this row of the table (config.mjs MONOCUB.abilities.redeem; E72 C5)"],
     [["MONOCUB.abilities.askHope", "F71"], "the Monocub's Ask for Hope: the inventory's row 71 is this row of the table (config.mjs MONOCUB.abilities.askHope; E72 C5)"],
+    [["MONOCUB.abilities.tinker", "F73"], "the Monocub's Tinker: the inventory's row 73 is this row of the table (config.mjs MONOCUB.abilities.tinker; E72 C13)"],
     [["gm.sound", "F9"], "the Sound panel: the GM's Sound tile opens it (sound-panel.mjs openSoundDialog), and the speaker the inventory gave it has no wearer of its own - read 11.11: --drpg-pix-speaker's one reader is the corner launcher, which wears the gear in both themes (stained-glass.css) and opens the Look dialog (look.mjs)"],
     [["gm.voiceReset", "F12"], "Voice reset: the inventory's row is the GM's tile (batch 2 drew it once for both)"],
     [["gm.caseWindow", "F28"], "the Case window: the GM's tile and E97's launcher open one window (gm-stores.mjs openCaseWindow)"]
@@ -585,7 +588,8 @@ export const KEY_ICONS = {
     "CRISIS_ACTIONS.finishingBlow": "fa-skull-crossbones", "CRISIS_ACTIONS.sharedEscape": "fa-door-open",
     "CRISIS_ACTIONS.doubleRoleReversal": "fa-repeat", "CRISIS_ACTIONS.crimePartners": "fa-handshake",
     "CRISIS_ACTIONS.avertedEyes": "fa-eye-slash", "MONOCUB.abilities.meddle": "fa-hand-sparkles",
-    "MONOCUB.abilities.redeem": "fa-ticket", "MONOCUB.abilities.askHope": "fa-hands-praying"
+    "MONOCUB.abilities.redeem": "fa-ticket", "MONOCUB.abilities.askHope": "fa-hands-praying",
+    "MONOCUB.abilities.tinker": "fa-screwdriver-wrench"
 };
 
 /** Keyed elements no markup draws an icon for, and why (read 11.11.2026): they are mapped and drawn, and nothing wears
@@ -1119,6 +1123,8 @@ export const LEGACY_ICONS = {
     // E72 C5: Monokuma Legacy has no drawing of its own for these two; they wear Font Awesome's, as a crisis row does.
     "MONOCUB.abilities.redeem": "fa:fa-ticket",
     "MONOCUB.abilities.askHope": "fa:fa-hands-praying",
+    // E72 C13: Tinker likewise.
+    "MONOCUB.abilities.tinker": "fa:fa-screwdriver-wrench",
     "gm.whoIsAlive": "--drpg-pix-who-is-alive",
     "gm.projects": "--drpg-pix-projects",
     "gm.sound": "fa:fa-volume-high",

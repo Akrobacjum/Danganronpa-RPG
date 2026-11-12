@@ -1135,6 +1135,21 @@ export const cubTargetStore = defineGmStore({
 });
 
 /**
+ * WHO WORKED ON EACH PROJECT THIS TIME OF DAY (E72 C13, 12.11.2026; the owner's DC23, DC24): `{ projectId: { chapter,
+ * epoch, day, timeOfDay, actorIds } }`, the time of day of the last work on it and the characters who did it then. A
+ * Monocub's Tinker reaches a project only while a living student worked on it this time of day (monocub.mjs
+ * `CUB_TARGETS.project`). Written on the primary by projects.mjs `applyProjectChange` after a change that moved a bar
+ * forward on a player's Work, a Call (a Contribution) or a Reroll, naming its character; a row of another time of day
+ * counts nothing, so nothing clears it at the clock's turn. Cut with the projects at the reset. No copy: no player
+ * reads it.
+ */
+export const projectWorkStore = defineGmStore({
+    name: "projectWork", key: SETTINGS.gmProjectWork,
+    kind: "ledger", resetGroup: "projects", backup: true, sync: true,
+    exists: id => Boolean(game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id])
+});
+
+/**
  * AN OWNER'S MONOCUB ROWS (E72 C2): `{ actorId: { witness } }` for the characters this user owns, as a GM sent them,
  * a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's sheet (`cubRowOf`).
  */
