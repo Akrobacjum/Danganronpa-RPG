@@ -245,9 +245,13 @@ export function sheetProblems(glyphs, sheets) {
         const { drawings, counted, read } = sheetDrawings(css);
         if (read !== counted) out.push(`${file}: ${counted} SVG data URI(s), ${read} of them in a custom property or a rule's mask-image - the rest are read by nothing here`);
         const rows = glyphs.filter(g => g.sheet === file);
+        /* E48 batch 5 (12.11.2026): chromeCss draws each chrome rule again under Stained Glass with its glass row
+           (`glassChromeOf`), keyed by the chrome row's rule under the theme's body; each held to that row as the rest. */
+        const twins = rows.map(g => [g, glassChromeOf(glyphs, g)]).filter(([, t]) => t).map(([g, t]) => ({ key: `${GLASS} ${g.rule}`, row: t }));
         const found = new Set();
         for (const d of drawings) {
-            const row = rows.find(g => d.kind === "prop" ? g.prop === d.key : g.rule === d.key);
+            const row = rows.find(g => d.kind === "prop" ? g.prop === d.key : g.rule === d.key)
+                ?? (d.kind === "rule" ? twins.find(t => t.key === d.key)?.row : null);
             if (!row) { out.push(`${file}:${d.line}: ${d.key} draws a glyph tools/glyphs.json has no row for`); continue; }
             if (found.has(id(row))) { out.push(`${file}:${d.line}: ${d.key} is drawn twice in the sheet`); continue; }
             found.add(id(row));
@@ -262,6 +266,7 @@ export function sheetProblems(glyphs, sheets) {
             held++;
         }
         for (const g of rows.filter(g => !found.has(id(g)))) out.push(`${id(g)}: ${file} no longer draws ${g.prop ?? g.rule}`);
+        for (const t of twins.filter(t => !found.has(id(t.row)))) out.push(`${id(t.row)}: ${file} no longer draws ${t.key}`);
     }
     for (const g of glyphs.filter(g => g.sheet && !(g.sheet in sheets))) out.push(`${id(g)}: names ${g.sheet}, which is not a sheet read here`);
     return { problems: out, held };
@@ -312,7 +317,7 @@ export function glyphProblems(files) {
     const families = {};
     for (const g of glyphs) families[g.family] = (families[g.family] ?? 0) + 1;
     return { problems, counts: { glyphs: glyphs.length, families, generated: set.length, fa: Object.keys(FA).length,
-        current, sheetHeld: held, sheetRows: glyphs.filter(g => g.sheet).length, same: glyphs.filter(g => g.same).length, chrome } };
+        current, sheetHeld: held, sheetRows: glyphs.filter(g => g.sheet).length + glyphs.filter(g => glassChromeOf(glyphs, g)).length, same: glyphs.filter(g => g.same).length, chrome } };
 }
 
 /**
@@ -350,14 +355,17 @@ export function selfCheck(files) {
         if (!got.some(p => p.includes(words))) misses.push(`planted "${what}" was not seen (wanted a problem with "${words}"; read: ${got.slice(0, 2).join(" | ") || "nothing"})`);
     }
     /* THE CONTROL (the owner, 10.11: Glass on 24, Legacy keeps its 12 and 8): one name in `glass` on 24 and in
-       `legacy` on 12 is no fault, and each theme finds its own. */
+       `legacy` on 12 is no fault, and each theme finds its own. The planted pair takes a name no row has (E48 batch 5,
+       12.11.2026: the chrome row's own name, which this used until then, has its glass 24 row now - glass:user-large - so
+       the plant read as that row written twice). */
     const two = structuredClone(data.glyphs.filter(g => g.family === "chrome" && g.grid === 12).slice(0, 1));
     if (two.length) {
-        const legacy = { ...two[0], family: "legacy", same: `chrome:${two[0].name}`, sheet: undefined, rule: undefined, key: undefined };
-        const glass = { family: "glass", name: two[0].name, grid: 24, from: "control", rows: Array.from({ length: 24 }, (_, y) => (y === 12 ? "#" : ".").repeat(24)) };
+        const name = "glyph-map-two-themes";
+        const legacy = { ...two[0], family: "legacy", name, same: `chrome:${two[0].name}`, sheet: undefined, rule: undefined, key: undefined };
+        const glass = { family: "glass", name, grid: 24, from: "control", rows: Array.from({ length: 24 }, (_, y) => (y === 12 ? "#" : ".").repeat(24)) };
         const both = [...data.glyphs, JSON.parse(JSON.stringify(legacy)), glass];
         if (dataProblems(both).length) misses.push(`one name drawn for glass on 24 and for legacy on 12 reads as a fault: ${dataProblems(both)[0]}`);
-        if (drawingOf(both, two[0].name, "glass")?.grid !== 24 || drawingOf(both, two[0].name, "legacy")?.grid !== 12) misses.push("a theme does not find its own drawing of one name");
+        if (drawingOf(both, name, "glass")?.grid !== 24 || drawingOf(both, name, "legacy")?.grid !== 12) misses.push("a theme does not find its own drawing of one name");
     } else misses.push("no 12-grid chrome row to build the two-theme control from");
     return { misses, plants: plants.length + 1 };
 }
@@ -687,11 +695,20 @@ export function glassRules() {
     return out;
 }
 
-/** The names Stained Glass wears (FACES and the rules), each with the row it wears, in first-use order; `problems`
- *  names a worn name no row draws, and a worn non-glass row whose name a pix row holds (the declaration would repaint
- *  that pix drawing under Stained Glass). */
+/** The small marks the sheets read by name on both themes (danganronpa.css: the sheet's Hope diamonds, the Action and
+ *  status dots, Despair's skull and its masked query; `var(--drpg-pix-<name>)` declared on :root by their legacy rows,
+ *  on 8). E48 batch 5 (12.11.2026; Q11, the owner 10.11: Stained Glass wears every drawing on 24, Legacy keeps its 8 and
+ *  12): each has a glass row of its name on 24, declared here under the theme's body over Legacy's, so the rules that
+ *  read them wear the glass drawing under Stained Glass and Legacy's under Monokuma Legacy with no rule of their own.
+ *  Until batch 5 FACES kept `dot` and `skull` out of the glass set on purpose (its note): a declaration of either would
+ *  have repainted these marks with a drawing nobody had approved for them; batch 5's are those drawings. */
+export const SHEET_MARKS = ["diamond", "diamond-empty", "dot", "dot-empty", "skull", "query"];
+
+/** The names Stained Glass wears (FACES, the rules and SHEET_MARKS), each with the row it wears, in first-use order;
+ *  `problems` names a worn name no row draws, and a worn non-glass row whose name a pix row holds (the declaration
+ *  would repaint that pix drawing under Stained Glass). */
 export function glassWorn(glyphs) {
-    const names = [...new Set([...Object.values(FACES), ...glassRules().map(r => r[2])])];
+    const names = [...new Set([...Object.values(FACES), ...glassRules().map(r => r[2]), ...SHEET_MARKS])];
     const worn = [], problems = [];
     for (const name of names) {
         const row = drawingOf(glyphs, name, "glass");
@@ -907,8 +924,11 @@ export function mapGaps(glyphs, { keyed, danganronpaCss = "" }) {
         if (classes.length > 1) shared.push(`${glyph}: ${classes.map(c => c.ids.join(" + ")).join(" | ")}`);
         else joined.push(glyph);
     }
+    /* A chrome mask's glass row is found by its key as well as by its name (E48 batch 5: four of them are named for their
+       meaning - their chrome names are drawings Stained Glass already wears on the module's markup; `glassChromeOf`). */
     const offGrid = glyphs.filter(g => THEMES.glass.includes(g.family) && g.grid !== 24
-        && !glyphs.some(o => o.family === "glass" && o.name === g.name && o.grid === 24)).map(id);
+        && !glyphs.some(o => o.family === "glass" && o.name === g.name && o.grid === 24)
+        && !(g.family === "chrome" && glassChromeOf(glyphs, g))).map(id);
     return { keyedUndrawn, deadTiles, opposites, futureUndrawn, shared, offGrid,
         counts: { keyed: keyedIds.size, future: FUTURE.length, sharedToday: shared.length + joined.length, sameJoined: joined.length } };
 }
@@ -1036,18 +1056,39 @@ const EMIT_VARS = {};
    the one row this held, the tool as it stood at 120a8003 would have written a
    second declaration into the sheet - four lines, measured on a copy. */
 
+/** The glass row a chrome mask wears under Stained Glass (E48 batch 5, 12.11.2026; Q11, the owner 10.11): the glass row
+ *  on 24 that carries the chrome row's key, else the glass row of its name on 24. Batch 5's 60 rows carry the key (four
+ *  of them are named for their meaning: `trash`, `sun`, `moon` and `mask` are drawings Stained Glass already wears on
+ *  the module's own markup, so a glass row of that name would repaint those); glass:eye-slash and glass:music, drawn in
+ *  earlier rounds for the module's own markup, are the two found by name alone. Null for a row with no key or already
+ *  on 24 (the GM launcher's eye, which glass:gm is pixel for pixel: the chrome rule draws the glass set's already). */
+export function glassChromeOf(glyphs, chrome) {
+    if (chrome?.family !== "chrome" || !chrome.key || chrome.grid === 24) return null;
+    return glyphs.find(o => o.family === "glass" && o.grid === 24 && o.key === chrome.key)
+        ?? glyphs.find(o => o.family === "glass" && o.grid === 24 && o.name === chrome.name) ?? null;
+}
+
+/** Where a chrome row's mask lands: SPECIAL's selectors for its key, else each of HOSTS with its class. */
+export const chromeSelectorsOf = key => SPECIAL[key] ?? HOSTS.map(h => `${h}.${key}::before`);
+
 export function chromeCss(glyphs) {
     const ICONS = iconsOf(glyphs);
     const MAPPING = Object.fromEntries(Object.keys(ICONS).map(k => [k, k]));
     const perIcon = [];
     const allSelectors = [];
+    const glassIcon = [], glassSelectors = [];
 
     for (const [cls, spriteKey] of Object.entries(MAPPING)) {
         const art = ICONS[spriteKey];
         if (!art) continue;
-        const selectors = SPECIAL[cls] ?? HOSTS.map(h => `${h}.${cls}::before`);
+        const selectors = chromeSelectorsOf(cls);
         allSelectors.push(...selectors);
         perIcon.push(`${selectors.join(",\n")} {\n    -webkit-mask-image: ${encode(art)};\n    mask-image: ${encode(art)};\n}`);
+        const twin = glassChromeOf(glyphs, glyphs.find(g => g.family === "chrome" && g.key === cls));
+        if (!twin) continue;
+        const under = selectors.map(sel => `${GLASS} ${sel}`);
+        glassSelectors.push(...under);
+        glassIcon.push(`${under.join(",\n")} {\n    -webkit-mask-image: ${encode(twin.rows)};\n    mask-image: ${encode(twin.rows)};\n}`);
     }
 
     const base = `${allSelectors.join(",\n")} {
@@ -1091,10 +1132,62 @@ export function chromeCss(glyphs) {
 ${varBlock}${base}
 
 ${perIcon.join("\n\n")}
+${glassIcon.length ? `
+/* STAINED GLASS WEARS THESE ON THE 24 GRID (E48 batch 5, 12.11.2026; Q11, the owner 10.11: Stained Glass wears every
+   drawing on 24, Monokuma Legacy keeps its 12). The same selectors under the theme's body, each masked with its glass
+   row (tests-glyphs.mjs \`glassChromeOf\`: the row carrying the chrome row's key, else the glass row of its name), so the
+   rules above stay Legacy's, byte for byte. The box is the glass set's own (pixel-icons.css's glass box: max(1.15em,
+   22px), the drawing contained and centred), where the 12 drawings fill a 1em box: a 24 drawing at 1em would lose
+   every other row on a 16px button. */
+${glassSelectors.join(",\n")} {
+    width: max(1.15em, 22px);
+    height: max(1.15em, 22px);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
 
+${glassIcon.join("\n\n")}
+` : ""}
 /* == /CHROME PIXEL ICONS == */`;
 }
 
+
+/** Each theme's drawing in danganronpa.css's chrome section (E48 batch 5, 12.11.2026; Q11, the owner 10.11), read off
+ *  the sheet's text (the masks sit on ::before, which a computed style headless does not read): for every chrome row on
+ *  12, each selector it lands on wears that row's 12 drawing as written (Monokuma Legacy), and the same selector under
+ *  Stained Glass's body its glass row's 24 drawing (`glassChromeOf`), decoded pixel for pixel (`rasterOf`, not the
+ *  generator's encoder); and the section less its glass part is, byte for byte, what chromeCss writes from the rows with
+ *  no glass row at all, so batch 5 changed nothing Legacy reads. `read` counts the selectors held. */
+export function chromeThemeProblems(glyphs, css) {
+    const START = "/* ==========================================================================\n   CHROME PIXEL ICONS - GENERATED";
+    const END = "/* == /CHROME PIXEL ICONS == */";
+    const text = lf(css ?? ""), a = text.indexOf(START), b = text.indexOf(END);
+    if (a < 0 || b < a) return { problems: ["danganronpa.css has no CHROME PIXEL ICONS section"], read: 0 };
+    const section = text.slice(a, b + END.length), out = [];
+    const GLASS_PART = "\n/* STAINED GLASS WEARS THESE ON THE 24 GRID";
+    const g0 = section.indexOf(GLASS_PART);
+    const legacyPart = g0 < 0 ? section : section.slice(0, g0) + section.slice(section.indexOf("\n" + END));
+    if (legacyPart !== chromeCss(glyphs.filter(g => g.family !== "glass"))) out.push("the section less its glass part is not what chromeCss writes from the rows without a glass row: Legacy's rules moved");
+    const masks = new Map();
+    for (const m of blankComments(section).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const mask = /(?<![-\w])mask-image\s*:\s*url\("data:image\/svg\+xml,([^"]*)"\)/.exec(m[2]);
+        if (mask) for (const sel of m[1].split(",")) masks.set(sel.trim().split(/\s+/).join(" "), rasterOf(mask[1]));
+    }
+    const same = (r, row) => r && r.grid === row.grid && r.rows.join("") === row.rows.join("");
+    let read = 0;
+    for (const row of glyphs.filter(g => g.family === "chrome" && g.key && g.grid !== 24)) {
+        const twin = glassChromeOf(glyphs, row);
+        if (!twin) out.push(`${id(row)} has no glass row on 24 to wear under Stained Glass`);
+        for (const sel of chromeSelectorsOf(row.key)) {
+            read++;
+            if (!same(masks.get(sel), row)) out.push(`${sel}: not ${id(row)}'s 12 drawing (Monokuma Legacy)`);
+            if (twin && !same(masks.get(`${GLASS} ${sel}`), twin)) out.push(`${GLASS} ${sel}: not ${id(twin)}'s 24 drawing (Stained Glass)`);
+        }
+    }
+    return { problems: out, read };
+}
 
 /** Monokuma Legacy's icons before E48 G3 (R3348): probe id -> reading, recorded headless on 11.11.2026 at 7b5b4da9 with
  *  G3's probes and HEAD's stylesheets, before pixel-icons.css was regenerated (199 readings: the tiles and Calls on

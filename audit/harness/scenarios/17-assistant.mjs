@@ -296,6 +296,21 @@ export async function run({ gm, ag, gm2, ag2, ag3, p1, p2, p3, check, settle, op
         && JSON.stringify(g1.writes) === JSON.stringify({ p1: ["p1 update", "gm update"], ag: ["ag update", "gm update"] })
         && JSON.stringify(g1.told) === JSON.stringify(["Your dice look is set by the GM."]), JSON.stringify(g1));
 
+    /* E76 C6 (12.11.2026): Dice So Nice 6.4's `saved` marker. From 6.4 a user whose `dice-so-nice.saved` lacks `sfx: true`
+       throws with the effects packages register (DsnSettings.js `SFX_LIST`, `DEFAULT_SFX`) whatever its `sfxList` holds, and
+       one without `appearance: true` has the package's look merged under its own (`APPEARANCE`; read in DSN 6.4.5's source,
+       b365efc). So a forced user holds the marker with the look: on every client after G1's put-back, and p1's own write
+       of it from the console goes back. The harness has no Dice So Nice: what 6.4.5 draws from it is LIVE-E76-07. */
+    const savedOn = (c, id) => c.eval(`return JSON.stringify(game.users.get("${id}")?.flags?.["${DSN}"]?.saved ?? null);`);
+    const MARK = JSON.stringify({ appearance: true, sfx: true });
+    const g1b = { held: {} };
+    for (const c of [gm, ag, p1, p2]) g1b.held[c.who] = [await savedOn(c, IDS.p1), await savedOn(c, IDS.ag)];
+    await p1.eval(`await game.user.setFlag("${DSN}", "saved", { appearance: false, sfx: false }); return true;`);
+    await settle(1500);
+    g1b.after = { gm: await savedOn(gm, IDS.p1), p1: await savedOn(p1, IDS.p1) };
+    check("G1b: a forced player and Assistant hold Dice So Nice's saved marker with the GM's look on every client, and the player's own write of it goes back",
+        Object.values(g1b.held).every(([a, b]) => a === MARK && b === MARK) && g1b.after.gm === MARK && g1b.after.p1 === MARK, JSON.stringify(g1b));
+
     /* E16 p1 C4, 19.10.2026 (E16-21, E16-22). DSN lays an actor's own `flags.dice-so-nice.appearance` over its
        user's look, so G2: the GM gives p2's character an overlay; then p2 and the Assistant each write one of their
        own on it from their own consoles (Foundry stamps each with its writer), and the GM gives Daichi, a student no

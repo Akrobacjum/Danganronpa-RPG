@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.104, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.106, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is actually built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -886,7 +886,14 @@ Truth Bullet types mirror them. Every Remnant is a token with one neutral name a
 | **Final Truth Remnants** | places Final Truth Remnants: Save places one on the scene you are looking at, somewhere inside the room you pick, and none with no room picked; with none placed this chapter the tab says so |
 | **Who has what** | shows every student's Truth Bullets, how many are not analysed yet and what they really are; a long column head takes two lines, and a cell cut at two lines shows the whole on hover |
 
-The footer carries **New Remnant** (a trace of any kind, in any room), **Clear Faint Remnants**, **Sweep Truth Bullets**, the autopsy, the trial evidence log and the body.
+The footer carries **New Remnant** (a trace of any kind, in any room), **Clear Faint Remnants**, **Sweep Truth Bullets**, the autopsy, the trial evidence log, the body, **Realization preview** and **Undo realization**, always in two rows; the window keeps one size whatever it shows.
+
+**The Map** (since 1.2.107). Investigation opens on the Map: evidence left, what follows middle, the solution right; Remnants not tied to the murder sit below a gap in the evidence column. The Table is one switch away, and the switch is yours alone (each GM's choice is kept on their own account). Pick a node to see it in the side panel: a Remnant or a Key Remnant slot shows the Table's own fields, and **Save** writes them as the Table would. Add a **deduction**, a **counter**, the **solution** or a planned **Incident Remnant** from the side panel, set what each rests on, and order a column by hand, by kind, by room, by state or with fewer crossings. A deduction's "x/y" counts what students other than the culprit hold of its inputs; it is reachable past half (both of two, three of four), and a Truth Bullet only the culprit holds does not count. **Check consistency** lists what does not hold together (a deduction resting on nothing, a solution nothing reaches, a reference to something gone, a mode the trial lacks); it blocks nothing. With nothing picked, the side panel shows who has what by name and the Final Truth form.
+
+**Realization.** **Realization preview** changes nothing: it lists each Key Remnant slot not yet on the map, and you pick a room for each one to place. **Run realization** places them by the planner's own road and marks each in your case; **Undo realization** removes only what nobody has found (and Monokuma has not revealed) and frees its slot. When a body is found, the primary GM is asked once a chapter whether to open the preview; nothing happens by itself. Planned Incident Remnants wait in the GM panel under the Next line, each with **Place on the map**.
+
+> [!NOTE]
+> Every Remnant remembers who left it; only GMs see it. An author you set works as a player's own: Observe's "my traces", the incident's tie and the killer's clean-up read it, so naming the killer hands the killer that trace to clean.
 
 **Save** writes only the fields you changed, and closes the window; the footer's other buttons bring it back with what they did. A field that changed elsewhere while your window was open - another GM's Save, a reshape ruled meanwhile - is marked, is not saved and is named to you with the value you typed, in a notice that stays up until you dismiss it; the rest of what you changed is saved. A kind changed here pulls what depends on it: a trace made a Faint Remnant is Faint on its players' copies too, a planned Key Remnant given another kind is said to be no longer a Key Remnant, and a trace nobody has copied that is retyped to or from Incident is drawn for the incident's players as if it had been placed so.
 

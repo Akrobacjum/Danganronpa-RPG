@@ -11,6 +11,11 @@
  * ring it was always drawn with (MAPPING sent it to `fa-circle-regular`), and
  * its own filled-circle art, which no button ever wore, is gone.
  *
+ * Under Stained Glass the same selectors wear the glass rows on 24 (E48 batch 5, 12.11.2026; Q11, the owner 10.11):
+ * the section's last part, written from each chrome row's glass row (the one carrying its key, else the one of its
+ * name; tests-glyphs.mjs `glassChromeOf`) under the theme's body. The rules before it are Legacy's, unchanged byte for
+ * byte (R3596 holds the section less that part to what this writes with no glass row).
+ *
  * Run with any Node-flavoured runtime:
  *
  *     ELECTRON_RUN_AS_NODE=1 "<foundry>.exe" tools/chrome-icons.mjs

@@ -25,7 +25,8 @@ import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
-import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
+import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
+import { incidentAsksHtml } from "./case-map.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
@@ -592,10 +593,13 @@ export async function openGmPanel() {
             // below), and a listener bound to a button that has since been
             // replaced is a "Do it" that does nothing.
             dialog.element.addEventListener("click", async ev => {
-                const button = ev.target.closest?.("[data-drpg-run]");
+                /* THE CASE'S INCIDENT REMNANTS (E97 C12): Place on the map and Show run as a tile does, so the panel comes
+                   back after them from the one place below (R1318). */
+                const caseLine = ev.target.closest?.("[data-drpg-case-place], [data-drpg-case-show]");
+                const button = caseLine ?? ev.target.closest?.("[data-drpg-run]");
                 if (!button || !dialog.element.contains(button)) return;
                 ev.preventDefault();
-                const item = lookup.get(button.dataset.drpgRun);
+                const item = caseLine ? { key: "caseLine", run: () => runCaseLine(caseLine) } : lookup.get(button.dataset.drpgRun);
                 if (!item) return;
                 await dialog.close();
                 let answer = null;
@@ -617,6 +621,17 @@ export async function openGmPanel() {
         },
         rejectClose: false
     });
+}
+
+/** The case line's buttons (E97 C12): Place on the map opens New Remnant filled in; Show, the Investigation panel on the
+ *  Remnant's node (answering RAISED where that window stood open already). */
+async function runCaseLine(button) {
+    const I = await import("./investigation.mjs");
+    if (button.dataset.drpgCasePlace) {
+        const [chapter, id] = button.dataset.drpgCasePlace.split(":");
+        return I.placeIncident(Number(chapter), id);
+    }
+    return I.openInvestigationDashboard({ node: button.dataset.drpgCaseShow });
 }
 
 /**
@@ -648,7 +663,7 @@ function keepPanelFresh(dialog) {
     keepLive(dialog, {
         region: ".drpg-gmp-standing",
         build: () => buildPanelContent(),
-        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore] }
+        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore, caseSchemaStore] }
     });
 
     /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
@@ -1103,6 +1118,7 @@ function buildPanelContent() {
                    <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
                    ${advance}</p>
                 ${suggestion}
+                ${incidentAsksHtml(clock.chapter)}
                 ${studentsLeftHtml()}
             </div>`;
 }
