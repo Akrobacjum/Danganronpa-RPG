@@ -30084,6 +30084,33 @@ const INVARIANTS = [
             "a failed row is not one warning and one notice");
     }],
 
+    ["R3811 - game.drpg.passages makes a passage public or secret by the tab's own write: makePublic and makeSecret, each refusing an unknown id with nothing written (E91 C3, D117)", async () => {
+        /*
+         * E91 C3, 12.11.2026; the owner's deferred item D117. The Passages tab's Make public and Make secret buttons
+         * (passages-tab.mjs, `makePassagePublic` and `makePassageSecret` of passages-gm.mjs) had no console road: the API
+         * held create, grant, revoke, close, open, delete, list, log and audit. Read here without a write: both are
+         * functions on the live object, an unknown id answers false, and api.mjs hands each to the tab's write. Red
+         * before C3: neither on the object.
+         */
+        const api = game.drpg?.passages ?? {};
+        equal(stableJson(["makePublic", "makeSecret"].map(k => typeof api[k])), stableJson(["function", "function"]),
+            "game.drpg.passages has no makePublic or makeSecret");
+        if (typeof api.makePublic !== "function" || typeof api.makeSecret !== "function") return;
+        const warn = console.warn;
+        console.warn = () => {};
+        let answers;
+        try {
+            answers = [await api.makePublic("SUITER3811NONE00"), await api.makeSecret("SUITER3811NONE00")];
+        } finally {
+            console.warn = warn;
+        }
+        equal(stableJson(answers), stableJson([false, false]), "an unknown passage was not refused by makePublic or makeSecret");
+        const src = (await moduleSources()).get("api.mjs") ?? "";
+        const block = bodyOf(src, "    passages: {", { until: "\n    }," });
+        ok(/makePublic:\s*passageId\s*=>\s*makePassagePublic\(passageId\)/.test(block) && /makeSecret:\s*passageId\s*=>\s*makePassageSecret\(passageId\)/.test(block),
+            "api.mjs does not hand makePublic and makeSecret to the tab's own write (passages-gm.mjs makePassagePublic, makePassageSecret)");
+    }],
+
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
         /*
          * E52 C2, 30.10.2026; audit S17-50, E52-05. A failed row's fallback is the one its file has always had
