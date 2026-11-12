@@ -402,7 +402,9 @@ export const ELEMENTS = {
     "CRISIS_ACTIONS.pin": "down", "CRISIS_ACTIONS.keepDistance": "swap", "CRISIS_ACTIONS.weaponAttack": "murder",
     "CRISIS_ACTIONS.finishingBlow": "finishing-blow", "CRISIS_ACTIONS.sharedEscape": "shared-escape",
     "CRISIS_ACTIONS.doubleRoleReversal": "double-role-reversal", "CRISIS_ACTIONS.crimePartners": "crime-partners",
-    "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "confusion", "TRAP_TRIGGERS.alone": "alone",
+    "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "confusion",
+    // E72 C5: the Monocub's Redeem and Ask for Hope, the inventory's rows 70 and 71 (batch 4's approved drawings).
+    "MONOCUB.abilities.redeem": "redeem", "MONOCUB.abilities.askHope": "ask-hope", "TRAP_TRIGGERS.alone": "alone",
     "TRAP_TRIGGERS.enters": "enters", "TRAP_TRIGGERS.search": "search", "TRAP_TRIGGERS.rest": "rest",
     "TRAP_TRIGGERS.item": "item-used", "TRAP_TRIGGERS.project": "hourglass", "TRAP_TRIGGERS.sabotage": "tamper",
     "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
@@ -533,6 +535,8 @@ export const SAME = [
     /* Row 8 of 10.11 (the Spectator badge = Assign Spectator) is gone: the owner split it, a state against an action. */
     [["TRAP_TRIGGERS.passage", "F14"], "the secret passage: the room trigger and Analyze's Find Passage row (batch 2, 11.11)"],
     [["MONOCUB.abilities.meddle", "F69"], "the Monocub's Confusion: today's meddle and E72's Confusion tile are one ability (config.mjs MONOCUB.abilities.meddle; the owner, 11.11)"],
+    [["MONOCUB.abilities.redeem", "F70"], "the Monocub's Redeem: the inventory's row 70 is this row of the table (config.mjs MONOCUB.abilities.redeem; E72 C5)"],
+    [["MONOCUB.abilities.askHope", "F71"], "the Monocub's Ask for Hope: the inventory's row 71 is this row of the table (config.mjs MONOCUB.abilities.askHope; E72 C5)"],
     [["gm.sound", "F9"], "the Sound panel: the GM's Sound tile opens it (sound-panel.mjs openSoundDialog), and the speaker the inventory gave it has no wearer of its own - read 11.11: --drpg-pix-speaker's one reader is the corner launcher, which wears the gear in both themes (stained-glass.css) and opens the Look dialog (look.mjs)"],
     [["gm.voiceReset", "F12"], "Voice reset: the inventory's row is the GM's tile (batch 2 drew it once for both)"],
     [["gm.caseWindow", "F28"], "the Case window: the GM's tile and E97's launcher open one window (gm-stores.mjs openCaseWindow)"]
@@ -580,7 +584,8 @@ export const KEY_ICONS = {
     "CRISIS_ACTIONS.keepDistance": "fa-arrows-left-right", "CRISIS_ACTIONS.weaponAttack": "fa-khanda",
     "CRISIS_ACTIONS.finishingBlow": "fa-skull-crossbones", "CRISIS_ACTIONS.sharedEscape": "fa-door-open",
     "CRISIS_ACTIONS.doubleRoleReversal": "fa-repeat", "CRISIS_ACTIONS.crimePartners": "fa-handshake",
-    "CRISIS_ACTIONS.avertedEyes": "fa-eye-slash", "MONOCUB.abilities.meddle": "fa-hand-sparkles"
+    "CRISIS_ACTIONS.avertedEyes": "fa-eye-slash", "MONOCUB.abilities.meddle": "fa-hand-sparkles",
+    "MONOCUB.abilities.redeem": "fa-ticket", "MONOCUB.abilities.askHope": "fa-hands-praying"
 };
 
 /** Keyed elements no markup draws an icon for, and why (read 11.11.2026): they are mapped and drawn, and nothing wears
@@ -596,7 +601,8 @@ export function glassSelectorOf(elementId) {
     if (set === "ACTIONS") return `.drpg-action-button[data-drpg-action="${key}"] .drpg-action-icon`;
     if (set === "HOPE_CALLS" || set === "DESPAIR_CALLS") return `.drpg-call-button[data-drpg-call="${key}"] .drpg-action-icon`;
     if (set === "CRISIS_ACTIONS") return `.drpg-choice:has(> input[value="${key}"]) > i.${KEY_ICONS[elementId]}`;
-    if (elementId === "MONOCUB.abilities.meddle") return `.drpg-action-button:not([data-drpg-action], [data-drpg-call]) .drpg-action-icon.${KEY_ICONS[elementId]}`;
+    // The Monocub's tiles carry no key but their icon (sheet.mjs `monocubTiles`); E72 C5 adds Redeem and Ask for Hope.
+    if (set === "MONOCUB") return `.drpg-action-button:not([data-drpg-action], [data-drpg-call]) .drpg-action-icon.${KEY_ICONS[elementId]}`;
     if (set === "gm") return `.drpg-gmp-button[data-drpg-run="${key}"] > i`;
     return null;
 }
@@ -1110,6 +1116,9 @@ export const LEGACY_ICONS = {
     "CRISIS_ACTIONS.crimePartners": "fa:fa-handshake",
     "CRISIS_ACTIONS.avertedEyes": "fa:fa-eye-slash",
     "MONOCUB.abilities.meddle": "--drpg-pix-confusion",
+    // E72 C5: Monokuma Legacy has no drawing of its own for these two; they wear Font Awesome's, as a crisis row does.
+    "MONOCUB.abilities.redeem": "fa:fa-ticket",
+    "MONOCUB.abilities.askHope": "fa:fa-hands-praying",
     "gm.whoIsAlive": "--drpg-pix-who-is-alive",
     "gm.projects": "--drpg-pix-projects",
     "gm.sound": "fa:fa-volume-high",

@@ -17324,6 +17324,113 @@ const SCENARIOS = [
             "a student's share of Monocub moves is not held: [codes told, a roll answered, actions taken, Hope taken] for a first move, a second this time of day and a third today; the rule later today and tomorrow");
     }],
 
+    ["Redeem gives a Monocub +1 Hope once a game day for one action, and is refused the second time and at full Hope with nothing paid (E72 C5)", async () => {
+        /*
+         * E72 C5, 12.11.2026; audit S18-60, the owner's DC22. A Monocub had no road to Hope but a GM's conversion. Redeem
+         * is a row of the Monocub's table now (`MONOCUB.abilities.redeem`): one action, +1 Hope, once a game day, shut at
+         * full Hope (`CUB_BLOCKS`), carried out on the GM. On this GM, a Monocub with three actions and two Hope redeems
+         * (a), redeems again (b), and - its row's day set to another day, its Hope full - redeems (c). Read: the answer,
+         * actions and Hope after each. Red at f22a7e8's runtime: no such row ("no such Monocub ability").
+         */
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const warned = ui.notifications.warn;
+        const read = {};
+        const redeem = async () => {
+            const out = await M.performCubAbility(cub, "redeem", { targetId: cub.id, choice: "redeem" });
+            await settle();
+            return [Boolean(out?.done), cub.system.resources.actions.value, cub.system.resources.hope.value];
+        };
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 3, "system.resources.hope.value": 2 });
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            ui.notifications.warn = () => null;
+            read.a = await redeem();
+            read.b = await redeem();
+            await cubStore.patch(cub.id, { redeemDay: { chapter: getClock().chapter, epoch: seasonEpoch(), day: (Number(getClock().day) || 0) - 1 } });
+            await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
+            await settle();
+            read.c = await redeem();
+        } finally {
+            ui.notifications.warn = warned;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        const full = resourceMax(cub, "hope");
+        equal(stableJson(read), stableJson({ a: [true, 2, 3], b: [false, 2, 3], c: [false, 2, full] }),
+            "Redeem did not give +1 Hope for one action once a game day, or was carried out again or at full Hope ([done, actions, Hope] after each)");
+    }],
+
+    ["Ask for Hope posts one card in the Monocub's thread, keeps one ask open at a time, and a GM's Give 1 pays from that GM's Despair and closes it (E72 C5)", async () => {
+        /*
+         * E72 C5, 12.11.2026; audit S18-60. A Monocub could not ask for Hope through the module. Ask for Hope is a free row
+         * of the Monocub's table: the GM posts a card in the Monocub's thread with Give 1, Give 2 and Not now (call-gm.mjs
+         * `callGm`), ruled once (messenger-app.mjs `cubGiveHope`, `claimCard`) by `answerHopeAsk`, which pays from the
+         * answering GM's Despair (`convertDespairToHope`). On this GM, with five Despair in its pool and none owed: a
+         * Monocub with no Hope asks (a), asks again while the first is open (b), and the GM gives 1 (c). Read: the answer,
+         * the new cards naming the ask, the row's open mark, the Monocub's Hope. Red at f22a7e8's runtime: no such row.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player whose thread the card goes to");
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const { cubStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        ok(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool to give from - this would measure nothing");
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const title = game.i18n.localize("DRPG.Monocub.askTitle");
+        const cards = () => game.messages.contents.filter(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(title))).length;
+        const warned = ui.notifications.warn;
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            await despairOwedStore.drop(game.user.id);
+            await D.setDespair(game.user.id, 5);
+            await settle();
+            ui.notifications.warn = () => null;
+            const a = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+            await settle();
+            read.a = [Boolean(a?.done), cards(), Boolean(cubStore.get(cub.id)?.askOpen)];
+            const b = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+            await settle();
+            read.b = [Boolean(b?.done), cards()];
+            const words = await M.answerHopeAsk(cub, 1);
+            await settle();
+            read.c = [typeof words === "string", cub.system.resources.hope.value, cubStore.get(cub.id)?.askOpen ?? null];
+        } finally {
+            ui.notifications.warn = warned;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            await despairOwedStore.drop(game.user.id);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson({ a: [true, 1, true], b: [false, 1], c: [true, 1, null] }),
+            "Ask for Hope did not post one card and keep one ask open, or a GM's Give 1 did not pay and close it ([done, cards, open] for the ask, the second ask, the Give 1: [words, Hope, open])");
+    }],
+
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the
@@ -73382,6 +73489,9 @@ const SCENARIOS = [
         const run = async (faces, choice, actions) => {
             await target.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: actions });
             await cub.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: 1, "system.resources.hope.value": 1 });
+            // E72 C4: one move on a student per time of day; each run here is a fresh one, its count dropped first.
+            const { cubTargetStore } = await import("./gm-stores.mjs");
+            if (cubTargetStore.has(target.id)) await cubTargetStore.drop(target.id);
             await settle();
             const script = faces.map(face => 1 - (face - 0.5) / 12);
             let out = null;

@@ -49,7 +49,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
-import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite } from "./utils.mjs";
+import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
 import { cubStore, cubCopy, cubTargetStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
@@ -213,7 +213,7 @@ export function cubsFor(userId) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = cubStore.newest(actor.id);
         const row = cubStore.get(actor.id);
-        if (row) cubs[actor.id] = { witness: row.witness ?? null };
+        if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen) };
     }
     return { cubs, stamps };
 }
@@ -259,7 +259,11 @@ export async function receiveCubs(cubs, stamps) {
         if (!game.actors.get(actorId)?.isOwner) continue;
         own[actorId] = Number(stamp) || 0;
         const row = cubs?.[actorId];
-        if (row && typeof row === "object") mine[actorId] = { witness: witnessShape(row.witness) };
+        if (row && typeof row === "object") {
+            const day = row.redeemDay && typeof row.redeemDay === "object" && Number.isInteger(row.redeemDay.day)
+                ? { chapter: row.redeemDay.chapter ?? null, epoch: row.redeemDay.epoch ?? null, day: row.redeemDay.day } : null;
+            mine[actorId] = { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true };
+        }
     }
     return cubCopy.receive(mine, own);
 }
@@ -498,12 +502,63 @@ async function lockRefusal(row) {
     return null;
 }
 
+/** The game day a move is counted under: the clock's chapter, season and day. */
+function gameDayNow() {
+    const clock = getClock() ?? {};
+    return { chapter: clock.chapter ?? null, epoch: seasonEpoch(), day: clock.day ?? null };
+}
+
+/** Is `mark` (a row's `{ chapter, epoch, day }`) this game day? */
+function isToday(mark, today = gameDayNow()) {
+    return Boolean(mark) && mark.chapter === today.chapter && mark.epoch === today.epoch && mark.day === today.day;
+}
+
+/**
+ * WHAT SHUTS A MOVE FOR THIS MONOCUB (E72 C5, 12.11.2026; audit S18-60, the owner's DC22), by the key a row's `blocks`
+ * names: `refuses(actor)` answers an English reason for the GM's log, or null, read off the Monocub's row as this
+ * browser holds it (the GMs' store on a GM, the owner's copy on its player's browser); `say` is what the Monocub's
+ * player is told. Asked on the picker as a courtesy and on the GM before the price (`cubAbilityRefusalOnGm`).
+ */
+export const CUB_BLOCKS = Object.freeze({
+    oncePerDay: {
+        refuses: actor => (isToday(cubRowOf(actor)?.redeemDay) ? "Redeem was used today" : null),
+        say: "DRPG.Monocub.redeemUsed"
+    },
+    hopeFull: {
+        refuses: actor => (resourceValue(actor, "hope") >= resourceMax(actor, "hope") ? "the Monocub's Hope is full" : null),
+        say: "DRPG.Monocub.hopeFull"
+    },
+    darkened: {
+        refuses: async () => ((await import("./overflow.mjs")).overflowBlocksHope() ? "the darkened hour blocks Hope" : null),
+        say: "DRPG.Monocub.darkened"
+    },
+    askOpen: {
+        refuses: actor => (cubRowOf(actor)?.askOpen ? "an Ask for Hope is still open" : null),
+        say: "DRPG.Monocub.askStillOpen"
+    }
+});
+
+/** The first of the row's blocks that holds, or null: `{ key, why }`. A block the table does not know holds. */
+async function blockOf(row, actor) {
+    for (const key of row.blocks ?? []) {
+        const block = CUB_BLOCKS[key];
+        const why = block ? await block.refuses(actor) : `the move names a block no table holds (${key})`;
+        if (why) return { key, why };
+    }
+    return null;
+}
+
 /**
  * Whom an ability may be aimed at, by the key a row's `target` names. `list` builds
  * the picker on the Monocub's browser; `refuses` answers why this target is not one,
  * or null - asked of the picker's answer before anything is paid, and again on the GM.
  */
 export const CUB_TARGETS = Object.freeze({
+    /** The Monocub itself (E72 C5: Redeem, Ask for Hope): the list is the Monocub, and any other id is refused. */
+    self: {
+        async list(actor) { return actor ? [actor] : []; },
+        async refuses(actor, target) { return target?.id === actor?.id ? null : "the move is the Monocub's own"; }
+    },
     /**
      * A living student in the Monocub's room. `list`: `othersInRoom` already excludes
      * Monokumas and hidden tokens, which is exactly right here too - a Monocub Meddles
@@ -549,7 +604,11 @@ async function rollFlat() {
 }
 
 /** What the GM throws for an ability, by the key a row's `roll` names: `{ roll, total, isCritical }`. */
-export const CUB_ROLLS = Object.freeze({ flat2d12: rollFlat });
+export const CUB_ROLLS = Object.freeze({
+    flat2d12: rollFlat,
+    /** No dice (E72 C5: Redeem, Ask for Hope). */
+    none: async () => ({ roll: null, total: 0, isCritical: false })
+});
 
 /**
  * Why this ability is not one this character may ask for now, or null: the row (a
@@ -667,6 +726,11 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
     const row = abilityRow(key);
     if (!row || cubAbilityRefusal(actor, key, choice)) return null;
     if (await lockRefusal(row)) return null;
+    const blocked = await blockOf(row, actor);
+    if (blocked) {
+        ui.notifications.warn(game.i18n.localize(CUB_BLOCKS[blocked.key]?.say ?? "DRPG.Monocub.moveRefused"));
+        return null;
+    }
 
     if (actionsLeft(actor) < row.cost) {
         ui.notifications.warn(plural("DRPG.Actions.notEnough", {
@@ -706,6 +770,8 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
         sayNotDone("monocub.ability", thrown.capped === "time" ? "capReached" : "capDay");
         return null;
     }
+    // A move with no dice (E72 C5: Redeem, Ask for Hope): its card, if any, is the GM's; nothing to post here.
+    if (row.roll === "none") return thrown?.done ? thrown : null;
     if (!thrown?.roll) return null;
     const roll = Roll.fromData(thrown.roll);
     const total = Number(thrown.total) || 0;
@@ -726,6 +792,8 @@ export async function cubAbilityRefusalOnGm(actor, row, key, target, choice) {
         const entry = CUB_LOCKS[lock];
         if (!entry || await entry.shut()) return `the ability is shut (${lock})`;
     }
+    const blocked = await blockOf(row, actor);
+    if (blocked) return blocked.why;
     if (actionsLeft(actor) < row.cost) return "the Monocub has no action left for it";
     if (resourceValue(actor, "hope") < row.hopeCost) return "the Monocub has not the Hope for it";
     return CUB_TARGETS[row.target].refuses(actor, target);
@@ -791,7 +859,9 @@ export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
         if (why) {
             warn(`Refused a Monocub's "${key}" by ${actor?.name ?? actorId}: ${why}.`);
             if (isMonocub(actor)) {
-                await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
+                // The row's own sentence (Confusion's), or the one every other move says (E72 C5).
+                const said = row?.refusedSay ?? "DRPG.Monocub.moveRefused";
+                await whisperToOwner(actor, `<p>${game.i18n.localize(said)}</p>`, { veiled: true });
             }
             return null;
         }
@@ -809,7 +879,8 @@ export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
         }
         const { roll, total, isCritical } = await CUB_ROLLS[row.roll]();
         await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row);
-        return { roll: roll.toJSON(), total, isCritical };
+        await logCubMove(actor, key, choice, target);
+        return { roll: roll ? roll.toJSON() : null, total, isCritical, done: true };
     });
 }
 
@@ -818,6 +889,8 @@ export async function cubAbilityDialog(actor, key) {
     const row = abilityRow(key);
     if (!row || !isMonocub(actor)) return null;
     if (await lockRefusal(row)) return null;
+    // A move aimed at the Monocub itself asks nothing (E72 C5: Redeem, Ask for Hope).
+    if (row.target === "self") return performCubAbility(actor, key, { targetId: actor.id, choice: row.choices[0] });
 
     const targets = await CUB_TARGETS[row.target].list(actor);
     if (!targets.length) {
@@ -955,7 +1028,73 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
  * `(actor, target, choice, total, isCritical, row)`. A second ability is one row and
  * one entry here.
  */
-export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle });
+export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle, redeem: redeemHope, askHope: postHopeAsk });
+
+/**
+ * REDEEM (E72 C5; audit S18-60, the owner's DC22): +1 Hope from nothing, on the GM, after its blocks held (once a game
+ * day, the Hope not full, no darkened hour) and its action was taken. The day is written in the Monocub's row
+ * (`redeemDay`), its owner told on a veiled card.
+ */
+async function redeemHope(actor) {
+    await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope"), resourceValue(actor, "hope") + 1) },
+        { reason: "gmRuling" });
+    await patchCubRow(actor.id, { redeemDay: gameDayNow() });
+    await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.redeemDone")}</p>`, { veiled: true });
+    log(`${actor.name} (a Monocub) used Redeem: +1 Hope.`);
+    return { success: true };
+}
+
+/**
+ * ASK FOR HOPE (E72 C5; audit S18-60): the GMs' card in the Monocub's thread (call-gm.mjs `callGm`), Give 1, Give 2 or
+ * Not now, ruled once by whichever GM clicks (`claimCard`, messenger-app.mjs's `cubGiveHope` and `cubNotNow`, which
+ * call `answerHopeAsk`). The ask stays open in the Monocub's row (`askOpen`) until a GM answers it.
+ */
+async function postHopeAsk(actor) {
+    const { callGm } = await import("./gm-bridge.mjs");
+    const owner = ownerOf(actor);
+    const esc = foundry.utils.escapeHTML;
+    const give = n => ({ action: "cubGiveHope", label: game.i18n.format("DRPG.Monocub.askGive", { n }), data: { actor: actor.id, n } });
+    const posted = await callGm(actor, {
+        title: game.i18n.localize("DRPG.Monocub.askTitle"),
+        body: `<p>${esc(game.i18n.format("DRPG.Monocub.askBody", { name: actor.name }))}</p>`,
+        actions: [give(1), give(2), { action: "cubNotNow", label: game.i18n.localize("DRPG.Monocub.askNotNow"), data: { actor: actor.id } }],
+        thread: owner?.id ?? null,
+        veiled: true
+    });
+    if (posted) await patchCubRow(actor.id, { askOpen: true });
+    log(`${actor.name} (a Monocub) asked the GMs for Hope.`);
+    return { success: Boolean(posted) };
+}
+
+/**
+ * A GM ANSWERS AN ASK FOR HOPE (E72 C5): `n` Hope from this GM's Despair (`convertDespairToHope`, which tells the
+ * Monocub), or none for Not now; the ask is closed either way once answered. Answers the words the card settles with,
+ * or null when nothing was given and nothing should close (a pool with nothing to spend).
+ */
+export async function answerHopeAsk(actor, n) {
+    if (!game.user?.isGM || !actor) return null;
+    const amount = wholeNumber(n, { min: 0, fallback: 0 });
+    if (amount > 0) {
+        const { convertDespairToHope } = await import("./despair.mjs");
+        const granted = await convertDespairToHope(game.user.id, actor, amount);
+        if (granted <= 0) return null;
+        await patchCubRow(actor.id, { askOpen: null });
+        return game.i18n.format("DRPG.Monocub.askGiven", { n: granted, name: game.user.name });
+    }
+    await patchCubRow(actor.id, { askOpen: null });
+    await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.askNotNowTold")}</p>`, { veiled: true });
+    return game.i18n.format("DRPG.Monocub.askDeclined", { name: game.user.name });
+}
+
+/**
+ * THE MONOCUBS' LOG (E72 C5): every move the GM carried out, `{ at, key, choice, targetId }`, the newest last, kept in the
+ * Monocub's row (`log`) for the GMs - no player's copy holds it. The last fifty are kept.
+ */
+async function logCubMove(actor, key, choice, target) {
+    const held = Array.isArray(cubRowOf(actor)?.log) ? cubRowOf(actor).log : [];
+    const entry = { at: serverNow(), ...gameDayNow(), timeOfDay: getClock()?.timeOfDay ?? null, key, choice: choice ?? null, targetId: target?.id ?? null };
+    await cubStore.patch(actor.id, { log: [...held, entry].slice(-50) });
+}
 
 /** "Wastes an action" - unconditional, unlike `spendAction`, which can refuse. */
 /** A critical Hinder's write. Answers whether an action was there to waste. */

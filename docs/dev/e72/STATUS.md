@@ -13,9 +13,11 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C4 | A student takes one Monocub move per time of day and two per game day (S18-59, DC32 = 2), counted per target over every Monocub, a failed move counted (`cubTargetStore`, `cubCapRefusal`, `noteCubMove`); refused on the GM before the price, told `capReached` / `capDay` (new codes, EN/PL) | tier 2 "a student takes one Monocub move per time of day and two per game day ..." (new; red at base) |
 
+| C5 | Redeem (+1 Hope, one action, once a game day, shut at full Hope and in the darkening) and Ask for Hope (free; the GMs' card in the Monocub's thread, Give 1 / Give 2 / Not now, ruled once through `claimCard` and paid from the clicking GM's Despair by `convertDespairToHope`) as rows of the Monocub's table, with `CUB_BLOCKS` asked on the picker and on the GM before the price; the owner's copy carries `redeemDay` and `askOpen`; `cubStore.log` keeps the last 50 moves for the GMs; their approved glyphs (inventory rows 70, 71) worn under Stained Glass | tier 2 "Redeem gives a Monocub +1 Hope once a game day ..." and "Ask for Hope posts one card in the Monocub's thread ..." (new; red at base); R301, R3333-R3349 green; E15-T6 test drops its target's count per run (C4 changed it on purpose); R472 gains the second notice road |
+
 ## In progress
 
-- C5 Redeem and Ask for Hope.
+- C6 the invitation.
 
 ## Next
 
@@ -42,6 +44,12 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
 - C4: "one attempt per student" read as per target student, over every Monocub (the store is named `cubTargetStore` in
   the plan). A row of another time of day or day counts nothing, so nothing clears it at the clock's turn: the same
   behaviour as clearing, with no write. Owner to confirm the reading.
+
+- C5: Redeem's price (one action, no Hope) and Ask for Hope's (free, one open at a time) are defaults; the plan names
+  neither. The Students window's Monocub columns for them (the plan's C5) are left to C9/C19 with the panel. Owner to
+  confirm the prices.
+- C5: Monokuma Legacy shows Font Awesome's ticket and praying hands for the two tiles (LEGACY_ICONS "fa:"), as a
+  crisis row does: Legacy has no drawing of its own for them.
 
 ## Blockers
 

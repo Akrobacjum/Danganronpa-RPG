@@ -1164,6 +1164,21 @@
     },
     "Monocub": {
       "meddleRefused": "Confusion ich nie dosięga. Nie tracisz akcji ani Hope.",
+      "redeem": "Redeem",
+      "ask": "Ask for Hope",
+      "redeemUsed": "Redeem wykorzystany dziś. Wraca jutro.",
+      "hopeFull": "Masz pełne Hope.",
+      "darkened": "Zaciemnienie blokuje Hope w tej porze dnia.",
+      "askStillOpen": "Twoje Ask for Hope wciąż czeka na GM-a.",
+      "moveRefused": "Ten ruch teraz nie przechodzi. Nie tracisz akcji ani Hope.",
+      "redeemDone": "Redeem: +1 Hope.",
+      "askTitle": "Ask for Hope",
+      "askBody": "{name} prosi GM-ów o Hope.",
+      "askGive": "Daj {n} Hope",
+      "askNotNow": "Nie teraz",
+      "askGiven": "{n} Hope od: {name}.",
+      "askDeclined": "{name}: nie teraz.",
+      "askNotNowTold": "Twoje Ask for Hope: nie teraz. Możesz poprosić znowu.",
       "tickFirst": "Najpierw zaznacz Monocub",
       "student": "Uczeń",
       "panelTitle": "Monocub",
@@ -6569,6 +6584,8 @@
       },
       "MONOCUB": {
         "abilities": {
+          "redeem": { "label": "Redeem" },
+          "askHope": { "label": "Ask for Hope" },
           "meddle": {
             "label": "Confusion",
             "thresholds": {

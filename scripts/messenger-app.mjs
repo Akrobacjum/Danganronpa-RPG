@@ -1398,7 +1398,19 @@ const CARD_ACTIONS = {
     giveItem: ruleGiveItem,
     keyRemnantHere: ruleKeyRemnantHere,
     declineMurder: ruleDeclineMurder,
+    // E72 C5: a Monocub's Ask for Hope, answered once by whichever GM clicks (monocub.mjs `answerHopeAsk`).
+    cubGiveHope: ruleCubHope,
+    cubNotNow: ruleCubHope
 };
+
+/** Give 1, Give 2 or Not now on a Monocub's Ask for Hope (E72 C5): the GM's own Despair, or none. */
+async function ruleCubHope(action, data) {
+    const actor = game.actors.get(data.actor);
+    if (!actor) return null;
+    const { answerHopeAsk } = await import("./monocub.mjs");
+    const words = await answerHopeAsk(actor, action === "cubGiveHope" ? Number(data.n) || 0 : 0);
+    return words ? { settled: words } : null;
+}
 
 /** The rule of the button pressed, handed the card it is on (`message`, fix early-C2-G2), or null for none. */
 async function runCallAction(action, data, message = null) {

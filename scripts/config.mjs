@@ -3205,6 +3205,8 @@ export const MONOCUB = {
             roll: "flat2d12",
             /** Scored on the GM's own throw by `scoreMeddle` (CUB_RESOLVERS). */
             resolve: "meddle",
+            /** What the GM whispers when it refuses one (E72 C5: a row without it says `DRPG.Monocub.moveRefused`). */
+            refusedSay: "DRPG.Monocub.meddleRefused",
             // The lower tier grants a flat +1/-1, the upper tier grants full
             // advantage/disadvantage. Both are armed on the target's very next
             // roll through the same Call machinery Support/Obstacle already use -
@@ -3231,6 +3233,44 @@ export const MONOCUB = {
                 hinderTarget: "A moment's confusion: the action is wasted."
             },
             failure: "The attempt fails."
+        },
+        /**
+         * REDEEM (E72 C5, 12.11.2026; audit S18-60, the owner's DC22): +1 Hope from nothing, once a game day, shut at the
+         * Hope's maximum and in a darkened hour (`blocks`, monocub.mjs `CUB_BLOCKS`). One action, no Hope, no dice; aimed
+         * at the Monocub itself. Its price is a default taken (STATUS, owner to confirm).
+         */
+        redeem: {
+            label: "Redeem",
+            icon: "fa-ticket",
+            cost: 1,
+            hopeCost: 0,
+            target: "self",
+            choices: ["redeem"],
+            locks: ["eclipse", "classTrial"],
+            blocks: ["oncePerDay", "hopeFull", "darkened"],
+            roll: "none",
+            resolve: "redeem",
+            caps: null,
+            thresholds: []
+        },
+        /**
+         * ASK FOR HOPE (E72 C5; audit S18-60): a card in the Monocub's thread for the GMs, Give 1, Give 2 or Not now,
+         * settled by one GM (bridge-asks.mjs `claimCard`) and paid from that GM's Despair (despair.mjs
+         * `convertDespairToHope`). Free; one ask open at a time (`blocks`). No dice.
+         */
+        askHope: {
+            label: "Ask for Hope",
+            icon: "fa-hands-praying",
+            cost: 0,
+            hopeCost: 0,
+            target: "self",
+            choices: ["ask"],
+            locks: ["eclipse", "classTrial"],
+            blocks: ["askOpen", "hopeFull"],
+            roll: "none",
+            resolve: "askHope",
+            caps: null,
+            thresholds: []
         }
     }
 };
