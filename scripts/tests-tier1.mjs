@@ -48655,24 +48655,27 @@ const INVARIANTS = [
             "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
             + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
     }],
-    ["R4107 - Move's description stays on screen (E100 item 1 under the owner's rule of 12.11.2026: an action's description is never hidden, folded or collapsed): with Move's window gone, a Monocub's panel draws the action's description (ACTIONS.move `description`, in the page's language) as a line of its own under its tiles, not in a tooltip; sheet.mjs `monocubMoveNote` builds it and `injectMonocubPanel` puts it there", async () => {
+    ["R4107 - Move's line on a Monocub's panel (E100 item 1 under the owner's rule of 12.11.2026, cut down at the owner's word the same day): with Move's window gone, a Monocub's panel draws one line of its own under its tiles reading \"Free\" / \"Za darmo\" (DRPG.Move.free, in the page's language), not the whole description and not in a tooltip; sheet.mjs `monocubMoveNote` builds it and `injectMonocubPanel` puts it there", async () => {
         /*
          * E100, 12.11.2026. The owner on E100's review: "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji
          * NIGDY", passed on by the coordinator with "the Move tile: its description must stay visible". The Move window
          * (removed by item 1) was the one place Move's description stood; the tile's face says the name, the price and
          * "Drag your token", its tooltip the hint. Red at 818c760e: no `monocubMoveNote`.
+         * Later the same day the owner, passed on by the coordinator: on the Monocub's panel Move needs only "za darmo",
+         * not the whole description. Red at a4afcaad: the line was ACTIONS.move's description.
          */
         const S = await import("./sheet.mjs");
-        must(typeof ACTIONS.move?.description === "string" && ACTIONS.move.description.length > 20, "ACTIONS.move has no description to show");
+        const word = game.i18n.localize("DRPG.Move.free");
+        must(word && word !== "DRPG.Move.free", "DRPG.Move.free is not in this page's language file");
         const note = typeof S.monocubMoveNote === "function" ? S.monocubMoveNote() : null;
         const src = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
         must(src.length > 10000, "sheet.mjs was not read");
         const read = {
-            note: note ? [note.tagName, note.textContent === ACTIONS.move.description, note.hidden, note.closest?.("details") ?? null, note.hasAttribute("data-tooltip")] : null,
+            note: note ? [note.tagName, note.textContent === word, note.hidden, note.closest?.("details") ?? null, note.hasAttribute("data-tooltip")] : null,
             placed: /monocubMoveNote\(\)/.test(fnSource(src, "injectMonocubPanel"))
         };
         equal(stableJson(read), stableJson({ note: ["P", true, false, null, false], placed: true }),
-            "{the note [tag, Move's description as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
+            "{the note [tag, DRPG.Move.free as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
     }],
     ["R4108 - every action window names its statistic outside Details (E100; the owner's rule of 12.11.2026, the E93 line's finding): for each action whose briefing names statistics (all but Projects and Sabotage, whose project names its own), action-briefing.mjs `briefingBlock` shows them in the lead - the description naming the first, or a line of its own (`drpg-briefing-rolls`, \"Rolls: ...\") right after it - and the \"Rolls\" line is in no Details box and stands once", async () => {
         /*

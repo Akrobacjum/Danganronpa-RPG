@@ -3403,6 +3403,7 @@
       "title": "Move",
       "drag": "To move to another room, drag your token there.",
       "dragShort": "Drag your token",
+      "free": "Free",
       "freeAvailable": "Your Free Move for this time of day is still there.",
       "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
       "nextSprint": "Free Move used. The next room takes a Sprint, and your actions stay.",

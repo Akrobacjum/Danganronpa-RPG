@@ -4741,7 +4741,7 @@ function injectMonocubPanel(tab, actor) {
         panel.append(note);
     }
 
-    // Move's description, on screen (E100, R4107): its window is gone, and an action's description is never hidden.
+    // Move's line, on screen (E100, R4107): its window is gone; the owner wants "Free" here, not the whole description.
     panel.append(monocubMoveNote());
 
     tab.prepend(panel);
@@ -4752,11 +4752,13 @@ function injectMonocubPanel(tab, actor) {
  * never hidden, folded or collapsed - "nie chowajmy w oknach akcji ... opisu akcji NIGDY"). Item 1 took Move's window
  * away, the one place its description stood; the tile says the name, the price and "Drag your token", its tooltip the
  * hint. The description is a line of the Monocub's panel under its tiles, as the silenced note is. R4107.
+ * CUT DOWN THE SAME DAY: the owner, passed on by the coordinator - on the Monocub's panel Move needs only "za darmo",
+ * not the whole description. The line reads `DRPG.Move.free` ("Free" / "Za darmo"), still a line of its own, not folded.
  */
 export function monocubMoveNote() {
     const note = document.createElement("p");
     note.className = "notes drpg-monocub-move";
-    note.textContent = ACTIONS.move.description;
+    note.textContent = game.i18n.localize("DRPG.Move.free");
     return note;
 }
 

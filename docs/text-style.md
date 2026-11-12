@@ -730,6 +730,7 @@ decyduje GM, „Wyślij do GM-a”; przycisk, który tylko prowadzi do następne
 | `DRPG.Action.gotIt` | przycisk okna Move | - | - | usunięty z oknem |
 | `DRPG.Move.drag` | dymek wiersza Move na HUD-zie | “To move to another room, drag your token there.” | „Żeby przejść do innego pokoju, przeciągnij tam swój token.” | nowy |
 | `DRPG.Move.dragShort` | linia na kaflu Move | “Drag your token” | „Przeciągnij token” | nowy |
+| `DRPG.Move.free` | linia pod kaflami Monocuba (zamiast opisu Move) | “Free” | „Za darmo” | nowy |
 | `DRPG.Notices.filter.more` | pierwsza pozycja menu filtrów | “More filters” | „Więcej filtrów” | nowy |
 | `DRPG.Notices.filter.moreLabel` | nazwa menu dla czytnika ekranu | “More filters” | „Więcej filtrów” | nowy |
 | `DRPG.Notices.filter.withCount` | pozycja menu z liczbą | “{label} ({n})” | „{label} ({n})” | nowy |

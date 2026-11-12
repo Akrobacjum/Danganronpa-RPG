@@ -3710,6 +3710,7 @@
       "title": "Move",
       "drag": "Żeby przejść do innego pokoju, przeciągnij tam swój token.",
       "dragShort": "Przeciągnij token",
+      "free": "Za darmo",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
       "nextSprint": "Free Move zużyty. Następny pokój zabierze Sprint, a akcje zostaną.",
