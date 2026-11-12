@@ -393,7 +393,7 @@ export const THEMES = {
  *  where it has none, the name the drawing rounds draw (10, gaps). */
 export const ELEMENTS = {
     "ACTIONS.search": "search", "ACTIONS.observe": "observe", "ACTIONS.analyze": "brain",
-    "ACTIONS.project": "hourglass", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
+    "ACTIONS.project": "hammer", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
     "ACTIONS.tamper": "broom", "ACTIONS.directMurder": "direct-murder", "ACTIONS.move": "move", "ACTIONS.sabotage": "tamper",
     "HOPE_CALLS.support": "support", "HOPE_CALLS.experience": "cap", "HOPE_CALLS.ultimate": "star",
     "HOPE_CALLS.contribution": "contribution", "HOPE_CALLS.reroll": "reroll", "HOPE_CALLS.sprint": "sprint",

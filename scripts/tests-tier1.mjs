@@ -37278,6 +37278,8 @@ const INVARIANTS = [
          * element (the same weight and property: none in the glass harness's page in Chromium, 04.11.2026), so their
          * order inside the section draws nothing; the `@media` overrides do tie with the rules they override, and their
          * order is read from the sheet's text (mutant c6-m1b, the reduced-motion block above the word's run).
+         * The six gm-launcher prints moved on gaps-108 (R3986, 12.11.2026): the eye's sprite lost its lower-left tail, so its
+         * mask's value is another; nothing else of the hexagon's winners changed (the rest of the prints as they were).
          */
         const C = await styleCascade();
         const { PROPS } = await import("./style-snapshot.mjs");
@@ -37523,21 +37525,21 @@ const INVARIANTS = [
            stained-glass.css and was `left`; it is components.css's now, in the rule that draws the button under the
            glass (the same selector, so the same prints). Every other print, `left` and the @media rules as they were. */
         const C5 = {
-            "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
+            "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:ac4af798", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
-            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
+            "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
-            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
+            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:19e941be",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
-            "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
+            "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
+            "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
@@ -41525,6 +41527,61 @@ const INVARIANTS = [
         } finally { body.classList.remove(cls); h?.cancel(); rig.done(); }
         equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
             "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
+    }],
+    ["R3986 - the GM button's eye has no line under it, and the Remnant card's eye keeps its tail (gaps, the owner's table on 1.2.108; the owner's yes on the review page, 12.11.2026): danganronpa.css's launcher mask draws nothing below row 16 and not the hanging pixel at 8,17, while pixel-icons.css's `--drpg-pix-monokuma-eye` and `--drpg-pix-gm` still draw both", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: "na przycisku pod okiem Monokumy jest kreska". The harness drew no element
+         * under the eye; the stroke was the drawing's own lower-left tail (rows 17 and 18) and the pixel hanging at 8,17
+         * (tools/glyphs.json chrome:monokuma-eye, then `same` as legacy:monokuma-eye). The owner chose the cut on the review
+         * page for the launcher alone: the Remnant card's GM-placed trace keeps the old eye, so the chrome row no longer
+         * shares the legacy row's drawing. Read off the served sheets' path data. Red at 02d20f9a: the launcher has both.
+         */
+        const dcss = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const cells = d => { const set = new Set(), ys = []; for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) { set.add(`${+x + k},${+y}`); ys.push(+y); } return { set, ys }; };
+        const pathOf = (text, re, what) => {
+            const m = re.exec(text);
+            must(m, `${what} carries no path in its sheet - this reads nothing`);
+            return cells(m[1]);
+        };
+        const launcher = pathOf(dcss, /#drpg-gm-launcher i::before \{\s*-webkit-mask-image:[^;]*?d='([^']+)'/, "the launcher's eye");
+        const remnant = pathOf(pcss, /--drpg-pix-monokuma-eye:[^;]*?d='([^']+)'/, "--drpg-pix-monokuma-eye");
+        const glassGm = pathOf(pcss, /--drpg-pix-gm:[^;]*?d='([^']+)'/, "--drpg-pix-gm");
+        must(launcher.set.size > 20 && remnant.set.size > 20, "an eye of fewer than 20 pixels - this reads nothing");
+        const lowest = c => Math.max(...c.ys);
+        equal(JSON.stringify([launcher.set.has("8,17"), lowest(launcher), remnant.set.has("8,17"), lowest(remnant), glassGm.set.has("8,17")]), JSON.stringify([false, 16, true, 18, true]),
+            "[the launcher's eye draws 8,17, its lowest row, the Remnant card's eye draws 8,17, its lowest row, the glass gm eye draws 8,17]");
+    }],
+    ["R3987 - the Projects action wears the hammer the owner approved, in both themes (gaps, the owner's yes on the review page, 12.11.2026): the action's icon reads `--drpg-pix-hammer` under Stained Glass (`--drpg-glyph`) and under Monokuma Legacy (`mask-image`), both of pixel-icons.css's declarations of it draw the approved rows, and the Remnant card's project glyph is left as it was", async () => {
+        /*
+         * The owner asked for a hammer on the character sheet's Projects action (12.11.2026): Stained Glass wore the
+         * hourglass, Legacy a plain T. The approved drawing is the review page's claw hammer, below, one drawing for both
+         * themes (glass:hammer and legacy:hammer, `same`). Read by the sheets' cascade (`styleCascade`) on a body of its own
+         * per theme, and off pixel-icons.css's path data. Red at 02d20f9a: hourglass and project, no hammer token.
+         */
+        const HAMMER = ["........................", "........................", "........................", ".................###....", "........############....", "....################....", "...#################....", "...##.##############....", "..###...############....", "..##.......###...###....", "..##.......###..........", "..#........###..........", "...........###..........", "...........###..........", "...........###..........", "..........#####.........", "..........#####.........", "...........###..........", "..........#####.........", "...........###..........", "..........#####.........", "..........#####.........", "........................", "........................"];
+        const C = await styleCascade();
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const read = {};
+        for (const [theme, prop] of [["drpg-theme-stained-glass", "--drpg-glyph"], ["drpg-theme-monokuma-legacy", "mask-image"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-action-grid"><button type="button" class="drpg-action-button" data-drpg-action="project"><i class="fa-solid fa-hammer drpg-action-icon"></i></button></div><span class="drpg-remnant-glyph" data-drpg-act="project"></span>`;
+            const w = C.winner(body.querySelector(".drpg-action-icon"), [prop]);
+            const r = C.winner(body.querySelector(".drpg-remnant-glyph"), ["mask-image", "-webkit-mask-image"]);
+            read[theme.replace("drpg-theme-", "")] = [w?.value.trim() ?? null, r?.value.trim() ?? null];
+        }
+        const drawn = [];
+        for (const [, d] of pcss.matchAll(/--drpg-pix-hammer:[^;]*?d='([^']+)'/g)) {
+            const grid = Array.from({ length: 24 }, () => Array(24).fill("."));
+            for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) grid[+y][+x + k] = "#";
+            drawn.push(grid.map(r => r.join("")).join("\n") === HAMMER.join("\n"));
+        }
+        equal(JSON.stringify([read, drawn]), JSON.stringify([{
+            "stained-glass": ["var(--drpg-pix-hammer)", "var(--drpg-pix-hourglass)"],
+            "monokuma-legacy": ["var(--drpg-pix-hammer)", "var(--drpg-pix-project)"]
+        }, [true, true]]), "[{theme: [the action icon's glyph, the Remnant card's project glyph]}, [each declaration of --drpg-pix-hammer draws the approved rows]]");
     }],
     ["R3985 - the panes that stand keep their frost through a turn (glass.mjs `glassTurn`, `turnPlan`; gaps, the owner's table on 1.2.108): on a stand-in curtain a recut that moves two panes and leaves two standing lays no animation that takes the frost to 0, clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`convexOverlap`), and to the new cut once they end", async () => {
         /*
