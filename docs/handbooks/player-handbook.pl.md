@@ -76,6 +76,11 @@ Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadcz
 
 **Gdy nie jest połączony żaden GM**, akcja czeka: po jej wciśnięciu dowiadujesz się, że rzut akcji czeka na GMa, i nic nie płacisz. Każdy inny rzut - statystyka z arkusza, która liczy się wtedy jako reakcja, albo reakcja - nadal się wykonuje, a jego karta mówi, że rzucono go bez połączonego GMa i że GM go zobaczy. Nie rusza Hope, Sanity ani Despair, dopóki GM, gdy wróci do stołu, go nie przyzna, a reakcja - statystyka też - nie rusza niczego nawet wtedy.
 
+### Jeśli jesteś Widzem
+
+GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów i nikt cię nigdzie nie liczy. Inni gracze nie widzą twojego żetonu. Twój mikrofon jest wyłączony; **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala rozmawiać z innymi Widzami, a **Wróć do swojego pokoju** cię cofa. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Przeciągaj żeton, by się ruszać, bez kosztu; czy ściany cię zatrzymają, nie sprawdzono jeszcze przy stole. Widzisz każdy pokój, który klasa odkryła, żetony wszystkich i każdy projekt, także tajny. Nie masz czatu.
+
+
 ---
 
 ## 2. Czas

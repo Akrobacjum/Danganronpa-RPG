@@ -3145,6 +3145,14 @@
       "fogBudget": "Fog: no Free Move",
       "noExperiences": "No experiences yet. You start with two at +2, and a Level Up can add one."
     },
+    "Spectator": {
+      "role": "Spectator",
+      "marked": "{name} is now a Spectator.",
+      "unmarked": "{name} is no longer a Spectator.",
+      "talk": "Talk with the Spectators",
+      "talkBack": "Go back to your room",
+      "noChat": "A Spectator has no chat."
+    },
     "Class": {
       "notInClass": "Not in the class",
       "outTooltip": "Mark as not in the class: an NPC, with no actions, ballots or Level Ups.",
@@ -3789,6 +3797,7 @@
         "refused": "The GM's client refused it.",
         "noGm": "No GM is connected.",
         "noAnswer": "The GM's client did not answer in time.",
+        "spectator": "A Spectator takes no actions.",
         "answerKeyMissing": "The GM's browser does not hold this bullet's answer key. The GM has been told.",
         "keysNotOpen": "The GM's browser has not opened the answer keys yet. The GM has been told.",
         "rollUnknown": "The GM's client holds no roll of yours that it could be scored on.",
@@ -4099,6 +4108,7 @@
       "nextReady": "The players have been asked before the clock moves. Open the question again.",
       "roleColumn": "Role",
       "openSheet": "Open {name}'s sheet",
+      "openColumn": "Open",
       "role": {
         "student": "Student"
       },
@@ -4106,6 +4116,7 @@
       "group": {
         "students": "Students",
         "monokumas": "Monokumas",
+        "spectators": "Spectators",
         "notInClass": "Not in the class"
       }
     },
@@ -4673,6 +4684,8 @@
         "eclipse": "Eclipse: no player is in a voice channel until the lights come back.",
         "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
         "deadAlone": "Your character is dead: the living do not hear you, and you do not hear them.",
+        "spectator": "You're a Spectator: you hear the room you're in, and your microphone is off.",
+        "spectatorTalk": "You're talking with the other Spectators.",
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",

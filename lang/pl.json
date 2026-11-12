@@ -3415,6 +3415,14 @@
       "fogBudget": "Fog: bez Free Move",
       "noExperiences": "Nie masz jeszcze doświadczeń. Zaczynasz z dwoma po +2, a Level Up może dodać kolejne."
     },
+    "Spectator": {
+      "role": "Widz",
+      "marked": "{name} jest teraz Widzem.",
+      "unmarked": "{name} nie jest już Widzem.",
+      "talk": "Porozmawiaj z Widzami",
+      "talkBack": "Wróć do swojego pokoju",
+      "noChat": "Widz nie ma czatu."
+    },
     "Class": {
       "notInClass": "Poza klasą",
       "outTooltip": "Oznacz jako poza klasą: NPC bez akcji, głosów i Level Upów.",
@@ -4118,6 +4126,7 @@
         "refused": "Klient GM-a odmówił.",
         "noGm": "Żaden GM nie jest połączony.",
         "noAnswer": "Klient GM-a nie odpowiedział na czas.",
+        "spectator": "Widz nie wykonuje akcji.",
         "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony.",
         "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony.",
         "rollUnknown": "Klient GM-a nie ma twojego rzutu, na podstawie którego mógłby to rozliczyć.",
@@ -4467,6 +4476,7 @@
       "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie.",
       "roleColumn": "Rola",
       "openSheet": "Otwórz arkusz: {name}",
+      "openColumn": "Otwórz",
       "role": {
         "student": "Uczeń"
       },
@@ -4474,6 +4484,7 @@
       "group": {
         "students": "Uczniowie",
         "monokumas": "Monokumy",
+        "spectators": "Widzowie",
         "notInClass": "Poza klasą"
       }
     },
@@ -5087,6 +5098,8 @@
         "eclipse": "Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.",
         "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
         "deadAlone": "Twoja postać nie żyje: żywi cię nie słyszą, a ty nie słyszysz ich.",
+        "spectator": "Jesteś Widzem: słyszysz pokój, w którym jesteś, a mikrofon masz wyłączony.",
+        "spectatorTalk": "Rozmawiasz z innymi Widzami.",
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",

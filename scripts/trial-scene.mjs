@@ -190,9 +190,13 @@ export function castKey(sceneId, actorId) {
     return `${sceneId}.${actorId}`;
 }
 
-/** Every actor the cast can hold, ticked or not: each "character" of the world, a student or Monokuma, in the world's order. */
+/**
+ * Every actor the cast can hold, ticked or not: each "character" of the world, a student or Monokuma, in the world's
+ * order - never a Spectator (E92 C1), which is in no trial's cast; its flag read here, as this file reads the Monokuma's
+ * through an import only where it awaits.
+ */
 export function castActors() {
-    return game.actors?.filter?.(actor => actor.type === "character") ?? [];
+    return game.actors?.filter?.(actor => actor.type === "character" && !actor.getFlag?.(MODULE_ID, FLAGS.spectator)) ?? [];
 }
 
 /** Whether a hall token is the module's to show and hide: its actor is a student or Monokuma. */

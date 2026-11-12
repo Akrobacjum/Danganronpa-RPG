@@ -17317,9 +17317,10 @@ const INVARIANTS = [
         J([1, 1, 1, 1, 1, true, "shown"]),
         "[distinct answers, cards to the one shown it, the GMs' cards, distinct asker's cards, log rows added, the earlier rows kept, the cell] after 201 shows");
 
-        // The bridge's row: two guards, the sender first, then the giver's owner, and three ids through the whitelist.
+        // The bridge's row: the sender first, the Spectator's guard on the giver since E92 Q-E92-7 (R3865), then the giver's
+        // owner, and three ids through the whitelist.
         const decl = BRIDGE_ACTIONS["passage.share"];
-        equal(J([decl?.guards?.[0] === knownSender, decl?.guards?.[1]?.factory, decl?.guards?.[1]?.covers, decl?.answer,
+        equal(J([decl?.guards?.[0] === knownSender && decl?.guards?.[1]?.factory === "notSpectator", decl?.guards?.[2]?.factory, decl?.guards?.[2]?.covers, decl?.answer,
             decl?.sanitize?.({ actorId: "R562A1", targetId: "R562B", passageId: P1, passageSeg: { x1: 1 }, rooms: [CAF], how: "gm", userId: "R562U" })]),
         J([true, "owns", ["actorId"], "ack", { actorId: "R562A1", targetId: "R562B", passageId: P1 }]),
         "[the first guard, the second's kind, the field it judges, the answer, what the run is handed] - a field beyond the three ids reached the run");
@@ -19478,10 +19479,11 @@ const INVARIANTS = [
         equal(J([told({ findPassage: true, passageId: TUN, sides: [CAF, KIT] }), told({ findPassage: "yes" }), told({})]), J([{ findPassage: true }, {}, {}]),
             "[a Find Passage's context with a passage and its rooms, one whose flag is no boolean, none] as the GM is sent it - the GM cannot tell a Find Passage's roll, or is sent more");
 
-        // The bridge's row: the sender's own character, four fields, and the roll an Analyze thrown as a Find Passage.
+        // The bridge's row: the sender's own character, four fields, and the roll an Analyze thrown as a Find Passage; three
+        // guards since E92 Q-E92-7 (the sender, the Spectator's guard, the owner: R3865).
         const clean = row.sanitize({ actorId: "R598A", total: "16", isCritical: 1, rollId: "R598ROLL1", undo: true, passageId: TUN, room: CAF });
         equal(J([row.answer, row.guards.length, row.guards[0] === B.knownSender, row.rolled?.field, row.rolled?.actor, row.rolled?.kind, clean]),
-            J(["reply", 2, true, "rollId", "actorId", "analyze", { actorId: "R598A", total: 16, isCritical: true, rollId: "R598ROLL1" }]),
+            J(["reply", 3, true, "rollId", "actorId", "analyze", { actorId: "R598A", total: 16, isCritical: true, rollId: "R598ROLL1" }]),
             "[the answer, the guards, the first the known sender, the roll's field, its character, its action, the packet as the GM reads it] - the row takes a passage, a room or an undo from the packet, or no roll");
         const sender = { id: "R598U", isGM: false }, packet = { actorId: "R598A", rollId: "R598ROLL1" };
         const record = over => ({ rollId: "R598ROLL1", actorId: "R598A", userId: "R598U", actionKey: "analyze", at: Date.now(), superseded: null, resolved: [], ...over });
@@ -36993,14 +36995,20 @@ const INVARIANTS = [
            the curtain's two tiles, three on the desk's and two on the stacked screen's - curtain 2:922e5665 ->
            2:ac4af798, desk 1:3ef3f4a9 -> 1:08875275, stacked 1:da1cfc2b -> 1:86229667. That declaration stood in
            stained-glass.css and was `left`; it is components.css's now, in the rule that draws the button under the
-           glass (the same selector, so the same prints). Every other print, `left` and the @media rules as they were. */
+           glass (the same selector, so the same prints). Every other print, `left` and the @media rules as they were.
+           The voice tile's curtain print under Stained Glass since E92 round 3 (12.11.2026): the compact tile's two rules
+           for a third button, which win its face's `padding-right` and its state word's `right` while OBJECTION! stands
+           there, read `:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk))` now, so a Spectator's switch takes
+           the same room - the same rules, the same values, another selector - 2:ac4af798 -> 2:ce15ad40, re-measured
+           headless; the pressed switch's rules match nothing this test draws. Every other print, `left` and the @media
+           rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:ac4af798", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
             "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
@@ -46886,7 +46894,8 @@ const INVARIANTS = [
                 const tr = table.querySelector(`tbody tr[data-actor="${CSS.escape(id)}"]`);
                 if (!tr) return null;
                 const cells = [...tr.children];
-                return [Boolean(cells[0]?.querySelector(`[data-drpg-items="${CSS.escape(id)}"]`)),
+                // In the buttons' own column, the second cell, since the E92 owner fix (12.11.2026; R3862): beside the name, not in its cell.
+                return [Boolean(cells[1]?.querySelector(`[data-drpg-items="${CSS.escape(id)}"]`)),
                     tr.querySelector("select[data-drpg-role-select]")?.value ?? null,
                     Boolean(tr.querySelector(`select[name="state.${CSS.escape(id)}"]`)),
                     tr.querySelector(`[data-drpg-levelup="${CSS.escape(id)}"]`)?.textContent.trim() ?? null,
@@ -46906,7 +46915,7 @@ const INVARIANTS = [
         }
         // Actions and Free Move after State since E49 A2 (the owner's Q6: two columns of each row; R3345 and tier 2 read their cells);
         // the three Monocub columns in every table since E49 A3 (R3406 reads their dimmed cells).
-        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
+        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.openColumn"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
             T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
@@ -47043,7 +47052,8 @@ const INVARIANTS = [
         let got = null;
         try {
             const el = () => w.of()[0]?.element ?? null;
-            const beside = rows.map(a => Boolean(el()?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"] > td:first-child [data-drpg-items="${CSS.escape(a.id)}"]`)));
+            // The second cell, the buttons' own column beside the name, since the E92 owner fix (12.11.2026; R3862).
+            const beside = rows.map(a => Boolean(el()?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"] > td:nth-child(2) [data-drpg-items="${CSS.escape(a.id)}"]`)));
             const footer = [...(el()?.querySelectorAll("footer [data-action]") ?? [])].map(b => b.dataset.action);
             const firstWindow = w.of()[0];
             el()?.querySelector(`[data-drpg-items="${CSS.escape(first.id)}"]`)?.click();
@@ -47057,7 +47067,7 @@ const INVARIANTS = [
             await w.close();
         }
         equal(stableJson(got), stableJson({ beside: rows.map(a => a.getFlag(MODULE_ID, "monokuma") !== true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
-            "{beside: an Items button in each row's first cell but a Monokuma's (E95 C7); footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
+            "{beside: an Items button in each row's second cell, the buttons' column, but a Monokuma's (E95 C7; E92 owner fix); footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
     }],
 
     ["R2084 - the Students window is a GM's (scripts/gm-students.mjs; E47-C8): on a player's browser `openWhoIsAliveDialog` opens nothing, and the Role's roads called from it write nothing (monokuma.mjs `setMonokuma` and `setNotInClass` refuse on `game.user.isGM`, `markFromSheet` through them); Refund last crossing on the kit's secondary role", async () => {
@@ -49712,6 +49722,374 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ endFirst: { kind: "dayEnd", key: `dayEnd:R3715:${day}:${day}`, mode: "still" }, started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
             "[the ended day's board first; a new day's board after it; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
     }],
+    /* ==========================================================================
+     * E92 - THE SPECTATOR (plan docs/dev/plans/E92.md on claude/plan-130; docs/dev/e92/CENSUS.md)
+     * A new kind of player: a character flagged `spectator`, owned by its account, which is no student. Each test hands
+     * its Spectator in memory (`e24HeldFlagged`, `e92Char`): nothing is written.
+     * ========================================================================== */
+    ["R3850 - a Spectator is no student (E92 C1; the owner's E92 goal (5)): a student flagged `spectator` leaves monokuma.mjs `studentActors`, `actingStudents`, `studentCensus` (the world's and a handed list), `ownedStudents`, chapter.mjs `livingStudentsForGm` (the murder window's cast, the body's witnesses), assignments.mjs `students` (Despair's pools), the vote's `trialParticipants` (the ballots), trial-scene.mjs `castActors` (the trial's cast) and `classCandidates`; `isSpectator` names it", async () => {
+        /*
+         * E92 C0, 12.11.2026. The roster is read once (monokuma.mjs `studentActors`), so the flag leaves every list that
+         * reads it; the lists that walk `game.actors` themselves are named here one by one (CENSUS.md). Red on C0's tree:
+         * no `isSpectator`, and the flagged student on every list.
+         */
+        const M = await import("./monokuma.mjs");
+        const [{ livingStudentsForGm }, { students }, { trialParticipants }, { castActors }] = await Promise.all([
+            import("./chapter.mjs"), import("./assignments.mjs"), import("./vote.mjs"), import("./trial-scene.mjs")]);
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const watcher = studentActors().find(a => owned(a) && livingStudentsForGm().some(b => b.id === a.id));
+        must(watcher, "no living student a player owns - this would measure nothing");
+        const has = list => [...list].some(a => (a?.actor ?? a)?.id === watcher.id);
+        const read = () => ({
+            spectator: M.isSpectator(watcher), studentActors: has(M.studentActors()), acting: has(M.actingStudents()),
+            census: has(M.studentCensus().all), handed: has(M.studentCensus([watcher]).all), owned: has(M.ownedStudents()),
+            murderCast: has(livingStudentsForGm()), assignments: has(students()), ballots: has(trialParticipants({ connected: false })),
+            trialCast: has(castActors())
+        });
+        const before = read();
+        const after = await e24HeldFlagged(watcher, { [FLAGS.spectator ?? "spectator"]: true }, read);
+        const candidates = M.classCandidates({ users: [{ id: "R3850gm", isGM: true }], actors: [e92Char("R3850free"), e92Char("R3850watch", { spectator: true })] }).map(a => a.id);
+        equal(stableJson({ before, after, candidates }), stableJson({
+            before: { spectator: false, studentActors: true, acting: true, census: true, handed: true, owned: true, murderCast: true, assignments: true, ballots: true, trialCast: true },
+            after: { spectator: true, studentActors: false, acting: false, census: false, handed: false, owned: false, murderCast: false, assignments: false, ballots: false, trialCast: false },
+            candidates: ["R3850free"] }),
+            "[each reader of the roster with the student in the class, then flagged a Spectator; Pre-season's candidates]");
+    }],
+    ["R3851 - the Spectator is a GM's role, set in the Students window (E92 C1; the owner's 04.11 amend \"the GM assigns it in the Students window\"): config.mjs `FLAGS.spectator`; sheet-audit.mjs `kindOf` answers \"flag\" for a write of it, so a player's own write is put back; gm-students.mjs `changeRole` moves a character to and from \"spectator\" through monokuma.mjs `setSpectator`, unmarking the role it held first", async () => {
+        /*
+         * E92 C0, 12.11.2026. Stand-in roads record their calls and answer the actor (R2081's pattern); the characters
+         * are stand-ins with their flags, so nothing is written. Red on C0's tree: no flag, null from kindOf, no road.
+         */
+        const SA = await import("./sheet-audit.mjs");
+        const GS = await import("./gm-students.mjs");
+        const calls = [];
+        const record = name => async (actor, ...args) => { calls.push([name, actor.id, ...args].join(" ")); return actor; };
+        const roads = { markFromSheet: record("markFromSheet"), setMonokuma: record("setMonokuma"), setNotInClass: record("setNotInClass"), setSpectator: record("setSpectator") };
+        const step = async (actor, to) => { calls.length = 0; const moved = await GS.changeRole(actor, to, roads); return [moved, [...calls]]; };
+        const student = e92Char("R3851-student"), watcher = e92Char("R3851-watch", { spectator: true });
+        const kuma = e92Char("R3851-kuma", { [FLAGS.monokuma]: true }), npc = e92Char("R3851-npc", { [FLAGS.notInClass]: true });
+        const got = {
+            flag: FLAGS.spectator ?? null, kind: SA.kindOf(`flags.${MODULE_ID}.spectator`),
+            toWatch: await step(student, "spectator"), back: await step(watcher, "student"), watchOut: await step(watcher, "npc"),
+            npcToWatch: await step(npc, "spectator"), kumaToWatch: await step(kuma, "spectator"), watchToKuma: await step(watcher, "monokuma"),
+            same: await step(watcher, "spectator")
+        };
+        equal(stableJson(got), stableJson({
+            flag: "spectator", kind: "flag",
+            toWatch: [true, ["setSpectator R3851-student true"]], back: [true, ["setSpectator R3851-watch false"]],
+            watchOut: [true, ["setSpectator R3851-watch false", "setNotInClass R3851-watch true"]],
+            npcToWatch: [true, ["setNotInClass R3851-npc false", "setSpectator R3851-npc true"]],
+            kumaToWatch: [true, ["setMonokuma R3851-kuma false", "setSpectator R3851-kuma true"]],
+            watchToKuma: [true, ["markFromSheet R3851-watch", "setSpectator R3851-watch false"]],
+            same: [false, []] }),
+            "[FLAGS.spectator; kindOf of its write; changeRole's roads for each move to and from the Spectator]");
+    }],
+    ["R3852 - a Spectator is nobody in the room (E92 C1; the owner's E92 goal (3), (5)): movement.mjs `othersInNamedRoom` - Listen's names, the witnesses, a Palm's targets, a trap's \"alone\" - leaves its token out as it leaves a Monokuma's, and murder-rules.mjs `maybeThirdParty` passes it over", async () => {
+        /*
+         * E92 C0, 12.11.2026. A scene stand-in with three tokens in one room (a student, a Spectator, a Monokuma); the
+         * room each stands in is handed (`roomOf`), so no canvas is read. Red on C0's tree: the Spectator counted.
+         */
+        const { othersInNamedRoom } = await import("./movement.mjs");
+        const token = actor => ({ id: `${actor.id}-t`, actorId: actor.id, actor, hidden: false });
+        const scene = { id: "R3852scene", tokens: [token(e92Char("R3852-student")), token(e92Char("R3852-watch", { spectator: true })),
+            token(e92Char("R3852-kuma", { [FLAGS.monokuma]: true }))] };
+        const present = othersInNamedRoom("Hall", null, scene, () => "Hall").map(a => a.id);
+        const src = new Map(await otherSources());
+        const third = stripComments(fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "maybeThirdParty"));
+        equal(stableJson({ present, third: /\bisSpectator\(actor\)\)\s*return/.test(third) }),
+            stableJson({ present: ["R3852-student"], third: true }), "[who counts in the room; maybeThirdParty passes a Spectator over]");
+    }],
+    ["R3853 - a Spectator's microphone is held in every phase (E92 C2; the owner's E92 goal (2)): voice.mjs `micHold` answers `{ reason: \"spectator\", held: true }` for an account whose characters are Spectators, in Daily Life and in the Class Trial alike, and nothing for a student's account", async () => {
+        /*
+         * E92 C0, 12.11.2026. The facts are handed (`micHold` takes them all), so no LiveKit and no world is read.
+         * Red on C0's tree: null for the Spectator.
+         */
+        const { micHold, moduleHoldsMic, spectatorAccount } = await import("./voice.mjs");
+        const user = { id: "R3853user", isGM: false, name: "R3853" };
+        const watcher = e92Char("R3853-watch", { spectator: true }, user.id), student = e92Char("R3853-student", {}, user.id);
+        const at = (actors, trial = null) => micHold({ user, room: "drpg-room-hall", external: false, connected: true, canBroadcastAudio: true, actors, trial });
+        const trial = { clock: { phase: "classTrial", chapter: 1 }, floor: null, record: {}, epoch: 0 };
+        const kuma = e92Char("R3853-kuma", { [FLAGS.monokuma]: true }, user.id);
+        const forged = e92Char("R3853-forged", { spectator: true }, user.id);
+        const accounts = { watcher: spectatorAccount(user, { actors: [watcher, kuma] }), mixed: spectatorAccount(user, { actors: [watcher, student] }),
+            none: spectatorAccount(user, { actors: [kuma] }), gm: spectatorAccount({ id: "R3853gm", isGM: true }, { actors: [watcher] }),
+            held: spectatorAccount(user, { actors: [forged], held: () => e92Char("R3853-forged") }) };
+        const gmView = moduleHoldsMic(user, { actors: [watcher], eclipse: false, trial: false, dead: () => false });
+        const src = new Map(await otherSources());
+        const settle = stripComments(fnSource(stripComments(src.get("voice.mjs") ?? ""), "settleTrialVoices"));
+        equal(stableJson({ daily: at([watcher]), trial: at([watcher], trial), student: at([student]), accounts, gmView,
+            settle: /spectatorAccount\(user, \{ held: flagsHeldNow \}\)/.test(settle) }),
+            stableJson({ daily: { reason: "spectator", held: true }, trial: { reason: "spectator", held: true }, student: null,
+                accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: { reason: "spectator", held: true }, settle: true }),
+            "[micHold for the Spectator's account in Daily Life and the trial; a student's account; spectatorAccount; the GMs' view; the settle blocks it as the GMs hold the flag]");
+    }],
+    ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it (it moves by dragging its own token; the bridge action `spectator.move` went in E92 round 3, R3863)", async () => {
+        /*
+         * E92 C0, 12.11.2026. The clock is answered in the Class Trial while the verdicts are read (`game.settings.get`
+         * stood in, the setting untouched); the rest is read in the source. Red on C0's tree: the trial's lock.
+         */
+        const { crossingVerdict } = await import("./movement.mjs");
+        const real = game.settings.get;
+        game.settings.get = function (scope, key, ...rest) {
+            const value = real.call(this, scope, key, ...rest);
+            return scope === MODULE_ID && key === SETTINGS.clock ? { ...(value ?? {}), phase: "classTrial", eclipse: false } : value;
+        };
+        let verdicts;
+        try {
+            verdicts = { watcher: crossingVerdict(e92Char("R3854-watch", { spectator: true }), "R3854 A", "R3854 B", null) === true,
+                student: crossingVerdict(e92Char("R3854-student"), "R3854 A", "R3854 B", null) === true };
+        } finally { game.settings.get = real; }
+        const src = new Map(await otherSources());
+        const cut = (file, fn) => stripComments(fnSource(stripComments(src.get(file) ?? ""), fn));
+        const names = cut("fog.mjs", "recordDiscovery").includes("isSpectator(") && cut("movement.mjs", "judgeMove").includes("isSpectator(")
+            && cut("movement-audit.mjs", "auditMove").includes("isSpectator(");
+        equal(stableJson({ verdicts, names }), stableJson({ verdicts: { watcher: true, student: false }, names: true }),
+            "[a crossing in the Class Trial for a Spectator and a student; the ledger, the charge and the audit pass it over]");
+    }],
+    ["R3855 - who sees a Spectator's token, and what a Spectator sees (E92 C4; the owner's E92 goal (1), (4)): visibility.mjs `tokenShownTo` hides a Spectator's token from every other player whatever the room, the Eclipse or the setting, shows it to its owner, and leaves the GM's to Foundry; to a Spectator's browser every character's token is left to Foundry (seen whatever the room), its own as well", async () => {
+        /*
+         * E92 C0, 12.11.2026. `tokenShownTo` takes its viewer whole (`viewerHere`'s shape, `spectator` added); the token
+         * documents are stand-ins whose room is none (`roomOfToken` finds no region for them). Red on C0's tree.
+         */
+        const { tokenShownTo } = await import("./visibility.mjs");
+        const doc = actor => ({ id: `${actor.id}-t`, actorId: actor.id, actor, x: -99999, y: -99999, parent: null });
+        const watcherDoc = doc(e92Char("R3855-watch", { spectator: true })), studentDoc = doc(e92Char("R3855-student"));
+        const viewer = (over = {}) => ({ gm: false, eclipse: false, enforcing: true, rooms: new Set(["R3855 Hall"]), lair: null, owns: () => false, spectator: false, ...over });
+        const got = {
+            player: tokenShownTo(watcherDoc, viewer()), playerOff: tokenShownTo(watcherDoc, viewer({ enforcing: false })),
+            playerEclipse: tokenShownTo(watcherDoc, viewer({ eclipse: true })), owner: tokenShownTo(watcherDoc, viewer({ owns: d => d === watcherDoc, spectator: true })),
+            gm: tokenShownTo(watcherDoc, viewer({ gm: true })),
+            watching: tokenShownTo(studentDoc, viewer({ spectator: true })), watchingEclipse: tokenShownTo(studentDoc, viewer({ spectator: true, eclipse: true })),
+            student: tokenShownTo(studentDoc, viewer())
+        };
+        equal(stableJson(got), stableJson({ player: "hide", playerOff: "hide", playerEclipse: "hide", owner: "show", gm: null, watching: null, watchingEclipse: null, student: "hide" }),
+            "[a Spectator's token to a player, with the setting off, in an Eclipse, to its owner, to a GM; a student's token to a Spectator, in an Eclipse; to a player in another room]");
+    }],
+    ["R3856 - a Spectator's map is the class's, without the Mastermind's walks (E92 C4; the owner's E92 goal (4), the plan's risk R2): gm-stores.mjs `spectatorFogSection` folds every row of the discovery store but the Mastermind's into one row under the Spectator's own id, scene by scene - a room any of them found is found, newest stamp of the finds; a room none holds found keeps its newest untick - and names no other actor", async () => {
+        /*
+         * E92 C0, 12.11.2026. A section built by hand (gm-store.mjs's shape: entries, stamps, tombstones, watermark); the
+         * fold is pure. Red on C0's tree: no `spectatorFogSection`.
+         */
+        const GS = await import("./gm-stores.mjs");
+        const section = {
+            e: { "S1/amy": { Hall: true, Gym: false }, "S1/ben": { Gym: true, Lab: false }, "S1/mm": { Lair: true, Hall: true }, "S2/amy": { Roof: true } },
+            t: { "S1/amy": { "": 10, Gym: 30 }, "S1/ben": { "": 20, Lab: 40 }, "S1/mm": 50, "S2/amy": 5 },
+            d: { "S1/old": 60 }, cleared: 3
+        };
+        const out = GS.spectatorFogSection(section, "watch", { mastermindId: "mm" });
+        equal(stableJson(out), stableJson({
+            e: { "S1/watch": { Gym: true, Hall: true, Lab: false }, "S2/watch": { Roof: true } },
+            t: { "S1/watch": { "": 0, Gym: 20, Hall: 10, Lab: 40 }, "S2/watch": { "": 0, Roof: 5 } },
+            d: {}, cleared: 3 }), "[the fold of three students' rows, one the Mastermind's, on two scenes]");
+    }],
+    ["R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM", async () => {
+        /*
+         * E92 C0, 12.11.2026. A stand-in Spectator; `editable` is handed. Red on C0's tree: mode "student".
+         */
+        const { sheetMode } = await import("./sheet.mjs");
+        const owner = { id: "R3857owner", isGM: false }, gm = { id: "R3857gm", isGM: true };
+        const watcher = e92Char("R3857-watch", { spectator: true }, owner.id);
+        const read = user => {
+            const m = sheetMode(watcher, user, { editable: true });
+            return { mode: m.mode, actions: m.actions, calls: m.calls, use: m.rows.use, levelUp: m.levelUp, strip: m.strip, objection: m.objection,
+                tile: m.tile, safeword: m.safeword, acts: m.header.acts, spectator: m.spectator };
+        };
+        const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: false, acts: false, spectator: true };
+        equal(stableJson({ owner: read(owner), gm: read(gm) }), stableJson({ owner: want, gm: want }), "[sheetMode of a Spectator for its owner and a GM]");
+    }],
+    ["R3860 - the Spectators' room (E92 C6; the owner's 04.11 amend \"a 'Spectator talk' switch moves them to their room until they return\"): voice.mjs `placeVoices` sends a Spectator's account whose switch is on (its own User flag, scripts/spectator.mjs `SPECTATOR_TALK_FLAG`) to voice-client.mjs `SPECTATOR_ROOM`, and back to its token's room when it is off; a student's account with the flag stays in its room; `micHold` opens the microphone in the Spectators' room alone (\"spectatorTalk\", not held) and the voice tile's switch says which way it goes (voice-tile.mjs `paintSpectatorTalk`, round 3; the line under the clock until then)", async () => {
+        /*
+         * E92 C6, 12.11.2026. Stand-in accounts and characters; the room each stands in is handed (`locate`), the deaths
+         * answered none. Red before C6: no SPECTATOR_ROOM, the Spectator in its token's room.
+         */
+        const V = await import("./voice.mjs");
+        const { SPECTATOR_ROOM } = await import("./voice-client.mjs");
+        const { SPECTATOR_TALK_FLAG } = await import("./spectator.mjs");
+        const VT = await import("./voice-tile.mjs");
+        const account = (id, talk) => ({ id, name: id, isGM: false, active: true,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === SPECTATOR_TALK_FLAG ? talk : undefined) });
+        const place = async (talk) => {
+            const watch = account("R3860watch", talk), pupil = account("R3860pupil", true);
+            const watcher = e92Char("R3860-watcher", { spectator: true }, watch.id), student = e92Char("R3860-student", {}, pupil.id);
+            const owners = new Map([[watcher.id, watch], [student.id, pupil]]);
+            const out = await V.placeVoices({ actors: [watcher, student], users: [watch, pupil], userOf: a => owners.get(a.id), dead: () => false,
+                monokumaOf: () => false, death: { cast: new Set() }, locate: () => ({ scene: { id: "R3860scene", name: "R3860" }, room: "Gym" }) });
+            return { watch: out.byUser.get(watch.id)?.target ?? null, pupil: out.byUser.get(pupil.id)?.target ?? null };
+        };
+        const gym = V.liveKitRoomFor("R3860scene", "Gym");
+        const user = { id: "R3860mic", isGM: false }, mine = [e92Char("R3860-mine", { spectator: true }, "R3860mic")];
+        const mic = room => V.micHold({ user, room, external: false, connected: true, canBroadcastAudio: true, actors: mine, trial: null });
+        const button = talking => {
+            const tile = VT.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+            const b = VT.paintSpectatorTalk(tile, { watching: true, talking, onToggle: () => null });
+            return [b?.getAttribute("aria-label") ?? null, b?.getAttribute("aria-pressed") ?? null];
+        };
+        equal(stableJson({ on: await place(true), off: await place(false), micThere: mic(SPECTATOR_ROOM), micHere: mic(gym), on2: button(true), off2: button(false) }),
+            stableJson({ on: { watch: SPECTATOR_ROOM, pupil: gym }, off: { watch: gym, pupil: gym },
+                micThere: { reason: "spectatorTalk", held: false }, micHere: { reason: "spectator", held: true },
+                on2: [game.i18n.localize("DRPG.Spectator.talkBack"), "true"], off2: [game.i18n.localize("DRPG.Spectator.talk"), "false"] }),
+            "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the tile's switch]");
+    }],
+    ["R3861 - what a Spectator sees of E61, E62 and E94 (E92 C7; the owner's 08.11 amend: \"E92 checks what a Spectator sees at the trial entry and cut-in, the day boards and phase transitions\"): the start-of-day board's cast, monokuma.mjs `studentActors`, leaves a Spectator out, as it leaves an NPC; and the trial's entry, the verdict's cut-in, the day's board and every transition play on every browser that hears them - none of sequence.mjs `playTrialEntry`, `playVerdictCut`, `playDayStart` or transitions.mjs asks who the viewer is, so a Spectator's browser plays them as a player's does", async () => {
+        /*
+         * E92 C7, 12.11.2026. The board is built as `playDayStart` builds it, from the roster, with a student flagged a
+         * Spectator in memory (`e24HeldFlagged`); the players are read in the source (no viewer, user or role gate).
+         * Green from C1 (the roster); the source half holds that E61, E62 and E94 stay ungated.
+         */
+        const S = await import("./sequence.mjs");
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const watcher = studentActors().find(owned);
+        must(watcher, "no student a player owns - this would measure nothing");
+        const castOf = () => S.dayStartBoard({ day: 2, chapter: 1, timeOfDay: "morning" }, studentActors()).cast.map(c => c.id);
+        const before = castOf().includes(watcher.id);
+        const after = await e24HeldFlagged(watcher, { [FLAGS.spectator]: true }, () => castOf().includes(watcher.id));
+        const src = new Map(await otherSources());
+        const seq = stripComments(src.get("sequence.mjs") ?? ""), tr = stripComments(src.get("transitions.mjs") ?? "");
+        const gate = /\b(?:isSpectator|spectatorViewer|ownStudent|ownSpectator|viewerActor|game\.user\.isGM)\b/;
+        const ungated = ["playTrialEntry", "playVerdictCut", "playDayStart"].map(fn => [fn, fnSource(seq, fn).length > 40 && !gate.test(fnSource(seq, fn))]);
+        equal(stableJson({ before, after, ungated, transitions: tr.length > 200 && !gate.test(tr) }),
+            stableJson({ before: true, after: false, ungated: [["playTrialEntry", true], ["playVerdictCut", true], ["playDayStart", true]], transitions: true }),
+            "[the day board's cast with the student, then flagged a Spectator; the three players and the transitions ask no viewer]");
+    }],
+    ["R3862 - the Students window's sheet and items buttons stand in a column of their own, beside the name and never in its cell, at one width in every row (scripts/gm-students.mjs `aliveTableHtml`; E92 owner fix, the owner's 12.11.2026: \"przyciski karty postaci i dania przedmiotu niech beda w osobnej kolumnie niz imie i nazwisko, zawsze na tej samej szerokosci\"): every row - a student's, a Monokuma's, a Spectator's - has a name cell with no button and a buttons cell right after it holding two slots in one order, the sheet's then the items' (a Monokuma's items slot kept, empty, hidden from a screen reader and the Tab key); the stylesheet gives that column one fixed width and keeps its buttons on one line", async () => {
+        /*
+         * E92 owner fix, 12.11.2026. The window is drawn (R2081's `studentsWindow`); jsdom lays nothing out, so the same x
+         * and width in every row is held by the table itself (one column) and by the column's fixed width in the stylesheet
+         * - measured in Chromium on the review page's shots. Red at 63d3c9c: the buttons in the name's cell, after the name.
+         */
+        needs(env.dialogs(), "the Students window is drawn");
+        const w = await studentsWindow();
+        let rows;
+        try {
+            const root = w.app?.element;
+            must(root, "no Students window drew");
+            rows = [...root.querySelectorAll("tr[data-actor]")].map(tr => {
+                const cells = [...tr.children];
+                const name = tr.querySelector("td.drpg-data-col-name"), open = tr.querySelector("td.drpg-data-col-open");
+                const slots = open ? [...open.children].map(c => (c.matches("[data-drpg-sheet]") ? "sheet" : c.matches("[data-drpg-items]") ? "items"
+                    : c.matches("[data-drpg-items-slot]") && c.getAttribute("aria-hidden") === "true" ? "kept" : "other")) : null;
+                return { nameButtons: name ? name.querySelectorAll("button").length : null, next: Boolean(open) && cells.indexOf(open) === cells.indexOf(name) + 1,
+                    slots: slots?.join(",") ?? null, tab: open ? [...open.querySelectorAll("[data-drpg-items-slot]")].every(e => e.tabIndex === -1) : null };
+            });
+        } finally { await w.close(); }
+        must(rows.length >= 3, "the window drew fewer than three rows - this would measure nothing");
+        const rule = /\.drpg-window-alive\s+td\.drpg-data-col-open\s*\{[^}]*\bwidth:\s*[\d.]+rem[^}]*white-space:\s*nowrap/.test(await moduleStyles());
+        const odd = rows.filter(r => r.nameButtons !== 0 || !r.next || !/^sheet,(items|kept)$/.test(r.slots ?? "") || r.tab !== true);
+        equal(stableJson({ odd, rule }), stableJson({ odd: [], rule: true }),
+            "[the rows whose name cell holds a button, whose buttons are not the next cell, or whose slots are not the sheet's then the items'; the column's fixed width in components.css]");
+    }],
+    ["R3863 - no line under the clock for a Spectator, and no road it walked (E92 round 3; the owner's 12.11.2026: \"Usuwamy liste\"): scripts/spectator-ui.mjs draws no watching line and no room picker (`spectatorLineHtml`, `paintSpectatorLine` gone), no module file names the line, its picker or the bridge action `spectator.move` (a Spectator moves by dragging its own token), and the chat stays hidden on its browser (components.css `body.drpg-spectator`)", async () => {
+        /*
+         * E92 round 3, 12.11.2026. Read in the source, comments stripped, the suite's own files left out; the stylesheet's
+         * chat rule read whole. Red at 56f4dab: the line, its picker and `spectator.move` were there.
+         */
+        const UI = await import("./spectator-ui.mjs");
+        const src = new Map(await otherSources());
+        must(src.size > 50, "the sources read are almost none - this would measure nothing");
+        const naming = [...src].filter(([, text]) => /spectator\.move|SPECTATOR_MOVE|SpectatorMove|drpg-spectator-line|drpg-spectator-rooms|DRPG\.Spectator\.watch/.test(stripComments(text)))
+            .map(([file]) => file.replace(/^.*\//, "")).sort();
+        const css = await moduleStyles();
+        equal(stableJson({ exports: [e92Export(UI, "spectatorLineHtml"), e92Export(UI, "paintSpectatorLine")].filter(Boolean).length, naming,
+            lineCss: /drpg-spectator-line/.test(css), chat: /body\.drpg-spectator\s+#chat-log/.test(css) }),
+            stableJson({ exports: 0, naming: [], lineCss: false, chat: true }),
+            "[spectator-ui.mjs's line exports; the files that name the line, its picker or spectator.move; the line's rules; the chat's rule]");
+    }],
+    ["R3864 - the \"Talk with the Spectators\" switch stands in the voice tile, among its buttons, on a Spectator's browser alone (E92 round 3; the owner's 12.11.2026: \"przycisk przenoszenia sie miedzy czatem spectatorow a sluchaniem dajemy w panelu livekit po prawej stronie ekranu, tam gdzie reszta przyciskow\"): voice-tile.mjs `paintSpectatorTalk` puts one native button after the microphone and the speaker, named for a screen reader and its tooltip by DRPG.Spectator.talk, pressed and named DRPG.Spectator.talkBack while the switch is on, a click toggling the switch once; on any other browser no such button, and one drawn goes when the browser stops watching; `paintControls` paints it with the tile's other buttons", async () => {
+        /*
+         * E92 round 3, 12.11.2026. A tile of the suite's own (`buildVoiceTile` with stand-in clicks), detached; who watches
+         * and the switch are handed, the click's toggle is a spy. Red at 56f4dab: no `paintSpectatorTalk`.
+         */
+        const V = await import("./voice-tile.mjs");
+        const paint = e92Export(V, "paintSpectatorTalk");
+        const tile = V.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+        const L = key => game.i18n.localize(key);
+        let toggled = 0;
+        const read = () => {
+            const controls = tile.querySelector(".drpg-voice-tile-controls");
+            const b = controls?.querySelector(".drpg-voice-spectator-talk") ?? null;
+            if (!b) return null;
+            const order = [...controls.children].map(c => (c.classList.contains("drpg-voice-mic") ? "mic" : c.classList.contains("drpg-voice-speaker") ? "speaker"
+                : c === b ? "talk" : "other")).join(",");
+            return { tag: b.tagName, type: b.getAttribute("type"), label: b.getAttribute("aria-label"), tip: b.dataset.tooltipText ?? null,
+                pressed: b.getAttribute("aria-pressed"), order, tab: b.tabIndex };
+        };
+        const got = {};
+        if (paint) {
+            paint(tile, { watching: true, talking: false, onToggle: () => { toggled += 1; } });
+            got.off = read();
+            tile.querySelector(".drpg-voice-spectator-talk")?.click();
+            await new Promise(r => setTimeout(r, 0));
+            got.clicks = toggled;
+            paint(tile, { watching: true, talking: true, onToggle: () => { toggled += 1; } });
+            got.on = read();
+            got.count = tile.querySelectorAll(".drpg-voice-spectator-talk").length;
+            paint(tile, { watching: false, talking: true });
+            got.gone = read();
+        }
+        const painter = stripComments(fnSource(stripComments((new Map(await otherSources())).get("voice-tile.mjs") ?? ""), "paintControls")).includes("paintSpectatorTalk(");
+        const button = (key, pressed) => ({ tag: "BUTTON", type: "button", label: L(key), tip: L(key), pressed, order: "mic,speaker,talk", tab: 0 });
+        equal(stableJson({ ...got, painter }), stableJson({ off: button("DRPG.Spectator.talk", "false"), clicks: 1, on: button("DRPG.Spectator.talkBack", "true"),
+            count: 1, gone: null, painter: true }),
+            "[the switch off, a click, the switch on, how many buttons, the browser no longer watching; paintControls paints it]");
+    }],
+    ["R3866 - a Spectator's token on a GM's canvas is barely visible (E92, the owner's DRPG-D1 of 12.11.2026: \"Gm widzi zeton widza, ale zeton widza jest transparentny/ledwie widoczny, by nie mylil sie z graczami\"): visibility.mjs `dressSpectator` draws it at 0.3 of the token's own alpha (one constant, the coordinator's pick in the owner's 25-30 %), with no grey tint and no outline, and gives a token whose actor is no Spectator any more its own alpha back", async () => {
+        /*
+         * E92, 12.11.2026. A stand-in token (no canvas headless: the real map's look is LIVE-E92-04); its actor answers the
+         * flag as handed. Red at 7d907a7: the sprite at 0.6; red at 16ab04b: 0.28, tinted grey, an outline drawn.
+         */
+        const { dressSpectator } = await import("./visibility.mjs");
+        let watching = true;
+        const children = [];
+        const token = { actor: { getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? watching : undefined) },
+            mesh: { tint: 0xffffff, alpha: 1 }, document: { alpha: 0.9 }, children, addChild: child => children.push(child), w: 100, h: 100 };
+        const drawn = dressSpectator(token);
+        const faint = Math.round(token.mesh.alpha * 1000) / 1000, tint = token.mesh.tint, outline = children.length;
+        watching = false;
+        dressSpectator(token);
+        equal(stableJson({ drawn, faint, tint, outline, back: token.mesh.alpha }), stableJson({ drawn: true, faint: 0.27, tint: 0xffffff, outline: 0, back: 0.9 }),
+            "[dressed; its sprite's alpha for a token of alpha 0.9; its tint; outlines added; the alpha given back]");
+    }],
+    ["R3867 - a Spectator observes every secret project, and is nobody's viewer (E92, the owner's DRPG-D1 of 12.11.2026: \"Widzi wszystkie projekty w tym prywatne\"): projects-secrecy.mjs `ownershipMap` gives every Spectator's account OBSERVER beside the viewers handed and every other player NONE; scripts/spectator.mjs `spectatorUserIds` names an account whose every character but a Monokuma is a Spectator, and not one that also plays a student or plays nobody", async () => {
+        /*
+         * E92, 12.11.2026. The map is built over the world's users, with the Spectators handed; the census of accounts over
+         * stand-ins. What a Spectator's and a student's browsers then hold is scenario 93's ("projects"): a tier-2 test runs
+         * on one browser, a GM's. Red at 16ab04b: `ownershipMap` took no Spectators.
+         */
+        const S = await import("./projects-secrecy.mjs");
+        const { spectatorUserIds } = await import("./spectator.mjs");
+        const players = game.users.filter(u => !u.isGM).map(u => u.id);
+        must(players.length >= 3, "fewer than three players - the map would measure nothing");
+        const [viewer, watcher, other] = players;
+        const map = S.ownershipMap([viewer], new Set([watcher]));
+        const actor = (id, owner, flags) => ({ id, type: "character", testUserPermission: u => u.id === owner,
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const users = ["R3867a", "R3867b", "R3867c", "R3867d"].map(id => ({ id, isGM: false }));
+        const actors = [actor("A1", "R3867a", { spectator: true }), actor("B1", "R3867b", {}),
+            actor("C1", "R3867c", { spectator: true }), actor("C2", "R3867c", {}), actor("D1", "R3867d", { monokuma: true })];
+        equal(stableJson({ viewer: map[viewer], watcher: map[watcher], other: map[other], gms: game.users.filter(u => u.isGM).some(u => u.id in map),
+            accounts: [...spectatorUserIds(users, actors)].sort() }),
+            stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: 0, gms: false, accounts: ["R3867a"] }),
+            "[the map's entry for a viewer, a Spectator and another player; a GM in it; the accounts that play a Spectator]");
+    }],
+    ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
+        /*
+         * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two
+         * comments that spell it are counted as they stand). Green from C0: the count is the census's own.
+         */
+        const CENSUS = { "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1,
+            "fog.mjs": 5, "gm-stores.mjs": 2, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 3, "monokuma.mjs": 9,
+            "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
+            "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
+            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
+        const counted = {};
+        for (const [file, text] of await otherSources()) {
+            const n = (text.match(/type === "character"/g) ?? []).length;
+            if (n) counted[file.replace(/^.*\//, "")] = n;
+        }
+        must(Object.keys(counted).length > 10, "the sources read hold almost no character reads - this would measure nothing");
+        equal(stableJson(counted), stableJson(CENSUS), "[each file's count of `type === \"character\"`, against docs/dev/e92/CENSUS.md]");
+    }],
     ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
         /*
          * E49, 11.11.2026. The owner: "sa tam statystyki nieuzywane przez modul" - the window the character sheet's wrench
@@ -50810,6 +51188,21 @@ async function e24HeldFlagged(actor, flags, run) {
     } finally {
         for (const [key, own] of Object.entries(was)) if (own) Object.defineProperty(mark.flags, key, own); else delete mark.flags[key];
     }
+}
+
+/**
+ * E92's fixture (R3850-R3857): a character stand-in with `flags` as its module flags (a key of `FLAGS` or the flag's
+ * own name), owned by the user `ownerId` names (and by every GM), on no scene. Nothing in the world is touched.
+ */
+function e92Char(id, flags = {}, ownerId = null) {
+    return { id, name: id, type: "character", items: [], system: {}, ownership: ownerId ? { [ownerId]: 3 } : {},
+        getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+        testUserPermission: user => Boolean(user?.isGM) || (ownerId !== null && user?.id === ownerId) };
+}
+
+/** A function `ns` exports under `name`, or null: E92's red tests ask for a name its commits add (C0, before C1). */
+function e92Export(ns, name) {
+    return typeof ns?.[name] === "function" ? ns[name] : null;
 }
 
 async function e24AsRole(role, run) {

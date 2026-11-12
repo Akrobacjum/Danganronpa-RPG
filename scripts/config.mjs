@@ -242,7 +242,17 @@ export const FLAGS = {
      * player's write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
      * Who is a student is the table's to know, so it holds no secret.
      */
-    notInClass: "notInClass"
+    notInClass: "notInClass",
+    /**
+     * Character: a Spectator - a player who watches and is no student (E92 C1, 12.11.2026; the owner's E92 goal and its
+     * 04.11 amends). `studentActors` leaves it out, as it leaves an NPC, so no ballot, trial cast, assembly, Despair
+     * pool, incident, Level Up or tile counts it; its token is hidden from the other players, its microphone held, and
+     * it walks as a ghost (E92 C2-C4). A GM's flag: written only by the Students window's Role (gm-students.mjs
+     * `changeRole`, monokuma.mjs `setSpectator`), and a player's own write of it put back by the GMs' audit
+     * (sheet-audit.mjs `GM_FLAGS`). Who watches is no secret - every player may know a Spectator is at the table, as
+     * who is a student is the table's to know - so world-secrets.mjs has no rule for it.
+     */
+    spectator: "spectator"
 };
 
 /**

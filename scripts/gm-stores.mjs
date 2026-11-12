@@ -785,6 +785,8 @@ export const verdictStore = defineGmStore({
  * (`restoreTrialBlock`); a user a GM blocked by hand before has no row, so nothing of the GM's is ever put back. Synced
  * between the GMs, so a new primary ends the trial's mute the old one began; no player copy, nothing a player reads.
  * Cut by the reset's trial group beside the verdict, after the phase's write has put every grant back.
+ * A SPECTATOR'S BLOCK IS A ROW HERE TOO (E92 C2): the same write in every phase, by `settleTrialVoices`, so the role
+ * given back - or the reset's release - puts back exactly what the block found, by the trial's own rule.
  */
 export const trialMuteStore = defineGmStore({
     name: "trialMute", key: SETTINGS.gmTrialMute,
@@ -1478,6 +1480,43 @@ export function fogSectionFor(user) {
     const mine = key => Boolean(game.actors?.get(String(key).split("/")[1] ?? "")?.testUserPermission?.(user, "OWNER"));
     const pickOwn = part => Object.fromEntries(Object.entries(all[part] ?? {}).filter(([key]) => mine(key)));
     return { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: all.cleared ?? 0 };
+}
+
+/**
+ * A SPECTATOR'S MAP (E92 C4, 12.11.2026; the owner's E92 goal (4): "it sees the whole map the players have discovered -
+ * the discovery ledger without the Mastermind's row"; the plan's risk R2). Every row of the discovery store's `section`
+ * but the Mastermind's (`mastermindId`, the GMs' pick) folded into ONE row under the Spectator's own id, scene by
+ * scene, so the copy names no other character and nobody's walks - which student found which room, or where the
+ * Mastermind has been, is not in it. A room any of them holds found is found, at the newest stamp of the finds; a room
+ * none holds found keeps its newest untick, so a GM's untick of the last finder reaches the copy. Pure; the section's
+ * watermark is kept, its tombstones are not (they name the characters whose rows went). The copy merges it cell by
+ * cell (`fogCopy`), as a student's own row.
+ */
+export function spectatorFogSection(section, watcherId, { mastermindId = null } = {}) {
+    const out = { e: {}, t: {}, d: {}, cleared: section?.cleared ?? 0 };
+    if (!watcherId) return out;
+    const scenes = new Map();
+    for (const [key, cells] of Object.entries(section?.e ?? {})) {
+        const [sceneId, actorId] = String(key).split("/");
+        if (!sceneId || !actorId || actorId === mastermindId || !cells || typeof cells !== "object") continue;
+        const t = section.t?.[key];
+        const stampOf = room => (typeof t === "number" ? t : t && Object.hasOwn(t, room) ? t[room] : (t?.[""] ?? 0));
+        const rooms = scenes.get(sceneId) ?? new Map();
+        scenes.set(sceneId, rooms);
+        for (const [room, found] of Object.entries(cells)) {
+            if (room === "__proto__" || room === "constructor" || room === "prototype") continue;
+            const v = Boolean(found), s = Number(stampOf(room)) || 0, had = rooms.get(room);
+            if (!had || (v && !had.v)) rooms.set(room, { v, s });
+            else if (v === had.v && s > had.s) had.s = s;
+        }
+    }
+    for (const [sceneId, rooms] of scenes) {
+        if (!rooms.size) continue;
+        const key = `${sceneId}/${watcherId}`;
+        out.e[key] = Object.fromEntries([...rooms].map(([room, c]) => [room, c.v]));
+        out.t[key] = { "": 0, ...Object.fromEntries([...rooms].map(([room, c]) => [room, c.s])) };
+    }
+    return out;
 }
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
@@ -2415,7 +2454,8 @@ export function sameDecision(shown, now) {
  */
 export async function enterCastByHand() {
     if (!game.user?.isGM) return null;
-    const students = (game.actors?.contents ?? []).filter(a => a.type === "character");
+    // No Spectator (E92 C1): it is in nobody's incident.
+    const students = (game.actors?.contents ?? []).filter(a => a.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.spectator));
     const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
     const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;

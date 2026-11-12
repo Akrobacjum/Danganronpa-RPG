@@ -433,6 +433,13 @@ export const ROOM_PREFIX = "drpg-";
 export const DEAD_ROOM = `${ROOM_PREFIX}dead`;
 
 /**
+ * The Spectators' room (E92 C6; the owner's 04.11 amend: "Spectators have their own LiveKit room where they talk among
+ * themselves"): where a Spectator's account goes while its "Spectator talk" switch is on (voice.mjs `placeVoices`),
+ * the one room its microphone opens in. One of ours by the prefix, named as no scene's room is.
+ */
+export const SPECTATOR_ROOM = `${ROOM_PREFIX}spectators`;
+
+/**
  * Where a player's voice goes in an Eclipse: nowhere (E19 C4, 19.10.2026; the owner's answer of 25.09, audit S11-11).
  * The primary GM sends this name, and the browser it names leaves voice on it rather than joining it (`applyBreakout`).
  * Until C4 the browser joined it, a LiveKit room of one, connected through the whole placement window. Still one

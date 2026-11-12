@@ -253,6 +253,75 @@ const REGRESSIONS = [
             [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
     }],
 
+    ["R3865 - no student's action reaches the primary for a Spectator (E92 Q-E92-7; the owner's 12.11.2026 \"zgadzam sie, zlecaj\"): in the four tables (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS) every row a player may send names bridge-guards.mjs's Spectator guard right after knownSender - `notSpectator` on the character its owner question asks about (the same field, or a locate of its own) where it asks one, `senderNotSpectator` where it acts for the account - or stands in this test's list of rows that need none, with the reason; a GM's row (gmOnly first) needs none; the list names no row that is gone or that holds the guard; both refusals map to the closed list's \"spectator\", said in both languages", async () => {
+        /*
+         * E92 Q-E92-7, 12.11.2026. The tables are the module's own objects (tests-kit.mjs `bridgeTables`); a guard is known
+         * by its factory's tag (`made`) or by being the exported function. A census over a fixture first: three rows, two
+         * of them wrong, so a reader that finds nothing is not read as a clean table. Red at 3f47b45: no guard.
+         */
+        const G = await import("./bridge-guards.mjs");
+        must(typeof G.notSpectator === "function" && typeof G.senderNotSpectator === "function",
+            "bridge-guards.mjs has no notSpectator or senderNotSpectator - the census has nothing to look for");
+        /* The rows that need no Spectator guard, each with why: none of them acts for a student's character. */
+        const NEEDS_NONE = {
+            "note.save": "the player's own notebook (a User flag), which a Spectator may keep: no character acts, nothing of the game moves",
+            "ruling.expired": "a card's bookkeeping on the primary: the asker's own ruling card ends, no character acts",
+            "ruling.received": "a card's bookkeeping on the primary: the asker's own ruling card is marked seen, no character acts",
+            "action.friskAnswer": "the answer to a Frisk aimed at the sender's character; a Spectator is no Frisk's target (movement.mjs `othersInRoom` leaves it out), and the Frisk itself is guarded",
+            "searchTokens.returnPlant": "gives back what a guarded take handed out (`guardPlantReturn` holds it to the same user), nothing new",
+            "searchTokens.returnToken": "gives back a token a guarded spend took (`guardTokenReturn` holds it to the same user), nothing new"
+        };
+        const census = tables => {
+            const odd = [], rows = new Set();
+            let guarded = 0, account = 0, gms = 0, exempt = 0;
+            for (const { file, table } of tables) {
+                for (const [action, decl] of Object.entries(table)) {
+                    rows.add(action);
+                    const list = decl.guards ?? [];
+                    if (list[0]?.factory === "gmOnly") { gms++; continue; }
+                    const at = list.indexOf(G.knownSender);
+                    const spect = list.filter(g => g?.factory === "notSpectator" || g === G.senderNotSpectator);
+                    const owner = list.find(g => g?.factory === "owns" || g?.factory === "ownsActorAt");
+                    if (Object.hasOwn(NEEDS_NONE, action)) {
+                        exempt++;
+                        if (spect.length) odd.push(`${file} ${action}: listed as needing no guard, and holds one`);
+                        continue;
+                    }
+                    if (spect.length !== 1) { odd.push(`${file} ${action}: ${spect.length} Spectator guards, not one`); continue; }
+                    const [guard] = spect;
+                    if (at < 0 || list[at + 1] !== guard) odd.push(`${file} ${action}: its Spectator guard is not right after knownSender`);
+                    if (owner) {
+                        if (guard.factory !== "notSpectator") odd.push(`${file} ${action}: asks an owner question but guards the account, not the character`);
+                        else if (owner.factory === "owns" && owner.covers.length && JSON.stringify(owner.covers) !== JSON.stringify(guard.covers)) {
+                            odd.push(`${file} ${action}: the owner question reads ${owner.covers.join()}, the Spectator guard ${guard.covers.join()}`);
+                        }
+                        guarded++;
+                    } else if (guard === G.senderNotSpectator) account++;
+                    else guarded++; // a character a guard of the row's own reads (a trap's, a Search's), named to notSpectator
+                }
+            }
+            for (const action of Object.keys(NEEDS_NONE)) if (!rows.has(action)) odd.push(`${action}: listed as needing no guard, and no table has it`);
+            return { odd, guarded, account, gms, exempt };
+        };
+        const fixture = census([{ file: "fixture.mjs", table: {
+            "fixture.right": { guards: [G.knownSender, G.notSpectator("actorId"), G.owns("actorId", "not theirs")] },
+            "fixture.bare": { guards: [G.knownSender, G.owns("actorId", "not theirs")] },
+            "fixture.late": { guards: [G.knownSender, G.owns("actorId", "not theirs"), G.notSpectator("otherId")] }
+        } }]);
+        equal(JSON.stringify(fixture.odd.filter(line => line.startsWith("fixture.mjs"))), JSON.stringify([
+            "fixture.mjs fixture.bare: 0 Spectator guards, not one",
+            "fixture.mjs fixture.late: its Spectator guard is not right after knownSender",
+            "fixture.mjs fixture.late: the owner question reads actorId, the Spectator guard otherId"
+        ]), "the census does not find exactly the three faults planted in its fixture - it would misread the tables too");
+        const tables = await bridgeTables();
+        const read = census(tables);
+        must(read.guarded >= 40 && read.gms >= 20, `only ${read.guarded} guarded and ${read.gms} GM rows were read - the tables are not where this looks`);
+        log(`R3865: ${read.guarded} rows guard the character, ${read.account} the account, ${read.gms} are a GM's, ${read.exempt} need none`);
+        const codes = ["that character is a Spectator", "the sender plays a Spectator"].map(why => G.reasonOf(why));
+        equal(JSON.stringify({ odd: read.odd, codes, said: [game.i18n.has("DRPG.Bridge.why.spectator")] }),
+            JSON.stringify({ odd: [], codes: ["spectator", "spectator"], said: [true] }),
+            "[the rows whose Spectator guard is missing, misplaced or reads another field; the codes of its two refusals; the code's words]");
+    }],
     ["R1b - no socket handler takes a character on somebody's word", async () => {
         /*
          * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
@@ -8184,6 +8253,8 @@ const REGRESSIONS = [
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            // E92 C6: the player's own User document, its "Spectator talk" switch.
+            ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
@@ -9498,6 +9569,7 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#deadForTrial", "held (E70 C5; E70 fix p1-G1): on the primary in the record's step, after its deaths store has hydrated and every student's writes are judged (`judgedFor`) - `isDeadForGm` and the Monocub flag read through `flagsHeldNow`, so a dead player's console that unsets its death or sets the Monocub flag leaves the list as it was; an open incident's victim only once the GMs hold the death (no living victim, the review's SEC-1) [1b.2]"],
             ["SHEET voice.mjs#trialVoiceLine", "out of scope as a judgement (E70 fix p1-G3): the viewer's own line of who may speak in the trial, on its own client, where no voice tile is drawn - its voice character as `accountRow` ranks it (the trial's list first) and the Monocub flag from the document, as `micHold` reads them; it moves nothing and judges nobody"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
+            ["SHEET voice.mjs#spectatorAccount", "held (E92 C2): on the primary's settle the Spectator's flag is read through `flagsHeldNow`, after every character's writes are judged (`settleTrialVoices`); elsewhere a display, each client's own microphone line"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
@@ -10233,7 +10305,7 @@ const REGRESSIONS = [
             "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
     }],
 
-    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock", async () => {
+    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock, and since E92 round 3 the Spectator switch's team", async () => {
         /*
          * E78 fix r2-H1, 14.10.2026. The orchestrator on G3's glass harness shots (14.10): the tile's two buttons drew as
          * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
@@ -10246,7 +10318,7 @@ const REGRESSIONS = [
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
-        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound", "team"], [], ["no-such-sprite"]]),
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],
 
@@ -12181,7 +12253,8 @@ const REGRESSIONS = [
         const G = await import("./bridge-guards.mjs");
         const cast = BRIDGE_ACTIONS["vote.cast"], asked = BRIDGE_ACTIONS["vote.ask"];
         ok(cast && asked, "the bridge has no `vote.cast` or no `vote.ask` - a ballot has no road to the primary but a raw packet");
-        const shape = decl => [decl.guards?.[0] === G.knownSender, decl.guards?.[1]?.factory ?? null, decl.sanitize?.fields ?? null,
+        // The Spectator's guard stands second since E92 Q-E92-7 (R3865: a Spectator's account casts no ballot); the third is the players' own.
+        const shape = decl => [decl.guards?.[0] === G.knownSender && decl.guards?.[1] === G.senderNotSpectator, decl.guards?.[2]?.factory ?? null, decl.sanitize?.fields ?? null,
             decl.answer, Boolean(decl.patient), Boolean(decl.resend), Boolean(decl.quiet)];
         equal(JSON.stringify(shape(cast)), JSON.stringify([true, "playersOnly", { round: "num", choice: "raw" }, "reply", true, true, false]),
             "vote.cast is not a known player's alone, a round and a list, answered by the primary and asked again when a primary arrives");
