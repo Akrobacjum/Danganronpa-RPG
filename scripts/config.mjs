@@ -3320,6 +3320,28 @@ export const MONOCUB = {
             caps: null,
             executionCost: { cost: 1, hopeCost: 0 },
             thresholds: [{ min: 12, grants: "step" }]
+        },
+        /**
+         * GHOST BET (E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; the inventory's row 72): a
+         * Monocub names the student it thinks the verdict will sentence, for the Hope of the window it bets in
+         * (monocub.mjs `betWindowNow`: 4 before this chapter's body is announced, 3 after, 2 in the Class Trial before
+         * the vote, 1 while it is open), paid into its purse only when a right verdict sentences that student
+         * (`settleBets`, the verdict's step "bets"). Defaults, owner may revise: free, one bet until the next verdict.
+         */
+        bet: {
+            label: "Ghost Bet",
+            icon: "fa-dice",
+            cost: 0,
+            hopeCost: 0,
+            target: "student",
+            choices: ["bet"],
+            locks: ["betWindow"],
+            blocks: ["betPlaced", "ownCase", "crimeWitness"],
+            roll: "none",
+            resolve: "bet",
+            intro: "DRPG.Monocub.betIntro",
+            caps: null,
+            thresholds: []
         }
     }
 };

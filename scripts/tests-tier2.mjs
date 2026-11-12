@@ -17644,6 +17644,71 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["a Ghost Bet names a student for the window's Hope, one bet a Monocub, shut to a crime witness, paid into the purse only when a right verdict sentences that student, its cards naming nobody else (E72 C18)", async () => {
+        /*
+         * E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; defaults, owner may revise: free to place,
+         * one bet a Monocub until the next verdict, the value fixed when it is placed. The row `bet` (config.mjs
+         * MONOCUB.abilities); its value is the window (monocub.mjs `betWindowNow`: 4 before this chapter's body is
+         * announced, 3 after, 2 in the Class Trial before the vote, 1 while the vote is open, 0 once it closed); blocked
+         * for one placed (`betPlaced`), a Monocub whose own case is open (`ownCase`) and a crime witness (`crimeWitness`);
+         * settled by the verdict's step "bets" (`settleBets`). A Monocub and two students. Read: the windows in the four
+         * states; a bet on A placed (its value); a second refused; the block's sentence for a witness; a right verdict
+         * sentencing A (the purse, the bet gone); a bet on B and a wrong verdict (nothing paid). Red at 3f87a53: no bet.
+         */
+        const [cub, a, b] = cast(3);
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const had = { actions: cub.system.resources.actions.value, hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(Boolean(MONOCUB.abilities.bet) && typeof M.settleBets === "function" && typeof M.betWindowNow === "function",
+                "no Ghost Bet: MONOCUB.abilities.bet, monocub.mjs settleBets or betWindowNow is missing (E72 C18)");
+            if (!MONOCUB.abilities.bet || typeof M.settleBets !== "function") return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 3, "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            const chapter = getClock().chapter;
+            const set = async (phase, vote = null) => {
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase, eclipse: false });
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...(getSetting(SETTINGS.trialProgress) ?? {}), chapter, vote, verdictApplied: false });
+                await settle();
+                return M.betWindowNow({ announced: false });
+            };
+            read.windows = [await set("dailyLife"), M.betWindowNow({ announced: true }), await set("classTrial"),
+                await set("classTrial", { open: true }), await set("classTrial", { open: false, closedAt: 1 })];
+            await set("dailyLife");
+            const bet = async target => M.cubAbilityOnGm({ actorId: cub.id, key: "bet", targetId: target.id, choice: "bet" });
+            await S.cubStore.patch(cub.id, { witness: { chapter, epoch: seasonEpoch() } });
+            read.witness = [M.cubBlockSaid(cub, MONOCUB.abilities.bet), Boolean(await bet(a))];
+            await S.cubStore.patch(cub.id, { witness: null });
+            // The value is the window when it is placed: the world's own announcement state, read live.
+            const window = M.betWindowNow();
+            read.placed = [Boolean(await bet(a)), S.cubStore.get(cub.id)?.bet?.targetId === a.id, S.cubStore.get(cub.id)?.bet?.value === window && window > 0];
+            read.second = Boolean(await bet(b));
+            read.right = [await M.settleBets({ record: { correct: true, executedIds: [a.id] } }), M.purseOf(cub) === window, Boolean(S.cubStore.get(cub.id)?.bet)];
+            await bet(b);
+            read.wrong = [await M.settleBets({ record: { correct: false, executedIds: [b.id] } }), M.purseOf(cub) === window, Boolean(S.cubStore.get(cub.id)?.bet)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.actions.value": had.actions, "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            windows: [4, 3, 2, 1, 0], placed: [true, true, true], second: false, witness: ["DRPG.Monocub.betWitness", false],
+            right: [1, true, false], wrong: [0, true, false]
+        }), "a Ghost Bet is not windowed, placed, blocked or settled as DC12/DC31 ask ({the windows: before the announcement, after, in the trial, the vote open, "
+            + "closed; a bet on A: placed, on A, its value; a second; a witness's block and its bet refused; a right verdict on A: [winners, purse, a bet left]; a wrong one: the same})");
+    }],
+
     ["a move to order costs only its action: the Monocub's next Confusion after it accepted a Bribe this time of day takes no Hope, the one after it does, and an order lapses at the turn (E72 C17)", async () => {
         /*
          * E72 C17, 12.11.2026; the owner's DC34 ("a move done to order costs only the action"); defaults, owner may revise:

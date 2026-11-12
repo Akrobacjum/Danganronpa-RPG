@@ -48,7 +48,7 @@ import { isMonokuma } from "./monokuma.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
-import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
+import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
 import { cubStore, cubCopy, cubTargetStore, bountyStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
@@ -616,7 +616,9 @@ export function abilityRow(key) {
  */
 export const CUB_LOCKS = Object.freeze({
     eclipse: { shut: async () => (await import("./eclipse.mjs")).isEclipse(), say: "DRPG.Eclipse.actionsLocked" },
-    classTrial: { shut: async () => getClock().phase === "classTrial", say: "DRPG.Trial.callsLocked" }
+    classTrial: { shut: async () => getClock().phase === "classTrial", say: "DRPG.Trial.callsLocked" },
+    // A Ghost Bet once the vote has closed (E72 C18): the window is 0.
+    betWindow: { shut: async () => betWindowNow() <= 0, say: "DRPG.Monocub.betClosed" }
 });
 
 /** The first of the row's locks that is shut, said; null when none is. A lock the table does not know is shut. */
@@ -712,6 +714,19 @@ export const CUB_BLOCKS = Object.freeze({
     askOpen: {
         refuses: actor => (cubRowOf(actor)?.askOpen ? "an Ask for Hope is still open" : null),
         say: "DRPG.Monocub.askStillOpen"
+    },
+    // A Ghost Bet's (E72 C18): one placed already, the Monocub's own case open (DC15), a crime witness from the murder on.
+    betPlaced: {
+        refuses: actor => (cubRowOf(actor)?.bet ? "a Ghost Bet is placed already" : null),
+        say: "DRPG.Monocub.betPlaced"
+    },
+    ownCase: {
+        refuses: actor => (ownCaseOpen(actor) ? "the Monocub's own case is open" : null),
+        say: "DRPG.Monocub.betOwnCase"
+    },
+    crimeWitness: {
+        refuses: actor => (isCrimeSilenced(actor) ? "the Monocub is a crime witness" : null),
+        say: "DRPG.Monocub.betWitness"
     }
 });
 
@@ -781,6 +796,19 @@ export const CUB_TARGETS = Object.freeze({
      * player is in on. `refuses` asks the same of the one named and, on a GM, that a living student worked on it this
      * time of day (projects.mjs `workersNow`, the GMs' row; the picker on a player's browser cannot read it).
      */
+    /** A student of the class, for a Ghost Bet (E72 C18): anyone but the Monocub itself, a Monokuma or another Monocub. */
+    student: {
+        async list(actor) {
+            const { studentActors } = await import("./monokuma.mjs");
+            return studentActors().filter(a => a.id !== actor?.id && !isMonocub(a));
+        },
+        async refuses(actor, target) {
+            if (!target || target.type !== "character" || target.id === actor?.id) return "the bet names no other student";
+            const { studentActors } = await import("./monokuma.mjs");
+            if (isMonocub(target) || !studentActors().some(a => a.id === target.id)) return "the bet names no student of the class";
+            return null;
+        }
+    },
     project: {
         async resolve(id) {
             const { allProjects } = await import("./projects.mjs");
@@ -1289,7 +1317,7 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
  * `(actor, target, choice, total, isCritical, row)`. A second ability is one row and
  * one entry here.
  */
-export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle, redeem: redeemHope, askHope: postHopeAsk, tinker: scoreTinker });
+export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle, redeem: redeemHope, askHope: postHopeAsk, tinker: scoreTinker, bet: placeBet });
 
 /**
  * TINKER, SCORED ON THE GM'S THROW (E72 C13; the owner's DC23, DC24). 12 or more moves the project one step, forward
@@ -1621,6 +1649,61 @@ export async function lapseBounties() {
     tellEveryCub();
     log(`${ids.length} Bounty(-ies) lapsed unclaimed at the turn of the time of day.`);
     return ids.length;
+}
+
+/*
+ * GHOST BET (E72 C18, 12.11.2026; the owner's DC12, DC31: "bet +3 from the body's announcement to the trial, +2 to the
+ * vote's opening, +1 to its close; one bet, right conviction only", and the 06.11 amendment: +4 before the public
+ * announcement, always open so the tile reveals nothing). A Monocub names a student; the bet is the GMs' (`cubStore`'s
+ * `bet`, `{ targetId, value, at }`), its value the window it was placed in, and it is settled by the verdict's step
+ * "bets" (verdict.mjs): a right verdict that sentences the student pays the value into the purse (`addToPurse`), anything
+ * else pays nothing; either way the bet goes, and the card names nobody but the Monocub's own choice. Defaults, owner
+ * may revise: free to place; one bet until the next verdict; the value fixed when placed.
+ */
+
+/** The Hope a bet placed now would pay: 4, 3, 2, 1, or 0 once the vote has closed. */
+export function betWindowNow({ clock = getClock(), progress = getSetting(SETTINGS.trialProgress) ?? {}, announced } = {}) {
+    if (clock?.phase === "classTrial") {
+        const mine = progress?.chapter === clock.chapter;
+        if (mine && progress.verdictApplied) return 0;
+        const vote = mine ? progress.vote : null;
+        if (vote?.open) return 1;
+        if (vote?.closedAt) return 0;
+        return 2;
+    }
+    const found = announced ?? Boolean(bodyFoundSinceTrial(clock));
+    return found ? 3 : 4;
+}
+
+/** GM: a Ghost Bet placed on `target`, at the window's value (the row's resolver). */
+async function placeBet(actor, target) {
+    const value = betWindowNow();
+    await patchCubRow(actor.id, { bet: { targetId: target.id, value, at: serverNow() } });
+    await whisperToOwner(actor, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.betStands", { name: target.name, n: value }))}</p>`, { veiled: true });
+    log(`${actor.name} (a Monocub) placed a Ghost Bet for ${value} Hope.`);
+    return { success: true };
+}
+
+/** GM: the verdict's step "bets" - every Ghost Bet settled and gone. Answers how many paid. */
+export async function settleBets(context) {
+    if (!game.user?.isGM) return 0;
+    const record = context?.record ?? {};
+    const sentenced = new Set(Array.isArray(record.executedIds) ? record.executedIds : []);
+    let paid = 0;
+    for (const [actorId, row] of Object.entries(cubStore.entries() ?? {})) {
+        const bet = row?.bet;
+        if (!bet) continue;
+        const actor = game.actors.get(actorId);
+        await patchCubRow(actorId, { bet: null });
+        if (!actor) continue;
+        const wins = Boolean(record.correct) && sentenced.has(bet.targetId);
+        const got = wins ? await addToPurse(actor, Math.max(0, Math.trunc(Number(bet.value) || 0))) : 0;
+        if (wins) paid += 1;
+        await whisperToOwner(actor, `<p>${foundry.utils.escapeHTML(wins ? game.i18n.format("DRPG.Monocub.betPaid", { n: got })
+            : game.i18n.localize("DRPG.Monocub.betLost"))}</p>`, { veiled: true });
+    }
+    if (paid) log(`${paid} Ghost Bet(s) paid at the verdict.`);
+    return paid;
 }
 
 /**

@@ -476,9 +476,10 @@ async function keepVerdictBlackened(at, blackenedIds) {
  * reaches "done" without it, and its sentenced die at the exit like anybody's.
  */
 const VERDICT_STEPS = {
-    correct: ["sentence", "card", "levelUps", "overflow"],
+    // "bets" (E72 C18): the Monocubs' Ghost Bets settled, after the overflow, on either verdict.
+    correct: ["sentence", "card", "levelUps", "overflow", "bets"],
     // "remind" (E72 C7): the Monocubs this case's death and this chapter's crime touched are told the verdict let the killer go.
-    wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow"]
+    wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"]
 };
 /*
  * THE FINAL TRIAL'S EXECUTION AND PICK WAIT ON ITS SENTENCE (E42 fix FG1, 03.11.2026; the end review's C-m1). A Final
@@ -487,7 +488,7 @@ const VERDICT_STEPS = {
  * stands for the Finish, which writes the sentence first (tier 2 E42-T11).
  */
 const VERDICT_NEEDS = {
-    card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card",
+    card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card",
     finalExecution: "finalSentence", mastermind: "finalSentence"
 };
 
@@ -510,6 +511,7 @@ const VERDICT_STEP_LABELS = {
     card: "DRPG.Vote.verdictSteps.card", levelUps: "DRPG.Vote.verdictSteps.levelUps",
     offers: "DRPG.Vote.verdictSteps.offers", despair: "DRPG.Vote.verdictSteps.despair",
     rule: "DRPG.Vote.verdictSteps.rule", remind: "DRPG.Vote.verdictSteps.remind", overflow: "DRPG.Vote.verdictSteps.overflow",
+    bets: "DRPG.Vote.verdictSteps.bets",
     finalSentence: "DRPG.Vote.verdictSteps.finalSentence", finalCard: "DRPG.Vote.verdictSteps.finalCard",
     finalClose: "DRPG.Vote.verdictSteps.finalClose", finalExecution: "DRPG.Vote.verdictSteps.finalExecution",
     finalLevelUps: "DRPG.Vote.verdictSteps.finalLevelUps", mastermind: "DRPG.Vote.verdictSteps.mastermind"
@@ -907,10 +909,16 @@ export async function remindOnWrongVerdict(context) {
     return touched.map(actor => actor.name);
 }
 
+/** The verdict's step "bets" (E72 C18): monocub.mjs `settleBets`, with this verdict's record. */
+async function settleBetsStep(context) {
+    const { settleBets } = await import("./monocub.mjs");
+    await settleBets(context);
+}
+
 const VERDICT_STEP = {
     sentence: readSentence, card: verdictCard,
     levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, remind: remindOnWrongVerdict,
-    overflow: verdictOverflow,
+    overflow: verdictOverflow, bets: settleBetsStep,
     finalSentence: finalVerdictSentence, finalCard: finalVerdictCard, finalClose: finalVerdictClose,
     finalExecution: finalVerdictExecution, finalLevelUps: finalVerdictLevelUps, mastermind: finalVerdictMastermind
 };

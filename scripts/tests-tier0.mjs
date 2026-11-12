@@ -17246,7 +17246,8 @@ const REGRESSIONS = [
             topic: /"DRPG\.Floor\.topic"/.test(fnSource(floorUi, "openDebate")),
             budget: /budget: \{ minutesAt16: 270 \}/.test(config) && /minutesAt16\) \|\| 270\) \* size \/ 16/.test(fnSource(floorUi, "trialTime")),
             // E72 C7: the wrong verdict's "remind" (a card to the Monocubs; it kills nobody either).
-            noKill: /const VERDICT_STEPS = \{\s*correct: \["sentence", "card", "levelUps", "overflow"\],\s*(?:\/\/[^\n]*\n\s*)?wrong: \["sentence", "card", "offers", "despair", "rule", "remind", "overflow"\]\s*\};/.test(vote),
+            // E72 C18 adds the step "bets" after the overflow on either verdict (the Ghost Bets settled; no death): changed on purpose.
+            noKill: /const VERDICT_STEPS = \{\s*(?:\/\/[^\n]*\n\s*)?correct: \["sentence", "card", "levelUps", "overflow", "bets"\],\s*(?:\/\/[^\n]*\n\s*)?wrong: \["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"\]\s*\};/.test(vote),
             atExit: /\bexecuteAtExit\(\)/.test(reconcile) && /\bexecuteAtExit\(\)/.test(fnSource(floorUi, "closeTrial")),
             mutedDead: /\bisMutedDead\(actor\)/.test(fnSource(vote, "trialParticipants")) && fnSource(voice, "settleTrialVoices").length > 0,
             api: ["skipStep", "adjustTime", "overruleObjection", "endMode", "returnToDebate", "advanceFloorNow", "extendFloor", "endFloor"]
@@ -18962,7 +18963,9 @@ const REGRESSIONS = [
                 "Monocub.bribeAccepted", "Monocub.bribeAcceptedCub", "Monocub.bribeAsk", "Monocub.bribeOffered", "Monocub.bribeOfferedCub",
                 "Config.HOPE_CALLS.bribe.effect",
                 // E72 C16: a Bounty's reward, a count before Hope.
-                "Monocub.bountyPosted", "Monocub.bountyPaid"
+                "Monocub.bountyPosted", "Monocub.bountyPaid",
+                // E72 C18: a Ghost Bet's value, a count before Hope.
+                "Monocub.betPaid", "Monocub.betStands"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -19005,7 +19008,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 64, S: 25, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 66, S: 25, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -19617,7 +19620,9 @@ const REGRESSIONS = [
             "voice.mjs#deadForTrial": "the trial's dead, whose microphones are off: the other side of the cast",
             "trial-scene.mjs#standingTwice": "the students the trial's return finds on two scenes, by `leftBehind`'s rule",
             "actions.mjs#clearGrants": "the refill's reach, actor by actor as `resetActionsFor` skips the dead (the table's fact), for the grants a boundary opened again ends",
-            "call-pickers.mjs#pickItem": "whose things Contraband can reach: a body's too, a Monokuma's or a Monocub's not"
+            "call-pickers.mjs#pickItem": "whose things Contraband can reach: a body's too, a Monokuma's or a Monocub's not",
+            // E72 C18: the CUB_TARGETS table stands after `blockOf` in the file, so its `student` rule is read under that name.
+            "monocub.mjs#blockOf": "whom a Ghost Bet may name (CUB_TARGETS.student): any student of the class but the Monocub and another Monocub"
         };
         // `studentActors` with the GMs' `held` too (E24 fix G1: voice.mjs `deadForTrial` reads the roster through it).
         const WALKS = /\bstudentActors\((?:\)|\{ held(?:: \w+)? \}\))|\blivingStudents(?:ForGm)?\(\)|\bgame\.actors\.(?:filter|find|some|map|forEach)\(|\bof game\.actors\b/;
@@ -20135,9 +20140,9 @@ const REGRESSIONS = [
         ok(planted !== vote && JSON.stringify(readOf(planted).finalForbidden) === JSON.stringify(["card"]),
             "the reader does not name a Final step keyed \"card\" planted in FINAL_VERDICT_STEPS");
         equal(JSON.stringify(readOf(vote)), JSON.stringify({
-            // E72 C7 (changed on purpose): the wrong verdict's "remind", after its card, before the overflow.
-            ordinary: { correct: ["sentence", "card", "levelUps", "overflow"], wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow"] },
-            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", finalExecution: "finalSentence", mastermind: "finalSentence" },
+            // E72 C7 (changed on purpose): the wrong verdict's "remind", after its card, before the overflow. E72 C18: "bets" last on both.
+            ordinary: { correct: ["sentence", "card", "levelUps", "overflow", "bets"], wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"] },
+            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card", finalExecution: "finalSentence", mastermind: "finalSentence" },
             final: FINAL, finalForbidden: [], unrun: [], unlabelled: [], finalTable: true, runners: []
         }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
             + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "
