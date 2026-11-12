@@ -1789,7 +1789,7 @@ function injectActionBar(app, element, fresh = false, mode = modeOf(app)) {
     const still = !mode.header.acts;
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
-    // The lost action's mark, not the state's (E64 C1c): Wounded takes its action in Daily Life alone.
+    // The lost action's mark, not the state's (E64 C1c): Wounded takes no action in the Class Trial.
     const { costsAction: wounded } = actionBudget(actor);
 
     // What went out since this sheet last drew itself. Recorded even when it is

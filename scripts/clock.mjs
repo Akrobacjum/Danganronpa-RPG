@@ -691,7 +691,7 @@ async function applyTimeOfDayChange(clock, {
  * everything else in this game.
  */
 async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
-    // Down an action, not merely Wounded (E64 C1c): outside Daily Life the state takes none.
+    // Down an action, not merely Wounded (E64 C1c): in the Class Trial the state takes none.
     const wounded = summary.actions.filter(r => r.costsAction);
 
     const notes = [];

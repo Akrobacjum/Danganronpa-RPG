@@ -5193,7 +5193,7 @@
         "window": "Actions, Move and Hope",
         "actionsTitle": "Actions",
         "actionsWhat": "{actions} each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs {short}, a Long Rest {long}.",
-        "actionsWounded": "With no Health left you get {wounded} instead of {actions} in Daily Life, until somebody patches you up.",
+        "actionsWounded": "With no Health left you get {wounded} instead of {actions} in Daily Life and the Investigation, until somebody patches you up.",
         "actionsNow": "You have {left} of {max} left this time of day.",
         "moveTitle": "Free Move",
         "moveWhat": "One move between rooms each time of day that costs you nothing. After that, changing rooms costs an action like anything else.",

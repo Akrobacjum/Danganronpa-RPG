@@ -49,10 +49,10 @@ export function actionBudget(actor, { wounded: hurt = isWounded(actor), phase } 
     const wounded = hurt && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub);
 
     /*
-     * ONLY DAILY LIFE'S (E64 C1c, 12.11.2026; audit S03-49; default taken, owner to confirm): the lost action is
-     * the guide's "during Daily Life" (`STATES.wounded.actionsLostIn`), read off the phase the budget is for - the
+     * DAILY LIFE'S AND THE INVESTIGATION'S (E64 C1c, 12.11.2026; audit S03-49; the owner's review of 12.11): the lost
+     * action is taken in the phases `STATES.wounded.actionsLostIn` names, read off the phase the budget is for - the
      * clock's, or `phase` where a caller names it. `wounded` is still answered as the state is, so the sheet's badge
-     * says Wounded in the Investigation; `costsAction` says whether it took an action. No clock is Daily Life's.
+     * says Wounded in the Class Trial; `costsAction` says whether it took an action. No clock is Daily Life's.
      */
     const lostIn = STATES.wounded?.actionsLostIn;
     const now = phase ?? (() => { try { return getClock()?.phase ?? "dailyLife"; } catch { return "dailyLife"; } })();

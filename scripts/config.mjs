@@ -3095,12 +3095,13 @@ export const STATES = {
         resource: "hitPoints",
         img: `modules/${MODULE_ID}/icons/state-wounded.svg`,
         /**
-         * WHERE WOUNDED TAKES ITS ACTION (E64 C1c, 12.11.2026; audit S03-49; default taken, owner to confirm): the
-         * guide's "Losing all Health during Daily Life costs the character -1 action per time of day". Until 1.2.105
-         * the action was taken in every phase - the Investigation too (actions.mjs `actionBudget`). The state itself,
-         * its badge and its icon stay in every phase; only the lost action is Daily Life's.
+         * WHERE WOUNDED TAKES ITS ACTION (E64 C1c, 12.11.2026; audit S03-49): in Daily Life and in the Investigation,
+         * not in the Class Trial (actions.mjs `actionBudget`). The guide's "Losing all Health during Daily Life costs
+         * the character -1 action per time of day"; C1c read it as Daily Life alone, and the owner's review of
+         * 12.11.2026 put the Investigation back ("wolalbym by wounded dzialalo tez w investigation"). Until 1.2.105 the
+         * action was taken in every phase. The state itself, its badge and its icon stay in every phase.
          */
-        actionsLostIn: ["dailyLife"]
+        actionsLostIn: ["dailyLife", "investigation"]
     }
 };
 

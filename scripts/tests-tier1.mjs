@@ -49481,10 +49481,11 @@ const INVARIANTS = [
         }), stableJson({ fair: true, old: true, copy: [true, "abcde", "abcde"], steps: [true, true], sorts: 0 }),
             `{fair: chi-square ${fair.toFixed(2)} < 49.7; old: ${old.toFixed(2)} > 49.7; copy: a new list, the old as it was, the same elements; steps: each shuffle on the draw's rng; sorts: random-comparison sorts left}`);
     }],
-    ["R3954 - Wounded takes its action in Daily Life alone (E64 C1c; audit S03-49; default taken, owner to confirm): `STATES.wounded.actionsLostIn` is [\"dailyLife\"], actions.mjs `actionBudget` answers a Wounded student one action fewer in Daily Life and the whole budget in the Investigation and the Class Trial, still answering `wounded` in all three, with `costsAction` saying where the action went; the clock's GM note and the sheet's mark read `costsAction`", async () => {
+    ["R3954 - Wounded takes its action in Daily Life and the Investigation, not in the Class Trial (E64 C1c; audit S03-49; the owner's answer of 12.11.2026, \"wolalbym by wounded dzialalo tez w investigation\"): `STATES.wounded.actionsLostIn` is [\"dailyLife\", \"investigation\"], actions.mjs `actionBudget` answers a Wounded student one action fewer in Daily Life and in the Investigation and the whole budget in the Class Trial, still answering `wounded` in all three, with `costsAction` saying where the action went; the clock's GM note and the sheet's mark read `costsAction`", async () => {
         /*
          * E64 C1c, 12.11.2026. Red at 3c6383a: no `actionsLostIn`, `phase` not read, no `costsAction` - a Wounded
-         * student was one action down in every phase. Asked of a stand-in actor (only `getFlag`), the phase named, so
+         * student was one action down in every phase. The owner's review of 12.11.2026 (~10:17) puts the Investigation
+         * back: red at 34ded63, the Investigation read [2, true, false] and the list ["dailyLife"]. Asked of a stand-in actor (only `getFlag`), the phase named, so
          * nothing in the world is read but the Overflow's penalty, held to none first.
          */
         const A = await import("./actions.mjs");
@@ -49501,8 +49502,8 @@ const INVARIANTS = [
             dailyLife: at("dailyLife"), investigation: at("investigation"), classTrial: at("classTrial"),
             readers: [/summary\.actions\.filter\(r => r\.costsAction\)/.test(clock), /\{ costsAction: wounded \} = actionBudget\(actor\)/.test(sheet)]
         }), stableJson({
-            lostIn: ["dailyLife"],
-            dailyLife: [whole.total - 1, true, true], investigation: [whole.total, true, false], classTrial: [whole.total, true, false],
+            lostIn: ["dailyLife", "investigation"],
+            dailyLife: [whole.total - 1, true, true], investigation: [whole.total - 1, true, true], classTrial: [whole.total, true, false],
             readers: [true, true]
         }), `per phase [actions, wounded, costsAction] against a whole budget of ${whole.total}; the clock's note and the sheet's mark read costsAction`);
     }],

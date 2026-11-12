@@ -49,7 +49,7 @@ Your numbers move through play: an action spent, a roll, a Rest, an item used, a
 | State | When | Effect |
 |---|---|---|
 | **Breakdown** | no Sanity left | disadvantage on every roll until some Sanity comes back |
-| **Wounded** | no Health left | one action fewer per time of day of Daily Life until somebody patches you up; none in the Investigation or the Class Trial |
+| **Wounded** | no Health left | one action fewer per time of day in Daily Life and the Investigation until somebody patches you up; none in the Class Trial |
 
 > [!NOTE]
 > Both apply on their own the moment the reserve runs out; Daggerheart's own Vulnerable and Death Move are switched off. Nothing in this module kills you for reaching zero Health. Dying is something a person does to you, and it is announced.
@@ -176,7 +176,7 @@ Every room has a number of **search tokens** per time of day (the default is **3
 
 ## 4. Actions
 
-You get **2 actions** per time of day (1 while Wounded, in Daily Life). The action grid on your sheet has ten tiles.
+You get **2 actions** per time of day (1 while Wounded, in Daily Life and the Investigation). The action grid on your sheet has ten tiles.
 
 Every action's briefing shows its cost, the statistics it rolls, the room you are in, the numbers it will be scored against (worked out for you as you stand), and anything that will cost you Sanity. Every action opens one window with the same layout: the briefing on the left, the choices on the right, and under the choices, where the roll lists several statistics, the statistic you propose and a line to say how you do it; the buttons are along the bottom. Under the action's description, **Details** opens and shuts the briefing's lines - the cost, the statistics, the room, the numbers (Observe's under *Thresholds*) - in smaller text; the window keeps its size either way, and it stays as you left it for the next action window. Tamper's warning that somebody is watching stays above it, always shown.
 

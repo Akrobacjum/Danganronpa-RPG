@@ -49,7 +49,7 @@ Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty pr
 | Stan | Kiedy | Efekt |
 |---|---|---|
 | **Breakdown** | Sanity się skończyło | utrudnienie na każdym rzucie, dopóki nie wróci trochę Sanity |
-| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia w Daily Life, dopóki ktoś cię nie poskłada; w Investigation i w Class Trialu żadnej |
+| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia w Daily Life i w Investigation, dopóki ktoś cię nie poskłada; w Class Trialu żadnej |
 
 > [!NOTE]
 > Oba włączają się same w chwili, gdy zapas się skończy; Vulnerable i Death Move z Daggerheart są wyłączone. Nic w tym module nie zabija cię za zejście do zera Health. Śmierć to coś, co robi ci człowiek, i jest ogłaszana.
@@ -176,7 +176,7 @@ Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **
 
 ## 4. Akcje
 
-Masz **2 akcje** na porę dnia (1, gdy jesteś Wounded, w Daily Life). Siatka akcji na arkuszu ma dziesięć kafelków.
+Masz **2 akcje** na porę dnia (1, gdy jesteś Wounded, w Daily Life i w Investigation). Siatka akcji na arkuszu ma dziesięć kafelków.
 
 Opis każdej akcji pokazuje jej koszt, statystyki, którymi rzuca, pokój, w którym jesteś, liczby, z którymi zmierzy się rzut (wyliczone dla ciebie, tu i teraz), i wszystko, co będzie kosztować Sanity. Każda akcja otwiera jedno okno o tym samym układzie: opis po lewej, wybory po prawej, a pod wyborami, gdy rzut wymienia kilka statystyk, statystyka, którą proponujesz, i linia, w której mówisz, jak to robisz; przyciski są na dole. Pod opisem akcji przycisk **Szczegóły** rozwija i zwija linie opisu - koszt, statystyki, pokój, liczby (w Observe pod nagłówkiem *Progi*) - mniejszym tekstem; okno ma ten sam rozmiar w obu stanach, a następne okno akcji otwiera się tak, jak je zostawiłeś. Ostrzeżenie Tamper, że ktoś patrzy, zostaje nad nim, zawsze widoczne.
 
