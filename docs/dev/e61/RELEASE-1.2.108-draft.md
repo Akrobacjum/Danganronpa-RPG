@@ -107,6 +107,9 @@ At the Night-to-Morning roll-over every connected browser shows two boards, one 
 - **R3703 is loosened for one case**: on its 1600x900 cut it allows one new pane outside the standing panes' range, a
   630 px² chip in a notch between two standing and two new panes that no cut through its neighbours' corners or edges
   splits into two panes in range; the 1366x768 and 1440x900 cuts still hold none (round 5, 98e004c).
+- **The layout turn's texture** (the room tile hidden, not a clock change) falls to 39 % of rest in one square at
+  1600x900 in the glass sweep's `--turn` reading, against E23-04's 80 %; the same at E62's base d03c509, so older than
+  this release (docs/dev/e62/turn-baseline.json, the reference for E62 C7).
 - The microphone's keybinding while a sequence covers the voice tile: LIVE-E61-08.
 - A client that loads after the event plays nothing (Q-E61-1 and Q-E94-4 defaults, owner to confirm); the lead line's
   widths are read from the code (`paintGlass`'s 1.2, 0.5 and 0.7 px), not measured in pixels.
