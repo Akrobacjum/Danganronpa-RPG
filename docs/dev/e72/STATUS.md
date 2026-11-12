@@ -84,6 +84,12 @@ in the code). Not built.
 
 ## E91 (leftovers from stage notes), on this branch after E72 (the coordinator's order)
 
+**Built against the coordinator's later word.** The coordinator's message of 12.11 ~11:00 ("after E72, do NOT start E91;
+it waits until E72 and every line before it are on main") was read here only at 13:28, after C1-C8 were built and
+pushed (3b04cac..e2baf99, between E72's commits). Nothing reverted on this line's own say: the coordinator decides
+whether E91's commits stay on claude/e72, are reverted here (git revert, no history rewritten), or are taken later.
+E91's commits touch only their own items; the E72 fix round (362fc31) and the Bribe's scenarios (7263f18) are E72's.
+
 The plan: `git show origin/claude/plan-130:docs/dev/plans/E91.md`. The deferred-items file (D037-D090's paragraphs) is
 not in the repository (Q-E91-2); each item is built from its one line in the plan's goal and a reading of the code, and
 where that line leaves the rule open the default is written here (default, owner may revise).
@@ -105,8 +111,10 @@ where that line leaves the rule open the default is written here (default, owner
   voice channel of their own, with no write to the user record.
 - The TR30 README paragraph: README left alone; the proposed text stays below under "For the coordinator".
 - `liftCubWitness`'s `since`: 1.2.117 kept (stages.json plans E72 there); the coordinator re-checks at merge.
-- Defaults, each "default, owner may revise": the Polish refusal wording (Q-E72-8), the per-target caps (C4), Redeem's
-  and Ask for Hope's prices (C5), the Monocub Rule's wording (C6), Q-E72-3 (C3), Q-E72-5 (C10).
+- Defaults of part A, owner confirmed 12.11 ("E72 tak", relayed by the coordinator): the Polish refusal wording
+  (Q-E72-8), the per-target caps (C4), Redeem's and Ask for Hope's prices (C5), the Monocub Rule's wording (C6), Q-E72-3
+  (C3), Q-E72-5 (C10), C8's own voice room. Part B's defaults (C13 on) and the fix round's came after: still "default,
+  owner may revise".
 
 ## For the coordinator
 
@@ -122,6 +130,10 @@ where that line leaves the rule open the default is written here (default, owner
   (README is outside it; the known-leaks row needs a detector a scenario runs). Proposed wording kept here.
 
 ## CI
+
+- From 12.11 (the coordinator, the owner's decision): every pushed commit carries "[skip ci]"; CI runs once a release,
+  on the train's PR head. Local checks replace per-push CI and are quoted under "Pushed". Run 43218080518 (a dispatch
+  at 8bc6500, started before that message was read here) cancelled.
 
 - Run 43196838938 at c33e556 (C16): red on one job, "scenarios b3": 65-season X4 and X6 (the copies after a season
   reset read empty). 65 green here at 8367f80 and at 7263f18 (57/59, the 2 expected red), so read as a timing miss
@@ -172,31 +184,31 @@ in 7ab4cc6, no block outside the trial, nothing written on the user.
   empty slots: each field is added in the commit that gives it logic, so no row carries a field nothing reads.
 - Q-E72-8 (`meddleRefused` wording): EN takes the audit's sentence "Confusion doesn't reach them. You keep your action
   and Hope."; PL takes text-style O8's shape "Nie tracisz akcji ani Hope." instead of the plan's "akcja i Hope wróciły"
-  (nothing was taken, so nothing comes back; R1143 also refuses a Polish refusal that promises a return). Default, owner may revise.
+  (nothing was taken, so nothing comes back; R1143 also refuses a Polish refusal that promises a return). Owner confirmed 12.11.
 
 - C2: `liftCubWitness`'s `since` is "1.2.117" (the plan's reading of the release order). It must be the version E72
   ships in, or a world that wrote the flag in between skips the lift: coordinator to set at release.
 - C2: the mark is read as a per-chapter fact on the GMs' row (as the flag was); the "manual switch" of the plan is the
   Students window's existing Crime witness box.
 - C3: Q-E72-3 default taken (read `bodyPlaceOf`); measured off the source (R3802) and through the loot tests, not by a
-  tier-2 walk onto a tile whose token has left. default, owner may revise.
+  tier-2 walk onto a tile whose token has left. Owner confirmed 12.11.
 - C3: DC7 is applied to the body's discovery only; who sees what one student does to another (frisk.mjs, A11-12)
-  still counts a Monocub (`monocubs: true`). default, owner may revise.
+  still counts a Monocub (`monocubs: true`). Owner confirmed 12.11.
 
 - C4: "one attempt per student" read as per target student, over every Monocub (the store is named `cubTargetStore` in
   the plan). A row of another time of day or day counts nothing, so nothing clears it at the clock's turn: the same
-  behaviour as clearing, with no write. Default, owner may revise.
+  behaviour as clearing, with no write. Owner confirmed 12.11.
 
 - C5: Redeem's price (one action, no Hope) and Ask for Hope's (free, one open at a time) are defaults; the plan names
-  neither. The Students window's Monocub columns for them (the plan's C5) are left to C9/C19 with the panel. Owner to
-  confirm the prices.
+  neither. The Students window's Monocub columns for them (the plan's C5) are left to C9/C19 with the panel. Prices
+  owner confirmed 12.11.
 - C5: Monokuma Legacy shows Font Awesome's ticket and praying hands for the two tiles (LEGACY_ICONS "fa:"), as a
   crisis row does: Legacy has no drawing of its own for them.
 
 - C6: the Rule's words and its three steps are this line's reading of DC17/DC18 ("talk, role removed, removed from the
   game"): "You never tell the living what only the dead know: who killed you, how, or what you see from now on." /
-  "Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz." - owner to
-  confirm the wording.
+  "Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz." - owner
+  confirmed 12.11.
 - C6 not yet done: `openMonocubDialog` removed and `game.drpg.monocubDialog` pointed at the Students window; the
   revoke function that also hands back a bet, asks, the purse and the mute (those parts come with C8, C14, C18);
   33-bridge-paths' legal control and 30-security's forgery of `monocub.answer`.
@@ -217,7 +229,7 @@ in 7ab4cc6, no block outside the trial, nothing written on the user.
 - C10: the murder room's refusal is judged where the incident's room is known: on a GM's browser judging a player's
   step. The Monocub's own browser does not know where a murder runs, so its veto lets the step through and the GM's
   judge sends it back - the refusal it is told is the Seal's either way. Q-E72-5 default (no action, no crossing limit,
-  Eclipse too) taken; the connected rooms' rule kept (the amendments name the budget, not the walls) - default, owner may revise.
+  Eclipse too) taken; the connected rooms' rule kept (the amendments name the budget, not the walls) - owner confirmed 12.11.
 
 - C11, D101 ("the discovery stamp at an execution, E70-16's wording") is not built: E70-16 calls the death record's phase
   the "discovery stamp", and an execution already writes phase "classTrial" and cause "executed", so no walk finds the
