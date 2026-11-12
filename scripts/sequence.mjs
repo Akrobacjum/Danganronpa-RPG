@@ -34,8 +34,8 @@
  * when the still frame is drawn.
  */
 
-import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting, getClock } from "./settings.mjs";
+import { MODULE_ID, TIME_OF_DAY_LABELS } from "./config.mjs";
+import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
 import { esc } from "./utils.mjs";
@@ -52,6 +52,9 @@ export const SEQUENCE_ATTR = "data-drpg-sequence";
  */
 export const SEQUENCE_TIMES = Object.freeze({
     trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400 }),
+    /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
+       from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
+    dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
     verdictCut: Object.freeze({ band: 250, portrait: 250, portraitIn: 420, votes: 900, bars: 980, barsIn: 600, stamp: 1700, stampIn: 200, sentence: 1950, hold: 3500, fade: 180, end: 3700, still: 3000, sound: 1700 })
 });
 
@@ -377,6 +380,63 @@ export function playVerdictCut(message) {
     const board = verdictBoard(message);
     if (!board) return null;
     return playSequence("verdictCut", `verdict:${at}`, ctx => drawVerdictCut(ctx, board), { sound: () => playSound("verdictCut") });
+}
+
+/* ========================================================================== *
+ *  E94: THE START-OF-DAY BOARD
+ * ========================================================================== */
+
+/**
+ * What the start-of-day board shows (E94 C2; MK-R2 #4, #8, #9, #10): the day, the chapter, the time of day, and the
+ * cast as the table knows it - the dead by the table's own fact (`isDeceased`, the published flag; never a death the
+ * GMs keep, E05), greyed in their place with their name and "we remember", never crossed out - and the GM's morning
+ * line when there is one (an empty line is not shown; the GM's field is E94 C1, not built yet). Pure but for the names
+ * and pictures; `students` is the cast in its order.
+ */
+export function dayStartBoard(clock, students = [], announcement = "") {
+    const cast = students.map(a => ({ id: a.id, name: a.name, img: portraitOf(a), dead: isDeceased(a) }));
+    return {
+        day: Number(clock?.day) || 0, chapter: clock?.chapter ?? null, time: TIME_OF_DAY_LABELS[clock?.timeOfDay] ?? clock?.timeOfDay ?? "",
+        cast, alive: cast.filter(c => !c.dead).length, total: cast.length, announcement: String(announcement ?? "").trim()
+    };
+}
+
+/** The start-of-day board as an element, still: what its frames move, and its whole still frame. */
+export function dayStartElement(board) {
+    const el = document.createElement("div");
+    el.className = "drpg-seq-day";
+    const sub = game.i18n.format(board.chapter != null ? "DRPG.Sequence.daySub" : "DRPG.Sequence.daySubNoChapter",
+        { chapter: board.chapter ?? "", time: board.time, alive: board.alive, total: board.total });
+    el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayTitle", { day: board.day }))}</h2>
+        <div class="drpg-seq-day-sub">${esc(sub)}</div>
+        <div class="drpg-seq-cast">${board.cast.map(c => `<div class="drpg-seq-who${c.dead ? " is-dead" : ""}">
+            <div class="drpg-seq-face">${c.img ? `<img src="${esc(c.img)}" alt="">` : `<span>${esc((c.name ?? "?").slice(0, 1))}</span>`}</div>
+            ${c.dead ? `<i>${esc(game.i18n.localize("DRPG.Sequence.weRemember"))}</i>` : ""}<b>${esc(c.name)}</b></div>`).join("")}</div>
+        ${board.announcement ? `<div class="drpg-seq-announce"><small>${esc(game.i18n.localize("DRPG.Sequence.morningLine"))}</small>${esc(board.announcement)}</div>` : ""}`;
+    return el;
+}
+
+function drawDayStart(ctx, board) {
+    const { host, times: T, anim } = ctx;
+    const el = dayStartElement(board);
+    host.append(el);
+    anim(el, [{ opacity: 0, transform: "translateY(40px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: T.rise, delay: T.board });
+    el.querySelectorAll(".drpg-seq-who").forEach((w, i) => anim(w, [{ opacity: 0, transform: "translateY(16px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 400, delay: T.cast + i * T.castStep }));
+    anim(el.querySelector(".drpg-seq-announce"), [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: T.announce });
+    anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
+}
+
+/**
+ * The start-of-day board on this browser, from the clock's one event of a new day (transitions.mjs, E62's `newDay`):
+ * on every connected browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). `students` defaults to the cast as
+ * monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
+ */
+export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn() } = {}) {
+    if (!clock || !ready) return null;
+    const cast = students ?? (await import("./monokuma.mjs")).studentActors();
+    const board = dayStartBoard(clock, cast, "");
+    return playSequence("dayStart", `day:${clock.season ?? ""}:${board.day}:${clock.session ?? ""}`, ctx => drawDayStart(ctx, board),
+        { sound: () => playSound("dayStart"), on });
 }
 
 /* ========================================================================== *

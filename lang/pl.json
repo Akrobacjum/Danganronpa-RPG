@@ -237,7 +237,12 @@
       "trialSubtitleNoChapter": "Wszyscy do sali rozpraw",
       "stampGuilty": "WINNY",
       "stampInnocent": "NIEWINNY",
-      "votesCounted": "GŁOSY POLICZONE"
+      "votesCounted": "GŁOSY POLICZONE",
+      "dayTitle": "Dzień {day}",
+      "daySub": "Rozdział {chapter} · {time} · żyje: {alive} z {total}",
+      "daySubNoChapter": "{time} · żyje: {alive} z {total}",
+      "weRemember": "pamiętamy",
+      "morningLine": "OGŁOSZENIE PORANNE"
     },
     "Settings": {
       "forceDiceLook": {
@@ -6962,6 +6967,10 @@
         "analyzeMiss": {
           "label": "Analiza nie udaje się",
           "hint": "Słyszy uczeń, który ją wykonał. Bullet zablokowany do następnego rozdziału - najdłużej trwająca konsekwencja jakiegokolwiek nieudanego rzutu w tej grze."
+        },
+        "dayStart": {
+          "label": "Początek dnia",
+          "hint": "Plansza początku dnia wznosi się, gdy zaczyna się nowy dzień. Słyszy cały stół."
         },
         "paneFlash": {
           "label": "Błysk szyby",

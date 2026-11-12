@@ -47191,7 +47191,8 @@ const INVARIANTS = [
         const read = {};
         try {
             G.hintTurn(null);
-            T.onClockHeard(c("evening"), { on: true, still: false });
+            // the clock this module last saw is primed with the switch off, so no change before the test's own plays
+            T.onClockHeard(c("evening"), { on: false, still: true });
             read.moved = T.onClockHeard(c("night"), { on: true, still: false })?.kind ?? null;
             await settle();
             read.hint = G.pendingTurnHint()?.how ?? null;
@@ -47233,6 +47234,61 @@ const INVARIANTS = [
             row: [SFX_EVENTS.paneFlash?.category ?? null, SFX_EVENTS.paneFlash?.vary === true, typeof pl.DRPG?.Config?.SFX_EVENTS?.paneFlash?.label === "string"]
         }), stableJson({ taken: true, skipped: 1, notHeld: true, played: 4, lit: true, out: true, rehearsal: null, still: null, row: ["incident", true, true] }),
             "[Escape taken while held; the skip run once; the next not taken; the announcement's onsets; lit; put out; a rehearsal; reduced motion; the Sound row]");
+    }],
+    ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
+        /*
+         * E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no dayStartBoard. The students are stand-ins with
+         * `getFlag` (the one read `isDeceased` makes): one published dead, one alive whose death only the GMs would keep
+         * (no flag), one alive.
+         */
+        const S = await import("./sequence.mjs");
+        const st = (id, name, dead) => ({ id, name, img: null, getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.deceased ? dead : undefined) });
+        const cast = [st("a", "Aiko Hoshino", false), st("b", "Mio Tsukishiro", true), st("c", "Ren Kisaragi", false)];
+        const board = S.dayStartBoard({ day: 4, chapter: 2, timeOfDay: "morning" }, cast, "");
+        const el = S.dayStartElement(board);
+        const whos = [...el.querySelectorAll(".drpg-seq-who")];
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        equal(stableJson({
+            title: el.querySelector(".drpg-seq-day-title")?.textContent === game.i18n.format("DRPG.Sequence.dayTitle", { day: 4 }),
+            order: whos.map(w => w.querySelector("b")?.textContent), dead: whos.map(w => w.classList.contains("is-dead")),
+            remember: whos.map(w => w.querySelector("i")?.textContent ?? null), alive: [board.alive, board.total],
+            noLine: !el.querySelector(".drpg-seq-announce"), noStrike: !/drpg-seq-who[^{]*\{[^}]*line-through/.test(css)
+        }), stableJson({
+            title: true, order: ["Aiko Hoshino", "Mio Tsukishiro", "Ren Kisaragi"], dead: [false, true, false],
+            remember: [null, game.i18n.localize("DRPG.Sequence.weRemember"), null], alive: [2, 3], noLine: true, noStrike: true
+        }), "[the day's title; the cast in its order; who is drawn dead; their words; alive of total; no empty morning line; no rule strikes a name]");
+    }],
+    ["R3715 - a new day plays its board once on every browser that hears it, and nowhere else (scripts/transitions.mjs `onClockHeard`, scripts/sequence.mjs `playDayStart`; E94 C2, MK-R2 #8): night to a new morning starts the board, still under reduced motion, nothing with the table's switch off; the same day heard again starts nothing; an hour that is not a new day plays no board; the board lets the table's clicks through; the Sound window has the row \"Start of the day\" in both languages", async () => {
+        /* E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no playDayStart. */
+        const S = await import("./sequence.mjs");
+        const T = await import("./transitions.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const day = 900 + (Date.now() % 1000), read = {};
+        const c = (d, timeOfDay) => ({ season: "R3715", session: d, day: d, timeOfDay, phase: "dailyLife", eclipse: false });
+        try {
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            // primed with the switch off: the jump from the clock this module saw last plays nothing
+            T.onClockHeard(c(day, "night"), { on: false, still: true });
+            T.onClockHeard(c(day + 1, "morning"), { on: true, still: true });
+            await until(() => S.sequenceNow()?.key === `day:R3715:${day + 1}:${day + 1}`, 3000);
+            read.started = S.sequenceNow();
+            read.through = getComputedStyle(document.getElementById(S.SEQUENCE_HOST_ID) ?? body).pointerEvents;
+            S.endSequence("cut");
+            read.again = await S.playDayStart(c(day + 1, "morning"), { on: true });
+            T.onClockHeard(c(day + 1, "noon"), { on: true, still: true }); await settle();
+            read.hour = S.sequenceNow();
+            T.onClockHeard(c(day + 1, "night"), { on: false, still: true });
+            T.onClockHeard(c(day + 2, "morning"), { on: false, still: true }); await settle();
+            read.off = S.sequenceNow();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        read.row = [SFX_EVENTS.dayStart?.category ?? null, typeof pl.DRPG?.Config?.SFX_EVENTS?.dayStart?.label === "string"];
+        equal(stableJson(read), stableJson({ started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
+            "[a new day's board; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
     }],
 ];
 

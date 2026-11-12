@@ -237,7 +237,12 @@
       "trialSubtitleNoChapter": "Everyone to the courtroom",
       "stampGuilty": "GUILTY",
       "stampInnocent": "NOT GUILTY",
-      "votesCounted": "VOTES COUNTED"
+      "votesCounted": "VOTES COUNTED",
+      "dayTitle": "Day {day}",
+      "daySub": "Chapter {chapter} · {time} · alive: {alive} of {total}",
+      "daySubNoChapter": "{time} · alive: {alive} of {total}",
+      "weRemember": "we remember",
+      "morningLine": "MORNING ANNOUNCEMENT"
     },
     "Settings": {
       "forceDiceLook": {

@@ -30,7 +30,7 @@
 import { getClock } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
-import { sequencesOn, holdEscape } from "./sequence.mjs";
+import { sequencesOn, holdEscape, playDayStart } from "./sequence.mjs";
 
 const HOURS = ["morning", "noon", "afternoon", "evening", "night"];
 
@@ -117,6 +117,8 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
     if (!t || t.owner) return t;
     clearFlashes();
     count("transition.heard");
+    // a new day is a session (E94): its start-of-day board plays over the curtain's turn, still under reduced motion
+    if (t.kind === "newDay" && on) playDayStart(clock, { on }).catch(() => null);
     if (!on || still) return t;
     seed = (seed * 1103515245 + 12345) >>> 0;
     import("./glass.mjs").then(g => g.hintTurn?.({ how: t.how, seed, groups: t.groups, delays: t.delays, dur: t.dur })).catch(() => null);

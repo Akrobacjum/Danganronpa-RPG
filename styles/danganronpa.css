@@ -17531,3 +17531,50 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
 /* THE FLICKER UNDER MONOKUMA LEGACY (E62 C2, C4; transitions.mjs `flicker`): no curtain, so the four frames MK-R3 names
    light instead - the clock, the status, Despair's bar and the notice tile. */
 body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #drpg-despair, #drpg-notices-corner) { filter: brightness(1.7); }
+
+
+/* THE START-OF-DAY BOARD (E94 C2; sequence.mjs `dayStartElement`; MK-R2 #4): a panel in the middle of the screen over the
+   curtain's turn, the cast in a row of portraits, the dead greyed in their place with their name and "we remember",
+   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself. */
+#drpg-sequence.drpg-sequence-dayStart { pointer-events: none; }
+#drpg-sequence .drpg-seq-day {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(calc(1100 * var(--drpg-seq-u)), calc(100vw - 32px));
+    transform: translate(-50%, -50%);
+    display: grid;
+    gap: calc(14 * var(--drpg-seq-u));
+    padding: calc(28 * var(--drpg-seq-u)) calc(36 * var(--drpg-seq-u));
+    background: color-mix(in srgb, var(--drpg-seq-dark) 94%, transparent);
+    border: calc(3 * var(--drpg-seq-u)) solid var(--drpg-seq-band);
+    color: var(--drpg-seq-light);
+    text-align: center;
+}
+#drpg-sequence .drpg-seq-day-title {
+    margin: 0;
+    border: 0;
+    font: var(--drpg-seq-weight) calc(72 * var(--drpg-seq-u)) / 1 var(--drpg-seq-font);
+    text-transform: var(--drpg-seq-case);
+    color: var(--drpg-seq-light);
+}
+#drpg-sequence .drpg-seq-day-sub { font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.1em; text-transform: uppercase; }
+#drpg-sequence .drpg-seq-cast { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(16 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-who { display: grid; justify-items: center; gap: calc(4 * var(--drpg-seq-u)); width: calc(110 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-face {
+    width: calc(96 * var(--drpg-seq-u));
+    height: calc(120 * var(--drpg-seq-u));
+    border: calc(3 * var(--drpg-seq-u)) solid var(--drpg-seq-light);
+    background: var(--drpg-seq-dark);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    font: var(--drpg-seq-weight) calc(48 * var(--drpg-seq-u)) var(--drpg-seq-font);
+}
+#drpg-sequence .drpg-seq-face img { width: 100%; height: 100%; object-fit: cover; border: 0; }
+#drpg-sequence .drpg-seq-who b { font: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)) / 1.2 var(--drpg-seq-font); overflow-wrap: anywhere; }
+#drpg-sequence .drpg-seq-who i { font: italic calc((var(--drpg-seq-text-size) - 4) * var(--drpg-seq-u)) var(--drpg-seq-font); opacity: 0.8; }
+#drpg-sequence .drpg-seq-who.is-dead .drpg-seq-face { filter: grayscale(1); opacity: 0.5; }
+#drpg-sequence .drpg-seq-who.is-dead b { opacity: 0.6; }
+#drpg-sequence .drpg-seq-announce { display: grid; gap: calc(4 * var(--drpg-seq-u)); font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); }
+#drpg-sequence .drpg-seq-announce small { font-size: 0.7em; letter-spacing: 0.12em; opacity: 0.8; }
