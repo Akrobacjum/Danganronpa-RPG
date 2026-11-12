@@ -1211,11 +1211,12 @@ export const BRIDGE_ACTIONS = table({
      * side-pick window"). The owner of a student taking part, with no token of theirs in the hall, stands in Zone A or
      * Zone B by a pick (trial-zones.mjs `sideOnPrimary`): a zone mode on the floor, the character taking part, no hall
      * token; the pick kept on the floor (`zone.picks`), where every browser's count reads it. "reply": the window says
-     * the side is taken.
+     * the side is taken. A Spectator's character is refused first (`notSpectator`, E92 Q-E92-7, R3865), as on every
+     * row a player sends; put on this row and the thesis's below when main's E73 met E92 in the 1.2.109 line.
      */
     [ACTION_TRIAL_SIDE]: {
         label: "DRPG.Bridge.what.trial.side",
-        guards: [knownSender, owns("actorId", "sender does not own the character picking a side")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character picking a side")],
         sanitize: pick({ actorId: as.id, side: as.oneOf("a", "b") }),
         run: handleTrialSide,
         answer: "reply"
@@ -1227,7 +1228,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_TRIAL_KEYWORD]: {
         label: "DRPG.Bridge.what.trial.keyword",
-        guards: [knownSender, owns("actorId", "sender does not own the speaking character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the speaking character")],
         sanitize: pick({ actorId: as.id, text: as.text }),
         run: handleTrialKeyword,
         answer: "reply"

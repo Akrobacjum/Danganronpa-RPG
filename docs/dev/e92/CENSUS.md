@@ -22,7 +22,7 @@ cast, the trial's floor, the investigation's suspects, the Calls' targets, the d
 the Despair pools) and leaves the Spectator by C1's change to `studentActors` and `studentCensus`. R3850 reads the main
 ones.
 
-## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1, 75 in 36 after C4)
+## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1, 75 in 36 after C4; 77 in 38 in the 1.2.109 line after 1.2.108 was merged in, with dh-settings.mjs and trial-zones-ui.mjs)
 
 | File:line (at 59d1935) | What it is | Class |
 | --- | --- | --- |
@@ -71,6 +71,7 @@ ones.
 | states.mjs:498 | a token's reserves | character here |
 | trial-scene.mjs:195 `castActors` | the trial's cast | leave it out (C1) |
 | trial-scene.mjs:200, 755, 966 | a hall token; the audit's waits | character here |
+| trial-zones-ui.mjs `namesIn` (from 1.2.108, E73 C4) | the names a Logic Dive question is warned of | character here: a warning only, which a Spectator's name raises as a student's does; the question is not refused |
 | user-match.mjs:223, 299, 300 | matching users to characters | character here |
 | visibility.mjs:432, 1002 | own Truth Bullets; a diagnostic | character here |
 | voice.mjs:492, 863, 1192, 1953 | who follows the voice rooms; the account's voice character | character here: the Spectator is placed by its token (C2) |
