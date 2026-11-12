@@ -285,6 +285,11 @@ export const WINDOWS = [
     { id: "incident-tracker", module: "murder-ui.mjs", call: "m.openIncidentTracker()" },
     { id: "level-up", module: "level-up.mjs", call: "m.openAdvancementFor(game.actors.find(a => a.type === \"character\"))" },
     { id: "item-manager", module: "gm-items.mjs", call: "m.openItemManager()" },
+    // E101 F2: the Give tab's other forms, each its bars pressed in the drawn window (Give opens on Item > From the tables).
+    { id: "item-manager--item-new", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-from] button[data-drpg-mode="create"]'], call: "m.openItemManager()" },
+    { id: "item-manager--bullet", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="bullet"]'], call: "m.openItemManager()" },
+    { id: "item-manager--bullet-new", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="bullet"]', '[data-drpg-give-from] button[data-drpg-mode="create"]'], call: "m.openItemManager()" },
+    { id: "item-manager--key", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="key"]'], call: "m.openItemManager()" },
     { id: "item-tables", module: "tables-editor.mjs", call: "m.openItemTables()" },
     // E49 A4: Room pools with a room pool seeded (the header's SEEDED).
     { id: "item-tables--rooms", module: "tables-editor.mjs", before: SEED_ROOM_POOL, after: DROP_ROOM_POOL, open: "editRooms", perTab: false, call: "m.openItemTables()" },
@@ -337,10 +342,11 @@ const capture = (repoUrl, w) => `
         app.element.querySelector(\`nav.drpg-tabs > button[data-drpg-tab-key="\${open}"]\`)?.click();
         await new Promise(r => setTimeout(r, 150));
     }
-    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked). */
+    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked); a list is clicked in
+       its order (E101 F2: the item window's Give tab, a bar and then the other). */
     const click = ${JSON.stringify(w.click ?? null)};
-    if (app && click) {
-        app.element.querySelector(click)?.click();
+    for (const selector of app && click ? [].concat(click) : []) {
+        app.element.querySelector(selector)?.click();
         await new Promise(r => setTimeout(r, 300));
     }
     /* A part the window fills after it stands (E101: the Season checklist's further checks), waited for, up to 6 s. */

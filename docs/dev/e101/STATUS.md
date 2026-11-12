@@ -4,8 +4,10 @@ The owner said yes on 12.11.2026 to the GM screens' review (artifact T8eePyz1, s
 not Foundry). Seven numbered items, plus the smaller structural proposals beside each window that no other line holds.
 Base: origin/main 4dfac3a (1.2.108). Branch: `claude/e101`.
 
-R numbers: E101 takes R4050-R4099 (the open lines hold R3750s, R3800s and R3900-R3966); used so far R4050-R4057.
-Registry Since: E101.
+R numbers: E101 takes R4050-R4099 (the open lines hold R3750s, R3800s and R3900-R3966); used so far R4050-R4060.
+Registry Since: the rows read E61, the stamp `node tools/registry.mjs --write` gives (the first stage tools/stages.json
+has not shipped); `--stage E101` is refused, E101 not being a stage of that file. Until 12.11 this line said E101, which
+no row carried.
 
 ## Items
 
@@ -20,6 +22,10 @@ Registry Since: E101.
 | Smaller: Level Up | what was earned and who picks in one window, button Grant (`DRPG.Advance.grant`); take-back rows keep their own words | R4056 red | R4056; R1352's census and the narrow menus' count changed; tier 2 E47-T6 answers the one window |
 | Smaller: Item tables | the Tier pools tab: no New Tier pool field, no Rename (Delete stays); Create table is the Room pools tab's | R4057 red | R4057; R973, R2021 changed on purpose |
 | Smaller: not done here | Notices window filters (E100's, the coordinator); the Students window's State column (after 1.2.109, E92's Spectator); Monocub window and Final Trial verdict (E72); every rename and text shortening (texts line); Room setup's Search toggles in two columns and the picture frame's label (with items 3-5, after e93) | - | - |
+| Table note 1: the GM panel's top not centred | The clock with its phase and Next time of day are two rows (gm-panel.mjs `buildPanelContent`: `.drpg-gmp-clockline`, `.drpg-gmp-advance-row`), each a flex row centred on the block in components.css. Cause, measured in Chromium on probe 08's capture with `.application button { display: flex }` planted as Foundry's core sheet has it: `text-align: center` does not centre a block-level flex button; Next time of day stood at 17 px of a 704 px window. The Students door on the students line was gone already (23e59845). | R4058 red at 251b0136 | R4058; R3540 changed on purpose (two rules name the standing block) |
+| Table note 2: Give / take items, no separate Give buttons | gm-items.mjs `openItemManager`: the Give tab asks What (Item, Truth Bullet, Room key) and From (From the tables / Create new; From a Remnant / Write a new one; none for a key) and shows that one form in the hub (`hubGivePane`, `wireHubGive`); the footer has one Give (primary) and Take's three doors. Give reads the shown form (`readHubGive`), the hub closes, the give runs as its own window's would (`giveItemNow`, `giveBulletNow`, `giveKeyNow`, split out of `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog`, which stay for the messenger and the suite), and the hub opens again on the same student and choice. Give is off while the shown form cannot give. The five panes stand in one form, so the new bullet's name is `bulletName` and the recipient is the hub's `who`. The from words are the specific ones, not "Existing / New" (two keys if the owner wants those). New keys `DRPG.Items.giveWhat`, `whatItem`, `whatBullet`, `whatKey`, `giveFrom`, `fromTables`, `giveButton` (EN, PL). Probe 08 rows `item-manager--item-new`, `--bullet`, `--bullet-new`, `--key` (`click` takes a list). | R4060 and tier 2 E101-T5 red at 251b0136 | R4060; E101-T5 (gives an item and a Truth Bullet through the drawn hub, takes them away); changed on purpose: R974, the footer roles' census (OPEN_B), the two tier-2 tests that hand a trace over from the hub ("a copy made between the death and the discovery ...", "a loot after the close ...") |
+| Table note 3: the settings window changes size | settings-window.mjs `holdSectionHeight`: on render (and once the fonts are ready) each section shown in turn, the content column's min-height set to the tallest; both `openSettingsWindow` and `openGameSettingsWindow`. NOT REPRODUCED: in the style harness (Chromium, 1920x1080) Game settings stood 933 px in every section before and 934 px after; the guard is kept, and the size at a table is still to be looked at. | R4059 red at 251b0136 (no function) | R4059 |
+| Table note 4: Season setup refreshes when a child window closes | season-setup.mjs `wireSeasonTiles` opens the tile's window and nothing else: no `handOff`, no close and reopen of Season setup (the checklist's rows keep their round trip). | tier 2 E101-T4 red at 251b0136 | E101-T4 (the same window, the typed name and the scroll after Despair Flow came and went); R3581, R1524, R74 changed on purpose |
 | 3 (#4) Room setup: one line about Apply, Search's "arrows" | not started | - | - |
 | 4 (#5) Room setup: Rooms tab, Doors' headers | not started | - | - |
 | 5 (#6) Room setup > Scenes into Season setup | not started | - | - |
@@ -40,6 +46,18 @@ shots, main 1.2.108) and after (this branch), PL first then EN, Stained Glass an
 - Tier 2 by name (E101, E15-T8, E46-T4, E50-T1, E20-T2, the Mastermind's no-pool warning, Season setup's undecided region, the game's settings window saves, every test named Season checklist or Despair Flow): 36 passed, 0 failed.
 - After the smaller proposals (23e59845): scenarios 00-boot 33/33, 50-lang 44/44, 63-class-trial 75/75, 65-season 57/59 (2 expected red), 71-sheet 41/41, 88-flow-length 26/26, 41-trial-scene 51/51, 33-bridge-paths 74/74, 61-gmstore-case 113/113, 83-roll-integrity 110/110, 30-security 273/274 (1 expected red); 0 failed. After 560b94d4 (lang keys moved clear of texts-e71 d640019e): tiers 0-1 1260 passed, 0 failed, 16 skipped; 50-lang 44/44.
 - Scenarios on items 7, 6 and 2 together (`node cluster.mjs`): 11-killer-secrecy 14/14; 30-security 273/274 with 1 expected red (foundry-secret-door-type); 33-bridge-paths 74/74; 41-trial-scene 51/51; 61-gmstore-case 113/113; 65-season 57/59 with 2 expected red (Foundry limits); 66-rooms 76/76; 72-canary 132/136 with 4 expected red; 87-messenger-sound 35/35; 0 failed in each. 84-viewports edited, not run (local gate only).
+
+- The table notes (12.11.2026, on the tree of the two commits for them): `npm run quick` lint 0 problems, check 17 parts
+  green, gate self-test 37/37; tiers 0-1 1263 passed, 0 failed, 16 skipped, 0 red (1278 ran, 417 s); tier 2 by name
+  (R4060, E101-T4, E101-T5, R1524, R3580, R3581, E49-A1e, E51-T17, the two trace hand-overs from the hub, every test
+  named Give or Truth Bullet): 0 failed; scenarios 00-boot 33/33, 41-trial-scene 51/51, 50-lang 44/44,
+  61-gmstore-case 113/113, 65-season 57/59 (2 expected red), 88-flow-length 26/26, 71-sheet 41/41, 0 failed in each.
+
+## The table notes' review page
+
+https://claude.ai/artifact/Co7mFGUoBsRaEAJaVkw1GK (private, the owner's): notes 1 and 2 before (251b0136) and after,
+PL first then EN, both themes, 1366x768; notes 3 and 4 in words (nothing to see in a still). Harness captures in the
+style harness, not Foundry; the GM panel's shots carry `.application button { display: flex }` planted on both sides.
 
 ## Follow-ups after the texts line lands (left out to avoid a conflict)
 

@@ -2834,15 +2834,20 @@ body.drpg-theme-stained-glass .application.dialog.drpg-ui.drpg-window-items:not(
 /* one label column for the grid in the tab and the grid under the tabs, so every field starts at one edge: the kit's
    column is as wide as each grid's own longest label, and "Description (optional)" set the tab's 70 px wider than
    "Give it to" set the lower one's (glass, 1366x768, 09.11.2026); 11rem is the width the windows' old grid had */
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid { grid-template-columns: 11rem minmax(0, 1fr); }
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-grid + .drpg-form-grid { margin-top: 6px; }
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > :is(p, .drpg-box) { margin: 0; }
-.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet) .drpg-form-full > [data-drpg-kind-note] > .drpg-box { margin: 0; }
+/* the same in Give / take items' Give tab, which holds those forms since E101 F2 */
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-grid { grid-template-columns: 11rem minmax(0, 1fr); }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-grid + .drpg-form-grid { margin-top: 6px; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-full > :is(p, .drpg-box) { margin: 0; }
+.application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-items) .drpg-form-full > [data-drpg-kind-note] > .drpg-box { margin: 0; }
+/* Give / take items' Give tab (E101 F2): what and from where, each its words in the label column beside its bar */
+.application.drpg-ui.drpg-window-items .drpg-give-choice { display: grid; grid-template-columns: 11rem minmax(0, 1fr); align-items: center; gap: 8px; margin: 0 0 6px; }
+.application.drpg-ui.drpg-window-items .drpg-give-choice[hidden] { display: none; }
+.application.drpg-ui.drpg-window-items .drpg-give-pane { margin: 0 0 6px; }
 .application.drpg-ui:is(.drpg-window-give, .drpg-window-bullet, .drpg-window-tables) input[type="checkbox"] {
     accent-color: var(--drpg-bone);
     --checkbox-checked-color: var(--drpg-bone);
 }
-body.drpg-theme-monokuma-legacy .application.drpg-ui.drpg-window-give .drpg-role-label {
+body.drpg-theme-monokuma-legacy .application.drpg-ui:is(.drpg-window-give, .drpg-window-items) .drpg-role-label {
     font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1)));
 }
 /* the item manager's holdings: a group per category, its plural heading over its list (E46-C3a) */

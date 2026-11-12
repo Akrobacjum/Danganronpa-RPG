@@ -47379,12 +47379,13 @@ const SCENARIOS = [
             return target.key;
         };
         const resolve = key => observe.resolveObserve({ key, total: 24, isCritical: true, actorId: actor.id });
-        // The hub's two windows: the character's "Truth Bullet", then the trace handed over, after `meanwhile`.
+        // The hub's Give tab: Truth Bullet > From a Remnant, the trace handed over, after `meanwhile` (E101 F2, changed on
+        // purpose: until then the hub's door and the Truth Bullet's own window, two answers).
         const hand = (trace, meanwhile = null) => {
-            answers.push({ who: actor.id, go: "bullet" }, async () => {
+            answers.push(async () => {
                 await meanwhile?.();
-                return { recipient: actor.id, tell: false, mode: "existing", remnantId: trace.id,
-                    name: R.remnantData(trace)?.public?.name || "SUITE E09 G1 a trace a GM hands over", shown: "real" };
+                return { go: "give", who: actor.id, what: "bullet", from: "existing", result: { recipient: actor.id, tell: false, mode: "existing", remnantId: trace.id,
+                    name: R.remnantData(trace)?.public?.name || "SUITE E09 G1 a trace a GM hands over", shown: "real" } };
             });
             return openItemManager(actor);
         };
@@ -47483,8 +47484,9 @@ const SCENARIOS = [
             await settle();
             const trace = lootTrace();
             must(trace && R.remnantData(trace)?.tiedToCrime === true, "the loot left no trace tied to the crime - this would measure nothing");
-            answers.push({ who: holder.id, go: "bullet" }, { recipient: holder.id, tell: false, mode: "existing", remnantId: trace.id,
-                name: "SUITE E09 r2-G4 a loot's trace", shown: "real" });
+            // The hub's Give tab, Truth Bullet > From a Remnant (E101 F2, changed on purpose: one answer where there were two).
+            answers.push({ go: "give", who: holder.id, what: "bullet", from: "existing", result: { recipient: holder.id, tell: false, mode: "existing", remnantId: trace.id,
+                name: "SUITE E09 r2-G4 a loot's trace", shown: "real" } });
             await openItemManager(holder);
             await settle();
             const item = holder.items.find(i => !had.get(holder.id).has(i.id) && T.secretOf(i.uuid).remnantId === trace.id);
@@ -78779,6 +78781,66 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ same: true, field: "E101-T4 typed, not saved", scroll: true, count: 1 }),
             "{the same Season setup window after Despair Flow came and went; the name as typed; the body's scroll; Season setup windows open}");
+    }],
+    ["E101-T5 - Give / take items gives an item and a Truth Bullet in its own window: Give > Item > Create new and Give > Truth Bullet > Write a new one, each pressed on the drawn hub with one Give, put the thing on the student picked, and the hub comes back on the same student and the same choice (E101 F2; the owner at a 1.2.108 table)", async () => {
+        /*
+         * E101 F2, 12.11.2026. Here, as the GM, on the harness's drawn windows: the hub opened on a student, Give's
+         * Item > Create new filled with a name and Give pressed; then Truth Bullet > Write a new one filled with a name and
+         * Give pressed. Read: the student's new items by name and category, the windows asked for between (none but the
+         * hub), and the hub's choice after each. The two items are deleted after, and the hub closed. Red at 251b0136: no
+         * bar in the hub.
+         */
+        needs(env.dialogs(), "the hub is drawn and pressed");
+        needs(world.atLeast("livingStudents", 1), "a student to give to");
+        must(game.user.isGM, "the hub is a GM's");
+        const G = await import("./gm-items.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const student = studentActors()[0];
+        const had = new Set(student.items.map(i => i.id));
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-items").length, "the hub stands open already");
+        const others = () => [...foundry.applications.instances.values()].filter(a => a.rendered && ["drpg-window-give", "drpg-window-bullet", "drpg-give-key"]
+            .some(c => a.options?.classes?.includes(c))).length;
+        const read = { steps: [] };
+        let answer = null;
+        const step = async (what, from, field, value) => {
+            const hub = of("drpg-window-items")[0];
+            must(hub?.element, "the hub is not open");
+            const el = hub.element;
+            el.querySelector(`[data-drpg-give-what] button[data-drpg-mode="${what}"]`)?.click();
+            el.querySelector(`[data-drpg-give-from] button[data-drpg-mode="${from}"]`)?.click();
+            const input = el.querySelector(`[data-drpg-give-pane="${what}:${from}"] [name="${field}"]`);
+            must(input, `no ${field} in ${what}:${from}`);
+            input.value = value;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            const tell = el.querySelector('[name="tell"]');
+            if (tell) tell.checked = false;
+            el.querySelector('footer.form-footer button[data-action="give"]')?.click();
+            await until(() => student.items.some(i => !had.has(i.id) && i.name === value), 6000);
+            await until(() => of("drpg-window-items")[0]?.element && of("drpg-window-items")[0] !== hub, 6000);
+            await settle();
+            const back = of("drpg-window-items")[0]?.element ?? null;
+            const pressed = bar => back?.querySelector(`[data-drpg-give-${bar}] button[aria-pressed="true"]`)?.dataset.drpgMode ?? null;
+            read.steps.push([student.items.find(i => !had.has(i.id) && i.name === value)?.getFlag("danganronpa-rpg", "category") ?? null,
+                back?.querySelector('[name="who"]')?.value === student.id, pressed("what"), pressed("from"), others()]);
+        };
+        try {
+            answer = Promise.resolve().then(() => G.openItemManager(student)).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-items")[0]?.element?.querySelector("[data-drpg-give-what]"), 6000), "the hub did not open with a choice of what - this would measure nothing");
+            await step("item", "create", "name", "E101-T5 a lamp");
+            await step("bullet", "create", "bulletName", "E101-T5 a note");
+        } finally {
+            for (const app of of("drpg-window-items")) {
+                const close = app.element?.querySelector('footer.form-footer button[data-action="cancel"]');
+                if (close) close.click(); else await app.close().catch(() => {});
+            }
+            if (answer) await Promise.race([answer, wait(3000)]);
+            const made = student.items.filter(i => !had.has(i.id)).map(i => i.id);
+            if (made.length) await student.deleteEmbeddedDocuments("Item", made);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ steps: [["usable", true, "item", "create", 0], ["truthBullet", true, "bullet", "create", 0]] }),
+            "{per Give: [the new item's category, the hub back on the student, its what, its from, other give windows open]}");
     }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*

@@ -18749,6 +18749,73 @@ const INVARIANTS = [
         equal(JSON.stringify([held, main.style.minHeight, shown, ["openSettingsWindow", "openGameSettingsWindow"].map(f => /holdSectionHeight\(root\)/.test(fnSource(src, f)))]),
             JSON.stringify([520, "520px", ["a"], [true, true]]), "[the height held, the main column's min-height, the section shown after, each opener holds it]");
     }],
+    ["R4060 - Give / take items gives in its own window (E101 F2; the owner at a 1.2.108 table): gm-items.mjs `openItemManager`'s footer has one Give (primary) and the three Take buttons, no Give an item, Give a Truth Bullet or Give a room key; its Give tab asks what (Item, Truth Bullet, Room key) and from where (from the tables or new; from a Remnant or written new), shows that one form in the same window, and Give answers what the shown form says", async () => {
+        /*
+         * E101 F2, 12.11.2026. The owner: no separate footer buttons for an item, a Truth Bullet and a room key; Give shows
+         * the form in the same window, with Item / Truth Bullet / Room key and Existing / New. Read on this GM with
+         * DialogV2's `wait` stood in for (it answers null: nothing written): the hub's config (its buttons by action), its
+         * content drawn in a stand-in window with a footer of those buttons, its render run, the two bars pressed and the
+         * panes shown read after each press; Give's own callback read on the last. Red at 251b0136: six doors in the
+         * footer, no bar.
+         */
+        needs(world.atLeast("livingStudents", 1), "the hub opens on a student");
+        const G = await import("./gm-items.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const student = studentActors()[0];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        let root = null, read = null;
+        try {
+            await G.openItemManager(student);
+            const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-items"));
+            must(cfg && typeof cfg.render === "function", "the hub opened no window with a render - this would measure nothing");
+            const buttons = Object.values(cfg.buttons ?? {});
+            root = document.createElement("div");
+            root.className = "application dialog drpg-window-items";
+            root.append(cfg.content instanceof HTMLElement ? cfg.content : Object.assign(document.createElement("div"), { innerHTML: String(cfg.content ?? "") }));
+            const footer = document.createElement("footer");
+            footer.className = "form-footer";
+            footer.innerHTML = buttons.map(b => `<button type="submit" data-action="${b.action}">${b.label}</button>`).join("");
+            root.append(footer);
+            document.body.append(root);
+            cfg.render(null, { element: root, close: async () => {}, addEventListener: () => {}, setPosition: () => {} });
+            const press = (bar, key) => root.querySelector(`[data-drpg-give-${bar}] button[data-drpg-mode="${key}"]`)?.click();
+            const shown = () => [...root.querySelectorAll("[data-drpg-give-pane]")].filter(p => !p.hidden).map(p => p.dataset.drpgGivePane);
+            const give = () => root.querySelector('footer button[data-action="give"]');
+            const fromBar = () => root.querySelector("[data-drpg-give-from]");
+            const labels = () => [...(fromBar()?.querySelectorAll("button[data-drpg-mode]") ?? [])].map(b => b.textContent.trim());
+            read = { actions: buttons.map(b => b.action).sort(),
+                whats: [...root.querySelectorAll("[data-drpg-give-what] button[data-drpg-mode]")].map(b => b.dataset.drpgMode),
+                panes: [...root.querySelectorAll("[data-drpg-give-pane]")].map(p => p.dataset.drpgGivePane).sort(),
+                first: shown() };
+            press("what", "item"); press("from", "create");
+            const nameless = [shown(), give()?.disabled ?? null];
+            const name = root.querySelector('[data-drpg-give-pane="item:create"] [name="name"]');
+            if (name) { name.value = "R4060 a lamp"; name.dispatchEvent(new Event("input", { bubbles: true })); }
+            read.create = [...nameless, give()?.disabled ?? null];
+            press("what", "key");
+            read.key = [shown(), Boolean(fromBar()?.hidden)];
+            press("what", "bullet"); press("from", "create");
+            read.bullet = [shown(), labels(), Boolean(fromBar()?.hidden)];
+            const bulletName = root.querySelector('[data-drpg-give-pane="bullet:create"] [name="bulletName"]');
+            if (bulletName) { bulletName.value = "R4060 a note"; bulletName.dispatchEvent(new Event("input", { bubbles: true })); }
+            const answer = await buttons.find(b => b.action === "give")?.callback?.(new Event("click"), give(), { element: root });
+            read.answer = [answer?.go, answer?.what, answer?.who === student.id, answer?.result?.mode, answer?.result?.name];
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            root?.remove();
+        }
+        const L = key => game.i18n.localize(key);
+        equal(stableJson(read), stableJson({ actions: ["cancel", "give", "take", "takeBullet", "takeKey"], whats: ["item", "bullet", "key"],
+            panes: ["bullet:create", "bullet:existing", "item:create", "item:existing", "key"], first: ["item:existing"],
+            create: [["item:create"], true, false], key: [["key"], true],
+            bullet: [["bullet:create"], [L("DRPG.TruthBullet.tabFromRemnant"), L("DRPG.TruthBullet.tabWriteNew")], false],
+            answer: ["give", "bullet", true, "create", "R4060 a note"] }),
+            "{the footer's actions; the what bar; the panes; shown on open; Item > Create new: [shown, Give off with no name, Give on with one]; "
+            + "Room key: [shown, the from bar hidden]; Truth Bullet > new: [shown, the from bar's words, hidden]; Give's answer: [go, what, the student, mode, name]}");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
@@ -28066,7 +28133,8 @@ const INVARIANTS = [
         const kitColumns = "11rem minmax(0, 1fr)";   // components.css, the Give and bullet windows' one label column
         equal(stableJson([grids.map(g => won(g, "display")), grids.map(g => won(g, "grid-template-columns")), won(closed, "display"), hubRoles]),
             stableJson([["grid", "grid"], [kitColumns, kitColumns], "none",
-                [["cancel", "close"], ...["give", "bullet", "key", "take", "takeBullet", "takeKey"].map(a => [a, "secondary"])]]),
+                // E101 F2 (changed on purpose): the Give tab's form is the hub's own, Give its primary; the three Give doors gone.
+                [["give", "primary"], ["cancel", "close"], ...["take", "takeBullet", "takeKey"].map(a => [a, "secondary"])]]),
             "Give an item's fields are not on the kit's formGrid, a closed tab is opened by it, or the hub's footer is not the kit's "
             + "[the open tab's and the lower grid's display and columns, the closed tab's display, the hub's buttons in tree order: action, role]");
     }],
@@ -38542,7 +38610,8 @@ const INVARIANTS = [
             ["./season-setup.mjs", "resetSeason", undefined, "drpg-window-season-reset", { reset: "destructive", cancel: "cancel" }, ["reset", "cancel"]],
             ["./gm-campaign.mjs", "openClockDialog", undefined, "drpg-window-clock", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./gm-items.mjs", "openItemManager", undefined, "drpg-window-items",
-                { give: "secondary", bullet: "secondary", key: "secondary", take: "secondary", takeBullet: "secondary", takeKey: "secondary", cancel: "close" },
+                // E101 F2 (changed on purpose): Give answers the Give tab's form; the three Give doors are gone.
+                { give: "primary", take: "secondary", takeBullet: "secondary", takeKey: "secondary", cancel: "close" },
                 ["give", "take", "cancel"]],
             ["./tables-editor.mjs", "openItemTables", undefined, "drpg-window-tables", { add: "primary", newPool: "secondary", install: "destructive", close: "close" }, ["add", "install", "close"]],
             ["./gm-team-dialog.mjs", "clearOverflowFromTab", undefined, "drpg-window-clearoverflow", { clear: "destructive", cancel: "cancel" }, ["clear", "cancel"]],
