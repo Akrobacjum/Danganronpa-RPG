@@ -41,8 +41,11 @@ import {
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
 import { WIDE } from "./ui-columns.mjs";
+import { caseGraph } from "./case-schema.mjs";
+import { layoutCase } from "./case-layout.mjs";
+import { caseMapHtml, wireCaseMap, glyphHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
-import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
+import { keyPlanStore, remnantStore, caseSchemaStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { roomRegions } from "./rooms.mjs";
@@ -2219,6 +2222,7 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
 
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
 function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
+    if (reading.view === "map") return caseMapRegion(reading);
     const students = evidenceByStudent();
     const traces = allTraces();
     const finders = findersByAnyRemnant();
@@ -2267,6 +2271,50 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
             finalRemnants, finalTruthPlacedThisChapter }) }
         ])}
     </form></div>`;
+}
+
+/**
+ * THE VIEW THIS GM OPENS ON (E97 C5; the owner's Q-B, 11.11.2026: "the Map/Table switch is remembered per GM account, a
+ * flag on their own user"). "map" or "table", read off the GM's own User; anything else - no flag yet - reads "table"
+ * until C9 makes the Map the default (Q-E: only once the parity test is green and the owner has seen both). Not a
+ * secret: world-secrets.mjs forbids one User flag only (`preSessionNote.text`).
+ */
+export const INVESTIGATION_VIEWS = Object.freeze(["map", "table"]);
+export function investigationView(user = game.user) {
+    const v = user?.getFlag?.(MODULE_ID, "investigationView");
+    return INVESTIGATION_VIEWS.includes(v) ? v : "table";
+}
+
+/** The view switch's markup, in the toolbar's switch slot (outside the live region: a redraw never replaces it). */
+function viewSwitchHtml(view) {
+    const button = (key, glyph, label) => `<button type="button" data-drpg-mode="${key}" aria-pressed="${view === key}">`
+        + `${glyphHtml(glyph)}<span>${esc(game.i18n.localize(label))}</span></button>`;
+    return `<div class="drpg-mode-bar drpg-case-switch-bar" role="toolbar" aria-label="${esc(game.i18n.localize("DRPG.CaseMap.viewSwitch"))}">`
+        + button("map", "map-view", "DRPG.CaseMap.viewMap") + button("table", "table-view", "DRPG.CaseMap.viewTable") + `</div>`;
+}
+
+/**
+ * The chapter the Map draws: the Remnants tab's chapter filter where it names one, else the chapter now running. A filter
+ * of every chapter ("") draws every Remnant of the world beside this chapter's schema and Key slots.
+ */
+function mapChapterOf(reading) {
+    const named = Number(reading.chapter);
+    return reading.chapter && Number.isInteger(named) ? { chapter: named, chapters: "this" }
+        : { chapter: getClock().chapter, chapters: reading.chapter === "" ? "all" : "this" };
+}
+
+/**
+ * THE MAP'S REGION (E97 C5): the same live region as the Table's (`.drpg-case-live`, the view's box), with the map
+ * inside its form, so C6's fields ride the Table's one Save. Read off the world here, as `caseHtml` reads the Table.
+ */
+function caseMapRegion(reading) {
+    const { chapter, chapters } = mapChapterOf(reading);
+    const graph = caseGraph(chapter, { chapters });
+    const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
+    const finders = findersByAnyRemnant();
+    const authors = new Map();
+    for (const { token, data, scene } of allTraces()) if (data.sourceName) authors.set(`${scene.id}.${token.id}`, data.sourceName);
+    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="map"><form>${caseMapHtml({ graph, layout, finders, authors, reading })}</form></div>`;
 }
 
 /** What Save hands back: the three tabs' fields, read fresh off the form. */
@@ -2408,6 +2456,20 @@ function wireCase(dialog) {
         button.addEventListener("click", () => {
             deleteTraceRow(button.dataset.drpgTraceDelete).catch(err => error("Could not delete a Remnant from the dashboard", err));
         });
+    }
+}
+
+/** The Map's nodes and fold (E97 C5): a pick or a fold is the window's own state, redrawn; the focus goes back to the
+ *  node the GM was on, which a redraw replaced. */
+function wireMap(dialog, reading, refresh) {
+    const root = dialog.element;
+    wireCaseMap(root, {
+        onPick: id => { reading.node = reading.node === id ? null : id; reading.focus = id; refresh(); },
+        onFold: () => { reading.fold = !reading.fold; refresh(); }
+    });
+    if (reading.focus) {
+        root?.querySelector?.(`[data-drpg-node="${CSS.escape(reading.focus)}"]`)?.focus();
+        reading.focus = null;
     }
 }
 
@@ -2584,7 +2646,9 @@ export async function openInvestigationDashboard({ said = null } = {}) {
      */
     // `chapter: null` means "not chosen yet" and is resolved on the first read
     // below. "" is a real value here - it means every chapter.
-    const reading = { order: "room", player: "", room: "", chapter: null };
+    /* THE MAP'S OWN (E97 C5): which view, the node the GM picked, whether the unrelated evidence is folded, and the node
+       to hand the focus back to after a redraw (keepLive carries a field's focus, not a button's). */
+    const reading = { order: "room", player: "", room: "", chapter: null, view: investigationView(), node: null, fold: false, focus: null };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 
@@ -2595,7 +2659,7 @@ export async function openInvestigationDashboard({ said = null } = {}) {
        of a stated height in two slots: the view switch's (E97 C5) and the view's own controls'. What the button that
        reopened this window did (`runDashboardButton`) is told in the controls' slot, one line, so a said line no longer
        adds a row to the window as it did over the live region until C2. */
-    const body = `<div class="drpg-case-toolbar"><div class="drpg-case-switch" data-drpg-slot="switch"></div>`
+    const body = `<div class="drpg-case-toolbar"><div class="drpg-case-switch" data-drpg-slot="switch">${viewSwitchHtml(reading.view)}</div>`
         + `<div class="drpg-case-controls" data-drpg-slot="controls">${said
             ? `<p class="drpg-case-result notes" role="status" title="${esc(said)}">${esc(said)}</p>` : ""}</div></div>${buildCase()}`;
 
@@ -2611,6 +2675,15 @@ export async function openInvestigationDashboard({ said = null } = {}) {
            (`kitWidth`). */
         width: WIDE.width,
         body,
+        /* The view switch (E97 C5): the kit presses the button (ui-kit.mjs `wireKit`); the choice is written on this GM's
+           own User and the region redrawn in the other view, the frame, header and footer untouched (C2). */
+        onMode: key => {
+            if (!INVESTIGATION_VIEWS.includes(key) || key === reading.view) return;
+            reading.view = key;
+            Promise.resolve(game.user.setFlag?.(MODULE_ID, "investigationView", key))
+                .catch(err => error("Could not remember the Investigation view on this user", err));
+            live?.refresh?.();
+        },
         footer: {
             primary: {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"),
@@ -2646,6 +2719,7 @@ export async function openInvestigationDashboard({ said = null } = {}) {
         render: (event, dialog) => {
             wireCase(dialog);
             wireCaseFilters(dialog, reading, () => live?.refresh?.());
+            wireMap(dialog, reading, () => live?.refresh?.());
 
             /*
              * THE BODY BUTTON IS GREYED WHILE AN ECLIPSE RUNS (F12).
@@ -2706,8 +2780,12 @@ export async function openInvestigationDashboard({ said = null } = {}) {
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore] },
-                after: () => { wireCase(dialog); wireCaseFilters(dialog, reading, () => live?.refresh?.()); }
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore, caseSchemaStore] },
+                after: () => {
+                    wireCase(dialog);
+                    wireCaseFilters(dialog, reading, () => live?.refresh?.());
+                    wireMap(dialog, reading, () => live?.refresh?.());
+                }
             });
         },
         rejectClose: false

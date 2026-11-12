@@ -75,7 +75,7 @@ const OUT = process.env.DRPG_CAPTURE_OUT ? path.resolve(process.env.DRPG_CAPTURE
 const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`)).studentActors()[0];";
 
 /*
- * The windows, each `{ id, client, module, call, press }`: the opener's module under scripts/ and the call made on it
+ * The windows, each `{ id, client, module, call, press, click }`: the opener's module under scripts/ and the call made on it
  * (`m` is the module), on the GM unless `client` names a player; with `press`, the window the opener drew is a step on
  * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from Season setup). The list is E44's mockup set as far as an opener
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
@@ -116,6 +116,23 @@ const SEED_PASSAGES = `const PG = await import(\`\${repoUrl}/scripts/passages-gm
 const DROP_PASSAGES = `const st = (await import(\`\${repoUrl}/scripts/passages-gm.mjs\`)).PASSAGE_STORES;
     await st.access.dropMany(globalThis.__probe08seed?.access ?? []); await st.map.dropMany(globalThis.__probe08seed?.rows ?? []);
     delete globalThis.__probe08seed;`;
+/* E97 C5: the Investigation panel's Map view, with a small case seeded in the GMs' store (two deductions on the
+   chapter's evidence, a counter, the solution) and dropped after; the view is the GM's own User flag, stubbed for the
+   capture (`getFlag` answers "map" for it) rather than written, so the world dump is the same before and after. */
+const SEED_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
+    const ch = (await import(\`\${repoUrl}/scripts/clock.mjs\`)).getClock().chapter;
+    const ev = CS.caseGraph(ch).nodes.filter(n => n.evidence).map(n => n.id);
+    const real = game.user.getFlag;
+    globalThis.__probe08case = { ch, real, ids: ["probe08-d1", "probe08-d2", "probe08-c1", "probe08-s1"] };
+    game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : real.call(this, scope, key); };
+    await CS.setCaseNode(ch, "probe08-d1", { kind: "deduction", label: "The killing was before 23:40", inputs: ev.slice(0, 2), mode: "debate" });
+    await CS.setCaseNode(ch, "probe08-d2", { kind: "deduction", label: "The culprit came in with a key", inputs: ev.slice(1, 3) });
+    await CS.setCaseNode(ch, "probe08-c1", { kind: "counter", label: "The clock could have stopped by itself", refutes: ["probe08-d1"] });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2"] });`;
+const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
+    const c = globalThis.__probe08case;
+    if (c) { for (const id of c.ids) await CS.dropCaseNode(c.ch, id); game.user.getFlag = c.real; }
+    delete globalThis.__probe08case;`;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -125,6 +142,8 @@ export const WINDOWS = [
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
     { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonSetup()", press: "checks" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
@@ -181,6 +200,12 @@ const capture = (repoUrl, w) => `
     if (app && open) {
         app.element.querySelector(\`nav.drpg-tabs > button[data-drpg-tab-key="\${open}"]\`)?.click();
         await new Promise(r => setTimeout(r, 150));
+    }
+    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked). */
+    const click = ${JSON.stringify(w.click ?? null)};
+    if (app && click) {
+        app.element.querySelector(click)?.click();
+        await new Promise(r => setTimeout(r, 300));
     }
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {

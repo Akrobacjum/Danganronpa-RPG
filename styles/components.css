@@ -2964,6 +2964,135 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
 /* and the cell's own overflow clipped: with the picker in, the cell still reported 17 px of scroll under Legacy (scrollWidth
    210 in 193) with no box of it past its edge (each child read at or inside the cell, Chromium, E97 C2) */
 .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-status { overflow-x: clip; }
+/* ---- THE CASE MAP (E97 C5; scripts/case-map.mjs). In the Map view the view's box does not scroll: the graph's own box
+   does, both ways, beside a side panel of a stated width that scrolls down on its own. Each node is a button placed in
+   pixels by `mapPlace` (MAP_GEOMETRY: 196 x 54, the numbers below; the glass's button rule, which is `position:
+   relative`, uppercase and spaced, is outranked here so a node stays where its edges meet it), the edges one SVG layer under them. A node's kind
+   is told by its first line's words, its state by a glyph and a word (found, on the map, planned), the picked node by
+   the selected look, a counter and the solution by their edge, a planned slot and the unrelated evidence by a dashed
+   one. Both themes, through the kit's tokens. ---- */
+.application.drpg-ui.drpg-window-case .drpg-case-view[data-drpg-view="map"] { overflow: hidden; }
+.application.drpg-ui.drpg-window-case .drpg-case-view[data-drpg-view="map"] > form { height: 100%; margin: 0; }
+.application.drpg-window-case .drpg-case-map { display: flex; gap: var(--drpg-kit-gap); height: 100%; min-height: 0; }
+.application.drpg-window-case .drpg-case-graph {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--drpg-kit-line);
+}
+.application.drpg-window-case .drpg-case-panel {
+    flex: 0 0 19rem;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 0 0.5rem;
+    border-left: 1px solid var(--drpg-kit-line);
+    color: var(--drpg-kit-ink);
+}
+.application.drpg-window-case .drpg-case-panel h4 { margin: 0.25rem 0 0.5rem; font-size: var(--drpg-text-md); }
+.application.drpg-window-case .drpg-case-panel-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--drpg-kit-line);
+    font-size: var(--drpg-text-sm);
+}
+.application.drpg-window-case .drpg-case-panel-label { color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case .drpg-case-panel-value { overflow-wrap: anywhere; }
+.application.drpg-window-case .drpg-case-panel-note { font-size: var(--drpg-text-sm); color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case .drpg-case-panel-warn { color: var(--drpg-kit-ink); border-left: 3px solid var(--drpg-kit-warn-edge); padding-left: 0.5rem; }
+.application.drpg-window-case .drpg-case-canvas { position: relative; }
+.application.drpg-window-case .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.application.drpg-window-case .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
+.application.drpg-window-case .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
+.application.drpg-window-case .drpg-case-col-head {
+    position: absolute;
+    top: 0.25rem;
+    font-size: var(--drpg-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--drpg-kit-help-ink);
+    white-space: nowrap;
+}
+body .application.drpg-ui.drpg-window-case .drpg-case-canvas > button.drpg-case-node {
+    position: absolute;
+    box-sizing: border-box;
+    width: 196px;
+    height: 54px;
+    min-width: 0;
+    margin: 0;
+    padding: 3px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 1px;
+    text-align: start;
+    line-height: 1.3;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: normal;
+    color: var(--drpg-kit-btn-ink);
+    background: var(--drpg-kit-btn-bg);
+    border: 1px solid var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+    cursor: pointer;
+}
+body .application.drpg-window-case button.drpg-case-node:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
+body .application.drpg-window-case button.drpg-case-node:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
+body .application.drpg-window-case button.drpg-case-node.is-selected {
+    background: var(--drpg-kit-row-highlight);
+    border: 2px solid var(--drpg-kit-btn-on-edge);
+}
+body .application.drpg-window-case button.drpg-case-node.is-held { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-info-edge); }
+body .application.drpg-window-case button.drpg-case-node.is-planned,
+body .application.drpg-window-case button.drpg-case-node.is-loose { border-style: dashed; }
+body .application.drpg-window-case button.drpg-case-node--counter { border-color: var(--drpg-kit-warn-edge); }
+body .application.drpg-window-case button.drpg-case-node--solution { border-color: var(--drpg-kit-primary-edge); border-width: 2px; }
+.application.drpg-window-case .drpg-case-node-head { display: flex; align-items: center; gap: 0.375rem; min-width: 0; font-size: var(--drpg-text-xs); }
+.application.drpg-window-case .drpg-case-node-kind {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--drpg-kit-help-ink);
+}
+.application.drpg-window-case .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
+.application.drpg-window-case .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
+.application.drpg-window-case .drpg-case-node-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    min-width: 0;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    font-size: var(--drpg-text-sm);
+}
+.application.drpg-window-case .drpg-case-gap {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    border-top: 1px dashed var(--drpg-kit-line-strong);
+}
+body .application.drpg-window-case button.drpg-case-fold {
+    min-width: 0;
+    width: 100%;
+    margin: 0.25rem 0 0;
+    padding: 0 0.25rem;
+    font-size: var(--drpg-text-xs);
+    text-align: start;
+    color: var(--drpg-kit-help-ink);
+    background: none;
+    border: none;
+}
+.application.drpg-window-case .drpg-case-switch-bar { display: flex; gap: 0; }
+.application.drpg-window-case .drpg-case-switch-bar > button { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0; }
+.application.drpg-window-case .drpg-case-glyph:empty { display: none; }
 body .application.dialog.drpg-window-case footer.form-footer.drpg-kit-footer {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2972,6 +3101,15 @@ body .application.dialog.drpg-window-case footer.form-footer.drpg-kit-footer {
     align-items: stretch;
 }
 .application.dialog.drpg-window-case footer.drpg-kit-footer > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
+/* The footer's place the same in both views: danganronpa.css pins a dialog's footer across its scroll, with the window's
+   padding and a negative margin, only while the content holds a table (`:has(.dialog-content table)`), so the Table view's
+   footer stood 12 px lower and 22 px taller than the Map's and the frame 6 px taller (Chromium, 1366x768, glass; 4 px
+   under Legacy, its footer 32 px wider). Here the body never scrolls (C2), so the footer has nothing to pin across. */
+body .application.dialog.drpg-ui.drpg-window-case footer.form-footer.drpg-kit-footer {
+    position: static;
+    margin: 10px 0 0;
+    padding: 10px 0 0;
+}
 .application.dialog.drpg-window-case footer.drpg-kit-footer .drpg-role-primary { order: 3; }
 body .application.dialog.drpg-window-case footer.form-footer.drpg-kit-footer button {
     min-width: 0;

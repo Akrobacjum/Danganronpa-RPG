@@ -7487,6 +7487,46 @@
       "moveTraces": "Przenieś je do rejestru",
       "moveNote": "Przenieś je do rejestru zdejmuje klucz odpowiedzi każdego śladu z jego żetonu (game.drpg.migrateRemnants); Dalej działa bez niego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
     },
+    "CaseMap": {
+      "viewSwitch": "Widok śledztwa",
+      "viewMap": "Mapa",
+      "viewTable": "Tabela",
+      "graphLabel": "Mapa sprawy, rozdział {chapter}",
+      "colEvidence": "Dowody",
+      "colDeductions": "Wnioski",
+      "colSolution": "Rozwiązanie",
+      "unrelated": "Nie związane z morderstwem: {n}",
+      "kind": {
+        "deduction": "Wniosek",
+        "counter": "Kontra",
+        "solution": "Rozwiązanie",
+        "slot": "Miejsce na Key Remnant",
+        "remnant": "Remnant"
+      },
+      "state": {
+        "held": "U graczy",
+        "onMap": "Na mapie",
+        "planned": "W planie"
+      },
+      "slotNumber": "Miejsce {n}",
+      "noName": "(bez nazwy)",
+      "leftBy": "zostawił: {name}",
+      "panelKind": "Rodzaj",
+      "panelState": "Stan",
+      "panelRoom": "Pokój",
+      "panelAuthor": "Zostawił (tylko GM-owie)",
+      "panelWhoHas": "Kto ma",
+      "panelMode": "Tryb rozprawy",
+      "nobodyYet": "Nikt jeszcze",
+      "summaryTitle": "Rozdział {chapter}",
+      "sumEvidence": "Dowody",
+      "sumTied": "Związane z morderstwem",
+      "sumHeld": "Znalezione przez uczniów",
+      "sumDeductions": "Wnioski",
+      "sumCounters": "Kontry",
+      "noSchema": "Nie ma jeszcze żadnego wniosku.",
+      "cycle": "Te wejścia tworzą koło, więc mapa ich nie rysuje: {nodes}."
+    },
     "Reveal": {
       "section": "Brakujące Key Remnanty",
       "left": "Do ujawnienia: {n}",

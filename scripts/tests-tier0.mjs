@@ -22874,6 +22874,71 @@ const REGRESSIONS = [
             none: { held: 0, of: 0, needed: 1, reachable: false }
         }), "[what 1 to 5 inputs need; each at one less; each at what it needs (held, of, reachable); the culprit's bullet alone, with another's, a dead holder's; a deduction of a reachable deduction, of an unreachable one, ticked, unticked; an evidence node held by the culprit alone and by another; a node with no inputs]");
     }],
+    ["R3651 - the case map's drawing (E97 C5; case-map.mjs): `mapPlace` puts a node at its column and row in MAP_GEOMETRY's pixels with the gap's middle; `edgePath` curves from a node's right edge to the next column's left and brackets two nodes of one column on their left; `nodeState` reads planned, held (a student's copy, by the key's token id) and on the map; `caseGraphHtml` draws one button per placed node with its kind, name, state and author in its label, the name escaped, the picked node current, one path per edge, and a fold that leaves the unrelated evidence out and keeps its head; `neighbourOf` walks to the nearest node an arrow points at", async () => {
+        /*
+         * E97 C5, 12.11.2026; STAGE C5 "HTML node buttons over one SVG edge layer". Pure: a graph of case-schema.mjs
+         * `graphOf` laid out by case-layout.mjs `layoutCase`, drawn as markup and read back. jsdom lays nothing out, so
+         * positions are the numbers the drawing states; how it looks is the commit's Chromium reading. Red at e320102:
+         * there is no case-map.mjs.
+         */
+        let M = null;
+        try { M = await import("./case-map.mjs"); } catch { M = null; }
+        must(M && typeof M.caseGraphHtml === "function", "there is no case-map.mjs with caseGraphHtml - the case has no map");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = M.MAP_GEOMETRY;
+        const graph = S.graphOf({
+            chapter: 3,
+            rows: { "d-a": { kind: "deduction", label: "R3651 <b>who</b>", inputs: ["S.T1"] }, "c-b": { kind: "counter", label: "R3651 no", refutes: ["d-a"] } },
+            traces: [{ key: "S.T1", type: "prep", name: "R3651 knife", tiedToCrime: true }, { key: "S.T2", type: "neutral", name: "R3651 dust", tiedToCrime: false }],
+            slots: [{ slot: 0, name: "" }]
+        });
+        const layout = layoutCase(graph, { sort: "kind" });
+        const place = M.mapPlace(layout);
+        const finders = new Map([["T1", new Set(["R3651 Aiko"])]]);
+        const authors = new Map([["S.T1", "R3651 Botan"]]);
+        const read = html => {
+            const d = document.createElement("div");
+            d.innerHTML = html;
+            return {
+                buttons: [...d.querySelectorAll("button[data-drpg-node]")].map(b => [b.dataset.drpgNode, b.getAttribute("aria-label"), b.getAttribute("aria-current"),
+                    b.style.left, b.style.top]),
+                paths: [...d.querySelectorAll("path[data-drpg-edge]")].map(p => p.dataset.drpgEdge),
+                bold: d.querySelectorAll("b").length, fold: d.querySelector("[data-drpg-case-fold]")?.getAttribute("aria-expanded") ?? null
+            };
+        };
+        const L = k => game.i18n.localize(k);
+        const open = read(M.caseGraphHtml({ graph, layout, finders, authors, selected: "d-a" }));
+        const folded = read(M.caseGraphHtml({ graph, layout, finders, authors, fold: true }));
+        const pts = [{ id: "a", x: 0, y: 0 }, { id: "b", x: 0, y: 66 }, { id: "c", x: 244, y: 0 }, { id: "d", x: 244, y: 66 }];
+        equal(JSON.stringify({
+            at: [place.at["key:0"], place.at["d-a"], place.gapY],
+            edges: [M.edgePath({ x: 0, y: 0 }, { x: 244, y: 66 }), M.edgePath({ x: 244, y: 132 }, { x: 244, y: 66 })],
+            states: graph.nodes.map(n => [n.id, M.nodeState(n, finders)]),
+            open, folded: [folded.buttons.map(b => b[0]), folded.fold],
+            arrows: [M.neighbourOf(pts, "a", "ArrowRight"), M.neighbourOf(pts, "a", "ArrowDown"), M.neighbourOf(pts, "d", "ArrowUp"), M.neighbourOf(pts, "a", "ArrowLeft")]
+        }), JSON.stringify({
+            at: [{ x: g.pad, y: g.head + g.pad }, { x: g.pad + g.nodeW + g.colGap, y: g.head + g.pad }, g.head + g.pad + layout.gapAt * g.pitch + Math.round(g.nodeH / 2)],
+            edges: [`M196 27 C220 27 220 93 244 93`, `M244 159 H232 V93 H244`],
+            states: [["S.T1", "held"], ["S.T2", "onMap"], ["key:0", "planned"], ["d-a", "schema"], ["c-b", "schema"]],
+            open: {
+                buttons: layout.columns.flat().map(id => {
+                    const n = graph.nodes.find(x => x.id === id), p = place.at[id];
+                    const label = {
+                        "S.T1": `Prep Remnant, R3651 knife, ${L("DRPG.CaseMap.state.held")}, ${game.i18n.format("DRPG.CaseMap.leftBy", { name: "R3651 Botan" })}`,
+                        "S.T2": `Neutral Remnant, R3651 dust, ${L("DRPG.CaseMap.state.onMap")}`,
+                        "key:0": `${L("DRPG.CaseMap.kind.slot")}, ${game.i18n.format("DRPG.CaseMap.slotNumber", { n: 1 })}, ${L("DRPG.CaseMap.state.planned")}`,
+                        "d-a": `${L("DRPG.CaseMap.kind.deduction")}, R3651 <b>who</b>`,
+                        "c-b": `${L("DRPG.CaseMap.kind.counter")}, R3651 no`
+                    }[n.id];
+                    return [id, label, id === "d-a" ? "true" : null, `${p.x}px`, `${p.y}px`];
+                }),
+                paths: ["S.T1>d-a", "c-b>d-a"], bold: 0, fold: "true"
+            },
+            folded: [layout.columns.flat().filter(id => !layout.unrelated.includes(id)), "false"],
+            arrows: ["c", "b", "c", null]
+        }), "{at: a node's place and the gap's middle; edges: across a column and within one; states: each node's; open: the drawn graph [each button's id, label, current, left, top; the edges; a bold tag escaped; the fold open]; folded: the buttons left and the fold shut; arrows: right, down, up, left from a corner}");
+    }],
 ];
 
 

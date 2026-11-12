@@ -8093,6 +8093,96 @@ const INVARIANTS = [
             }
         }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
     }],
+    ["R3652 - the Map / Table switch (E97 C5; the owner's Q-B and Q-D, 11.11.2026): a GM with no view flag opens on the Table; the toolbar's Map button draws the Map in the same live region and its Table button the Table again, each remembered on this GM's own User (`setFlag` on game.user, nothing else), with no GM store written, and the window's body, toolbar and footer the same nodes throughout (the harness draws no header); the Map draws every node of the chapter's graph - each Remnant of the chapter the Table's filter names, each Key slot, each schema node", async () => {
+        /*
+         * E97 C5, 12.11.2026; STAGE C5 "tier 1 switching writes nothing and keeps the frame's box equal; every trace of
+         * the world is a node". jsdom lays nothing out, so "the frame's box equal" is read as the frame's own nodes kept
+         * (a switch redraws the live region alone; the boxes Chromium draws are the commit's reading: 1120 x 714 under
+         * the glass, 1120 x 688 under Legacy, at 1366x768, in both views). The flag write is caught on this user and not
+         * made, so the world is not touched (tier 1). Red at e320102: no switch.
+         */
+        needs(world.atLeast("remnantTokens"), "the Map's nodes are read against the world's Remnants");
+        const I = await import("./investigation.mjs");
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore, remnantStore, keyPlanStore } = await import("./gm-stores.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        must(!game.user.getFlag(MODULE_ID, "investigationView"), "this GM has a view flag already - the default would not be read");
+        const stores = () => JSON.stringify([caseSchemaStore, remnantStore, keyPlanStore].map(st => st.entries?.() ?? null));
+        const before = stores();
+        const flagged = [];
+        const realSet = game.user.setFlag;
+        game.user.setFlag = async (scope, key, value) => { flagged.push([game.user.id, scope, key, value]); return game.user; };
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        let seen = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-live")), 6000);
+            const root = open()[0].element;
+            const frame = () => [root.querySelector(".drpg-kit-body"), root.querySelector(".drpg-case-toolbar"), root.querySelector("footer.form-footer")];
+            const first = frame();
+            const view = () => root.querySelector(".drpg-case-live")?.dataset.drpgView ?? null;
+            const opened = view();
+            const chapterPicked = root.querySelector('[name="traceChapter"]')?.value ?? null;
+            root.querySelector('.drpg-case-switch [data-drpg-mode="map"]')?.click();
+            await until(() => view() === "map", 3000).catch(() => {});
+            const onMap = view();
+            const drawn = [...root.querySelectorAll(".drpg-case-live [data-drpg-node]")].map(b => b.dataset.drpgNode).sort();
+            const n = Number(chapterPicked);
+            const graph = chapterPicked && Number.isInteger(n) ? S.caseGraph(n) : S.caseGraph(getClock().chapter, { chapters: chapterPicked === "" ? "all" : "this" });
+            const kept = frame().map((el, i) => Boolean(el) && el === first[i]);
+            root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
+            await until(() => view() === "table", 3000).catch(() => {});
+            seen = { opened, onMap, back: view(), kept: [kept, frame().map((el, i) => Boolean(el) && el === first[i])], nodes: drawn.length > 0 && JSON.stringify(drawn) === JSON.stringify(graph.nodes.map(x => x.id).sort()),
+                traces: graph.nodes.filter(x => x.evidence && !x.planned).length > 0 };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+            game.user.setFlag = realSet;
+        }
+        equal(JSON.stringify({ ...seen, flagged, stores: stores() === before }), JSON.stringify({
+            opened: "table", onMap: "map", back: "table", kept: [[true, true, true], [true, true, true]], nodes: true, traces: true,
+            flagged: [[game.user.id, MODULE_ID, "investigationView", "map"], [game.user.id, MODULE_ID, "investigationView", "table"]], stores: true
+        }), "[the view it opened on; after Map; after Table; body, toolbar and footer the same nodes, after Map and after Table; the Map's nodes are the chapter graph's, and it holds Remnants; the flag written on this user, each switch; no GM store changed]");
+    }],
+    ["R3653 - the parity test (E97 C5-C9; STAGE C5, the owner's 09.11 \"remnants editable from the map (same write path as the table)\" and Q-E): every form field and every action button the Table draws - each Remnant row's, each Key slot's, the Final Truth form's - has its place in the Map, by the same name, so the Table's one Save reads the Map's edits unchanged", async () => {
+        /*
+         * E97 C5, 12.11.2026. Read off the drawn markup, not written out: the names of every control in the Table's live
+         * region (`[name]`, the three tabs together) and its action buttons (`data-drpg-key-place`, `data-drpg-trace-
+         * delete`), then the same of the Map's. A field the Table gains and the Map lacks fails this. Red until the Map's
+         * side panel carries the Table's fields (C6); the Map becomes the default only once it passes (C9, Q-E).
+         */
+        const I = await import("./investigation.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const realSet = game.user.setFlag;
+        game.user.setFlag = async () => game.user;
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        let table = null, map = null;
+        const controls = root => {
+            const region = root.querySelector(".drpg-case-live");
+            const names = new Set([...region.querySelectorAll("[name]")].map(el => el.getAttribute("name")).filter(n => !/^trace(Order|Player|Room|Chapter)$/.test(n)));
+            const actions = new Set([...region.querySelectorAll("[data-drpg-key-place], [data-drpg-trace-delete]")].map(b => b.dataset.drpgKeyPlace !== undefined ? `place:${b.dataset.drpgKeyPlace}` : `delete:${b.dataset.drpgTraceDelete}`));
+            return { names, actions };
+        };
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-live")), 6000);
+            const root = open()[0].element;
+            const chapter = root.querySelector('[name="traceChapter"]');
+            if (chapter && chapter.value !== "") { chapter.value = ""; chapter.dispatchEvent(new Event("change", { bubbles: true })); await wait(400); }
+            table = controls(root);
+            root.querySelector('.drpg-case-switch [data-drpg-mode="map"]')?.click();
+            await until(() => root.querySelector(".drpg-case-live")?.dataset.drpgView === "map", 3000).catch(() => {});
+            map = { ...controls(root), view: root.querySelector(".drpg-case-live")?.dataset.drpgView ?? null };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+            game.user.setFlag = realSet;
+        }
+        must(table.names.size > 0, "the Table drew no field - this would measure nothing");
+        const missing = kind => [...table[kind]].filter(x => !map[kind].has(x)).sort();
+        equal(JSON.stringify({ view: map.view, names: missing("names"), actions: missing("actions") }), JSON.stringify({ view: "map", names: [], actions: [] }),
+            "{view: the region drawn after the Map button; names: the Table's fields the Map lacks; actions: its row buttons the Map lacks}");
+    }, expectedRed("E97", "the Map draws the case and no field of the Table yet: the side panel's editors on the Table's names are C6, and C9 makes the Map the default once this passes")],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
          * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard

@@ -5739,6 +5739,46 @@
       "moveTraces": "Move them into the ledger",
       "moveNote": "Move them into the ledger takes each trace's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
     },
+    "CaseMap": {
+      "viewSwitch": "Investigation view",
+      "viewMap": "Map",
+      "viewTable": "Table",
+      "graphLabel": "Case map, chapter {chapter}",
+      "colEvidence": "Evidence",
+      "colDeductions": "Deductions",
+      "colSolution": "Solution",
+      "unrelated": "Not tied to the murder: {n}",
+      "kind": {
+        "deduction": "Deduction",
+        "counter": "Counter",
+        "solution": "Solution",
+        "slot": "Key Remnant slot",
+        "remnant": "Remnant"
+      },
+      "state": {
+        "held": "Found",
+        "onMap": "On the map",
+        "planned": "Planned"
+      },
+      "slotNumber": "Slot {n}",
+      "noName": "(no name)",
+      "leftBy": "left by {name}",
+      "panelKind": "Kind",
+      "panelState": "State",
+      "panelRoom": "Room",
+      "panelAuthor": "Left by (GMs only)",
+      "panelWhoHas": "Who has it",
+      "panelMode": "Trial mode",
+      "nobodyYet": "Nobody yet",
+      "summaryTitle": "Chapter {chapter}",
+      "sumEvidence": "Evidence",
+      "sumTied": "Tied to the murder",
+      "sumHeld": "Found by students",
+      "sumDeductions": "Deductions",
+      "sumCounters": "Counters",
+      "noSchema": "No deduction yet.",
+      "cycle": "These inputs go round in a circle, so the map leaves them out: {nodes}."
+    },
     "Reveal": {
       "section": "Missing Key Remnants",
       "left": "Left to reveal: {n}",
