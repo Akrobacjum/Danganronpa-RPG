@@ -6634,27 +6634,29 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     /* FORGERIES OF FORCE THE DOOR (E74 C3, 12.11.2026). `door.force` from p1's console at Dorm B: for Botan's character, and
        for Aiko with no roll named - each refused, nothing broken. The legal road is tier 2's E74-T2. */
     phase("forgeries of Force the Door", { flow: "door-force" });
-    const readBroken = `const M = await import("${repoUrl}/scripts/movement.mjs"); return M.allRooms(game.scenes.get("${ids.scene}")).filter(r => M.roomBroken(game.scenes.get("${ids.scene}"), r));`;
+    // The rooms of the scene on screen, each [name, broken]: a list that cannot be empty, so "unchanged" compares something.
+    const readBroken = `const M = await import("${repoUrl}/scripts/movement.mjs"); const scene = canvas.scene; return M.allRooms(scene).map(r => [r, M.roomBroken(scene, r)]);`;
     const force = {
         theirs: await forge("door.force", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true }, readBroken),
         noRoll: await forge("door.force", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true }, readBroken)
     };
     check("SECURITY: a console's Force the Door is refused for another's character and with no roll named - nothing broken - and each refusal is logged on the GM and told to p1",
         Object.values(force).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
-            && force.theirs.forOwnership && force.noRoll.reasons[0].includes("no roll the GM drew is named"),
+            && force.theirs.forOwnership && force.noRoll.reasons[0].includes("no roll the GM drew is named") && force.theirs.before?.length > 0,
         JSON.stringify(force).slice(0, 2000), { flow: "door-force" });
 
     /* FORGERIES OF PICK THE LOCK (E74 C4, 12.11.2026). `door.pick` from p1's console at Dorm B: for Botan's character, and for
        Aiko with no roll named - each refused, nobody walked anywhere. The legal road is tier 2's E74-T3. */
     phase("forgeries of Pick the Lock", { flow: "door-pick" });
-    const readPlaces = `return ["${ids.aiko}", "${ids.botan}"].map(id => { const t = game.scenes.get("${ids.scene}").tokens.find(t => t.actorId === id); return t ? [t.x, t.y] : null; });`;
+    const readPlaces = `return ["${ids.aiko}", "${ids.botan}"].map(id => { const t = canvas.scene.tokens.find(t => t.actorId === id); return t ? [t.x, t.y] : null; });`;
     const pickLock = {
         theirs: await forge("door.pick", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces),
         noRoll: await forge("door.pick", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces)
     };
     check("SECURITY: a console's Pick the Lock is refused for another's character and with no roll named - nobody walked in - and each refusal is logged on the GM and told to p1",
         Object.values(pickLock).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
-            && pickLock.theirs.forOwnership && pickLock.noRoll.reasons[0].includes("no roll the GM drew is named"),
+            && pickLock.theirs.forOwnership && pickLock.noRoll.reasons[0].includes("no roll the GM drew is named")
+            && pickLock.theirs.before?.every(place => Array.isArray(place)),
         JSON.stringify(pickLock).slice(0, 2000), { flow: "door-pick" });
 
     /* FORGERIES OF KEEP WATCH (E74 C6, 12.11.2026). `watch.declare` from p1's console: for Botan's character, and for Aiko

@@ -83,4 +83,6 @@ Force the Door's and Pick the Lock's windows (player), Stained Glass and Monokum
 Headless harness in audit/style-harness.html: not Foundry, no Font Awesome, no window frame; the cards are not drawn.
 Seen there: Shut the Door and Force the Door draw the same door glyph (the module's glyph map, E48's, draws `fa-door-closed`
 and `fa-door-open` alike); the plan asks opposite actions to differ - owner to say, no glyph drawn in this round. Seen and
-fixed: Force's and Pick's windows had an empty left column (no briefing); they have the row's line now.
+fixed: Force's and Pick's windows had an empty left column (no briefing); they have the row's line now. Version 2 of the
+page adds Room Setup's Doors tab with the Broken column (GM); seen there in Monokuma Legacy PL: the headers "Zamknięte"
+and "Bez prywatności" are cut in their narrow columns - not checked whether that was so before the new column.
