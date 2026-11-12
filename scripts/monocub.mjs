@@ -56,7 +56,7 @@ import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
-import { callWindow, callHeader } from "./call-pickers.mjs";
+import { callWindow, callHeader, callRowsHtml, pickedRow } from "./call-pickers.mjs";
 
 /* ==========================================================================
  * STATUS
@@ -1252,8 +1252,6 @@ export async function cubAbilityDialog(actor, key) {
         return null;
     }
 
-    const options = targets
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     /*
      * A CALL WINDOW (E51 C2, 30.10.2026; audit S17-48): `callWindow`, on the Hope side - the Monocub
@@ -1263,26 +1261,25 @@ export async function cubAbilityDialog(actor, key) {
      */
     /* ONE OF EACH ON THIS BROWSER (E44 C2c, 04.11.2026; D176). The ability's window carried no `once`, so a second
        press while one stood opened a second; now it raises the first and answers null, and nothing is thrown. */
+    /* THE ACTION'S LAYOUT (E72, 12.11.2026; R3818): the header and the tiers on the left, the targets as the action's rows
+       on the right, where a dropdown stood. The choices stay buttons of the footer (Help, Hinder): each is the answer
+       itself, and a row more would be a press more. */
     const result = await callWindow({
-        kind: "hope", title: row.label, once: `drpg-cub-ability-${key}`,
+        kind: "hope", title: row.label, once: `drpg-cub-ability-${key}`, layout: "action",
         header: callHeader({ label: row.label, cost: row.hopeCost }, "hope", {
             effect: game.i18n.localize(row.intro ?? "DRPG.Monocub.meddleIntro"),
             price: plural("DRPG.Monocub.meddleCostShort", { hope: row.hopeCost, actions: row.cost }, "actions")
         }),
-        body: `<form>
-            <p class="notes">${game.i18n.localize("DRPG.Monocub.tiersIntro")}</p>
-            ${cubTiersHtml(row)}
-            <label>${game.i18n.localize("DRPG.Monocub.target")}
-                <select name="target">${options}</select></label>
-        </form>`,
+        brief: `<p class="notes">${game.i18n.localize("DRPG.Monocub.tiersIntro")}</p>
+            ${cubTiersHtml(row)}`,
+        body: `<form>${callRowsHtml(targets.map(a => ({ value: a.id, label: a.name, icon: row.target === "project" ? "fa-list-check" : "fa-user" })),
+            { name: "target", prompt: game.i18n.localize("DRPG.Monocub.target") })}</form>`,
         // One button per choice of the row, the first the primary and the default, the others secondaries (the kit's
         // slots, E21 C5a); their labels are `DRPG.Monocub.<choice>` (R1's LITERAL_KEYS names the two the table has).
         footer: (() => {
             const buttons = row.choices.map(choice => ({
                 action: choice, label: game.i18n.localize(`DRPG.Monocub.${choice}`),
-                callback: (e, b, d) => ({
-                    targetId: d.element.querySelector("[name=target]").value, choice
-                })
+                callback: (e, b, d) => ({ targetId: pickedRow(d.element, "target"), choice })
             }));
             return { primary: buttons[0], secondary: buttons.slice(1) };
         })()

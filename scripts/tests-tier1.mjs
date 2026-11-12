@@ -30077,8 +30077,9 @@ const INVARIANTS = [
             JSON.stringify([false, true, "fuelTheCub", ["fuelTheCub", "bounty"]]),
             "the GM's Calls draw a Bounty tile, or Fuel a Monocub's tile does not offer Fuel and Bounty");
         const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
-        ok(/call\.choices/.test(fnSource(sheet, "runCall")) && typeof topLevelFunction(sheet, "callChoice") === "string",
-            "sheet.mjs runCall does not ask which Call of a tile's choices (callChoice)");
+        // Since R3818 (E72, the action's layout) the window is call-pickers.mjs `pickChoice`, sheet.mjs `callChoice` gone.
+        ok(/call\.choices/.test(fnSource(sheet, "runCall")) && /\bpickChoice\s*\(/.test(fnSource(sheet, "runCall")),
+            "sheet.mjs runCall does not ask which Call of a tile's choices (pickChoice)");
     }],
 
     ["R3817 - Experience and Ultimate are one Hope Call, Talent: ten Hope Call tiles with Bribe among them, Talent offering both effects, the two rows kept so an armed one still resolves (E72, the owner's decision of 12.11)", async () => {
@@ -30105,6 +30106,93 @@ const INVARIANTS = [
         const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
         ok(!/despair\s*&&\s*Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")) && /Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")),
             "sheet.mjs runCall asks a tile's choice for a Despair Call only");
+    }],
+
+    ["R3818 - a Call window that asks a choice or a text is drawn as an action's: the header and its facts on the left, the rows (radio buttons, not a dropdown) and the text or the note to the GM on the right, its side's class kept; Talent's two rows and the note are one window, a shut row greyed with its reason; a Call that asks nothing is the left column alone (E72, the owner's of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner, relayed by the coordinator: "Ekrany calli niech przypominaja ekran akcji od teraz
+         * apropo zmian e72, skoro maja wybory i wpisy do gma". call-pickers.mjs `callWindow` takes `layout: "action"`
+         * (action-menus.mjs `actionWindow`, R3200's builder), and its rows are the action window's (`callRowsHtml` on
+         * ui-columns.mjs `choiceRowHtml`). Opened here with DialogV2.wait held by a stand-in that keeps each window until
+         * the test closes it (cancelled: nothing paid, armed or written), as R1111 does: a picker (Bounty's student), a
+         * text (New Rule), a tile's choice (Fuel a Monocub's, `pickChoice`), Talent's confirmation with its two rows and
+         * the note (Experience shut), a confirmation that asks nothing (Sprint) and the GM's ruling. The Monocub's ability
+         * window needs a Monocub, so it is read from its source (tier 2's tests open it). Red at 478a8e7: one column, a
+         * dropdown, Talent's choice a window of buttons before the note's.
+         */
+        needs(world.atLeast("livingStudents", 2), "Bounty's picker lists a living student other than the one aiming it");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const calls = await import("./calls.mjs");
+        const pickers = await import("./call-pickers.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
+        const who = livingStudents()[0];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const look = cfg => {
+            const root = document.createElement("div");
+            if (typeof cfg.content === "string") root.innerHTML = cfg.content;
+            else if (cfg.content) root.append(cfg.content.cloneNode(true));
+            const ask = root.querySelector(".drpg-variant-ask");
+            const radios = [...(ask?.querySelectorAll(".drpg-choice input[type=radio]") ?? [])];
+            return {
+                action: (cfg.classes ?? []).includes("drpg-action-window"),
+                side: (cfg.classes ?? []).find(c => /^drpg-(?:hope|despair)-dialog$/.test(c)) ?? null,
+                header: Boolean(root.querySelector(".drpg-variant-brief .drpg-call-header")),
+                ask: Boolean(ask),
+                rows: radios.length,
+                picked: radios.find(r => r.checked)?.value ?? null,
+                shut: radios.filter(r => r.disabled).map(r => r.value),
+                why: radios.filter(r => r.disabled).map(r => r.closest(".drpg-choice")?.querySelector("small")?.textContent.trim() ?? ""),
+                words: [...(ask?.querySelectorAll("textarea") ?? [])].map(t => t.name),
+                select: root.querySelectorAll("select").length,
+                routed: (cfg.buttons ?? []).filter(b => /\bdrpg-gm-route\b/.test(String(b.class ?? ""))).map(b => b.action)
+            };
+        };
+        const closeAll = answer => { for (const w of held.splice(0)) w.resolve(answer); };
+        const opened = async answer => {
+            const got = await until(() => held.length >= 1, 3000);
+            const seen = got ? look(held[0].config) : "(no window opened)";
+            closeAll(answer);
+            return seen;
+        };
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            const run = async (name, promise, answer = null) => { read[name] = await opened(answer); await promise; };
+            await run("bounty", pickTarget(who, DESPAIR_CALLS.bounty, "despair"));
+            await run("newRule", pickTarget(who, DESPAIR_CALLS.newRule, "despair"));
+            await run("fuel", pickers.pickChoice(DESPAIR_CALLS.fuelTheCub, "despair"));
+            await run("talent", calls.confirmCall(HOPE_CALLS.talent, { kind: "hope", held: 12, choices: HOPE_CALLS.talent.choices,
+                shut: { experience: "R3818 shut" } }), "cancel");
+            await run("sprint", calls.confirmCall(HOPE_CALLS.sprint, { kind: "hope", held: 12 }), "cancel");
+            await run("ruling", calls.askHopeCallApproval({ callLabel: "R3818", cost: 1, effect: "R3818", actorName: who.name, note: "R3818 words" }));
+        } finally {
+            closeAll(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        const base = { action: true, header: true, ask: true, rows: 0, picked: null, shut: [], why: [], words: [], select: 0, routed: [] };
+        const J = stableJson;
+        const got = Object.fromEntries(Object.entries(read).map(([k, v]) => [k, typeof v === "string" ? v
+            : k === "bounty" ? { ...v, rows: v.rows >= 1 } : v]));
+        equal(J(got), J({
+            bounty: { ...base, side: "drpg-despair-dialog", rows: true, picked: got.bounty?.picked ?? "(none)" },
+            newRule: { ...base, side: "drpg-despair-dialog", words: ["text"] },
+            fuel: { ...base, side: "drpg-despair-dialog", rows: 2, picked: "fuelTheCub" },
+            talent: { ...base, side: "drpg-hope-dialog", rows: 2, picked: "ultimate", shut: ["experience"], why: ["R3818 shut"], words: ["callNote"], routed: ["spend"] },
+            sprint: { ...base, side: "drpg-hope-dialog", ask: false },
+            ruling: { ...base, side: "drpg-hope-dialog" }
+        }), "a Call window is not drawn as an action's ([the action's window, its side, the header on the left, a right column, its rows, the row picked, "
+            + "the rows shut and why, the text fields on the right, a dropdown, the GM's road] for Bounty's picker, New Rule, Fuel's choice, Talent, Sprint, the ruling)");
+        ok(got.bounty?.picked !== null, "Bounty's picker has no row picked at opening");
+
+        // The Monocub's ability window, read from its source: the action's layout, the targets as rows, no dropdown.
+        const cub = topLevelFunction(stripComments(new Map(await otherSources()).get("monocub.mjs") ?? ""), "cubAbilityDialog") ?? "";
+        must(cub.length > 200, "monocub.mjs cubAbilityDialog was not read - this would measure nothing");
+        equal(J([/layout:\s*"action"/.test(cub), /\bcallRowsHtml\s*\(/.test(cub), /<select\b/.test(cub)]), J([true, true, false]),
+            "monocub.mjs cubAbilityDialog does not draw the action's layout with its targets as rows ([layout, rows, a dropdown])");
     }],
 
     ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
@@ -37465,7 +37553,8 @@ const INVARIANTS = [
             ["cleanup.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
             ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
             ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
-            ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"],
+            // Since E72 by calls.mjs `callAsksGm` (a row a GM rules, or Talent's tile of two such rows; read in `tiles` below).
+            ["calls.mjs#confirmCall", /gmRoute: asksGm,/, "DRPG.Calls.waitsForGm"],
             // E68 C4: a crisis row whose statistic a GM approves, and a project's statistic proposal; each sentence says the GM approves.
             ["action-murder.mjs#openCrisisMenu", /gmRoute: asks\(\{ key, def, free \}\),/, "DRPG.Murder.gmPicksTrait"],
             ["action-project.mjs#proposeProjectTrait", /gmRoute: \[\{\s*action: "propose",\s*label: game\.i18n\.localize\("DRPG\.TraitRuling\.propose"\)/, "DRPG.TraitRuling.projectBody"],
@@ -37525,9 +37614,12 @@ const INVARIANTS = [
         const sheet = src("sheet.mjs");
         const call = fnSource(sheet, "callButton"), use = fnSource(sheet, "addUseButton");
         read.tiles = {
-            call: /const askGm = Boolean\(call\.needsGm\) && !pending;/.test(call) && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(call)
+            call: /const askGm = callAsksGm\(call, monokuma \? "despair" : "hope"\) && !pending;/.test(call)
+                && /const asksGm = callAsksGm\(call, kind\);/.test(fnSource(src("calls.mjs"), "confirmCall")) && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(call)
                 && /<span class="drpg-action-gm">\$\{game\.i18n\.localize\("DRPG\.Action\.waitsForGm"\)\}<\/span>/.test(call),
             needsGm: Object.entries(HOPE_CALLS).filter(([, c]) => c.needsGm).map(([key]) => key).sort(),
+            asksGm: await import("./calls.mjs").then(C => typeof C.callAsksGm === "function"
+                ? Object.keys(HOPE_CALLS).filter(key => C.callAsksGm(HOPE_CALLS[key], "hope")).sort() : "calls.mjs exports no callAsksGm"),
             use: /const askGm = !broken && usedCreatively\(item\) && !inCrisis\(app\.document\);/.test(use) && /"DRPG\.Items\.useTier0Tooltip"/.test(use)
                 && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(use),
             useItem: /if \(usedCreatively\(held\)\) return/.test(fnSource(src("use-items.mjs"), "useItem")),
@@ -37543,7 +37635,7 @@ const INVARIANTS = [
             cls: ["drpg-gm-route", true, []],
             dynamic: [true, true, 1],
             analyze: { note: ["hint"], stash: true },
-            tiles: { call: true, needsGm: ["experience", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
+            tiles: { call: true, needsGm: ["experience", "ultimate"], asksGm: ["experience", "talent", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
             creative: [true, false, false, false],
             stripe: ["gm", "stress", "gm", "free"]
         }), "[the GM's road: marks with no census row, rows whose mark is gone, rows whose mark is not the road's, sentences naming no GM (EN, PL); "

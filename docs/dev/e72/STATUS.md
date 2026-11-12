@@ -51,14 +51,13 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 ## In progress
 
-- E72: part A done but C8's "Silence now" and D101 (see below); part B C13-C20 done (C19 in part); C21's end review
-  done and its fix round committed (d5fa19c, "Fix round" below). E91: C1 committed (3b04cac); C2 next.
+- The Call windows drawn as the Action window (the owner's request of 12.11, below): built, R3818; checks in "Call
+  windows" below. Everything else of E72 and E91 is committed and pushed (see "Pushed").
 
 ## Next, in order
 
-1. E91 C2-C8, in the plan's order (D053, D117, D067+D038, D038 (2), D078, D037+D072+D076, D064+D068+D090).
-2. If time allows: C8's "Silence now"; 30-security forgeries and 33 legal controls for bribe.offer/answer; C19's HUD,
-   Events and Students columns for part B.
+1. Whatever the coordinator answers on the Call windows (the review page, round 7).
+2. If time allows: C8's "Silence now"; C19's HUD, Events and Students columns for part B.
 
 ## The owner's decisions of 12.11 (DRPG-D1, relayed by the coordinator), built
 
@@ -100,6 +99,34 @@ tier-2 test red before it (run against the old monocub.mjs by hand for the three
 | 7 | GM handbook: "its execution posts no card" (Final Trial) | confirmed, EN and PL | follows D102 |
 
 The Final Trial's bets: built at f5ec657 (the coordinator called it a bug), see the table above.
+
+## Call windows as the Action window (the owner's of 12.11: "Ekrany calli niech przypominaja ekran akcji")
+
+- What is shared, not copied: action-menus.mjs `actionWindow` (the two columns, its width, the Details wiring) and
+  ui-columns.mjs `choiceRowHtml` (the rows); the note box takes the Action window's `drpg-specific-note` look.
+  call-pickers.mjs `callWindow` gains `layout: "action"` (header and facts left, question right; no question: the left
+  column alone at half width) and keeps its side class, `once`, `live`, the GM's road and the footer; `callRowsHtml`,
+  `pickedRow`, `callPriceShort` are the rows' helpers.
+- Opened so: every picker (`choose`: player, project, room, item, Monocub - rows instead of a dropdown), New Rule's
+  text, the motive, a tile's choice (`pickChoice`, moved from sheet.mjs `callChoice`: Fuel a Monocub / Bounty), every
+  confirmation (`confirmCall`), the GM's ruling, the Monocub's ability window (targets as rows).
+- Talent is one window now: its two rows and the note to the GM, one Send (`confirmCall`'s `choices`, `shut` for a row
+  that cannot be bought: no experiences on the sheet, already held). Scenario 88's hopeCall: 3 clicks, 1 window (was 2);
+  flow-length.json lowered on purpose.
+- What differs from the Action window, kept on purpose: no statistic slot and no roll (a Call has none); the Monocub's
+  Help / Hinder stay footer buttons (each is the answer; a row more would be a press more); the assembly's call-off
+  (no choice, no text) keeps one column; the Monocub's Bribe and invitation windows are no Call windows (DC39: no side,
+  no colour) and stay as they were; Redeem opens no window.
+- Checks on the final code (12.11): quick gate green; tiers 0-1 1177 passed, 0 failed, 16 skipped, 1 red (the known
+  one); tier 2's Call set (`--only` Call, Monocub, Bribe, Bounty, Talent, Ghost Bet: 247 tests ran) 249 passed, 0
+  failed, 2 skipped; scenario 88 26/26 (hopeCall 3 clicks, 1 window); scenario 33 75/76 with its expected red
+  (foundry-cub-purse).
+- Found on the way: Talent's tile was drawn as a plain Call since the merge (the red and the GM chip read `needsGm`,
+  which only its two rows carry). One reader now, calls.mjs `callAsksGm` (a row a GM rules, or a tile of such rows), for
+  the tile, the window's Send and runCall's road.
+- Tests: R3818 (tier 1, new; red at 478a8e7 on a worktree with the new test file). Changed on purpose: R3816
+  (`pickChoice` for `callChoice`), R80 (the gate wired as `{ needsGm: asksGm }`), R121 (the census row reads `asksGm`;
+  the tile's flag is `callAsksGm`, and `callAsksGm` answers experience, talent, ultimate).
 
 ## E91 (leftovers from stage notes) - RESTORED: E91 rides with E72 (the coordinator's call, 12.11, one release)
 
@@ -315,6 +342,10 @@ None.
 
 - Round 5 (E91 C4, the Fog tab's Mastermind column; E91 since reverted): https://claude.ai/artifact/SUdMFCxFkXva7ByUSMyWex
 - Round 6 (Talent's and Fuel a Monocub's choice windows): https://claude.ai/artifact/Pgavfbd965pUWnsrLp55a6
+- Round 7 (every Call window with a choice or a text beside the Action window, both themes, EN and PL, 1366x768):
+  https://claude.ai/artifact/QANWftg9GNPFnqKo4qhpJP . Looked at: the Polish effect line was English because the shot's
+  page copied only the labels (a client in Foundry rewrites every field, i18n.mjs `localizeConfig`) - the published PL
+  shots are after that fix. Under Legacy the lines are tight in the Action window too (no Foundry base styles there).
 
 - Round 1 (12.11.2026): https://claude.ai/artifact/BZqYRZA6foPGz62DRg85vD - C6's invitation window (player) and the
   Students window's rows with an open invitation (GM), Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at

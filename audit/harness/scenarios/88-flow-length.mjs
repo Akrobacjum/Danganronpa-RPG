@@ -202,9 +202,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
     await gm.eval(`await game.actors.get("${IDS.botan}").update({ "system.resources.hope.value": 3 }); return true;`);
     await settle(400);
     const hope0 = await p2.eval(`return game.actors.get("${IDS.botan}").system.resources.hope.value;`);
-    // Since E72 (12.11.2026) Ultimate is chosen in Talent's tile: Talent pressed, its window answered "ultimate".
-    await flow("hopeCall", { plans: { p2: [{ title: "Talent", same: true, button: "ultimate" },
-        { title: "", fill: { '[name="callNote"]': "S88 I am the Ultimate Locksmith and this is a lock." } }] }, drive: async () => {
+    // Since E72 (12.11.2026) Ultimate is chosen in Talent's tile, and since R3818 in its one window, as an action's: the
+    // row "ultimate" picked, the note written, Send.
+    await flow("hopeCall", { plans: { p2: [{ title: "Talent", same: true, click: ['input[name="call"][value="ultimate"]'],
+        fill: { '[name="callNote"]': "S88 I am the Ultimate Locksmith and this is a lock." }, button: "spend" }] }, drive: async () => {
         await p2.eval(PRESS(IDS.botan, '[data-drpg-call="talent"]'));
         await settle(1500);
         details.hopeCallCard = await gm.eval(CARD("approveCall"), { timeout: 30000 });

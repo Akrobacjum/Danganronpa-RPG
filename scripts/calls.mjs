@@ -21,7 +21,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc, proseOf } from "./utils.mjs";
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
-import { callWindow, callHeader, callWindowClass } from "./call-pickers.mjs";
+import { callWindow, callHeader, callWindowClass, callRowsHtml, pickedRow, callPriceShort } from "./call-pickers.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 /* The GM's approval window of a Call asked on the GM's own side (`askHopeCallApproval`): one at a time (D176). */
@@ -661,6 +661,16 @@ async function heldReader(actor, kind) {
 }
 
 /**
+ * Whether a Call waits for a GM's yes (E72): a row a GM rules (`needsGm`: Experience, Ultimate), or a tile whose every
+ * choice is one (Talent). The one reader of it for the tile's red (sheet.mjs `callButton`), the window's Send on the
+ * GM's road (`confirmCall`) and the road that asks the choice in that window (sheet.mjs `runCall`).
+ */
+export function callAsksGm(call, kind = "hope") {
+    const table = kind === "hope" ? HOPE_CALLS : DESPAIR_CALLS;
+    return Boolean(call?.needsGm || (Array.isArray(call?.choices) && call.choices.length && call.choices.every(k => table[k]?.needsGm)));
+}
+
+/**
  * Confirm a Call: the effect, the price, what it will be applied to - and, for the
  * two that wait for a ruling, the sentence that IS the request.
  *
@@ -670,10 +680,21 @@ async function heldReader(actor, kind) {
  * @returns {Promise<string|null>} the note for a Call that needs one, `""` for
  *   every other Call, and `null` for a cancel - which now includes a needsGm Call
  *   whose box is empty, because a request nobody can rule on and no request are
- *   the same thing (Dawid, 29.08).
+ *   the same thing (Dawid, 29.08). With `choices`, `{ key, note }` for the row picked.
+ *
+ * A TILE OF TWO CALLS A GM RULES ASKS WHICH HERE (E72, 12.11.2026; the owner's "Ekrany calli niech przypominaja ekran
+ * akcji"). Talent's (`choices`: the keys of its rows, Experience and Ultimate) is one window, as an action's: the rows and
+ * the note to the GM in the right column, the header on the left, one Send. `shut` names a row that cannot be bought
+ * now and why (Experience with none on the sheet, a Call already held): the row stays, greyed, with its reason, as an
+ * action's. Before, a window of two buttons came first and this one after it.
  */
-export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, actor = null } = {}) {
-    const affordable = held >= call.cost;
+export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, actor = null, choices = null, shut = {} } = {}) {
+    const table = kind === "hope" ? HOPE_CALLS : DESPAIR_CALLS;
+    const rows = Array.isArray(choices) ? choices.filter(k => table[k]) : null;
+    const open = rows ? rows.filter(k => !shut[k]) : null;
+    const asksGm = callAsksGm(call, kind);
+    const placeholder = c => game.i18n.localize(`DRPG.Calls.tellGmPlaceholder.${c?.grants === "experience" ? "experience" : "ultimate"}`);
+    const affordable = held >= call.cost && (!open || open.length > 0);
     const aimed = describeChoice(choice);
     const about = await callAbout(call, actor);
     /*
@@ -688,7 +709,7 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
     const syncSpend = (header, dialog) => {
         if (!readHeld) return;
         const spend = dialog?.element?.querySelector('button[data-action="spend"]');
-        if (spend) spend.disabled = readHeld() < call.cost;
+        if (spend) spend.disabled = readHeld() < call.cost || (open !== null && !open.length);
     };
 
     /*
@@ -698,8 +719,19 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
      * road, D11's red, whoever presses - a GM on a player's sheet rules it in the next window - and
      * its button says that it asks: nothing is spent until the yes (`spendHopeCall`).
      */
+    const note = asksGm ? `
+                <label class="drpg-call-note drpg-specific-note">
+                    <span>${game.i18n.localize("DRPG.Calls.tellGm")}</span>
+                    <textarea name="callNote" rows="3" placeholder="${
+                        foundry.utils.escapeHTML(placeholder(rows ? table[open[0]] : call))}"></textarea>
+                </label>
+                <p class="notes">${game.i18n.localize("DRPG.Calls.waitsForGm")}</p>` : "";
+    const pick = rows ? callRowsHtml(rows.map(k => ({
+        value: k, label: table[k].label, icon: table[k].icon, hint: callPriceShort(table[k], kind),
+        disabled: Boolean(shut[k]), why: shut[k] ?? ""
+    })), { name: "call", prompt: game.i18n.localize(call.ask ?? "DRPG.Calls.choiceAsk") }) : "";
     const result = await callWindow({
-        call, kind, gmRoute: Boolean(call.needsGm), cancelDefault: !affordable,
+        call, kind, gmRoute: asksGm, cancelDefault: !affordable, layout: "action",
         header: callHeader(call, kind, { held }),
         // One confirmation of a Call at a time (`callWindow`'s `once`, E51 fix round FG7).
         once: callWindowClass(call, kind, "confirm"),
@@ -709,25 +741,17 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
             watch: { actors: true },
             after: (header, dialog) => syncSpend(header, dialog)
         } : null,
-        body: `<div>
-            ${about ? `<p class="notes">${foundry.utils.escapeHTML(about)}</p>` : ""}
-            ${aimed ? `<p><strong>${game.i18n.localize("DRPG.Calls.aimedAt")}:</strong> ${foundry.utils.escapeHTML(aimed)}</p>` : ""}
-            ${call.needsGm ? `
-                <label class="drpg-call-note">
-                    <span>${game.i18n.localize("DRPG.Calls.tellGm")}</span>
-                    <textarea name="callNote" rows="3" placeholder="${
-                        foundry.utils.escapeHTML(game.i18n.localize(
-                            `DRPG.Calls.tellGmPlaceholder.${call.grants === "experience"
-                                ? "experience" : "ultimate"}`))}"></textarea>
-                </label>
-                <p class="notes">${game.i18n.localize("DRPG.Calls.waitsForGm")}</p>` : ""}
-        </div>`,
+        // The action's layout (R3818): the facts on the left under the header, the question on the right - the rows and
+        // the note to the GM; a Call that asks neither is the left column alone.
+        brief: `${about ? `<p class="notes">${foundry.utils.escapeHTML(about)}</p>` : ""}${
+            aimed ? `<p><strong>${game.i18n.localize("DRPG.Calls.aimedAt")}:</strong> ${foundry.utils.escapeHTML(aimed)}</p>` : ""}`,
+        body: pick || note ? `<form>${pick}${note}</form>` : "",
         // The kit's slots (E21 C5a): Spend the primary - the GM's road when `gmRoute` says so -, Cancel the default
         // when the buyer cannot pay (`cancelDefault`).
         footer: {
             primary: {
                 action: "spend",
-                label: game.i18n.format(call.needsGm ? "DRPG.Calls.send" : "DRPG.Calls.spend", { cost: call.cost }),
+                label: game.i18n.format(asksGm ? "DRPG.Calls.send" : "DRPG.Calls.spend", { cost: call.cost }),
                 // Refusing at the last step is worse than not offering the step.
                 // The price was already shown in red; leaving the button live
                 // meant the only way to learn you could not pay was to press it.
@@ -738,15 +762,28 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {}, 
                  * before the submit starts, because a callback cannot refuse
                  * anything. See the note on it for what was measured.
                  */
-                callback: (event, button, dialog) => call.needsGm
-                    ? (dialog.element.querySelector("[name=callNote]")?.value.trim() ?? "")
-                    : ""
+                callback: (event, button, dialog) => {
+                    const words = asksGm ? (dialog.element.querySelector("[name=callNote]")?.value.trim() ?? "") : "";
+                    return rows ? { key: pickedRow(dialog.element, "call"), note: words } : words;
+                }
             }
         },
-        render: (event, dialog) => wireNoteGate(dialog, call)
+        render: (event, dialog) => {
+            wireNoteGate(dialog, { needsGm: asksGm });
+            // The box's example follows the row picked (an experience's, or the Ultimate's).
+            const box = dialog?.element?.querySelector("[name=callNote]");
+            if (rows && box) dialog.element.addEventListener("change", event => {
+                if (event.target?.name === "call" && table[event.target.value]) box.placeholder = placeholder(table[event.target.value]);
+            });
+        }
     });
 
     if (result === "cancel" || result === null || result === undefined) return null;
+    if (rows) {
+        if (!open.includes(result?.key)) return null;
+        if (asksGm && !String(result.note ?? "").trim()) return null;
+        return { key: result.key, note: result.note ?? "" };
+    }
     /* AND ASKED AGAIN WHERE NOTHING ABOUT THE WINDOW CAN LIE TO IT (CALL-12). The
        gate above lives in the interface, and an empty string does not trip
        `?? button.action` - that operator fires on null and undefined only - so
@@ -793,8 +830,9 @@ export async function askHopeCallApproval(payload = {}) {
     // A Call window (E51 C2): the Call's header, from the ask's own label, sentence and price as the
     // asker's browser sent them (the same three this window always showed), and the GM's two answers;
     // no cancel, since a closed window is already the refusal.
+    // The action's layout (E72, R3818): the Call on the left, the player's words on the right.
     const result = await callWindow({
-        kind: "hope", cancel: false,
+        kind: "hope", cancel: false, layout: "action",
         title: game.i18n.format("DRPG.Calls.approveTitle", { call: payload.callLabel ?? "" }),
         header: callHeader({ label: payload.callLabel ?? "", cost: payload.cost }, "hope", { effect: payload.effect ?? "" }),
         body: `<div>

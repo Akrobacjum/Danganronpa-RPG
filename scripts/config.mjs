@@ -2106,7 +2106,7 @@ export const HOPE_CALLS = {
     /*
      * TALENT: EXPERIENCE AND ULTIMATE AS ONE TILE (E72, 12.11.2026; the owner's pick, relayed by the coordinator: Bribe
      * stays among the Hope Calls, which stay ten). The tile is this row; what it buys is one of the two rows below,
-     * chosen in its window (sheet.mjs `callChoice`), each with its own guards - the GM's yes, the Hope paid on it, one at
+     * chosen in its confirmation with the note to the GM (calls.mjs `confirmCall`'s `choices`), each with its own guards - the GM's yes, the Hope paid on it, one at
      * a time, the trial's rules - and its own key, so a Call armed before the update resolves as it did.
      */
     talent: {

@@ -4468,7 +4468,8 @@ const REGRESSIONS = [
         }
 
         const confirm = bodyOf(calls, "export async function confirmCall", { until: "export async function askHopeCallApproval" });
-        ok(/render: \(event, dialog\) => wireNoteGate\(dialog, call\)/.test(confirm),
+        // Since E72 the gate reads `asksGm` (calls.mjs `callAsksGm`: Talent's window asks its note too), with the box's example.
+        ok(/render: \(event, dialog\) => \{\s*wireNoteGate\(dialog, \{ needsGm: asksGm \}\);/.test(confirm),
             "the gate is never wired to the window");
         ok(!/return null;\s*\}\s*return written;/.test(confirm),
             "the callback still tries to cancel by returning null");

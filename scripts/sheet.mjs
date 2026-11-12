@@ -24,7 +24,7 @@ import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESE
 import { standingOffers, advanceKindName } from "./level-up.mjs";
 import { isMonokuma, isNotInClass, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
-import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
+import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor, callAsksGm } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import {
     isTruthBullet, truthBulletData, isAnalysable, isIdentified, TRUTH_BULLET_FLAGS
@@ -4979,7 +4979,8 @@ function callButton(call, monokuma, lockNote = null) {
        (`needsGm`) wait for a GM's yes before anything is spent (calls.mjs: their window's Send is on the GM's road,
        `callWindow`'s `gmRoute`), and their tiles looked like every Call a player simply buys. The flag that makes the
        window's Send red makes the tile red, and the chip under the cost says who it waits for, as an action tile's. */
-    const askGm = Boolean(call.needsGm) && !pending;
+    // And Talent's tile, whose two Calls a GM rules (E72; calls.mjs `callAsksGm`).
+    const askGm = callAsksGm(call, monokuma ? "despair" : "hope") && !pending;
     button.className = `drpg-action-button drpg-call-button${
         pending ? " drpg-call-pending"
             : lockNote ? " drpg-locked-eclipse"
@@ -5069,34 +5070,6 @@ function attachActionDelegate(app, element) {
     }, { capture: true });
 }
 
-/**
- * WHICH CALL OF A TILE'S TWO (E72, 12.11.2026; the owner: "chcemy zachowac te sama liczbe kafli"). A tile whose row
- * lists `choices` - Fuel a Monocub's (Fuel, or a secret Bounty), Talent's (Experience or Ultimate) - asks which first,
- * in the kit's plain window, its question the row's `ask` (else `DRPG.Calls.choiceAsk`), each button the Call's own
- * name and price; nothing is paid or picked here. `table` is the row's (HOPE_CALLS or DESPAIR_CALLS). Answers the chosen
- * key, or null for Cancel.
- */
-async function callChoice(call, table) {
-    const { drpgWindow } = await import("./ui-kit.mjs");
-    const esc = foundry.utils.escapeHTML;
-    const keys = (call.choices ?? []).filter(k => table[k]);
-    const name = k => `${table[k].label} (${table[k].cost})`;
-    const [first, ...rest] = keys;
-    if (!first) return null;
-    const picked = await drpgWindow({
-        title: call.label,
-        classes: ["drpg-panel", "drpg-call-choice"],
-        body: `<p>${esc(game.i18n.localize(call.ask ?? "DRPG.Calls.choiceAsk"))}</p>`,
-        footer: {
-            primary: { action: first, label: name(first), callback: () => first },
-            secondary: rest.map(k => ({ action: k, label: name(k), callback: () => k })),
-            close: { role: "cancel", action: "cancel", callback: () => null }
-        },
-        rejectClose: false
-    });
-    return keys.includes(picked) ? picked : null;
-}
-
 /** Confirm and pay for a Hope Call or a Despair Call. */
 async function runCall(actor, key, kind) {
     const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
@@ -5106,10 +5079,14 @@ async function runCall(actor, key, kind) {
     const despair = kind === "despair";
     let call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return;
-    // A tile of two Calls asks which first (`callChoice`); the rest runs on the chosen Call's own row.
-    if (Array.isArray(call.choices)) {
-        const table = despair ? DESPAIR_CALLS : HOPE_CALLS;
-        const chosen = await callChoice(call, table);
+    /* A tile of two Calls asks which first (call-pickers.mjs `pickChoice`, E72); the rest runs on the chosen Call's own
+       row. A tile whose two a GM rules (Talent) asks it in its confirmation instead, with the note (`confirmCall`'s
+       `choices`, R3818): the rest runs on the tile's row up to there. */
+    const table = despair ? DESPAIR_CALLS : HOPE_CALLS;
+    const ruled = Array.isArray(call.choices) && callAsksGm(call, despair ? "despair" : "hope");
+    if (Array.isArray(call.choices) && !ruled) {
+        const { pickChoice } = await import("./call-pickers.mjs");
+        const chosen = await pickChoice(call, despair ? "despair" : "hope");
         if (!chosen) return;
         key = chosen;
         call = table[key];
@@ -5231,8 +5208,21 @@ async function runCall(actor, key, kind) {
         }
     }
 
-    const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor });
+    /* Talent's rows (`ruled`, above): one shut with its reason - Experience with none on the sheet, a Call already held -
+       stays greyed in the window, as an action's row, and the checks below the window are asked again of the one picked. */
+    const shut = {};
+    if (ruled) for (const k of call.choices) {
+        if (table[k].grants === "experience" && !Object.keys(actor.system?.experiences ?? {}).length) shut[k] = game.i18n.localize("DRPG.Calls.rowNoExperiences");
+        else if (table[k].grants && alreadyArmed(actor, { ...table[k], key: k })) shut[k] = game.i18n.localize("DRPG.Calls.rowArmed");
+    }
+    let note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor, ...(ruled ? { choices: call.choices, shut } : {}) });
     if (note === null) return;
+    if (ruled) {
+        if (!call.choices.includes(note.key) || shut[note.key]) return;
+        key = note.key;
+        call = table[key];
+        note = note.note;
+    }
 
     if (despair) await spendDespairCallFor(actor, key, { note, choice });
     else await spendHopeCall(actor, key, { note, choice });
