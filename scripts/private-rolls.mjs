@@ -1138,6 +1138,8 @@ export const ROLL_ACTIONS = table({
         sanitize: pick({ actorId: as.id, actionKey: as.maybeText, nonce: as.id, claimed: as.bool, loaded: as.id, costs: as.raw, roll: as.raw,
             trait: as.maybeText, experiences: as.raw, calls: as.raw, context: as.raw, situational: as.num }),
         run: drawRollOnGm,
+        // A resend of a request this GM drew is answered from its record, by Foundry's sender and the request's id (DH212 4a).
+        again: drawnAgain,
         answer: "reply",
         claims: {
             roll: guardDrawnRoll,
@@ -1180,7 +1182,13 @@ async function drawRollOnGm(payload, sender, ctx) {
     const { drawOnGm } = await import("./roll-draw.mjs");
     return drawOnGm({ actorId: payload.actorId, actionKey: payload.actionKey, nonce: payload.nonce, claimed: payload.claimed,
         loaded: payload.loaded, costs: payload.costs, roll: payload.roll, trait: payload.trait, experiences: payload.experiences,
-        calls: payload.calls, context: payload.context, situational: payload.situational }, sender);
+        calls: payload.calls, context: payload.context, situational: payload.situational }, sender, { requestId: ctx?.requestId ?? null });
+}
+
+/** `roll.draw`'s `again`: what this GM's record answered that sender under that request (roll-draw.mjs `drawAgainOf`), or null. */
+async function drawnAgain(sender, ctx) {
+    const { drawAgainOf } = await import("./roll-draw.mjs");
+    return drawAgainOf(sender, ctx);
 }
 
 /** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */

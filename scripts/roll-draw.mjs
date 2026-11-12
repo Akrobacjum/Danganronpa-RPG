@@ -356,7 +356,8 @@ async function drawAndPlay(cls, config, message) {
     const asked = performance.now();
     const signDown = drawSign(start);
     try {
-        const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
+        // Asked again when a GM is ready (`resend`): the primary answers a request it has drawn from its record (`drawAgainOf`).
+        const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true });
         signDown();
         const answered = performance.now() - asked;
         // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made. A draw the GM wrote
@@ -1262,7 +1263,7 @@ const marksOpen = async () => (await answerKeysOpen({ store: sheetMarkStore })) 
  * player's roll is then held to the action it is for (`drawRefusal`, fix r2-H1) - refused,
  * `{ refused }`, before anything is thrown - and only then thrown (`throwDrawn`).
  */
-export async function drawOnGm(packet, sender) {
+export async function drawOnGm(packet, sender, { requestId = null } = {}) {
     const arrived = performance.now();
     const actor = game.actors.get(packet?.actorId ?? "");
     const key = typeof packet?.actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(packet.actionKey) ? packet.actionKey : null;
@@ -1276,7 +1277,7 @@ export async function drawOnGm(packet, sender) {
         const { murderState } = await import("./murder.mjs");
         const state = murderState();
         let written = null;
-        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
+        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; }, requestId);
         // A Take's roll, the first of its kind for that taker and body since their last Take of it: bound (`lootDrawRefusal` above).
         if (out?.reply && !sender?.isGM && PAID_BY_NOTHING.includes(key)) {
             await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
@@ -1627,7 +1628,7 @@ async function tellRoller(sender, legal) {
  * Daggerheart's card (C13).
  */
 async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
-    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null) {
+    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null, requestId = null) {
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
@@ -1687,6 +1688,9 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     if (used.length) await spendCallsByNonce(actor, used);
     await keepRecord({
         rollId, actorId: actor.id, userId: sender.id, actionKey: key,
+        // The request a player's draw came under and what its answer said, so a resend is answered again (`drawAgainOf`).
+        requestId: !sender.isGM && typeof requestId === "string" && requestId ? requestId : null,
+        answer: { faces: facesOf(roll), total: roll.total, roll: legal.json },
         messageId: message.id, claimed: Boolean(claimed), formula: roll.formula,
         // The statistic and the experiences the roll was thrown with, as the GM was told them at
         // the draw - a Reroll of a roll with no `scored` rebuilds the roll from these (reroll.mjs
@@ -2516,6 +2520,29 @@ async function keepRecord(record) {
     if (old.length) await rollStore.dropMany(old);
     for (const id of replaced) await rollStore.patch(id, { superseded: record.rollId });
     await rollStore.patch(record.rollId, record);
+}
+
+/*
+ * A DRAW ASKED AGAIN IS ANSWERED AS BEFORE (DH212 4a, 12.11.2026; docs/dev/DH212/WAITS.md). `roll.draw` was not resent:
+ * a primary that drew a roll and reloaded before its answer reached the roller left the roller waiting out
+ * DRAW_ANSWER_MS for a "no answer", and a resend would have been judged again - its payment taken, so refused - for a
+ * roll that stood (the dice had mostly started at the GM's message already, `startOnMessage`). The roller's wait now
+ * asks again when a GM is ready (`resend: true`, bridge-guards.mjs `resendOnGmReady`), and the row's `again`
+ * (private-rolls.mjs) answers a request this GM's record has drawn: found by Foundry's sender and the request's id,
+ * never by anything in the packet (E18 C7's road, as `sabotageAgain`), with what the first answer said - the record,
+ * its message, the faces, the total, the stash's step, the die and the roll the GM threw (kept on the record as
+ * `answer`). A GM's own draw is not resent and keeps no request. Tier 2's "a drawn roll asked again under its request
+ * ..." reads it; the clock is unchanged (the coordinator's 4a).
+ */
+export function drawAgainOf(sender, ctx) {
+    if (!sender || sender.isGM || typeof ctx?.requestId !== "string" || !ctx.requestId) return null;
+    for (const record of Object.values(rollStore.entries() ?? {})) {
+        if (record?.requestId !== ctx.requestId || record.userId !== sender.id || !record.answer) continue;
+        const { faces, total, roll } = record.answer;
+        return { reply: { rollId: record.rollId, messageId: record.messageId, faces, total,
+            stash: record.used?.stash ?? null, loaded: record.used?.loaded ?? false, roll } };
+    }
+    return null;
 }
 
 /** The GMs' record of a drawn roll, or null. */

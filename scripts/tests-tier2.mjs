@@ -1341,7 +1341,7 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * they were. Ask the world's rows first - it writes.
  */
 async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye",
-    window: throughWindow = false, experiences = null, situational = 0 } = {}) {
+    window: throughWindow = false, experiences = null, situational = 0, requestId = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -1372,7 +1372,7 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     const stop = typeof watch === "function" ? watch() : null;
     try {
         if (faces) globalThis.__forceRoll = faces;
-        verdict = await G.judge(P.ROLL_ACTIONS, { action: "roll.draw", requestId: `C12A${foundry.utils.randomID(8)}`, ...packet }, player.id,
+        verdict = await G.judge(P.ROLL_ACTIONS, { action: "roll.draw", requestId: requestId ?? `C12A${foundry.utils.randomID(8)}`, ...packet }, player.id,
             { send: (to, reply) => sent.push({ action: reply?.action ?? null, reason: reply?.reason ?? null, value: reply?.value ?? null }) });
     } finally {
         if (hadForce) globalThis.__forceRoll = force;
@@ -9031,6 +9031,60 @@ const SCENARIOS = [
         ok(lags.length === 5 && lags.every(lag => lag < 25), `the wait answered ${stableJson(lags)} ms after each payment was written; a payment is taken as it lands (each under 25 ms), not at a poll`);
         equal(unpaid, false, "with no payment the wait did not answer false");
         ok(boundAt >= 1400 && boundAt < 2500, `with no payment the wait answered after ${boundAt} ms; its bound is PAY_WAIT_MS (1500)`);
+    }],
+
+    ["a drawn roll asked again under its request is answered from its record, thrown once; another player's packet under that id, or the player's under a new one, is judged as any other (DH212 4)", async () => {
+        /*
+         * DH212 4a, 12.11.2026 (docs/dev/DH212/WAITS.md; the coordinator's 4a). `roll.draw` was not resent: a primary that
+         * drew a roll and reloaded before its answer reached the roller left the roller waiting out DRAW_ANSWER_MS (30 s)
+         * for a "no answer", and a resend would have been judged again - the payment taken, so refused - for a roll that
+         * stood. Now the roller's wait resends it when a GM is ready (`resend: true`, bridge-guards.mjs
+         * `resendOnGmReady`), and the row's `again` answers a request it has drawn from the record: keyed by Foundry's
+         * sender and the request's id, never by the packet (E18 C7's road), with what the first answer said - its record,
+         * message, faces, total, stash, die and roll. Driven on this GM as the bridge's runner judges a player's packet:
+         * a Search drawn under one id, then the same packet under that id from the player, from another player, and from
+         * the player under a new id. Read: the first answer's ids; each later answer's kind and whether it is the first's;
+         * the records and messages made after the first. Red at 3dc28064: the same request was judged again and refused
+         * as paid already.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a second connected player sends under the first one's request id");
+        const { player, theirs } = playerAndCharacters();
+        const another = game.users.find(u => !u.isGM && u.active && u.id !== player.id);
+        must(another, "no second connected player - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const rid = `DH212${foundry.utils.randomID(8)}`;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const F = await drawnForPlayer(player, theirs, { requestId: rid });
+        must(F.value?.rollId && F.message, `the first draw was not answered (${F.verdict}) - this would measure nothing`);
+        const records = () => Object.keys(rollStore.entries() ?? {}).length;
+        const ask = async (userId, requestId) => {
+            const sent = [];
+            await G.judge(P.ROLL_ACTIONS, { action: "roll.draw", requestId, ...F.packet }, userId,
+                { send: (to, reply) => sent.push({ action: reply?.action ?? null, value: reply?.value ?? null }) });
+            await settle();
+            const done = sent.find(r => r.action === "bridge.done");
+            if (done) return ["done", stableJson(done.value) === stableJson(F.value)];
+            return [sent.find(r => r.action === "bridge.refused") ? "refused" : "none", false];
+        };
+        let read;
+        try {
+            const recordsBefore = records();
+            const messagesBefore = game.messages.contents.length;
+            const same = await ask(player.id, rid);
+            const other = await ask(another.id, rid);
+            const fresh = await ask(player.id, `DH212${foundry.utils.randomID(8)}`);
+            read = [same, other, fresh, records() - recordsBefore, game.messages.contents.length - messagesBefore];
+        } finally {
+            await F.putBack();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson([["done", true], ["refused", false], ["refused", false], 0, 0]),
+            "a resend of a drawn roll was not answered from its record as first answered, or another player's packet under its id or the player's under a new one was answered from it, or a resend wrote a record or a message (same request; another player; a new request; records made; messages made)");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("roll-draw.mjs") ?? "");
+        ok(/bridgeRequest\("roll\.draw"[^;]*\bresend:\s*true\b/.test(fnSource(src, "drawAndPlay")), "drawAndPlay does not ask roll.draw with resend: true");
     }],
 
     ["a pass after a GM's \"Change to\" voids that card's ruling: a later roll is held to no pick, a Search to Eye, and a pass for another definition voids nothing (E68 review R3)", async () => {
