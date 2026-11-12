@@ -16357,6 +16357,18 @@ const INVARIANTS = [
         "[the map unchanged, the cells left, s1's and s2's `how`, the log's rows] - the reset took a passage or its start access, kept a granted or shown cell, named nobody's id or left the log");
         equal(J([s1, s2, "R554MM"].map(a => A.access.newest(`touch/${a}`) > touchedBefore[a])), J([true, true, true]),
             "[s1's, s2's and the Mastermind's newest stamp past the one before the reset] - a copy the cut emptied would not take the one sent after it");
+        /*
+         * PAST THE CLEAR ITSELF, NOT ONLY PAST BEFORE (gaps-65, 12.11.2026; CI run 43217376302, 65-season X4 and X6). The
+         * clear's watermark is every key's newest decision, so the assertion above holds the moment `clear()` returns - and a
+         * copy pushed between the clear and the start cells' write (the passages' retell, or any write of the reset's other
+         * steps) was the empty one at that very stamp: the copy after the cells, at the same stamp, was refused by the
+         * player's browser as not newer (`offersCombine`), and p1 kept no passage. Measured with a probe of 65 under load
+         * (4 copies at once): p1 sent `passage.rows` with no row, then with P1, both stamped 1794491553846. So each student
+         * given start access back reads a stamp past the clear's watermark (`cleared()`), which only a write after the
+         * clear can give. Red at 235c3210: [false, false].
+         */
+        equal(J([s1, s2].map(a => A.access.newest(`touch/${a}`) > A.access.cleared())), J([true, true]),
+            "[s1's and s2's newest stamp past the reset's clear] - a copy sent between the clear and the start cells, at the clear's stamp, would hold the one after them back");
     }],
 
     ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM; the Mastermind's other owners nothing of it; an owner of no student an empty copy that is taken; a write that keeps the Mastermind sends nothing and a new one the two owners it changes; a deleted scene's passage in no copy and marked in the list; a second owner of the Mastermind's student is sent, step by step, what they would be sent were nobody the Mastermind; and a player who connects, or whose role changes, is told; and a player who loses a student takes the copy without its rows", async () => {
@@ -20144,7 +20156,8 @@ const INVARIANTS = [
             Hooks.off("preCreateChatMessage", posted);
             for (const put of undo) put();
         }
-        const cellsAfter = Object.entries(stores.access.entries()).map(([k, c]) => `${k} ${c.how}`).sort();
+        // The cells alone, as before the reset: since gaps-65 the reset also touches each student given a passage back (R554).
+        const cellsAfter = Object.entries(stores.access.entries()).filter(([k]) => !k.startsWith("touch/")).map(([k, c]) => `${k} ${c.how}`).sort();
         equal(J([did.slice(0, 2), cards.length - before, held]), J([[true, true], 0, []]),
             "[the revoke and the Close carried out, cards written, what was posted or played] - a GM's revoke, Close or reset tells the table");
         equal(J([cellsBefore, cellsAfter, J(stores.map.get(TUN)) === mapBefore, Object.keys(stores.log.entries()).length]),

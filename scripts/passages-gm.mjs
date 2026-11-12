@@ -383,11 +383,14 @@ export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
  * Since E79 C8 (1.2.79). The start cells are written here, after the clear, and not in the group's
  * `onCut`: the cut is applied when the clock's cuts are written, before this step, so a cell written
  * there would be cleared by this step's own `clear()`, while one written after it is stamped past the
- * cut's watermark and reaches the other GMs by the exchange. No `touch` row is written: the clear's
- * watermark is every key's newest decision (gm-store.mjs `newest`), so each knower's copy is stamped
- * past the cut by it, and a player's copy the cut emptied takes the new one. Measured 15.10.2026: a
- * `touch` of every knower and of the Mastermind here, in C8's first draft, changed nothing of R554 or
- * 65-season X. The suite's own stores tell nobody: only the module's send the copies.
+ * cut's watermark and reaches the other GMs by the exchange. The clear's watermark is every key's
+ * newest decision (gm-store.mjs `newest`), so each knower's copy is stamped past the cut by it, and a
+ * player's copy the cut emptied takes the new one. Measured 15.10.2026: a `touch` of every knower and of
+ * the Mastermind here, in C8's first draft, changed nothing of R554 or 65-season X. Since gaps-65
+ * (12.11.2026) each student given start access back is touched after its cell all the same: a copy pushed
+ * between the clear and the cells carries the clear's stamp, and without a later one the copy after the
+ * cells was refused as not newer (the comment at the touch, below). The suite's own stores tell nobody:
+ * only the module's send the copies.
  *
  * Since E15 part 2 C1 the season's store (`passageSeasonStore`, the projects' passages, D3) is cleared with the access
  * record and the log - its group's cut has already taken it on every GM -, so only the map's rows give start access
@@ -412,6 +415,15 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
         }
     }
     if (Object.keys(cells).length) await stores.access.patchMany(cells, { fillOnly: true });
+    /* EACH STUDENT GIVEN A PASSAGE BACK IS TOUCHED, PAST THE CLEAR (gaps-65, 12.11.2026; CI run 43217376302, 65-season X4
+       and X6). A copy's part for a student is the newest decision on its `touch` row (`passageCopyFor`), and after the clear
+       that is the clear's watermark: the start cells written above do not move it. A copy pushed between the clear and the
+       cells - the passages' retell after the store changed, or a write of the reset's other steps - was the empty one at
+       that stamp, and the copy after the cells, at the same stamp, was refused by the player's browser as not newer
+       (`offersCombine`): measured with a probe of 65 under load, p1 was sent no row and then P1, both at one stamp, and
+       kept no passage until something else touched Aiko. A real primary GM whose writes are as slow can do the same. R554. */
+    const knowers = new Set(Object.keys(cells).map(key => key.split("/")[1]));
+    if (knowers.size) await touch(knowers, stores);
     return stores === PASSAGE_STORES ? retellPassages() : 0;
 }
 
