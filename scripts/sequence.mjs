@@ -56,6 +56,10 @@ export const SEQUENCE_ATTR = "data-drpg-sequence";
  */
 export const SEQUENCE_TIMES = Object.freeze({
     trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400, handIn: 500, hand: 400 }),
+    /* The trial's exit (the owner's decision of 12.11.2026, every default accepted): the entry's frames and length, the
+       still frame 1.5 s; no sound of its own - the table hears End the trial's card (`trialClose`) - so `sound` is never
+       played (`playTrialExit` hands none). */
+    trialExit: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 0, handIn: 500, hand: 400 }),
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
        from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
     dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
@@ -113,6 +117,8 @@ export function endSequence(why = "cut") {
        own or was skipped: one cut by another sequence or a phase change hands on nothing, so a trial's entry is never
        followed by a board it cut. */
     if (run.then && (why === "ended" || why === "skipped")) queueMicrotask(() => { try { run.then(why); } catch { /* never let what follows break this */ } });
+    // and whoever waits for it to be over, however it ended (the trial's exit: the day's boards wait for it)
+    if (run.onEnd) queueMicrotask(() => { try { run.onEnd(why); } catch { /* never let what follows break this */ } });
     return true;
 }
 
@@ -124,7 +130,7 @@ export function endSequence(why = "cut") {
  * read now (`sequencesOn`); the suite hands in false, since tiers 0-1 write no setting. `then` is called once the sequence
  * has ended on its own or been skipped (or at once with the switch off), never when another one cut it (E94 C3).
  */
-export function playSequence(kind, key, draw, { sound = null, on = sequencesOn(), then = null } = {}) {
+export function playSequence(kind, key, draw, { sound = null, on = sequencesOn(), then = null, onEnd = null } = {}) {
     const times = SEQUENCE_TIMES[kind];
     if (!ready || !times || key == null) return null;
     const id = `${kind}\u0000${key}`;
@@ -148,7 +154,7 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     host.dataset.drpgSequenceMode = still ? "still" : "motion";
     // the event is told to a screen reader by its own card and the HUD (a11y.mjs hears the phase); this is a picture
     host.setAttribute("aria-hidden", "true");
-    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then };
+    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then, onEnd };
     running = run;
     document.body.setAttribute(SEQUENCE_ATTR, kind);
     document.body.append(host);
@@ -188,16 +194,34 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
  *  E61-A: INTO THE CLASS TRIAL
  * ========================================================================== */
 
+/**
+ * Whether the table plays this crossing of the trial's edge (the owner's rule of 12.11.2026: "edytuj kampanie nie ma
+ * odpalac animacji"): not when the clock says the last crossing was written by Edit campaign or another road that plays
+ * nothing (clock.mjs `trialCutOf`, `clock.trialCut` false). A clock without the mark - one from before it, the suite's
+ * own - plays as before.
+ */
+export function edgeShown(clock) {
+    return clock?.trialCut !== false;
+}
+
 /** The event's key: the clock's stamp of the trial's edge (clock.mjs stamps `timeOfDayStartedAt` on every road in). */
 export function trialEntryKey(clock = getClock()) {
     return clock?.phase === "classTrial" ? `classTrial:${clock.timeOfDayStartedAt ?? clock.writtenAt ?? "?"}` : null;
 }
 
-function titleBand(chapter) {
-    const band = document.createElement("div");
-    band.className = "drpg-seq-title";
-    const sub = chapter != null ? game.i18n.format("DRPG.Sequence.trialSubtitle", { chapter }) : game.i18n.localize("DRPG.Sequence.trialSubtitleNoChapter");
-    band.innerHTML = `<div class="drpg-seq-title-band">${esc(game.i18n.localize("DRPG.Sequence.trialTitle"))}</div><div class="drpg-seq-title-sub">${esc(sub)}</div>`;
+/* The title's words by the edge: into the trial "CLASS TRIAL" and the courtroom, out of it "TRIAL ADJOURNED" and back
+   to school (the owner's decision of 12.11.2026), each with the chapter's line when the clock has a chapter. */
+const TITLE_KEYS = Object.freeze({
+    trialEntry: ["DRPG.Sequence.trialTitle", "DRPG.Sequence.trialSubtitle", "DRPG.Sequence.trialSubtitleNoChapter"],
+    trialExit: ["DRPG.Sequence.exitTitle", "DRPG.Sequence.exitSubtitle", "DRPG.Sequence.exitSubtitleNoChapter"]
+});
+function titleBand(chapter, kind = "trialEntry") {
+    const [title, line, bare] = TITLE_KEYS[kind] ?? TITLE_KEYS.trialEntry;
+    const band = document.createElement("div"), words = game.i18n.localize(title);
+    // a title longer than CLASS TRIAL's eleven letters stands smaller (TRIAL ADJOURNED ran out of its band under Legacy's wide face)
+    band.className = `drpg-seq-title${String(words).length > 12 ? " is-long" : ""}`;
+    const sub = chapter != null ? game.i18n.format(line, { chapter }) : game.i18n.localize(bare);
+    band.innerHTML = `<div class="drpg-seq-title-band">${esc(words)}</div><div class="drpg-seq-title-sub">${esc(sub)}</div>`;
     return band;
 }
 
@@ -300,13 +324,14 @@ function coverBlocks(ctx) {
  * glass already there (glass.mjs `entryPieces`, glass-close.mjs; the owner's reviews of rounds 1 to 3, 12.11.2026); closed, the
  * curtain is the curtain's own paint of the whole cut; it opens the same way in reverse onto the trial's cut.
  * Otherwise - Monokuma Legacy, a narrow screen, a curtain not cut yet - two lids close from above and below (MK-R1:
- * "two black panels with a red edge"). Both carry the title.
+ * "two black panels with a red edge"). Both carry the title. The trial's exit is the same frames on the cut it leaves,
+ * closing in Daily Life's colour and opening onto the hour's cut, with its own title (`kind`).
  */
-function drawTrialEntry(ctx, glass, clock = getClock()) {
+function drawTrialEntry(ctx, glass, clock = getClock(), kind = "trialEntry") {
     const { host, still, times: T, anim, at, ARRIVE: IN } = ctx;
     const chapter = clock?.chapter ?? null;
     host.dataset.drpgSequenceLook = glass ? "glass" : "lids";
-    const title = titleBand(chapter);
+    const title = titleBand(chapter, kind);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
         const closed = closedCanvas(glass.closed);
@@ -392,7 +417,7 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
  */
 export async function playTrialEntry(clock = getClock(), { pieces = undefined } = {}) {
     const key = trialEntryKey(clock);
-    if (!key || sequenceStarted("trialEntry", key) || !ready) return null;
+    if (!key || !edgeShown(clock) || sequenceStarted("trialEntry", key) || !ready) return null;
     let glass = pieces ?? null;
     if (pieces === undefined && sequencesOn() && document.body.classList.contains("drpg-theme-stained-glass")) {
         // the attribute the HUD writes from the same clock row; written here too, so the curtain reads the trial's colour
@@ -403,6 +428,59 @@ export async function playTrialEntry(clock = getClock(), { pieces = undefined } 
     const played = playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart") });
     if (played === null || played === "off") glass?.release?.();
     return played;
+}
+
+/* ========================================================================== *
+ *  OUT OF THE CLASS TRIAL (the owner's decision of 12.11.2026, every default accepted)
+ * ========================================================================== */
+
+/**
+ * The exit's key: the clock's stamp of the trial's end (clock.mjs stamps `trialEndedAt` on every road out), so a chapter's
+ * end whose next morning lands in the same run of the clock's row still names its exit by the trial's end and not by
+ * the morning's own stamp. Null while the clock is in the trial.
+ */
+export function trialExitKey(clock = getClock()) {
+    if (!clock || clock.phase === "classTrial") return null;
+    return `trialExit:${clock.trialEndedAt ?? clock.timeOfDayStartedAt ?? clock.writtenAt ?? "?"}`;
+}
+
+/* The exit's end, for whoever waits on it (the day's boards: transitions.mjs). Set as the exit is asked for, before its
+   pieces are taken, so a new day heard in between waits too; settled however the exit ends or does not start. */
+let exitWait = null;
+
+/** A promise settled once the trial's exit asked for on this browser has ended, or at once with none. */
+export function whenTrialExitEnds() {
+    return exitWait ?? Promise.resolve(null);
+}
+
+/**
+ * The trial's exit on this browser (transitions.mjs, from the clock's move out of the Class Trial): the entry's frames on
+ * the cut the trial leaves - the panes close in Daily Life's colour, TRIAL ADJOURNED and the chapter's line on the
+ * closed curtain, and they open onto the hour's cut - for the entry's 3.4 s, still 1.5 s under reduced motion, Escape
+ * earlier; the lids under Monokuma Legacy and on a stacked screen. No sound: End the trial's card carries `trialClose`.
+ * Nothing when the crossing was Edit campaign's (`edgeShown`), heard again, or before ready. `pieces`, the suite's
+ * stand-in for the curtain's. Answers what `playSequence` answered.
+ */
+export function playTrialExit(clock = getClock(), { pieces = undefined, on = sequencesOn() } = {}) {
+    const key = trialExitKey(clock);
+    if (!key || !on || !edgeShown(clock) || sequenceStarted("trialExit", key) || !ready) return Promise.resolve(null);
+    let settle = null;
+    const wait = new Promise(r => { settle = r; });
+    const done = why => { settle(why); if (exitWait === wait) exitWait = null; };
+    exitWait = wait;
+    // never longer than the exit could stand, whatever happens to it
+    setTimeout(() => done("timeout"), SEQUENCE_TIMES.trialExit.end + 2000);
+    return (async () => {
+        let glass = pieces ?? null;
+        if (pieces === undefined && document.body.classList.contains("drpg-theme-stained-glass")) {
+            // the HUD writes it from the same clock row; written here too, so the curtain closes in the new phase's colour
+            document.body.dataset.drpgPhase = clock.phase ?? "dailyLife";
+            try { glass = (await import("./glass.mjs")).exitPieces?.() ?? null; } catch { glass = null; }
+        }
+        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, clock, "trialExit"), { on, onEnd: done });
+        if (played === null || played === "off") { glass?.release?.(); done(played ?? "none"); }
+        return played;
+    })().catch(err => { done("failed"); console.error(`${MODULE_ID} | the trial's exit failed`, err); return null; });
 }
 
 /* ========================================================================== *
@@ -778,9 +856,11 @@ function onEscape(event) {
 }
 
 /** The phase moved on this browser (sync.mjs's clock row): a running sequence ends - the entry itself excepted, when
-    the trial is what it was heard for - and the trial's phase starts the entry. Answers the entry's promise or null. */
+    the trial is what it was heard for, and the exit when the trial is what it left - and the trial's phase starts the
+    entry, unless Edit campaign moved it (`edgeShown`, in `playTrialEntry`). Answers the entry's promise or null. */
 export function onPhaseChanged(phase, clock = getClock()) {
-    if (running && !(running.kind === "trialEntry" && phase === "classTrial")) endSequence("cut");
+    // the trial's exit is the phase's own event too (transitions.mjs starts it from the same clock row)
+    if (running && !(running.kind === "trialEntry" && phase === "classTrial") && !(running.kind === "trialExit" && phase !== "classTrial")) endSequence("cut");
     if (phase !== "classTrial") return null;
     return playTrialEntry(clock).catch(err => { console.error(`${MODULE_ID} | the trial's entry failed`, err); return null; });
 }

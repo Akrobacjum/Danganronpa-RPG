@@ -118,6 +118,7 @@ A darkened time of day (see the overflow, chapter 6) can pull the crossings down
 A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off.
 
 - **The Class Trial's entry.** The screen closes on **CLASS TRIAL** and opens onto the trial.
+- **The Class Trial's end.** The screen closes on **TRIAL ADJOURNED** and opens onto the school.
 - **The verdict.** The sentenced student's portrait, the votes, and the stamp: **GUILTY** if the class got it right, **NOT GUILTY** if not.
 - **The clock's turns.** The curtain turns when the time of day changes. The Investigation opens with flashing panes; a body's announcement makes it flicker.
 - **The end of the day.** What you did that day, what the school saw, and **the school's mood**: Calm, Uneasy or Close to spilling. It stays in your notice history.

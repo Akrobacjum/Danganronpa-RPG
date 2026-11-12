@@ -35,3 +35,49 @@ and 1.9 at the end. The hand-back took 300 ms first (the seam report's 200-300):
 +4.4 apart; at 400 ms at most +2.9 in six runs. What stays over 3 is the sequence's own content: the title arriving
 (+7) and leaving (-3 to -4). Curve: scratchpad trialexit/shots/0-curve-after-entry-exit-harness.png (not in the
 repository). Not measured: a real Foundry table (LIVE-E61-01), deviceScaleFactor 2, a player's browser.
+
+## 2. The trial's exit, and Edit campaign's silence
+
+The owner's decision of 12.11.2026, every default accepted:
+
+- **The exit** (sequence.mjs `playTrialExit`, `trialExitKey`; glass.mjs `exitPieces`): the entry's frames on the cut the
+  trial leaves - the panes close in Daily Life's colour at this hour, TRIAL ADJOURNED / KONIEC ROZPRAWY and "Chapter N ·
+  Back to school" / "Rozdział N · Powrót do szkoły" on the closed curtain, and they open onto the cut the screen has at
+  the exit's start (its one fixed time; a recut under the held curtain paints without turning and the copies hand over
+  to it). 3.4 s, the still frame 1.5 s; the lids under Monokuma Legacy and on a stacked screen; Escape skips it; no sound
+  of its own (End the trial's card carries `trialClose`). The key is the trial's end stamp (`trialEndedAt`), so a
+  chapter's end whose next morning lands in the same run of the clock's row still names its exit once. A title longer
+  than CLASS TRIAL's stands at four fifths (`is-long`): at full size TRIAL ADJOURNED ran about 160 px out of its band
+  under Legacy at 1366x768.
+- **transitions.mjs**: `transitionFor` gives the exit `{ kind: "trialExit", owner: "E61" }` (no direction for the
+  curtain), with `newDay` when the same write opened a later day; `onClockHeard` starts the exit, and the day's boards
+  (`playBoards`) wait for its end (`whenTrialExitEnds`). With the switch off the exit plays nothing and the curtain turns
+  from the centre, as before.
+- **The silence (the marker)**: `clock.trialCut`, written by `setClock` on every crossing of the trial's edge - true only
+  when the write says `trialCut: true`, which Start the Class Trial, End the trial (the chapter's end through it) and
+  `setPhase` do; false for every other crossing: Edit campaign and Season setup's Save (`applyCampaignForm`), the
+  season's reset, a console's `setClock`. A write that is no crossing leaves it as it was; a clock put back whole (a patch
+  naming its own `writtenAt`, as the suite's restores) carries its own mark or none. sequence.mjs `edgeShown(clock)` is
+  `clock.trialCut !== false`: the entry (`playTrialEntry`) and the exit (`playTrialExit`) play nothing for a crossing
+  Edit campaign wrote; the curtain still recolours by its ordinary turn, and the clock and the GM panel's top update. A
+  clock without the mark (older worlds, hand-built test clocks) plays as before. It is a positive mark only the playing
+  roads write, as the day boards' `dayBoard` stamp of the 1.2.110 line; it says nothing about the boards, whose own
+  mark that line adds.
+
+Tests: R4421-R4424 (tier 1), red at 421f2395 (R4421: the exit was `how: "centre"` and named no day; R4422: no
+`playTrialExit`; R4423: no `trialCutOf`, no road marked, Edit campaign's entry played; R4424: in one run the boards
+never played, in two the board cut the exit). R3709 and R3704 read the new exit and the widened gate. Tier 2 "the
+trial's entry and exit play from Start and End the trial, and Edit campaign's Apply plays neither": red at 421f2395
+(Edit campaign's entry played once, End the trial's exit none), green here, and the restore leaves the world as found.
+
+Frames for the owner's review: the glass harness in headless Chromium, NOT Foundry, on a held clock (Playwright's fake
+clock drives the timers, the frames and `performance.now`; every Web Animation paused and set to the clock), 1366x768,
+deviceScaleFactor 1, Stained Glass and Monokuma Legacy, PL and EN, start 100 ms, closing 600, closed with the title 1800,
+opening 2900, end 3300, and the reduced-motion still: scratchpad trialexit/shots/exit-*.png (not in the repository).
+
+Probe of the exit (as section 1, two runs): start at most -4.4 a frame, 3.4 per 100 ms; 900 ms +1.7 (the plain glass
++2.6/+2.7 once, the closing copies giving way to the closed curtain's paint, whose tiling of the trial's cut differs);
+the end +1.9 a frame, 1.7 per 100 ms.
+
+Not measured: a real Foundry table (the trial's scene loading under the closed curtain, the hall's tokens; LIVE-E61-01's
+kind), two GMs, a player's browser in Chromium, deviceScaleFactor 2.

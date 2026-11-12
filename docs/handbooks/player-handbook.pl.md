@@ -118,6 +118,7 @@ Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabra
 Kilka chwil wypełnia na kilka sekund każdy ekran (od 1.2.109). Esc pomija jedną; przy ograniczonym ruchu widzisz nieruchomą klatkę; GM może je wyłączyć.
 
 - **Wejście do Class Trial.** Ekran zamyka się na **CLASS TRIAL** i otwiera na rozprawę.
+- **Koniec Class Trial.** Ekran zamyka się na **KONIEC ROZPRAWY** i otwiera na szkołę.
 - **Werdykt.** Portret skazanego, głosy i pieczątka: **WINNY**, gdy klasa trafiła, **NIEWINNY**, gdy nie.
 - **Obroty zegara.** Kurtyna obraca się, gdy zmienia się pora dnia. Investigation zaczyna się błyskami szyb; ogłoszenie ciała sprawia, że kurtyna migocze.
 - **Koniec dnia.** Co zrobiłeś tego dnia, co widziała szkoła i **nastrój szkoły**: Spokój, Niepokój albo Na krawędzi. Zostaje w twojej historii powiadomień.

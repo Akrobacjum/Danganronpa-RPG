@@ -18161,6 +18161,9 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     letter-spacing: 0.05em;
     white-space: nowrap;
 }
+/* the trial's exit's title, TRIAL ADJOURNED / KONIEC ROZPRAWY, at four fifths: at the full size it ran 160 px out of its
+   band under Legacy's wide face at 1366x768 (the glass harness, 12.11.2026) */
+#drpg-sequence .drpg-seq-title.is-long .drpg-seq-title-band { font-size: calc(var(--drpg-seq-title-size) * 0.8 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-title-sub {
     margin-top: calc(18 * var(--drpg-seq-u));
     font: calc(28 * var(--drpg-seq-u)) var(--drpg-seq-font);

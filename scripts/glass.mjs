@@ -4476,6 +4476,14 @@ export function entryPieces() {
     open: { panes: trial.map(p => piece(p.poly, newLook)), fill: slid(trial, fillB, lookB) }
   };
 }
+/* THE EXIT'S CUT (the owner's decision of 12.11.2026, every default accepted): the entry's pieces taken the other way
+   round - the panes on screen are the trial's, the curtain is painted in the phase the clock moved to (the sequence
+   writes `data-drpg-phase` first, so the colour is Daily Life's at this hour), and the cut it opens onto is the one the
+   screen has at the exit's start, its one fixed time; a recut while it plays (the school's scene loading under the
+   closed curtain) paints the held curtain without turning, and the copies hand over to it at the end. */
+export function exitPieces() {
+  return entryPieces();
+}
 function rebuild() {
   try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
 }

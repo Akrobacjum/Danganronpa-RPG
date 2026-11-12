@@ -44443,6 +44443,59 @@ const SCENARIOS = [
         }
     }],
 
+    ["the trial's entry and exit play from Start and End the trial, and Edit campaign's Apply plays neither", async () => {
+        /*
+         * The owner's rule of 12.11.2026: "edytuj kampanie nie ma odpalac animacji - tylko zegar/gora gm panel", for the
+         * entry and the exit alike, and the exit itself (the owner's decision of the same day). Driven here on the roads:
+         * a debate opened outside a trial (`startFloor` -> `setPhase`) and End the trial (`closeTrial`) each start their
+         * sequence on this browser, heard from the clock's own row; Edit campaign's Apply (`applyCampaignForm`, Season
+         * setup's Save too) moving the phase into the trial - its two questions answered yes - and out of it starts
+         * neither, and leaves the clock's mark `trialCut` false. Counted by the engine's per-kind counters, which nothing
+         * writes. Red at 421f2395: the exit was no sequence, and Edit campaign's entry played.
+         */
+        const { startFloor } = await import("./trial-floor.mjs");
+        const { closeTrial } = await import("./trial-floor-ui.mjs");
+        const { applyCampaignForm } = await import("./gm-campaign.mjs");
+        const S = await import("./sequence.mjs"), C = await import("./perf-counters.mjs");
+        must(S.sequencesOn(), "the table's switch for full-screen sequences is off - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress));
+        const n = kind => C.snapshot()[`sequence.${kind}`] ?? 0;
+        const played = async (kind, before) => { await settle(); await until(() => n(kind) > before, 3000).catch(() => null); const got = n(kind) - before; S.endSequence("cut"); return got; };
+        const form = phase => { const c = getClock(); return { campaignName: c.campaignName, chapter: Number(c.chapter), day: Number(c.day ?? 1), phase, session: Number(c.session), timeOfDay: c.timeOfDay, reset: false }; };
+        const windows = answerWindows(() => "ok");
+        const read = {};
+        try {
+            S.endSequence("cut");
+            let e = n("trialEntry"), x = n("trialExit");
+            await startFloor({});
+            read.roadIn = [getClock().phase, getClock().trialCut, await played("trialEntry", e)];
+            x = n("trialExit");
+            read.roadOutClosed = await closeTrial();
+            read.roadOut = [getClock().phase, getClock().trialCut, await played("trialExit", x)];
+            e = n("trialEntry");
+            await applyCampaignForm(form("classTrial"));
+            await wait(600);
+            read.editIn = [getClock().phase, getClock().trialCut, await played("trialEntry", e)];
+            x = n("trialExit");
+            await applyCampaignForm(form("dailyLife"));
+            await wait(600);
+            read.editOut = [getClock().phase, getClock().trialCut, await played("trialExit", x)];
+        } finally {
+            windows.restore();
+            S.endSequence("cut");
+            if (getClock().phase === "classTrial") await closeTrial().catch(() => null);
+            S.endSequence("cut");
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            roadIn: ["classTrial", true, 1], roadOutClosed: true, roadOut: ["dailyLife", true, 1],
+            editIn: ["classTrial", false, 0], editOut: ["dailyLife", false, 0]
+        }), "[a debate opened outside a trial: the phase, the mark, entries played; End the trial answered; then the phase, the mark, exits played; Edit campaign into the trial: the phase, the mark, entries played; and out of it: the phase, the mark, exits played]");
+    }],
     ["the End of chapter screen closes the trial", async () => {
         /*
          * THE WIRING, EXERCISED. `applyChapterEnd` is the screen without the screen -
