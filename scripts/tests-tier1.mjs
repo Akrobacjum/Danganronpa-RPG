@@ -49368,8 +49368,10 @@ const INVARIANTS = [
         }), stableJson({ player: ["Search", "Listen"], gm: ["Search", "Sabotage", "Listen"], cards: ["A body was found", "The project is done"] }),
             "[a player's rows; a GM's rows; the day's public cards]");
     }],
-    ["R3722 - the end-of-day board shows the day, its rows, what the school saw, Hope and Despair and the mood, and hands on to the start-of-day board (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `playDayEnd`, `playSequence` `then`; scripts/transitions.mjs `onClockHeard`; E94 C3, the plan's C3 and Q-E94-5): the board names the day and chapter, lists at most six rows and counts all, lists at most four public cards, shows Hope and Despair with their maximum and the mood as its word only; a quiet day says so; `then` runs once the sequence ends on its own or is skipped, never when another cuts it, and at once with the switch off; a new day plays the end board before the start board", async () => {
-        /* E94 C3, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no end-of-day board, and playSequence no `then`. */
+    ["R3722 - the end-of-day board shows the day, its rows, what the school saw and the mood - no Hope, no Despair (the owner, 12.11) - and hands on to the start-of-day board (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `playDayEnd`, `playSequence` `then`; scripts/transitions.mjs `onClockHeard`; E94 C3, the plan's C3 and Q-E94-5): the board names the day and chapter, lists at most six rows and counts all, lists at most four public cards, shows Hope and Despair with their maximum and the mood as its word only; a quiet day says so; `then` runs once the sequence ends on its own or is skipped, never when another cuts it, and at once with the switch off; a new day plays the end board before the start board", async () => {
+        /* E94 C3, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no end-of-day board, and playSequence no `then`. The owner's
+           word of 12.11 on the review page ("Chowamy hope i despair w podsumowaniu; pokazujemy tylko nastroj szkoly"): the
+           board shows no number of Hope or Despair, even when handed one; red at b07dec9, which drew both. */
         const S = await import("./sequence.mjs");
         if (typeof S.dayEndBoard !== "function") { ok(false, "sequence.mjs has no dayEndBoard"); return; }
         const rows = Array.from({ length: 8 }, (_, i) => ({ action: `A${i}`, room: i % 2 ? "Gym" : "", item: i === 7 ? "a key" : null }));
@@ -49386,32 +49388,53 @@ const INVARIANTS = [
             title: el.querySelector(".drpg-seq-day-title")?.textContent.includes("4") ?? false,
             rows: [el.querySelectorAll(".drpg-seq-yours .drpg-seq-row").length, el.querySelector(".drpg-seq-tally")?.textContent.includes("8") ?? false],
             events: el.querySelectorAll(".drpg-seq-events .drpg-seq-row").length,
-            nums: [...el.querySelectorAll(".drpg-seq-num")].map(n => n.dataset.drpgNum),
+            nums: [...el.querySelectorAll(".drpg-seq-num, .drpg-seq-nums")].length, hopeKeys: ["hope", "despair"].filter(k => k in b),
             mood: [el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null, /\d/.test(el.querySelector(".drpg-seq-mood")?.textContent ?? "")],
             quiet: [Boolean(quiet.querySelector(".drpg-seq-yours ol")), Boolean(quiet.querySelector(".drpg-seq-mood"))],
             thens,
             order: /playDayEnd\(before, clock, \{ on,(?: keep,)? then: \(\) => playDayStart\(clock/.test(heard)
         }), stableJson({
-            title: true, rows: [6, true], events: 4, nums: ["3", "5"], mood: ["uneasy", false], quiet: [false, false],
+            title: true, rows: [6, true], events: 4, nums: 0, hopeKeys: [], mood: ["uneasy", false], quiet: [false, false],
             thens: [["ended", "ended"], ["skipped", "skipped"], ["off", "off"]], order: true
-        }), "[the title's day; six rows named and eight counted; four public cards; Hope and Despair; the mood's word and no number; a quiet day without rows or mood; then's calls; the end board before the start board]");
+        }), "[the title's day; six rows named and eight counted; four public cards; no Hope or Despair drawn, nor kept on the board; the mood's word and no number; a quiet day without rows or mood; then's calls; the end board before the start board]");
     }],
-    ["R3723 - the school's mood is a word, never the Overflow count (scripts/sequence.mjs `moodBand`, `MOOD_BANDS`, `dayStartPatch`; scripts/clock.mjs `advanceTimeOfDay`; E94 C4, the plan's Q-E94-3 default): the count's share of X maps to calm below a third, uneasy below two thirds, close to spilling from there, calm with no count or no X; the patch the roll-over writes holds one of the three words or none, never a number; the advance reads the count where a GM reads it (overflow.mjs) and folds the word alone into the clock's write", async () => {
-        /* E94 C4, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no moodBand. */
-        const S = await import("./sequence.mjs");
+    ["R3723 - the school's mood weighs the living students' Hope against the Monocubs' Hope, the Monokumas' Despair and the Overflow, and is a word, never a number (scripts/sequence.mjs `moodBand`, `moodInputs`, `MOOD_BANDS`, `dayStartPatch`; scripts/config.mjs `MOOD_SHARES`; scripts/clock.mjs `advanceTimeOfDay`; E94 C4, the owner's word of 12.11): the students' share of the whole maps to calm from MOOD_SHARES.calm, uneasy from MOOD_SHARES.uneasy, close to spilling below; nothing dark is calm; a number is never kept as the mood; the advance reads the four inputs on the GM and writes the word; the inputs read the published death alone", async () => {
+        /*
+         * E94 C4, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no moodBand. Rewritten the same day on the owner's word on the
+         * review page ("pokazujemy tylko nastroj szkoly liczony z proporcji cale hope uczniow vs hope monocubow + despair
+         * monokumow + despair overflow. Matma tajna, jedynie widoczny nastroj"): red at b07dec9, whose mood was the Overflow
+         * count's share of its threshold alone. The share is the students' Hope over the whole (students' Hope + the
+         * Monocubs' Hope + the Monokumas' Despair + the Overflow count); its two bars are one constant in config.mjs. The
+         * inputs are read on the GM's browser (a player's `overflowCount` is 0); a dead student is the published flag
+         * (`isDeceased`), so a death nobody has found does not move the mood the table sees.
+         */
+        const S = await import("./sequence.mjs"), C = await import("./config.mjs");
         if (typeof S.moodBand !== "function") { ok(false, "sequence.mjs has no moodBand"); return; }
         const sources = await moduleSources();
         const advance = bodyOf(stripComments(sources.get("clock.mjs") ?? ""), "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        const inputs = fnSource(stripComments(sources.get("sequence.mjs") ?? ""), "moodInputs");
         must(advance.length > 500, "advanceTimeOfDay was not read - this reads nothing");
+        const band = o => S.moodBand(o);
+        const got = typeof S.moodInputs === "function" ? await S.moodInputs() : null;
         equal(stableJson({
-            bands: [[0, 9], [2, 9], [3, 9], [5, 9], [6, 9], [9, 9], [20, 9], [4, 0], [NaN, 9]].map(([c, x]) => S.moodBand(c, x)),
+            shares: C.MOOD_SHARES ?? null,
+            bands: [
+                { hope: 12, despair: 4 }, { hope: 6, despair: 4 }, { hope: 6, monocubHope: 2, despair: 3, overflow: 1 },
+                { hope: 4, despair: 6 }, { hope: 3, despair: 6, overflow: 2 }, {}, { hope: 5 }, { hope: 0, overflow: 1 },
+                { hope: NaN, despair: 2 }, { hope: -4, despair: 2, overflow: -9 }
+            ].map(band),
+            custom: S.moodBand({ hope: 1, despair: 1 }, { calm: 0.5, uneasy: 0.2 }),
             words: S.MOOD_BANDS,
             patch: [S.dayStartPatch({ rolledOver: true, mood: 7 }).mood, S.dayStartPatch({ rolledOver: true, mood: "spilling" }).mood],
-            read: /overflowCount\(\)/.test(advance) && /moodBand\(/.test(advance)
+            inputs: got ? Object.keys(got).sort().concat(Object.values(got).every(Number.isFinite)) : null,
+            published: /actingStudents\(\{ dead: isDeceased \}\)/.test(inputs) && !/isDeadForGm/.test(inputs) && /isMonocub\(/.test(inputs) && /overflowCount\(\)/.test(inputs),
+            read: /moodInputs\(\)/.test(advance) && /moodBand\(/.test(advance) && !/overflowThreshold/.test(advance)
         }), stableJson({
-            bands: ["calm", "calm", "uneasy", "uneasy", "spilling", "spilling", "spilling", "calm", "calm"],
-            words: ["calm", "uneasy", "spilling"], patch: [null, "spilling"], read: true
-        }), "[the bands for each count and X; the three words; a number refused, a word kept; the advance reads the count and writes the word]");
+            shares: { calm: 0.6, uneasy: 0.4 },
+            bands: ["calm", "calm", "uneasy", "uneasy", "spilling", "calm", "calm", "spilling", "spilling", "spilling"],
+            custom: "calm", words: ["calm", "uneasy", "spilling"], patch: [null, "spilling"],
+            inputs: ["despair", "hope", "monocubHope", "overflow", true], published: true, read: true
+        }), "[the bars; the bands for each set of inputs; bars handed in; the three words; a number refused, a word kept; the GM's four inputs; the inputs read the one cast by the published death, the Monocubs and the count; the advance reads them and writes the word]");
     }],
     ["R3724 - the Night's own summary folds into the end-of-day board (scripts/day-summary.mjs `nightFoldsIntoBoard`, `sumUp`; E94 C3, the plan's Q-E94-5 default): with the table's switch on, the summary of the day's last time of day closed by the roll-over to the next morning is not put up - the board holds the whole day and keeps a card of it; with the switch off, at an Eclipse's start and at any other time of day it is put up as before", async () => {
         /* E94 C3, 12.11.2026. Red at 7bbbd3c: day-summary.mjs has no nightFoldsIntoBoard. */
@@ -49658,6 +49681,42 @@ const INVARIANTS = [
         read.writes = w.seen.filter(x => x.includes("R3727"));
         equal(stableJson(read), stableJson({ first: "investigation", second: "hour", hint: "top", lit: 1, escTaken: true, writes: [] }),
             "[the first heard; the second heard; the direction handed last; flickers lit; Escape taken while the second is held; the world written]");
+    }],
+    ["R3728 - the HUD's phase label slides in when the phase changes, as the time label does (scripts/hud.mjs `slidePhase`, `renderHud`; E62 C1's HUD part, the plan's Q6 default): a new phase's label arrives over the turn's length from the side with the turn's easing; a redraw during it winds the new animation on to where it had got; a page load, the same phase, or a turn of 0 (reduced motion) slides nothing; renderHud reads the old label before it rebuilds and hands it on", async () => {
+        /*
+         * E62 (1.2.109), 12.11.2026. Red at 6b98f6c: hud.mjs has no slidePhase. The phase line stands in no clipping slot
+         * (the time label's does), so only the new label moves - in from the right, fading in - and the old one goes with
+         * the rebuild. Stand-in lines with a recording `animate`; the clock's own render is read in its source.
+         */
+        const H = await import("./hud.mjs");
+        if (typeof H.slidePhase !== "function") { ok(false, "hud.mjs has no slidePhase"); return; }
+        const calls = [];
+        const hudWith = text => {
+            const hud = document.createElement("div"), line = document.createElement("div");
+            line.className = "drpg-hud-phase"; line.textContent = text;
+            line.animate = (frames, opts) => { const a = { frames, opts, currentTime: 0 }; calls.push(a); return a; };
+            hud.append(line);
+            return hud;
+        };
+        const first = H.slidePhase(hudWith("Investigation"), "Daily Life", { ms: 600, now: 1000 });
+        const anim = calls.at(-1);
+        const again = H.slidePhase(hudWith("Investigation"), "Investigation", { ms: 600, now: 1300 });
+        const wound = calls.at(-1)?.currentTime ?? null;
+        const n = calls.length;
+        const over = H.slidePhase(hudWith("Investigation"), "Investigation", { ms: 600, now: 2000 });
+        const load = H.slidePhase(hudWith("Class Trial"), null, { ms: 600, now: 3000 });
+        const still = H.slidePhase(hudWith("Class Trial"), "Investigation", { ms: 0, now: 4000 });
+        const src = stripComments((await moduleSources()).get("hud.mjs") ?? "");
+        const render = bodyOf(src, "export function renderHud(", { until: "\nexport function " });
+        must(render.length > 500, "renderHud was not read - this reads nothing");
+        equal(stableJson({
+            first, frames: anim ? [anim.frames[0].opacity, /translateX\(\d+px\)/.test(anim.frames[0].transform), anim.frames.at(-1).opacity, anim.opts.duration] : null,
+            again, wound, after: [over, load, still, calls.length - n],
+            render: /previousPhase/.test(render) && /slidePhase\(hud, previousPhase\)/.test(render)
+        }), stableJson({
+            first: { from: "Daily Life", to: "Investigation", elapsed: 0 }, frames: [0, true, 1, 600],
+            again: { from: "Daily Life", to: "Investigation", elapsed: 300 }, wound: 300, after: [null, null, null, 0], render: true
+        }), "[a new phase; its keyframes and length; a redraw during it; wound on; after the turn, a page load, reduced motion - nothing slid; renderHud hands the old label on]");
     }],
     ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
         /*

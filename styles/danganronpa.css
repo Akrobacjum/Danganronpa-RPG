@@ -18330,11 +18330,6 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
 #drpg-sequence .drpg-seq-row span { opacity: 0.7; }
 #drpg-sequence .drpg-seq-row em { font-style: normal; border: calc(1 * var(--drpg-seq-u)) solid currentColor; padding: 0 calc(4 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-tally { margin: calc(8 * var(--drpg-seq-u)) 0 0; font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) var(--drpg-seq-font); opacity: 0.85; }
-#drpg-sequence .drpg-seq-nums { display: flex; justify-content: center; gap: calc(48 * var(--drpg-seq-u)); }
-#drpg-sequence .drpg-seq-num { display: grid; gap: calc(2 * var(--drpg-seq-u)); }
-#drpg-sequence .drpg-seq-num small { font: calc((var(--drpg-seq-text-size) - 4) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.12em; opacity: 0.8; }
-#drpg-sequence .drpg-seq-num b { font: var(--drpg-seq-weight) calc(48 * var(--drpg-seq-u)) / 1 var(--drpg-seq-font); font-variant-numeric: tabular-nums; }
-#drpg-sequence .drpg-seq-num b span { font-size: 0.5em; opacity: 0.7; }
 #drpg-sequence .drpg-seq-mood { display: grid; gap: calc(4 * var(--drpg-seq-u)); font: var(--drpg-seq-weight) calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font); text-transform: var(--drpg-seq-case); }
 #drpg-sequence .drpg-seq-mood small { font-size: 0.55em; letter-spacing: 0.12em; opacity: 0.8; }
 #drpg-sequence .drpg-seq-mood[data-drpg-mood="spilling"] { color: var(--drpg-seq-band); }

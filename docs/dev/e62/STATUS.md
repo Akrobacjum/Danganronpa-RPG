@@ -45,12 +45,19 @@ all green. `node tools/check.mjs` 17/17, lint green.
   --sizes 1600x900 --root` a checkout of it): 39 % at the same square, both roles - so it predates E62 and is not this
   line's to fix here; it is the texture question C7 is about. The other 14 readings pass.
 
+## 1.2.109 (the coordinator's list of 12.11.2026)
+
+- **The HUD's phase label slide** (Q6 default, owner to confirm): a new phase's label slides in from the right and fades
+  in over the turn's length (840 ms; nothing under reduced motion), resuming across redraws as the time label does
+  (hud.mjs `slidePhase`, called by `renderHud`). R3728, red at 6b98f6c. Shots: the review page's section "1.2.109 · E62 ·
+  zegar", frames at 0-840 ms, both themes, on the glass harness's static clock. Checked: tiers 0-1 whole 1256 passed, 0
+  failed, 16 skipped; scenarios 13, 40, 41, 63 green; check 17/17, lint green.
+
 ## Not done, and why
 
 - C3 (death fade, Monocub return): the owner's 05.11 amend says these "get a storyboard and a mockup before E62 is built"; no such mockup exists in what I could read. Not started; owner's step.
 - C5 (centre cards with rows sliding in): not started on this line yet.
 - C6 (the interface following a recut per frame) and C7 (texture constant through a turn): the plan's two riskiest parts; not started. C7's first reading is now taken (`turn-baseline.json`, above).
-- The HUD's phase label slide (Q6): not built.
 
 ## Defaults taken, owner to confirm
 

@@ -2050,6 +2050,13 @@ export const SABOTAGE_CONCEAL = {
     aloneNote: "Nobody else is in the room, so there is nothing to hide."
 };
 
+/* THE SCHOOL'S MOOD'S TWO BARS (E94 C4; the owner's word of 12.11.2026 on the E94 review page). The students' share of
+   the whole - the living students' Hope over that Hope plus the Monocubs' Hope, the Monokumas' Despair and the Overflow
+   count (sequence.mjs `moodBand`) - is calm from `calm`, uneasy from `uneasy`, close to spilling below. Worked out on a
+   GM's browser and published as the word alone; the numbers are the GMs'. 0.6 and 0.4 are the work line's default,
+   for the owner to confirm. */
+export const MOOD_SHARES = Object.freeze({ calm: 0.6, uneasy: 0.4 });
+
 /**
  * Dynamic actions: the player describes something, the GM picks a threshold.
  * Note the inverted Remnant scale - creativity is rewarded with louder traces
@@ -4898,20 +4905,20 @@ export const SFX_EVENTS = {
     /* E94 C2: the start-of-day board's chime (MK-R2 #4), played once as the board rises on each browser. */
     dayStart: {
         label: "Start of the day",
-        hint: "The start-of-day board rises when a new day begins. Heard by the whole table, but not with the sequences switched off.",
+        hint: "The start-of-day board rises. Heard by the whole table, not with the sequences off.",
         category: "incident"
     },
     /* E94 C3: the end-of-day board's chime, played once as the board rises, before the start-of-day board. */
     dayEnd: {
         label: "End of the day",
-        hint: "The end-of-day board rises when the day ends, before the new day's board. Heard by the whole table, but not with the sequences switched off.",
+        hint: "The end-of-day board rises. Heard by the whole table, not with the sequences off.",
         category: "incident"
     },
     /* E62 C2: one flash of the Investigation's entry (MK-R1 #11, MK-R3): played at each of its six onsets, its pitch
        varied so the six do not sound alike; none under reduced motion or with the table's sequences off. */
     paneFlash: {
         label: "Pane flash",
-        hint: "Each pane flash as the Investigation begins, six in about three seconds. Heard by the whole table.",
+        hint: "The panes flash as the Investigation begins. Heard by the whole table.",
         category: "incident",
         vary: true
     },
@@ -4919,7 +4926,7 @@ export const SFX_EVENTS = {
        frame 1); played on each browser from the phase's own event by sequence.mjs, not from a card. */
     trialStart: {
         label: "The Class Trial starts",
-        hint: "The title of the trial's entry lands. Heard by the whole table, also with the sequences switched off.",
+        hint: "The Class Trial's title lands. Heard by the whole table, also with the sequences off.",
         category: "incident"
     },
     debateOpen: {
@@ -4972,7 +4979,7 @@ export const SFX_EVENTS = {
     /* E61 C2: the verdict's cut-in, the stamp's hit (MK-R1 #10: one slot, the stamp part of it), from the GM's verdict card. */
     verdictCut: {
         label: "Verdict cut-in",
-        hint: "The verdict's stamp lands on the portrait. Heard by the whole table, also with the sequences switched off.",
+        hint: "The verdict's stamp lands. Heard by the whole table, also with the sequences off.",
         category: "incident"
     },
     execution: {
@@ -5071,6 +5078,7 @@ export const DRPG = {
     INDIRECT_MURDER,
     BROKEN_ITEMS,
     SABOTAGE_CONCEAL,
+    MOOD_SHARES,
     DYNAMIC_THRESHOLDS,
     REST,
     HOPE_CALLS,

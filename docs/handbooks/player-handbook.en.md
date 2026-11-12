@@ -115,17 +115,15 @@ A darkened time of day (see the overflow, chapter 6) can pull the crossings down
 
 ### Full-screen moments
 
-A few moments fill every screen at the table for a few seconds (since 1.2.109). Esc skips the one playing on your screen; with reduced motion you see a still frame instead; the GM can switch them all off for the table.
+A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off.
 
-- **The Class Trial's entry.** The screen closes and **CLASS TRIAL** stands on it with the chapter's line, then it opens onto the trial. Under Stained Glass new panes slide out from behind the glass until the screen is covered; under Monokuma Legacy two black lids close.
-- **The verdict.** When the GM posts the verdict, the sentenced student's portrait, the votes as they were counted, the stamp - **GUILTY** if the class got it right, **NOT GUILTY** if not - and the sentence.
-- **The clock's turns.** When the time of day changes, the curtain turns in its direction: an hour forward from the top, a new day or a rewind from the bottom, the Eclipse from the centre. As the Investigation begins, groups of panes flash with a sound; when a body is announced, the curtain flickers.
-- **The end of the day.** At the night's end your **end-of-day board**: what you did that day (your own student's actions only), what the whole school saw, your Hope and the table's Despair, and **the school's mood** - Calm, Uneasy or Close to spilling, a word the GM's numbers give, never a number. It stays in your notice history afterwards, and it stands in for the night's own summary.
-- **The start of the day.** Then the **start-of-day board**: the day, the chapter, the time of day, everybody in their place - the dead greyed, with their name and "we remember" - and the GM's **morning line**, when there is one.
+- **The Class Trial's entry.** The screen closes on **CLASS TRIAL** and opens onto the trial.
+- **The verdict.** The sentenced student's portrait, the votes, and the stamp: **GUILTY** if the class got it right, **NOT GUILTY** if not.
+- **The clock's turns.** The curtain turns when the time of day changes. The Investigation opens with flashing panes; a body's announcement makes it flicker.
+- **The end of the day.** What you did that day, what the school saw, and **the school's mood**: Calm, Uneasy or Close to spilling. It stays in your notice history.
+- **The start of the day.** The day, everyone in their place - the dead greyed, "we remember" - and the GM's **morning line**, if there is one.
 
-A browser that loads after one of these moments does not play it.
-
----
+If you join after one of these moments, you miss it.
 
 ## 3. Moving and seeing
 

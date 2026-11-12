@@ -249,7 +249,7 @@
       "tableDay": "DZIEŃ STOŁU",
       "foundSomething": "znalezione",
       "dayTally": "Akcje: {actions} · Znaleziska: {found}",
-      "quietDay": "Spokojny dzień: nic nie zrobiono.",
+      "quietDay": "Spokojny dzień.",
       "publicEvents": "CO WIDZIAŁA SZKOŁA",
       "hope": "NADZIEJA",
       "despair": "ROZPACZ",
@@ -386,7 +386,7 @@
       },
       "sequences": {
         "name": "Sekwencje na cały ekran",
-        "hint": "Chwile na cały ekran na każdym ekranie przy tym stole: wejście do Class Trial, cut-in werdyktu, obroty i błyski zegara, migotanie przy ciele, plansze dnia. Wyłączone: grają tylko dźwięki wejścia i werdyktu. Esc pomija jedną."
+        "hint": "Wejście do Class Trial, werdykt, obroty i błyski zegara oraz plansze dnia na każdym ekranie. Wyłączone: grają tylko dźwięki rozprawy i werdyktu. Esc pomija jedną."
       },
       "reducedMotion": {
         "name": "Ograniczone animacje",
@@ -4301,7 +4301,7 @@
       "session": "Sesja",
       "timeOfDay": "Pora dnia",
       "morningLine": "Zdanie na następny poranek",
-      "morningLineHint": "Pokaże się pod OGŁOSZENIE PORANNE na planszy początku dnia, gdy zacznie się następny dzień. Do tego czasu zostaje w tej przeglądarce, a puste nic nie pokazuje.",
+      "morningLineHint": "Pokaże się na planszy początku dnia, gdy zacznie się następny dzień. Puste nic nie pokaże.",
       "chapterCorrectTitle": "Popraw numer rozdziału",
       "endChapterNote": "Zakończ rozdział ujawnia, sprząta i wskazuje Blackened - wszystko, czego nie robi pole rozdziału wyżej. Najpierw pyta, a nic wpisanego wyżej nie zostaje zapisane.",
       "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
@@ -7026,19 +7026,19 @@
         },
         "dayStart": {
           "label": "Początek dnia",
-          "hint": "Plansza początku dnia wznosi się, gdy zaczyna się nowy dzień. Słyszy cały stół, ale nie przy wyłączonych sekwencjach."
+          "hint": "Wznosi się plansza początku dnia. Słyszy cały stół, nie przy wyłączonych sekwencjach."
         },
         "dayEnd": {
           "label": "Koniec dnia",
-          "hint": "Plansza końca dnia wznosi się, gdy dzień się kończy, przed planszą nowego dnia. Słyszy cały stół, ale nie przy wyłączonych sekwencjach."
+          "hint": "Wznosi się plansza końca dnia. Słyszy cały stół, nie przy wyłączonych sekwencjach."
         },
         "paneFlash": {
           "label": "Błysk szyby",
-          "hint": "Każdy błysk szyb na początku Investigation, sześć w około trzy sekundy. Słyszy cały stół."
+          "hint": "Błyski szyb na początku Investigation. Słyszy cały stół."
         },
         "trialStart": {
           "label": "Start rozprawy",
-          "hint": "Wbija się tytuł wejścia do Class Trial. Słyszy cały stół, także przy wyłączonych sekwencjach."
+          "hint": "Pojawia się tytuł Class Trial. Słyszy cały stół, także przy wyłączonych sekwencjach."
         },
         "debateOpen": {
           "label": "Nonstop Debate się otwiera",
@@ -7066,7 +7066,7 @@
         },
         "verdictCut": {
           "label": "Cut-in werdyktu",
-          "hint": "Stempel werdyktu wbija się w portret. Słyszy cały stół, także przy wyłączonych sekwencjach."
+          "hint": "Stempel werdyktu. Słyszy cały stół, także przy wyłączonych sekwencjach."
         },
         "execution": {
           "label": "Egzekucja",

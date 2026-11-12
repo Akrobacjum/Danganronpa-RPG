@@ -88286,6 +88286,38 @@ const SCENARIOS = [
             if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
         }
     }],
+    ["E94 C4: the school's mood reaches the world as its word alone - the clock every player's browser is sent holds the mood the GM worked out and none of the numbers it was worked out from (sequence.mjs `moodInputs`, `moodBand`, `dayStartPatch`; clock.mjs `setClock`; world-secrets.mjs's clock row; the owner's word of 12.11: \"Matma tajna, jedynie widoczny nastroj\")", async () => {
+        /*
+         * E94 C4, 12.11.2026. The clock is a world setting, so what this test reads back from Foundry's own store is what
+         * every player's browser is sent. The mood is worked out from this world's own students, Monocubs, Despair and
+         * Overflow on this GM, folded into one write as the roll-over folds it (`dayStartPatch`), and the clock is put back
+         * after. Red at b07dec9: sequence.mjs has no `moodInputs`, and the mood was the Overflow's share alone. What a
+         * player's console could read beyond world data is not measured here; 72-canary scans a player's browser with the
+         * same rule after every phase.
+         */
+        const S = await import("./sequence.mjs"), W = await import("./world-secrets.mjs");
+        must(typeof S.moodInputs === "function", "sequence.mjs has no moodInputs - this would measure nothing");
+        const before = foundry.utils.deepClone(getClock());
+        const got = await S.moodInputs();
+        const mood = S.moodBand(got);
+        let held = null;
+        try {
+            await setClock({ ...S.dayStartPatch({ rolledOver: true, draft: "", mood, before }) });
+            held = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        } finally {
+            // the clock as it stood, whole: setClock spreads a patch over the clock, so it cannot take the mood's key away
+            await game.settings.set(MODULE_ID, SETTINGS.clock, before);
+        }
+        const added = Object.keys(held ?? {}).filter(k => !(k in before));
+        const hits = W.findWorldSecrets({ settings: { clock: held }, flags: {} });
+        equal(JSON.stringify({
+            mood: [held?.mood ?? null, S.MOOD_BANDS.includes(held?.mood)],
+            added: added.filter(k => !["mood", "morningLine"].includes(k)),
+            numbers: ["hope", "monocubHope", "despair", "overflow", "share", "moodShare", "moodInputs", "overflowCount", "overflowThreshold"].filter(k => k in (held ?? {})),
+            hits: hits.length
+        }), JSON.stringify({ mood: [mood, true], added: [], numbers: [], hits: 0 }),
+            "[the clock's mood, one of the three words; a field the write added beside the word; a field holding an input or the share; what the world-secrets rule finds]");
+    }],
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*
          * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`

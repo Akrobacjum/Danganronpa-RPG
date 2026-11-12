@@ -34,7 +34,7 @@
  * when the still frame is drawn.
  */
 
-import { MODULE_ID, TIME_OF_DAY_LABELS } from "./config.mjs";
+import { MODULE_ID, TIME_OF_DAY_LABELS, MOOD_SHARES } from "./config.mjs";
 import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
@@ -56,9 +56,9 @@ export const SEQUENCE_TIMES = Object.freeze({
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
        from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
     dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
-    /* E94 C3, the end-of-day board: the board rises at 200 ms over 500, the rows one by one 120 ms apart from 700, Hope and
-       Despair counted up from 1600 over 900, the school's mood at 2600, held to 6000, gone in 420; still, 6 s. */
-    dayEnd: Object.freeze({ board: 200, rise: 500, rows: 700, rowStep: 120, count: 1600, countIn: 900, mood: 2600, hold: 6000, fade: 420, end: 6450, still: 6000, sound: 0 }),
+    /* E94 C3, the end-of-day board: the board rises at 200 ms over 500, the rows one by one 120 ms apart from 700, the
+       school's mood at 2000 (no number since the owner's word of 12.11), held to 6000, gone in 420; still, 6 s. */
+    dayEnd: Object.freeze({ board: 200, rise: 500, rows: 700, rowStep: 120, mood: 2000, hold: 6000, fade: 420, end: 6450, still: 6000, sound: 0 }),
     verdictCut: Object.freeze({ band: 250, portrait: 250, portraitIn: 420, votes: 900, rowIn: 320, rowStep: 90, bars: 980, barsIn: 600, stamp: 1700, stampIn: 200, sentence: 1950, sentenceIn: 380, hold: 3500, fade: 180, end: 3700, still: 3000, sound: 1700 })
 });
 
@@ -549,33 +549,58 @@ export function dayStartPatch({ rolledOver = false, draft = "", mood = null, bef
     return patch;
 }
 
-/* THE SCHOOL'S MOOD (E94 C4; the plan's Q-E94-3 default): three words from the Overflow count's share of its threshold X,
-   computed on a GM (a player's `overflowCount` is 0, E05 C12) and published as the word alone - the count is the GMs'. */
+/* THE SCHOOL'S MOOD (E94 C4; the owner's word of 12.11.2026: "liczony z proporcji cale hope uczniow vs hope monocubow +
+   despair monokumow + despair overflow. Matma tajna, jedynie widoczny nastroj"). Three words from one share: the living
+   students' Hope over the whole - that Hope, the Monocubs' Hope, the Monokumas' Despair and the Overflow count - against
+   config.mjs `MOOD_SHARES`. Nothing dark at all is calm. Worked out on a GM's browser (a player's `overflowCount` is 0,
+   E05 C12) and published as the word alone: no input, share or bar leaves the GM. Pure; a missing, negative or not
+   finite input counts 0. */
 export const MOOD_BANDS = Object.freeze(["calm", "uneasy", "spilling"]);
-export function moodBand(count, threshold) {
-    const c = Number(count), x = Number(threshold);
-    if (!Number.isFinite(c) || !Number.isFinite(x) || x <= 0 || c <= 0) return "calm";
-    const share = c / x;
-    return share < 1 / 3 ? "calm" : share < 2 / 3 ? "uneasy" : "spilling";
+export function moodBand({ hope = 0, monocubHope = 0, despair = 0, overflow = 0 } = {}, shares = MOOD_SHARES) {
+    const n = v => { const x = Number(v); return Number.isFinite(x) && x > 0 ? x : 0; };
+    const light = n(hope), dark = n(monocubHope) + n(despair) + n(overflow);
+    if (dark <= 0) return "calm";
+    const share = light / (light + dark);
+    return share >= shares.calm ? "calm" : share >= shares.uneasy ? "uneasy" : "spilling";
+}
+
+/**
+ * The mood's four inputs as this GM's browser holds them (E94 C4): the Hope of every student of the class who is neither
+ * dead by the published flag nor a Monocub - a death nobody has found leaves its Hope in, so the mood the table sees does
+ * not move on it -, the Monocubs' Hope, the Despair of every Monokuma (`getDespair`, the pools the HUD shows) and the
+ * Overflow count, which only a GM holds. On a player, null. Never written anywhere: `moodBand` turns it into the word.
+ */
+export async function moodInputs() {
+    if (!game.user?.isGM) return null;
+    const [{ actingStudents }, { isMonocub }, D, O] = await Promise.all([
+        import("./monokuma.mjs"), import("./monocub.mjs"), import("./despair.mjs"), import("./overflow.mjs")]);
+    const hopeOf = a => { const v = Number(a?.system?.resources?.hope?.value); return Number.isFinite(v) && v > 0 ? v : 0; };
+    let hope = 0, monocubHope = 0;
+    // the one cast (R1192), by the published death: the living students, and the dead back only as a Monocub
+    for (const a of actingStudents({ dead: isDeceased })) {
+        if (isMonocub(a)) monocubHope += hopeOf(a);
+        else hope += hopeOf(a);
+    }
+    const despair = D.monokumas().reduce((t, u) => t + (Number(D.getDespair(u.id)) || 0), 0);
+    const overflow = Number(O.overflowCount()) || 0;
+    return { hope, monocubHope, despair, overflow };
 }
 
 /**
  * What the end-of-day board shows this browser (E94 C3; the plan's C3, MK-R2 #5): the day and the chapter; this browser's
  * own rows of the day (its private-card store, secret.mjs `secretSummaries` - a player's own actor's, a GM's the table's),
- * counted and the last few named; the day's public cards (no whisper, no blind roll: the chat's own audience test);
- * Hope - the viewer's own student's, a player's only - and Despair as the HUD shows it to everybody; the school's mood as
- * the GM published it. Nothing else: no other player's row, no secret event, no Overflow count. Pure but for the reads
- * it is handed.
+ * counted and the last few named; the day's public cards (no whisper, no blind roll: the chat's own audience test); the
+ * school's mood as the GM published it. No number of Hope or Despair (the owner's word of 12.11.2026: "Chowamy hope i
+ * despair w podsumowaniu"), no other player's row, no secret event, no Overflow count. Pure but for the reads it is
+ * handed.
  */
-export function dayEndBoard({ clock = {}, rows = [], publicCards = [], hope = null, despair = null, mood = null } = {}) {
+export function dayEndBoard({ clock = {}, rows = [], publicCards = [], mood = null } = {}) {
     const day = Number(clock?.day) || 0;
     return {
         day, chapter: clock?.chapter ?? null,
         rows: rows.slice(-6).map(r => ({ action: String(r.action ?? ""), room: r.room ? String(r.room) : "", found: Boolean(r.item) })),
         count: rows.length, found: rows.filter(r => r.item).length,
         events: publicCards.slice(-4).map(c => String(c ?? "")).filter(Boolean),
-        hope: Number.isFinite(hope?.value) ? { value: hope.value, max: Number.isFinite(hope.max) ? hope.max : null } : null,
-        despair: Number.isFinite(despair?.value) ? { value: despair.value, max: Number.isFinite(despair.max) ? despair.max : null } : null,
         mood: MOOD_BANDS.includes(mood) ? mood : null
     };
 }
@@ -586,7 +611,6 @@ export function dayEndElement(board) {
     const el = document.createElement("div");
     el.className = "drpg-seq-day drpg-seq-dayend";
     const sub = board.chapter != null ? game.i18n.format("DRPG.Sequence.dayEndSub", { chapter: board.chapter }) : "";
-    const num = (key, v) => v ? `<div class="drpg-seq-num" data-drpg-num="${v.value}"><small>${esc(L(key))}</small><b>${v.value}${v.max != null ? `<span>/${v.max}</span>` : ""}</b></div>` : "";
     el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))}</h2>
         ${sub ? `<div class="drpg-seq-day-sub">${esc(sub)}</div>` : ""}
         <div class="drpg-seq-dayend-cols">
@@ -596,24 +620,16 @@ export function dayEndElement(board) {
                 : `<p class="drpg-seq-tally">${esc(L("DRPG.Sequence.quietDay"))}</p>`}</section>
             ${board.events.length ? `<section class="drpg-seq-events"><h3>${esc(L("DRPG.Sequence.publicEvents"))}</h3><ol>${board.events.map(e => `<li class="drpg-seq-row">${esc(e)}</li>`).join("")}</ol></section>` : ""}
         </div>
-        <div class="drpg-seq-nums">${num("DRPG.Sequence.hope", board.hope)}${num("DRPG.Sequence.despair", board.despair)}</div>
         ${board.mood ? `<div class="drpg-seq-mood" data-drpg-mood="${board.mood}"><small>${esc(L("DRPG.Sequence.moodLabel"))}</small>${esc(L(`DRPG.Sequence.mood.${board.mood}`))}</div>` : ""}`;
     return el;
 }
 
 function drawDayEnd(ctx, board) {
-    const { host, times: T, anim, at } = ctx;
+    const { host, times: T, anim } = ctx;
     const el = dayEndElement(board);
     host.append(el);
     anim(el, [{ opacity: 0, transform: "translate(-50%, -50%) translateY(40px)" }, { opacity: 1, transform: "translate(-50%, -50%)" }], { duration: T.rise, delay: T.board });
     el.querySelectorAll(".drpg-seq-row").forEach((r, i) => anim(r, [{ opacity: 0, transform: "translateX(-24px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 360, delay: T.rows + i * T.rowStep }));
-    el.querySelectorAll(".drpg-seq-num").forEach(n => {
-        anim(n, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.count });
-        // counted up: the number climbs from 0 to its value over `countIn`, in eight steps
-        const b = n.querySelector("b"), to = Number(n.dataset.drpgNum) || 0, tail = b?.querySelector("span")?.outerHTML ?? "";
-        if (!b || ctx.still) return;
-        for (let k = 0; k <= 8; k++) at(T.count + (T.countIn * k) / 8, () => { b.innerHTML = `${Math.round((to * k) / 8)}${tail}`; });
-    });
     anim(el.querySelector(".drpg-seq-mood"), [{ opacity: 0, transform: "scale(1.08)" }, { opacity: 1, transform: "scale(1)" }], { duration: 420, delay: T.mood });
     anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
 }
@@ -640,7 +656,7 @@ export function publicCardsOf(messages, since, until = null) {
 }
 
 /* What this browser knows of the day that ended: its own rows from its private-card store over [the day's start, the
-   new day's start), the public cards of the chat over the same span, Hope and Despair as this browser shows them. */
+   new day's start) and the public cards of the chat over the same span. */
 async function dayEndReads(before, clock) {
     const since = Number(before?.dayStartedAt), until = Number(clock?.timeOfDayStartedAt);
     const known = Number.isFinite(since) && since > 0;
@@ -650,15 +666,7 @@ async function dayEndReads(before, clock) {
         rows = dayRowsFor(entriesSince(since, Number.isFinite(until) ? until : null), { gm: game.user.isGM });
     }
     const publicCards = known ? publicCardsOf(game.messages?.contents ?? [], since, Number.isFinite(until) ? until : null) : [];
-    const actor = game.user.isGM ? null : game.user.character ?? null;
-    const hopeOf = a => { const h = a?.system?.resources?.hope; return h && Number.isFinite(Number(h.value)) ? { value: Number(h.value), max: Number(h.max) } : null; };
-    let despair = null;
-    try {
-        const d = await import("./despair.mjs");
-        const ids = d.monokumas().map(u => u.id);
-        if (ids.length) despair = { value: ids.reduce((t, id) => t + d.getDespair(id), 0), max: d.despairMax() * ids.length };
-    } catch { despair = null; }
-    return { rows, publicCards, hope: hopeOf(actor), despair };
+    return { rows, publicCards };
 }
 
 /**
@@ -672,7 +680,7 @@ async function dayEndReads(before, clock) {
 export async function playDayEnd(before, clock = getClock(), { on = sequencesOn(), then = null, reads = null, keep = true } = {}) {
     if (!before || !clock || !ready) { then?.("none"); return null; }
     const got = reads ?? await dayEndReads(before, clock);
-    const board = dayEndBoard({ clock: before, rows: got.rows, publicCards: got.publicCards, hope: got.hope, despair: got.despair, mood: clock.mood ?? null });
+    const board = dayEndBoard({ clock: before, rows: got.rows, publicCards: got.publicCards, mood: clock.mood ?? null });
     const played = playSequence("dayEnd", `dayEnd:${before.season ?? ""}:${board.day}:${before.session ?? ""}`, ctx => drawDayEnd(ctx, board),
         { sound: () => playSound("dayEnd"), on, then });
     if (played === null) then?.("none");
