@@ -3418,7 +3418,8 @@
       "alreadyChained": "{name} jest już w łańcuchach.",
       "gatherRoomGone": "Zgromadzenie nie mogło się odbyć: „{room}” nie jest już pokojem na tamtej scenie. Polecenie zostało wyczyszczone - wydany na nie Despair nie wróci, a obsadę trzeba przenieść ręcznie.",
       "notArmedNotCharged": "{call} nie został uzbrojony i nie pobrano za niego Hope.",
-      "despairGmOnly": "Despair Calle wydaje Monokuma, a Monokuma to GM."
+      "despairGmOnly": "Despair Calle wydaje Monokuma, a Monokuma to GM.",
+      "choiceAsk": "Które z dwóch?"
     },
     "Monokuma": {
       "toggle": "Oznacz jako Monokumę",

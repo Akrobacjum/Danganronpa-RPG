@@ -2513,6 +2513,8 @@ export const DESPAIR_CALLS = {
         // Hope, and the Monokuma is buying a Monocub's single Meddle.
         label: "Fuel a Monocub", icon: "fa-hand-holding-heart", cost: 1, target: "monocub",
         grantsHope: 1,
+        // The tile's two Calls (the owner, 12.11.2026: the GM's Calls keep their number of tiles): this one, or a Bounty.
+        choices: ["fuelTheCub", "bounty"],
         effect: "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
     },
     /*
@@ -2668,6 +2670,8 @@ export const DESPAIR_CALLS = {
      */
     bounty: {
         label: "Bounty", icon: "fa-sack-dollar", cost: 1, reward: 1, target: "player", bounty: true,
+        // No tile of its own (the owner, 12.11.2026): chosen in Fuel a Monocub's tile (calls.mjs `despairCallsFor`).
+        inside: "fuelTheCub",
         effect: "Put a secret Bounty of one Hope on a student: the first Monocub whose Confusion hinders them claims it. "
             + "Only the Monocubs and the GMs are told; the Despair is taken at the next time of day."
     }

@@ -425,7 +425,7 @@ Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje
 | Public Announcement | 6 | Wszyscy wezwani do jednego pokoju na początek następnej pory dnia. Macie czas do tej pory; gdzie będziecie, gdy się zacznie, zależy od was. |
 | Motive | 6 | Żądanie, termin w porach dnia i cena zignorowania go - ogłoszone wszystkim słowo w słowo. Odliczanie wisi na panelu zdarzeń. |
 | New Rule | 9 | Jedna nowa zasada killing game wybrana przez Monokumę. Zasady lądują na zakładce Zasady każdego arkusza. |
-| Bounty | 1 | Tajne, tylko dla Monocubów i GM-ów: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Despair schodzi w następnej porze dnia. |
+| Bounty | 1 | Tajne, tylko dla Monocubów i GM-ów; GM wybiera je w kafelku Fuel a Monocub: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Despair schodzi w następnej porze dnia. |
 
 ### Overflow
 

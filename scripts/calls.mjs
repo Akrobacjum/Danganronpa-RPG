@@ -840,7 +840,8 @@ export function affordableHopeCalls(actor) {
 
 /** Despair Calls, with affordability against a pool. */
 export function despairCallsFor(poolValue = 0) {
-    return byPrice(Object.entries(DESPAIR_CALLS).map(([key, call]) => ({
+    // A Call chosen inside another's tile (`inside`, the Bounty in Fuel a Monocub's; E72, 12.11.2026) has no tile of its own.
+    return byPrice(Object.entries(DESPAIR_CALLS).filter(([, call]) => !call.inside).map(([key, call]) => ({
         key, ...call, affordable: poolValue >= call.cost
     })));
 }

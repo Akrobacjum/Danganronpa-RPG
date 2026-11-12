@@ -425,7 +425,7 @@ Every roll of yours that lands with Despair feeds the pool of the Monokuma who w
 | Public Announcement | 6 | Everyone is called to one room at the start of the next time of day. You have until then; where you are when it starts is up to you. |
 | Motive | 6 | A demand, a deadline in times of day, and the price of ignoring it - announced to everyone word for word. The countdown sits on the Event panel. |
 | New Rule | 9 | One new killing game rule of Monokuma's choice. Rules land on the Rules tab of every sheet. |
-| Bounty | 1 | Secret, for the Monocubs and the GMs only: one Hope to the first Monocub whose Confusion hinders the named student. The Despair is taken at the next time of day. |
+| Bounty | 1 | Secret, for the Monocubs and the GMs only; a GM chooses it in the Fuel a Monocub tile: one Hope to the first Monocub whose Confusion hinders the named student. The Despair is taken at the next time of day. |
 
 ### The overflow
 

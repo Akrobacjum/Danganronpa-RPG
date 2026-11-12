@@ -3148,7 +3148,8 @@
       "gatherCancelled": "The assembly in {room} is called off.",
       "gatherNoRefund": "No Despair comes back - the announcement has already been heard.",
       "notArmedNotCharged": "{call} was not armed, and no Hope was taken.",
-      "despairGmOnly": "Despair Calls are a Monokuma's to spend, and a Monokuma is a GM."
+      "despairGmOnly": "Despair Calls are a Monokuma's to spend, and a Monokuma is a GM.",
+      "choiceAsk": "Which of the two?"
     },
     "Monokuma": {
       "toggle": "Mark as Monokuma",

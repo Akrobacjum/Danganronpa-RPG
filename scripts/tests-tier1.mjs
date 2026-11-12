@@ -30057,6 +30057,26 @@ const INVARIANTS = [
             "the Final's bets are not settled on the executed Mastermind alone ([executed, escaped, no Mastermind known])");
     }],
 
+    ["R3816 - the GM's Despair Calls draw no Bounty tile: Fuel a Monocub's tile offers Fuel or Bounty, each with its own price and secrecy (E72, the owner's tiles decision of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner ("chcemy zachowac te sama liczbe kafli", "Tak chodzilo o bounty"), relayed by the
+         * coordinator: the GM's Calls keep their number of tiles, so the Bounty (E72 C16) lives inside Fuel a Monocub's.
+         * config.mjs DESPAIR_CALLS.bounty is kept for its rules and marked `inside: "fuelTheCub"`; calls.mjs
+         * `despairCallsFor` (the grid's list) leaves such a row out; `fuelTheCub.choices` lists the two; sheet.mjs `runCall`
+         * asks which before anything else (`despairChoice`). Red before: a Bounty tile, no choices.
+         */
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { despairCallsFor } = await import("./calls.mjs");
+        const keys = despairCallsFor(99).map(c => c.key);
+        equal(JSON.stringify([keys.includes("bounty"), keys.includes("fuelTheCub"), DESPAIR_CALLS.bounty?.inside ?? null,
+            DESPAIR_CALLS.fuelTheCub?.choices ?? null]),
+            JSON.stringify([false, true, "fuelTheCub", ["fuelTheCub", "bounty"]]),
+            "the GM's Calls draw a Bounty tile, or Fuel a Monocub's tile does not offer Fuel and Bounty");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        ok(/call\.choices/.test(fnSource(sheet, "runCall")) && typeof topLevelFunction(sheet, "despairChoice") === "string",
+            "sheet.mjs runCall does not ask which Call of a tile's choices (despairChoice)");
+    }],
+
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
         /*
          * E52 C2, 30.10.2026; audit S17-50, E52-05. A failed row's fallback is the one its file has always had
