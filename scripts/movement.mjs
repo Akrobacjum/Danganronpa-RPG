@@ -1266,6 +1266,10 @@ export async function recordCrossingInStep(actor, tokenDoc, { id = null, from = 
     if (awaitingPrice.get(actor.id)?.id !== row.id) awaitingPrice.delete(actor.id);
     await crossingStore.whenHydrated();
     await crossingStore.patch(actor.id, row);
+    // The crossing settles once the token has stood in `to` a while (E69 C2, crossing-settle.mjs): the one event every
+    // notice of another character's move comes from.
+    const { scheduleSettle } = await import("./crossing-settle.mjs");
+    scheduleSettle(actor.id, tokenDoc, { from, to, via, eclipse: row.eclipse }, { roomNow: roomOfToken });
     return true;
 }
 

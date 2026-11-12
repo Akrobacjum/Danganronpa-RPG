@@ -88030,6 +88030,41 @@ const SCENARIOS = [
             powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
             "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
     }],
+    ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
+        /*
+         * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it
+         * stands in is the settled room, and another room stands for a put-back. Red at 7258dec: no crossing-settle.mjs.
+         */
+        const S = await import("./crossing-settle.mjs");
+        const M = await import("./movement.mjs");
+        const { actor, where } = await playerInRoom();
+        const other = M.allRooms(where.scene).find(r => r !== where.room);
+        must(other, "the scene has one room only - this would measure nothing");
+        const heard = [];
+        const hook = Hooks.on(S.CROSSING_SETTLED ?? "drpgCrossingSettled", e => { if (e?.actorId === actor.id) heard.push(e); });
+        const roomNow = t => M.roomOfToken(t);
+        const until = ms => new Promise(r => setTimeout(r, ms));
+        const read = {};
+        try {
+            S.scheduleSettle(actor.id, where.tokenDoc, { from: other, to: where.room, via: "tunnel", eclipse: null }, { ms: 80, roomNow });
+            await until(250);
+            read.one = heard.splice(0).map(e => [e.from === other, e.to === where.room, e.via, e.eclipse]);
+            S.scheduleSettle(actor.id, where.tokenDoc, { from: "E69-T2 start", to: other }, { ms: 80, roomNow });
+            S.scheduleSettle(actor.id, where.tokenDoc, { from: other, to: where.room }, { ms: 80, roomNow });
+            await until(250);
+            read.run = heard.splice(0).map(e => [e.from, e.to === where.room]);
+            S.scheduleSettle(actor.id, where.tokenDoc, { from: where.room, to: other }, { ms: 80, roomNow });
+            await until(250);
+            read.putBack = heard.splice(0).length;
+            const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText), "recordCrossingInStep") ?? "");
+            read.recorded = /scheduleSettle\(/.test(src);
+        } finally {
+            Hooks.off(S.CROSSING_SETTLED ?? "drpgCrossingSettled", hook);
+            S.forgetSettling?.();
+        }
+        equal(stableJson(read), stableJson({ one: [[true, true, "tunnel", null]], run: [["E69-T2 start", true]], putBack: 0, recorded: true }),
+            "{one: [from, to, via, eclipse] of a crossing; run: [from, to] of two in a row; putBack: events for a token not in the room; recorded: the GMs' record schedules one} - a crossing settles once");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
