@@ -21,17 +21,22 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C9 (part) | The Monocub's tiles say why they are shut (S18-62, DC22): `cubBlockSaid` (the row's blocks from the owner's copy) dims a tile and says its sentence; a row with no Hope says its price in the grid's own words (`DRPG.Action.costActions`, `costFree`); `onlyTwoActions` names the three moves | R3803 (new), tier 2 "the Monocub's tiles say why they are shut ..." (new); both red at base |
 
+| C6 (rest) | The old Monocubs window retired (`openMonocubDialog` gone; `game.drpg.monocubDialog` opens the Students window), so the player's acceptance is the one road that makes a Monocub; GM handbooks EN/PL name the invitation and the Crime witness column; 33-bridge-paths A20 (p2's yes from the Rule's window, kept with p2's id) and 30-security's two forgeries (p1 for p2's Botan: ownership; p2 with none open: `refused`) | R3804 (new; red at base: three roads); 33 74/74, 30 275/276 (the expected red is the known Foundry door limit); flow `monocub-invite` names 30 and 33 |
+
+| C9 (rest) | Events' "Redeem is waiting" / "Redeem czeka" (default, owner may revise): events.mjs `redeemCard(user)` for the Monocubs the player owns whose Redeem no block shuts; redrawn on `drpgCubsChanged` and the own student's Hope or Monocub flag (hud.mjs); the Redeem glyph and Hope's gold (kind `redeemHope`, so the CSS meaning check reads it as Hope's); the glyph put on :root with a legacy row `same: glass:redeem` after the first shot showed a gold square under Legacy | R3805 (new; red at f837c2f), tier 2 "the Event panel says Redeem is waiting to a Monocub's own player alone ..." (new; red at f837c2f) |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
 - C8 is open, with a question for the owner (below, "C8 needs a decision").
-- C10 done (both halves). Next: the rest of C6 and C9.
+- C6 and C9 done. Next: C8 (the decided design: the ordinary dead's own voice channel outside the trial, no user
+  record written), then C11-C12.
 
 ## Next, in order
 
-1. C10's sight half; C6's rest (`openMonocubDialog` removed, `game.drpg.monocubDialog` to the Students window, 33's and
-   30's controls for `monocub.answer`); C9's rest (Events' "Redeem waiting").
+1. C8 (the coordinator's decision of 12.11: the mic block stays in the trial; the ordinary dead outside it get their own
+   voice channel, no write to the user record).
 2. C11 (D101, D102, D114 - the audit text only, Q-E72-7), C12 (part A's texts: both handbooks, the brochure, the Rule).
 3. Part B: C13-C21 (Tinker, the purse, Bribe, Bounty, a move to order, Ghost Bet, the panel, texts, end review).
 4. E91.
@@ -160,6 +165,11 @@ None.
   Redeem shut, Ask for Hope free), both themes, EN and PL; the tiles written by the shot's script on sheet.mjs's
   markup, not by the module's code; Legacy shows no Font Awesome glyph in the harness. Looked at: Redeem read
   "0 Hope, 1 action" - now the grid's own "1 action", and "free" for Ask for Hope.
+
+- Round 3 (12.11.2026): https://claude.ai/artifact/7spCCPaAcrGFvebcb5L5T2 - C9's "Redeem is waiting" card in the Event
+  panel, both themes, EN and PL, drawn by audit/glass-harness.html with events.mjs `cardElement` (the fields written
+  by the shot's script from lang, not by `redeemCard`). Looked at: under Legacy the glyph was a gold square (the
+  drawing was Stained Glass's alone) - fixed in bbbcb73, the published shots are after the fix.
 
 ## Test results
 

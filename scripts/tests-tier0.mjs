@@ -10208,6 +10208,7 @@ const REGRESSIONS = [
             ["WHO hud.mjs#objectionControl#viewerActor -> which", "the OBJECTION! button of a player's trial row: the viewer's own student and no other actor (R509); the speaker it is aimed at is the primary GM's, not read here (R591; E79 C16)"],
             ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token and the room its update names; fired on the update that names a route's end, never while a put-back is on its way, which is announced when it lands (R506, scenario 66 W2-W4, N13, 76 D N13); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token - at once for a route of one update since E79 C14, else once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2, N13a); once more, `again`, only where the token rests in another room; a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
+            ["HOOK hud.mjs#registerHud#updateActor -> which", "the Event panel's redraw for the Redeem card on a player's own student's Hope or Monocub flag (E72 C9); it calls `renderEvents` alone and chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
             ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#updateScene -> which", "a repaint when the module's `hallRoom` flag of the linked hall changes (E79 C11); the event chooses no room, `tileView` does (scenario 41 N6)"],
@@ -18200,7 +18201,8 @@ const REGRESSIONS = [
             ["gm-students.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
             ["mastermind.mjs", "amount", /\[name=amount\]"\)\?\.value/g],
             ["messenger-app.mjs", "${name}", /\bf\.elements\[key\]\?\.value/g],
-            ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
+            // E72 C6 (12.11.2026): monocub.mjs's row went with the old Monocubs window (`openMonocubDialog`, retired); its
+            // donation field is the Students window's above.
             ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
             ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
