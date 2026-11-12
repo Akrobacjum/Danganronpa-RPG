@@ -5,7 +5,7 @@ for a lang key, and the changed fragment for a handbook line. "Why" names the ru
 glossary entry (`docs/glossary.json`) the change follows. No key, placeholder, number or rule was changed; a text
 whose meaning would change was left and, if it seemed wrong, listed in STATUS.md instead.
 
-## spelling (52)
+## spelling (55)
 
 | File | Key / section | Before | After | Why |
 | --- | --- | --- | --- | --- |
@@ -61,6 +61,9 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | pl.json | `DRPG.Events.safewordSub` | Ktoś użył safeworda. | Ktoś użył safeword. | PL-f/DB30: safeword is indeclinable ("Ktoś użył safeword"), the guide's own example. |
 | gm-handbook.en.md | `line 136 (## 2. The season setup checklist)` | in Room Setup (the Doors tab) | in Room setup (the Doors tab) | The handbook prints DRPG.Season.roomGuide word for word (R431 holds the copy); the key now follows the glossary (window-room-setup) and EN1/DB9, so the copy does too. |
 | gm-handbook.en.md | `line 136 (## 2. The season setup checklist)` | never count as neighbours. Neighbours touch | never count as neighbors. Neighbors touch | The handbook prints DRPG.Season.roomGuide word for word (R431 holds the copy); the key now follows the glossary (window-room-setup) and EN1/DB9, so the copy does too. |
+| pl.json | `DRPG.Settings.moveAudit.hint` | Co się dzieje, gdy żeton gracza zostanie przesunięty przez ścianę, przez którą jego postać nie mogła przejść: wpis w Dzienniku debugowania albo żeton cofnięty tam, gdzie stał, z komunikatem dla gracza i ostrzeżeniem dla MG. | Co się dzieje, gdy żeton gracza zostanie przesunięty przez ścianę, przez którą jego postać nie mogła przejść: wpis w Dzienniku debugowania albo żeton cofnięty tam, gdzie stał, z komunikatem dla gracza i ostrzeżeniem dla GM-a. | PL-i/D33c and the glossary gm-a: the module writes "GM" and "GM-a", never "MG". |
+| pl.json | `DRPG.Cleanup.refundUnheld` | Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt MG nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie. | Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt GM-a nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie. | PL-i/D33c and the glossary gm-a: the module writes "GM" and "GM-a", never "MG". |
+| pl.json | `DRPG.Season.reportCard.experiences` | Doświadczenia zostawione na kartach - ich karta startowa została zapisana, zanim moduł odróżniał doświadczenie z awansu od dopisanego przez MG, i nie ma w niej żadnego: {list}. | Doświadczenia zostawione na kartach - ich karta startowa została zapisana, zanim moduł odróżniał doświadczenie z awansu od dopisanego przez GM-a, i nie ma w niej żadnego: {list}. | PL-i/D33c and the glossary gm-a: the module writes "GM" and "GM-a", never "MG". |
 
 ## naturalness pairs (54)
 
@@ -655,7 +658,7 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.pl.md | `line 859 (## 16. Wskazówki do interfejsu)` | GMowie, GMów | GM-owie, GM-ów | PL-i/D33c: "GM-a", "GM-owie", "GM-ów" with a hyphen (glossary gm-a, scope ui and handbooks). |
 | player-brochure.pl.md | `line 65 (## Safeword)` | GMowie | GM-owie | PL-i/D33c: "GM-a", "GM-owie", "GM-ów" with a hyphen (glossary gm-a, scope ui and handbooks). |
 
-## Polish grammar (21)
+## Polish grammar (32)
 
 | File | Key / section | Before | After | Why |
 | --- | --- | --- | --- | --- |
@@ -680,6 +683,17 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.pl.md | `line 685 (## 11. Investigation)` | Class Trialu | Class Trial | PL-a/DB4: Class Trial does not decline ("w/podczas Class Trial"; glossary class-trial). |
 | player-handbook.pl.md | `line 820 (## 16. Wskazówki do interfejsu)` | Class Trialu | Class Trial | PL-a/DB4: Class Trial does not decline ("w/podczas Class Trial"; glossary class-trial). |
 | player-handbook.pl.md | `line 826 (## 16. Wskazówki do interfejsu)` | Class Trialu | Class Trial | PL-a/DB4: Class Trial does not decline ("w/podczas Class Trial"; glossary class-trial). |
+| pl.json | `DRPG.Move.dead` | Nie żyją. Ciało zostaje tam, gdzie upadło. | Ta postać nie żyje. Ciało zostaje tam, gdzie upadło. | X13 (confirmed in the pilot): a singular "they" is not a Polish plural. |
+| pl.json | `DRPG.Vote.verdictIntro` | Tylko ty wiesz, czy trafili. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik. | Tylko ty wiesz, czy stół trafił. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik. | The owner-approved pair N26 (X13), whose words stand here too. |
+| pl.json | `DRPG.Vote.reminded.few` | {n} graczy ma świeżą kartę. | {n} gracze mają świeżą kartę. | PL7: the "few" form takes its own noun and verb ("2 gracze mają"). |
+| pl.json | `DRPG.Calls.sealed` | {room} zapieczętowany na tę porę dnia. | Pokój {room} jest zapieczętowany na tę porę dnia. | X12's shape: the room named with its noun, so the participle agrees whatever the room's name. |
+| pl.json | `DRPG.Calls.progressRefused` | {name} nie przyjął postępu - jest już ukończony. | Projekt {name} nie przyjmuje postępu: jest już ukończony. | The project named with its noun, so the verb agrees whatever its name. |
+| en.json | `DRPG.Vote.opened.one` | One ballot is out. Name who you believe is the Blackened. | One ballot is out. Each player names who they believe is the Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
+| en.json | `DRPG.Vote.opened.other` | {n} ballots are out. Name who you believe is the Blackened. | {n} ballots are out. Each player names who they believe is the Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
+| pl.json | `DRPG.Vote.opened.one` | Rozesłano jedną kartę. Wskażcie, kto waszym zdaniem jest Blackened. | Rozesłano jedną kartę. Każdy wskazuje, kogo uważa za Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
+| pl.json | `DRPG.Vote.opened.few` | Rozesłano {n} karty. Wskażcie, kto waszym zdaniem jest Blackened. | Rozesłano {n} karty. Każdy wskazuje, kogo uważa za Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
+| pl.json | `DRPG.Vote.opened.many` | Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened. | Rozesłano {n} kart. Każdy wskazuje, kogo uważa za Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
+| pl.json | `DRPG.Vote.opened.other` | Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened. | Rozesłano {n} kart. Każdy wskazuje, kogo uważa za Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
 
 ## settings (10)
 

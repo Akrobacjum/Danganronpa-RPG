@@ -337,7 +337,7 @@
       },
       "moveAudit": {
         "name": "Żeton gracza przesunięty przez ścianę",
-        "hint": "Co się dzieje, gdy żeton gracza zostanie przesunięty przez ścianę, przez którą jego postać nie mogła przejść: wpis w Dzienniku debugowania albo żeton cofnięty tam, gdzie stał, z komunikatem dla gracza i ostrzeżeniem dla MG.",
+        "hint": "Co się dzieje, gdy żeton gracza zostanie przesunięty przez ścianę, przez którą jego postać nie mogła przejść: wpis w Dzienniku debugowania albo żeton cofnięty tam, gdzie stał, z komunikatem dla gracza i ostrzeżeniem dla GM-a.",
         "log": "Zapisz to w Dzienniku debugowania",
         "sendBack": "Cofnij żeton"
       },
@@ -1737,10 +1737,10 @@
       "resendUnseen": "Ta przeglądarka nie ma kopii kart tego głosowania od GM-ów, więc nie wie, ile już wróciło - liczy je główny GM. Start od nowa wyrzuca te, które wróciły, i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
       "banner": "GŁOSOWANIE OTWARTE",
       "opened": {
-        "one": "Rozesłano jedną kartę. Wskażcie, kto waszym zdaniem jest Blackened.",
-        "few": "Rozesłano {n} karty. Wskażcie, kto waszym zdaniem jest Blackened.",
-        "many": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened.",
-        "other": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened."
+        "one": "Rozesłano jedną kartę. Każdy wskazuje, kogo uważa za Blackened.",
+        "few": "Rozesłano {n} karty. Każdy wskazuje, kogo uważa za Blackened.",
+        "many": "Rozesłano {n} kart. Każdy wskazuje, kogo uważa za Blackened.",
+        "other": "Rozesłano {n} kart. Każdy wskazuje, kogo uważa za Blackened."
       },
       "noVoters": "Żaden gracz z postacią nie jest połączony, by głosować.",
       "notOpen": "Żadne głosowanie nie jest otwarte.",
@@ -1760,7 +1760,7 @@
       "remind": "Wyślij kartę ponownie ({n})",
       "reminded": {
         "one": "{n} gracz ma świeżą kartę.",
-        "few": "{n} graczy ma świeżą kartę.",
+        "few": "{n} gracze mają świeżą kartę.",
         "many": "{n} graczy ma świeżą kartę.",
         "other": "{n} graczy ma świeżą kartę."
       },
@@ -1782,7 +1782,7 @@
       },
       "barLine": "Wróciło kart: {returned} z {issued} - do skazania potrzeba {majority}.",
       "verdictTitle": "Werdykt",
-      "verdictIntro": "Tylko ty wiesz, czy trafili. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik.",
+      "verdictIntro": "Tylko ty wiesz, czy stół trafił. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik.",
       "executed": "Kto zostaje stracony",
       "blackened": "Kto naprawdę jest Blackened",
       "verdictNote": "Trafnie: Blackened zostaje stracony, gdy rozprawa się skończy, a ocaleni dostają Level Up. Błędnie, a remis liczy się jak błąd: stracony, gdy rozprawa się skończy, zostaje oskarżony, Blackened zostaje w grze z Reinforced Level Up i nową zasadą, a każdy Monokuma napełnia swój Despair.",
@@ -2000,7 +2000,7 @@
         "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zakończysz morderstwo - zakończenie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała."
       },
       "stressBack": "Odzyskujesz {n} Sanity.",
-      "refundUnheld": "Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt MG nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie.",
+      "refundUnheld": "Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt GM-a nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie.",
       "freeAttempt": "Ta próba nie kosztuje Sanity: zapłacił za nią krytyczny Finishing Blow.",
       "trailPlanted": "Podłożono Prep Remnant ({visibility}) wskazujący na postać {name}.",
       "authorsCopy": "Znasz ten Remnant: jest na twoim arkuszu.",
@@ -3271,7 +3271,7 @@
       "noItems": "Nikt nie nosi niczego, co dałoby się zniszczyć.",
       "armed": "{name} może teraz użyć {what} przy następnym rzucie.",
       "damaged": "{name} przyjmuje {what}.",
-      "sealed": "{room} zapieczętowany na tę porę dnia.",
+      "sealed": "Pokój {room} jest zapieczętowany na tę porę dnia.",
       "gathered": {
         "one": "{n} postać przeniesiona do pokoju {room}.",
         "few": "{n} postacie przeniesione do pokoju {room}.",
@@ -3330,7 +3330,7 @@
       "progressedTo": "{name} jest teraz na {current}/{target}.",
       "progressSent": "{name}: {n} postępu wysłano do GM-a.",
       "overflowFed": "{n} Despair wlane do overflow.",
-      "progressRefused": "{name} nie przyjął postępu - jest już ukończony.",
+      "progressRefused": "Projekt {name} nie przyjmuje postępu: jest już ukończony.",
       "hopeGranted": "{name} zyskuje {n} Hope.",
       "cannotAfford": "Nie masz na to dość.",
       "silencedBadge": "Uciszony",
@@ -3588,7 +3588,7 @@
       "refundedNoPrice": "GM-owie nie widzieli, żeby cokolwiek kosztowało, więc nic więcej nie wraca - zapytaj GM-a, jeśli coś cię kosztowało.",
       "locked": "Drzwi są zamknięte.",
       "noStairs": "Stąd ({from}) nie prowadzą na to piętro żadne schody.",
-      "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
+      "dead": "Ta postać nie żyje. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {
       "pickTrait": "- wybierz statystykę -",
@@ -5610,7 +5610,7 @@
         "titleCast": "Dokąd trafiła obsada po resecie sezonu",
         "stayed": "Zostali na miejscu: {names}.",
         "titleLeft": "Co reset sezonu zostawił na kartach",
-        "experiences": "Doświadczenia zostawione na kartach - ich karta startowa została zapisana, zanim moduł odróżniał doświadczenie z awansu od dopisanego przez MG, i nie ma w niej żadnego: {list}."
+        "experiences": "Doświadczenia zostawione na kartach - ich karta startowa została zapisana, zanim moduł odróżniał doświadczenie z awansu od dopisanego przez GM-a, i nie ma w niej żadnego: {list}."
       },
       "section": {
         "case": "Sprawa",

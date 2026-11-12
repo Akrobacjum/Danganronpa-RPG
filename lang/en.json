@@ -1638,8 +1638,8 @@
       "resendUnseen": "This browser does not hold the GMs' copy of this vote's ballots, so it cannot tell how many have come back - the primary GM counts them. Starting over throws away any that have and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead.",
       "banner": "THE VOTE IS OPEN",
       "opened": {
-        "one": "One ballot is out. Name who you believe is the Blackened.",
-        "other": "{n} ballots are out. Name who you believe is the Blackened."
+        "one": "One ballot is out. Each player names who they believe is the Blackened.",
+        "other": "{n} ballots are out. Each player names who they believe is the Blackened."
       },
       "noVoters": "No player is connected with a character to vote.",
       "notOpen": "No vote is open.",

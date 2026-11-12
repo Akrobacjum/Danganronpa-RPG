@@ -17,7 +17,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 
 | Area | en | pl | Handbook lines | Rules |
 | --- | --- | --- | --- | --- |
-| spelling | 42 | 8 | 2 (GM section 2, a copy of `Season.roomGuide`) | EN1/DB9 (American spelling), glossary `window-room-setup`, PL-i/D33c (`gm-a`), PL-f/DB30 (`safeword`) |
+| spelling | 42 | 11 | 2 (GM section 2, a copy of `Season.roomGuide`) | EN1/DB9 (American spelling), glossary `window-room-setup`, PL-i/D33c (`gm-a`, and three "MG"), PL-f/DB30 (`safeword`) |
 | naturalness pairs | 0 | 54 | 0 | the 60 pairs of docs/text-style.md section 12, approved by the owner on E65-PILOT-R2 (01.11.2026): 48 that still stood in their key and were not frozen, and 6 plural siblings written in the same shape (PL7) |
 | pilot afters | 28 | 33 | 0 | the 40 strings of docs/dev/text-pilot.json, approved by the owner (verdict "ok", 01.11.2026): every after that had not landed and whose key is neither frozen nor config prose |
 | X12 colons (PL) | 0 | 88 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
@@ -29,7 +29,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | X1 refusals | 7 | 5 | 0 | X1 (confirmed in the pilot) and O8: "You keep your action/Hope" instead of "Nothing was spent"; pairs N28-N30 the model |
 | X10 fillers | 7 | 5 | 2 (GM section 2's copy of `Season.roomGuide`, EN and PL) | X10 (confirmed in the pilot): "simply", "actually", "just" as a filler, „po prostu”, „naprawdę” as a filler; "just" meaning "a moment ago" and "actually" setting truth against appearance (`TruthBullet.reallyTooltip`) stay |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
-| Polish grammar | 0 | 14 | 7 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial") | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter) |
+| Polish grammar | 2 | 23 | 7 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial") | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
 ## Text rules exercised ("to confirm in E71"), and the outcome
 
@@ -87,6 +87,7 @@ edited unless the row says so.
 | 12.11, run i | 190142fc and the X1 refusals | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run j | 721d6170 and the X10 edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run k | 9e4c7be1 and seven more X12 values | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run l | 7f2a51eb and the Vote, Calls and MG edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
