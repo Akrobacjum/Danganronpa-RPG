@@ -2517,22 +2517,22 @@ export const OVERFLOW = {
          * THE FIVE OF THE ROOM ACTIONS (E93 C6, 12.11.2026; the owner's audit entry E93 (6): Sabotage and Spoilage
          * rejected). Each a state read where a room action or a rest is judged - on the user's browser, which greys
          * the row, and on the primary GM, which refuses it (facilities-gm.mjs `handleFacilityUse`, sheet-audit.mjs
-         * `restCovers`). OUT OF THE HAT UNTIL A GM TICKS THEM: five more in a hat of eight would make each of the old
-         * eight drawn little more than half as often at every table that never asked for these, so a world keeps
-         * the darkenings it had until its GM ticks one (default taken, the owner to confirm: docs/dev/e93/STATUS.md).
+         * `restCovers`). IN THE HAT BY DEFAULT (the owner's DRPG-D1 answer, 12.11.2026: "Wlaczone w losowaniu"), which
+         * was a default the other way until then: with five more in the draw, each older darkening comes up less often, as
+         * the handbooks say. A GM unticks any of them in Despair Flow.
          */
         /** Lockdown: every room action off for the time of day (the rests stay). */
-        lockdown: { kind: "state", on: false, reader: "facility.use" },
+        lockdown: { kind: "state", on: true, reader: "facility.use" },
         /** Insomnia: no Short rest this time of day. The Long rest stays. */
-        insomnia: { kind: "state", on: false, reader: "restVariants" },
+        insomnia: { kind: "state", on: true, reader: "restVariants" },
         /** Toll: every room action costs `by` more actions; a project's action that costs none costs `by` (08.11). */
         /*  `adds`: a size that raises a price rather than taking a number down, so no floor is under it (tier 1's
             "never below its floors" asks a floor of every state that subtracts). */
-        toll: { kind: "state", on: false, by: 1, adds: true, reader: "facilityCost" },
+        toll: { kind: "state", on: true, by: 1, adds: true, reader: "facilityCost" },
         /** Jitters: a GM's room action is rolled with a die of disadvantage. */
-        jitters: { kind: "state", on: false, reader: "situation" },
+        jitters: { kind: "state", on: true, reader: "situation" },
         /** Power cut: the completed projects' actions off for the time of day; the GM's actions stay. */
-        powercut: { kind: "state", on: false, reader: "facility.use" },
+        powercut: { kind: "state", on: true, reader: "facility.use" },
 
         /* ---- events: done once, at the moment of firing ------------------ */
 

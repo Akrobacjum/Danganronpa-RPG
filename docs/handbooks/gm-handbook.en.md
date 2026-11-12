@@ -407,16 +407,16 @@ Two GMs are normal. One of them is the **primary GM** (the connected full Gamema
 | Despair | state | No Hope is earned; spending what you hold still works |
 | Silence | state | No Hope Calls, by anybody |
 | Fog | state | No Free Move; crossings still cost actions |
-| Lockdown | state | No room actions in the Facilities tile; the rests still work. Off until you tick it |
-| Insomnia | state | No Short Rest; the Long Rest still works. Off until you tick it |
-| Toll | state | Every room action costs 1 more action (the size), also a project's that costs none. Off until you tick it |
-| Jitters | state | The rolls of your room actions are at disadvantage. Off until you tick it |
-| Power cut | state | No actions from completed projects; your room actions still work. Off until you tick it |
+| Lockdown | state | No room actions in the Facilities tile; the rests still work |
+| Insomnia | state | No Short Rest; the Long Rest still works |
+| Toll | state | Every room action costs 1 more action (the size), also a project's that costs none |
+| Jitters | state | The rolls of your room actions are at disadvantage |
+| Power cut | state | No actions from completed projects; your room actions still work |
 | Rot | one-off | Every item with more than one point of durability left loses 1; nothing breaks |
 | Earthquake | one-off | Every project not yet finished and not frozen loses 1 progress |
 
 > [!TIP]
-> Untick all thirteen and the counter climbs and never fires - a real setting, the counter as atmosphere. The five of the room actions (Lockdown to Power cut, since 1.2.112) start unticked, so a world keeps the hat it had until you put them in.
+> Untick all thirteen and the counter climbs and never fires - a real setting, the counter as atmosphere. The five of the room actions (Lockdown to Power cut, since 1.2.113) start ticked, in the draw like the rest, so each older effect now comes up less often: the draw is even, so with all thirteen ticked each one is 1 in 13 where the eight were 1 in 8. Untick the five to keep the hat you had.
 
 **A trial verdict empties the overflow** on both outcomes; the season reset does too. A darkening announced during the Class Trial still comes: its card says from the next time of day, the verdict keeps it waiting, and the next time of day - or the Eclipse that opens it - brings it, with nothing paid again and no second card. The season reset clears that one as well. Players see the pools' counts and the overflow's threshold, but a "?" in place of its count ("?/20") - when the hat fires stays Monokuma's to know. Since 1.2.64 the count itself is kept by the GMs (section 14), so a console reads no more of it than the screen shows; Despair Flow shows it to you.
 

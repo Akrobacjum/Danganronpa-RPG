@@ -85,7 +85,7 @@ The owner's answers on the decisions page DRPG-D1, 12.11.2026, through the coord
 - Q-E93-6, "Akcja projektu tez zostawia slad": a project's room action leaves a faint Subtle trace too; the rests none.
   **Built** (E93-T4).
 - The five new Overflow states, "Wlaczone w losowaniu": they start ticked, in the draw by default; the handbooks say each
-  older state now comes up less often. In progress.
+  older state now comes up less often. **Built** (R3753).
 - A secret project's insiders, "Dostaja": they get its action, on their browsers only. In progress.
 - Q-E93-3, "Dodajemy teraz": the timed effects and the effects that needed a new mechanism. In progress.
 
@@ -94,6 +94,7 @@ The owner's answers on the decisions page DRPG-D1, 12.11.2026, through the coord
 | Part | What | Red | Green |
 | --- | --- | --- | --- |
 | Q-E93-6 | every use of a room action leaves a faint Subtle trace, a project's too (bridge-runs-acts.mjs `handleFacilityUse`); handbooks EN and PL | E93-T4 at 1584394: traces [] | E93-T1..T4 8 passed (4 tests and the runner's 4 checks) |
+| The five states | Lockdown, Insomnia, Toll, Jitters and Power cut in the draw by default (config.mjs `OVERFLOW.effects`, `on: true`); GM handbook EN and PL: each older effect now 1 in 13 where the eight were 1 in 8 (the draw is even) | R3753 at 68e4e88: catalogue `on` false | R3753, E15-T4, every test named "verflow" and E93-T*: 41 ran, 45 passed, 0 failed |
 
 ## Not built in this round (said, not hidden)
 

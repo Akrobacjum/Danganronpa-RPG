@@ -46976,7 +46976,8 @@ const INVARIANTS = [
             said: lang.map(said)
         };
         equal(stableJson(read), stableJson({
-            catalogue: [["state", false, null], ["state", false, null], ["state", false, 1], ["state", false, null], ["state", false, null]],
+            // In the draw by default (the owner's DRPG-D1 answer, 12.11.2026: "Wlaczone w losowaniu"), out of it until then.
+            catalogue: [["state", true, null], ["state", true, null], ["state", true, 1], ["state", true, null], ["state", true, null]],
             states: ['{"lockdown":true,"powercut":false}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}',
                 '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":true}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}'],
             toll: [2, 0, 0], rest: [true, false, false], jitters: [-1, 0, 0], said: [true, true]

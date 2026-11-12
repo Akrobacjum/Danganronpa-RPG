@@ -407,16 +407,16 @@ Dwóch GM-ów to norma. Jeden z nich jest **głównym GM-em** (połączony pełn
 | Despair | stan | Nie zdobywa się Hope; wydawanie tego, co masz, działa |
 | Silence | stan | Żadnych Hope Calls, u nikogo |
 | Fog | stan | Brak Free Move; przejścia wciąż kosztują akcje |
-| Lockdown | stan | Żadnych akcji w pokojach w kafelku Facilities; odpoczynki działają. Wyłączony, dopóki go nie zaznaczysz |
-| Insomnia | stan | Brak Short Rest; Long Rest działa. Wyłączony, dopóki go nie zaznaczysz |
-| Toll | stan | Każda akcja w pokoju kosztuje o 1 akcję więcej (rozmiar), także akcja projektu, która nic nie kosztuje. Wyłączony, dopóki go nie zaznaczysz |
-| Jitters | stan | Rzuty na twoje akcje w pokojach są z utrudnieniem. Wyłączony, dopóki go nie zaznaczysz |
-| Power cut | stan | Żadnych akcji z ukończonych projektów; twoje akcje w pokojach działają. Wyłączony, dopóki go nie zaznaczysz |
+| Lockdown | stan | Żadnych akcji w pokojach w kafelku Facilities; odpoczynki działają |
+| Insomnia | stan | Brak Short Rest; Long Rest działa |
+| Toll | stan | Każda akcja w pokoju kosztuje o 1 akcję więcej (rozmiar), także akcja projektu, która nic nie kosztuje |
+| Jitters | stan | Rzuty na twoje akcje w pokojach są z utrudnieniem |
+| Power cut | stan | Żadnych akcji z ukończonych projektów; twoje akcje w pokojach działają |
 | Rot | jednorazowy | Każdy przedmiot z więcej niż jednym punktem wytrzymałości traci 1; nic się nie łamie |
 | Earthquake | jednorazowy | Każdy projekt jeszcze nieukończony i niezamrożony traci 1 postępu |
 
 > [!TIP]
-> Odznacz wszystkie trzynaście, a licznik rośnie i nigdy nie odpala - prawdziwe ustawienie, licznik jako klimat. Pięć efektów akcji w pokojach (od Lockdown do Power cut, od 1.2.112) startuje odznaczonych, więc świat ma kapelusz, jaki miał, dopóki ich do niego nie włożysz.
+> Odznacz wszystkie trzynaście, a licznik rośnie i nigdy nie odpala - prawdziwe ustawienie, licznik jako klimat. Pięć efektów akcji w pokojach (od Lockdown do Power cut, od 1.2.113) startuje zaznaczonych, w losowaniu jak reszta, więc każdy starszy efekt wypada teraz rzadziej: losowanie jest równe, więc przy wszystkich trzynastu zaznaczonych każdy to 1 na 13, gdzie osiem było 1 na 8. Odznacz te pięć, by zachować dawny kapelusz.
 
 **Werdykt Class Trial opróżnia overflow** przy obu wynikach; reset sezonu też. Zaciemnienie ogłoszone w trakcie Class Trialu i tak przychodzi: jego karta mówi, że od następnej pory dnia, werdykt zostawia je czekające, a następna pora dnia - albo otwierający ją Eclipse - je przynosi, bez ponownej opłaty i bez drugiej karty. Reset sezonu czyści i je. Gracze widzą liczby w pulach i próg overflow, ale "?" zamiast jego licznika ("?/20") - kiedy kapelusz wystrzeli, wie tylko Monokuma. Od 1.2.64 sam licznik trzymają GMowie (sekcja 14), więc konsola nie przeczyta z niego więcej, niż pokazuje ekran; tobie pokazuje go Despair Flow.
 
