@@ -32604,6 +32604,7 @@ const INVARIANTS = [
         must(student, "no student in the world - the refusal below would ask nothing");
         const refused = typeof M.lockLair === "function" ? await M.lockLair({ actorId: student.id, lock: true }, { asker: { id: "R3819NOBODY", isGM: false } }) : null;
         const row = BRIDGE_ACTIONS["mastermind.lairLock"] ?? null;
+        // Three guards since 1.2.110 (merged 12.11.2026): knownSender, the Spectator guard R3865 holds every player row to, owns.
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
         equal(J({
             writer: typeof V.writeRoomLock === "function",
@@ -32612,7 +32613,7 @@ const INVARIANTS = [
             refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
             row: row ? [row.answer, typeof row.run === "function", (row.guards ?? []).length, Object.keys(row.claims ?? {})] : null,
             words: [game.i18n.localize("DRPG.Bridge.what.mastermind.lairLock") !== "DRPG.Bridge.what.mastermind.lairLock", typeof pl?.DRPG?.Bridge?.what?.["mastermind.lairLock"] === "string"]
-        }), J({ writer: true, setup: true, lair: true, refused: true, row: ["reply", true, 2, []], words: [true, true] }),
+        }), J({ writer: true, setup: true, lair: true, refused: true, row: ["reply", true, 3, []], words: [true, true] }),
             "the lair's lock is not the GM's lock through one writer ([vault-store.mjs writeRoomLock, Room Setup calls it and writes the lock no other way, "
             + "lockLair calls it, a non-Mastermind asker refused with nothing carried out, the bridge's row [answer, run, guards, claims], its words EN/PL])");
     }],
@@ -32636,6 +32637,7 @@ const INVARIANTS = [
         const refused = typeof P.sealLairPassage === "function"
             ? await P.sealLairPassage({ actorId: student.id, passageId: "R3820NOPASSAGE" }, { asker: { id: "R3820NOBODY", isGM: false } }) : null;
         const row = BRIDGE_ACTIONS["passage.lairSeal"] ?? null;
+        // Three guards since 1.2.110 (merged 12.11.2026): knownSender, the Spectator guard R3865 holds every player row to, owns.
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
         const drawn = flag => {
             const li = S.knownPassageItem({ passage: { id: "R3820P" }, label: "R3820 A - R3820 B", shut: false, way: null, seal: flag });
@@ -32649,7 +32651,7 @@ const INVARIANTS = [
             words: [game.i18n.localize("DRPG.Bridge.what.passage.lairSeal") !== "DRPG.Bridge.what.passage.lairSeal", typeof pl?.DRPG?.Bridge?.what?.["passage.lairSeal"] === "string"],
             drawn: [drawn(true), drawn(false)],
             rooms: /rows\.push\(\{[^}]*\brooms\b/.test(sides)
-        }), J({ close: true, refused: true, row: ["reply", true, 2, ["passageId"]], words: [true, true], drawn: [true, false], rooms: true }),
+        }), J({ close: true, refused: true, row: ["reply", true, 3, ["passageId"]], words: [true, true], drawn: [true, false], rooms: true }),
             "the Mastermind's seal is not the tab's close ([the close and the side's judge, a non-Mastermind asker refused, the bridge's row, its words EN/PL, "
             + "Seal drawn with and without the row's mark, the rows' rooms])");
     }],
@@ -51733,10 +51735,12 @@ const INVARIANTS = [
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*
          * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two
-         * comments that spell it are counted as they stand). Green from C0: the count is the census's own.
+         * comments that spell it are counted as they stand). Green from C0: the count is the census's own. Merged with E72
+         * (1.2.110, 12.11.2026): gm-stores.mjs 3 (`fogSectionFor`'s Monocubs, E72 C10) and monocub.mjs 2 (the old Monocubs
+         * window's roster of the dead went with it, E72 C6), classified in CENSUS.md.
          */
         const CENSUS = { "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1,
-            "fog.mjs": 5, "gm-stores.mjs": 2, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 3, "monokuma.mjs": 9,
+            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
             "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
