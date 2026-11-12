@@ -13745,10 +13745,12 @@ const INVARIANTS = [
         equal(JSON.stringify([table, gmTable, ranked, control, ["eclipse:true", "eclipseHeard:false"].includes(spied), reads.includes(murder),
             ["accountRow", "voiceRowFor", "voiceClaim"].every(name => reached.includes(name)), gmReads,
             /^export function moduleHoldsMic\([^]*?\) \{\s*if \(!game\.user\?\.isGM \|\| !user\) return null;/.test(fnSource(voice, "moduleHoldsMic"))]),
+        // CHANGED ON PURPOSE BY E72 C8 (12.11.2026; DC19, DC30, DC38): a dead student the table knows, outside the trial, is
+        // held ("deadKnown"), on the player's tile and in the GM's list; until E72 the module held them only in the trial.
         JSON.stringify([
             ["eclipse:true", "eclipse:true", null, null, null, null, "eclipseHeard:false", "gmBlock:false", "gmBlock:false", "eclipse:true",
-                "external:false", "offline:false", null, "eclipseHeard:false", "eclipse:true"],
-            ["secretDead:true", null, null, null, null],
+                "external:false", "offline:false", "deadKnown:true", "eclipseHeard:false", "eclipse:true"],
+            ["secretDead:true", "deadKnown:true", null, null, null],
             [["R537A2", "R537B2", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true],
             true, true, false, true, [], true]),
         "[micHold: own Eclipse room, with no character; a GM in the GMs' room; another's Eclipse room; a room; told nothing; a Monocub there; blocked there; "

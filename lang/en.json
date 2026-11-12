@@ -4653,6 +4653,7 @@
         "connecting": "Joining your voice channel.",
         "connected": "Connected to your voice channel.",
         "deadMuted": "Your character is dead: you listen to the trial, and your microphone stays off until it ends.",
+        "deadKnown": "Your character is dead: you can listen, and your microphone stays off.",
         "cubSpeak": "Discussion: you may speak.",
         "cubListen": "Mode: {mode}. You listen.",
         "cubVote": "The vote: you listen.",

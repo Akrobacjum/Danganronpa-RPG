@@ -5067,6 +5067,7 @@
         "connecting": "Trwa dołączanie do kanału głosowego.",
         "connected": "Połączono z kanałem głosowym.",
         "deadMuted": "Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.",
+        "deadKnown": "Twoja postać nie żyje: możesz słuchać, a twój mikrofon jest wyłączony.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
