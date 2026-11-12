@@ -854,12 +854,20 @@ const game = {
         api: {
             // Daggerheart's own roll and dice, put here at boot (`installDualityRoll`, E33 C2a).
             dice: {},
-            // What Daggerheart's relay calls for a save (saveField.mjs, 2.10.5):
-            // the same one write, so the relay copied into lib/dh-relay.mjs runs as is.
-            fields: { ActionFields: { SaveField: { updateSaveMessage: async (result, message, targetId) => {
-                if (!result) return;
+            // What Daggerheart's relay calls for a save: the same one write, so the relay copied into
+            // lib/dh-relay.mjs runs as is. Two signatures (E76, 12.11.2026): up to 2.12.4
+            // `(result, message, targetId)` (saveField.mjs, 2.10.5), from 2.12.5
+            // `(saveTotal, isCritical, message, targetId)`, which returns on a null total and writes
+            // `Boolean(isCritical)` (saveField.mjs:149-156, 2.12.8, read with `git show` on the tag). Told
+            // apart by the first argument: an object is the old result, anything else the new total.
+            fields: { ActionFields: { SaveField: { updateSaveMessage: async (...args) => {
+                const old = args[0] !== null && typeof args[0] === "object";
+                const [value, isCritical, message, targetId] = old
+                    ? [args[0]?.roll?.total, args[0]?.roll?.isCritical, args[1], args[2]]
+                    : [args[0], Boolean(args[1]), args[2], args[3]];
+                if (old ? !args[0] : value === null || value === undefined) return;
                 await game.messages.get(message?._id ?? message?.id)?.update({
-                    [`system.targetSaves.${targetId}`]: { value: result.roll.total, isCritical: result.roll.isCritical }
+                    [`system.targetSaves.${targetId}`]: { value, isCritical }
                 });
             } } } }
         },
