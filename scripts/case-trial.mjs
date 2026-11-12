@@ -33,12 +33,12 @@ const L = key => game.i18n.localize(key);
 const WINDOW_CLASS = "drpg-window-case-trial";
 
 /** One row beside the graph: the tick box and, where the node's mode has a start, its button. */
-function tickRow(node, { ticked, hinted, floorOpen }) {
+function tickRow(node, { ticked, hinted, floorOpen, noTrial = false }) {
     const name = node.label || node.name || L("DRPG.CaseMap.noName");
     const start = node.mode ? MODE_STARTS[node.mode] : null;
     const button = start?.action
         ? `<button type="button" class="drpg-case-trial-start" data-drpg-node="${esc(node.id)}" data-drpg-case-start="${esc(start.action)}" data-drpg-mode="${esc(node.mode)}"`
-            + `${floorOpen ? ` disabled title="${esc(L("DRPG.CaseTrial.floorOpen"))}"` : ""}>${esc(modeLabel(node.mode))}</button>`
+            + `${noTrial || floorOpen ? ` disabled title="${esc(L(noTrial ? "DRPG.CaseTrial.noTrial" : "DRPG.CaseTrial.floorOpen"))}"` : ""}>${esc(modeLabel(node.mode))}</button>`
         : "";
     return `<li class="drpg-case-trial-row${hinted ? " is-hinted" : ""}"><label class="drpg-case-trial-tick">`
         + `<input type="checkbox" data-drpg-case-tick="${esc(node.id)}"${ticked ? " checked" : ""}>`
@@ -51,7 +51,7 @@ function tickRow(node, { ticked, hinted, floorOpen }) {
  * Pure over its state: `{ graph, layout, ticks, presented, hints, unknown, floorOpen }` (`trialSchemaState`). The
  * graph, then the rows; the unknown cards' line when any card named no Remnant of the schema.
  */
-export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false } = {}) {
+export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, noTrial = false } = {}) {
     const nodes = graph?.nodes ?? [];
     if (!nodes.length) return `<p class="notes">${esc(L("DRPG.CaseTrial.empty"))}</p>`;
     const hinted = new Set(hints);
@@ -59,7 +59,7 @@ export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hin
     for (const id of presented) marks[id] = ["presented"];
     for (const id of hints) marks[id] = [...(marks[id] ?? []), "hinted"];
     for (const [id, on] of Object.entries(ticks ?? {})) if (on === true) marks[id] = [...(marks[id] ?? []), "ticked"];
-    const rows = nodes.filter(n => !n.evidence).map(n => tickRow(n, { ticked: ticks?.[n.id] === true, hinted: hinted.has(n.id), floorOpen })).join("");
+    const rows = nodes.filter(n => !n.evidence).map(n => tickRow(n, { ticked: ticks?.[n.id] === true, hinted: hinted.has(n.id), floorOpen, noTrial })).join("");
     return `<div class="drpg-case-trial">`
         + `<div class="drpg-case-graph">${caseGraphHtml({ graph, layout, fold: true, marks, label: L("DRPG.CaseTrial.title") })}</div>`
         + `<div class="drpg-case-trial-side"><p class="notes">${esc(L("DRPG.CaseTrial.intro"))}</p>`
@@ -74,7 +74,9 @@ export function trialSchemaState(chapter = getClock().chapter) {
     // The culprit the hints leave out, as the Map's reach does (investigation.mjs `caseCulprit`).
     const culpritId = caseCulprit(chapter);
     const { presented, hints, unknown } = presentationHints(graph, casePresentations(chapter), { culpritId, ticks });
-    return { graph, layout: layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual }), ticks, presented, hints, unknown, floorOpen: Boolean(trialFloor()) };
+    return { graph, layout: layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual }), ticks, presented, hints, unknown, floorOpen: Boolean(trialFloor()),
+        // No start outside a running Class Trial, as the console offers none then (trial-floor.mjs `readTrial`'s `running`)
+        noTrial: getClock().phase !== "classTrial" };
 }
 
 /** A tick from the window (any GM; Q-E99-8): answers the store's row, or null on a player. */
@@ -83,7 +85,56 @@ export async function tickFromSchema(chapter, nodeId, ticked) {
     return setCaseTick(chapter, nodeId, Boolean(ticked));
 }
 
-/** THE WINDOW (C5): one at a time, a GM's; redrawn when the schema, the ticks, the floor or a Present card change. */
+/**
+ * THE HOOK IN THE TRIAL CONSOLE (E99 C5 placed, 12.11.2026; the owner's answer to Q-E99-1 as the coordinator relayed it:
+ * the schema in the middle of the Class Trial screen, the trial's status on top and its management at the bottom). The
+ * console draws one empty element with this attribute in its middle, outside its own live read-out (which redraws
+ * every second while a floor runs), and calls `mountTrialSchema` on it at render. E73's console (mockup B) keeps the
+ * same hook; the window below stays as a second way to the same schema.
+ */
+export const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
+
+/* The schema's region in `dialog` kept live on its own watches, its boxes and starts wired; answers the stop. */
+function liveSchema(dialog, chapter) {
+    const regionOf = () => dialog.element?.querySelector(".drpg-case-trial-live");
+    const wire = () => {
+        const region = regionOf();
+        for (const box of region?.querySelectorAll("input[data-drpg-case-tick]") ?? []) {
+            box.addEventListener("change", () => {
+                tickFromSchema(chapter, box.dataset.drpgCaseTick, box.checked).catch(err => error("The tick was not written", err));
+            });
+        }
+        for (const button of region?.querySelectorAll("[data-drpg-case-start]") ?? []) {
+            button.addEventListener("click", async () => {
+                const { startTrialMode } = await import("./trial-floor-ui.mjs");
+                await startTrialMode(button.dataset.drpgCaseStart).catch(err => error("The trial mode did not start", err));
+            });
+        }
+    };
+    wire();
+    return keepLive(dialog, {
+        region: ".drpg-case-trial-live",
+        build: () => trialSchemaHtml(trialSchemaState(chapter)),
+        watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
+        after: wire
+    });
+}
+
+/**
+ * Fills the console's slot (TRIAL_SCHEMA_SLOT) with this chapter's schema and keeps it live: on a GM, once per slot.
+ * Answers the stop, or null where there is nothing to fill. keepLive stops itself when the window closes.
+ */
+export function mountTrialSchema(dialog) {
+    if (!game.user?.isGM) return null;
+    const slot = dialog?.element?.querySelector(TRIAL_SCHEMA_SLOT);
+    if (!slot || slot.dataset.drpgMounted) return null;
+    slot.dataset.drpgMounted = "1";
+    const chapter = getClock().chapter;
+    slot.innerHTML = `<div class="drpg-case-trial-live">${trialSchemaHtml(trialSchemaState(chapter))}</div>`;
+    return liveSchema(dialog, chapter);
+}
+
+/** THE WINDOW (C5; the second way since the console holds the schema): one at a time, a GM's. */
 export async function openTrialSchema() {
     if (!game.user?.isGM) return null;
     if (alreadyOpen(WINDOW_CLASS)) return RAISED;
@@ -95,28 +146,7 @@ export async function openTrialSchema() {
         width: WIDE.width,
         body: `<div class="drpg-case-trial-live">${trialSchemaHtml(trialSchemaState(chapter))}</div>`,
         footer: { close: { role: "close", action: "close" } },
-        render: (event, dialog) => {
-            const wire = () => {
-                for (const box of dialog.element?.querySelectorAll("input[data-drpg-case-tick]") ?? []) {
-                    box.addEventListener("change", () => {
-                        tickFromSchema(chapter, box.dataset.drpgCaseTick, box.checked).catch(err => error("The tick was not written", err));
-                    });
-                }
-                for (const button of dialog.element?.querySelectorAll("[data-drpg-case-start]") ?? []) {
-                    button.addEventListener("click", async () => {
-                        const { startTrialMode } = await import("./trial-floor-ui.mjs");
-                        await startTrialMode(button.dataset.drpgCaseStart).catch(err => error("The trial mode did not start", err));
-                    });
-                }
-            };
-            wire();
-            live = keepLive(dialog, {
-                region: ".drpg-case-trial-live",
-                build: () => trialSchemaHtml(trialSchemaState(chapter)),
-                watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
-                after: wire
-            });
-        },
+        render: (event, dialog) => { live = liveSchema(dialog, chapter); },
         rejectClose: false
     }).finally(() => live?.stop?.());
 }

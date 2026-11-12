@@ -1502,9 +1502,15 @@ export async function manageClassTrial() {
         // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content), the text column the whole of it.
         width: "console",
         title: game.i18n.localize("DRPG.Floor.manageTrial"),
-        body: buildConsole(),
+        /* The case schema in the console's middle (E99 C5; the owner's answer to Q-E99-1): the read-out on top, the
+           schema's slot under it and outside the read-out's region, the footer's management at the bottom.
+           case-trial.mjs fills the slot and keeps it live on its own watches, so the read-out's second-by-second
+           redraw leaves it alone. E73's console keeps the hook (case-trial.mjs TRIAL_SCHEMA_SLOT). */
+        body: `${buildConsole()}<div class="drpg-trial-schema" data-drpg-trial-schema></div>`,
         footer: consoleFooter(view),
         render: (event, dialog) => {
+            import("./case-trial.mjs").then(m => m.mountTrialSchema(dialog))
+                .catch(err => error("The case schema could not be drawn in the trial console", err));
             const live = keepLive(dialog, {
                 region: ".drpg-trial-console",
                 build: buildConsole,

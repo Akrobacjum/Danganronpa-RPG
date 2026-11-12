@@ -39722,6 +39722,64 @@ const SCENARIOS = [
         }
     }],
 
+    ["E99 C5: the case schema stands in the middle of the trial console, outside its ticking read-out, and its tick box writes the GMs' ticks", async () => {
+        /*
+         * E99 C5 placed (12.11.2026; the owner's answer to Q-E99-1 as the coordinator relayed it: the schema in the middle
+         * of the Class Trial screen, status on top, management at the bottom). The console holds the hook
+         * `[data-drpg-trial-schema]` (case-trial.mjs TRIAL_SCHEMA_SLOT) outside `.drpg-trial-console`, the read-out that
+         * redraws every second while a floor runs; case-trial.mjs fills it. Read with a debate's floor open: the slot is
+         * there and outside the read-out, it holds the planted deduction's tick box, the same box after the clock has
+         * moved (the schema is not redrawn by the second), greyed starts while the floor is open, and a click reaches
+         * the store. Red at c73f5d7: no slot.
+         */
+        const floorMod = await import("./trial-floor.mjs");
+        const ui2 = await import("./trial-floor-ui.mjs");
+        const S = await import("./case-schema.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        needs(env.dialogs(), "the console is read in its drawn window");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const chapter = clock.chapter;
+        const id = "deduction-suitee99slot";
+        try {
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 SLOT", mode: "testimony" });
+            await gmStoresIdle();
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({ seconds: 180 });
+            await settle();
+            ui2.manageClassTrial().catch(() => {});
+            const consoleApp = () => [...foundry.applications.instances.values()]
+                .find(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+            await until(() => consoleApp()?.element, 6000);
+            const app = consoleApp();
+            must(app?.element, "the trial console did not open");
+            const slot = () => app.element.querySelector("[data-drpg-trial-schema]");
+            must(slot(), "the console has no case schema slot ([data-drpg-trial-schema])");
+            const box = () => slot()?.querySelector(`input[data-drpg-case-tick="${id}"]`);
+            await until(() => box(), 4000);
+            const first = box();
+            const secondsOf = () => Number(app.element.querySelector(".drpg-trial-console")?.textContent.match(/(\d+)\s*s/)?.[1] ?? NaN);
+            const t0 = secondsOf();
+            await until(() => secondsOf() < t0, 4000);
+            const start = slot()?.querySelector(`[data-drpg-case-start][data-drpg-node="${id}"]`);
+            const kept = Boolean(first) && first === box() && first.isConnected;
+            box()?.click();
+            await until(() => S.caseTicks(chapter)[id] === true, 3000).catch(() => {});
+            equal(JSON.stringify({ outside: !slot().closest(".drpg-trial-console"), box: Boolean(first), ticked: secondsOf() < t0, kept,
+                startGreyed: Boolean(start?.disabled), stored: S.caseTicks(chapter)[id] === true }),
+            JSON.stringify({ outside: true, box: true, ticked: true, kept: true, startGreyed: true, stored: true }),
+            "{the slot outside the read-out; the deduction's tick box; the clock moved; the same box after it; the start greyed under the open floor; the click stored}");
+        } finally {
+            closeOpen("drpg-window-trial");
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await S.setCaseTick(chapter, id, false).catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await settle();
+        }
+    }],
+
     ["the trial console hears a ballot land", async () => {
         /*
          * F8's second half. With NO floor open the one-second tick returns early, so

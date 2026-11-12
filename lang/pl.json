@@ -7624,6 +7624,7 @@
       "intro": "Zaznacz wniosek, kontrę albo rozwiązanie, gdy klasa do niego dojdzie. Do podsumowania dla graczy trafiają tylko zaznaczone. Podpowiedź znaczy, że pokazane dowody by je uniosły.",
       "empty": "Ten rozdział nie ma jeszcze schematu sprawy. Zbuduj go na Mapie w panelu Investigation.",
       "floorOpen": "Trwa tryb rozprawy. Zamknij go, zanim zaczniesz kolejny.",
+      "noTrial": "Class Trial nie trwa. Zacznij go, zanim zaczniesz tryb.",
       "hint": "Podpowiedź: pokazane dowody to unoszą",
       "presented": "Pokazany",
       "ticked": "Zaznaczony",

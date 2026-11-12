@@ -8311,7 +8311,7 @@ const INVARIANTS = [
         must(src.length > 100, "case-hints.mjs read as nothing - this would measure nothing");
         equal(JSON.stringify(["setCaseTick", "caseTickStore", "setFlag", "update("].filter(w => src.includes(w))), "[]", "words of a write in case-hints.mjs");
     }],
-    ["R3665 - the trial's Case schema window, drawn (E99 C5; Q-E99-1, the plan's C5 census): case-trial.mjs `trialSchemaHtml` draws the graph read-only, a tick box on each deduction, counter and solution (none on evidence), each ticked one checked; every node whose trial mode has a start in trial-floor.mjs MODE_STARTS a start button with the mode's name, greyed with the console's reason while a floor is open; a mode raised by a player no button; the presented evidence and the hinted conclusions marked, and the cards with no Remnant said", async () => {
+    ["R3665 - the trial's Case schema window, drawn (E99 C5; Q-E99-1, the plan's C5 census): case-trial.mjs `trialSchemaHtml` draws the graph read-only, a tick box on each deduction, counter and solution (none on evidence), each ticked one checked; every node whose trial mode has a start in trial-floor.mjs MODE_STARTS a start button with the mode's name, greyed with the console's reason while a floor is open or no Class Trial runs (E99 C5 placed); a mode raised by a player no button; the presented evidence and the hinted conclusions marked, and the cards with no Remnant said", async () => {
         /* E99 C5, 12.11.2026. A planted state. Red at 9290ce0: no case-trial.mjs. */
         const T = await import("./case-trial.mjs").catch(() => null);
         must(T && typeof T.trialSchemaHtml === "function", "there is no case-trial.mjs trialSchemaHtml - the trial has no schema");
@@ -8320,9 +8320,9 @@ const INVARIANTS = [
         const node = (id, kind, extra = {}) => ({ id, kind, evidence: kind === "trace", name: id.toUpperCase(), label: id.toUpperCase(), ...extra });
         const graph = { chapter: 1, nodes: [node("e1", "trace"), node("e2", "trace"), node("d1", "deduction", { mode: "testimony" }), node("c1", "counter", { mode: "objection" }), node("s", "solution", { mode: "closing" })],
             edges: [["e1", "d1"], ["e2", "d1"], ["d1", "s"]].map(([from, to]) => ({ from, to, kind: "input" })).concat([{ from: "c1", to: "d1", kind: "refutes" }]) };
-        const draw = floorOpen => {
+        const draw = (floorOpen, noTrial = false) => {
             const box = document.createElement("div");
-            box.innerHTML = T.trialSchemaHtml({ graph, layout: layoutCase(graph), ticks: { d1: true }, presented: ["e1"], hints: ["s"], unknown: 2, floorOpen });
+            box.innerHTML = T.trialSchemaHtml({ graph, layout: layoutCase(graph), ticks: { d1: true }, presented: ["e1"], hints: ["s"], unknown: 2, floorOpen, noTrial });
             const starts = [...box.querySelectorAll("[data-drpg-case-start]")];
             return {
                 ticks: [...box.querySelectorAll("input[data-drpg-case-tick]")].map(i => `${i.dataset.drpgCaseTick}:${i.checked}`),
@@ -8335,10 +8335,11 @@ const INVARIANTS = [
         };
         const wanted = Object.entries(MODE_STARTS).filter(([, r]) => r.action).map(([m]) => m);
         must(wanted.includes("testimony") && wanted.includes("closing") && !wanted.includes("objection"), "MODE_STARTS has changed under this test - its plant reads no start");
-        equal(JSON.stringify([draw(false), draw(true)]), JSON.stringify([
+        equal(JSON.stringify([draw(false), draw(true), draw(false, true)]), JSON.stringify([
             { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:false:true", "s:startClosing:false:true"], reasons: [], presented: ["e1"], hinted: ["s"], unknown: 1 },
+            { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:true:true", "s:startClosing:true:true"], reasons: [true, true], presented: ["e1"], hinted: ["s"], unknown: 1 },
             { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:true:true", "s:startClosing:true:true"], reasons: [true, true], presented: ["e1"], hinted: ["s"], unknown: 1 }
-        ]), "[no floor open, a floor open]: tick boxes, start buttons (node:action:greyed:named), reasons on the greyed, marks, the unknown cards' line");
+        ]), "[no floor open, a floor open, no Class Trial running]: tick boxes, start buttons (node:action:greyed:named), reasons on the greyed, marks, the unknown cards' line");
     }],
     ["R3666 - Case schema from the console, and nothing for a player (E99 C5): the console's trialButtons offers `caseSchema` while a trial runs and after it, and TRIAL_ACTIONS opens case-trial.mjs `openTrialSchema`; a player's `openTrialSchema` and `tickFromSchema` open and write nothing; trial-floor-ui.mjs `startTrialMode` starts only what MODE_STARTS names", async () => {
         /* E99 C5, 12.11.2026. Read off the source and called on a planted player. Red at 9290ce0: no case-trial.mjs. */

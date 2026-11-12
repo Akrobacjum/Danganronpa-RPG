@@ -37,7 +37,9 @@ Red first: R3659-R3662 red at 1e1c61c (no MODE_STARTS, no caseTickStore, no case
   specificity). R3665, R3666, tier-2 "E99 C5" (a click on a tick box reaches the store, a second click takes it off).
   R1364 follows the console's footer. Probe 08 captures `case-trial`.
 
-**Deviation, owner to confirm (Q-E99-1).** The plan's default puts the schema in the console's middle, with the frame's
+**Q-E99-1, answered (12.11, about 11:00 Warsaw; the owner's "E99 tak" to the coordinator's question, relayed by the coordinator): the schema stands in the middle of the Class Trial screen.** Done after c73f5d7, below. What follows was the earlier deviation:
+
+**Deviation, owner to confirm (Q-E99-1), superseded.** The plan's default puts the schema in the console's middle, with the frame's
 button opening it larger. Here it is a window of its own from the console's footer: the console's body is a live region
 redrawn every second and its rebuild is E73's (the coordinator's line); `trialSchemaHtml` is the whole middle, so moving
 it there is one call once E73 has the layout. The plan's 86-frame-work risk (the SVG redrawn every second) does not
@@ -119,3 +121,21 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
   alone, the ticks unchanged. Written after the code, so not red first: its control is a mutant `casePresentations`
   that skips every card, under which it fails (and R3664 with it); restored. Seen on the way: the suite's shared
   `traceCopies` fixture places its trace with no chapter, so it is on no chapter's schema - this test places its own.
+
+## The schema in the console's middle (Q-E99-1 answered)
+
+- **The hook for E73**: the console's body holds `<div class="drpg-trial-schema" data-drpg-trial-schema></div>` after the
+  read-out (`.drpg-trial-console`, the region that redraws every second) and before the footer; the console's render
+  calls case-trial.mjs `mountTrialSchema(dialog)`, which fills the element (`TRIAL_SCHEMA_SLOT` =
+  `[data-drpg-trial-schema]`) and keeps it live on its own watches. **E73's mockup B keeps one element with that
+  attribute in its middle region, outside any region its own keepLive redraws, and the same `mountTrialSchema(dialog)`
+  call at render.** The CSS for the console's variant (one column: the graph at a stated height, the ticks under it) is
+  under `.drpg-window-trial` in components.css; E73 may restyle the slot's box.
+- The Case schema window stays as the second way (the footer's button).
+- A mode's start in the schema is greyed while no Class Trial runs as well (the console offers no start then).
+- Tier 2 "E99 C5: the case schema stands in the middle ...": red at c73f5d7 (no slot), green here - the slot outside
+  the read-out, the same tick box after the clock moved, starts greyed under an open floor, a click stored. R3665 grows
+  a third case (no trial running), changed with the code (not red first).
+- Round 3 (12.11.2026): https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC - the trial console with the schema in its
+  middle, both themes, EN and PL, 1366x768 and 1920x1080, no trial running. Not Foundry, and not yet E73's layout; at
+  1366x768 the tick list starts at the fold and scrolls with the console.
