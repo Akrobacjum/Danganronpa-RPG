@@ -86,7 +86,7 @@ The owner's answers on the decisions page DRPG-D1, 12.11.2026, through the coord
   **Built** (E93-T4).
 - The five new Overflow states, "Wlaczone w losowaniu": they start ticked, in the draw by default; the handbooks say each
   older state now comes up less often. **Built** (R3753).
-- A secret project's insiders, "Dostaja": they get its action, on their browsers only. In progress.
+- A secret project's insiders, "Dostaja": they get its action, on their browsers only. **Built** (scenario 33 E93-B).
 - Q-E93-3, "Dodajemy teraz": the timed effects and the effects that needed a new mechanism. In progress.
 
 ## This round's changes (the owner's DRPG-D1 answers, 12.11.2026)
@@ -95,6 +95,7 @@ The owner's answers on the decisions page DRPG-D1, 12.11.2026, through the coord
 | --- | --- | --- | --- |
 | Q-E93-6 | every use of a room action leaves a faint Subtle trace, a project's too (bridge-runs-acts.mjs `handleFacilityUse`); handbooks EN and PL | E93-T4 at 1584394: traces [] | E93-T1..T4 8 passed (4 tests and the runner's 4 checks) |
 | The five states | Lockdown, Insomnia, Toll, Jitters and Power cut in the draw by default (config.mjs `OVERFLOW.effects`, `on: true`); GM handbook EN and PL: each older effect now 1 in 13 where the eight were 1 in 8 (the draw is even) | R3753 at 68e4e88: catalogue `on` false | R3753, E15-T4, every test named "verflow" and E93-T*: 41 ran, 45 passed, 0 failed |
+| Insiders | a secret project's room action told to its insiders alone, on a veiled private card whose words and meta reach its readers alone (projects.mjs `tellFacility`, read on the insider's browser by facilities.mjs `toldFacility`), as its description is; an action taken off told as none; texts EN and PL | scenario 33 E93-B at 9eddf3d: p1 offered nothing | scenario 33 80/80 (E93-B: p1 offered and uses it; p2's browser: 0 messages, 0 settings name it); mutant sending the card to every player killed (p2: 1 message, 2 settings); tier 2 "secret project", "description", "E93-T", "E44": 78 ran, 81 passed, 0 failed, 1 skipped; tiers 0-1 1166 passed, 0 failed; scenario 72 124/128 (its 4 expected reds) |
 
 ## Not built in this round (said, not hidden)
 

@@ -33,6 +33,7 @@ import { SETTINGS, getClock } from "./settings.mjs";
 import { plural } from "./utils.mjs";
 import { roomFlag, writablePieces } from "./rooms.mjs";
 import { metaFor, secretsOf } from "./projects-secrecy.mjs";
+import { cardMeta } from "./secret.mjs";
 
 /* ==========================================================================
  * WHAT A GM TYPED, CLEANED
@@ -226,8 +227,29 @@ export async function setProjectFacility(projectId, raw) {
  */
 export function projectFacilityOf(projectId) {
     const meta = metaFor(projectId);
-    const raw = secretsOf(projectId).facility ?? meta.facility ?? null;
+    const raw = secretsOf(projectId).facility ?? meta.facility ?? (game.user?.isGM ? null : toldFacility(projectId));
     return { facility: raw ? cleanFacility(raw) : null, completedAt: meta.completedAt ?? null };
+}
+
+/** The meta key of a GM's private card that carries a secret project's room action to its insiders (projects.mjs `tellFacility`). */
+export const PROJECT_FACILITY_CARD = "projectFacility";
+
+/**
+ * A SECRET PROJECT'S ROOM ACTION ON AN INSIDER'S BROWSER (the owner's DRPG-D1 answer, 12.11.2026: "Dostaja"): the action
+ * the newest of the GMs' private cards to this user carries for it (projects.mjs `tellFacility`), whose words and meta
+ * reach their readers alone (secret.mjs); null when none does, or the newest says it has none. A card a GM did not write
+ * counts for nothing. The GM's run judges a use again on its own half (bridge-runs-acts.mjs `handleFacilityUse`).
+ */
+function toldFacility(projectId) {
+    let best = null, at = -1;
+    for (const message of game.messages ?? []) {
+        if (!message?.flags?.[MODULE_ID]?.secret || !message.author?.isGM) continue;
+        const told = cardMeta(message, PROJECT_FACILITY_CARD);
+        if (told?.id !== projectId) continue;
+        const when = Number(message.timestamp) || 0;
+        if (when >= at) { at = when; best = told.facility ?? null; }
+    }
+    return best;
 }
 
 /**

@@ -123,7 +123,8 @@ export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition
  *
  * AND ITS ROOM ACTION (E93 C1, 12.11.2026): `facility`, what its completion gives in its room (facilities.mjs
  * `cleanFacility`) - a GM's words of what the project makes, as much the project's secret as its description. Read on a
- * GM through `secretsOf`; a player in on a secret project is not offered its action in this round (docs/dev/e93/STATUS.md).
+ * GM through `secretsOf`; a player in on a secret project holds it from a GM's private card to its insiders alone
+ * (projects.mjs `tellFacility`, facilities.mjs `toldFacility`; the owner's DRPG-D1 answer, 12.11.2026: "Dostaja").
  */
 export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility"]);
 

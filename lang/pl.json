@@ -3926,6 +3926,8 @@
       "proposalPrompt": "Powiedz, co naprawdę robisz i po co. GM czyta to razem z twoimi odpowiedziami i decyduje - może zmienić skalę, pokój albo brzmienie, zanim projekt ruszy.",
       "proposalPlaceholder": "Co budujesz i co chcesz z tego mieć…",
       "proposerKnows": "Twój projekt „{name}” jest w toku w pokoju {room}. Widać go w twoim zasobniku Projektów i na mapie.",
+      "facilityTold": "Twój projekt {name} daje akcję w swoim pokoju: {action}.",
+      "facilityGone": "Twój projekt {name} nie daje już akcji w pokoju.",
       "descriptionTold": "Opis projektu „{name}”:",
       "proposalSent": "„{name}” poszedł do GM-a. Nic nie rusza, dopóki GM nie zatwierdzi.",
       "proposalNotSent": "Nic nie trafiło do GM-a.",

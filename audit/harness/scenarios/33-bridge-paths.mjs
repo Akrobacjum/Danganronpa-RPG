@@ -1635,8 +1635,55 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && e93a.p1?.soup === true && JSON.stringify(e93a.p1?.afterSoup) === JSON.stringify([1, 1, 4])
             && e93a.p1?.again === null && JSON.stringify(e93a.p1?.last) === JSON.stringify([1, 1, 4])
             && e93a.p2 === true && JSON.stringify(e93a.told) === JSON.stringify(["alreadyDone"]) && e93a.logged.length === 1
-            && e93a.back?.rows === 2 && e93a.back?.placed === 1,
+            // Two traces: the GM's action's and, since the owner's answer to Q-E93-6 (12.11.2026), the project's action's.
+            && e93a.back?.rows === 2 && e93a.back?.placed === 2,
         JSON.stringify(e93a), { flow: "facility" });
+
+    /* E93-B. A SECRET PROJECT'S ROOM ACTION, TO ITS INSIDERS ALONE (the owner's DRPG-D1 answer, 12.11.2026: "Dostaja").
+       A secret project in Aiko's room (Dorm A), p1 let in on it and p2 not, given an action and completed by the GM. p1's
+       Facilities window offers the action and p1 uses it as its window would; p2's browser holds no trace of it - none of
+       its chat messages, their flags or the words its private cards came with, and none of its settings, names the action
+       or carries it. Put back: the project, its cards, Aiko's actions. Red at 9eddf3d: p1 was offered nothing (the action
+       stayed in the GMs' half). */
+    phase("a secret project's room action", { flow: "facility" });
+    const e93b = { setup: await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const P = ${projects};
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const was = { actions: aiko.system.resources.actions.value, messages: game.messages.map(m => m.id) };
+        await trustedWrite(aiko, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        const kettle = await P.createProject({ name: "B93 kettle", target: 1, room: "Dorm A", secret: true, viewers: ["USERP10000000000"] });
+        await F.setProjectFacility(kettle.id, { label: "B93 hidden kettle", effects: [{ kind: "text", text: "B93 warm" }], costsAction: false, lifetime: { kind: "forever" } });
+        await P.addProgress(kettle.id, 1);
+        return { was, kettle: kettle.id };`, { timeout: 60000 }) };
+    await settle(1500);
+    await clearFailures(gm);
+    e93b.p1 = await p1.eval(`const A = await import("${repoUrl}/scripts/action-facilities.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const rows = (await A.facilityRows(aiko)).filter(r => r.value === "project:${e93b.setup?.kettle ?? ""}").map(r => [Boolean(r.disabled), String(r.label ?? "")]);
+        const used = rows.length ? await A.useFacility(aiko, "project:${e93b.setup?.kettle ?? ""}") : null;
+        await new Promise(r => setTimeout(r, 600));
+        return { rows, used: used?.success ?? null };`, { timeout: 60000 });
+    await settle(600);
+    e93b.p2 = await p2.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const needle = /B93 hidden kettle|B93 warm/;
+        const inMessages = game.messages.filter(m => needle.test(JSON.stringify(m.toObject())) || needle.test(String(S.contentOf(m) ?? ""))).length;
+        const world = game.settings.storage.get("world");
+        const worldValues = [...(world?.contents ?? world ?? [])].map(s => s?.value ?? s);
+        const inSettings = Object.values(localStorage).filter(v => needle.test(String(v))).length + worldValues.filter(v => needle.test(JSON.stringify(v))).length;
+        return { inMessages, inSettings };`, { timeout: 60000 });
+    e93b.logged = await refusalsLogged(gm, "facility.use");
+    await gm.eval(`const P = ${projects}; const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const was = ${JSON.stringify(e93b.setup?.was ?? {})};
+        if ("${e93b.setup?.kettle ?? ""}") await P.deleteProject("${e93b.setup?.kettle ?? ""}");
+        const keep = new Set(was.messages ?? []);
+        for (const m of game.messages.filter(m => !keep.has(m.id))) await m.delete();
+        await trustedWrite(game.actors.get("${IDS.aiko}"), { "system.resources.actions.value": was.actions ?? 3 }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    check("E93-B: a secret project's room action is offered to its insider p1, who uses it, and p2's browser holds no trace of it - no message, flag, card words or setting names it - none refused",
+        JSON.stringify(e93b.p1?.rows) === JSON.stringify([[false, "B93 hidden kettle"]]) && e93b.p1?.used === true
+            && e93b.p2?.inMessages === 0 && e93b.p2?.inSettings === 0 && e93b.logged.length === 0,
+        JSON.stringify(e93b).slice(0, 2000), { flow: "facility" });
 
     /* E69-A. A DASH FROM p1'S OWN PAGE (E69 C5, 12.11.2026). The legal control of `dash.settle`: p1 dashes as the Infiltrate
        window does (action-listen.mjs `performDash`): an action paid, a Leg roll the GM draws, the free crossings the GM

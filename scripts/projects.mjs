@@ -253,6 +253,34 @@ export async function tellDescription(countdownId) {
     return readers.length;
 }
 
+/**
+ * TELL A SECRET PROJECT'S PLAYERS ITS ROOM ACTION (the owner's DRPG-D1 answer, 12.11.2026: "Dostaja" - a secret project's
+ * insiders get its action). On the primary GM, beside `tellDescription` and by the same road: each player in on the
+ * project (`insidersOf`) whom the GMs' row does not record as told this action is sent one private card, veiled, its meta
+ * carrying the project and the action (facilities.mjs `PROJECT_FACILITY_CARD`), so the words and the action reach their
+ * readers alone (secret.mjs) and no other student's browser holds them. An action taken off is told as none, to those
+ * told one before. Who was told what is the GMs' (`facilityTold`, in their row). Answers how many players were told.
+ */
+export async function tellFacility(countdownId) {
+    if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
+    const { PROJECT_FACILITY_CARD, cleanFacility } = await import("./facilities.mjs");
+    const raw = secretsOf(countdownId).facility ?? null;
+    const facility = raw ? cleanFacility(raw) : null;
+    const key = facility ? JSON.stringify(facility) : "";
+    const told = { ...(secretsOf(countdownId).facilityTold ?? {}) };
+    const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && (told[id] ?? "") !== key);
+    if (!readers.length) return 0;
+    const name = rawCountdown(countdownId)?.name ?? "?";
+    const text = facility ? game.i18n.format("DRPG.Project.facilityTold", { name, action: facility.label })
+        : game.i18n.format("DRPG.Project.facilityGone", { name });
+    const posted = await whisperToGms(`<p>${esc(text)}</p>`,
+        { whisper: [...gmIds(), ...readers], veiled: true, flags: { [MODULE_ID]: { [PROJECT_FACILITY_CARD]: { id: countdownId, facility } } } });
+    if (!posted) return 0;
+    for (const id of readers) told[id] = key;
+    await projectSecretStore.patch(countdownId, { facilityTold: told }, { whole: true });
+    return readers.length;
+}
+
 /** The ids of the projects this browser's private cards from a GM name as its user's own (`PROJECT_KNOWN`). */
 function projectsToldHere() {
     if (toldHere) return toldHere;
@@ -1175,6 +1203,12 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
             await tellDescription(countdownId);
         } catch (err) {
             error(`Could not tell the players of the project ${countdownId} its description`, err);
+        }
+        // Its room action, by the same road (the owner's DRPG-D1 answer, 12.11.2026: insiders get it).
+        try {
+            await tellFacility(countdownId);
+        } catch (err) {
+            error(`Could not tell the players of the project ${countdownId} its room action`, err);
         }
     }
     return result;
