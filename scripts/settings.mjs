@@ -2184,7 +2184,8 @@ export function registerSettings() {
     /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
        "log" until a table has shown that "sendBack" puts nobody back wrongly. E17 kept "log" (session 0's "tylko log"
        for the table of 26.10.2026), and since E17 C1 the rules' refusals are put back in either mode; the
-       default after a table's session is E82's. */
+       default after a table's session is the owner's to choose: no stage holds it (E82, named here until E64 C8, is
+       not a row of tools/stages.json; the orphan D193, 12.11.2026). */
     game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
         name: "DRPG.Settings.moveAudit.name",
         hint: "DRPG.Settings.moveAudit.hint",
