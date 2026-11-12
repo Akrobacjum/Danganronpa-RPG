@@ -54,6 +54,35 @@ Glass and Monokuma Legacy as recordings and frame strips, close-ups at 25 %, 50 
 closed curtain in both themes at deviceScaleFactor 2, and the table below per size and role; Polish captions; what the
 pictures are not is on the page.
 
+## Round 5 results (12.11.2026): 1920x1080's proportions
+
+The owner (12.11): round 4 accepted at 1366x768; at 1920x1080 the animation's panes are a little small and too narrow.
+Measured first (Node, the harness's cuts): the new panes' median area was 1.20-1.33 % of the screen at 1920x1080 against
+2.19-2.28 % at 1366x768, the 10th percentile 0.11-0.15 % against 0.60-0.70 %, the median aspect (narrowest width over
+longest span) 0.38-0.43 against 0.43-0.52. The standing cut is smaller in share too (1.19 % against 2.27 %): it is built of
+fixed pixel sizes (glass.mjs `cutSectors`, a step of 230-290 px), so its median is about the same in pixels at every size
+(23,805 px² at 1366x768, 24,635 at 1920x1080), and `fillHole` aimed the new panes at that median. Only the new panes are
+changed (the owner's note is about the animation); the at-rest cut is not.
+
+- Fix, above 1366x768 only (`REFERENCE_SCREEN`): the target grows with the screen's area (times 1.6); the hole is first
+  cut by a grid of two families of lines at the curtain's slants (a cell 1.2 targets); a piece under 0.55 of the target
+  is joined with a neighbour or cut again with it; a recut is kept only when it holds the two pieces' area to half a
+  pixel; a cell's bits and the later joins are capped at the largest standing pane. Two corners closer than 0.01 px are
+  one (0.5 px dropped a real corner and opened a sliver). At 1366x768 and below the fill is round 4's, pane for pane
+  (10 seeds, GM and player, compared with 1db3f62's file).
+- Over eight seeds (Node): GM 1920x1080 median share 2.27 % against 2.42 % at 1366x768 (0.94), aspect 0.48 against
+  0.45; player 2.23 % against 2.14 % (1.04), aspect 0.48 against 0.48. In Chromium, one seed each (the module's): GM
+  2.14 % against 2.09 %, player 2.45 % against 1.76 % (one draw swings about a tenth); 10th percentile at 1920x1080 0.16 %
+  and 0.41 % (the cracks and wedges between standing panes).
+- The 7-size check in Chromium: 0 overlaps in 92 frames, 0 frames at another scale, every pane behind its edge at its
+  start, 0 gaps and 0 doubles, in all 14 cases; 0-4 new panes a screen outside the standing range, each in a crack,
+  wedge or notch between standing panes.
+- R3719 (new): red at 1db3f62 (share ratio 0.489, aspect 0.423 against 0.448), green now. R3703 now allows one pane out
+  of range on the 1600x900 cut - a 630 px² chip in a notch between two standing and two new panes that no cut through
+  its neighbours' corners or edges splits into two panes in range; the 1366x768 and 1440x900 cuts still hold none.
+- Page (version 3 of the same address): 1366x768 and 1920x1080 side by side at 25/50/75 % in both themes, the 75 ms
+  strips at both sizes, and the area and aspect table.
+
 ## Round 4 results (12.11.2026, 1db3f62)
 
 - The real cut on the glass harness in Chromium, 7 sizes, GM and player: 0 overlapping pairs in each of 92 frames,

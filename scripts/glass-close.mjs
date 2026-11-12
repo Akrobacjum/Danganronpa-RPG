@@ -20,9 +20,16 @@
  */
 
 const EPS = 0.004;
+/** The screen the new panes' size is read at (E61 round 5): at it and below, the standing panes' middle area; above it, that grown with the screen's area. */
+export const REFERENCE_SCREEN = [1366, 768];
+/* above it, a grid cell's area over the target, and the target over the standing panes' middle grown with the screen:
+   read on the harness's cuts at 1440x900, 1600x900, 1920x1080 and 2560x1440, eight seeds each (12.11.2026), as the pair
+   that keeps the new panes' median share of the screen within a tenth of 1366x768's (R3719) */
+const GRID_CELL = 1.2, LIFT = 1.6;
 const area = poly => Math.abs(poly.reduce((s, q, i) => { const r = poly[(i + 1) % poly.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0)) / 2;
 const centroid = poly => { const n = poly.length; return [poly.reduce((s, q) => s + q[0], 0) / n, poly.reduce((s, q) => s + q[1], 0) / n]; };
-const dedupe = poly => poly.filter((q, i) => { const p = poly[(i + poly.length - 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.5; });
+/* two corners closer than a hundredth of a pixel are one (at half a pixel, a join dropped a real corner and opened a sliver, round 5) */
+const dedupe = poly => poly.filter((q, i) => { const p = poly[(i + poly.length - 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.01; });
 
 /** A convex polygon split by the line through (px, py) with normal (nx, ny): [side >= 0, side < 0] (glass.mjs `split`). */
 export function splitPoly(poly, px, py, nx, ny) {
@@ -41,6 +48,7 @@ export function splitPoly(poly, px, py, nx, ny) {
   }
   return [A, B].map(p => { p = dedupe(p); return p.length >= 3 && area(p) > 0.25 ? p : null; });
 }
+
 
 /** Separating axes on convex polygons; a shared edge is not an overlap (glass.mjs `overlaps`). */
 export function convexOverlap(A, B) {
@@ -160,9 +168,51 @@ export function paneRange(panes) {
  */
 export function fillHole(panes, W, H, rnd = Math.random) {
   const range = paneRange(panes);
-  const target = range.area[1], most = Math.min(target * 1.5, range.area[2]), minCorners = range.corners[0], maxCorners = range.corners[1];
+  // the standing cut is built of fixed pixel sizes, so its middle area is about the same at every size; the new panes'
+  // is the standing middle at 1366x768 and grows with the screen above it, so they keep 1366x768's share of the screen
+  // (the owner accepted round 4 at 1366x768 and found its panes small and narrow at 1920x1080; R3719)
+  const grow = Math.max(1, (W * H) / (REFERENCE_SCREEN[0] * REFERENCE_SCREEN[1]));
+  const target = range.area[1] * grow * (grow > 1 ? LIFT : 1), most = Math.min(grow > 1 ? Math.max(target * GRID_CELL * 1.3, target * 1.5) : target * 1.5, range.area[2]), minCorners = range.corners[0], maxCorners = range.corners[1];
   const fits = P => P.length >= minCorners && P.length <= maxCorners;
+  // a crack: a run narrower than any standing pane between two of them, and long for it (a notch's chip is not one)
+  const crack = P => thickness(P) < Math.max(range.width, 24) && slender(P) > 3;
+  // above 1366x768 a recut of two pieces is kept only when its two parts hold the two pieces' area to half a pixel - a
+  // split drops a side under a quarter of a pixel, and what it drops is a gap; at and below 1366x768 round 4's rule,
+  // kept as the owner accepted it (R3719 holds 1366x768's fill)
+  const cut2 = splitPoly;
+  const kept = (parts, S, N) => grow <= 1 || Math.abs(parts.reduce((t, P) => t + area(P), 0) - area(S) - area(N)) <= 0.5;
   let pieces = holePieces(panes, W, H).map(simplify);
+  // ABOVE 1366x768, A GRID FIRST (round 5). The pieces cut along the standing panes' edges are about the standing
+  // panes' size, and a join must stay a convex pane of at most their corners, so they cannot be joined up to a larger
+  // target: the fill stayed at 1.2 % of a 1920x1080 screen (R3719). There the hole is cut by two families of straight
+  // lines at the curtain's slants, `step` apart (a square of the target's area), each line moved a little by the seed;
+  // the bits of one cell are joined back where they make one convex pane. At 1366x768 and below nothing of this runs.
+  if (grow > 1) {
+    const step = Math.sqrt(target * GRID_CELL);
+    const fams = [-13 * Math.PI / 180, (90 - 8) * Math.PI / 180].map(ang => {
+      const nx = -Math.sin(ang), ny = Math.cos(ang), span = Math.abs(W * nx) + Math.abs(H * ny), lo = Math.min(0, W * nx) + Math.min(0, H * ny);
+      const at = []; for (let d = lo + step * (0.5 + rnd() * 0.3); d < lo + span; d += step * (0.85 + rnd() * 0.3)) at.push(d);
+      return { nx, ny, at };
+    });
+    for (const f of fams) for (const d of f.at) {
+      pieces = pieces.flatMap(P => { if (crack(P)) return [P]; const [A, B] = splitPoly(P, f.nx * d, f.ny * d, f.nx, f.ny); return A && B ? [A, B] : [P]; });
+    }
+    const cellOf = P => { const [x, y] = centroid(P); return fams.map(f => f.at.filter(d => x * f.nx + y * f.ny > d).length).join(","); };
+    const cells = new Map();
+    for (const P of pieces) { const k = cellOf(P); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(P); }
+    pieces = [];
+    for (const bits of cells.values()) {
+      let left = bits.slice();
+      for (let again = true; again && left.length > 1;) {
+        again = false;
+        for (let i = 0; i < left.length && !again; i++) for (let j = i + 1; j < left.length && !again; j++) {
+          const u = joined(left[i], left[j]);
+          if (u && area(u) <= most) { left = left.filter((_, k) => k !== i && k !== j); left.push(u); again = true; }
+        }
+      }
+      pieces.push(...left.map(simplify));
+    }
+  }
   // join: the smallest piece first, with the neighbour that leaves the squarest pane
   const join = limit => {
     for (let again = true; again;) {
@@ -210,7 +260,7 @@ export function fillHole(panes, W, H, rnd = Math.random) {
   };
   pieces = pieces.flatMap(cut);
   // a sliver left by a cut is joined once more, now up to twice the middle
-  join(target * 2);
+  join(Math.min(target * 2, Math.max(range.area[2], target * 2 / grow)));
   // what is still a sliver - smaller than the smallest standing pane, sharper than its sharpest corner, narrower than
   // its narrowest (and never under 24 px, the curtain's needles' least width), or of another
   // number of corners - is cut again with a neighbour: one straight line through a corner of either, each side of it
@@ -222,19 +272,24 @@ export function fillHole(panes, W, H, rnd = Math.random) {
   const regroup = (S, N) => {
     let best = null, bq = -1;
     const one = joined(S, N);
-    if (one && fits(one) && !bad(one) && area(one) <= target * 2.2) { best = [one]; bq = minAngle(one); }
-    for (const v of [...S, ...N]) for (let k = 0; k < 24; k++) {
+    if (one && fits(one) && !bad(one) && area(one) <= Math.min(target * 2.2, Math.max(range.area[2], target * 2.2 / grow))) { best = [one]; bq = minAngle(one); }
+    // through a corner of either; above 1366x768 also through points a third, a half and two thirds along their edges
+    const along = P => P.flatMap((a, i) => { const b = P[(i + 1) % P.length]; return [1 / 3, 1 / 2, 2 / 3].map(t => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); });
+    for (const v of grow > 1 ? [...S, ...N, ...along(S), ...along(N)] : [...S, ...N]) for (let k = 0; k < 24; k++) {
       const ang = k * Math.PI / 24, nx = Math.cos(ang), ny = Math.sin(ang);
-      const [s1, s2] = splitPoly(S, v[0], v[1], nx, ny), [n1, n2] = splitPoly(N, v[0], v[1], nx, ny);
+      const sS = cut2(S, v[0], v[1], nx, ny), sN = cut2(N, v[0], v[1], nx, ny);
+            if (!sS || !sN) continue;
+            const [s1, s2] = sS, [n1, n2] = sN;
       const A = glue(s1, n1), B = glue(s2, n2);
       if (!A || !B || (s1 && n1 && !joined(s1, n1)) || (s2 && n2 && !joined(s2, n2))) continue;
       const a = simplify(A), b = simplify(B);
-      if (bad(a) || bad(b)) continue;
+      if (bad(a) || bad(b) || !kept([a, b], S, N)) continue;
       const q = Math.min(minAngle(a), minAngle(b));
       if (q > bq) { bq = q; best = [a, b]; }
     }
     return best;
   };
+  const regroupAll = () => {
   for (let round = 0; round < 4; round++) {
     let changed = false;
     for (let i = 0; i < pieces.length; i++) {
@@ -259,6 +314,44 @@ export function fillHole(panes, W, H, rnd = Math.random) {
     }
     if (!changed) break;
   }
+  };
+  regroupAll();
+  // ABOVE 1366x768, NO SMALL PANE WHERE A NEIGHBOUR CAN SHARE (round 5): a piece under 0.55 of the target that is not a
+  // crack is joined with a neighbour into one pane, or the two are cut again through a corner of either so that each
+  // half holds at least 0.55 of the target - what the rim of the hole leaves small, the grid's whole cells lend to
+  if (grow > 1) {
+    const floor = target * 0.55;
+    const small = P => area(P) < floor && !crack(P);
+    for (let round = 0; round < 6; round++) {
+      let changed = false;
+      pieces.sort((a, b) => area(a) - area(b));
+      for (let i = 0; i < pieces.length && !changed; i++) {
+        if (!small(pieces[i])) continue;
+        let pick = null, pq = -1;
+        for (let j = 0; j < pieces.length; j++) {
+          if (j === i || !near(pieces[i], pieces[j])) continue;
+          const S = pieces[i], N = pieces[j], one = joined(S, N);
+          if (one && fits(one) && !bad(one) && area(one) <= most) { const q = minAngle(one) + 90; if (q > pq) { pq = q; pick = { j, parts: [one] }; } continue; }
+          for (const v of [...S, ...N]) for (let k = 0; k < 24; k++) {
+            const ang = k * Math.PI / 24, nx = Math.cos(ang), ny = Math.sin(ang);
+            const sS = cut2(S, v[0], v[1], nx, ny), sN = cut2(N, v[0], v[1], nx, ny);
+            if (!sS || !sN) continue;
+            const [s1, s2] = sS, [n1, n2] = sN;
+            const A = glue(s1, n1), B = glue(s2, n2);
+            if (!A || !B || (s1 && n1 && !joined(s1, n1)) || (s2 && n2 && !joined(s2, n2))) continue;
+            const a = simplify(A), b = simplify(B);
+            if (bad(a) || bad(b) || area(a) < floor || area(b) < floor || !kept([a, b], S, N)) continue;
+            const q = Math.min(minAngle(a), minAngle(b));
+            if (q > pq) { pq = q; pick = { j, parts: [a, b] }; }
+          }
+        }
+        if (pick) { pieces = pieces.filter((_, k) => k !== i && k !== pick.j).concat(pick.parts); changed = true; }
+      }
+      if (!changed) break;
+    }
+  }
+  // the lift moved neighbours: a sliver it left beside one is put with it again (round 5)
+  if (grow > 1) regroupAll();
   return pieces.map(poly => ({ poly }));
 }
 
