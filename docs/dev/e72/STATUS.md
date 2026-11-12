@@ -153,6 +153,11 @@ where that line leaves the rule open the default is written here (default, owner
 
 ## For the coordinator
 
+- D038 (E91 C4/C5: the Mastermind's room as a keyed room; a road to seal the passage at their door) is not built, waiting
+  on the owner. Nothing built waits on it.
+- The purse's detector is 33-bridge-paths A21b, not 72-canary: the signal is a number that does not move (the sheet's
+  Hope), which 72's markers do not plant; A21b reproduces it where the Bribe flow already stands.
+
 - known-leaks.json TR30, `closes: "E72"` to `foundryLimit`, with a root README paragraph marked `<!-- leak:TR30 -->`:
   "In a Class Trial every ordinary dead student's microphone is off, a death nobody has found among them, and the
   trial's list of them is world data every browser holds while the trial runs (the owner's TR30 = 2). <!-- leak:TR30 -->"
@@ -181,6 +186,15 @@ where that line leaves the rule open the default is written here (default, owner
   every store back" had no fixture for the two new stores (cubs, cubTargets). Fixed in a4cd1ed (green alone).
 
 ## Pushed
+
+- 12.11.2026, ~15:45: E91 restored (9b88ddf), E91 C8's guard (d675c0c), TR30 as a Foundry limit with its README
+  paragraph and the purse's cut (f8330e8), texts cut to the owner's rule (4def61e); before them Talent (d22adcf), Bounty
+  in Fuel (961c16e), the purse's leak (a32bf95), the Final's bets (f5ec657). At 4def61e: quick green; `node tools/check.mjs`
+  whole green; tiers 0-1 1176 passed, 0 failed, 16 skipped, 1 red. Scenarios at d675c0c's code (the texts and the two
+  README/leak rows landed while they ran - wording only): 10, 12, 13, 15, 17, 19, 30 (278/279, 1 expected red), 33
+  (75/76, foundry-cub-purse), 40, 41, 50, 60, 61, 62, 63, 65 (57/59), 66, 67 (45/46, TR30 as the Foundry limit), 71, 72
+  (124/128), 73, 74, 75, 76 (117/118), 81, 83, 87, 88, 89 - all green. 84 not run (never headless).
+- A lesson: `cd X && (A) & (B) &` runs B from the old directory - two "lanes" before 15:00 ran only their first half.
 
 - 12.11.2026, 14:xx: Redeem free (the owner, DRPG-D1), the second review's E72 findings (#3 the Bribe whole or not at
   all, #4 the refund's limit). At that code: quick green; tiers 0-1 1173 passed, 0 failed, 16 skipped, 1 red; tier 2 by
