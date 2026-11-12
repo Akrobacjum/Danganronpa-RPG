@@ -42,7 +42,10 @@
  *   objection     Aiko's Objection at Daichi, pending, filled with a bullet whose GM half is planted, and a
  *                 second one withdrawn, each scanned on the players' browsers (E79 fix r4-G3);
  *   verdict       a trial naming Daichi, a wrong verdict: Chie survives, nothing is written on
- *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11).
+ *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11);
+ *   summary       the case's schema with markers where the players may not read - a deduction not
+ *                 ticked, a ticked one's GM note, the solution after the wrong vote - and Show
+ *                 summary sent; the card on p1 holds the ticked deduction and no id of Chie's (E99 C8).
  * Each later E05 commit adds its checks to the phase that shows its secret.
  * From rest to the discovery the chat of each phase's bystanders is read too (E06 C1,
  * `canary.chatScan`): what a card's document says of the cast beyond its words.
@@ -838,6 +841,35 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("gm: Chie's Reinforced Level Up waits in the GMs' store for the class (E05 C11)",
         waiting?.kind === "reinforced" && waiting?.count === 1, JSON.stringify(waiting));
     await scanned("verdict", { ...KILLER_CHAT, who: ["p1"] });
+
+    /* summary: THE CASE'S SUMMARY AFTER A WRONG VERDICT (E99 C8, 12.11.2026; the owner's goal for E99: only what was
+       discovered, and the solution only when the class voted right). The GM writes this chapter's schema: a deduction
+       ticked (its name plain, so p1 can be read receiving it; its GM note a marker), a deduction not ticked (its name a
+       marker) and the solution (its name and words markers; the vote above was wrong). Show summary is sent from the GM;
+       then every player's browser is scanned for the markers, p1's and p2's world data and chat as after each phase, and
+       the card p1 holds is read: the ticked deduction's name on it, and no actor id of Chie's anywhere in it. */
+    phase("summary");
+    const sum = { note: canary.marker("case.note"), unticked: canary.marker("case.unticked"),
+        solution: canary.marker("case.solution"), solutionText: canary.marker("case.solutiontext") };
+    const SHOWN = "The lights went out before the scream";
+    const sent = await gm.eval(`const CS = await import("${repoUrl}/scripts/case-schema.mjs");
+        const ch = (await import("${repoUrl}/scripts/clock.mjs")).getClock().chapter;
+        await CS.setCaseNode(ch, "canary-d1", { kind: "deduction", label: "${SHOWN}", text: "${sum.note}" });
+        await CS.setCaseNode(ch, "canary-d2", { kind: "deduction", label: "${sum.unticked}" });
+        await CS.setCaseNode(ch, "canary-s1", { kind: "solution", label: "${sum.solution}", text: "${sum.solutionText}", inputs: ["canary-d1", "canary-d2"] });
+        await CS.setCaseTick(ch, "canary-d1", true);
+        globalThis.__dialogAnswers.push(async function summary(cfg) {
+            if (!(cfg.classes ?? []).includes("drpg-window-case-summary")) { globalThis.__dialogAnswers.unshift(summary); return null; }
+            return "send";
+        });
+        try { return await (await import("${repoUrl}/scripts/case-summary.mjs")).showCaseSummary(); }
+        finally { const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "summary"); if (at >= 0) q.splice(at, 1); }`, { timeout: 60000 });
+    const card = await settled("summary", () => p1.eval(`const m = game.messages.contents.findLast(m => m.flags?.["${MOD}"]?.caseSummary === true);
+        return m ? { content: m.content, doc: JSON.stringify(m.toObject?.() ?? m) } : null;`), 20000);
+    check("gm: Show summary sends the case's summary after the wrong verdict (E99 C7)", typeof sent === "string" && Boolean(card), JSON.stringify({ sent, card: Boolean(card) }));
+    check("p1: the summary's card names the ticked deduction and no actor id of Chie's (E99 C8)",
+        Boolean(card) && card.content.includes(SHOWN) && !card.doc.includes(IDS.chie), JSON.stringify({ shown: card?.content?.includes(SHOWN), chie: card?.doc?.includes(IDS.chie) }));
+    await scanned("summary", { ...KILLER_CHAT, who: ["p1", "p2"] });
 
     /* THE NOTICE HISTORY IS IN THE DUMP (E81 C4, 12.10.2026; the A7 plan's 2.3). From E81 C3 and C4 every card a
        player's browser draws - the catch-all's, the messenger's, the trial's evidence, the day summary, the safeword's,

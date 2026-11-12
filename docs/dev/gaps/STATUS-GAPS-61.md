@@ -25,7 +25,7 @@ Base: origin/main 235c3210 (v1.2.107). Written 12.11.2026. Every commit `[skip c
   hint, data with no `kind`; on a map with no rest room the fallback formats DRPG.Rest.noRooms with
   `kind: data?.kind ?? ""`. The refusal's road (`performRest`, wrongRoom) passes `kind` and was whole.
 - Fix: the fallback names the rest by `kindLabel(kind)` when the data carries none.
-- R3663 (tier 1): the sentence asked as `restVariants` asks it, on a scene with no rest room, with lang/en.json's and
+- R3980 (tier 1; R3663 until the merge of 1.2.108, renumbered): the sentence asked as `restVariants` asks it, on a scene with no rest room, with lang/en.json's and
   lang/pl.json's words. Red at 235c3210 ("marked for a  yet", "oznaczony pod ."), green after. Tier 2 "the Rest window
   names no rest room the viewer has not found" green; tiers 0-1 1231 passed, 0 failed.
 
@@ -37,11 +37,13 @@ Base: origin/main 235c3210 (v1.2.107). Written 12.11.2026. Every commit `[skip c
   any window a GM opens and closes, not only the suite's.
 - Fix at that source: weak references per kind; the report lists a kind while one of its elements is on the page and
   counts the kinds met only in windows since closed on a line of its own.
-- Red first: R3551 then the naming test at 235c3210 - red; after - green. R3664 (tier 1) red with the old report
+- Red first: R3551 then the naming test at 235c3210 - red; after - green. R3981 (tier 1; R3664 until the merge of 1.2.108) red with the old report
   (`offListed: true, offCounted: false`), green after. Tiers 0-1 1232 passed, 0 failed, 16 skipped.
 
 ### Numbers to know at the merge
 
-- R3663 and R3664 are this branch's; gaps-a used R3660-R3663 on its own line (to be renumbered), and main already has
-  an R3661 of E97's.
+- This branch's tests are R3980 (the Rest window) and R3981 (the a11y report), in the gaps line's block R3980-R3989:
+  they were R3663 and R3664, which main's E99 had used and removed (the registry keeps those rows), renumbered at the
+  merge of origin/main 4dfac3a9 (1.2.108). Their commits' messages still name the old numbers. gaps-a's R3660-R3663
+  are on its own line and collide with main as well.
 - Not measured: a real Foundry table, a screen reader.

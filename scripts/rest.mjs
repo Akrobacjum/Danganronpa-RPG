@@ -66,7 +66,7 @@ export function restRooms(kind, scene) {
  *
  * THE REST'S NAME FROM `kind`, NOT ONLY FROM `data` (gaps, the owner's 12.11.2026): the Rest window's hints ask with no
  * `kind` in `data` (`restVariants`, whose "allowedIn" has none), and on a map with no rest room the fallback said "marked
- * for a  yet" / "oznaczony pod ." - now it names the rest by `kindLabel`, as the refusal's road does. R3663.
+ * for a  yet" / "oznaczony pod ." - now it names the rest by `kindLabel`, as the refusal's road does. R3980.
  */
 export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe(scene)) {
     const rooms = restRooms(kind, scene);

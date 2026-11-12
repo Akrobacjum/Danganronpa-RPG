@@ -59,9 +59,14 @@ import { SEIZE_KEY, objectionRecord } from "./trial.mjs";
 // The trial's participants, asked synchronously by `targetRefusal` (E51 C6): static, and no cycle (R161).
 import { trialParticipants, trialProgress, verdictStopped, verdictRunner } from "./vote.mjs";
 import { MODES, nextFloor, modeSecondsOf, overruleTarget, leftAt, isRoundMode, closingOf, closingTimed, closingRecordAfter } from "./floor-machine.mjs";
+import { isZoneMode, zoneOf } from "./zone-machine.mjs";
+// The zone modes' reads around their rows (E73): static, and no cycle - trial-zones.mjs reads this file by `import()`.
+import { zoneCtxOf, zoneEarly, afterZoneStep, zoneFloorEnded, snapshotStands, diveStartEvent, zoneCardWords } from "./trial-zones.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
+// Whether this browser drew a zone mode's floor last (E73 C2): the drawing is taken down once it ends.
+let zoneDrawn = false;
 
 /** The three modes, spelled out once so nothing else has to spell them (floor-machine.mjs `MODES`, since E70 C1). */
 export const FLOOR_MODES = MODES;
@@ -93,8 +98,54 @@ export const MODE_RULES = Object.freeze({
     [MODES.rebuttal]: Object.freeze({ family: "debate", speak: "pair", present: "all", object: true, target: "pair", adjust: true }),
     [MODES.testimony]: Object.freeze({ family: "round", speak: "holder", present: "holder", object: true, target: "holder", adjust: true }),
     [MODES.panic]: Object.freeze({ family: "round", speak: "holder", present: "holder", object: false, target: "holder", adjust: true }),
-    [MODES.closing]: Object.freeze({ family: "closing", speak: "holder", present: "holder", object: true, target: "holder", adjust: true })
+    [MODES.closing]: Object.freeze({ family: "closing", speak: "holder", present: "holder", object: true, target: "holder", adjust: true }),
+    // The zone modes (E73; TR2 = 1): in Straw Poll and Logic Dive everybody speaks and presents, in Scrum Debate the
+    // speaker; no Objection in any of them (the answer is where one stands, not a challenge); the GM's clock moves.
+    [MODES.straw]: Object.freeze({ family: "zones", speak: "all", present: "all", object: false, target: "any", adjust: true }),
+    [MODES.dive]: Object.freeze({ family: "zones", speak: "all", present: "all", object: false, target: "any", adjust: true }),
+    [MODES.scrum]: Object.freeze({ family: "zones", speak: "holder", present: "holder", object: false, target: "holder", adjust: true })
 });
+
+/**
+ * HOW EACH MODE STARTS (E99 C2; the owner's 09.11: "stages adding trial minigames must wire into the builder (mode list
+ * read from the trial's mode table + a census test)"; Q-E99-10's default). Every key of floor-machine.mjs `MODES`, the
+ * console's action that starts it (trial-floor-ui.mjs `trialButtons`), or none with the reason it has no start button -
+ * raised by a player. The case map's trial view (E99 C5) and R3670's census read it; a stage that adds a mode adds its
+ * row here, or the census fails.
+ */
+export const MODE_STARTS = Object.freeze({
+    debate: Object.freeze({ action: "openDebate", reason: null }),
+    objection: Object.freeze({ action: null, reason: "raisedByPlayer" }),
+    rebuttal: Object.freeze({ action: null, reason: "raisedByPlayer" }),
+    testimony: Object.freeze({ action: "startTestimony", reason: null }),
+    panic: Object.freeze({ action: "startPanic", reason: null }),
+    closing: Object.freeze({ action: "startClosing", reason: null }),
+    // The zone modes (E73): each its own start in the console's mode picker (`modePickerHtml`); all three open the Hall
+    // zones window on the mode asked (trial-zones-ui.mjs `openZonePicker`).
+    straw: Object.freeze({ action: "zones", reason: null }),
+    dive: Object.freeze({ action: "zones", reason: null }),
+    scrum: Object.freeze({ action: "zones", reason: null })
+});
+
+/** The reasons a mode has no start button (MODE_STARTS). */
+export const MODE_START_REASONS = Object.freeze(["raisedByPlayer"]);
+
+/**
+ * THE MODES' CENSUS (E99 C2; pure): what is wrong between the trial's modes (`modes`, floor-machine.mjs MODES), their
+ * starts (`starts`, MODE_STARTS) and the console's actions (`actions`): a mode with no row, a row of no mode, a row with
+ * neither an action the console has nor a known reason. Empty when they agree.
+ */
+export function modeCensus(modes = MODES, starts = MODE_STARTS, actions = []) {
+    const out = [];
+    const keys = Object.values(modes);
+    for (const m of keys) {
+        const row = starts[m];
+        if (!row) { out.push(`${m}: no start row`); continue; }
+        if (row.action ? !actions.includes(row.action) : !MODE_START_REASONS.includes(row.reason)) out.push(`${m}: neither a console action nor a reason`);
+    }
+    for (const m of Object.keys(starts)) if (!keys.includes(m)) out.push(`${m}: a start row of no mode`);
+    return out;
+}
 
 /** The console's family of `floor`'s mode, "none" with no floor (trial-floor-ui.mjs `trialSignature`). */
 export function floorFamily(floor = trialFloor()) {
@@ -124,6 +175,8 @@ export const TRIAL_NEXT_STEPS = Object.freeze([
     [view => !view.afterwards, "start"],
     [view => view.running && view.floor && floorFamily(view.floor) === "round", "endRound"],
     [view => view.running && view.floor && floorFamily(view.floor) === "closing", "endClosing"],
+    // A zone mode's end (E73): End this mode, the footer's step.
+    [view => view.running && view.floor && floorFamily(view.floor) === "zones", "endZone"],
     [view => view.running && view.floor, "closeDebate"],
     [view => view.progress.verdictApplied && notMine(view) && view.stopped, "finishElsewhere"],
     [view => view.progress.verdictApplied && notMine(view), "verdictElsewhere"],
@@ -132,8 +185,8 @@ export const TRIAL_NEXT_STEPS = Object.freeze([
     [view => view.progress.voteClosed, "verdict"],
     // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
     [view => view.progress.vote?.open, "vote"],
-    // E73's "Scrum Debate after a split in the Straw Poll" (the owner, 27.10) takes its row here, before the debate again.
-    // [view => view.progress.strawPoll?.split, "scrum"],
+    // The owner, 27.10 (E73 C3): a Straw Poll that split, Scrum Debate next - until a mode opens after it.
+    [view => view.running && !view.floor && view.progress.strawPoll?.split === true, "scrum"],
     // The debate again after an Overrule (E70 C2; E70-11): the time it had when the Objection cut in.
     [view => view.progress.againAfterOverrule, "openAgain"],
     // And after its exchange (E70 C3; TR11 = 1): the same question and budget, no window.
@@ -299,7 +352,8 @@ async function writeFloor(patch) {
 
 /** The ops a GM's change of the floor names, here and in gm-bridge.mjs "trial.gm" (its `as.oneOf`): `FLOOR_OPS`' keys. */
 export const FLOOR_OP_NAMES = Object.freeze(["start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
-    "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue", "closingResume", "reveal"]);
+    "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue", "closingResume", "reveal",
+    "straw", "dive", "scrum", "zoneCount", "zoneSkipQuestion"]);
 
 /*
  * Each op's in-step twin, handed what the op reads. A count the bridge did not carry reads 0 there (`as.num`), and
@@ -343,7 +397,19 @@ const FLOOR_OPS = {
     // Monokuma's Reveal (E70 C9): a missing Key Remnant to every participant, minted here on the primary and judged in
     // the step (trial-modes.mjs `revealInStep`); `slot` the row's id, `text` the players' words where the row has none.
     // It writes no floor: in the floor's key so that two GMs' Reveals of one row are one after the other.
-    reveal: ({ slot = null, text = "", beyondPaid = false }) => import("./trial-modes.mjs").then(m => m.revealInStep({ slot, text, beyondPaid }))
+    reveal: ({ slot = null, text = "", beyondPaid = false }) => import("./trial-modes.mjs").then(m => m.revealInStep({ slot, text, beyondPaid })),
+    // The zone modes (E73 C3-C5): a start each - the question as `text`, the two answers, a Scrum's thesis, a Logic Dive's
+    // set and its first question (`from`, -1 for where it stopped) - and the bar's Count now and Skip question; each
+    // judged by zone-machine.mjs in the step.
+    straw: ({ text = "", a = "", b = "" }) => zoneStartInStep({ type: "zone", mode: MODES.straw, question: text, answers: { a, b } }),
+    dive: async ({ set = "", from = -1 }) => {
+        // `from` the question's number from 1, and 0 (a count the bridge did not carry) where the set stopped.
+        const event = await diveStartEvent(set, Number(from) > 0 ? Math.round(Number(from)) - 1 : -1);
+        return event ? zoneStartInStep(event) : null;
+    },
+    scrum: ({ text = "", a = "", b = "", thesis = "" }) => zoneStartInStep({ type: "zone", mode: MODES.scrum, question: text, answers: { a, b }, thesis }),
+    zoneCount: () => (inClassTrial() ? zoneStepInStep({ type: "count" }).then(out => out?.written ?? null) : null),
+    zoneSkipQuestion: () => (inClassTrial() ? zoneStepInStep({ type: "skipQuestion" }).then(out => out?.written ?? null) : null)
 };
 
 /** Whether the campaign is in its Class Trial phase: the GM's bar moves nothing outside it (DX2 = 2). */
@@ -364,7 +430,46 @@ export function absentOf(ids = []) {
 
 /** The moment (the server's clock unless given) and the absent a machine's step reads (`nextFloor`'s ctx). */
 function floorCtx(floor, now = serverNow()) {
-    return { now, absent: absentOf(floor?.round?.order ?? []) };
+    // A zone mode's rows read the sides and, in Logic Dive, the question's truth (E73; trial-zones.mjs `zoneCtxOf`).
+    const zone = isZoneMode(floor?.mode) ? zoneCtxOf(floor) : {};
+    return { now, absent: absentOf(floor?.round?.order ?? []), ...zone };
+}
+
+/**
+ * A ZONE MODE STARTS, in a step of `SEIZE_KEY` on the primary (E73 C3-C5): only in a Class Trial; the machine's `zone`
+ * row (zone-machine.mjs `zoneStart`) handed the participants' stands (trial-zones.mjs `snapshotStands`) and whether the
+ * hall's zones are there; the start's card names the mode, its question and the two zones' answers. The floor written,
+ * or null.
+ */
+export async function zoneStartInStep(event) {
+    if (!isPrimaryGm() || !inClassTrial()) return null;
+    const floor = trialFloor();
+    const ctx = { ...floorCtx(floor), ...zoneCtxOf(null), stands: snapshotStands() };
+    const result = nextFloor(floor, event, ctx);
+    if (result.refused) return null;
+    const zone = result.floor?.zone;
+    if (zone) {
+        const words = zoneCardWords({ question: zone.question ?? "", a: zone.answers.a, b: zone.answers.b,
+            n: String((zone.set?.index ?? 0) + 1), total: String(zone.set?.total ?? 1), seconds: String(result.floor.seconds) });
+        result.cards = [...(result.cards ?? []), { key: `DRPG.Zones.${event.mode}.opened${zone.question ? "" : "Bare"}`, title: `DRPG.Floor.mode.${event.mode}`,
+            mode: event.mode, words, raw: true }];
+    }
+    return commitFloor(floor, result, event.mode);
+}
+
+/**
+ * A STEP OF A ZONE MODE, in a step of `SEIZE_KEY` on the primary (E73): the GM's Count now and Skip question, a
+ * participant's pick ("trial.side") and a Scrum speaker's thesis ("trial.keyword"). `{ written }`, or `{ refused }` with
+ * the machine's key.
+ */
+export async function zoneStepInStep(event) {
+    if (!isPrimaryGm() || !inClassTrial()) return { refused: "DRPG.Floor.bar.notTrial" };
+    const floor = trialFloor();
+    if (!isZoneMode(floor?.mode)) return { refused: "DRPG.Floor.bar.noMode" };
+    const result = nextFloor(floor, event, floorCtx(floor));
+    if (result.refused) return { refused: result.refused };
+    const written = await commitFloor(floor, result, event.type);
+    return written ? { written } : { refused: "DRPG.Floor.round.stale" };
 }
 
 /**
@@ -520,6 +625,9 @@ async function commitFloor(prev, result, op, { replaced = true } = {}) {
         const { setTrialProgress } = await import("./vote.mjs");
         await setTrialProgress(record => ({ closing: closingRecordAfter(record.closing ?? null, result.record) }));
     }
+    /* WHAT A ZONE STEP LEAVES (E73): a Finding and the Straw Poll's count in the record, a Logic Dive set's end in the
+       GMs' store (trial-zones.mjs `afterZoneStep`). */
+    if (result.zoneRecord || result.dive) await afterZoneStep(result);
     // An Overrule's Objection is overruled, not withdrawn (E70 C2): its card is marked by `overruleInStep`.
     const kept = result.floor?.mode === FLOOR_MODES.objection && result.floor?.messageId === prev?.messageId;
     if (!kept && replaced) await withdrawReplaced(prev);
@@ -547,7 +655,10 @@ async function postFloorCard(card, prev) {
         const seconds = Math.max(Math.round(Number(card.seconds) || 0), 0);
         const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
         // `seconds` whole, for a card that names them as a number ("Volunteer within {seconds} s", E66 C4).
-        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time, seconds })) });
+        // A zone mode's card (E73) carries its own words, escaped (trial-zones.mjs `zoneCardWords`), and may name a sound.
+        const words = card.raw ? (card.words ?? {}) : zoneCardWords(card.words ?? {});
+        const flags = card.sfx ? { flags: { [MODULE_ID]: { sfx: card.sfx } } } : {};
+        await announce({ content: trialEventCard(card.title ?? "DRPG.Floor.gmStepTitle", game.i18n.format(card.key, { name, mode, time, seconds, ...words })), ...flags });
     } catch (err) {
         error("Could not post the card of the GM's change of the floor", err);
     }
@@ -1173,6 +1284,8 @@ export async function endFloorInStep({ withdraw = true } = {}) {
     const floor = trialFloor();
     await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
     if (withdraw) await withdrawReplaced(floor);
+    // A zone mode's end, by any road, gives the hall's tokens their stands back (E73 C2; trial-zones.mjs).
+    if (zoneOf(floor)) await zoneFloorEnded(floor);
     return {};
 }
 
@@ -1202,7 +1315,7 @@ export async function endModeInStep() {
  * A button whose op would change nothing is greyed with the reason the machine gives for it (`barRefusal`), so a dead
  * button says why; the primary asks the same rows again in its step.
  */
-export const BAR_OPS = Object.freeze(["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"]);
+export const BAR_OPS = Object.freeze(["skip", "minus", "plus", "overrule", "endMode", "back", "repoint", "count", "skipQuestion"]);
 
 /** The bar's -/+ step on `floor`: 30 s, and 5 s in a Panic Round (E70 C7; `TRIAL.modes.gm.panicAdjustSeconds`). */
 export function adjustStep(floor = trialFloor()) {
@@ -1218,6 +1331,9 @@ function barEvent(op, seconds, floor = null) {
         case "plus": return { type: "adjust", seconds: step };
         case "endMode": return { type: "endMode" };
         case "back": return { type: "back" };
+        // The zone modes' two (E73 C6): Count now, Skip question.
+        case "count": return { type: "count" };
+        case "skipQuestion": return { type: "skipQuestion" };
         default: return null;
     }
 }
@@ -1392,8 +1508,9 @@ export async function advanceFloorNow() {
     const floor = trialFloor();
     // A round's turn is skipped the same way (E70 C7): the bar's Skip in Testimony and Panic Round.
     // And the Closing's timed phases (E70 C8): the volunteers' window's Skip is the draw, a speaker's the GM's choice again.
+    // And a zone mode's phase (E73): a Straw Poll or a Logic Dive question counted, a Scrum turn passed.
     if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal && !isRoundMode(floor?.mode)
-        && !(floor?.mode === FLOOR_MODES.closing && closingTimed(floor))) return null;
+        && !(floor?.mode === FLOOR_MODES.closing && closingTimed(floor)) && !isZoneMode(floor?.mode)) return null;
     const seen = { mode: floor.mode, startedAt: floor.startedAt };
     const res = await bridgeRequest("floor.now", seen, { settle: "reply", onPrimary: true, quiet: true, local: () => advanceFloorOnPrimary(seen) });
     if (res.ok) return res.value ?? null;
@@ -1483,6 +1600,8 @@ function isDue(floor) {
     if (floor.mode === FLOOR_MODES.debate) return false;
     // The Closing waits for the GM in its choice and its decision (E70 C8): no clock runs there.
     if (floor.mode === FLOOR_MODES.closing && !closingTimed(floor)) return false;
+    // A zone mode moves early too (E73): Logic Dive's unanimity past its grace, a Scrum camp emptied.
+    if (isZoneMode(floor.mode)) return secondsLeft(floor) <= 0 || zoneEarly(floor);
     return floor.mode === FLOOR_MODES.objection && floor.pending ? msLeft(floor) <= 0 : secondsLeft(floor) <= 0;
 }
 
@@ -1577,6 +1696,18 @@ export function registerTrialFloor() {
     Hooks.on("userConnected", (user, connected) => {
         if (!connected && !user?.isGM) speakerGone();
     });
+    Hooks.on("updateToken", watchZoneEntry);
+}
+
+/**
+ * A student's hall token entering a zone during a zone mode (E73 C2; DZ7): its outline and `zoneEntered`, on the
+ * owner's browser (trial-zones-ui.mjs `onZoneEntered`). Asked of the stored floor first, so a token's move outside the
+ * zone modes costs one reading; it judges nothing and writes nothing - a move in the hall is no crossing.
+ */
+function watchZoneEntry(tokenDoc, changed) {
+    if (!("x" in (changed ?? {}) || "y" in (changed ?? {}))) return;
+    if (!isZoneMode(game.settings.get(MODULE_ID, SETTINGS.trialQueue)?.mode)) return;
+    import("./trial-zones-ui.mjs").then(m => m.onZoneEntered(tokenDoc)).catch(err => error("Could not mark a zone entered", err));
 }
 
 /** Start or stop the heartbeat to match the floor. Safe to call repeatedly. */
@@ -1592,7 +1723,14 @@ export function renderTrialFloor() {
             clearInterval(ticker);
             ticker = null;
         }
-        if (!trialFloor()) return;
+        // The zones drawn on the hall and a participant's side-pick window (E73 C2), while a zone mode holds the floor
+        // and once more as it ends; nothing is loaded for any other floor.
+        const floorNow = trialFloor();
+        if (isZoneMode(floorNow?.mode) || zoneDrawn) {
+            zoneDrawn = isZoneMode(floorNow?.mode);
+            import("./trial-zones-ui.mjs").then(m => m.onZoneFloor(floorNow)).catch(err => error("Could not draw the trial hall's zones", err));
+        }
+        if (!floorNow) return;
 
         ticker = setInterval(() => {
             // The floor closing is what stops this, and it can close on another

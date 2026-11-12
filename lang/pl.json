@@ -1299,6 +1299,132 @@
       "finalAddNote": "Zapisz stawia go na scenie, na którą patrzysz, gdzieś wewnątrz wybranego pokoju. Bez wybranego pokoju Zapisz niczego nie stawia.",
       "finalPlacedIn": "Final Truth Remnant postawiony w: {room}."
     },
+    "Zones": {
+      "open": "Strefy sali",
+      "end": "Zakończ ten tryb",
+      "busy": "Głos ma inny tryb. Najpierw go zakończ albo zamknij debatę.",
+      "noZones": "Sala rozpraw nie ma Strefy A i Strefy B. Wybierz je w Ustawieniach pokoi na karcie Sceny.",
+      "noAnswers": "Podaj obie odpowiedzi: jedną dla Strefy A i jedną dla Strefy B.",
+      "noQuestion": "Pytanie Logic Dive nie ma treści.",
+      "noSet": "Wybierz zestaw Logic Dive.",
+      "noCount": "Nie ma czego liczyć: wynik już jest.",
+      "noQuestionHere": "Tylko w Logic Dive.",
+      "noSide": "Wybierz Strefę A albo Strefę B.",
+      "samePick": "Ta strona jest już wybrana.",
+      "noThesis": "Tylko mówca, w swojej turze, w kilku słowach.",
+      "notStarted": "Tryb się nie zaczął. Konsola mówi dlaczego, gdy głos albo strefy nie są gotowe.",
+      "straw": {
+        "opened": "{question} Stań w Strefie A, jeśli {a}, albo w Strefie B, jeśli {b}. Liczenie za {seconds} s.",
+        "openedBare": "Stań w Strefie A, jeśli {a}, albo w Strefie B, jeśli {b}. Liczenie za {seconds} s.",
+        "finding": "Klasa uważa: {answer}. (Strefa A {a}, Strefa B {b})",
+        "split": "Klasa jest podzielona: Strefa A {a}, Strefa B {b}. Scrum Debate może to rozstrzygnąć."
+      },
+      "dive": {
+        "opened": "Pytanie {n} z {total}: {question} Strefa A: {a}. Strefa B: {b}. {seconds} s na wybór.",
+        "openedBare": "Pytanie {n} z {total}. Strefa A: {a}. Strefa B: {b}. {seconds} s na wybór.",
+        "right": "Dobrze! Strefa A {a}, Strefa B {b}.",
+        "wrong": "Źle. Logic Dive kończy się tutaj. (Strefa A {a}, Strefa B {b})",
+        "tie": "Remis liczy się jako zła odpowiedź. Logic Dive kończy się tutaj. (Strefa A {a}, Strefa B {b})",
+        "solved": "Logic Dive rozwiązany: {finding}",
+        "skipped": "GM pomija pytanie {n}.",
+        "replay": "Ten zestaw już był grany: skończył się {when} ({outcome}). Gracze mogą go pamiętać.",
+        "replayStopped": "Ten zestaw już był grany: zatrzymał się na pytaniu {n}, {when} ({outcome}). Zacznie się tam, chyba że wybierzesz inne pytanie.",
+        "outcome": {
+          "played": "zagrany",
+          "solved": "rozwiązany",
+          "wrong": "zła odpowiedź",
+          "tie": "remis",
+          "stopped": "zatrzymany przez GM-a",
+          "skipped": "pominięte ostatnie pytanie",
+          "broken": "pytanie bez treści"
+        },
+        "editor": {
+          "listTitle": "Zestawy Logic Dive",
+          "newTitle": "Nowy zestaw Logic Dive",
+          "editTitle": "Edycja zestawu Logic Dive",
+          "secret": "To okno widzą tylko GM-owie. Gracze widzą każde pytanie i jego dwie odpowiedzi, nigdy to, która jest dobra.",
+          "name": "Nazwa zestawu",
+          "conclusion": "Finding po rozwiązaniu (opcjonalnie)",
+          "question": "Pytanie {n}",
+          "truth": "Dobra odpowiedź",
+          "save": "Zapisz zestaw",
+          "new": "Nowy zestaw",
+          "edit": "Edytuj",
+          "delete": "Usuń",
+          "deleteTitle": "Usuwanie zestawu Logic Dive",
+          "deleteBody": "Usunąć zestaw {name}? Tego nie da się cofnąć.",
+          "noName": "Nadaj zestawowi nazwę.",
+          "count": "Zestaw ma od 1 do {max} pytań.",
+          "blank": "Każde pytanie potrzebuje treści i obu odpowiedzi.",
+          "noTruth": "Zaznacz dobrą odpowiedź w każdym pytaniu.",
+          "names": "Pytanie albo odpowiedź wymienia ucznia: {names}. Żadne pytanie w strefach nie powinno pytać, kto to zrobił."
+        }
+      },
+      "scrum": {
+        "opened": "{question} Obozy się ustawiają: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Tury zaczną się za {seconds} s.",
+        "openedBare": "Obozy się ustawiają: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Tury zaczną się za {seconds} s.",
+        "begins": "Pierwsza mówi Strefa {zone}; obozy mówią na zmianę po {seconds} s, do tury {turns}.",
+        "over": "Scrum Debate dobiegła końca: Strefa A {a}, Strefa B {b}.",
+        "empty": "Strefa {zone} jest pusta. Klasa uważa: {answer}.",
+        "thesis": "Teza Strefy {zone}: {text}"
+      },
+      "panel": {
+        "nobody": "nikt",
+        "counted": "Policzono: Strefa A {a}, Strefa B {b}.",
+        "outside": "Poza strefami: {names}.",
+        "thesis": "Teza: {text}",
+        "straw": {
+          "vote": "{seconds} s do liczenia."
+        },
+        "dive": {
+          "vote": "Pytanie {n} z {total} - {seconds} s na wybór.",
+          "pause": "Pytanie {n} z {total} policzone - odpowiedź za {seconds} s."
+        },
+        "scrum": {
+          "setup": "Obozy się ustawiają - {seconds} s.",
+          "speak": "Tura {turn} z {turns}: {who} mówi za Strefę {zone} - {seconds} s."
+        }
+      },
+      "picker": {
+        "title": "Strefy sali",
+        "mode": "Tryb",
+        "question": "Pytanie",
+        "a": "Odpowiedź Strefy A",
+        "b": "Odpowiedź Strefy B",
+        "thesis": "Teza (opcjonalnie)",
+        "set": "Zestaw",
+        "noSets": "Nie ma jeszcze zestawu Logic Dive.",
+        "editSets": "Zestawy Logic Dive...",
+        "start": "Zacznij",
+        "hint": {
+          "straw": "45 s, żeby każdy stanął w strefie, potem jedno liczenie. Dwie trzecie po jednej stronie to Finding.",
+          "dive": "Pytania zestawu po kolei, po 60 s. Większość idzie dalej; zła odpowiedź albo remis kończą zestaw.",
+          "scrum": "45 s na ustawienie obozów, potem obozy mówią na zmianę, mniejszy pierwszy."
+        }
+      },
+      "pick": {
+        "body": "Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.",
+        "side": "{zone}: {answer}",
+        "done": "Stoisz w: {zone}."
+      },
+      "findings": {
+        "title": "Findings",
+        "button": "Findings ({n})",
+        "none": "W tej rozprawie nie ma jeszcze Findings.",
+        "intro": "To, co klasa ustaliła w trybach stref, i to, co dodasz. Każda zmiana tutaj trafia do stołu.",
+        "confirmedMark": "Monokuma potwierdza",
+        "edit": "Edytuj",
+        "delete": "Usuń",
+        "confirm": "Monokuma potwierdza",
+        "add": "Dodaj Finding",
+        "text": "Finding",
+        "save": "Zapisz",
+        "added": "GM dodaje Finding: {text}",
+        "edited": "GM zmienia Finding: {was} - teraz: {text}",
+        "deleted": "GM usuwa Finding z listy: {text}",
+        "confirmed": "Monokuma potwierdza: {text}"
+      }
+    },
     "Floor": {
       "next": {
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial.",
@@ -1313,7 +1439,9 @@
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt.",
         "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}.",
         "verdictElsewhere": "Werdykt wydaje {name}. Zakończ rozdział, gdy werdykt będzie wydany.",
-        "chapterEnd": "Werdykt zapadł. Zakończ rozdział."
+        "chapterEnd": "Werdykt zapadł. Zakończ rozdział.",
+        "endZone": "Głos ma tryb stref. Liczy się sam; Zakończ ten tryb go kończy.",
+        "scrum": "Straw Poll podzielił klasę. Otwórz Scrum Debate w Strefach sali albo otwórz debatę."
       },
       "nobodyForTrial": "Nie ma nikogo żywego, z kim dałoby się przeprowadzić Class Trial.",
       "trialBegins": "Class Trial się zaczyna",
@@ -1369,7 +1497,9 @@
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
         "sentenceWaits": "Rozprawa trwa: wyrok zostanie wykonany, gdy się skończy.",
         "round": "Głos ma runda: mówcy po kolei. Pomiń przechodzi do następnego mówcy; Zakończ ten tryb kończy rundę.",
-        "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie."
+        "closing": "Głos ma Closing Argument: zatwierdź albo wybierz mówcę, a po Objection zdecyduj, kto mówi dalej. Zakończ Closing Argument go kończy; następny krok to głosowanie.",
+        "zones": "Głos ma tryb stref: każdy odpowiada tym, gdzie stoi jego token. Policz teraz i Pomiń na pasku przyspieszają liczenie; Zakończ ten tryb go kończy.",
+        "scrum": "Straw Poll podzielił klasę. Scrum Debate ze Stref sali pozwoli obu obozom to rozstrzygnąć; debata i głosowanie nadal są dostępne."
       },
       "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przejmuje ją OBJECTION! gracza, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
@@ -1379,7 +1509,10 @@
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
         "panic": "Panic Round",
-        "closing": "Closing Argument"
+        "closing": "Closing Argument",
+        "straw": "Straw Poll",
+        "dive": "Logic Dive",
+        "scrum": "Scrum Debate"
       },
       "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
       "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; OBJECTION! gracza przejmuje głos.",
@@ -1404,7 +1537,9 @@
         "inRound": "Runda nie ma debaty, do której można wrócić: Zakończ ten tryb ją kończy.",
         "minusSeconds": "-{seconds} s",
         "plusSeconds": "+{seconds} s",
-        "inClosing": "Closing Argument nie ma debaty, do której można wrócić: Zakończ ten tryb go kończy."
+        "inClosing": "Closing Argument nie ma debaty, do której można wrócić: Zakończ ten tryb go kończy.",
+        "count": "Policz teraz",
+        "skipQuestion": "Pomiń pytanie"
       },
       "gmStepTitle": "GM wkracza",
       "turnSkipped": "Tura pominięta: {name}.",
@@ -1548,7 +1683,8 @@
         "inExchange": "Objection w Closing Argument: po wymianie decydujesz, kto mówi dalej."
       },
       "startClosing": "Closing Argument",
-      "endClosing": "Zakończ Closing Argument"
+      "endClosing": "Zakończ Closing Argument",
+      "pickerLabel": "Zacznij tryb"
     },
     "Events": {
       "overflowMetaGm": "{count} z {max} w kapeluszu",
@@ -2809,6 +2945,17 @@
         "words": "Opis"
       },
       "noScene": "- brak -",
+      "zoneA": "Strefa A",
+      "zoneB": "Strefa B",
+      "noZone": "- brak -",
+      "zones": {
+        "zonesNone": "Sala rozpraw nie ma stref. Straw Poll, Logic Dive i Scrum Debate potrzebują Strefy A i Strefy B: wybierz powyżej dwa regiony sali.",
+        "zoneMissing": "Wybrano tylko jedną strefę albo region strefy zniknął. Wybierz Strefę A i Strefę B.",
+        "zonesSame": "Strefa A i Strefa B to ten sam region. Wybierz dwa różne regiony.",
+        "zonesOverlap": "Strefa A i Strefa B nachodzą na siebie. Token, którego środek stoi w obu, nie liczy się po żadnej stronie.",
+        "zonesGap": "Strefy nie pokrywają całej sali. Token poza obiema nie liczy się po żadnej stronie.",
+        "zonesUnchecked": "Ta sala nie ma siatki i nie udało się na czas sprawdzić, czy strefy ją pokrywają."
+      },
       "castHeading": "Kto bierze udział",
       "reveal": "Zaznaczony: bierze udział - ma token w sali, gdy zaczyna się Class Trial (własny token GM-ów, jeśli jest, a jeśli nie, zrobiony przez moduł), i trafia do pokoju, który wybierze Zakończ Class Trial. Bez zaznaczenia: żaden jego token nie jest pokazywany i po rozprawie nie jest przenoszony - uczeń testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
       "noCast": "W świecie nie ma jeszcze żadnego ucznia ani Monokumy.",
@@ -4036,6 +4183,8 @@
         "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła",
         "trial.turn": "Twoja tura w rundzie",
         "trial.claim": "Zgłoszenie do Closing Argument",
+        "trial.side": "Wybór strony w sali rozpraw",
+        "trial.keyword": "Teza w Scrum Debate",
         "trial.present": "Przedstawienie Truth Bulletu",
         "ready.open": "Pytanie graczy, czy skończyli",
         "ready.answer": "Twoja odpowiedź dla GM-a",
@@ -7004,6 +7153,10 @@
           "label": "Egzekucja",
           "hint": "Rozprawa się kończy i wyrok zostaje wykonany na osobie wskazanej w werdykcie. Słyszy cały stół."
         },
+        "caseSummary": {
+          "label": "Podsumowanie sprawy",
+          "hint": "Słyszy cały stół, gdy GM wysyła podsumowanie sprawy."
+        },
         "trialClose": {
           "label": "Koniec rozprawy",
           "hint": "Class Trial się kończy i wszyscy wracają do szkoły. Słyszy cały stół."
@@ -7023,6 +7176,22 @@
         "keyReveal": {
           "label": "Ujawnienie Monokumy",
           "hint": "Monokuma ujawnia Key Remnant, którego nikt nie znalazł. Słyszy każdy uczestnik rozprawy."
+        },
+        "strawPollResult": {
+          "label": "Wynik Straw Poll",
+          "hint": "Straw Poll zostaje policzony: klasa się zgadza albo jest podzielona. Słyszy cały stół."
+        },
+        "answerRight": {
+          "label": "Logic Dive: dobra odpowiedź",
+          "hint": "Klasa dobrze odpowiada na pytanie Logic Dive. Słyszy cały stół."
+        },
+        "answerWrong": {
+          "label": "Logic Dive: zła odpowiedź",
+          "hint": "Klasa odpowiada źle albo jest remis i zestaw się kończy. Słyszy cały stół."
+        },
+        "zoneEntered": {
+          "label": "Wejście do strefy",
+          "hint": "Twój token wchodzi do Strefy A albo Strefy B w trakcie Straw Poll, Logic Dive albo Scrum Debate. Słyszy ten, kto przeszedł. Bez własnego pliku gra dźwięk wejścia do pokoju."
         }
       }
     },
@@ -7389,7 +7558,9 @@
         "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
         "trialMute": "Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jej końca",
         "closingClaim": "Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów",
-        "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz"
+        "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz",
+        "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale",
+        "diveSets": "Zestawy Logic Dive: pytania każdego zestawu, ich odpowiedzi i to, która odpowiedź jest dobra"
       },
       "row": {
         "traces": {
@@ -7643,6 +7814,40 @@
       "askBody": "Znaleziono ciało. Sprawa tego rozdziału nie została jeszcze zrealizowana. Nic się nie stanie, dopóki nie wybierzesz.",
       "showPreview": "Pokaż podgląd",
       "notNow": "Nie teraz"
+    },
+    "CaseTrial": {
+      "title": "Schemat sprawy",
+      "empty": "Brak schematu sprawy. Zbuduj go na Mapie w panelu Investigation.",
+      "floorOpen": "Trwa inny tryb. Najpierw go zakończ.",
+      "tickLabel": "Zaznaczone: {name}",
+      "startLabel": "Zacznij {mode} od węzła {name}",
+      "hint": "Podpowiedź: pokazane dowody to wspierają",
+      "presented": "Pokazany",
+      "ticked": "Zaznaczony",
+      "unknown": {
+        "one": "{n} pokazana karta nie jest na schemacie.",
+        "few": "{n} pokazane karty nie są na schemacie.",
+        "many": "{n} pokazanych kart nie jest na schemacie.",
+        "other": "{n} pokazanej karty nie ma na schemacie."
+      }
+    },
+    "CaseSummary": {
+      "show": "Pokaż podsumowanie",
+      "previewTitle": "Podsumowanie sprawy",
+      "intro": "Gracze dostaną tylko to: co znaleźli, zaznaczone wnioski i kontry, a rozwiązanie, jeśli zagłosowali dobrze.",
+      "send": "Wyślij wszystkim",
+      "sent": "Podsumowanie wysłane.",
+      "already": "Już wysłane w tej rozprawie.",
+      "noVerdict": "Dopiero po werdykcie.",
+      "title": "Rozdział {chapter}: jak rozwiązano sprawę",
+      "speaker": "Podsumowanie sprawy",
+      "noSolution": "Klasa zagłosowała źle, więc rozwiązanie zostaje ukryte.",
+      "role": {
+        "evidence": "Dowody",
+        "deduction": "Wnioski",
+        "counter": "Kontry",
+        "solution": "Rozwiązanie"
+      }
     },
     "Reveal": {
       "section": "Brakujące Key Remnanty",

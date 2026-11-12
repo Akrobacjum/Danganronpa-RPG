@@ -305,20 +305,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
     const floorMode = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); return F.trialFloor()?.mode ?? null;`;
     const HOLD_ALL = [{ title: "", hold: true }];
 
-    /* The mode bar, a mode at a time: the console's footer starts it, its own window answered, and the bar's
-       End this mode ends it. The players' turn windows are counted and left as they stand. */
+    /* The mode bar, a mode at a time: the console's mode picker starts it (its footer did until mockup B, E73), its own
+       window answered, and the bar's End this mode ends it. The players' turn windows are counted and left as they stand. */
     for (const [mode, action] of [["testimony", "startTestimony"], ["panic", "startPanic"], ["closing", "startClosing"]]) {
         phase(`the mode bar: ${mode}`, { flow: "class-trial" });
         const name = `modeBar.${mode}`;
         await flow(name, { plans: { gm: [{ title: T.trial, same: true, hold: true }], p1: HOLD_ALL, p2: HOLD_ALL, p3: HOLD_ALL }, drive: async () => {
-            await gm.eval(inWindow(T.trial, `footer button[data-action="${action}"]`), { timeout: 30000 });
+            await gm.eval(inWindow(T.trial, `[data-drpg-console="mode"][data-drpg-mode-action="${action}"]`), { timeout: 30000 });
             details[`${name}.ran`] = await gm.eval(`${until} const F = await import("${repoUrl}/scripts/trial-floor.mjs");
                 return await until(() => F.trialFloor()?.mode ?? null, 8000);`, { timeout: 30000 });
             await settle(1500);
             await gm.eval(inWindow(T.trial, '[data-drpg-bar="endMode"]'), { timeout: 30000 });
             await settle(1500);
         }, done: async () => ({ ran: details[`${name}.ran`], after: await gm.eval(floorMode) }) });
-        check(`${name}: the console's footer started the mode and the bar ended it`,
+        check(`${name}: the console's mode picker started the mode and the bar ended it`,
             Boolean(details[name].did?.ran) && details[name].did.ran !== "debate" && details[name].did.after === null, J(details[name].did));
         for (const who of ["p1", "p2", "p3"]) await clients[who].eval(`for (const app of [...foundry.applications.instances.values()])
             if (app instanceof foundry.applications.api.DialogV2 && app.rendered) await app.close(); return true;`, { timeout: 30000 });
