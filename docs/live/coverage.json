@@ -1,0 +1,4421 @@
+{
+ "$comment": "Every LIVE id of audit/AUDIT-1.2.42.md section 9.2 (numbered items whose title starts with LIVE-), every LIVE id of the open branches, and every numbered check of section 7 and 9.2 without an id, each exactly once, mapped to the check of docs/live/SESJA-0.pl.md that settles it. status: covered | partial (note says what stays open) | not-coverable (reason) | after-release (branch item). node docs/live/check-coverage.mjs holds this file to the audit and to the pack.",
+ "module": "1.2.107",
+ "written": "2026-11-12",
+ "checks": {
+  "A1": {
+   "title": "Wersje i czysta konsola",
+   "weight": "krytyczne",
+   "time": "10 min"
+  },
+  "A2": {
+   "title": "Strażnik przekaźnika i raport `diagnose()`",
+   "weight": "krytyczne",
+   "time": "10 min"
+  },
+  "A3": {
+   "title": "Testy tierów 0-1 i odczyty stylu",
+   "weight": "krytyczne",
+   "time": "10 min"
+  },
+  "A4": {
+   "title": "Ustawienia modułu, Ustaw sezon i Kontrola przed sezonem",
+   "weight": "ważne",
+   "time": "20 min"
+  },
+  "A5": {
+   "title": "Kopia świata: tier 2 i zapisy z konsoli",
+   "weight": "ważne",
+   "time": "45-60 min"
+  },
+  "A6": {
+   "title": "Ustawienia pokoi, przejścia, zdjęcia i realizacja",
+   "weight": "ważne",
+   "time": "20 min"
+  },
+  "A7": {
+   "title": "Okna modułu na ekranie",
+   "weight": "miłe",
+   "time": "30 min"
+  },
+  "B1": {
+   "title": "Pierwsze logowanie gracza",
+   "weight": "ważne",
+   "time": "5 min"
+  },
+  "B2": {
+   "title": "Wygląd kości i Dice So Nice",
+   "weight": "ważne",
+   "time": "10 min"
+  },
+  "B3": {
+   "title": "Głos na starcie (avclient-livekit)",
+   "weight": "krytyczne",
+   "time": "10 min"
+  },
+  "B4": {
+   "title": "Pierwszy rzut gracza dociera do GM-a",
+   "weight": "krytyczne",
+   "time": "10 min"
+  },
+  "C1": {
+   "title": "Ruch: pierwsze przeciągnięcie do nowego pokoju",
+   "weight": "krytyczne",
+   "time": "10 min"
+  },
+  "C2": {
+   "title": "Mgła, obrys pokoju, drzwi i płótno",
+   "weight": "ważne",
+   "time": "w trakcie gry, 10 min celowo"
+  },
+  "C3": {
+   "title": "Akcje, rzuty i Reroll",
+   "weight": "krytyczne",
+   "time": "w trakcie gry, 15 min celowo"
+  },
+  "C4": {
+   "title": "Hope Calls, Despair, zegar i Monocub",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "C5": {
+   "title": "Przedmioty i karta postaci",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "C6": {
+   "title": "Projekty",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "C7": {
+   "title": "Tajne przejścia, tunele i schody",
+   "weight": "ważne",
+   "time": "10 min celowo"
+  },
+  "C8": {
+   "title": "Komunikator, powiadomienia i Safeword",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "C9": {
+   "title": "Dźwięk i muzyka",
+   "weight": "miłe",
+   "time": "5 min"
+  },
+  "D1": {
+   "title": "Eclipse",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "D2": {
+   "title": "Otwarcie morderstwa i walka",
+   "weight": "krytyczne",
+   "time": "w trakcie gry"
+  },
+  "D3": {
+   "title": "Rzuty w walce: Breakdown, Resolve, broń i Reroll",
+   "weight": "ważne",
+   "time": "w trakcie walki"
+  },
+  "D4": {
+   "title": "Pułapka i pośrednie morderstwo",
+   "weight": "ważne",
+   "time": "jeśli fabuła tego użyje"
+  },
+  "D5": {
+   "title": "Stage 6: sprzątanie, ciało i łup",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "E1": {
+   "title": "Odkrycie ciała",
+   "weight": "krytyczne",
+   "time": "w trakcie gry"
+  },
+  "E2": {
+   "title": "Śledztwo: Observe, Analyze, mapa sprawy",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "F1": {
+   "title": "Wejście do sali rozpraw",
+   "weight": "krytyczne",
+   "time": "początek rozprawy"
+  },
+  "F2": {
+   "title": "Debata, Objection i tryby",
+   "weight": "ważne",
+   "time": "w trakcie rozprawy"
+  },
+  "F3": {
+   "title": "Głosowanie, werdykt i Level Up",
+   "weight": "krytyczne",
+   "time": "koniec rozprawy"
+  },
+  "G1": {
+   "title": "Egzekucja i powrót do szkoły",
+   "weight": "krytyczne",
+   "time": "po werdykcie"
+  },
+  "G2": {
+   "title": "Koniec rozdziału",
+   "weight": "ważne",
+   "time": "po egzekucji"
+  },
+  "H1": {
+   "title": "Dwóch GM-ów przy jednym stole",
+   "weight": "ważne",
+   "time": "przy okazji bloków C-G"
+  },
+  "J1": {
+   "title": "GM wychodzi, przeładowuje albo traci sieć",
+   "weight": "krytyczne",
+   "time": "30 min"
+  },
+  "J2": {
+   "title": "Gracz próbuje z konsoli",
+   "weight": "ważne",
+   "time": "15 min"
+  },
+  "Z1": {
+   "title": "Co zostało w zapisach GM-ów",
+   "weight": "ważne",
+   "time": "10 min"
+  },
+  "I1": {
+   "title": "Kurtyna, róg i okna Foundry",
+   "weight": "miłe",
+   "time": "45 min"
+  },
+  "I2": {
+   "title": "Układ przy różnych rozmiarach i powiększeniu",
+   "weight": "miłe",
+   "time": "30 min"
+  },
+  "P1": {
+   "title": "Liczba klatek i praca modułu",
+   "weight": "ważne",
+   "time": "20 min"
+  },
+  "P2": {
+   "title": "Zerwania głosu",
+   "weight": "ważne",
+   "time": "w trakcie gry"
+  },
+  "K1": {
+   "title": "Czytnik ekranu",
+   "weight": "miłe",
+   "time": "20 min"
+  },
+  "K2": {
+   "title": "Inne przeglądarki, wtyczki i klawiatura ekranowa",
+   "weight": "miłe",
+   "time": "20 min"
+  },
+  "K3": {
+   "title": "Scena testowa z dwoma piętrami",
+   "weight": "ważne",
+   "time": "30 min"
+  },
+  "K4": {
+   "title": "Moduły towarzyszące wyłączone",
+   "weight": "miłe",
+   "time": "20 min"
+  },
+  "L1": {
+   "title": "`npm run gate:local`",
+   "weight": "ważne",
+   "time": "ok. 60 min bez ludzi"
+  }
+ },
+ "ids": {
+  "LIVE-E30-08": {
+   "status": "covered",
+   "checks": [
+    "A1"
+   ],
+   "pos": "32",
+   "title": "zainstalowane wersje"
+  },
+  "LIVE-E41-01": {
+   "status": "covered",
+   "checks": [
+    "A1"
+   ],
+   "pos": "369",
+   "title": "czas ładowania modułu z 35 nowymi plikami (E41 C3-C10b; E41-09 do E41-18)"
+  },
+  "LIVE-E76-01": {
+   "status": "covered",
+   "checks": [
+    "A1"
+   ],
+   "pos": "475",
+   "title": "Foundry 14.370 z Daggerheart 2.12.8 i Dice So Nice 6.4.5 (E76; LIVE-E75-05 dla wersji z 12.11.2026)"
+  },
+  "LIVE-E75-05": {
+   "status": "not-coverable",
+   "checks": [
+    "A1"
+   ],
+   "pos": "153",
+   "title": "Foundry 14.369 z Daggerheart 2.10.11",
+   "reason": "Wersja zastąpiona: stół jest na Foundry 14.370 i Daggerheart 2.12.8, a ten wiersz pyta o 14.369 z 2.10.11; jego treść powtarza LIVE-E76-01."
+  },
+  "LIVE-E75-04": {
+   "status": "not-coverable",
+   "checks": [
+    "A1"
+   ],
+   "pos": "152",
+   "title": "starszy Daggerheart",
+   "reason": "Dotyczy Daggerhearta starszego niż 2.10.10; stół ma 2.12.8. Do zrobienia tylko na świecie ze starszą wersją."
+  },
+  "LIVE-E75-03": {
+   "status": "covered",
+   "checks": [
+    "A2"
+   ],
+   "pos": "151",
+   "title": "stan strażnika na 2.10.11"
+  },
+  "LIVE-E52-01": {
+   "status": "covered",
+   "checks": [
+    "A2"
+   ],
+   "pos": "B-E52-1",
+   "title": "umowa z Foundry i Daggerheart na prawdziwym Foundry 14 (E52 C2; E52-04, E52-06, E52-11)"
+  },
+  "LIVE-E52-04": {
+   "status": "covered",
+   "checks": [
+    "A2"
+   ],
+   "pos": "B-E52-4",
+   "title": "raport `game.drpg.diagnose()` i Kopiuj raport w prawdziwej przeglądarce (E52 C4; E52-14, E52-15, E52-16)"
+  },
+  "LIVE-E52-02": {
+   "status": "partial",
+   "checks": [
+    "A2"
+   ],
+   "pos": "B-E52-2",
+   "title": "wiersze A7, których sonda nie czyta (E52 C3; E52-11)",
+   "stays": "Raport i dwa z czterech miejsc (czas powiadomienia, usunięcie wiadomości) przy sesji; pozostałe dwa wymagają celowego wywołania, opisanego w AUDIT."
+  },
+  "LIVE-E52-11": {
+   "status": "covered",
+   "checks": [
+    "A2"
+   ],
+   "pos": "B-E52-11",
+   "title": "powiadomienie o umowie i linia Kontroli przed sezonem w języku stołu (E52 C7; E52-05, E52-23)"
+  },
+  "LIVE-E30-09": {
+   "status": "covered",
+   "checks": [
+    "A2"
+   ],
+   "pos": "33",
+   "title": "jak v14 dołącza CSS modułu"
+  },
+  "LIVE-E52-07": {
+   "status": "covered",
+   "checks": [
+    "A2"
+   ],
+   "pos": "B-E52-7",
+   "title": "miejsca na prawdziwej karcie postaci (E52 C3; E52-12)"
+  },
+  "LIVE-E65-01": {
+   "status": "covered",
+   "checks": [
+    "A3"
+   ],
+   "pos": "361",
+   "title": "R1060 u GM-a, który ma moduł po polsku (E65 C3, C15; E65-09, decyzja z 31.10 o Open 14)"
+  },
+  "LIVE-E66-02": {
+   "status": "covered",
+   "checks": [
+    "A3"
+   ],
+   "pos": "363",
+   "title": "`lang` na karcie postaci, czyje słowa ma (E66 fix r1 F2; STATUS E66 Open 4)"
+  },
+  "LIVE-E44-01": {
+   "status": "covered",
+   "checks": [
+    "A3"
+   ],
+   "pos": "377",
+   "title": "styleSnapshot przy stole v14 (E44 C1d; E44-05)"
+  },
+  "LIVE-E52-08": {
+   "status": "covered",
+   "checks": [
+    "A3"
+   ],
+   "pos": "B-E52-8",
+   "title": "czcionki motywów, ślad kliknięć i rozgrzewka pomiaru (E52 C5; E52-18)"
+  },
+  "LIVE-E49-02": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "469",
+   "title": "okno Ustawienia DRPG na v14 (E49 A1; słowa właściciela [11], [16], Q2, Q3)"
+  },
+  "LIVE-E47-06": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "443",
+   "title": "sekcja modułu w oknie ustawień Foundry (E47 C5; E47-16; S01-44)"
+  },
+  "LIVE-E20-01": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "B-E20-1",
+   "title": "Ustaw sezon i Kontrola przed sezonem na ekranie (E20 C2, C4; E20-10, E20-15, E20-16)"
+  },
+  "LIVE-E46-05": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "435",
+   "title": "Ustaw sezon i Kontrola przed sezonem na prawdziwym świecie (E46 C5b; E46-16)"
+  },
+  "LIVE-E20-07": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "B-E20-7",
+   "title": "granica 10% poza pokojami na mapie właściciela (E20 C1; E20-04, E20-05)"
+  },
+  "LIVE-E20-05": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "B-E20-5",
+   "title": "Pokaż na mapie w Sprawdź pokoje (E20 C2; E20-09)"
+  },
+  "LIVE-E44-05": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "381",
+   "title": "stepper i zakładki pod Monokuma Legacy na v14 (E44 C4a, C4b; E44-14, E44-16)"
+  },
+  "LIVE-E20-06": {
+   "status": "covered",
+   "checks": [
+    "A4"
+   ],
+   "pos": "B-E20-6",
+   "title": "Oddaj ustawienia Foundry w prawdziwym oknie ustawień (E20 C6; E20-19)"
+  },
+  "LIVE-E30-10": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "34",
+   "title": "okno tier 2 w prawdziwym v14"
+  },
+  "LIVE-E32-01": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "75",
+   "title": "siatka w tier 2 na świecie QA"
+  },
+  "LIVE-E30-01": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "25",
+   "title": "klucz `-=` na v14"
+  },
+  "LIVE-E76-03": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "477",
+   "title": "LIVE-E30-01 na 14.370 (E76 C4)"
+  },
+  "LIVE-E30-02": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "26",
+   "title": "API operatorów"
+  },
+  "LIVE-E30-03": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "27",
+   "title": "co dostaje hook"
+  },
+  "LIVE-E05-09": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "61",
+   "title": "operatory v14"
+  },
+  "LIVE-E04-07": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "47",
+   "title": "dwa światy na jednym serwerze w jednej przeglądarce"
+  },
+  "LIVE-E04-10": {
+   "status": "partial",
+   "checks": [
+    "A5"
+   ],
+   "pos": "50",
+   "title": "odczyt zapisanego ustawienia na v14",
+   "stays": "Odczyt game.settings.storage.get(\"world\") zrobimy; \"świat zaktualizowany z v1.1.0\" wymaga kopii takiego świata."
+  },
+  "LIVE-E81-14": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "196",
+   "title": "token z prototypu"
+  },
+  "LIVE-E81-16": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "198",
+   "title": "częściowy zapis rekordu"
+  },
+  "LIVE-E21-06": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "398",
+   "title": "odpowiedź o akcji \"close\" na v14 (E21 C4; STATUS E21 Open 41)"
+  },
+  "LIVE-E22-01": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "390",
+   "title": "Enter w nieodwracalnych oknach GM-a na v14 (E22 C2-C6; E22-03, E22-T1, E22-T2, E22-T5)"
+  },
+  "LIVE-E21-07": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "399",
+   "title": "Usuń projektu bez cechy albo bez opisu (E21 C6a; STATUS E21 Open 78)"
+  },
+  "LIVE-E52-10": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "B-E52-10",
+   "title": "dwa nowe ostrzeżenia o aktorze (E52 C6; E52-19)"
+  },
+  "LIVE-E24-07": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "420",
+   "title": "krok arkusza, który rzuca błąd (E24 C3b; E24-21; S03-42)"
+  },
+  "LIVE-E11-01": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "154",
+   "title": "reset z tokenami projektów"
+  },
+  "LIVE-E11-07": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "160",
+   "title": "tokeny obsady przy resecie"
+  },
+  "LIVE-E45-02": {
+   "status": "covered",
+   "checks": [
+    "A5"
+   ],
+   "pos": "425",
+   "title": "wyjście opakowania przy sygnaturze, której nie zna (E45 C2, C3b; E45-08; S03-07)"
+  },
+  "LIVE-E12-06": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "168",
+   "title": "wygląd Ustawień pokoi"
+  },
+  "LIVE-E46-01": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "431",
+   "title": "Ustawienia pokoi przy prawdziwym stole (E46 C2a, C2b; E46-04, E46-05, E46-17)"
+  },
+  "LIVE-E80-04": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "266",
+   "title": "kolumny zakładki Przejścia w Ustawieniach pokoi (E80 C6)"
+  },
+  "LIVE-E79-06": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "243",
+   "title": "narzędzie GM-a"
+  },
+  "LIVE-E79-05": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "242",
+   "title": "jak to wygląda"
+  },
+  "LIVE-H82-03": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "277",
+   "title": "nakładka GMa mówi, dokąd prowadzi tunel (H82 C3, H82-04)"
+  },
+  "LIVE-H82-04": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "278",
+   "title": "obrys pokoju u GMa przerwany tam, gdzie jest przejście (H82 C4, H82-05)"
+  },
+  "LIVE-E12-09": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "171",
+   "title": "pokoje z kilku kawałków i Sąsiedzi"
+  },
+  "LIVE-E20-04": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "B-E20-4",
+   "title": "zdjęcia pokoi na prawdziwym serwerze (E20 C3; E20-11, E20-12)"
+  },
+  "LIVE-E46-02": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "432",
+   "title": "ostrzeżenie o zdjęciu pokoju na prawdziwym serwerze (E46 C2a; E46-06)"
+  },
+  "LIVE-E46-04": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "434",
+   "title": "Tabele przedmiotów z arkuszem Foundry (E46 C3a, C3b; E46-09, E46-12)"
+  },
+  "LIVE-E46-03": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "433",
+   "title": "Efekty okna Dźwięk przy stole (E46 C4; E46-13, E46-14)"
+  },
+  "LIVE-E97-02": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "483",
+   "title": "realizacja na prawdziwej scenie (E97 C10; Q5)"
+  },
+  "LIVE-E21-01": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "387",
+   "title": "okna modułu mieszczą się na ekranie v14 (E21 C1b, C1c; E21-02, E21-03)"
+  },
+  "LIVE-E21-09": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "401",
+   "title": "okna, do których sweep dopasowania nie dochodzi (E21 C2-C6; STATUS E21 Open 9, 15, 19, 30, 47)"
+  },
+  "LIVE-E41-02": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "370",
+   "title": "okna przeniesione przez E41, każde otwarte raz przy stole (E41 C6-C10b; E41-11 do E41-18, Q-E41-2)"
+  },
+  "LIVE-E46-07": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "437",
+   "title": "polskie etykiety okien E46 przy stole (E46 C1-C5; E46-17)"
+  },
+  "LIVE-E47-10": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "447",
+   "title": "polskie etykiety okien E47 przy stole (E47 C1-C8; E47-18)"
+  },
+  "LIVE-E44-08": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "385",
+   "title": "zwijanie okien na v14 (E44 fix FG2; Q-E44-1, przegląd końcowy G-M1 i C-m1)"
+  },
+  "LIVE-E44-09": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "386",
+   "title": "Escape w oknie DialogV2 na v14 (E44 C2, C4; przegląd końcowy G-m9)"
+  },
+  "LIVE-E24-11": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "428",
+   "title": "szerokość opisu projektu przy prawdziwym stole (E24 C6; A8; zrzut właściciela z 09.11, \"Opis okna projects - za waskie\")"
+  },
+  "LIVE-E47-07": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "444",
+   "title": "ramki Foundry tools i Map tools przy ciemnym interfejsie i jasnych aplikacjach (E47 C5; A8)"
+  },
+  "LIVE-E24-06": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "419",
+   "title": "klient z jasnym motywem Foundry (E24 C4a; E24-27; S12-26)"
+  },
+  "LIVE-E22-06": {
+   "status": "covered",
+   "checks": [
+    "A7"
+   ],
+   "pos": "397",
+   "title": "poświata ramy okna GM Team (E22 C6b; STATUS E21 Open 85)"
+  },
+  "LIVE-E46-06": {
+   "status": "partial",
+   "checks": [
+    "A7"
+   ],
+   "pos": "436",
+   "title": "zakładka Overflow w Despair Flow przy dwóch GM-ach (E46 C5a; E46-15)",
+   "stays": "Wygląd zakładki Overflow sprawdza A7; przycisk naciśnięty przez drugiego GM-a - blok H."
+  },
+  "LIVE-E79-09": {
+   "status": "covered",
+   "checks": [
+    "B1"
+   ],
+   "pos": "246",
+   "title": "okno powitalne Daggerheart"
+  },
+  "LIVE-E79-10": {
+   "status": "covered",
+   "checks": [
+    "B1"
+   ],
+   "pos": "247",
+   "title": "okno User Configuration przy starcie"
+  },
+  "LIVE-E79-11": {
+   "status": "covered",
+   "checks": [
+    "B1"
+   ],
+   "pos": "248",
+   "title": "pliki graczy"
+  },
+  "LIVE-E79-12": {
+   "status": "covered",
+   "checks": [
+    "B1"
+   ],
+   "pos": "249",
+   "title": "postać gracza po nazwie konta"
+  },
+  "LIVE-E04-12": {
+   "status": "covered",
+   "checks": [
+    "B1"
+   ],
+   "pos": "52",
+   "title": "ktoś dołącza"
+  },
+  "LIVE-E60-05": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "372",
+   "title": "wygląd kości odczytany w każdej przeglądarce (E60 C5b; E60-14, E60-15)"
+  },
+  "LIVE-E16-04": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "269",
+   "title": "jeden wygląd kości na v14 (E16 C3, C4)"
+  },
+  "LIVE-E16-03": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "270",
+   "title": "rzut gracza w wyglądzie Gamemastera (E16 C3, C4)"
+  },
+  "LIVE-E76-05": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "479",
+   "title": "wygląd kości stołu na Dice So Nice 6.4.5 (E76 C6)"
+  },
+  "LIVE-E76-07": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "481",
+   "title": "znacznik `saved` Dice So Nice 6.4.5 przy wymuszonym wyglądzie (E76 C6; dice-sync.mjs `SAVED_MARK`, R3603, scenariusz 17 G1b)"
+  },
+  "LIVE-E60-06": {
+   "status": "partial",
+   "checks": [
+    "B2"
+   ],
+   "pos": "375",
+   "title": "kości Hope i Despair w jednym wyglądzie stołu (E60 C5d; E60-17, Q-C5-2)",
+   "stays": "Wymaga Daggerhearta 2.9.x (stół ma 2.12.8); przy sesji sprawdzamy to samo zachowanie na wersji stołu."
+  },
+  "LIVE-E60-09": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "376",
+   "title": "kości gracza na ekranie GM-a tylko z jego Monokumą w pokoju (E60 C5e; E60-18, Q-C5-4)"
+  },
+  "LIVE-H82-01": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "275",
+   "title": "opóźnienie rzutu gracza a efekty specjalne Dice So Nice (H82 C1, H82-01)"
+  },
+  "LIVE-H82-05": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "279",
+   "title": "kości gracza startują przy wiadomości GMa, nie przy jego odpowiedzi (H82 C5, H82-06)"
+  },
+  "LIVE-H82-06": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "280",
+   "title": "kości na ekranie GMa startują przy jego rzucie, nie przy echu jego wiadomości (H82 C6, H82-07)"
+  },
+  "LIVE-E29-09": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "118",
+   "title": "Dice So Nice"
+  },
+  "LIVE-E28-01": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "94",
+   "title": "z Dice So Nice"
+  },
+  "LIVE-E06-03": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "69",
+   "title": "Dice So Nice"
+  },
+  "LIVE-E79-17": {
+   "status": "covered",
+   "checks": [
+    "B2"
+   ],
+   "pos": "254",
+   "title": "kości rzutu w kolorach plakietki"
+  },
+  "LIVE-E19-06": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "281",
+   "title": "głos LiveKit w oknie Foundry (E19 C1)"
+  },
+  "LIVE-E19-07": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "282",
+   "title": "dok kamer zwinięty, a dźwięk gra (E19 C1)"
+  },
+  "LIVE-E78-02": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "224",
+   "title": "stany mikrofonu przy stole"
+  },
+  "LIVE-E78-03": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "225",
+   "title": "lista 'Kogo słyszysz' przy stole"
+  },
+  "LIVE-E78-04": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "226",
+   "title": "sekcja Głos w zębatce"
+  },
+  "LIVE-E52-03": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "B-E52-3",
+   "title": "wiersze A8 i A9 z żywym LiveKit (E52 C3; E52-10, E52-11)"
+  },
+  "LIVE-E05-11": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "63",
+   "title": "ostrzeżenie o sekrecie LiveKit"
+  },
+  "LIVE-E44-04": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "380",
+   "title": "kafle i launchery A8 przy stole z LiveKit (E44 C6; E44-20)"
+  },
+  "LIVE-E79-21": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "258",
+   "title": "słowo stanu na kafelku głosu"
+  },
+  "LIVE-H84-03": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "319",
+   "title": "słowo stanu na kafelku głosu na wysokości przycisków (H84-03)"
+  },
+  "LIVE-E79-20": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "257",
+   "title": "pierwszy mówiący na pustym kafelku głosu od razu"
+  },
+  "LIVE-E19-10": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "290",
+   "title": "róg i kafelek powiadomień nad prawdziwym dokiem kamer (E19 C7, fix r1-G2; E19-33)"
+  },
+  "LIVE-E50-06": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "351",
+   "title": "lista graczy GM-a i okno komunikatora obok kafla głosu (E50 C2; E50-14, poprawka A9 z 11.10)"
+  },
+  "LIVE-E78-10": {
+   "status": "covered",
+   "checks": [
+    "B3"
+   ],
+   "pos": "232",
+   "title": "T1, test właściciela w dwóch przeglądarkach"
+  },
+  "LIVE-E84-01": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "237",
+   "title": "akcja i rzut gracza docierają do GM-a"
+  },
+  "LIVE-E76-04": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "478",
+   "title": "rzut akcji na Daggerheart 2.12.8 (E76 C3; roll-draw.mjs `seamFor`, R3602; LIVE-E33-01 jeszcze raz)"
+  },
+  "LIVE-E28-12": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "105",
+   "title": "rzut gracza na warunkach GM-a"
+  },
+  "LIVE-E29-10": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "119",
+   "title": "karta rzutu losowanego przy stole"
+  },
+  "LIVE-E28-14": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "107",
+   "title": "nagłówek statystyki z karty, którą losuje GM"
+  },
+  "LIVE-E28-09": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "102",
+   "title": "`dualityUpdate` i `handleTriggers` po stronie GM-a"
+  },
+  "LIVE-E76-02": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "476",
+   "title": "rzut obronny gracza na Daggerheart 2.12.8 (E76 C2; relay-guard.mjs `judgeSave`, R3600, scenariusz 33 A8)"
+  },
+  "LIVE-E33-10": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "134",
+   "title": "autor wiadomości gracza przy stole (v13 i v14)"
+  },
+  "LIVE-E06-02": {
+   "status": "partial",
+   "checks": [
+    "B4"
+   ],
+   "pos": "68",
+   "title": "rzut modułu w konsoli postronnego",
+   "stays": "Sprawdzamy na Daggerheart stołu (2.12.8); porównanie z 2.6.5 wymaga drugiej instalacji."
+  },
+  "LIVE-E06-04": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "70",
+   "title": "kropka czatu"
+  },
+  "LIVE-E33-03": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "127",
+   "title": "Foundry 14.36x z `forcePrivateRolls`"
+  },
+  "LIVE-E29-07": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "116",
+   "title": "statystyka z arkusza z modyfikatorem, którego GM nie policzył"
+  },
+  "LIVE-E16-01": {
+   "status": "partial",
+   "checks": [
+    "B4"
+   ],
+   "pos": "267",
+   "title": "okno rzutu Daggerheart liczy koszty (E16 C0, C1)",
+   "stays": "Sprawdzamy na wersji stołu; porównanie z 2.10.5 wymaga drugiej instalacji."
+  },
+  "LIVE-E60-08": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "374",
+   "title": "okno rzutu gracza całe, jak u GM-a (E60 C5c; E60-16)"
+  },
+  "LIVE-E16-02": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "268",
+   "title": "okno rzutu ucznia w obu motywach (E16 C2)"
+  },
+  "LIVE-E28-04": {
+   "status": "partial",
+   "checks": [
+    "B4"
+   ],
+   "pos": "97",
+   "title": "Daggerheart 2.6.5 i bieżący 2.10.x",
+   "stays": "Odcisk szwu na wersji stołu czyta relayGuard i diagnose (A2); porównanie 2.6.5 i 2.10.x wymaga dwóch instalacji."
+  },
+  "LIVE-E29-08": {
+   "status": "partial",
+   "checks": [
+    "B4"
+   ],
+   "pos": "117",
+   "title": "Daggerheart 2.6.5 i bieżący 2.10.x",
+   "stays": "Na wersji stołu tak; 2.6.5 wymaga drugiej instalacji."
+  },
+  "LIVE-E28-02": {
+   "status": "not-coverable",
+   "checks": [
+    "B4"
+   ],
+   "pos": "95",
+   "title": "bez Dice So Nice",
+   "reason": "Stół gra z Dice So Nice; wiersz pyta o stół bez niego. Do zrobienia na kopii świata z wyłączonym Dice So Nice (razem z LIVE-E20-02, blok K4)."
+  },
+  "LIVE-E33-04": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ],
+   "pos": "128",
+   "title": "publiczny rzut GM-a (`game.drpg.publicRoll`, makro; kafelek panelu GM-a usunięty w 1.2.98, E60 C5a)"
+  },
+  "LIVE-E78-14": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ],
+   "pos": "236",
+   "title": "pierwsze przeciągnięcie do nowego pokoju"
+  },
+  "LIVE-E79-19": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ],
+   "pos": "256",
+   "title": "pokój po ruchu od razu"
+  },
+  "LIVE-E77-15": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ],
+   "pos": "219",
+   "title": "współwłaściciel i cisza 1,5 s"
+  },
+  "LIVE-E34-01": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "135",
+   "title": "mgła przy stole na 1.2.70"
+  },
+  "LIVE-E17-06": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "306",
+   "title": "mgła bez odkrytej mapy w serii odświeżeń i po zmianie sceny w trakcie przejścia (E17 część 2 C9, S07-09; E17-46)"
+  },
+  "LIVE-E49-04": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "470",
+   "title": "poświata obrysu pokoju przy zoomie i zmianie pory (E49 B4; S07-34)"
+  },
+  "LIVE-E88-02": {
+   "status": "partial",
+   "checks": [
+    "C2"
+   ],
+   "pos": "325",
+   "title": "poświata pierścieni i obrysu pokoju narysowana raz (E88 C1; E88-05)",
+   "stays": "Wygląd \"po\" sprawdzamy przy sesji; zrzuty \"przed\" (1.2.88) wymagają starego wydania."
+  },
+  "LIVE-E88-06": {
+   "status": "partial",
+   "checks": [
+    "C2"
+   ],
+   "pos": "328",
+   "title": "mgła trzymana jako obrazek (E88 C3; E88-08)",
+   "stays": "Wygląd \"po\" sprawdzamy przy sesji; zrzuty \"przed\" (1.2.88) wymagają starego wydania."
+  },
+  "LIVE-E51-02": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "356",
+   "title": "linijka ruchu żetonu w kolorze pory dnia (E51 C3; E51-23, poprawka z 11.10)"
+  },
+  "LIVE-E51-03": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "357",
+   "title": "poświata przejścia przez ściany zewnętrznego pokoju (E51 C3, E51 fix FG3; E51-24, poprawki z 11.10 i 31.10)"
+  },
+  "LIVE-E89-03": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ],
+   "pos": "344",
+   "title": "ile `updateToken` daje jedna przeciągnięta ścieżka (E89 C0; E89-01)"
+  },
+  "LIVE-E12-07": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ],
+   "pos": "169",
+   "title": "przeciągnięcie w v14 przez dwoje drzwi"
+  },
+  "LIVE-E79-24": {
+   "status": "partial",
+   "checks": [
+    "C1"
+   ],
+   "pos": "261",
+   "title": "długie przeciągnięcie odesłane do opłaconego pokoju (fix r3-G2, r4-G4, 1.2.79)",
+   "stays": "Liczenie aktualizacji przy zwykłym ruchu tak; tryb \"sendBack\" ustawia się tylko na próbie (moveAudit), więc druga połowa w bloku L albo na kopii."
+  },
+  "LIVE-E17-02": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ],
+   "pos": "308",
+   "title": "Refund last crossing przy prawdziwym stole, także przez zmianę pory dnia (E17 część 1 C3; E17-26, E17-19, E17-20)"
+  },
+  "LIVE-E12-05": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "167",
+   "title": "ikony drzwi przy wyłączonym token vision"
+  },
+  "LIVE-E52-05": {
+   "status": "partial",
+   "checks": [
+    "C2"
+   ],
+   "pos": "B-E52-5",
+   "title": "drzwi i piętra na prawdziwym płótnie (E52 C2; E52-07, E52-08)",
+   "stays": "Drzwi tak; dwa piętra tylko na scenie testowej (K3)."
+  },
+  "LIVE-E52-06": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "B-E52-6",
+   "title": "kolor zaznaczenia na płótnie: ikony drzwi, światła i dźwięku (E52 C1; E52-02, S01-50)"
+  },
+  "LIVE-E51-05": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "359",
+   "title": "napis regionu \"Display Scrolling Text\" przechodzi, napis nad żetonem nie (E51 C8; E51-47, D44e = 1)"
+  },
+  "LIVE-E80-02": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "264",
+   "title": "linijka ruchu graczy (E80 C5)"
+  },
+  "LIVE-E77-11": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "215",
+   "title": "skróty gracza bez paska scen"
+  },
+  "LIVE-E77-16": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "220",
+   "title": "szablon z karty gracza"
+  },
+  "LIVE-E14-01": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "298",
+   "title": "GM po angielsku, gracz po polsku, Search w pokoju z własną tabelą (E14 część 2; E14-43, E14-48, E14-50)"
+  },
+  "LIVE-E29-15": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "124",
+   "title": "znalezisko z Przeszukania przy stole"
+  },
+  "LIVE-E68-05": {
+   "status": "partial",
+   "checks": [
+    "C3"
+   ],
+   "pos": "462",
+   "title": "kliknięcia Search i Dynamic przy stole, przed E68 i po (E68 C6; Q7, DA49)",
+   "stays": "Liczba kliknięć na 1.2.107 tak; porównanie z 1.2.103 wymaga starego wydania."
+  },
+  "LIVE-E51-01": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "355",
+   "title": "progi akcji przy prawdziwym stole (E51 C1; E51-03, E51-05, E51-11, E51-12)"
+  },
+  "LIVE-E07-11": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "87",
+   "title": "wybór GM-a przy stole"
+  },
+  "LIVE-E29-11": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "120",
+   "title": "karta wyboru statystyki trzyma swój rzut"
+  },
+  "LIVE-E16-05": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "304",
+   "title": "\"Which statistic?\" na pełną szerokość i odpoczynek, którego nie da się wziąć (E16 part 2 C4, S02-35, S02-26)"
+  },
+  "LIVE-E68-04": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "461",
+   "title": "układ okien akcji przy 1366x768 (E68 C12, C13; Q4; 390 px skreślone 11.11 - właściciel zrezygnował z telefonów, runda M Q2)"
+  },
+  "LIVE-E31-01": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "35",
+   "title": "Reroll przez tabelę"
+  },
+  "LIVE-E08-01": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "89",
+   "title": "Reroll gracza przy stole"
+  },
+  "LIVE-E33-02": {
+   "status": "partial",
+   "checks": [
+    "C3"
+   ],
+   "pos": "126",
+   "title": "\"Reroll action roll\" i przycisk kości jako gracz, 2.6.5 i 2.10.x",
+   "stays": "Na Daggerheart stołu tak; 2.6.5 wymaga drugiej instalacji."
+  },
+  "LIVE-E06-08": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "74",
+   "title": "karta orzeczenia u gracza"
+  },
+  "LIVE-E51-06": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "360",
+   "title": "liczba kliknięć i okien głównych przepływów przy stole (E51 C8; E51-49)"
+  },
+  "LIVE-E16-06": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ],
+   "pos": "305",
+   "title": "Loaded Die przy innej metodzie kości i stara karta Observe u gracza (E16 part 2 C5, S02-44, S02-28)"
+  },
+  "LIVE-E18-01": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "293",
+   "title": "Hope Call Experience, akcja dynamiczna i propozycja projektu przy jednym GM-ie i dwóch graczach (E18 C0-C3, C8; E18-34)"
+  },
+  "LIVE-E29-12": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "121",
+   "title": "\"tak\" GM-a dla Experience i Ultimate"
+  },
+  "LIVE-E05-07": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "59",
+   "title": "dług Despair"
+  },
+  "LIVE-E37-02": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "364",
+   "title": "runda gotowości przy stole (E37 C3; E37-12 do E37-15, Q-E37-2)"
+  },
+  "LIVE-E23-09": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "410",
+   "title": "pauza na zegarze (E23 C2b; E23-15, S12-22)"
+  },
+  "LIVE-E17-01": {
+   "status": "partial",
+   "checks": [
+    "C4"
+   ],
+   "pos": "307",
+   "title": "stoper przez dwie sesje i przerwę z pauzą, i pięć minut na cofnięcie granicy (E17 część 2 C6, C7; E17-45, E17-31, E17-35)",
+   "stays": "Pauza i przeładowanie w jednej sesji tak; \"przez dwie sesje\" wymaga drugiej sesji."
+  },
+  "LIVE-E23-02": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "403",
+   "title": "pasek utworu nie zmienia zegara (E23 C2a; E23-06, E23-11..E23-13; A1, 27.09)"
+  },
+  "LIVE-E04-01": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "41",
+   "title": "zegar serwera"
+  },
+  "LIVE-E90-01": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "348",
+   "title": "magazyny GM-ów, pierścienie i zegary po poprawce zegara serwera (E90, 1.2.93)"
+  },
+  "LIVE-E17-11": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "316",
+   "title": "jak długo trwa seria zapisów zegara na prawdziwym serwerze (E17 część 2 C6; E17-33, E17p2-R7 przeglądu)"
+  },
+  "LIVE-E37-05": {
+   "status": "partial",
+   "checks": [
+    "C4"
+   ],
+   "pos": "367",
+   "title": "pakiet Eclipse przed ustawieniem zegara (E37 C5, C6; STATUS E37 Open 23)",
+   "stays": "Pakiet przed zapisem zegara nie daje się wywołać celowo; przy sesji patrzymy na koniec każdego Eclipse u gracza i zapisujemy, czy coś się zdarzyło dwa razy."
+  },
+  "LIVE-E33-09": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "133",
+   "title": "+1 Confusion na prawdziwym oknie rzutu Daggerhearta (2.6.5 i 2.10.x)"
+  },
+  "LIVE-E45-04": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "427",
+   "title": "kafel Confusion Monocuba po zmianie Hope (E45 C2; E45-10; S03-07)"
+  },
+  "LIVE-E33-06": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "130",
+   "title": "Confusion od stołu"
+  },
+  "LIVE-E28-10": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "103",
+   "title": "karta Meddle Monocuba z JSON-a rzutu GM-a"
+  },
+  "LIVE-E35-01": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "295",
+   "title": "stos przekazany na prawdziwym stole (E35 C1; E35-25)"
+  },
+  "LIVE-E35-02": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "296",
+   "title": "niezauważony Plant do pełnych kieszeni (E35 C3, D42; E35-26)"
+  },
+  "LIVE-E14-02": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "297",
+   "title": "Daily Life z przedmiotami: odmowy, schowany klucz, dwa przeszukania skrytki (E14 część 1; E14-24)"
+  },
+  "LIVE-E29-04": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "113",
+   "title": "usunięcie przedmiotu na karcie Daggerhearta jako gracz"
+  },
+  "LIVE-E28-08": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "101",
+   "title": "Daggerheart 2.10.6+"
+  },
+  "LIVE-E29-02": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "111",
+   "title": "karta drużyny i HUD tokenu jako gracz"
+  },
+  "LIVE-E24-01": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "414",
+   "title": "paski tokenu i pola HUD jako zapas (E24 C1b; E24-10; S12-36, S03-04)"
+  },
+  "LIVE-E24-02": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "415",
+   "title": "kropki zapasu przy włączonych i wyłączonych kropkach Daggerheart (E24 C1a; E24-03; S03-04)"
+  },
+  "LIVE-E24-03": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "416",
+   "title": "karta drużyny jako zapas (E24 C1b; E24-11; S03-04)"
+  },
+  "LIVE-E45-01": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "424",
+   "title": "arkusz odmalowany po zapisie na każdym kliencie (E45 C3a; E45-11; S03-07)"
+  },
+  "LIVE-E45-03": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "426",
+   "title": "części A, B, F, H i I scenariusza 71 przy prawdziwym stole (E45 C3a, C3b; E45-11, E45-13, E45-14; S03-07, S03-25)"
+  },
+  "LIVE-E24-05": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "418",
+   "title": "pisanie w biografii, gdy GM zmienia Hope (E24 C2; E24-17; S03-25, S17-39)"
+  },
+  "LIVE-E24-04": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "417",
+   "title": "krój i wielkość biografii na v14 (E24 C2, C4a; E24-13, E24-14; S03-12)"
+  },
+  "LIVE-H84-01": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "317",
+   "title": "jeden klucz do sypialni przy kilku graczach (H84-01)"
+  },
+  "LIVE-E89-05": {
+   "status": "partial",
+   "checks": [
+    "C5"
+   ],
+   "pos": "347",
+   "title": "skrytka sypialni i raport 1.2.91 (E89 C7, C8)",
+   "stays": "Skrytka sypialni przy sesji tak; raport pierwszego wczytania 1.2.91 już przebiegł na świecie stołu."
+  },
+  "LIVE-E29-03": {
+   "status": "covered",
+   "checks": [
+    "Z1"
+   ],
+   "pos": "112",
+   "title": "1 GM i 2 graczy, cały rozdział (weryfikacja)"
+  },
+  "LIVE-E29-01": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "110",
+   "title": "powód zapisu gracza dochodzi do głównego GM-a"
+  },
+  "LIVE-E29-14": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "123",
+   "title": "efekty i przedmioty tak, jak zapisują je Foundry 14 i Daggerheart"
+  },
+  "LIVE-E79-16": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "253",
+   "title": "zasobnik projektów gracza przed pierwszym projektem"
+  },
+  "LIVE-H84-04": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "320",
+   "title": "minus zasobnika Projektów ma swój znak (H84-05)"
+  },
+  "LIVE-H84-05": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "321",
+   "title": "jawny projekt widzi proponujący na własnej przeglądarce (H84-04)"
+  },
+  "LIVE-E44-07": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "383",
+   "title": "biały młotek projektu na ekranie GM-a (E44 C8b; E44-27)"
+  },
+  "LIVE-E44-20": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "384",
+   "title": "opis projektu na karcie jego tokenu (E44 C9; prośba właściciela z 04.11.2026, Q-C9-1..3)"
+  },
+  "LIVE-E23-12": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "413",
+   "title": "rzędy tacy Projects z prawdziwymi ikonami (E23 C3a; E23-16)"
+  },
+  "LIVE-E36-02": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "300",
+   "title": "zasobnik Daggerhearta 2.10.5 na projekcie (E36 C2; E36-17)"
+  },
+  "LIVE-E37-03": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "366",
+   "title": "zasobnik i automatyka Daggerheart w kolejce projektów (E37 C6; E37-29, odroczone D100)"
+  },
+  "LIVE-E28-13": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "106",
+   "title": "wkład gracza w projekt przy stole"
+  },
+  "LIVE-E11-02": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "155",
+   "title": "gracz upuszcza aktora projektu"
+  },
+  "LIVE-E15-03": {
+   "status": "covered",
+   "checks": [
+    "C6"
+   ],
+   "pos": "303",
+   "title": "Secret Passage na prawdziwym płótnie, od propozycji do cofnięcia (E15 część 2 C2, C6; E15-61)"
+  },
+  "LIVE-E79-01": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "238",
+   "title": "ściana tajnego przejścia w ruchu na v14"
+  },
+  "LIVE-E79-04": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "241",
+   "title": "pokazanie przejścia między dwoma graczami"
+  },
+  "LIVE-E79-08": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "245",
+   "title": "Monokuma i przeciągnięcie GM-a przez tajne przejście"
+  },
+  "LIVE-E76-06": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "480",
+   "title": "tajne przejście i puszczony w pół drogi token na 14.370 (E76 C5)"
+  },
+  "LIVE-E80-01": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "263",
+   "title": "tunel i schody na prawdziwym płótnie (E80 C2)"
+  },
+  "LIVE-H81-01": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "272",
+   "title": "tunel i schody w obie strony na stole v14 (H81 C1, H81 fix r1)"
+  },
+  "LIVE-H81-03": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "274",
+   "title": "przeciągnięcie tokenu na koniec tunelu (H81-13, H81-14)"
+  },
+  "LIVE-E79-25": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "262",
+   "title": "schody i prawdziwe przeciągnięcie wobec \"Odbierz, gdy wyjdzie z pokoju\" (fix r3-G3, r4-G4, 1.2.79)"
+  },
+  "LIVE-E19-04": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "286",
+   "title": "głos idzie za przejściem tunelem (E19 C4, A10; E19-24)"
+  },
+  "LIVE-E79-02": {
+   "status": "covered",
+   "checks": [
+    "Z1"
+   ],
+   "pos": "239",
+   "title": "audyt GM-a w trybie \"log\""
+  },
+  "LIVE-H81-02": {
+   "status": "covered",
+   "checks": [
+    "C7"
+   ],
+   "pos": "273",
+   "title": "wcięcie 'Known passages' i Experience pod Equipped na karcie (H81-09, H81 fix r1)"
+  },
+  "LIVE-E50-01": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "349",
+   "title": "okno na wierzchu, `ui.activeWindow`, tak jak je modeluje harness (E50 C1; E50-01, E50-05, Q-E50-2)"
+  },
+  "LIVE-E50-02": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "350",
+   "title": "strona ukryta i pokazana z powrotem (E50 C1; E50-01, E50-02, E50-05)"
+  },
+  "LIVE-E81-03": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "185",
+   "title": "F5 zaraz po karcie"
+  },
+  "LIVE-E81-06": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "188",
+   "title": "wspólna przeglądarka"
+  },
+  "LIVE-E81-09": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "191",
+   "title": "Wyczyść w dwóch kartach przeglądarki"
+  },
+  "LIVE-E81-12": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "194",
+   "title": "okno bez dźwięku, akcent przycisku"
+  },
+  "LIVE-E44-03": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "379",
+   "title": "okno na kicie, historia powiadomień, na v14 (E44 C5; E44-19)"
+  },
+  "LIVE-E44-06": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "382",
+   "title": "historia powiadomień przy podłodze tekstu szyby (E44 C5; STATUS E44 Open 44, właściciel 04.11.2026)"
+  },
+  "LIVE-E79-18": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "255",
+   "title": "kartka powiadomienia wypełnia swoją szybę, bez odczytu LATENCY/FPS"
+  },
+  "LIVE-E18-03": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "292",
+   "title": "kafelek powiadomień pod oknami i nad nimi, pasek karty i przyciski karty prośby (E18 C6; E18-24, E18-25, E18-26)"
+  },
+  "LIVE-E18-04": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "291",
+   "title": "stara karta prywatna, której dziennik czatu nie narysował (E18 fix early-C4-G3, 1.2.83)"
+  },
+  "LIVE-E21-04": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "392",
+   "title": "komunikator i podręczniki pod Stained Glass na kicie (E21 C6a; STATUS E21 Open 74)"
+  },
+  "LIVE-E77-06": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "210",
+   "title": "powiadomienia czatu u GMa"
+  },
+  "LIVE-E81-22": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "204",
+   "title": "gracz usuwa własną wiadomość w v14"
+  },
+  "LIVE-E23-08": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "409",
+   "title": "powiadomienia Foundry pod Stained Glass (E23 C5b; E23-26, S11-22)"
+  },
+  "LIVE-E06-05": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "71",
+   "title": "karta safeworda"
+  },
+  "LIVE-E22-04": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "395",
+   "title": "okno Safeword (E22 C5d; STATUS E21 Open 68, 69, 70)"
+  },
+  "LIVE-E31-06": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ],
+   "pos": "40",
+   "title": "polski gracz, angielski GM"
+  },
+  "LIVE-E50-03": {
+   "status": "covered",
+   "checks": [
+    "C9"
+   ],
+   "pos": "352",
+   "title": "suwak Muzyka w module i suwak playlist Foundry pokazują tę samą liczbę (E50 C3; E50-25, Q-E50-4)"
+  },
+  "LIVE-E48-02": {
+   "status": "covered",
+   "checks": [
+    "C9"
+   ],
+   "pos": "474",
+   "title": "krytyk na stole: cięcie powiadomienia i slot Krytyk (E48 K7; popup.mjs `cutCritical`, private-rolls.mjs, config.mjs `SFX_EVENTS.critical`)"
+  },
+  "LIVE-E23-11": {
+   "status": "covered",
+   "checks": [
+    "C9"
+   ],
+   "pos": "412",
+   "title": "ograniczone animacje za systemem (E23 C5c; E23-30, S12-11)"
+  },
+  "LIVE-E19-08": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "288",
+   "title": "Eclipse: gracz w żadnym kanale, GM-owie w jednym (E19 C4; E19-20, E19-21)"
+  },
+  "LIVE-E05-06": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "58",
+   "title": "karta przejścia w Eclipse"
+  },
+  "LIVE-E17-09": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "314",
+   "title": "pasek statusu gracza w Eclipse i po śmierci, przy 1366x768 (E17 część 2 C8; E17-36, E17-38, E17p2-R6 (5) przeglądu)"
+  },
+  "LIVE-E12-01": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "163",
+   "title": "dwie sceny z pokojami, GM ogląda drugą"
+  },
+  "LIVE-E37-06": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "368",
+   "title": "postronny podczas incydentu: runda gotowości i podsumowanie pory dnia (E37 fix FG1b, FG1c; STATUS E37 Open 52, 53 i 55)"
+  },
+  "LIVE-E17-07": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "312",
+   "title": "świadek incydentu przeładowuje przeglądarkę: zegar i karta Motive (E17 część 2 C7, fix p2-G3; E17-34, E17p2-R3 i R6 przeglądu)"
+  },
+  "LIVE-E05-13": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "65",
+   "title": "przeciągnięcie przez dwa pokoje"
+  },
+  "LIVE-E17-08": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ],
+   "pos": "313",
+   "title": "Mastermind i jawne projekty: jego mapa i zasobnik, karta GMa (E17 część 2 C8, fix p2-G3; E17-39, E17p2-R6 (4) i R9 przeglądu)"
+  },
+  "LIVE-E68-01": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "458",
+   "title": "propozycja statystyki otwarcia przy deklaracji morderstwa, zdradzie i pułapce (E68 C9; S18-10, DA18, DA36 = 2)"
+  },
+  "LIVE-E06-01": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "67",
+   "title": "otwarcie oczami ofiary"
+  },
+  "LIVE-E07-01": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "77",
+   "title": "trzy konta od Eclipse do Stage 6 (weryfikacja)"
+  },
+  "LIVE-E07-12": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "88",
+   "title": "kość Nocy w oknie otwarcia (poprawka r2-G1)"
+  },
+  "LIVE-E07-08": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "84",
+   "title": "okno morderstwa"
+  },
+  "LIVE-E34-02": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "136",
+   "title": "okno Murder i tracker przy prawdziwym stole"
+  },
+  "LIVE-E47-02": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "439",
+   "title": "tracker incydentu przy stole (E47 C2; E47-05)"
+  },
+  "LIVE-E47-03": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "440",
+   "title": "kafle panelu GM-a w Eclipse z incydentem (E47 C3; E47-08, E47-09)"
+  },
+  "LIVE-E07-09": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "85",
+   "title": "tracker GM-a"
+  },
+  "LIVE-E19-03": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "285",
+   "title": "muzyka morderstwa na prawdziwym dźwięku (E19 C5, fix r1-G3; E19-25, E19-27)"
+  },
+  "LIVE-E50-05": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "354",
+   "title": "muzyka morderstwa na prawdziwym dźwięku (E50 C4; E50-30, E50-31)"
+  },
+  "LIVE-E19-02": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "284",
+   "title": "głośność muzyki po F5 w trakcie incydentu (E19 C5, E19-26)"
+  },
+  "LIVE-E05-04": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "56",
+   "title": "głos ofiary"
+  },
+  "LIVE-E24-08": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "421",
+   "title": "ofiara po otwarciu czyta Sanity tak samo wszędzie (E24 C1b; E24-07, E24-10; S03-04)"
+  },
+  "LIVE-E07-05": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "81",
+   "title": "menu, wybór GM-a i okno rzutu"
+  },
+  "LIVE-E28-15": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "108",
+   "title": "prywatna karta gracza w walce"
+  },
+  "LIVE-E17-04": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ],
+   "pos": "310",
+   "title": "blokada incydentu, upuszczenie tokenu z katalogu i przeładowanie świadka (E17 część 1 C1, część 2 C7; E17-28, E17-05, E17-08, E17-34)"
+  },
+  "LIVE-E95-05": {
+   "status": "covered",
+   "checks": [
+    "D3"
+   ],
+   "pos": "457",
+   "title": "żadna ikona stanu na tokenie, oba stany na arkuszu (E95 C5; słowa właściciela z 10.11)"
+  },
+  "LIVE-E24-09": {
+   "status": "covered",
+   "checks": [
+    "D3"
+   ],
+   "pos": "422",
+   "title": "ikona Breakdown tylko dla właściciela i GM-ów (E24 C1b, Amend 08.11 A1; E24-10, odpowiedź właściciela z 08.11)"
+  },
+  "LIVE-E24-10": {
+   "status": "covered",
+   "checks": [
+    "D3"
+   ],
+   "pos": "423",
+   "title": "rzut w Breakdown czytany przez innych (E24 C1d, C4b; Amend 08.11 A4, R1489; odpowiedź właściciela z 08.11)"
+  },
+  "LIVE-E68-02": {
+   "status": "covered",
+   "checks": [
+    "D3"
+   ],
+   "pos": "459",
+   "title": "Resolve za 2 Hope i Etap 6 na Shadow, oba bez karty (E68 C5, C7; DA4, DA37 = 1, S18-02, S18-11)"
+  },
+  "LIVE-E07-04": {
+   "status": "covered",
+   "checks": [
+    "D3"
+   ],
+   "pos": "80",
+   "title": "linia obrażeń"
+  },
+  "LIVE-E07-03": {
+   "status": "covered",
+   "checks": [
+    "D3"
+   ],
+   "pos": "79",
+   "title": "Despair z nożem Tier 1"
+  },
+  "LIVE-E33-08": {
+   "status": "covered",
+   "checks": [
+    "D3"
+   ],
+   "pos": "132",
+   "title": "kryzysowy Strike i krytyczny Strike przerzucone z zapisu GM-ów"
+  },
+  "LIVE-E07-02": {
+   "status": "partial",
+   "checks": [
+    "D3"
+   ],
+   "pos": "78",
+   "title": "zdrada z kafelka w Stage 6",
+   "stays": "Wymaga dwóch Blackened w jednym rozdziale; przy zwykłej sesji tylko wtedy, gdy fabuła tak się ułoży."
+  },
+  "LIVE-E07-06": {
+   "status": "covered",
+   "checks": [
+    "D4"
+   ],
+   "pos": "82",
+   "title": "pułapka"
+  },
+  "LIVE-E06-06": {
+   "status": "covered",
+   "checks": [
+    "D4"
+   ],
+   "pos": "72",
+   "title": "pokwitowanie pułapki i karta przeróbki"
+  },
+  "LIVE-E15-01": {
+   "status": "covered",
+   "checks": [
+    "D4"
+   ],
+   "pos": "301",
+   "title": "pośrednie morderstwo od propozycji do wyzwalacza przy prawdziwym stole (E15 część 1 C2; E15-35)"
+  },
+  "LIVE-E68-03": {
+   "status": "covered",
+   "checks": [
+    "D5"
+   ],
+   "pos": "460",
+   "title": "Take from the Body na Hand, ze świadkiem i ze wspólnikiem (E68 C10; DA16, DA17, DA40, S18-15, S18-16, Q8, Q9)"
+  },
+  "LIVE-E63-02": {
+   "status": "covered",
+   "checks": [
+    "D5"
+   ],
+   "pos": "464",
+   "title": "śmierć zatrzymana przez GMów nie zostawia kafla, dopóki nie stanie się jawna (E63 C0; QUESTIONS E63 Q1)"
+  },
+  "LIVE-E63-04": {
+   "status": "covered",
+   "checks": [
+    "D5"
+   ],
+   "pos": "466",
+   "title": "kafel idzie za tokenem zwłok (E63 C1; QUESTIONS E63 Q3)"
+  },
+  "LIVE-E05-14": {
+   "status": "covered",
+   "checks": [
+    "D5"
+   ],
+   "pos": "66",
+   "title": "łup na mapie biorącego"
+  },
+  "LIVE-E07-07": {
+   "status": "covered",
+   "checks": [
+    "D5"
+   ],
+   "pos": "83",
+   "title": "narzędzia"
+  },
+  "LIVE-E11-03": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "156",
+   "title": "dwóch graczy wchodzi na ciało"
+  },
+  "LIVE-E11-04": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "157",
+   "title": "czekanie po znalezieniu ciała"
+  },
+  "LIVE-E05-03": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "55",
+   "title": "znacznik śmierci"
+  },
+  "LIVE-E05-05": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "57",
+   "title": "nazwa i obrazek znalezionego śladu"
+  },
+  "LIVE-E95-01": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "455",
+   "title": "kafel ciała na stole: obrazek, znak śmierci i podpis (E95 C3; DC6, Q4; od E63 kafel kładzie jawna śmierć, a koniec Class Trial go zabiera - LIVE-E63-01, -03)"
+  },
+  "LIVE-E95-04": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "454",
+   "title": "ukryty kafel ciała w przeglądarce gracza (E95 C2; DC6; od E63 kafel kładzie jawna śmierć, nie zaznaczenie Monocuba - LIVE-E63-01, -02)"
+  },
+  "LIVE-E63-01": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "463",
+   "title": "kafel ciała przy każdej śmierci, przy stole (E63 C0; odpowiedzi właściciela z 11.11 na E95 Q2, Q3)"
+  },
+  "LIVE-E24-13": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "430",
+   "title": "ikona śmierci Daggerheart zmieniona w trakcie sesji (E24 fix G2A; Q-E24-7, przegląd n2; fix G2A Open 4)"
+  },
+  "LIVE-E19-05": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "287",
+   "title": "kanał umarłych na prawdziwym LiveKit, z F5 głównego GM-a (E19 C3, fix r1-G1; E19-19, D8)"
+  },
+  "LIVE-E05-01": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "53",
+   "title": "test konsoli z weryfikacji E05"
+  },
+  "LIVE-E11-05": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "158",
+   "title": "Edytuj kampanię przy zwołanym zgromadzeniu"
+  },
+  "LIVE-E51-04": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "358",
+   "title": "podwojony żeton postaci po rozpoczęciu śledztwa (E51 C5; E51-35, notatki z sesji 27.10)"
+  },
+  "LIVE-E95-03": {
+   "status": "covered",
+   "checks": [
+    "E1"
+   ],
+   "pos": "456",
+   "title": "ogłoszenie ciała `drpgBodyAnnounced` na prawdziwym serwerze (E95 C4; E72 amend[16], Q5, Q6)"
+  },
+  "LIVE-E09-04": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "140",
+   "title": "pulpit przy 1400 px i na wąskim ekranie, ze zrzutem"
+  },
+  "LIVE-E47-09": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "446",
+   "title": "pulpit Investigation z arkuszem Foundry, Legacy (E47 C4; E47-13)"
+  },
+  "LIVE-E97-01": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "482",
+   "title": "mapa sprawy w prawdziwym Foundry (E97 C2, C5; Q-C, Q-D)"
+  },
+  "LIVE-E97-05": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "486",
+   "title": "autor tylko u GM-a (E97 C1; Q1)"
+  },
+  "LIVE-H84-02": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "318",
+   "title": "jeden Truth Bullet śladu na postać przy kilku graczach (H84-02)"
+  },
+  "LIVE-E49-07": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "472",
+   "title": "ikony Remnantów po zmianie sceny (E49 B4; dopisek [3](1) z 27.10)"
+  },
+  "LIVE-E22-02": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "391",
+   "title": "czerwień znaczy drogę przez GM-a, na ekranie (E22 C5c, C6b; E22-02, E22-07, A4)"
+  },
+  "LIVE-E22-03": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "394",
+   "title": "najechanie i ostrość na przyciskach (E22 C6b; STATUS E21 Open 81, 87)"
+  },
+  "LIVE-E22-05": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "396",
+   "title": "wybrany czerwony wiersz i aktywna karta pod Monokuma Legacy (E22 C6b; STATUS E21 Open 81, 82)"
+  },
+  "LIVE-E04-05": {
+   "status": "partial",
+   "checks": [
+    "E2"
+   ],
+   "pos": "45",
+   "title": "Kopia sprawy i Przywróć w przeglądarkach",
+   "stays": "Chrome/Chromium przy sesji; Firefox i aplikacja desktopowa tylko, jeśli ktoś przy stole ich używa (K2)."
+  },
+  "LIVE-E09-03": {
+   "status": "covered",
+   "checks": [
+    "E2"
+   ],
+   "pos": "139",
+   "title": "karta wyboru Observe, gdy okno głównego GM-a jest ukryte"
+  },
+  "LIVE-E13-01": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "172",
+   "title": "trzy przeglądarki do sali rozpraw"
+  },
+  "LIVE-E13-02": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "173",
+   "title": "spóźnialski w trakcie aktywacji"
+  },
+  "LIVE-E13-03": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "174",
+   "title": "Dice So Nice w sali"
+  },
+  "LIVE-E13-04": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "175",
+   "title": "nakładka zmarłego w sali"
+  },
+  "LIVE-E13-05": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "176",
+   "title": "jeden pokój głosowy na rozprawę"
+  },
+  "LIVE-E13-06": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "177",
+   "title": "uczeń bez tokenu w sali"
+  },
+  "LIVE-E13-08": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "179",
+   "title": "`hidden` własnego tokenu gracza"
+  },
+  "LIVE-E13-09": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "180",
+   "title": "przyciski GMa w obu motywach"
+  },
+  "LIVE-E79-13": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "250",
+   "title": "token sali rozpraw zrobiony przez moduł się nie obraca"
+  },
+  "LIVE-E79-14": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "251",
+   "title": "sala na kafelku pokoju i zegar rozprawy bez napisu w tle"
+  },
+  "LIVE-E81-15": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "197",
+   "title": "flagi sali"
+  },
+  "LIVE-E81-18": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "200",
+   "title": "koszt przy stole"
+  },
+  "LIVE-E70-04": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "332",
+   "title": "mikrofon zmarłego w Class Trialu, bez F5 (E70 C5; E70-21)"
+  },
+  "LIVE-E70-05": {
+   "status": "covered",
+   "checks": [
+    "F1"
+   ],
+   "pos": "333",
+   "title": "gracz nie zapisze sobie `permissions` (E70 C5; E70-21)"
+  },
+  "LIVE-E10-01": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "142",
+   "title": "Class Trial na trzech kontach, od Zacznij Class Trial do końca rozdziału (weryfikacja)"
+  },
+  "LIVE-E70-01": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "331",
+   "title": "pasek GM-a na konsoli Class Trialu (E70 C1; E70-04, E70-07)"
+  },
+  "LIVE-E70-03": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "335",
+   "title": "krok rozprawy przy karcie GM-a w tle (E70 C0, C1; grunt LIVE-E10-05)"
+  },
+  "LIVE-E10-05": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "146",
+   "title": "zegary i dźwięk"
+  },
+  "LIVE-E79-22": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "259",
+   "title": "w kogo trafia OBJECTION!"
+  },
+  "LIVE-E79-23": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "260",
+   "title": "OBJECTION! w wierszu zegara gracza (fix r4-G3, 1.2.79)"
+  },
+  "LIVE-E70-12": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "342",
+   "title": "OBJECTION! na kaflu głosu (E70 C11; E70-75, E70-76, B3, Q-p2-4)"
+  },
+  "LIVE-E47-01": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "438",
+   "title": "stopka konsoli Class Trial na DialogV2 Foundry v14 (E46 C1, E47 C1; E47-02)"
+  },
+  "LIVE-E47-11": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "452",
+   "title": "poprawki E47-FD przy prawdziwym stole (E47-FD; q-disabled, q-cuts porównania 3)"
+  },
+  "LIVE-E10-03": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "144",
+   "title": "układ"
+  },
+  "LIVE-E70-10": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "340",
+   "title": "Enter w potwierdzeniu Ujawnienia Monokumy (E70 C9; E70-61, amend 4 (f))"
+  },
+  "LIVE-E70-11": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "341",
+   "title": "kopie Present i brak Share przy stole (E70 C10; E70-70 do E70-73, B2, B6)"
+  },
+  "LIVE-E70-08": {
+   "status": "partial",
+   "checks": [
+    "F2"
+   ],
+   "pos": "338",
+   "title": "Panic Round z prawdziwym opóźnieniem (E70 C7; E70-43, E70-44)",
+   "stays": "Przy 12 uczestnikach wariant 10 s nie wystąpi przy mniejszym stole; wariant 15 s tak."
+  },
+  "LIVE-E70-09": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ],
+   "pos": "339",
+   "title": "Closing Argument z prawdziwymi ludźmi (E70 C8; E70-51 do E70-56, DA18, TR23, TR24)"
+  },
+  "LIVE-E70-07": {
+   "status": "not-coverable",
+   "checks": [
+    "F2"
+   ],
+   "pos": "337",
+   "title": "Zeznanie przy stole 14-15 osób (E70 C7; E70-40, E70-41)",
+   "reason": "Wymaga stołu 14-15 osób; sesja 0 ma mniej."
+  },
+  "LIVE-E10-02": {
+   "status": "covered",
+   "checks": [
+    "F3"
+   ],
+   "pos": "143",
+   "title": "Enter w prawdziwym oknie werdyktu (DialogV2)"
+  },
+  "LIVE-E05-08": {
+   "status": "partial",
+   "checks": [
+    "F3"
+   ],
+   "pos": "60",
+   "title": "trafny werdykt po błędnym",
+   "stays": "Trafny werdykt po błędnym tylko, jeśli fabuła tak się ułoży; okno i dźwięk Level Upu sprawdzamy przy każdym werdykcie."
+  },
+  "LIVE-E10-06": {
+   "status": "covered",
+   "checks": [
+    "F3"
+   ],
+   "pos": "147",
+   "title": "Enter w oknie Level Upów klasy (DialogV2)"
+  },
+  "LIVE-E10-07": {
+   "status": "covered",
+   "checks": [
+    "F3"
+   ],
+   "pos": "148",
+   "title": "okno Level Upu gracza nad arkuszem"
+  },
+  "LIVE-E21-05": {
+   "status": "covered",
+   "checks": [
+    "F3"
+   ],
+   "pos": "393",
+   "title": "wybór Level Upu (M9) na kicie (E21 C6a; STATUS E21 Open 79)"
+  },
+  "LIVE-E70-06": {
+   "status": "covered",
+   "checks": [
+    "G1"
+   ],
+   "pos": "336",
+   "title": "Zakończ Class Trial w sali rozpraw (E70 C4; E70-16)"
+  },
+  "LIVE-E13-07": {
+   "status": "covered",
+   "checks": [
+    "G1"
+   ],
+   "pos": "178",
+   "title": "rozprawa od początku do końca bez ręcznej pomocy"
+  },
+  "LIVE-E13-10": {
+   "status": "covered",
+   "checks": [
+    "G1"
+   ],
+   "pos": "181",
+   "title": "powrót żyjących z isometric"
+  },
+  "LIVE-E81-20": {
+   "status": "covered",
+   "checks": [
+    "G1"
+   ],
+   "pos": "202",
+   "title": "Zakończ Class Trial z uczniem bez zaznaczenia"
+  },
+  "LIVE-E63-03": {
+   "status": "covered",
+   "checks": [
+    "G1"
+   ],
+   "pos": "465",
+   "title": "koniec Class Trial zabiera każdy kafel ciała, także straconego (E63 C2; QUESTIONS E63 Q2)"
+  },
+  "LIVE-E81-17": {
+   "status": "covered",
+   "checks": [
+    "G1"
+   ],
+   "pos": "199",
+   "title": "karty i arkusze Daggerhearta po usunięciu tokenu"
+  },
+  "LIVE-E09-05": {
+   "status": "covered",
+   "checks": [
+    "G2"
+   ],
+   "pos": "141",
+   "title": "koniec rozdziału przy stole"
+  },
+  "LIVE-E11-08": {
+   "status": "covered",
+   "checks": [
+    "G2"
+   ],
+   "pos": "161",
+   "title": "okno Koniec rozdziału"
+  },
+  "LIVE-E17-10": {
+   "status": "partial",
+   "checks": [
+    "G2"
+   ],
+   "pos": "315",
+   "title": "odpoczynek przez koniec rozdziału i odpoczynek sprzed aktualizacji (E17 część 2 C9, fix p2-G3; E17-41, E17p2-R6 (6) i R11 przeglądu)",
+   "stays": "Odpoczynek przez koniec rozdziału tak; \"odpoczynek sprzed aktualizacji\" dotyczy świata sprzed tamtej wersji."
+  },
+  "LIVE-E09-01": {
+   "status": "partial",
+   "checks": [
+    "G2"
+   ],
+   "pos": "137",
+   "title": "całe śledztwo, dwóch graczy i dwóch GM-ów (weryfikacja)",
+   "stays": "Observe, Analyze, Tamper i koniec rozdziału z jednym GM-em w E2 i G2; część z drugim GM-em w H1."
+  },
+  "LIVE-E04-02": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "42",
+   "title": "dołączenie przy prawdziwym stole"
+  },
+  "LIVE-E09-02": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "138",
+   "title": "pulpit Investigation otwarty u obu GM-ów"
+  },
+  "LIVE-E10-04": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "145",
+   "title": "dwóch GM-ów"
+  },
+  "LIVE-E28-06": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "99",
+   "title": "dwóch GM-ów"
+  },
+  "LIVE-E28-11": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "104",
+   "title": "dwóch GM-ów, jedna decyzja"
+  },
+  "LIVE-E29-05": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "114",
+   "title": "dwóch GM-ów klika Cofnij na jednej karcie naraz"
+  },
+  "LIVE-E28-16": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "109",
+   "title": "ponowienie po zmianie głównego GM-a"
+  },
+  "LIVE-E08-03": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "91",
+   "title": "dwóch GM-ów"
+  },
+  "LIVE-E07-10": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "86",
+   "title": "dwóch GM-ów"
+  },
+  "LIVE-E11-09": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "162",
+   "title": "dwóch GM-ów: koniec rozdziału i odkrycie ciała"
+  },
+  "LIVE-E36-01": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "299",
+   "title": "dwóch GM-ów zmienia jeden projekt naraz (E36; E36-16)"
+  },
+  "LIVE-H84-06": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "322",
+   "title": "przycisk Wyczyść overflow w zakładce Overflow okna Despair Flow (H84-06)"
+  },
+  "LIVE-E50-04": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "353",
+   "title": "drugi GM przypisuje playlistę, a muzyka zmienia się u głównego GM-a (E50 C3; E50-21, E50-22, Q-E50-3)"
+  },
+  "LIVE-E47-04": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "441",
+   "title": "okno Sprawa: kopia i przywrócenie na prawdziwym serwerze, dwóch GM-ów (E47 C3; E47-10)"
+  },
+  "LIVE-E70-02": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "334",
+   "title": "Overrule z prawdziwymi ludźmi (E70 C2; E70-10, E70-11, E70-12)"
+  },
+  "LIVE-E97-04": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "485",
+   "title": "dwóch GM-ów i jedna realizacja (E97 C10; Q-E97-5, Q8)"
+  },
+  "LIVE-E97-03": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "484",
+   "title": "pytanie przy Znaleziono ciało (E97 C11; Q4)"
+  },
+  "LIVE-E30-04": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "29",
+   "title": "co wolno Asystentowi"
+  },
+  "LIVE-E18-02": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "294",
+   "title": "F5 głównego GM-a w trakcie pytania i Asystent GM-a, który zostaje głównym, na czasach socketów v14 (E18 C2, C3; E18-35)"
+  },
+  "LIVE-E17-05": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "311",
+   "title": "żaden klik nie czeka, gdy Despair, ruchy i Eclipse idą naraz (E17 część 1 C0, C5; E17-29, E17-03)"
+  },
+  "LIVE-E04-09": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "49",
+   "title": "reset należy do głównego GM-a"
+  },
+  "LIVE-E28-07": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "100",
+   "title": "karta w tle u głównego GM-a"
+  },
+  "LIVE-E44-02": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ],
+   "pos": "378",
+   "title": "klik w kafelek panelu GM-a w chwili zapisu ustawienia (E44 C2b; E44-07)"
+  },
+  "LIVE-E31-03": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "37",
+   "title": "GM wychodzi w trakcie"
+  },
+  "LIVE-E28-05": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "98",
+   "title": "bez GM-a"
+  },
+  "LIVE-E47-05": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "442",
+   "title": "karta stanu rzutu (E28) przy wstrzymanym rzucie i rzucie bez GM-a (E47 C5; E47-15)"
+  },
+  "LIVE-E29-06": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "115",
+   "title": "GM nieobecny"
+  },
+  "LIVE-E05-10": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "62",
+   "title": "notatka bez GM-a"
+  },
+  "LIVE-E33-07": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "131",
+   "title": "GM wychodzi albo główny GM przeładowuje, gdy Search gracza jest losowany"
+  },
+  "LIVE-E08-02": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "90",
+   "title": "przeładowanie GM-a w trakcie Rerolla"
+  },
+  "LIVE-E04-04": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "44",
+   "title": "GM traci sieć i wraca bez przeładowania"
+  },
+  "LIVE-E30-05": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "30",
+   "title": "ktoś wychodzi"
+  },
+  "LIVE-E29-13": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "122",
+   "title": "ile czeka rzut losowany"
+  },
+  "LIVE-E04-08": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "48",
+   "title": "weryfikacja z briefu na żywo"
+  },
+  "LIVE-E42-02": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "371",
+   "title": "werdykt i koniec rozdziału przerwane zamknięciem karty GM-a (E42 C1c, C2; E42-05, E42-06, E42-09, E42-10)"
+  },
+  "LIVE-E31-02": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "36",
+   "title": "czas odpowiedzi"
+  },
+  "LIVE-E04-11": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "51",
+   "title": "dwie karty jednej przeglądarki na jednym świecie"
+  },
+  "LIVE-E04-03": {
+   "status": "covered",
+   "checks": [
+    "Z1"
+   ],
+   "pos": "43",
+   "title": "localStorage po aktualizacji"
+  },
+  "LIVE-E31-05": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "39",
+   "title": "handOff przy reduced motion"
+  },
+  "LIVE-E28-03": {
+   "status": "covered",
+   "checks": [
+    "Z1"
+   ],
+   "pos": "96",
+   "title": "1 GM i 2 graczy, cały rozdział (weryfikacja)"
+  },
+  "LIVE-E08-04": {
+   "status": "covered",
+   "checks": [
+    "J1"
+   ],
+   "pos": "92",
+   "title": "przerzucone wymazanie na Foundry 14"
+  },
+  "LIVE-E78-06": {
+   "status": "covered",
+   "checks": [
+    "J2"
+   ],
+   "pos": "228",
+   "title": "konto gracza"
+  },
+  "LIVE-E12-04": {
+   "status": "covered",
+   "checks": [
+    "J2"
+   ],
+   "pos": "166",
+   "title": "region gracza"
+  },
+  "LIVE-E08-05": {
+   "status": "covered",
+   "checks": [
+    "J2"
+   ],
+   "pos": "93",
+   "title": "menu kontekstowe czatu Daggerhearta"
+  },
+  "LIVE-E80-03": {
+   "status": "covered",
+   "checks": [
+    "J2"
+   ],
+   "pos": "265",
+   "title": "gracz zmienia stan sekretnych drzwi Foundry (E80 C5)"
+  },
+  "LIVE-E47-08": {
+   "status": "covered",
+   "checks": [
+    "J2"
+   ],
+   "pos": "445",
+   "title": "okno Uczniowie z połączonym graczem (E47 C8; E47-12)"
+  },
+  "LIVE-E81-02": {
+   "status": "partial",
+   "checks": [
+    "I2"
+   ],
+   "pos": "184",
+   "title": "macierz zrzutów",
+   "stays": "Rozmiary stołu (1920x1080, 1366x768) tak; 1024x768, 820x1180, telefony i 640x360 tylko przez narzędzia przeglądarki, a telefony właściciel skreślił 11.11."
+  },
+  "LIVE-E81-04": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "186",
+   "title": "Monokuma Legacy na biurku"
+  },
+  "LIVE-E81-05": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "187",
+   "title": "układ wąski"
+  },
+  "LIVE-E77-01": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "205",
+   "title": "macierz P11 na sandboxie"
+  },
+  "LIVE-E78-01": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "223",
+   "title": "kafle E78 w sandboksie, macierz P11"
+  },
+  "LIVE-E77-02": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "206",
+   "title": "prawdziwe okna Foundry w Narzędziach"
+  },
+  "LIVE-E77-05": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "209",
+   "title": "pisanie przy zmianie rozmiaru"
+  },
+  "LIVE-E77-07": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "211",
+   "title": "kolor stanu"
+  },
+  "LIVE-E77-08": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "212",
+   "title": "zrzuty dla właściciela"
+  },
+  "LIVE-E77-12": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "216",
+   "title": "przycinanie przy 1366x768"
+  },
+  "LIVE-E77-13": {
+   "status": "partial",
+   "checks": [
+    "I2"
+   ],
+   "pos": "217",
+   "title": "Legacy i telefon",
+   "stays": "Legacy na biurku tak; plan telefonu właściciel skreślił (11.11, runda M Q2)."
+  },
+  "LIVE-E77-14": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "218",
+   "title": "zdjęcie pokoju pod oknami Foundry"
+  },
+  "LIVE-E77-17": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "221",
+   "title": "przełącznik świata okien Foundry"
+  },
+  "LIVE-E77-18": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "222",
+   "title": "krój Monokuma Legacy w oknach Foundry"
+  },
+  "LIVE-E78-12": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "234",
+   "title": "pasek 'Still to act' w spoczynku"
+  },
+  "LIVE-E78-13": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "235",
+   "title": "twarz przycisku Narzędzi Foundry"
+  },
+  "LIVE-E77-09": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "213",
+   "title": "logo Foundry (zastąpiony przez LIVE-E78-13)"
+  },
+  "LIVE-E77-10": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "214",
+   "title": "Escape i Shift+C obok innych modułów"
+  },
+  "LIVE-E79-15": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "252",
+   "title": "strzałka paska bocznego zwęża Narzędzia Foundry"
+  },
+  "LIVE-E23-03": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "404",
+   "title": "plansza widoczna w układzie wąskim (E23 C4a, C4b; E23-20, E23-21, E23-23)"
+  },
+  "LIVE-E23-04": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "405",
+   "title": "okno, na które gra czeka, nad arkuszem postaci (E23 C5a; E23-24, E23-T2)"
+  },
+  "LIVE-E23-05": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "406",
+   "title": "przyciski w rogu zostają przechylone (E23 C1d; E23-10, zgłoszenie z 14.10)"
+  },
+  "LIVE-E23-06": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "407",
+   "title": "czat GM-a nad przyciskami i jego zwijanie (E23 C5b; E23-25)"
+  },
+  "LIVE-E23-07": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "408",
+   "title": "`#players` w układzie wąskim (E23 C4b; E23-22, S12-96)"
+  },
+  "LIVE-E23-10": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "411",
+   "title": "panel zdarzeń stałej wielkości (E23 C3b; E23-18)"
+  },
+  "LIVE-E24-12": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "429",
+   "title": "lista graczy Foundry pod Monokuma Legacy (E24, E23 fix L; fix L Open 1; zgłoszenie właściciela z 1.2.100, \"W monokuma legacy jest pusty pasek ui w lewym dolnym rogu\")"
+  },
+  "LIVE-E89-04": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "345",
+   "title": "krawędzie kafli Panelu GM w Stained Glass (E89 C5, C6, fix FG1; E89-10, E89-11, Q-E89-2)"
+  },
+  "LIVE-E88-08": {
+   "status": "covered",
+   "checks": [
+    "I1"
+   ],
+   "pos": "330",
+   "title": "puls szkła rysuje to, co się ruszyło (E88 C5; E88-10)"
+  },
+  "LIVE-E49-01": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "468",
+   "title": "kafle panelu GM równej wysokości, ikona widoczna w każdym stanie (E49 A3; słowa właściciela [7] i [8] z 10.11)"
+  },
+  "LIVE-E49-05": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "471",
+   "title": "84-viewports przy prawdziwym powiększeniu przeglądarki (E49 B7; S17-47)"
+  },
+  "LIVE-E21-08": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "400",
+   "title": "szerokość okna kitu w pierwszych klatkach (E21 W1; STATUS E21 Open 35, 75)"
+  },
+  "LIVE-E66-01": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "362",
+   "title": "nowe nazwy akcji na kafelkach i w oknach (E66 C5; E66-19, E66-24; rozmiary i okna poprawione w E66 fix r2, 01.11.2026, za przeglądem celu, M2)"
+  },
+  "LIVE-E81-07": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ],
+   "pos": "189",
+   "title": "dotyk"
+  },
+  "LIVE-E88-01": {
+   "status": "covered",
+   "checks": [
+    "P1"
+   ],
+   "pos": "323",
+   "title": "`game.drpg.fps()` przy prawdziwym stole (E88 C0; E88-01)"
+  },
+  "LIVE-E88-04": {
+   "status": "partial",
+   "checks": [
+    "P1"
+   ],
+   "pos": "327",
+   "title": "liczba klatek przed i po pociągu E88 (doneWhen; E88-14)",
+   "stays": "Pomiar na wydaniu stołu tak; \"przed E88\" wymaga wydania 1.2.85-1.2.88."
+  },
+  "LIVE-E88-07": {
+   "status": "covered",
+   "checks": [
+    "P1"
+   ],
+   "pos": "329",
+   "title": "zapis ustawienia rysuje to, co zmienił, na prawdziwych arkuszach (E88 C4; E88-09)"
+  },
+  "LIVE-E88-05": {
+   "status": "covered",
+   "checks": [
+    "P1"
+   ],
+   "pos": "324",
+   "title": "odświeżenie tokenu tak, jak je modeluje harness (E88 C0)"
+  },
+  "LIVE-E89-01": {
+   "status": "partial",
+   "checks": [
+    "P1"
+   ],
+   "pos": "346",
+   "title": "klatka przy przeciąganiu własnego tokenu, na 1.2.90 i na 1.2.91 (E89 C0-C4)",
+   "stays": "Pomiar na 1.2.107 tak; porównanie 1.2.90 z 1.2.91 wymaga starych wydań."
+  },
+  "LIVE-E89-02": {
+   "status": "covered",
+   "checks": [
+    "P1"
+   ],
+   "pos": "343",
+   "title": "podgląd przeciągania i `sightRefresh` w trakcie ruchu (E89 C0; E89-01, E89-02, decyduje o E89 C4)"
+  },
+  "LIVE-E33-05": {
+   "status": "partial",
+   "checks": [
+    "P1"
+   ],
+   "pos": "129",
+   "title": "`perf()` po E29 przy stole właściciela (Q3 (a))",
+   "stays": "perf() przy stole tak; pełna metoda (world-manifest.mjs i perf-baseline.mjs --run na kopii) wymaga kopii świata i Node przy stole."
+  },
+  "LIVE-E23-01": {
+   "status": "covered",
+   "checks": [
+    "P1"
+   ],
+   "pos": "402",
+   "title": "przejście kurtyny przy stole (E23 C1b; E23-01, E23-02, E23-04, E23-05)"
+  },
+  "LIVE-E97-06": {
+   "status": "partial",
+   "checks": [
+    "P1"
+   ],
+   "pos": "487",
+   "title": "mapa czytnikiem ekranu i przy 60 Remnantach (E97 C5, C7)",
+   "stays": "Część \"60 Remnantów\" (fps przy otwartym panelu) tak, gdy świat tyle ma; czytnik ekranu w K1."
+  },
+  "LIVE-E88-03": {
+   "status": "covered",
+   "checks": [
+    "P2"
+   ],
+   "pos": "326",
+   "title": "zerwania głosu i jeden pokój głosowy na przejście przez drzwi (E88 C0 przepis, E88 C6; E88-11, E88-12)"
+  },
+  "LIVE-H82-02": {
+   "status": "covered",
+   "checks": [
+    "P2"
+   ],
+   "pos": "276",
+   "title": "głos przy wejściu do nowego pokoju (H82 C2, H82-02, H82-03)"
+  },
+  "LIVE-E19-01": {
+   "status": "covered",
+   "checks": [
+    "P2"
+   ],
+   "pos": "283",
+   "title": "zerwane połączenie LiveKit i jego powrót (E19 C2)"
+  },
+  "LIVE-E78-07": {
+   "status": "covered",
+   "checks": [
+    "P2"
+   ],
+   "pos": "229",
+   "title": "zerwane połączenie"
+  },
+  "LIVE-E81-08": {
+   "status": "covered",
+   "checks": [
+    "K1"
+   ],
+   "pos": "190",
+   "title": "czytnik ekranu"
+  },
+  "LIVE-E48-06": {
+   "status": "covered",
+   "checks": [
+    "K1"
+   ],
+   "pos": "473",
+   "title": "panel Eventu jako region na żywo w czytniku ekranu (E48 K4; a11y.mjs, events.mjs)"
+  },
+  "LIVE-E52-09": {
+   "status": "covered",
+   "checks": [
+    "K2"
+   ],
+   "pos": "B-E52-9",
+   "title": "przyciemnianie strony przez Dark Reader i inne wtyczki (E52 C5; E52-17, S01-39)"
+  },
+  "LIVE-E81-21": {
+   "status": "covered",
+   "checks": [
+    "K2"
+   ],
+   "pos": "203",
+   "title": "pełna pamięć w innej przeglądarce"
+  },
+  "LIVE-E21-02": {
+   "status": "covered",
+   "checks": [
+    "K2"
+   ],
+   "pos": "388",
+   "title": "klawiatura ekranowa nie przestawia układu (E21 C1d; E21-17, poprawka właściciela z 26.09 i A7)"
+  },
+  "LIVE-E21-03": {
+   "status": "covered",
+   "checks": [
+    "K2"
+   ],
+   "pos": "389",
+   "title": "`navigator.virtualKeyboard.overlaysContent` w przeglądarkach stołu (E21 C1d)"
+  },
+  "LIVE-E78-05": {
+   "status": "not-coverable",
+   "checks": [
+    "K2"
+   ],
+   "pos": "227",
+   "title": "wiersz wąski na prawdziwym telefonie",
+   "reason": "Właściciel zrezygnował z telefonów (11.11.2026, runda M Q2); kafel głosu na prawdziwym telefonie nie jest celem."
+  },
+  "LIVE-E12-02": {
+   "status": "covered",
+   "checks": [
+    "K3"
+   ],
+   "pos": "164",
+   "title": "scena testowa o dwóch piętrach"
+  },
+  "LIVE-E12-03": {
+   "status": "covered",
+   "checks": [
+    "K3"
+   ],
+   "pos": "165",
+   "title": "piętra nowego regionu i tokenu"
+  },
+  "LIVE-E17-03": {
+   "status": "covered",
+   "checks": [
+    "K3"
+   ],
+   "pos": "309",
+   "title": "skok z konsoli na inne piętro do zamkniętego pokoju na v14 z Levels (E17 część 1 C1; E17-27, E17-09)"
+  },
+  "LIVE-E79-03": {
+   "status": "covered",
+   "checks": [
+    "K3"
+   ],
+   "pos": "240",
+   "title": "dwa piętra i Isometric Perspective"
+  },
+  "LIVE-E95-02": {
+   "status": "covered",
+   "checks": [
+    "K3"
+   ],
+   "pos": "453",
+   "title": "kafel ciała a jednostki i piętra kafla w v14 (E95 C0, C2; DC6)"
+  },
+  "LIVE-E13-11": {
+   "status": "covered",
+   "checks": [
+    "K4"
+   ],
+   "pos": "182",
+   "title": "brakujący moduł towarzyszący"
+  },
+  "LIVE-E19-09": {
+   "status": "covered",
+   "checks": [
+    "K4"
+   ],
+   "pos": "289",
+   "title": "Proximity Voice Chat obok pokojów głosowych (E19 C2; E19-11)"
+  },
+  "LIVE-E78-08": {
+   "status": "covered",
+   "checks": [
+    "K4"
+   ],
+   "pos": "230",
+   "title": "z proximity-voice-chat"
+  },
+  "LIVE-E78-09": {
+   "status": "covered",
+   "checks": [
+    "K4"
+   ],
+   "pos": "231",
+   "title": "głos w osobnym oknie"
+  },
+  "LIVE-E20-02": {
+   "status": "covered",
+   "checks": [
+    "K4"
+   ],
+   "pos": "B-E20-2",
+   "title": "świat bez Dice So Nice (E20 C5; E20-17, E20-18)"
+  },
+  "LIVE-E60-07": {
+   "status": "covered",
+   "checks": [
+    "K4"
+   ],
+   "pos": "373",
+   "title": "nazwy, których przeglądarka nie zna (E60 C5b; E60-14)"
+  },
+  "LIVE-E33-01": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "125",
+   "title": "83 przez lokalną bramkę na sandboxie v14, Daggerheart 2.6.5 i 2.10.x, z prawdziwym oknem rzutu"
+  },
+  "LIVE-E30-06": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "31",
+   "title": "Asystent przy stole"
+  },
+  "LIVE-E37-01": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "365",
+   "title": "81-render-budget na prawdziwym Foundry (E37 C5; E37-20 do E37-24)"
+  },
+  "LIVE-E81-01": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "183",
+   "title": "historia na prawdziwym cleanerze"
+  },
+  "LIVE-E81-10": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "192",
+   "title": "sondy na local-gate"
+  },
+  "LIVE-E81-11": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "193",
+   "title": "wycofanie i usunięcie na prawdziwym Foundry"
+  },
+  "LIVE-E79-07": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "244",
+   "title": "tryb \"cofnij token\""
+  },
+  "LIVE-E15-02": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "302",
+   "title": "Breach the Wall i trzy naprawy na sandboksie 30099 (E15 część 2 C3-C5; E15-60)"
+  },
+  "LIVE-E81-13": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "195",
+   "title": "glass-harness w 22 rozmiarach"
+  },
+  "LIVE-E04-06": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "46",
+   "title": "próba aktualizacji na kopii świata właściciela",
+   "reason": "Próba aktualizacji na kopii świata sprzed 1.2.63; świat stołu jest już po tej aktualizacji. Potrzebna kopia sprzed niej."
+  },
+  "LIVE-E05-02": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "54",
+   "title": "przeniesienia na kopii świata właściciela",
+   "reason": "Klauzule 1.2.64 na kopii świata sprzed nich; świat stołu już je przeszedł."
+  },
+  "LIVE-E05-12": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "64",
+   "title": "usunięcie z delty tokenu",
+   "reason": "Klauzula 1.2.64 na tokenie z flagą w delcie; świat stołu już ją przeszedł."
+  },
+  "LIVE-E06-07": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "73",
+   "title": "stare karty (Q1 (a))",
+   "reason": "Klauzula starych kart na kopii świata sprzed niej; już przebiegła."
+  },
+  "LIVE-E11-06": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "159",
+   "title": "świat właściciela (reset sprzed 1.2.73)",
+   "reason": "Pierwsze wczytanie świata sprzed 1.2.73; już przebiegło."
+  },
+  "LIVE-E12-08": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "170",
+   "title": "migracja na kopii świata właściciela",
+   "reason": "Migracja pokoi na kopii świata sprzed niej; już przebiegła."
+  },
+  "LIVE-E30-07": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "28",
+   "title": "`migrateRemnants` na kopii starego świata",
+   "reason": "migrateRemnants na kopii świata sprzed ledgera śladów (DRPG_FIXTURES); świat stołu jest po nim."
+  },
+  "LIVE-E32-02": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "76",
+   "title": "incydent w toku przez aktualizację do 1.2.66",
+   "reason": "Incydent w toku przez aktualizację do 1.2.66; ta aktualizacja już minęła."
+  },
+  "LIVE-E63-05": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "467",
+   "title": "świat 1.2.104 w środku rozdziału (E63 C3; QUESTIONS E63 Q6)",
+   "reason": "Świat 1.2.104 w środku rozdziału aktualizowany do 1.2.105; ta aktualizacja już minęła."
+  },
+  "LIVE-E81-19": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "201",
+   "title": "wiersze obsady z 1.2.74 przy dwóch GM-ach",
+   "reason": "Świat z 1.2.74 z dwoma GM-ami; ta aktualizacja już minęła."
+  },
+  "LIVE-E20-03": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "B-E20-3",
+   "title": "od instalacji do pierwszego Eclipse samymi oknami (E20 C4, C7; E20-13, E20-14, E20-23)",
+   "reason": "Osoba, która nie zna modułu, na nowym świecie; właściciel zna moduł, a świat stołu nie jest nowy. Można dać to nowej osobie poza sesją."
+  },
+  "LIVE-E31-04": {
+   "status": "not-coverable",
+   "checks": [],
+   "pos": "38",
+   "title": "podłożony przedmiot po czasie",
+   "reason": "Wolny serwer z odpowiedzią po 5 i 10 s; zwykły serwer na Forge tego nie odtworzy, a celowe spowolnienie nie należy do sesji z graczami."
+  },
+  "LIVE-E75-01": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "149",
+   "title": "odliczanie z akcji gracza na Daggerheart 2.10.11"
+  },
+  "LIVE-E75-02": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ],
+   "pos": "150",
+   "title": "drugi gracz przy tej samej akcji"
+  },
+  "LIVE-E77-03": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "207",
+   "title": "ścieżka zdjęcia na prawdziwym serwerze"
+  },
+  "LIVE-E78-11": {
+   "status": "covered",
+   "checks": [
+    "A6"
+   ],
+   "pos": "233",
+   "title": "zdjęcie pokoju z Assets Library na Forge"
+  },
+  "LIVE-E77-04": {
+   "status": "covered",
+   "checks": [
+    "C2"
+   ],
+   "pos": "208",
+   "title": "zdjęcie w pełnym rozmiarze"
+  },
+  "LIVE-E80-05": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ],
+   "pos": "271",
+   "title": "Frisk na The Forge z dwoma kontami, jego zegary i GM, który wraca bez przeładowania (E80 część 2, C3; fix r1-G1, r1-G2, r1-G3, r1-G4, r2-G3)"
+  }
+ },
+ "unnumbered": {
+  "AUDIT92-19": {
+   "status": "covered",
+   "checks": [
+    "A2"
+   ]
+  },
+  "AUDIT92-18": {
+   "status": "covered",
+   "checks": [
+    "B4"
+   ]
+  },
+  "AUDIT92-15": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ]
+  },
+  "AUDIT7-07": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ]
+  },
+  "AUDIT92-22": {
+   "status": "covered",
+   "checks": [
+    "C1"
+   ]
+  },
+  "AUDIT7-01": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ]
+  },
+  "AUDIT7-02": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ]
+  },
+  "AUDIT92-21": {
+   "status": "covered",
+   "checks": [
+    "C3"
+   ]
+  },
+  "AUDIT7-10": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ]
+  },
+  "AUDIT7-03": {
+   "status": "covered",
+   "checks": [
+    "C4"
+   ]
+  },
+  "AUDIT92-24": {
+   "status": "covered",
+   "checks": [
+    "C5"
+   ]
+  },
+  "AUDIT7-05": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ]
+  },
+  "AUDIT92-23": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ]
+  },
+  "AUDIT7-08": {
+   "status": "partial",
+   "checks": [
+    "C8"
+   ],
+   "stays": "Safeword na arkuszu i czat tak; \"świeży świat na 1.2.43\" to inna wersja."
+  },
+  "AUDIT92-17": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ]
+  },
+  "AUDIT7-14": {
+   "status": "covered",
+   "checks": [
+    "C8"
+   ]
+  },
+  "AUDIT7-09": {
+   "status": "covered",
+   "checks": [
+    "D1"
+   ]
+  },
+  "AUDIT7-04": {
+   "status": "covered",
+   "checks": [
+    "D2"
+   ]
+  },
+  "AUDIT7-06": {
+   "status": "covered",
+   "checks": [
+    "D4"
+   ]
+  },
+  "AUDIT92-16": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ]
+  },
+  "AUDIT7-12": {
+   "status": "covered",
+   "checks": [
+    "F2"
+   ]
+  },
+  "AUDIT7-11": {
+   "status": "covered",
+   "checks": [
+    "H1"
+   ]
+  },
+  "AUDIT92-20": {
+   "status": "covered",
+   "checks": [
+    "J2"
+   ]
+  },
+  "AUDIT7-13": {
+   "status": "covered",
+   "checks": [
+    "I2"
+   ]
+  },
+  "AUDIT92-448": {
+   "status": "not-coverable",
+   "checks": [],
+   "reason": "Zapis rundy poprawek E47-FA..FD i jej przyjęcia, nie check przy stole; to, co z niej zostało do sprawdzenia, jest w LIVE-E47-11."
+  },
+  "AUDIT92-449": {
+   "status": "not-coverable",
+   "checks": [],
+   "reason": "Zapis przeniesienia do E98 (nagłówki Legacy w tabeli Remnants), nie check przy stole."
+  },
+  "AUDIT92-450": {
+   "status": "not-coverable",
+   "checks": [],
+   "reason": "Zapis zatwierdzenia podpisów Observe, nie check przy stole."
+  },
+  "AUDIT92-451": {
+   "status": "not-coverable",
+   "checks": [],
+   "reason": "Zapis decyzji o mapie sprawy (E97-E99), nie check przy stole."
+  }
+ },
+ "branches": {
+  "LIVE-E61-01": {
+   "status": "after-release",
+   "checks": [
+    "F1"
+   ],
+   "branch": "claude/e61-62",
+   "stage": "E61",
+   "when": "po wydaniu E61"
+  },
+  "LIVE-E61-06": {
+   "status": "after-release",
+   "checks": [
+    "K3"
+   ],
+   "branch": "claude/e61-62",
+   "stage": "E61",
+   "when": "po wydaniu E61"
+  },
+  "LIVE-E61-08": {
+   "status": "after-release",
+   "checks": [
+    "F1"
+   ],
+   "branch": "claude/e61-62",
+   "stage": "E61",
+   "when": "po wydaniu E61"
+  },
+  "LIVE-E64-01": {
+   "status": "after-release",
+   "checks": [
+    "D5"
+   ],
+   "branch": "claude/e64",
+   "stage": "E64",
+   "when": "po wydaniu E64"
+  },
+  "LIVE-E69-04": {
+   "status": "after-release",
+   "checks": [
+    "C1"
+   ],
+   "branch": "claude/e93",
+   "stage": "E69",
+   "when": "po wydaniu E69"
+  },
+  "LIVE-E73-01": {
+   "status": "after-release",
+   "checks": [
+    "L1"
+   ],
+   "branch": "claude/e73",
+   "stage": "E73",
+   "when": "po wydaniu E73"
+  },
+  "LIVE-E73-02": {
+   "status": "after-release",
+   "checks": [
+    "F2"
+   ],
+   "branch": "claude/e73",
+   "stage": "E73",
+   "when": "po wydaniu E73"
+  },
+  "LIVE-E73-03": {
+   "status": "after-release",
+   "checks": [
+    "F1"
+   ],
+   "branch": "claude/e73",
+   "stage": "E73",
+   "when": "po wydaniu E73"
+  },
+  "LIVE-E73-04": {
+   "status": "after-release",
+   "checks": [
+    "J1"
+   ],
+   "branch": "claude/e73",
+   "stage": "E73",
+   "when": "po wydaniu E73"
+  },
+  "LIVE-E73-05": {
+   "status": "after-release",
+   "checks": [
+    "F2"
+   ],
+   "branch": "claude/e73",
+   "stage": "E73",
+   "when": "po wydaniu E73"
+  },
+  "LIVE-E92-01": {
+   "status": "after-release",
+   "checks": [
+    "B3"
+   ],
+   "branch": "claude/e92",
+   "stage": "E92",
+   "when": "po wydaniu E92"
+  },
+  "LIVE-E92-02": {
+   "status": "after-release",
+   "checks": [
+    "C1"
+   ],
+   "branch": "claude/e92",
+   "stage": "E92",
+   "when": "po wydaniu E92"
+  },
+  "LIVE-E92-03": {
+   "status": "after-release",
+   "checks": [
+    "F1"
+   ],
+   "branch": "claude/e92",
+   "stage": "E92",
+   "when": "po wydaniu E92"
+  },
+  "LIVE-E92-04": {
+   "status": "after-release",
+   "checks": [
+    "C1"
+   ],
+   "branch": "claude/e92",
+   "stage": "E92",
+   "when": "po wydaniu E92"
+  },
+  "LIVE-E93-01": {
+   "status": "after-release",
+   "checks": [
+    "C3"
+   ],
+   "branch": "claude/e93",
+   "stage": "E93",
+   "when": "po wydaniu E93"
+  },
+  "LIVE-E93-02": {
+   "status": "after-release",
+   "checks": [
+    "C6"
+   ],
+   "branch": "claude/e93",
+   "stage": "E93",
+   "when": "po wydaniu E93"
+  },
+  "LIVE-E93-03": {
+   "status": "after-release",
+   "checks": [
+    "A7"
+   ],
+   "branch": "claude/e93",
+   "stage": "E93",
+   "when": "po wydaniu E93"
+  },
+  "LIVE-E99-01": {
+   "status": "after-release",
+   "checks": [
+    "F2"
+   ],
+   "branch": "claude/e97-98",
+   "stage": "E99",
+   "when": "po wydaniu E99"
+  },
+  "LIVE-E99-04": {
+   "status": "after-release",
+   "checks": [
+    "H1"
+   ],
+   "branch": "claude/e97-98",
+   "stage": "E99",
+   "when": "po wydaniu E99"
+  },
+  "LIVE-E99-05": {
+   "status": "after-release",
+   "checks": [
+    "H1"
+   ],
+   "branch": "claude/e97-98",
+   "stage": "E99",
+   "when": "po wydaniu E99"
+  }
+ }
+}
