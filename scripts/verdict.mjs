@@ -37,7 +37,8 @@ import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./mu
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, whisperToGms, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
+import { deathRecordFor } from "./settings.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
 // The kit's frame for the verdict's windows: the Final Trial's (E22 C3b), the ordinary verdict and the Blackened's rule
@@ -476,7 +477,8 @@ async function keepVerdictBlackened(at, blackenedIds) {
  */
 const VERDICT_STEPS = {
     correct: ["sentence", "card", "levelUps", "overflow"],
-    wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"]
+    // "remind" (E72 C7): the Monocubs this case's death and this chapter's crime touched are told the verdict let the killer go.
+    wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow"]
 };
 /*
  * THE FINAL TRIAL'S EXECUTION AND PICK WAIT ON ITS SENTENCE (E42 fix FG1, 03.11.2026; the end review's C-m1). A Final
@@ -485,7 +487,7 @@ const VERDICT_STEPS = {
  * stands for the Finish, which writes the sentence first (tier 2 E42-T11).
  */
 const VERDICT_NEEDS = {
-    card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence",
+    card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card",
     finalExecution: "finalSentence", mastermind: "finalSentence"
 };
 
@@ -507,7 +509,7 @@ const VERDICT_STEP_LABELS = {
     sentence: "DRPG.Vote.verdictSteps.sentence", executions: "DRPG.Vote.verdictSteps.executions",
     card: "DRPG.Vote.verdictSteps.card", levelUps: "DRPG.Vote.verdictSteps.levelUps",
     offers: "DRPG.Vote.verdictSteps.offers", despair: "DRPG.Vote.verdictSteps.despair",
-    rule: "DRPG.Vote.verdictSteps.rule", overflow: "DRPG.Vote.verdictSteps.overflow",
+    rule: "DRPG.Vote.verdictSteps.rule", remind: "DRPG.Vote.verdictSteps.remind", overflow: "DRPG.Vote.verdictSteps.overflow",
     finalSentence: "DRPG.Vote.verdictSteps.finalSentence", finalCard: "DRPG.Vote.verdictSteps.finalCard",
     finalClose: "DRPG.Vote.verdictSteps.finalClose", finalExecution: "DRPG.Vote.verdictSteps.finalExecution",
     finalLevelUps: "DRPG.Vote.verdictSteps.finalLevelUps", mastermind: "DRPG.Vote.verdictSteps.mastermind"
@@ -882,9 +884,33 @@ async function verdictOverflow() {
 }
 
 /** What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order. */
+/**
+ * THE WRONG VERDICT'S CARD TO THE MONOCUBS (E72 C7, 12.11.2026; audit S18-58, the owner's DC16). A wrong verdict lets the
+ * killer go, and the Monocubs who know who it was - the case's own dead (a death of this chapter, not an execution) and
+ * the chapter's crime witnesses (`isCrimeSilenced`) - could spend their moves for or against them. Each is sent one veiled
+ * card (its words to that player alone, its document naming nobody): do not act for or against that person, their
+ * projects, bribes or bets. The card names nobody; the GMs' summary lists who was told. Answers the names told.
+ */
+export async function remindOnWrongVerdict(context) {
+    const { monocubActors, isCrimeSilenced } = await import("./monocub.mjs");
+    const clock = getClock();
+    const touched = monocubActors().filter(actor => {
+        const death = deathRecordFor(actor);
+        const caseDead = Boolean(death) && death.cause !== "executed" && death.chapter === clock.chapter;
+        return caseDead || isCrimeSilenced(actor);
+    });
+    for (const actor of touched) {
+        await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Monocub.wrongVerdictTitle")}</strong></p>`
+            + `<p>${game.i18n.localize("DRPG.Monocub.wrongVerdictCard")}</p>`, { veiled: true });
+    }
+    if (touched.length) context?.lines?.push(game.i18n.format("DRPG.Monocub.wrongVerdictTold", { names: listOf(touched.map(actor => actor.name)) }));
+    return touched.map(actor => actor.name);
+}
+
 const VERDICT_STEP = {
     sentence: readSentence, card: verdictCard,
-    levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, overflow: verdictOverflow,
+    levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, remind: remindOnWrongVerdict,
+    overflow: verdictOverflow,
     finalSentence: finalVerdictSentence, finalCard: finalVerdictCard, finalClose: finalVerdictClose,
     finalExecution: finalVerdictExecution, finalLevelUps: finalVerdictLevelUps, mastermind: finalVerdictMastermind
 };

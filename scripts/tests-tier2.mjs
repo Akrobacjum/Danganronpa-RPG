@@ -17499,6 +17499,57 @@ const SCENARIOS = [
             "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
     }],
 
+    ["a wrong verdict tells the case's dead and the chapter's crime witnesses among the Monocubs, and no other Monocub, that the killer walks free (E72 C7)", async () => {
+        /*
+         * E72 C7, 12.11.2026; audit S18-58, the owner's DC16. A wrong verdict told the Monocubs nothing, and the ones who
+         * know the killer could act for or against them. A step of the wrong verdict (verdict.mjs `remindOnWrongVerdict`,
+         * `VERDICT_STEPS.wrong`'s "remind") sends each Monocub this case's death made (dead this chapter, not executed)
+         * and each the chapter marked a crime witness one veiled card, and lists them in the GMs' summary. Three Monocubs
+         * of the cast: dead this chapter; dead last chapter and marked a witness; dead last chapter and not marked. Read:
+         * who was told, in the cast's order, and the summary's line. Red at f22a7e8's runtime: no such step.
+         */
+        const [victim, witness, other] = cast(3);
+        const V = await import("./verdict.mjs");
+        const M = await import("./monocub.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const clock = getClock();
+        const names = [FLAGS.deceased, FLAGS.monocub];
+        const was = [victim, witness, other].map(a => [a, Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(a.getFlag(MODULE_ID, f))])),
+            foundry.utils.deepClone(cubStore?.get(a.id) ?? null)]);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let told = null;
+        const context = { lines: [] };
+        try {
+            ok(typeof V.remindOnWrongVerdict === "function", "verdict.mjs has no remindOnWrongVerdict - the wrong verdict's card is not built (E72 C7)");
+            const died = chapter => ({ chapter, day: clock.day, timeOfDay: clock.timeOfDay, epoch: seasonEpoch() });
+            await victim.setFlag(MODULE_ID, FLAGS.deceased, died(clock.chapter));
+            await witness.setFlag(MODULE_ID, FLAGS.deceased, died(clock.chapter - 1));
+            await other.setFlag(MODULE_ID, FLAGS.deceased, died(clock.chapter - 1));
+            for (const a of [victim, witness, other]) {
+                await a.setFlag(MODULE_ID, FLAGS.monocub, true);
+                if (cubStore.has(a.id)) await cubStore.drop(a.id);
+            }
+            await cubStore.patch(witness.id, { witness: { chapter: clock.chapter, epoch: seasonEpoch() } });
+            await settle();
+            told = await V.remindOnWrongVerdict(context);
+        } finally {
+            for (const [a, flags, row] of was) {
+                for (const f of names) {
+                    if (flags[f] === undefined || flags[f] === null) await a.unsetFlag(MODULE_ID, f);
+                    else await a.setFlag(MODULE_ID, f, flags[f]);
+                }
+                if (cubStore) {
+                    if (row) await cubStore.patch(a.id, row);
+                    else if (cubStore.has(a.id)) await cubStore.drop(a.id);
+                }
+            }
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+        }
+        equal(stableJson([[...(told ?? [])].sort(), context.lines.length]), stableJson([[victim.name, witness.name].sort(), 1]),
+            "a wrong verdict did not tell exactly the case's dead and the chapter's witnesses among the Monocubs ([who was told, the summary's lines])");
+    }],
+
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the

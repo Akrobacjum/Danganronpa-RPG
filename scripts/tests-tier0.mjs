@@ -19995,8 +19995,9 @@ const REGRESSIONS = [
         ok(planted !== vote && JSON.stringify(readOf(planted).finalForbidden) === JSON.stringify(["card"]),
             "the reader does not name a Final step keyed \"card\" planted in FINAL_VERDICT_STEPS");
         equal(JSON.stringify(readOf(vote)), JSON.stringify({
-            ordinary: { correct: ["sentence", "card", "levelUps", "overflow"], wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"] },
-            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", finalExecution: "finalSentence", mastermind: "finalSentence" },
+            // E72 C7 (changed on purpose): the wrong verdict's "remind", after its card, before the overflow.
+            ordinary: { correct: ["sentence", "card", "levelUps", "overflow"], wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow"] },
+            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", finalExecution: "finalSentence", mastermind: "finalSentence" },
             final: FINAL, finalForbidden: [], unrun: [], unlabelled: [], finalTable: true, runners: []
         }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
             + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "
