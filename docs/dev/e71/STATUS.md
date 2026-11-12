@@ -74,6 +74,7 @@ edited unless the row says so.
 | lang/pl.json (130 places) | "Remnants" | Polish sentences use both the inflected "Remnanty"/"Remnantów" (DB4) and the English plural "Remnants" (e.g. "Faint Remnants", "Remnants na mapie"). This pass wrote the inflected forms where it replaced "ślad", and left the existing "Remnants". | Which plural a Polish sentence takes is DB4's question for the owner; many of the places are frozen. |
 | lang/pl.json `DRPG.Remnant.projectNote`, `projectNoteUncovered` | "rzut {total} na zatarcie Remnantów" | The English says "rolled {total} to cover their tracks", an idiom; the Polish now names the mechanic (Remnants) instead of the idiom "zatarcie śladów". | Changed (DB15 forbids "ślad"); the owner may prefer another phrase. |
 | lang/pl.json (two values) | U+2212 | Two minus signs remain in `lang/pl.json` (T6's baseline rows, E25 C2's own work: the rows' `empties` say E25). | Not touched: the baseline change belongs with E25 C2. |
+| lang/pl.json:765 | `DRPG.Passage.list.oneWay` | Pair N15 was applied in 2dbf3c88 and put back at 16:10: e72 (head 674f0fc2) now edits the next line (`walk`) and adds keys under it, and two edits on touching lines conflict in a merge. R904's expectation is back to the old wording. | Apply N15 after e72 merges. |
 | lang/en.json, lang/pl.json (frozen keys) | `DRPG.Trial.presentByButton` (e73 and others) | Overexplains (T29) to a player: "the GM's browser posts its card". | Frozen; for the owning line. |
 | lang/en.json, lang/pl.json (frozen) | `DRPG.Observe.resolveLostOwner` | Overexplains (T29) to a player: "the GM's browser has no record of what you were looking at". | Frozen; for the owning line. |
 | lang/en.json, lang/pl.json (frozen) | `DRPG.Settings.highContrast.hint`, `reducedMotion.hint` (e61-62, e92) | End "This client only." / "Tylko ten klient." where EN14/PL-o say "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; the hint also explains the Interface scale's split. | Frozen; for the owning line. |
@@ -87,6 +88,10 @@ edited unless the row says so.
 | lang/en.json:3222 and its pl twin | `DRPG.Eclipse.noMovesLeft` | S07-39 (E25's list): "Your token has been put back." - movement.mjs:1149 and :1674 return it as a refusal before a move, where nothing was put back. | Needs the code read per caller (eclipse.mjs:1022 is a third); E25's C4. |
 | lang/en.json:4771 and its pl twin | `DRPG.Note.intro` | S01-25 (E25's list): "the first four questions" - the count depends on the template. | Needs the template's real count; E25's C4. |
 | scripts/config.mjs and `DRPG.Config.*` in pl.json | config prose | Not edited in this pass at all (see FROZEN.md); the pilot's config afters and pair N25 (`ACTIONS.palm.description`) wait there. | Four open branches change config.mjs by line. |
+
+## Merge check (12.11, 16:10)
+
+`git merge-tree` of this branch with each open branch, against the same merge of the base it started from (235c3210): no file conflicts that this branch adds, for any of the nine. With origin/main at 4dfac3a9 (1.2.108): a clean merge.
 
 ## Test runs
 
@@ -123,7 +128,7 @@ then given the new wording.
 | --- | --- | --- | --- |
 | R1158 | scripts/tests-tier0.mjs | `DRPG.Calls.armedForYou` en and pl | the pilot's approved afters |
 | R902 | scripts/tests-tier1.mjs | `DRPG.Passage.tab.wayOnly` pl "Tylko z: {from}, do: {to}" | "Tylko z pokoju {from} do pokoju {to}" |
-| R904 | scripts/tests-tier1.mjs | `DRPG.Passage.list.oneWay` pl | pair N15's after |
+| R904 | scripts/tests-tier1.mjs | `DRPG.Passage.list.oneWay` pl | pair N15's after - then put back (below) |
 | R3136 | scripts/tests-tier1.mjs | `DRPG.Observe.anythingHint` read for /trace/ and /ślad/ | /Remnant/ in both (red first: failed in the tier 1 run) |
 | R518 | (no test change) | the GM handbook's quote of `DRPG.Vault.descriptionNote` (section 1, line 88) | the quote was updated with the key (red first) |
 | R387, R603 | scripts/tests-tier0.mjs (lines 13491, 14918, 14919, 14934) | Polish handbook sentences read with "GMowi", "GMa" | the same sentences with "GM-owi", "GM-a" (red first: both failed in the tier 1 run) |

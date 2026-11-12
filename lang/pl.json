@@ -762,7 +762,7 @@
         "where": "Pokaż na mapie",
         "shut": "droga zamknięta",
         "cross": "Przejdź",
-        "oneWay": "Tylko w jedną stronę: z pokoju {from} do pokoju {to}.",
+        "oneWay": "Tylko w jedną stronę, z: {from}, do: {to}.",
         "walk": "Przejdź przez tajne przejście."
       },
       "show": {
