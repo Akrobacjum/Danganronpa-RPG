@@ -4582,6 +4582,60 @@ const INVARIANTS = [
         equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
     }],
 
+    ["R3600 - a player's save is judged in Daggerheart's shape up to 2.12.4 and in 2.12.5's, and forwarded in both", async () => {
+        /*
+         * E76 C2, 12.11.2026. Daggerheart 2.12.5 changed what a player's save sends: chatMessage.mjs
+         * `onRollSave` (2.12.8:274-290) sends `{ action, message, token, saveTotal, isCritical }` where
+         * 2.10.11 sent `{ action, message, token, result }`, and socket.mjs's UpdateSaveMessage case
+         * (sha1 59fbfd4bd9 up to 2.12.4, 89f7472022 from 2.12.5 to 2.12.8; read with `git show` on the
+         * tags) calls `updateSaveMessage(data.data.saveTotal, data.data.isCritical, message, token)`.
+         * The guard read `result.roll.total` alone, so every 2.12.5 save was dropped as "a save with no
+         * roll in it", and what it forwarded was a `result` 2.12.5's handler no longer reads. The
+         * listener the guard wraps does not hold that case (it is in `EVENT_HANDLERS`, reached through a
+         * hook), so the build cannot be read off it: the packet passed on carries the one judged total
+         * in both shapes, and each build's handler reads its own.
+         */
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
+        const mine = { documentName: "Actor", type: "character", testUserPermission: user => user?.id === player.id };
+        const theirs = { documentName: "Actor", type: "character", testUserPermission: () => false };
+        const world = {
+            message: id => (id === "M1" ? { id: "M1" } : null),
+            tokenFor: (message, tokenId) => (tokenId === "TOKMINE" ? { actor: mine } : tokenId === "TOKTHEIRS" ? { actor: theirs } : null),
+            now: () => 1e12
+        };
+        const save = inner => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateSaveMessage", data: { message: "M1", ...inner } } }, player, world);
+        const sent = verdict => verdict.packet?.data?.data ?? {};
+        const shapes = {
+            "2.12.5": save({ action: "Compendium.x.Item.y.Action.z", token: "TOKMINE", saveTotal: 14, isCritical: true }),
+            "2.10.11": save({ token: "TOKMINE", result: { roll: { total: 14, isCritical: true } } })
+        };
+        for (const [build, verdict] of Object.entries(shapes)) {
+            equal(verdict.verdict, "forward", `a save in ${build}'s shape for the sender's own token is not forwarded (${verdict.why})`);
+            equal(sent(verdict).saveTotal, 14, `a save in ${build}'s shape is forwarded without the total 2.12.5's handler reads`);
+            equal(sent(verdict).isCritical, true, `a save in ${build}'s shape is forwarded without the critical 2.12.5's handler reads`);
+            equal(JSON.stringify(sent(verdict).result), JSON.stringify({ roll: { total: 14, isCritical: true } }),
+                `a save in ${build}'s shape is forwarded without the result 2.10.11's handler reads`);
+            equal(sent(verdict).token, "TOKMINE", `a save in ${build}'s shape is forwarded for another token`);
+        }
+        equal(save({ token: "TOKTHEIRS", saveTotal: 14, isCritical: false }).verdict, "refuse",
+            "a save in 2.12.5's shape for a token the sender does not play is not refused");
+        for (const saveTotal of [undefined, null, "lots", Number.NaN, Infinity]) {
+            equal(save({ token: "TOKMINE", saveTotal, isCritical: false }).verdict, "drop",
+                `a save in 2.12.5's shape with no total (${String(saveTotal)}) is not dropped`);
+        }
+        // One total, both fields: a packet carrying two different totals is forwarded with 2.12.5's
+        // in both, so the two builds' handlers can never mark the card with different numbers.
+        const both = sent(save({ token: "TOKMINE", saveTotal: 9, isCritical: false, result: { roll: { total: 20, isCritical: true } } }));
+        ok(both.saveTotal === 9 && both.result?.roll?.total === 9 && both.isCritical === false && both.result?.roll?.isCritical === false,
+            `a save carrying two totals is forwarded with two different numbers: ${JSON.stringify(both)}`);
+        equal(sent(save({ token: "TOKMINE", saveTotal: 13.6, isCritical: "yes" })).saveTotal, 14, "a save's total is not forwarded whole");
+        // A `saveTotal` key is 2.12.5's shape whatever else rides with it: its null is no roll,
+        // as 2.12.5's `updateSaveMessage` marks nothing for it, and a `result` beside it is not read.
+        equal(save({ token: "TOKMINE", saveTotal: null, result: { roll: { total: 5 } } }).verdict, "drop",
+            "a save in 2.12.5's shape with a null total is marked from a result 2.12.5 never sends");
+    }],
+
     ["R136 - a sabotage is taken back only as the pair it wrote", async () => {
         /*
          * E03, 24.09.2026; audit S10-03, S09-02. `undoSabotage` deleted whatever id
