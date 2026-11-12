@@ -41,6 +41,27 @@ Round 1: https://claude.ai/artifact/Xu74bXxVyKqNrr2jQnCHR6 - the entry's and the
 EN and PL, GM and player, 1600x900 and 1366x768 at deviceScaleFactor 2; four recordings (both sequences, both themes)
 with frame strips. The glass harness in headless Chromium, not Foundry (the page says what the pictures are not).
 
+Round 2 (the owner's review of round 1): https://claude.ai/artifact/A2Krfqw5VQcMRE1dJnPP5e - the entry under Stained
+Glass and Monokuma Legacy as recordings and frame strips, the closed curtain's still frame in both themes at
+deviceScaleFactor 2, the verdict cut-in's recording and strip, and the measurements below; Polish captions. The glass
+harness in headless Chromium, PL and GM only on the pictures (the page says what they are not).
+
+## Round 2 results (12.11.2026, 8937575)
+
+- The curtain on the harness's real cut, both roles, 1280x720 to 2560x1440 (7 sizes): 0 cells a front covers inside a
+  standing pane, 0 cells off their own pane's distance, 0 left open at the reach; 69-79 % of the hole's cells have their
+  foot inside an edge (the rest are round a corner). `entryPieces` 110-429 ms of main thread once, before the closing,
+  headless on 4 cores (one field when the trial's cut is the Investigation's, as on every size read); a frame's paint
+  2-4 ms. Not measured at a table (LIVE-E61-01).
+- R3703 (rewritten), R3716 and R3717 red at 6049386 (glass-close.mjs absent; the cut-in's rows not animated one by one),
+  green at 8937575. R3716's first reading skipped a cell nearer its edge than the field said and missed its own plant;
+  fixed so every cell is held to its distance. The tests also found that at 1366x768 the last cells were never
+  covered (the reach was taken from float64 distances, the cells kept float32), and the recording that the first frame,
+  stamped before the start, eased backwards; both fixed.
+- Tiers 0-1 whole, headless: 1245 passed, 0 failed, 16 skipped. Scenarios 14, 74, 75 (the ones reading glass.mjs and the
+  stylesheet) green. `node audit/glass-sweep.mjs`: 2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing. Quick gate
+  green.
+
 ## Defaults taken, owner to confirm
 
 - Q-E61-1: a client that loads or reloads after the event plays nothing (the bus's `heard` is read at ready; a card in the log is not created again).
