@@ -6033,6 +6033,19 @@ body.drpg-theme-stained-glass #drpg-popups {
 #drpg-evidence.is-raised {
     z-index: 99989;
 }
+/* A CENTRE CARD'S ROWS COME IN ONE AFTER ANOTHER (E62 C5, 1.2.109; MK-R2's summary card: rows 160 ms apart from 150 ms,
+   about a second for six). `--drpg-row` is each row's place, written by day-summary.mjs. None under reduced motion. */
+@keyframes drpg-sum-row-in {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: none; }
+}
+.drpg-popup-centre .drpg-sum-row {
+    animation: drpg-sum-row-in 220ms ease-out both;
+    animation-delay: calc(150ms + var(--drpg-row, 0) * 160ms);
+}
+body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
+    animation: none;
+}
 #drpg-evidence .drpg-popup {
     pointer-events: auto;
     width: 100%;
@@ -18323,6 +18336,8 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
 #drpg-sequence .drpg-seq-announce small { font-size: 0.7em; letter-spacing: 0.12em; opacity: 0.8; }
 /* E94 C3, C4: the end-of-day board - the day's rows (this browser's own), what the school saw, Hope and Despair counted up,
    and the school's mood as a word; the same frame as the start-of-day board's */
+/* The owner on the end board (12.11): more room between the chapter line and the rest - 22 units on the grid's 14 */
+#drpg-sequence .drpg-seq-dayend .drpg-seq-day-sub { margin-bottom: calc(22 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-dayend-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(320 * var(--drpg-seq-u)), 1fr)); gap: calc(24 * var(--drpg-seq-u)); text-align: left; }
 #drpg-sequence .drpg-seq-dayend h3 { margin: 0 0 calc(8 * var(--drpg-seq-u)); border: 0; font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.12em; opacity: 0.8; color: var(--drpg-seq-light); }
 #drpg-sequence .drpg-seq-dayend ol { margin: 0; padding: 0; list-style: none; display: grid; gap: calc(6 * var(--drpg-seq-u)); }

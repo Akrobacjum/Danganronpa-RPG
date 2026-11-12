@@ -852,7 +852,8 @@ function noticeSource(source, messageId, author) {
 
 export function showPopup(bodyHtml, {
     title = null, kind = "info", onClick = null, sticky = false, tone = null, messageId = null,
-    record = true, source = null, link = null, observe = true, persist = "browser", author = null, fromMessage = null, ...more
+    record = true, source = null, link = null, observe = true, persist = "browser", author = null, fromMessage = null,
+    centre = false, ...more
 } = {}) {
     const card = document.createElement("div");
     card.className = `drpg-popup drpg-popup-${KINDS.includes(kind) ? kind : "info"}${
@@ -956,7 +957,11 @@ export function showPopup(bodyHtml, {
         }
     }
 
-    const host = hostFor(kind, sticky);
+    /* A CENTRE CARD (E62 C5, 1.2.109): the day summary and the body's card stand in the middle of the screen, on the
+       stage the trial's evidence stands on - which carries no history button - and come over the windows until
+       touched, as an objection does (the plan's Q8 default). Kept in the history as every card is. */
+    const host = centre ? evidenceStage() : hostFor(kind, sticky);
+    if (centre) card.classList.add("drpg-popup-centre");
     const followed = notice && observe ? notice : null;
     if (followed !== null || host.id === CONTAINER_ID) unwatch = watchCard(card, body, followed, kept);
     card.dataset.drpgSeq = String(++arrivals);
@@ -978,7 +983,7 @@ export function showPopup(bodyHtml, {
        stage (`is-raised`, the stylesheet's `#drpg-evidence.is-raised`) until the first
        pointerdown on it, and then it sinks under the windows like any evidence. Per card: the
        stage stays raised while any objection on it is untouched. */
-    if (host.id === EVIDENCE_ID && kind === "objection") {
+    if (host.id === EVIDENCE_ID && (kind === "objection" || centre)) {
         card.classList.add(RAISED);
         card.addEventListener("pointerdown", () => {
             card.classList.remove(RAISED);
@@ -1281,6 +1286,9 @@ export async function onCreateChatMessage(message) {
         // reason the title is: the card appears on every screen the whisper
         // reached, and only the client that posted it knows what the roll did.
         tone: cardFlag(message, "popupTone") ?? null,
+        // In the middle of the screen (E62 C5): only a GM's card may ask, as `popupForce` (a player's console would
+        // put a card in the middle of every screen otherwise)
+        centre: cardFlag(message, "popupCentre") === true && Boolean(cardWriter(message)?.isGM),
         messageId: message.id
     });
 }

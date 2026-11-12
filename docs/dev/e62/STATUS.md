@@ -53,11 +53,38 @@ all green. `node tools/check.mjs` 17/17, lint green.
   zegar", frames at 0-840 ms, both themes, on the glass harness's static clock. Checked: tiers 0-1 whole 1256 passed, 0
   failed, 16 skipped; scenarios 13, 40, 41, 63 green; check 17/17, lint green.
 
+- **C5, the centre cards** (Q8 default: raised over the windows until touched, owner to confirm): `showPopup`'s new
+  `centre` puts a card on the middle stage the trial's evidence uses (no history button there), raised until its first
+  pointerdown; a chat card asks for it with `popupCentre`, honoured from a GM's card only (R472 census row). The day
+  summary waits for the clock's turn (`summaryDelay`: the turn's length, 0 with none, under reduced motion or with the
+  switch off) and stands in the centre, its rows sliding in 160 ms apart from 150 ms (none under reduced motion). The
+  body's card ("Body found!") stands in the centre for everyone. Both are kept in the history as before. R3729, R3730,
+  red at 6230945. Q4 ("card rules in the centre", 04.10) stays out: no card is named. Shots: the review page's section
+  "1.2.109 · E62 C5", both themes, EN and PL, 1366x768 and 1920x1080. Not shot: 393x852.
+  Checked: tiers 0-1 whole 1258 passed, 0 failed, 16 skipped; scenarios 13, 15, 30, 40, 50, 61, 62, 63, 72, 73, 75 green;
+  check 17/17, lint green.
+
+- **C7, texture through a turn - measured, not changed; waits on the owner.** The `--turn` baseline (turn-baseline.json,
+  the code of e1154c1) holds every turn of the clock above E23-04's 80 % bar: phase, hour and the phase recut read their
+  worst 64 px square at 81-130 % of rest (12 readings: both sizes, both roles; two at 81 %, close to the bar), and E96's
+  first-frame check ("still") holds on every recolour. The layout turn at 1366x768 moved no frame to read. The one
+  reading under the bar is the **layout** turn (the room tile hidden) at 1600x900, both roles: 39 % in the square
+  at 256,256, the same at E62's base d03c509. Frozen frames of that turn (12.11.2026, the glass harness, GM, pulse off,
+  at 100, 300, 500, 700, 900, 1100 ms and after) read: at rest the square is inside the room tile's picture; when the
+  tile goes, the glass that framed it has no new pane to become, so it fades out over the new glass in its batch (E23
+  C1b's design: "an old pane nothing comes from fades in the batch of its distance"); at 100 ms that fading layer
+  flattens the grid under it, and from 300 ms the square stands as it does after. So the dip is a vanishing pane's
+  crossfade, not texture lost on a pane that moves. That is my reading of the frames, not a proof by planting.
+  What it waits on: the owner's choice of how a pane that vanishes leaves. **Proposed default**: it leaves in the turn's
+  first 120 ms (gone before the moving panes are under way), so no frame holds the old and the new glass half and half;
+  the alternative is to slide it off under its neighbour. Either is a look change to review in motion. And the owner's
+  1.2.103 report ("textures and effects still change while the curtain animates") is not reproduced on the clock's turns
+  here: a table check of it is LIVE-E62-01's.
+
 ## Not done, and why
 
 - C3 (death fade, Monocub return): the owner's 05.11 amend says these "get a storyboard and a mockup before E62 is built"; no such mockup exists in what I could read. Not started; owner's step.
-- C5 (centre cards with rows sliding in): not started on this line yet.
-- C6 (the interface following a recut per frame) and C7 (texture constant through a turn): the plan's two riskiest parts; not started. C7's first reading is now taken (`turn-baseline.json`, above).
+- C6 (the interface following a recut per frame): the plan's riskiest part; not started (below, 1.2.109).
 
 ## Defaults taken, owner to confirm
 

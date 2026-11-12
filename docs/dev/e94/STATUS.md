@@ -66,6 +66,15 @@ advances the clock, not only the primary - every GM holds the same inputs (Hope 
 Overflow count is in the GMs' shared store), and routing it to the primary would need a new bridge request for no
 other gain.
 
+## The owner's note on the end board's spacing (12.11.2026)
+
+"W podsumowaniu dnia powiekszylbym odstep miedzy rozdzialem a reszta": the end board's chapter line has 22 more of the
+sequence's units below it (styles/danganronpa.css; the start board keeps its spacing). Measured in Chromium on the glass
+harness at 1366x768, both themes, EN and PL: the gap from the chapter line to the columns 12 px before, 31 px after; the
+board inside the screen in all four (its bottom at 581-610 px of 768), nothing overflowing. R3731, red at 463d12f. Shots:
+the review page's first section (version 5). The coordinator confirmed (12.11, the owner's "Tak"): the bars 0.6 / 0.4 and
+the mood worked out on the GM who advances the clock are final.
+
 ## Not done
 
 - C5's Spectator case: main has no Spectator role yet (E92 builds it on its own branch). Against main, an account with
