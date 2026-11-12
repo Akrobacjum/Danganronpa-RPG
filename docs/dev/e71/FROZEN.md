@@ -20,7 +20,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | e73 | 6a914d02 | 6a914d02 |
 | e92 | ce1ffadb | fa73b601 |
 | e93 | d7f129b7 | f22a7e87 |
-| e72 | 674f0fc2 | f22a7e87 |
+| e72 | bf09855e | 4dfac3a9 |
 | e64 | 7aa02555 | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
 
@@ -127,7 +127,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (352 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (353 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -275,7 +275,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Explain.status.actionsWhat` | e64 |
 | `DRPG.Explain.status.actionsWounded` | e64 |
 | `DRPG.Explain.status.moveTitle` | e64 |
-| `DRPG.Floor.endClosing` | e72, gaps-a |
+| `DRPG.Floor.endClosing` | gaps-a |
 | `DRPG.Floor.lead.chapterEnd` | e97-98 |
 | `DRPG.Floor.lead.closing` | e97-98 |
 | `DRPG.Floor.lead.finishElsewhere` | e97-98 |
@@ -287,6 +287,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Floor.next.finishElsewhere` | e97-98 |
 | `DRPG.Floor.next.scrum` | e97-98 |
 | `DRPG.Floor.next.verdictElsewhere` | e97-98 |
+| `DRPG.Floor.pickerLabel` | e72 |
 | `DRPG.Mastermind` | e72 |
 | `DRPG.Mastermind.dialogTitle` | e72 |
 | `DRPG.Mastermind.lairLabel` | e72 |

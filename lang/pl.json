@@ -3345,7 +3345,7 @@
       "gatherTitle": "Public Announcement",
       "gatherBanner": "OGŁOSZENIE OD MONOKUMY",
       "gatherBody": "Na początku następnej pory dnia wszyscy zbierają się w pokoju {room}.",
-      "gatherNote": "Macie czas do tej pory. Gdzie będziecie, gdy się zacznie, zależy od was.",
+      "gatherNote": "Wszyscy mają czas do tej pory. Gdzie kto będzie, gdy się zacznie, zależy od niego.",
       "gatherShort": "Zgromadzenie",
       "gatherCalled": "Wszyscy wezwani do pokoju {room} na następną porę dnia.",
       "gatherCancel": "Odwołaj",
@@ -3509,10 +3509,10 @@
       "incidentFirst": "Trwa incydent - najpierw go zamknij.",
       "trialFirst": "Trwa Class Trial, więc Eclipse nie może się zacząć: na rozprawie wszyscy są w jednym pokoju głosowym. Najpierw zakończ rozprawę.",
       "announce": {
-        "one": "Gasną światła. Ustaw swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
-        "few": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
-        "many": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
-        "other": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy."
+        "one": "Gasną światła. Każdy ustawia swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+        "few": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+        "many": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+        "other": "Gasną światła. Każdy ustawia swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy."
       },
       "yourMoves": {
         "one": "Jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
@@ -3534,7 +3534,7 @@
       "ended": "Eclipse się kończy.",
       "movesColumn": "Ustawieni",
       "named": "Eclipse ({time})",
-      "announceFree": "Gasną światła. Wybierz dowolny pokój na mapie i postaw tam swój token. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
+      "announceFree": "Gasną światła. Każdy wybiera dowolny pokój na mapie i stawia tam swój token. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
       "yourMovesFree": "Dowolny pokój na mapie. Jesteś w pokoju {room}. Przeciągnij token tam, gdzie chcesz zacząć.",
       "movedFree": "Jesteś teraz w pokoju {room}.",
       "murderOnlyInEclipse": "Tylko podczas Eclipse. Światła są zgaszone i wszyscy przemierzają mapę - to jedyny moment, w którym możesz być z kimś sam na sam.",

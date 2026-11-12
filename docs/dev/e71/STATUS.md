@@ -36,6 +36,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | brochure | 0 | 0 | 8 cells and 2 lines (EN and PL) | S12-73: the four empty "In short" cells of the Hope Calls table, from config.mjs HOPE_CALLS; T29 on the safeword's history |
 | M7 reserve | 1 | 0 | 2 (player handbook's Usables row, EN and PL) | M7/D5 (S13-40): Sanity is restored, not "cleared"; the Polish lang key already had pair N48 |
 | fact fixes | 1 | 1 | 0 | S06-51: `DRPG.Panel.gmOnly` refuses 47 GM-only steps, not only opening the panel |
+| third person (P2) | 4 | 6 | 0 | P2/P1 (DB19): the Eclipse's announcement and the assembly's note, cards the whole table reads, in the third person; T16 found 18, now 11 |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 10 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial", three neuter Eclipse/Overflow) | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -54,6 +55,7 @@ rule's shape was found, and no applied text needed an exception.
 | M5 / O5 (no digit typed into prose) | the pilot's approved Polish after of `DRPG.Settings.searchTokensPerRoom.hint` says "od 0 do 10" | Landed as approved; still a digit the code knows (settings.mjs:1300-1308 `range: { min: 0, max: 10 }`), as the pilot recorded. Stays to confirm. |
 | X6 (telegraph style) | `DRPG.Cleanup.bareHands` "Nothing readied. Bare hands, then." -> a whole sentence with the facts of N49 | Applied once. T18's other finds are short labels, world-voice flavor ("No Hope Calls. Not one, by anybody.") or config prose, left. |
 | X7 (label-colon chains) | `DRPG.Handover.stuckFor.*` (five Polish values, four or five colons each, "(daje: {from}, dostaje: {to})") written as sentences | Holds; T24's other finds are a legend (`Actions.moveLegend`), a ladder (`Action.dcAnalyze`), a summary and two GM diagnostics, left for E71's batches. |
+| P3 (who reads a key, off the code) and T16 | T16's 18 finds read against their callers | 5 changed (the Eclipse's two announcements, the assembly's note). Left: `Monocub.meddleIntro` (a tile hint, read by the Monocub alone), `Mastermind.finalAnnounce` (the world voice addressing the class, by design), and the incident's opening cards (`TraitRuling.opening*`, `Murder.closedVictimYou`), which T16 reads as the cast's but whose senders were not read here. |
 | N1, N2 (keys and placeholders stay) | every change | Holds: the edit script refuses a change to the placeholder set; no key was renamed. |
 | T29 (new, the owner's) | 21 lang values and 10 handbook fragments: browsers, clients and "the primary GM's browser" cut from player texts; the reason behind a GM's limit cut, the limit kept | Applied; the examples are in docs/text-style.md. A first pass only: about 270 English values still name a browser, a client, the console or a store, most of them GM diagnostics (Case, Season, DiceLook, Contract, GmStore), where some of it is what a GM needs. |
 | X13 (singular "they" as a Polish plural) | read T5's 6 finds | All six are real plurals (`ich` for two students, for Remnants, for Truth Bullets, for tokens): the detector's candidates, not faults. Nothing changed. |
@@ -117,6 +119,7 @@ edited unless the row says so.
 | 12.11, run t | d5c17f9d and the player handbook's version notes | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run u | 5c5cdc23 and the brochure | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run v | d5e4bfc0 and the M7 and gmOnly edits | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run x | 626dcb7e and the P2 edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed

@@ -3082,7 +3082,7 @@
       "gatherTitle": "Public Announcement",
       "gatherBanner": "AN ANNOUNCEMENT FROM MONOKUMA",
       "gatherBody": "At the start of the next time of day, everyone will be gathered in {room}.",
-      "gatherNote": "You have until then. Where you are when it starts is up to you.",
+      "gatherNote": "Everyone has until then. Where each student is when it starts is up to them.",
       "gatherShort": "Assembly",
       "gatherCalled": "Everyone is called to {room} for the next time of day.",
       "gatherCancel": "Call it off",
@@ -3208,8 +3208,8 @@
       "incidentFirst": "An incident is running - close it first.",
       "trialFirst": "A Class Trial is running, so no Eclipse was started: in the trial everybody is in one voice room. End the trial first.",
       "announce": {
-        "one": "Lights out. Place your token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
-        "other": "Lights out. Place your token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."
+        "one": "Lights out. Everyone places their token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
+        "other": "Lights out. Everyone places their token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."
       },
       "yourMoves": {
         "one": "One room crossing. You are in {room}. Drag your token - doors and gaps still apply.",
@@ -3227,7 +3227,7 @@
       "ended": "The Eclipse ends.",
       "movesColumn": "Placed",
       "named": "{time} Eclipse",
-      "announceFree": "Lights out. Pick any room on the map and put your token there. Nobody sees anyone else until the Eclipse ends.",
+      "announceFree": "Lights out. Everyone picks any room on the map and puts their token there. Nobody sees anyone else until the Eclipse ends.",
       "yourMovesFree": "Any room on the map. You are in {room}. Drag your token wherever you want to start.",
       "movedFree": "Now in {room}.",
       "murderOnlyInEclipse": "Only during an Eclipse. The lights are out and everyone is crossing the map - that is the one moment you can be alone with somebody.",
