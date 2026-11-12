@@ -17,7 +17,8 @@
  * The sheet's mode is sheet.mjs `sheetMode`'s ("spectator"): no action grid, no Calls, no row buttons, no Level Up.
  */
 
-import { spectatorViewer, watcherOf } from "./spectator.mjs";
+import { MODULE_ID } from "./config.mjs";
+import { spectatorViewer, watcherOf, talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { esc, error } from "./utils.mjs";
 
 export const SPECTATOR_LINE_ID = "drpg-spectator-line";
@@ -27,7 +28,7 @@ export const SPECTATOR_BODY_CLASS = "drpg-spectator";
  * The watching line's markup: `room` the room the token stands in (null outside every room), `rooms` the rooms the
  * picker offers, in their order. Pure, for the suite (R3859).
  */
-export function spectatorLineHtml({ room = null, rooms = [] } = {}) {
+export function spectatorLineHtml({ room = null, rooms = [], talking = false } = {}) {
     const L = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
     const where = room ? L("DRPG.Spectator.watching", { room }) : L("DRPG.Spectator.watchingOutside");
     const options = [`<option value="">${esc(L("DRPG.Spectator.watchRoom"))}</option>`,
@@ -35,6 +36,8 @@ export function spectatorLineHtml({ room = null, rooms = [] } = {}) {
     return `<div id="${SPECTATOR_LINE_ID}" class="drpg-spectator-line" data-drpg-spectator-line>
         <span class="drpg-spectator-where">${esc(where)}</span>
         <select class="drpg-spectator-rooms" aria-label="${esc(L("DRPG.Spectator.watchLabel"))}"${rooms.length ? "" : " disabled"}>${options}</select>
+        <button type="button" class="drpg-mini-button drpg-spectator-talk" data-drpg-spectator-talk aria-pressed="${talking ? "true" : "false"}">${
+            esc(L(talking ? "DRPG.Spectator.talkBack" : "DRPG.Spectator.talk"))}</button>
     </div>`;
 }
 
@@ -73,8 +76,18 @@ export async function paintSpectatorLine() {
         }
         const [{ roomOfToken }, { myDiscoveredRooms }] = await Promise.all([import("./movement.mjs"), import("./fog.mjs")]);
         const holder = document.createElement("div");
-        holder.innerHTML = spectatorLineHtml({ room: roomOfToken(token), rooms: [...myDiscoveredRooms(scene)].sort((a, b) => a.localeCompare(b)) });
+        holder.innerHTML = spectatorLineHtml({ room: roomOfToken(token), rooms: [...myDiscoveredRooms(scene)].sort((a, b) => a.localeCompare(b)),
+            talking: talkSwitchOn(game.user) });
         const line = holder.firstElementChild;
+        /* THE "SPECTATOR TALK" SWITCH (E92 C6): the player's own User flag (scripts/spectator.mjs `SPECTATOR_TALK_FLAG`);
+           the primary moves the account to the Spectators' room and lifts its block there (voice.mjs `placeVoices`,
+           `settleTrialVoices`), and back when it is off. */
+        line.querySelector("[data-drpg-spectator-talk]")?.addEventListener("click", async event => {
+            event.currentTarget.disabled = true;
+            if (talkSwitchOn(game.user)) await game.user.unsetFlag(MODULE_ID, SPECTATOR_TALK_FLAG);
+            else await game.user.setFlag(MODULE_ID, SPECTATOR_TALK_FLAG, true);
+            void paintSpectatorLine();
+        });
         line.querySelector("select")?.addEventListener("change", async event => {
             const room = event.target.value;
             event.target.value = "";
@@ -107,6 +120,7 @@ export function registerSpectatorUi() {
         if (("x" in (changes ?? {}) || "y" in (changes ?? {})) && tokenDoc?.actorId === watcherOf()?.id) void paintSpectatorLine();
     });
     Hooks.on("updateActor", (actor, changes) => { if (changes?.flags) void paintSpectatorLine(); });
+    Hooks.on("updateUser", (user, changes) => { if (user?.id === game.user?.id && changes?.flags) void paintSpectatorLine(); });
     Hooks.on("canvasReady", () => void paintSpectatorLine());
     void paintSpectatorLine();
 }

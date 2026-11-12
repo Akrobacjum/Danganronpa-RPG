@@ -15,6 +15,19 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 
+/**
+ * THE "SPECTATOR TALK" SWITCH (E92 C6): a flag on the Spectator's own User document, which its player writes - the one
+ * choice of a Spectator's that crosses to the GMs. The primary honours it only for a Spectator's account
+ * (voice.mjs `spectatorTalks`): a student's player who writes it changes nothing. Who talks with the Spectators is no
+ * secret, so world-secrets.mjs has no rule for it.
+ */
+export const SPECTATOR_TALK_FLAG = "spectatorTalk";
+
+/** Whether `user`'s switch is on, on the document handed. */
+export function talkSwitchOn(user) {
+    return user?.getFlag?.(MODULE_ID, SPECTATOR_TALK_FLAG) === true;
+}
+
 /** Whether `actor` carries the Spectator's flag, on the document handed. */
 export function flaggedSpectator(actor) {
     return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.spectator));

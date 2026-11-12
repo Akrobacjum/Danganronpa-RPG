@@ -3110,7 +3110,9 @@
       "watching": "You watch from {room}.",
       "watchingOutside": "You watch from outside the rooms.",
       "watchRoom": "Watch a room",
-      "watchLabel": "Move your token to a room the class has found"
+      "watchLabel": "Move your token to a room the class has found",
+      "talk": "Talk with the Spectators",
+      "talkBack": "Go back to your room"
     },
     "Class": {
       "notInClass": "Not in the class",
@@ -4640,6 +4642,7 @@
         "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
         "deadAlone": "Your character is dead: the living do not hear you, and you do not hear them.",
         "spectator": "You are a Spectator: you hear the room your token stands in, and your microphone stays off.",
+        "spectatorTalk": "You talk with the other Spectators. The room your token stands in does not hear you.",
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",

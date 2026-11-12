@@ -48,9 +48,10 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, dea
 import { allRooms, moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
+import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore } from "./gm-stores.mjs";
-import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, DEAD_ROOM, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
@@ -360,11 +361,16 @@ export function reconcileTrigger(hook, doc, changes) {
             const all = changes?.flags;
             const flags = all?.[MODULE_ID];
             const named = key => Boolean(flags && typeof flags === "object" && (key in flags || `-=${key}` in flags));
-            if ((all && typeof all === "object" && `-=${MODULE_ID}` in all) || named(FLAGS.deceased) || named(FLAGS.monocub)) return { immediate: true };
+            // A Spectator's flag too (E92 C6): its room and its microphone move with it.
+            if ((all && typeof all === "object" && `-=${MODULE_ID}` in all) || named(FLAGS.deceased) || named(FLAGS.monocub) || named(FLAGS.spectator)) return { immediate: true };
             return changes && typeof changes === "object" && "ownership" in changes ? {} : null;
         }
-        case "updateUser":
+        case "updateUser": {
+            // The Spectator's switch (E92 C6): its account goes to the Spectators' room or back at once.
+            const own = changes?.flags?.[MODULE_ID];
+            if (own && typeof own === "object" && Object.keys(own).some(key => key.includes(SPECTATOR_TALK_FLAG))) return { immediate: true };
             return changes && typeof changes === "object" && ("character" in changes || "role" in changes) ? {} : null;
+        }
         case "createRegion":
         case "updateRegion":
         case "deleteRegion":
@@ -962,6 +968,17 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         byUser.set(user.id, row);
     }
 
+    /* THE SPECTATORS' ROOM (E92 C6, 12.11.2026; the owner's 04.11 amend: "if one connection cannot listen in one room and
+       speak in another, a 'Spectator talk' switch moves them to their room until they return"). This file's client
+       holds one LiveKit room at a time (voice-client.mjs `applyBreakout` - a reading of this code, not of avclient-livekit;
+       LIVE-E92-01), so the switch moves the account: its row's room is the Spectators', in every phase, until the switch
+       is off and it goes back to its token's room. A Spectator is never a witness either way (`witness` below). */
+    for (const [userId, row] of byUser) {
+        if (!row.user || !spectatorTalks(row.user, { actors })) continue;
+        byUser.set(userId, { ...row, room: null, target: SPECTATOR_ROOM, claim: CLAIM.inRoom, kept: false, keep: false,
+            why: "a Spectator, talking with the Spectators" });
+    }
+
     const waits = new Map();
     const held = new Set();
     if (!asked) return { rows, byUser, claims, waits, held };
@@ -977,8 +994,9 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         if (!row.keep && !row.user?.isGM && row.target && keptRooms.has(row.target)) held.add(userId);
     }
     const cast = facts?.cast ?? new Set();
+    // Never a Spectator (E92 C2): it watches, and is nobody's witness.
     const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma
-        && !dead(row.actor) && !cast.has(row.actor.id));
+        && !isSpectator(row.actor) && !dead(row.actor) && !cast.has(row.actor.id));
     for (const [index, row] of rows.entries()) {
         if (!row.fallen || row.gone !== false || !row.target || !row.user?.active) continue;
         const near = [...byUser].filter(([userId, other]) => userId !== row.user.id && other.target === row.target && witness(other));
@@ -1131,8 +1149,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts() } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
-    // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere.
-    if (spectatorAccount(user, { actors })) return { reason: "spectator", held: true };
+    // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
+    // but in the Spectators' room, once the primary has sent it there (E92 C6): a line, not held.
+    if (spectatorAccount(user, { actors })) return room === SPECTATOR_ROOM ? { reason: "spectatorTalk", held: false } : { reason: "spectator", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
     // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
     if (!connected && !eclipse) return { reason: "offline", held: false };
@@ -1174,8 +1193,9 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     if (!game.user?.isGM || !user) return null;
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
     const actor = row?.actor;
-    // A Spectator's block is the module's (E92 C2, `settleTrialVoices`): the GM's own block is not offered over it.
-    if (spectatorAccount(user, { actors })) return { reason: "spectator", held: true };
+    // A Spectator's block is the module's (E92 C2, `settleTrialVoices`): the GM's own block is not offered over it -
+    // nor while it talks in the Spectators' room (E92 C6), where the block is lifted.
+    if (spectatorAccount(user, { actors })) return { reason: spectatorTalks(user, { actors }) ? "spectatorTalk" : "spectator", held: true };
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
@@ -1201,6 +1221,14 @@ export function spectatorAccount(user, { actors = null, held = actor => actor } 
         watching += 1;
     }
     return watching > 0;
+}
+
+/**
+ * Whether a Spectator's account talks in the Spectators' room (E92 C6): its own switch (scripts/spectator.mjs
+ * `talkSwitchOn`), honoured for a Spectator's account alone. The flag is the player's own to write.
+ */
+export function spectatorTalks(user, { actors = null, held = actor => actor } = {}) {
+    return talkSwitchOn(user) && spectatorAccount(user, { actors, held });
 }
 
 /**
@@ -1459,7 +1487,8 @@ export async function settleTrialVoices({ release = false } = {}) {
             const row = trialMuteStore.get(user.id);
             // A Spectator's account is blocked in every phase, by the same write and the same row (E92 C2), so the
             // trial's exit and a role given back put back exactly what the block found; `release` gives it back too.
-            const watching = !release && spectatorAccount(user, { held: flagsHeldNow });
+            // While it talks in the Spectators' room the block is lifted (E92 C6), and written again when it leaves.
+            const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
             if (watching || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
@@ -1511,6 +1540,8 @@ export function registerTrialVoices() {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) scheduleTrialVoices();
     });
     Hooks.on("drpgPrimaryReady", () => scheduleTrialVoices());
+    // The Spectator's switch (E92 C6): its block lifted in the Spectators' room, written again when it leaves.
+    Hooks.on("updateUser", (_user, changes) => { if (changes?.flags?.[MODULE_ID]) scheduleTrialVoices(); });
     Hooks.once("ready", () => {
         if (game.user?.isGM) trialMuteStore.whenHydrated().then(() => scheduleTrialVoices()).catch(() => {});
     });

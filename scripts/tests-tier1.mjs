@@ -47495,6 +47495,40 @@ const INVARIANTS = [
             outside: { where: L("DRPG.Spectator.watchingOutside"), label: L("DRPG.Spectator.watchLabel"), shut: true, options: [["", false]] },
             gm: false }), "[the line in a room with two found; outside every room with none; a GM's browser]");
     }],
+    ["R3860 - the Spectators' room (E92 C6; the owner's 04.11 amend \"a 'Spectator talk' switch moves them to their room until they return\"): voice.mjs `placeVoices` sends a Spectator's account whose switch is on (its own User flag, scripts/spectator.mjs `SPECTATOR_TALK_FLAG`) to voice-client.mjs `SPECTATOR_ROOM`, and back to its token's room when it is off; a student's account with the flag stays in its room; `micHold` opens the microphone in the Spectators' room alone (\"spectatorTalk\", not held) and the line's switch says which way it goes", async () => {
+        /*
+         * E92 C6, 12.11.2026. Stand-in accounts and characters; the room each stands in is handed (`locate`), the deaths
+         * answered none. Red before C6: no SPECTATOR_ROOM, the Spectator in its token's room.
+         */
+        const V = await import("./voice.mjs");
+        const { SPECTATOR_ROOM } = await import("./voice-client.mjs");
+        const { SPECTATOR_TALK_FLAG } = await import("./spectator.mjs");
+        const UI = await import("./spectator-ui.mjs");
+        const account = (id, talk) => ({ id, name: id, isGM: false, active: true,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === SPECTATOR_TALK_FLAG ? talk : undefined) });
+        const place = async (talk) => {
+            const watch = account("R3860watch", talk), pupil = account("R3860pupil", true);
+            const watcher = e92Char("R3860-watcher", { spectator: true }, watch.id), student = e92Char("R3860-student", {}, pupil.id);
+            const owners = new Map([[watcher.id, watch], [student.id, pupil]]);
+            const out = await V.placeVoices({ actors: [watcher, student], users: [watch, pupil], userOf: a => owners.get(a.id), dead: () => false,
+                monokumaOf: () => false, death: { cast: new Set() }, locate: () => ({ scene: { id: "R3860scene", name: "R3860" }, room: "Gym" }) });
+            return { watch: out.byUser.get(watch.id)?.target ?? null, pupil: out.byUser.get(pupil.id)?.target ?? null };
+        };
+        const gym = V.liveKitRoomFor("R3860scene", "Gym");
+        const user = { id: "R3860mic", isGM: false }, mine = [e92Char("R3860-mine", { spectator: true }, "R3860mic")];
+        const mic = room => V.micHold({ user, room, external: false, connected: true, canBroadcastAudio: true, actors: mine, trial: null });
+        const button = talking => {
+            const root = document.createElement("div");
+            root.innerHTML = UI.spectatorLineHtml({ room: "Gym", rooms: ["Gym"], talking });
+            const b = root.querySelector("[data-drpg-spectator-talk]");
+            return [b?.textContent?.trim() ?? null, b?.getAttribute("aria-pressed") ?? null];
+        };
+        equal(stableJson({ on: await place(true), off: await place(false), micThere: mic(SPECTATOR_ROOM), micHere: mic(gym), on2: button(true), off2: button(false) }),
+            stableJson({ on: { watch: SPECTATOR_ROOM, pupil: gym }, off: { watch: gym, pupil: gym },
+                micThere: { reason: "spectatorTalk", held: false }, micHere: { reason: "spectator", held: true },
+                on2: [game.i18n.localize("DRPG.Spectator.talkBack"), "true"], off2: [game.i18n.localize("DRPG.Spectator.talk"), "false"] }),
+            "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the line's switch]");
+    }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*
          * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two

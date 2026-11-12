@@ -3380,7 +3380,9 @@
       "watching": "Oglądasz z pokoju {room}.",
       "watchingOutside": "Oglądasz spoza pokojów.",
       "watchRoom": "Oglądaj pokój",
-      "watchLabel": "Przenieś swój żeton do pokoju, który klasa już odkryła"
+      "watchLabel": "Przenieś swój żeton do pokoju, który klasa już odkryła",
+      "talk": "Porozmawiaj z Widzami",
+      "talkBack": "Wróć do swojego pokoju"
     },
     "Class": {
       "notInClass": "Poza klasą",
@@ -5054,6 +5056,7 @@
         "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
         "deadAlone": "Twoja postać nie żyje: żywi cię nie słyszą, a ty nie słyszysz ich.",
         "spectator": "Jesteś Widzem: słyszysz pokój, w którym stoi twój żeton, a twój mikrofon pozostaje wyłączony.",
+        "spectatorTalk": "Rozmawiasz z innymi Widzami. Pokój, w którym stoi twój żeton, cię nie słyszy.",
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
