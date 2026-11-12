@@ -24,7 +24,7 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { error, markFired, markLanguage, serialWrite } from "./utils.mjs";
+import { error, markFired, markLanguage, plural, serialWrite } from "./utils.mjs";
 import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
@@ -900,7 +900,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         .map(([key, s]) => {
             const selected = given ? s.progress === currentTarget : key === "everyday";
             return `<option value="${s.progress}"${selected ? " selected" : ""}>${
-                s.label} - ${s.progress} progress</option>`;
+                plural("DRPG.Project.scaleOption", { label: s.label, n: s.progress })}</option>`;
         }).join("");
 
     // An edited project may sit on a target no scale names - a repair inherits

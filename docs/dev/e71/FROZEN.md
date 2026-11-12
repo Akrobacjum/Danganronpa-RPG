@@ -16,12 +16,12 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | --- | --- | --- |
 | e61-62 | 057786aa | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
-| e97-98 | a5844ac0 | 9ca7fcc1 |
+| e97-98 | f0b4f9b6 | 4dfac3a9 |
 | e73 | 6a914d02 | 6a914d02 |
 | e92 | ce1ffadb | fa73b601 |
-| e93 | fce3acc3 | 4dfac3a9 |
-| e72 | f05fe96a | 4dfac3a9 |
-| e64 | 7aa02555 | fa73b601 |
+| e93 | 4eef965a | 4dfac3a9 |
+| e72 | eee3ff75 | 4dfac3a9 |
+| e64 | 4c31eb91 | 4dfac3a9 |
 | gaps-a | 2338c823 | fa73b601 |
 
 ## Handbook sections
@@ -30,7 +30,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | --- | --- | --- |
 | gm-handbook.en.md | ## 10. Items | e64 |
 | gm-handbook.en.md | ## 11. Projects and traps | e64, e93 |
-| gm-handbook.en.md | ## 14. Investigation | e64 |
+| gm-handbook.en.md | ## 14. Investigation | e64, e64-inv |
 | gm-handbook.en.md | ## 15. The Class Trial | e64, e72, e97-98 |
 | gm-handbook.en.md | ## 16. End of chapter and season reset | e61-62, gaps-a |
 | gm-handbook.en.md | ## 20. Troubleshooting | gaps-a |
@@ -51,7 +51,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | gm-handbook.en.md | ### 9.5 Voice | e72 |
 | gm-handbook.pl.md | ## 10. Przedmioty | e64 |
 | gm-handbook.pl.md | ## 11. Projekty i pułapki | e64, e93 |
-| gm-handbook.pl.md | ## 14. Investigation | e64 |
+| gm-handbook.pl.md | ## 14. Investigation | e64, e64-inv |
 | gm-handbook.pl.md | ## 15. Class Trial | e64, e72, e97-98 |
 | gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | e61-62, gaps-a |
 | gm-handbook.pl.md | ## 20. Rozwiązywanie problemów | gaps-a |
@@ -94,7 +94,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.en.md | ### Rolling | e92 |
 | player-handbook.en.md | ### Tamper - Shadow, 1 action | e64 |
 | player-handbook.en.md | ### The Eclipse | e61-62 |
-| player-handbook.en.md | ### The Final Trial | e64 |
+| player-handbook.en.md | ### The hall's zones | e64 |
 | player-handbook.en.md | ### The morning after | e72 |
 | player-handbook.en.md | ### The opening roll | e64 |
 | player-handbook.en.md | ### The overflow | e72 |
@@ -109,7 +109,6 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.pl.md | ### Despair Calls - co Monokuma może ci zrobić | e72 |
 | player-handbook.pl.md | ### Dwa stany, których nie chcesz | e64 |
 | player-handbook.pl.md | ### Eclipse | e61-62 |
-| player-handbook.pl.md | ### Final Trial | e64 |
 | player-handbook.pl.md | ### Gra Monocubem | e64, e72 |
 | player-handbook.pl.md | ### Głosowanie | e72 |
 | player-handbook.pl.md | ### Jeśli jesteś ofiarą | e64 |
@@ -124,10 +123,11 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.pl.md | ### Rest - bez rzutu, 1 albo 2 akcje | e93 |
 | player-handbook.pl.md | ### Rzut otwarcia | e64 |
 | player-handbook.pl.md | ### Rzuty | e92 |
+| player-handbook.pl.md | ### Strefy sali | e64 |
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (360 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (395 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -194,10 +194,16 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.CaseSummary.previewTitle` | e97-98 |
 | `DRPG.CaseSummary.send` | e97-98 |
 | `DRPG.CaseSummary.show` | e97-98 |
+| `DRPG.Chapter.doneReveal` | e64, e64-inv |
+| `DRPG.Chapter.endButton` | e64, e64-inv |
+| `DRPG.Chapter.endIntro` | e64, e64-inv |
+| `DRPG.Chapter.endNote` | e64, e64-inv |
 | `DRPG.Chapter.lastChapter` | gaps-a |
 | `DRPG.Chapter.optNextChapter` | gaps-a |
 | `DRPG.Chapter.optNextMorning` | gaps-a |
 | `DRPG.Chapter.optNextSession` | gaps-a |
+| `DRPG.Chapter.optReveal` | e64, e64-inv |
+| `DRPG.Chapter.revealKeeps` | e64, e64-inv |
 | `DRPG.Class` | e92 |
 | `DRPG.Class.notInClass` | e92 |
 | `DRPG.Class.outTooltip` | e92 |
@@ -288,6 +294,25 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Floor.next.scrum` | e97-98 |
 | `DRPG.Floor.next.verdictElsewhere` | e97-98 |
 | `DRPG.Floor.pickerLabel` | e72 |
+| `DRPG.Investigation.analysisPlaceholder` | e64, e64-inv |
+| `DRPG.Investigation.breakdown` | e64, e64-inv |
+| `DRPG.Investigation.breakdownTooltip` | e64, e64-inv |
+| `DRPG.Investigation.chapterN` | e64, e64-inv |
+| `DRPG.Investigation.createHere` | e64, e64-inv |
+| `DRPG.Investigation.createNote` | e64, e64-inv |
+| `DRPG.Investigation.difficulty` | e64, e64-inv |
+| `DRPG.Investigation.filterCount` | e64, e64-inv |
+| `DRPG.Investigation.filterEveryChapter` | e64, e64-inv |
+| `DRPG.Investigation.neverOnePerson` | e64, e64-inv |
+| `DRPG.Investigation.newTraceIntro` | e64, e64-inv |
+| `DRPG.Investigation.newTraceReinforced` | e64, e64-inv |
+| `DRPG.Investigation.newTraceTied` | e64, e64-inv |
+| `DRPG.Investigation.newTraceTitle` | e64, e64-inv |
+| `DRPG.Investigation.noneMatch` | e64, e64-inv |
+| `DRPG.Investigation.notePlaceholder` | e64, e64-inv |
+| `DRPG.Investigation.plannerIntro` | e64, e64-inv |
+| `DRPG.Investigation.plannerIntro.other` | e64, e64-inv |
+| `DRPG.Investigation.unidentified` | e64, e64-inv |
 | `DRPG.Mastermind` | e72 |
 | `DRPG.Mastermind.alreadyDeadNote` | e72 |
 | `DRPG.Mastermind.dialogTitle` | e72 |
@@ -299,6 +324,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Mastermind.verdictNobody` | e72 |
 | `DRPG.Mastermind.verdictOpen` | e72 |
 | `DRPG.Mastermind.verdictTitle` | e72 |
+| `DRPG.Messenger.tabChat` | e72 |
 | `DRPG.Monocub` | e72 |
 | `DRPG.Monocub.cannotMeddle` | e72 |
 | `DRPG.Monocub.critHelpNothing` | e72 |
@@ -452,6 +478,11 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Trial.presentWithAnalysis` | e72 |
 | `DRPG.Trial.presentWithoutNote` | e72 |
 | `DRPG.Trial.presented` | e72 |
+| `DRPG.TruthBullet.analysisHeading` | e64, e64-inv |
+| `DRPG.TruthBullet.analyzedText` | e64, e64-inv |
+| `DRPG.TruthBullet.analyzedTextNote` | e64, e64-inv |
+| `DRPG.TruthBullet.analyzedTextPlaceholder` | e64, e64-inv |
+| `DRPG.TruthBullet.playerTextPlaceholder` | e64, e64-inv |
 | `DRPG.Vault.descriptionColumn` | e93 |
 | `DRPG.Vault.descriptionPlaceholder` | e93 |
 | `DRPG.Vault.discoverAll` | e72 |
@@ -475,12 +506,16 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Vault.tabSearching` | e93 |
 | `DRPG.Vault.takeKey` | e93 |
 | `DRPG.Vault.unlockedAnnounce` | e72 |
+| `DRPG.Voice` | e72 |
+| `DRPG.Voice.contested` | e72 |
+| `DRPG.Voice.deadRoom` | e72 |
 | `DRPG.Voice.held.deadAlone` | e92 |
 | `DRPG.Voice.held.eclipse` | e92 |
 | `DRPG.Voice.held.eclipseHeard` | e92 |
 | `DRPG.Voice.held.external` | e92 |
 | `DRPG.Voice.held.gmBlock` | e92 |
 | `DRPG.Voice.held.offline` | e92 |
+| `DRPG.Voice.mainRoom` | e72 |
 | `DRPG.Vote.verdictSteps.despair` | e72 |
 | `DRPG.Vote.verdictSteps.finalCard` | e72 |
 | `DRPG.Vote.verdictSteps.finalClose` | e72 |
@@ -495,10 +530,10 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 ## config.mjs hunks (base lines, for the record)
 
 - e61-62: 2040-2045; 4885-4890; 4925-4930; 4927-4932; 5026-5031
+- e64: 170-175; 1744-1749; 1746-1750; 1792-1797; 1859-1864; 3094-3098; 3118-3123; 3129-3134; 3207-3212; 3209-3213; 3331-3336; 3383-3388; 3509-3514; 3565-3570; 3583-3588; 3623-3628; 3646-3651; 3657-3662; 3668-3673; 3750-3755; 4047-4052; 4064-4069; 4066-4070; 4340-4347; 5087-5092
+- e72: 2103-2108; 2106-2111; 2142-2147; 2299-2304; 2502-2507; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230
 - e92: 243-247; 4885-4890; 4925-4930; 4927-4932
 - e93: 1653-1658; 1656-1660; 1672-1677; 1675-1679; 1679-1683; 2081-2086; 2409-2414; 5072-5077
-- e72: 2103-2108; 2106-2111; 2142-2147; 2299-2304; 2502-2507; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230
-- e64: 170-175; 1744-1749; 1746-1750; 1792-1797; 1859-1864; 3094-3098; 3118-3123; 3129-3134; 3207-3212; 3209-3213; 3331-3336; 3383-3388; 3509-3514; 3565-3570; 3583-3588; 3623-3628; 3646-3651; 3657-3662; 3668-3673; 3750-3755; 4031-4036; 4048-4053; 4050-4054; 4324-4331; 5043-5048
 
 ## Sections frozen after this line edited them
 
