@@ -1199,12 +1199,14 @@ export function chromeThemeProblems(glyphs, css) {
  *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind); on 12.11.2026 three
  *  came back as tiles of Season setup's row, each its reading of before, and the row's Season checklist keeps its Font
  *  Awesome icon under Legacy (`fa:fa-list-check`; the owner: Legacy keeps an FA icon - the Projects tile beside it
- *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. */
+ *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. gaps-108 (12.11.2026, R3987):
+  the owner approved the claw hammer on the Projects action in both themes, so `ACTIONS.project` reads `--drpg-pix-hammer`
+  (legacy:hammer) where it read `--drpg-pix-project`; that one reading, on purpose. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
     "ACTIONS.analyze": "--drpg-pix-analyze",
-    "ACTIONS.project": "--drpg-pix-project",
+    "ACTIONS.project": "--drpg-pix-hammer",
     "ACTIONS.rest": "--drpg-pix-rest",
     "ACTIONS.listen": "--drpg-pix-listen",
     "ACTIONS.palm": "--drpg-pix-palm-action",

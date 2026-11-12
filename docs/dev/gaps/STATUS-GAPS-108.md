@@ -9,8 +9,9 @@ https://claude.ai/artifact/WQ3kVJyT6f8x2bWx9y27L2 (private until shared).
 | # | Item | State | Commit |
 | --- | --- | --- | --- |
 | 1 | a thin light line at the screen's top and bottom while paused | fixed, red first | b25838ac |
-| 2 | a line under the eye on the GM button | found, NOT integrated: waits for the owner | - |
-| 3 | Hold this ready / Hand this over too alike; the Projects action a hammer | drawn, NOT integrated: waits for the owner | - |
+| 2 | a line under the eye on the GM button | approved by the owner, integrated (launcher only) | 76d25c47 |
+| 3 | the Projects action a hammer | approved by the owner, integrated (both themes) | 76d25c47 |
+| 3 | Hold this ready / Hand this over too alike | round 1 rejected; round 2 (pairs A, B, C) on the review page, waits for the owner's pick | - |
 | 4 | one project in the tray darker and fading | fixed, red first | 1adba33b |
 | 5 | folding the tray takes the notice tile's blur away for a moment | fixed, red first | 31d1949f |
 
@@ -23,7 +24,8 @@ https://claude.ai/artifact/WQ3kVJyT6f8x2bWx9y27L2 (private until shared).
   tools/registry.mjs --write` at the merge settles it. fervent-sagan-gme4vt (the 1.2.109 line) conflicts in
   scripts/glass.mjs `turnPlan`, two lines: its `none` object and its return's `frost:` line, each of which takes my
   `stay` (`stay: []`, `stay,`) on top of E62 C2's new fields. Resolved so on a scratch copy of b30f9444 with
-  31d1949f picked: R3985, R1377-R1379, R1411, R1413 and R3120 green there (8 passed); tiers 0-1 there: see below.
+  31d1949f picked: R3985, R1377-R1379, R1411, R1413 and R3120 green there (8 passed); tiers 0-1 there 1306 passed,
+  0 failed, 16 skipped, 372 s.
 
 ## 1. No seam at the screen's edges while paused (b25838ac)
 
@@ -38,27 +40,37 @@ https://claude.ai/artifact/WQ3kVJyT6f8x2bWx9y27L2 (private until shared).
 - Only the table confirms: that the flash is gone, and what made the seam pulse rather than stand (core's own pause
   animation, the veil). Not measured: no fps() output came.
 
-## 2. The line under the GM button's eye (held)
+## 2. The line under the GM button's eye (76d25c47)
 
 - The harness draws no separate element under the eye in either theme: no border, underline or pseudo-element beyond
   the eye's own `::before` mask. The one stroke below the eye is in the drawing: tools/glyphs.json `chrome:monokuma-eye`
   (rows 16-18: a thin tail down-left, and one pixel at x=8, y=17 hanging under it). The same drawing is
   `legacy:monokuma-eye` and `glass:gm` (`same`), and the Remnant card's glyph for a GM-placed trace.
-- The row's note says those parts were drawn on purpose to the owner's reference ("the left tip is a one-pixel point
-  ... two scooped arcs hang cusps"). Cutting them changes the owner's drawing, so the cut is on the review page (3x,
-  both themes) and is not committed. If the owner says yes: edit the three rows (or break `same` for the launcher's two),
-  re-run tools/chrome-icons.mjs and tools/glyph-map.mjs, red first on the drawing.
+- The row's note says those parts were drawn on purpose to the owner's reference, so the cut went to the review page
+  first. The owner (12.11): the cut is right, on the GM button only; the Remnant card keeps its tail.
+- Integrated: chrome:monokuma-eye loses rows 17-18 and the pixel at 8,17 and no longer says `same` as
+  legacy:monokuma-eye (noted in its row); legacy:monokuma-eye and glass:gm are unchanged. Regenerated with
+  tools/chrome-icons.mjs and tools/glyph-map.mjs (--check: 0 problems). R3986: red at 02d20f9a `[true,18,true,18,true]`,
+  green `[false,16,true,18,true]`. R1333's six gm-launcher prints move (the eye's mask alone; noted in the test).
 
-## 3. The three glyphs (held)
+## 3. The three glyphs (the hammer 76d25c47; the pair held)
 
 - Today: Stained Glass wears `--drpg-pix-fist` and `--drpg-pix-palm` on the two row buttons, Legacy `--drpg-pix-fist`
   and `--drpg-pix-give` (danganronpa.css "THE ROW BUTTONS GO PIXEL"; measured as the computed mask in Chromium). The
   Projects action wears `--drpg-pix-hourglass` under Stained Glass and `--drpg-pix-project` (a plain T) under Legacy.
 - Proposed, on the 24 grid, one drawing for both themes each: a fist gripping a knife's handle (hold), a box with an
   arrow leaving an open hand (give), a claw hammer (Projects). On the review page on mock rows and tiles built from the
-  module's own sheets. Not integrated. The row buttons' classes are shared with crisis actions (fa-hand-fist: Strike,
-  Resolve; fa-hand-holding: Secure a Trace, Plant), so integration goes through the row buttons' own rules, not the
-  Font Awesome map.
+  module's own sheets.
+- The owner (12.11): the hammer approved, in both themes; the hold and give pair still unreadable at glyph size.
+- The hammer, integrated: glass:hammer and legacy:hammer (`same`), ELEMENTS `ACTIONS.project` -> hammer (was hourglass),
+  Legacy's action rule reads `--drpg-pix-hammer` (was the plain T). The Remnant card's project glyph unchanged in both
+  themes. R3987: red at 02d20f9a (hourglass and project, no hammer token), green after.
+- Round 2 on the review page: three pairs, every Hold one tall upright object and every Give a wide shape with a motion
+  (A: a bookmark ribbon / an arrow from one figure to another; B: a push pin / a box with an arrow leaving it; C: a hand
+  raising a star / a box carried over by an arc), on a real row beside Use, Stow and Discard, at real size and 2x, both
+  themes. Not integrated. The row buttons' classes are shared with crisis actions (fa-hand-fist: Strike, Resolve;
+  fa-hand-holding: Secure a Trace, Plant), so the chosen pair goes in through the row buttons' own rules, not the Font
+  Awesome map.
 
 ## 4. One project never fades as if more stood below it (1adba33b)
 
