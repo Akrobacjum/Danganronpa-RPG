@@ -3860,7 +3860,7 @@ body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab field
 body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend { color: var(--drpg-glass-accent); }
 /* the six statistics: one row of cells, the name over its field, no shield. Each column at least as wide as its name and
    the rest shared equally (E49, the owner's answer of 12.11.2026): with six equal columns (`minmax(0, 1fr)`) Legacy's pixel
-   face set "Shadow" 79 px wide in a cell of 74 and cut its last letter (the stand-in in Chromium, 1366x768, at 8c8ece5c
+   face set "Shadow" 79 px wide in a cell of 74 and cut its last letter (the stand-in in Chromium, 1366x768, at 527cc7c7
    already); the other five names are at most 50, so the cells stay near equal. */
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .nest-inputs { display: block; width: 100%; }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container {

@@ -36306,7 +36306,7 @@ const INVARIANTS = [
            the GM panel's branch and none of batch 1's fifteen above, so they are pinned here as batch 1 measured them,
            and Stained Glass's Foundry tools at each place by the same one line, the root's `--color-text-selection-bg`
            (FT-16, 1391e4ba) - 1:d0296c9e -> 1:7a915054, the red batch 1 left to the line. Then FT batch 2 (1b0ebb73,
-           merged in f72aa455) gave the voice tile's mic and speaker the chrome face under the glass (FT-21, R3572): a
+           merged in 4049cba8) gave the voice tile's mic and speaker the chrome face under the glass (FT-21, R3572): a
            `font-family` won on each mini launcher by `body.drpg-theme-stained-glass .drpg-launch-mini`, five lines on
            the curtain's two tiles, three on the desk's and two on the stacked screen's - curtain 2:922e5665 ->
            2:ac4af798, desk 1:3ef3f4a9 -> 1:08875275, stacked 1:da1cfc2b -> 1:86229667. That declaration stood in
@@ -48547,7 +48547,7 @@ const INVARIANTS = [
         /*
          * E49, 11.11.2026 night. The glyph is one element for both themes: Legacy keeps Font Awesome (the owner's rule), Stained
          * Glass keys its drawing on data-drpg-stat (the generated glass section, tests-glyphs.mjs STAT_GLYPHS). Read with
-         * tests-glyphs.mjs `glyphReading`, as R3347 and R3348 read every other glyph. Red at 8c8ece5c: no glyph is drawn.
+         * tests-glyphs.mjs `glyphReading`, as R3347 and R3348 read every other glyph. Red at 527cc7c7: no glyph is drawn.
          */
         const D = await import("./dh-settings.mjs").catch(() => null);
         const SG = await import("./stat-glyphs.mjs").catch(() => null);
@@ -48600,7 +48600,7 @@ const INVARIANTS = [
          * - set only by Daggerheart's own level-up automation (character.mjs prepareBaseData), which the module never feeds - as
          * the class `marked`, and it has no action of its own (a click on it is the trait's `rollAttribute`). The glyph goes in
          * it and the class stays, so the state is still drawn (R3594 reads how). The header is tests-kit.mjs `dhTraitsStandIn`.
-         * Red at 982322f4: the glyph stood first in the name.
+         * Red at 7e51cd98: the glyph stood first in the name.
          */
         const SH = await import("./sheet.mjs");
         const SG = await import("./stat-glyphs.mjs").catch(() => null);
@@ -48653,7 +48653,7 @@ const INVARIANTS = [
         /*
          * E49, 11.11.2026 night. The block at the end of glyphs.json is the owner's: another branch adds glyphs too, and a
          * contiguous block keeps the merge simple. R3333 holds the generated files whole; this holds the six to their place.
-         * Red at 8c8ece5c: no STAT_GLYPHS, no row. Since the merge into 1.2.105 (12.11.2026) the block is held where it
+         * Red at 527cc7c7: no STAT_GLYPHS, no row. Since the merge into 1.2.105 (12.11.2026) the block is held where it
          * stands, not at the end: the other branches' rows (E49 A1e's season-checklist, FT batch 2's settings, unseen,
          * projects-manage and countdown-loop) came after it, as the block was meant to let them.
          */
@@ -48719,7 +48719,7 @@ const INVARIANTS = [
          * a gold dot inside it when `marked` (`::before`). The module painted it Bone (danganronpa.css "the system's gold
          * furniture") and squared it under the glass, where a rule meant to hide it ("NO TIER MARKS") lost to Daggerheart's
          * own on weight, so the white squares showed (S/stages/E105/e49stat round 1). That rule's intent is replaced by the
-         * owner's: the mark is shown in both themes and holds the glyph. Red at 982322f4: no holder rule; the glass rule hid it.
+         * owner's: the mark is shown in both themes and holds the glyph. Red at 7e51cd98: no holder rule; the glass rule hid it.
          */
         const SH = await import("./sheet.mjs");
         const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
@@ -48758,8 +48758,8 @@ const INVARIANTS = [
         /*
          * E49, 12.11.2026. Measured in Chromium on the stand-in at 1366x768 (S/stages/E105/e49stat): under Legacy the pixel face
          * sets "Shadow" 79 px wide in cells of 74 (six equal columns, `minmax(0, 1fr)`), so its last letter was cut by the cell's
-         * edge (at 8c8ece5c already); the five other names are at most 50. Layout is not read here (jsdom has none): the rule is.
-         * Red at 982322f4: `repeat(6, minmax(0, 1fr))`.
+         * edge (at 527cc7c7 already); the five other names are at most 50. Layout is not read here (jsdom has none): the rule is.
+         * Red at 7e51cd98: `repeat(6, minmax(0, 1fr))`.
          */
         const D = await import("./dh-settings.mjs").catch(() => null);
         must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs is not there - this would measure nothing");
