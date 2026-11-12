@@ -4973,6 +4973,12 @@ export const SFX_EVENTS = {
         hint: "The trial ends and the sentence is carried out on whoever the verdict named. Heard by the whole table.",
         category: "incident"
     },
+    // E99 C7 (Q-E99-7): the case summary's card, sent once a trial (case-summary.mjs `showCaseSummary`)
+    caseSummary: {
+        label: "The case summary",
+        hint: "Heard by the whole table when the GM sends the case summary.",
+        category: "incident"
+    },
     trialClose: {
         label: "The trial ends",
         hint: "The Class Trial is over and everyone goes back to school. Heard by the whole table.",

@@ -56,8 +56,10 @@ export function caseSummaryHtml(payload, { esc = s => String(s ?? "").replace(/[
  * SHOW SUMMARY (E99 C7; D2's answer: the GM presses it after the verdict; Q-E99-9: once per trial). On a GM: the
  * chapter's graph, the trial's ticks, what the students found and the verdict's `correct`, composed by
  * `composeCaseSummary`; a preview of exactly what goes out (Close, the default; Send, never under Enter); Send posts one
- * public card that is the summary (Q-E99-6: a chat card, no notice) and marks the chapter's summary sent in the GMs'
- * ticks store, so a second press says so and sends nothing. The animated board is E61's verdict board's (not in this
+ * public card that is the summary (Q-E99-6: a chat card, no notice), with its sound (`SFX_EVENTS.caseSummary`, Q-E99-7),
+ * and marks it sent in the trial's record (`summaryShown`, a time; trial-progress.mjs `TRIAL_RECORD`), so a second press
+ * in the same trial says so and sends nothing, and a second trial in the chapter has a summary of its own (Q-E99-9).
+ * Until the round of 12.11 the mark was a row of the GMs' ticks store per chapter. The animated board is E61's verdict board's (not in this
  * tree yet): the card is its static form.
  */
 export async function showCaseSummary() {
@@ -66,16 +68,14 @@ export async function showCaseSummary() {
     const { esc } = await import("./utils.mjs");
     const { drpgWindow } = await import("./ui-kit.mjs");
     const { caseGraph, caseTicks } = await import("./case-schema.mjs");
-    const { caseTickStore } = await import("./gm-stores.mjs");
     const { findersByAnyRemnant } = await import("./investigation.mjs");
-    const { trialProgress } = await import("./vote.mjs");
+    const { trialProgress, setTrialProgress } = await import("./vote.mjs");
     const { getClock } = await import("./clock.mjs");
     const { chatCard } = await import("./chat-card.mjs");
     const L = k => game.i18n.localize(k);
     const chapter = getClock().chapter;
-    const mark = `${chapter}:summary`;
-    if (caseTickStore.get(mark)?.shown) { ui.notifications.info(L("DRPG.CaseSummary.already")); return null; }
     const progress = trialProgress();
+    if (progress?.summaryShown) { ui.notifications.info(L("DRPG.CaseSummary.already")); return null; }
     if (!progress?.verdictApplied) { ui.notifications.warn(L("DRPG.CaseSummary.noVerdict")); return null; }
     const graph = caseGraph(chapter);
     const finders = findersByAnyRemnant();
@@ -90,13 +90,13 @@ export async function showCaseSummary() {
         rejectClose: false
     });
     if (answer !== "send") return null;
-    if (caseTickStore.get(mark)?.shown) return null;
-    await caseTickStore.patch(mark, { shown: Date.now(), by: game.user.id });
+    if (trialProgress()?.summaryShown) return null;
+    await setTrialProgress({ summaryShown: Date.now() });
     await ChatMessage.create({
         // On the chat kit (chat-card.mjs `chatCard`, E49 B5a's one road for a card): the title in the card's head
         content: chatCard({ glyph: "scale-balanced", title: game.i18n.format("DRPG.CaseSummary.title", { chapter }), body: html }),
         speaker: { alias: L("DRPG.CaseSummary.speaker") },
-        flags: { [MODULE_ID]: { caseSummary: true } }
+        flags: { [MODULE_ID]: { caseSummary: true, sfx: "caseSummary" } }
     });
     return L("DRPG.CaseSummary.sent");
 }

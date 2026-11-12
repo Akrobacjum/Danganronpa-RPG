@@ -211,6 +211,15 @@ export const WORLD_SECRET_RULES = Object.freeze({
             flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage", "thread", "kind", "gmAsk", "settled"]),
             since: "E06 C7a", why: "a private card's document says what it is about - its action, its roll's way, its sound, its item, a ruling asked (L16, S02-02)"
         }),
+        /* E99 C7: the case's summary is one public card (case-summary.mjs `showCaseSummary`): what it says is the
+           allowlisted payload in its words (R3671), and its document says nothing more - it speaks under its own name,
+           never as a student, and carries its kind and its sound alone, no node id, tick or author. */
+        Object.freeze({
+            when: "caseSummary",
+            fields: Object.freeze(["speaker.actor", "speaker.token"]),
+            flagsOnly: Object.freeze(["caseSummary", "sfx"]),
+            since: "E99 C7", why: "the case summary's card holds only what its words say: no student speaks it, and no flag carries a node, a tick or who made them"
+        }),
         /* E06 C8: a veiled card's document is addressed to the whole table, and a veiled thread
            card's placement - whose thread, its kind, that it asks the GM - goes with its words
            (messenger.mjs `postToThread` with `veiled`). Read with the rule above: on a veiled card

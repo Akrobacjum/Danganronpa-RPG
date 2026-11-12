@@ -7153,6 +7153,10 @@
           "label": "Egzekucja",
           "hint": "Rozprawa się kończy i wyrok zostaje wykonany na osobie wskazanej w werdykcie. Słyszy cały stół."
         },
+        "caseSummary": {
+          "label": "Podsumowanie sprawy",
+          "hint": "Słyszy cały stół, gdy GM wysyła podsumowanie sprawy."
+        },
         "trialClose": {
           "label": "Koniec rozprawy",
           "hint": "Class Trial się kończy i wszyscy wracają do szkoły. Słyszy cały stół."
@@ -7833,7 +7837,7 @@
       "intro": "Gracze dostaną tylko to: co znaleźli, zaznaczone wnioski i kontry, a rozwiązanie, jeśli zagłosowali dobrze.",
       "send": "Wyślij wszystkim",
       "sent": "Podsumowanie wysłane.",
-      "already": "Już wysłane w tym rozdziale.",
+      "already": "Już wysłane w tej rozprawie.",
       "noVerdict": "Dopiero po werdykcie.",
       "title": "Rozdział {chapter}: jak rozwiązano sprawę",
       "speaker": "Podsumowanie sprawy",
