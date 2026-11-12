@@ -17073,7 +17073,64 @@ const SCENARIOS = [
             "a target in another room was not refused on the GM before the dice, or the Monocub was refunded or not told (codes, answered, a roll, dice drawn, Hope after, told)");
     }],
 
-    ["a Confusion paid a moment before an Eclipse opened lands on the GM while the picker is shut", async () => {
+    ["a Monocub's Confusion is paid on the GM after its conditions: one carried out takes one action and one Hope there, one refused takes nothing (E72 C1)", async () => {
+        /*
+         * E72 C1, 12.11.2026; audit S18-50, the owner's DC13 and D39. The Monocub's browser paid the action and the Hope
+         * before it asked the GM (monocub.mjs `performCubAbility`), and the GM refused with no refund. A player's packet
+         * through the bridge's runner (`judge`, as the Monocub's player sent it) now is the whole road: (a) a Monocub
+         * with two actions and two Hope helps a student alone in its room - the GM takes one action and one Hope; (b)
+         * the same Monocub with no Hope sends it again - refused on the GM, no roll answered, nothing armed, the actions
+         * as they were. Read: actions and Hope after each, whether each answer held a roll, and Confusions armed.
+         * Red at f22a7e8's runtime: (a) took nothing ([2, 2]), (b) was carried out with no Hope.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        needs(world.atLeast("livingStudents", 2), "a Monocub and a target");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const [target] = livingStudents().filter(a => a.id !== cub.id);
+        const { back } = await aloneTogether(cub, target);
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const nonces = new Set(pendingCalls(target).map(entry => entry.nonce));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const send = async (requestId) => {
+            let answer = null;
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId, actorId: cub.id, key: "meddle", targetId: target.id, choice: "help" },
+                player(cub).id, { send: (to, reply) => { if (reply?.action === "bridge.done") answer = reply.value ?? null; } });
+            await settle();
+            return [cub.system.resources.actions.value, cub.system.resources.hope.value, Boolean(answer?.roll)];
+        };
+        let carried = null, refused = null, armed = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
+            await settle();
+            carried = await send("suite-e72-c1-paid");
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 0 });
+            await settle();
+            const before = pendingCalls(target).filter(entry => entry.key === "meddle" && !nonces.has(entry.nonce)).length;
+            refused = await send("suite-e72-c1-nohope");
+            armed = pendingCalls(target).filter(entry => entry.key === "meddle" && !nonces.has(entry.nonce)).length - before;
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson([carried, refused, armed]), stableJson([[1, 1, true], [2, 0, false], 0]),
+            "the GM did not take the price of a Confusion it carried out, or carried out one with no Hope (carried: actions, Hope, a roll; refused: the same; Confusions armed by the refused one)");
+    }],
+
+    ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the
          * Class Trial) are asked on the picker and before paying, never on the GM: a Meddle paid
@@ -17082,6 +17139,13 @@ const SCENARIOS = [
          * (`cubAbilityDialog`) answers null and says the Eclipse's sentence, and the GM-side run
          * (`cubAbilityOnGm`) of a Hinder scripted to 13 lands a -1 on the target. Red under the
          * mutant that asks the locks on the GM (the run answers null, nothing armed).
+         *
+         * CHANGED ON PURPOSE BY E72 C1 (12.11.2026; audit S18-50, DC13): the price is taken on the
+         * GM after the conditions now, so the reason the GM asked no lock (a Hope paid on the
+         * Monocub's browser and lost) is gone, and the GM asks the locks before it pays. Read now:
+         * the picker shut with the Eclipse's sentence, the GM-side run answering null with no roll,
+         * no Confusion armed, and the Monocub's actions and Hope as they were (2 and 2). Red at
+         * f22a7e8's runtime: the run answered 13 with a roll and armed a -1.
          */
         const [cub, target] = cast(2);
         const M = await import("./monocub.mjs");
@@ -17099,9 +17163,11 @@ const SCENARIOS = [
         const warned = ui.notifications.warn;
         const real = CONFIG.Dice.randomUniform;
         const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
-        let picker = "unasked", out = null, armed = null;
+        const wasPaid = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        let picker = "unasked", out = null, armed = null, kept = null;
         try {
             await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
             await E.startEclipse();
             await settle();
             must(E.isEclipse(), "the Eclipse did not start");
@@ -17114,8 +17180,10 @@ const SCENARIOS = [
             CONFIG.Dice.randomUniform = real;
             await settle();
             armed = pendingCalls(target).find(entry => entry.key === "meddle" && !nonces.has(entry.nonce)) ?? null;
+            kept = [cub.system.resources.actions.value, cub.system.resources.hope.value];
         } finally {
             ui.notifications.warn = warned;
+            await cub.update({ "system.resources.actions.value": wasPaid[0], "system.resources.hope.value": wasPaid[1] });
             CONFIG.Dice.randomUniform = real;
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             if (confusionStore) {
@@ -17125,9 +17193,9 @@ const SCENARIOS = [
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
             await back();
         }
-        equal(stableJson([picker, seen.includes(locked), out?.total ?? null, Boolean(out?.roll), armed ? [armed.grants, armed.amount] : null]),
-            stableJson([null, true, 13, true, ["bonus", -1]]),
-            "in an Eclipse the picker was not shut with the Eclipse's sentence, or the GM-side run refused a paid Confusion (picker, said, the answer's total, a roll answered, the Call armed)");
+        equal(stableJson([picker, seen.includes(locked), out?.total ?? null, Boolean(out?.roll), armed ? [armed.grants, armed.amount] : null, kept]),
+            stableJson([null, true, null, false, null, [2, 2]]),
+            "in an Eclipse the picker was not shut with the Eclipse's sentence, or the GM carried out a Confusion or took its price (picker, said, the answer's total, a roll answered, the Call armed, actions and Hope after)");
     }],
 
     ["a Monocub marked a crime witness this chapter lands Confusion like any other", async () => {
@@ -73090,6 +73158,8 @@ const SCENARIOS = [
          * actions after each, whether the cards to the target's player carry the sentence for what happened,
          * and how many cards the 13 sent that player. At 0edb82de the first two said the action came back
          * or was wasted, and the 13 sent two cards (the Call's own notice and Confusion's).
+         * Since E72 C1 the GM takes the price before it throws, so the Monocub is given the action and the Hope of
+         * each run first (`pay`), and its own are put back.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player to be sent the words");
         const { cubAbilityOnGm } = await import("./monocub.mjs");
@@ -73110,8 +73180,10 @@ const SCENARIOS = [
         const monoWas = cub._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
         const real = CONFIG.Dice.randomUniform;
         const read = {};
+        const cubWas = [cub._source.system.resources[ACTIONS_RESOURCE].value, cub._source.system.resources.hope.value];
         const run = async (faces, choice, actions) => {
             await target.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: actions });
+            await cub.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: 1, "system.resources.hope.value": 1 });
             await settle();
             const script = faces.map(face => 1 - (face - 0.5) / 12);
             let out = null;
@@ -73145,6 +73217,7 @@ const SCENARIOS = [
             }
             if (monoWas === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
             else await cub.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await cub.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: cubWas[0], "system.resources.hope.value": cubWas[1] });
             if (actionsWas !== undefined) await target.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsWas });
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
             await back();

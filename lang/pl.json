@@ -1163,7 +1163,7 @@
       "tile": "Ciało: {name}"
     },
     "Monocub": {
-      "meddleRefused": "Confusion ich nie dosięga. Chwila minęła, zanim zdążyło zadziałać.",
+      "meddleRefused": "Confusion ich nie dosięga. Nie tracisz akcji ani Hope.",
       "tickFirst": "Najpierw zaznacz Monocub",
       "student": "Uczeń",
       "panelTitle": "Monocub",

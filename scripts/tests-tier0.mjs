@@ -7824,15 +7824,47 @@ const REGRESSIONS = [
             "monocub.ability does not take key and choice as text, or its packet carries a result or a roll the GM would read");
 
         const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
-        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cubAbilityOnGm(" });
+        // Since E72 C1 the GM asks every condition (`cubAbilityRefusalOnGm`, locks included) and then takes the price;
+        // the executor pays nothing. Changed on purpose: until E72 the run asked no lock (CALL-16), because the price
+        // had been paid on the Monocub's browser before it. R3800 holds the order of the price on the GM.
+        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cubAbilityRefusalOnGm(" });
+        const onGm = bodyOf(src, "export async function cubAbilityRefusalOnGm(", { until: "export async function cubAbilityOnGm(" });
         const run = bodyOf(src, "export async function cubAbilityOnGm(", { until: "export async function cubAbilityDialog(" });
-        ok(!/abilities\.meddle|CUB_\w+\.meddle|"meddle"/.test(`${executor}\n${run}`),
+        ok(!/abilities\.meddle|CUB_\w+\.meddle|"meddle"/.test(`${executor}\n${onGm}\n${run}`),
             "the executor or the GM-side run names the Meddle row - rows are data and behaviour is named, or a second ability is a branch");
-        ok(/\blockRefusal\(/.test(executor) && executor.indexOf("lockRefusal(") < executor.indexOf("spendAction("),
-            "the executor does not ask the row's locks before anything is paid");
-        ok(!/\blockRefusal\(|CUB_LOCKS/.test(run), "the GM-side run asks a lock - CALL-16: a Meddle paid a moment before an Eclipse opened would lose its Hope for good");
-        ok(/CUB_TARGETS\[row\.target\]\.refuses\(/.test(run) && /CUB_RESOLVERS\[row\.resolve\]\(/.test(run) && /CUB_ROLLS\[row\.roll\]\(/.test(run),
+        ok(/\blockRefusal\(/.test(executor) && executor.indexOf("lockRefusal(") < executor.indexOf("requestCubAbility("),
+            "the executor does not ask the row's locks before it asks the GM");
+        ok(/CUB_LOCKS\[/.test(onGm) && /\bcubAbilityRefusalOnGm\(/.test(run), "the GM-side run does not ask the row's locks before it pays (E72 C1)");
+        ok(/CUB_TARGETS\[row\.target\]\.refuses\(/.test(onGm) && /CUB_RESOLVERS\[row\.resolve\]\(/.test(run) && /CUB_ROLLS\[row\.roll\]\(/.test(run),
             "the GM-side run does not ask the row's target rule again, throw the row's roll and score with the row's resolver");
+    }],
+
+    ["R3800 - a Monocub's ability is paid on the GM after its conditions: the executor writes no price, the GM-side run asks every condition before it spends the action and writes the Hope, one Monocub at a time (E72 C1; S18-50, DC13)", async () => {
+        /*
+         * E72 C1, 12.11.2026; audit S18-50, the owner's DC13 and D39. Until E72 `performCubAbility` spent the action
+         * (`spendAction`) and wrote the Hope with the reason "price" on the Monocub's browser before it asked the GM, and
+         * the GM refused with no refund. Read off the source: the executor neither spends nor writes; the GM-side run
+         * (`cubAbilityOnGm`) asks `cubAbilityRefusalOnGm` before its `spendAction(` and its Hope's `trustedWrite(`, and
+         * both before the row's dice; the refusal asks the price against the sheet (actions and Hope); and the run is
+         * one per Monocub (`serialWrite`), so two packets sent together do not both read one Hope. Red at f22a7e8: the
+         * executor spends, the run has no price at all. Mutants it kills: the refusal moved after the payment; the
+         * executor paying again; the serial key dropped.
+         */
+        const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cub" });
+        const onGm = bodyOf(src, "export async function cubAbilityRefusalOnGm(", { until: "export async function cubAbilityOnGm(" });
+        const run = bodyOf(src, "export async function cubAbilityOnGm(", { until: "export async function cubAbilityDialog(" });
+        must(executor.length > 200 && run.length > 200, "monocub.mjs has no performCubAbility or cubAbilityOnGm - this would measure nothing");
+        const at = text => run.indexOf(text);
+        const read = {
+            executorPays: /\bspendAction\(|\btrustedWrite\(/.test(executor),
+            refusalFirst: at("cubAbilityRefusalOnGm(") > -1 && at("cubAbilityRefusalOnGm(") < at("spendAction(") && at("spendAction(") < at("trustedWrite("),
+            priceBeforeDice: at("trustedWrite(") > -1 && at("trustedWrite(") < at("CUB_ROLLS["),
+            priceAsked: /actionsLeft\(actor\)\s*<\s*row\.cost/.test(onGm) && /resourceValue\(actor,\s*"hope"\)\s*<\s*row\.hopeCost/.test(onGm),
+            serial: /serialWrite\(`drpg-cub-ability:\$\{actorId\}`/.test(run)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ executorPays: false, refusalFirst: true, priceBeforeDice: true, priceAsked: true, serial: true }),
+            "a Monocub's ability is not paid on the GM after its conditions, one Monocub at a time");
     }],
 
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {

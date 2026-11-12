@@ -49,7 +49,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
-import { resolveThreshold, whisperToOwner, log, warn, plural, isPrimaryGm, wholeNumber } from "./utils.mjs";
+import { resolveThreshold, whisperToOwner, log, warn, plural, isPrimaryGm, wholeNumber, serialWrite } from "./utils.mjs";
 import { stepper, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
@@ -244,7 +244,7 @@ export function isCrimeSilenced(actor) {
  * thrown, how it is scored. Each ability is a ROW of `MONOCUB.abilities`
  * (config.mjs), and the rows are data: a row names its behaviour by key, and
  * the four tables below hold the behaviour - `CUB_LOCKS` (the windows it is shut
- * in: asked on the picker and before paying, never on the GM, CALL-16),
+ * in: asked on the picker and on the GM before the price, E72 C1),
  * `CUB_TARGETS` (whom it may be aimed at: asked on the picker and again on the
  * GM), `CUB_ROLLS` (what the GM throws) and `CUB_RESOLVERS` (how the GM's own
  * throw is scored and applied). One executor (`performCubAbility`), one picker
@@ -276,10 +276,12 @@ export function abilityRow(key) {
  * decision named it beside the Despair Calls. Everything the trial leaves open
  * belongs to the students arguing in it.
  *
- * Asked on the picker and before paying, NEVER on the GM (review of CALL-16): an
- * ability paid a moment before a window shut and refused there would lose its Hope
- * for good, since the GM side never refunds (ACT-12). The crime-witness marker is
- * no lock (ACT-12; the owner's option B, 05.10.2026): a witness's Confusion lands.
+ * Asked on the picker, and on the GM before it takes the price (E72 C1). Until E72 they
+ * were asked on the GM never (review of CALL-16): the Monocub's browser paid before the
+ * GM was asked, so a window shut on the way would have cost its Hope for good. With
+ * the price taken on the GM after the conditions, a shut window refuses for free.
+ * The crime-witness marker is no lock (ACT-12; the owner's option B, 05.10.2026): a
+ * witness's Confusion lands.
  */
 export const CUB_LOCKS = Object.freeze({
     eclipse: { shut: async () => (await import("./eclipse.mjs")).isEclipse(), say: "DRPG.Eclipse.actionsLocked" },
@@ -356,8 +358,8 @@ export const CUB_ROLLS = Object.freeze({ flat2d12: rollFlat });
  * before anything is paid, by the bridge's guard before the run
  * (bridge-guards.mjs `guardCubAbility`), and on the GM once more (`cubAbilityOnGm`,
  * which a GM's own browser reaches with no guard in front of it). Not asked here:
- * the locks (`lockRefusal`, the picker's and the payment's only) and the target
- * (`CUB_TARGETS`, asked by the run with the world as the GM holds it).
+ * the locks, the price and the target, which the GM asks before it pays
+ * (`cubAbilityRefusalOnGm`, E72 C1) and the picker asks as a courtesy.
  */
 export function cubAbilityRefusal(actor, key, choice) {
     const row = abilityRow(key);
@@ -451,8 +453,16 @@ export function cubCardHtml(row, { choice, formula = "", tooltip = "", total = 0
 /**
  * THE ONE EXECUTOR: a Monocub uses the ability under `key`, aimed as the picker
  * answered (`{ targetId, choice }`). The row's price is an action from the normal
- * budget (`cost`) and Hope on top (`hopeCost`) - both spent here, on the Monocub's
- * own actor, which the acting player already owns; the dice are the GM's.
+ * budget (`cost`) and Hope on top (`hopeCost`), and both are paid on the GM
+ * (`cubAbilityOnGm`) once its conditions hold.
+ *
+ * PAID ON THE GM, AFTER THE CONDITIONS (E72 C1, 12.11.2026; audit S18-50, the owner's DC13 and D39). Until E72 this
+ * browser spent the action and wrote the Hope with the reason "price" before it asked the GM, and the GM, which could
+ * not see that anything was paid, refused with no refund (ACT-12): a world that moved between the two - the target
+ * walked out, an Eclipse opened - cost the Monocub an action and a Hope for nothing, and the GM's whisper said so. Now
+ * this browser asks the same questions as a courtesy, to say no early and in the player's own words, and pays
+ * nothing; the GM asks them again with the world as it holds it, and only then takes the action and the Hope, so
+ * every refusal costs nothing.
  */
 export async function performCubAbility(actor, key, { targetId, choice } = {}) {
     const row = abilityRow(key);
@@ -465,16 +475,13 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
         }, "left"));
         return null;
     }
-    const hope = resourceValue(actor, "hope");
-    if (hope < row.hopeCost) {
+    if (resourceValue(actor, "hope") < row.hopeCost) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.needHope"));
         return null;
     }
 
-    // Paid on this client, resolved on the GM's: with no GM there is nobody
-    // to resolve it, and the price would simply be gone (DESP-05). `gmOnline`
-    // is the question alone; what is said is the bridge's own sentence for a
-    // request with no GM (`sayNotDone`, E31), so it reads as every other does.
+    // Resolved and paid on the GM's client: with no GM there is nobody to do either (DESP-05). `gmOnline` is the
+    // question alone; what is said is the bridge's own sentence for a request with no GM (`sayNotDone`, E31).
     if (!game.user.isGM) {
         const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
         if (!gmOnline()) {
@@ -483,31 +490,14 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
         }
     }
 
-    /*
-     * ASKED BEFORE ANYTHING IS PAID (ACT-12, 17.09).
-     *
-     * The GM side refuses an ability whose target the row's rule turns away, and
-     * it used to find that out after this client had taken the action and the Hope
-     * - with nothing said to the Monocub and nothing given back. The GM cannot give
-     * it back either: it cannot see that anything was paid, and a refund for an
-     * unpaid request is Hope for a forged packet. So the same question is asked
-     * here first, where saying no costs nothing.
-     */
+    // The target rule asked here too (ACT-12, 17.09): the honest "nobody here" said before the GM is asked.
     if (await CUB_TARGETS[row.target].refuses(actor, game.actors.get(targetId))) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
         return null;
     }
 
-    if (!await spendAction(actor, row.cost)) return null;
-    // A price (E29 fix r1-G7): a player's write names only a reason the GMs' audit reads off it
-    // (resource-guard.mjs `stampOf`), and it reads this Hope as it reads every price paid.
-    if (row.hopeCost > 0) {
-        await trustedWrite(actor, { "system.resources.hope.value": hope - row.hopeCost }, { reason: "price" });
-    }
-
-    // The GM throws the dice and scores them (`cubAbilityOnGm`); its answer is the roll, which the
-    // card shows here as this Monocub's. Not answered (refused, no GM, a roll that is not one):
-    // nothing to show, and the GM has said why where it refused.
+    // The GM asks, pays, throws and scores (`cubAbilityOnGm`); its answer is the roll, which the card shows here as
+    // this Monocub's. Not answered (refused, no GM): nothing to show, nothing paid, and the GM has said why.
     const { requestCubAbility } = await import("./gm-bridge.mjs");
     const res = await requestCubAbility({ actorId: actor.id, key, targetId, choice });
     const thrown = res.ok ? res.value : null;
@@ -520,44 +510,61 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
 }
 
 /**
- * An ability's dice, thrown and scored on this GM (E08+E28 C17): the row's `roll`
- * thrown, its `resolve` applied to the GM's own throw, answered as the roll (its
- * JSON), the total and the critical, for the Monocub's card. GM-side. The packet's
- * `key`, `targetId` and `choice` are claims: the row, the Monocub and the choice are
- * asked again (`cubAbilityRefusal`), and the target of the row's rule with the world
- * as this GM holds it (`CUB_TARGETS`) - a packet naming a target in another room, or
- * a sender who stopped being a Monocub, is refused here whatever the picker saw.
+ * Why the GM will not carry out this ability now, or null (E72 C1): the row, the Monocub and the choice
+ * (`cubAbilityRefusal`), the row's locks (`CUB_LOCKS`, asked quietly), the price against the sheet as this GM holds
+ * it, and the target of the row's rule. Each answer is an English reason for the GM's log. Pure of writes.
+ */
+export async function cubAbilityRefusalOnGm(actor, row, key, target, choice) {
+    const why = cubAbilityRefusal(actor, key, choice);
+    if (why) return why;
+    for (const lock of row.locks ?? []) {
+        const entry = CUB_LOCKS[lock];
+        if (!entry || await entry.shut()) return `the ability is shut (${lock})`;
+    }
+    if (actionsLeft(actor) < row.cost) return "the Monocub has no action left for it";
+    if (resourceValue(actor, "hope") < row.hopeCost) return "the Monocub has not the Hope for it";
+    return CUB_TARGETS[row.target].refuses(actor, target);
+}
+
+/**
+ * An ability asked of this GM (E08+E28 C17; paid here since E72 C1): its conditions asked, its price taken, the row's
+ * `roll` thrown, its `resolve` applied to the GM's own throw, answered as the roll (its JSON), the total and the
+ * critical, for the Monocub's card. GM-side. The packet's `key`, `targetId` and `choice` are claims: every condition
+ * is asked again with the world as this GM holds it (`cubAbilityRefusalOnGm`) - a packet naming a target in another
+ * room, a sender who stopped being a Monocub, a Monocub with no Hope - before anything is written.
  *
- * ASKED BEFORE THE DICE (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m6). C17
- * threw the dice before it asked its questions, and answered a Meddle it refused all
- * the same - so the Monocub's browser posted a dice card to the room for a Meddle
- * that did nothing. A refusal is answered with no roll, so no card is posted.
+ * ASKED BEFORE THE DICE (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m6) and, since E72 C1, BEFORE THE PRICE.
+ * A refusal is answered with no roll, so no card is posted, and costs the Monocub nothing: the GM logs it and
+ * whispers `DRPG.Monocub.meddleRefused` ("you keep your action and Hope"), which is now true. The locks are asked here
+ * too since C1: they could not be until then (CALL-16), because a Meddle paid on the Monocub's browser a moment before
+ * an Eclipse opened would have lost its Hope for good; with the price taken here, a shut window refuses for free.
  *
- * SAID, NOT REFUNDED (ACT-12). This side cannot see that anything was paid, so a
- * refund here is Hope minted for any packet that names a target in another room.
- * The honest refusals are asked in `performCubAbility` before anything is paid;
- * what reaches a refusal here is a world that moved between the two, or a forged
- * request. The refusal is logged on the GM and whispered to the Monocub - one only
- * the GM console heard looked, from the sheet, like an action and a Hope that
- * vanished. No lock is asked here (CALL-16): a Meddle paid a moment before an
- * Eclipse opened lands.
+ * ONE AT A TIME PER MONOCUB (`serialWrite`, utils.mjs): two packets sent together would both read one Hope and both
+ * pass; under one key the second reads the sheet the first wrote.
  */
 export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
     if (!game.user.isGM) return null;
-    const actor = game.actors.get(actorId);
-    const row = abilityRow(key);
-    const target = game.actors.get(targetId);
-    const why = cubAbilityRefusal(actor, key, choice) ?? await CUB_TARGETS[row.target].refuses(actor, target);
-    if (why) {
-        warn(`Refused a Monocub's "${key}" by ${actor?.name ?? actorId}: ${why}.`);
-        if (isMonocub(actor)) {
-            await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
+    return serialWrite(`drpg-cub-ability:${actorId}`, async () => {
+        const actor = game.actors.get(actorId);
+        const row = abilityRow(key);
+        const target = game.actors.get(targetId);
+        const why = row ? await cubAbilityRefusalOnGm(actor, row, key, target, choice) : cubAbilityRefusal(actor, key, choice);
+        if (why) {
+            warn(`Refused a Monocub's "${key}" by ${actor?.name ?? actorId}: ${why}.`);
+            if (isMonocub(actor)) {
+                await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
+            }
+            return null;
         }
-        return null;
-    }
-    const { roll, total, isCritical } = await CUB_ROLLS[row.roll]();
-    await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row);
-    return { roll: roll.toJSON(), total, isCritical };
+        // The price, after every condition: quiet (the toast and the pip sound would be the GM's), as an Objection's is.
+        if (row.cost > 0 && !await spendAction(actor, row.cost, { quiet: true })) return null;
+        if (row.hopeCost > 0) {
+            await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") - row.hopeCost }, { reason: "price" });
+        }
+        const { roll, total, isCritical } = await CUB_ROLLS[row.roll]();
+        await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row);
+        return { roll: roll.toJSON(), total, isCritical };
+    });
 }
 
 /** Whom to aim the ability under `key` at, and which of the row's choices. The player's own picker. */
