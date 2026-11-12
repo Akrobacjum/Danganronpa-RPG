@@ -3063,7 +3063,7 @@
       "newRuleNote": "{cost} Despair buys a permanent change to the game. Make it count.",
       "newRuleAnnounced": "The new rule was announced to everyone.",
       "noSuchRoom": "There is no region called “{room}” on this scene.",
-      "gatherNoRoom": "There is no room called “{room}” on {scene}. Nothing was spent.",
+      "gatherNoRoom": "There is no room called “{room}” on {scene}. The Despair stays in your pool.",
       "progressedTo": "{name} is now at {current}/{target}.",
       "progressSent": "{name}: {n} progress sent to the GM.",
       "overflowFed": "{n} Despair poured into the overflow.",
@@ -3713,7 +3713,7 @@
         "ready.end": "Ending the question to the players"
       },
       "notDone": "“{what}” was not carried out. {why}",
-      "nothingSpent": "Nothing was spent.",
+      "nothingSpent": "You keep your action and your Hope.",
       "emptyRequest": "Nothing was sent - write your request first.",
       "why": {
         "unknownSender": "The GM does not see you as connected. Reload and try again.",

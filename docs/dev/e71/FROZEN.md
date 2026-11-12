@@ -28,71 +28,71 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 
 | File | Section | Branches |
 | --- | --- | --- |
-| gm-handbook.en.md | # Danganronpa RPG - GM Handbook | fervent-sagan-gme4vt |
+| gm-handbook.en.md | # Danganronpa RPG - GM Handbook | dh-212b, fervent-sagan-gme4vt |
 | gm-handbook.en.md | ## 10. Items | e64 |
 | gm-handbook.en.md | ## 11. Projects and traps | e64, e93 |
 | gm-handbook.en.md | ## 14. Investigation | e64, e64-inv, e97-98 |
 | gm-handbook.en.md | ## 15. The Class Trial | e64, e72, e97-98 |
-| gm-handbook.en.md | ## 16. End of chapter and season reset | e61-62, fervent-sagan-gme4vt, gaps-a |
-| gm-handbook.en.md | ## 17. Sound and SFX | e101, fervent-sagan-gme4vt |
+| gm-handbook.en.md | ## 16. End of chapter and season reset | dh-212b, e61-62, fervent-sagan-gme4vt, gaps-a |
+| gm-handbook.en.md | ## 17. Sound and SFX | dh-212b, e101, fervent-sagan-gme4vt |
 | gm-handbook.en.md | ## 18. The settings window, themes and the Language setting | e100, e101 |
 | gm-handbook.en.md | ## 2. The season setup checklist | e101 |
 | gm-handbook.en.md | ## 20. Troubleshooting | e100, e101, gaps-a |
 | gm-handbook.en.md | ## 3. The GM panel | e101, e72 |
-| gm-handbook.en.md | ## 4. The clock | e100, e61-62, fervent-sagan-gme4vt |
-| gm-handbook.en.md | ## 5. Actions and budgets | e61-62, e64, fervent-sagan-gme4vt |
+| gm-handbook.en.md | ## 4. The clock | dh-212b, e100, e61-62, fervent-sagan-gme4vt |
+| gm-handbook.en.md | ## 5. Actions and budgets | dh-212b, e61-62, e64, fervent-sagan-gme4vt |
 | gm-handbook.en.md | ## 7. Despair pools, assignments and overflow | e101, e93 |
-| gm-handbook.en.md | ## 8. Monokuma, Monocubs and the Mastermind | e101, e72, e92, fervent-sagan-gme4vt |
+| gm-handbook.en.md | ## 8. Monokuma, Monocubs and the Mastermind | dh-212b, e101, e72, e92, fervent-sagan-gme4vt |
 | gm-handbook.en.md | ### 13.1 Opening | e64 |
 | gm-handbook.en.md | ### 13.2 The incident (Stage 5) | e100, e64 |
 | gm-handbook.en.md | ### 13.3 Cleaning up (Stage 6) and Tamper | e100, e64 |
 | gm-handbook.en.md | ### 13.4 After the incident, and body discovery | e72 |
 | gm-handbook.en.md | ### 15.1 The trial hall | e61-62, e97-98 |
-| gm-handbook.en.md | ### 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate | fervent-sagan-gme4vt |
+| gm-handbook.en.md | ### 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate | dh-212b, fervent-sagan-gme4vt |
 | gm-handbook.en.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64, e72 |
 | gm-handbook.en.md | ### 6.2 Despair Calls (`DESPAIR_CALLS`) | e72 |
 | gm-handbook.en.md | ### 9.1 Rooms and Room Setup | e93 |
 | gm-handbook.en.md | ### 9.2 Fog and discovery | e101 |
 | gm-handbook.en.md | ### 9.3 Movement and charging | e64 |
 | gm-handbook.en.md | ### 9.5 Voice | e72 |
-| gm-handbook.pl.md | # Danganronpa RPG - Podręcznik GM | fervent-sagan-gme4vt |
+| gm-handbook.pl.md | # Danganronpa RPG - Podręcznik GM | dh-212b, fervent-sagan-gme4vt |
 | gm-handbook.pl.md | ## 10. Przedmioty | e64 |
 | gm-handbook.pl.md | ## 11. Projekty i pułapki | e64, e93 |
 | gm-handbook.pl.md | ## 14. Investigation | e64, e64-inv, e97-98 |
 | gm-handbook.pl.md | ## 15. Class Trial | e64, e72, e97-98 |
-| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | e61-62, fervent-sagan-gme4vt, gaps-a |
-| gm-handbook.pl.md | ## 17. Dźwięk i efekty | e101, fervent-sagan-gme4vt |
+| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | dh-212b, e61-62, fervent-sagan-gme4vt, gaps-a |
+| gm-handbook.pl.md | ## 17. Dźwięk i efekty | dh-212b, e101, fervent-sagan-gme4vt |
 | gm-handbook.pl.md | ## 18. Okno Ustawień, motywy i ustawienie Język | e100, e101 |
 | gm-handbook.pl.md | ## 2. Lista kontrolna sezonu | e101 |
 | gm-handbook.pl.md | ## 20. Rozwiązywanie problemów | e100, e101, gaps-a |
 | gm-handbook.pl.md | ## 3. Panel GMa | e101, e72 |
-| gm-handbook.pl.md | ## 4. Zegar | e100, e61-62, fervent-sagan-gme4vt |
-| gm-handbook.pl.md | ## 5. Akcje i budżety | e61-62, e64, fervent-sagan-gme4vt |
+| gm-handbook.pl.md | ## 4. Zegar | dh-212b, e100, e61-62, fervent-sagan-gme4vt |
+| gm-handbook.pl.md | ## 5. Akcje i budżety | dh-212b, e61-62, e64, fervent-sagan-gme4vt |
 | gm-handbook.pl.md | ## 7. Pule Despair, przydziały i overflow | e101, e93 |
-| gm-handbook.pl.md | ## 8. Monokuma, Monocuby i Mastermind | e101, e72, e92, fervent-sagan-gme4vt |
+| gm-handbook.pl.md | ## 8. Monokuma, Monocuby i Mastermind | dh-212b, e101, e72, e92, fervent-sagan-gme4vt |
 | gm-handbook.pl.md | ### 13.1 Otwarcie | e64 |
 | gm-handbook.pl.md | ### 13.2 Incydent (Stage 5) | e64 |
 | gm-handbook.pl.md | ### 13.3 Sprzątanie (Stage 6) i Tamper | e64 |
 | gm-handbook.pl.md | ### 13.4 Po incydencie i odkrycie ciała | e72 |
 | gm-handbook.pl.md | ### 15.1 Sala rozpraw | e61-62, e97-98 |
-| gm-handbook.pl.md | ### 15.2 Strefy sali: Straw Poll, Logic Dive i Scrum Debate | fervent-sagan-gme4vt |
+| gm-handbook.pl.md | ### 15.2 Strefy sali: Straw Poll, Logic Dive i Scrum Debate | dh-212b, fervent-sagan-gme4vt |
 | gm-handbook.pl.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64, e72 |
 | gm-handbook.pl.md | ### 6.2 Despair Calls (`DESPAIR_CALLS`) | e72 |
 | gm-handbook.pl.md | ### 9.1 Pokoje i Ustawienia pokoi | e93 |
 | gm-handbook.pl.md | ### 9.2 Mgła i odkrywanie | e101 |
 | gm-handbook.pl.md | ### 9.3 Ruch i naliczanie | e64 |
 | gm-handbook.pl.md | ### 9.5 Głos | e72 |
-| player-brochure.en.md | # Danganronpa RPG - Student Brochure | fervent-sagan-gme4vt |
+| player-brochure.en.md | # Danganronpa RPG - Student Brochure | dh-212b, fervent-sagan-gme4vt |
 | player-brochure.en.md | ## The actions (1 action each) | e64 |
 | player-brochure.en.md | ## When it goes wrong | e72 |
-| player-brochure.pl.md | # Danganronpa RPG - Ulotka ucznia | fervent-sagan-gme4vt |
+| player-brochure.pl.md | # Danganronpa RPG - Ulotka ucznia | dh-212b, fervent-sagan-gme4vt |
 | player-brochure.pl.md | ## Akcje (każda za 1 akcję) | e64 |
 | player-brochure.pl.md | ## Gdy idzie źle | e72 |
-| player-handbook.en.md | # Danganronpa RPG - Player Handbook | fervent-sagan-gme4vt |
+| player-handbook.en.md | # Danganronpa RPG - Player Handbook | dh-212b, fervent-sagan-gme4vt |
 | player-handbook.en.md | ## 12. The Class Trial | e72 |
 | player-handbook.en.md | ## 13. Death, and after | e72 |
-| player-handbook.en.md | ## 2. Time | e92, fervent-sagan-gme4vt |
-| player-handbook.en.md | ## 3. Moving and seeing | e61-62, fervent-sagan-gme4vt |
+| player-handbook.en.md | ## 2. Time | dh-212b, e92, fervent-sagan-gme4vt |
+| player-handbook.en.md | ## 3. Moving and seeing | dh-212b, e61-62, fervent-sagan-gme4vt |
 | player-handbook.en.md | ## 4. Actions | e64 |
 | player-handbook.en.md | ## 5. Hope and the Hope Calls | e64, e72 |
 | player-handbook.en.md | ### Bedrooms, keys, stashes | e64 |
@@ -106,25 +106,25 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.en.md | ### Playing a Monocub | e64, e72 |
 | player-handbook.en.md | ### Projects - the project's statistic, 1 action | e64 |
 | player-handbook.en.md | ### Rest - no roll, 1 or 2 actions | e93 |
-| player-handbook.en.md | ### Rolling | e92, fervent-sagan-gme4vt |
+| player-handbook.en.md | ### Rolling | dh-212b, e92, fervent-sagan-gme4vt |
 | player-handbook.en.md | ### Tamper - Shadow, 1 action | e64 |
-| player-handbook.en.md | ### The Eclipse | e61-62, fervent-sagan-gme4vt |
+| player-handbook.en.md | ### The Eclipse | dh-212b, e61-62, fervent-sagan-gme4vt |
 | player-handbook.en.md | ### The hall's zones | e64 |
 | player-handbook.en.md | ### The morning after | e72 |
 | player-handbook.en.md | ### The opening roll | e64 |
 | player-handbook.en.md | ### The overflow | e72 |
 | player-handbook.en.md | ### The vote | e72 |
 | player-handbook.en.md | ### Two states you do not want | e64 |
-| player-handbook.pl.md | # Danganronpa RPG - Podręcznik gracza | fervent-sagan-gme4vt |
+| player-handbook.pl.md | # Danganronpa RPG - Podręcznik gracza | dh-212b, fervent-sagan-gme4vt |
 | player-handbook.pl.md | ## 12. Class Trial | e72 |
 | player-handbook.pl.md | ## 13. Śmierć i to, co po niej | e72 |
-| player-handbook.pl.md | ## 2. Czas | e92, fervent-sagan-gme4vt |
-| player-handbook.pl.md | ## 3. Ruch i widzenie | e61-62, fervent-sagan-gme4vt |
+| player-handbook.pl.md | ## 2. Czas | dh-212b, e92, fervent-sagan-gme4vt |
+| player-handbook.pl.md | ## 3. Ruch i widzenie | dh-212b, e61-62, fervent-sagan-gme4vt |
 | player-handbook.pl.md | ## 4. Akcje | e64 |
 | player-handbook.pl.md | ## 5. Hope i Hope Calls | e64, e72 |
 | player-handbook.pl.md | ### Despair Calls - co Monokuma może ci zrobić | e72 |
 | player-handbook.pl.md | ### Dwa stany, których nie chcesz | e64 |
-| player-handbook.pl.md | ### Eclipse | e61-62, fervent-sagan-gme4vt |
+| player-handbook.pl.md | ### Eclipse | dh-212b, e61-62, fervent-sagan-gme4vt |
 | player-handbook.pl.md | ### Gra Monocubem | e64, e72 |
 | player-handbook.pl.md | ### Głosowanie | e72 |
 | player-handbook.pl.md | ### Jeśli jesteś ofiarą | e64 |
@@ -138,7 +138,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.pl.md | ### Projects - statystyka projektu, 1 akcja | e64 |
 | player-handbook.pl.md | ### Rest - bez rzutu, 1 albo 2 akcje | e93 |
 | player-handbook.pl.md | ### Rzut otwarcia | e64 |
-| player-handbook.pl.md | ### Rzuty | e92, fervent-sagan-gme4vt |
+| player-handbook.pl.md | ### Rzuty | dh-212b, e92, fervent-sagan-gme4vt |
 | player-handbook.pl.md | ### Strefy sali | e64 |
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
@@ -147,7 +147,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 
 | Key | Branches |
 | --- | --- |
-| `DRPG` | e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
 | `DRPG.Action.critical` | e100 |
 | `DRPG.Action.difficulty` | e100 |
 | `DRPG.Action.duality` | e100 |
@@ -194,16 +194,16 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Bridge.what.passage.share` | e72, e93 |
 | `DRPG.Bridge.what.vault.findStash` | e72 |
 | `DRPG.Bridge.what.vault.steal` | e72 |
-| `DRPG.Bridge.why.answerKeyMissing` | e72, e92, fervent-sagan-gme4vt |
+| `DRPG.Bridge.why.answerKeyMissing` | dh-212b, e72, e92, fervent-sagan-gme4vt |
 | `DRPG.Bridge.why.cannotLeave` | e93 |
 | `DRPG.Bridge.why.chained` | e93 |
 | `DRPG.Bridge.why.doorLocked` | e93 |
-| `DRPG.Bridge.why.keysNotOpen` | e72, e92, fervent-sagan-gme4vt |
-| `DRPG.Bridge.why.noAnswer` | e72, e92, fervent-sagan-gme4vt |
-| `DRPG.Bridge.why.noGm` | e72, e92, fervent-sagan-gme4vt |
+| `DRPG.Bridge.why.keysNotOpen` | dh-212b, e72, e92, fervent-sagan-gme4vt |
+| `DRPG.Bridge.why.noAnswer` | dh-212b, e72, e92, fervent-sagan-gme4vt |
+| `DRPG.Bridge.why.noGm` | dh-212b, e72, e92, fervent-sagan-gme4vt |
 | `DRPG.Bridge.why.oneWay` | e93 |
-| `DRPG.Bridge.why.refused` | e72, e92, fervent-sagan-gme4vt |
-| `DRPG.Bridge.why.rollUnknown` | e72, e92, fervent-sagan-gme4vt |
+| `DRPG.Bridge.why.refused` | dh-212b, e72, e92, fervent-sagan-gme4vt |
+| `DRPG.Bridge.why.rollUnknown` | dh-212b, e72, e92, fervent-sagan-gme4vt |
 | `DRPG.Bridge.why.roomSealed` | e93 |
 | `DRPG.Bridge.why.trialLocked` | e93 |
 | `DRPG.Calls` | e93 |
@@ -243,21 +243,21 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Chapter.optNextSession` | gaps-a |
 | `DRPG.Chapter.optReveal` | e64, e64-inv |
 | `DRPG.Chapter.revealKeeps` | e64, e64-inv |
-| `DRPG.Class` | e92, fervent-sagan-gme4vt |
-| `DRPG.Class.notInClass` | e92, fervent-sagan-gme4vt |
-| `DRPG.Class.outTooltip` | e92, fervent-sagan-gme4vt |
+| `DRPG.Class` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Class.notInClass` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Class.outTooltip` | dh-212b, e92, fervent-sagan-gme4vt |
 | `DRPG.Cleanup.bodyNowhere` | e64 |
 | `DRPG.Cleanup.moveAlwaysTrace` | e64 |
 | `DRPG.Cleanup.moveConfirm` | e64 |
 | `DRPG.Cleanup.moveIntro` | e64 |
 | `DRPG.Cleanup.moveWhere` | e64 |
 | `DRPG.Cleanup.toolsBroken` | e64 |
-| `DRPG.Clock.chapterCorrectTitle` | e61-62, fervent-sagan-gme4vt |
-| `DRPG.Clock.endChapterAsk` | e61-62, fervent-sagan-gme4vt |
-| `DRPG.Clock.endChapterNote` | e61-62, fervent-sagan-gme4vt |
-| `DRPG.Clock.phase` | e61-62, fervent-sagan-gme4vt |
-| `DRPG.Clock.session` | e61-62, fervent-sagan-gme4vt |
-| `DRPG.Clock.timeOfDay` | e61-62, fervent-sagan-gme4vt |
+| `DRPG.Clock.chapterCorrectTitle` | dh-212b, e61-62, fervent-sagan-gme4vt |
+| `DRPG.Clock.endChapterAsk` | dh-212b, e61-62, fervent-sagan-gme4vt |
+| `DRPG.Clock.endChapterNote` | dh-212b, e61-62, fervent-sagan-gme4vt |
+| `DRPG.Clock.phase` | dh-212b, e61-62, fervent-sagan-gme4vt |
+| `DRPG.Clock.session` | dh-212b, e61-62, fervent-sagan-gme4vt |
+| `DRPG.Clock.timeOfDay` | dh-212b, e61-62, fervent-sagan-gme4vt |
 | `DRPG.Config.ACTIONS.listen` | e93 |
 | `DRPG.Config.ACTIONS.listen.description` | e93 |
 | `DRPG.Config.ACTIONS.listen.hint` | e93 |
@@ -295,24 +295,24 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Config.MONOCUB.abilities.meddle.label` | e72 |
 | `DRPG.Config.MONOCUB.abilities.meddle.thresholds` | e72 |
 | `DRPG.Config.PROJECT_SCALE` | e72 |
-| `DRPG.Config.SFX_EVENTS.analyzeMiss.hint` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.analyzeMiss.label` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.debateOpen` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.debateOpen.hint` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.debateOpen.label` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.execution` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.verdict` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.verdict.hint` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Config.SFX_EVENTS.verdict.label` | e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.analyzeMiss.hint` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.analyzeMiss.label` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.debateOpen` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.debateOpen.hint` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.debateOpen.label` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.execution` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.verdict` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.verdict.hint` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Config.SFX_EVENTS.verdict.label` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
 | `DRPG.Despair.poolAdded` | e101 |
 | `DRPG.Despair.poolGone` | e101 |
 | `DRPG.Despair.poolRemoved` | e101 |
 | `DRPG.Despair.removePoolAsk` | e101 |
 | `DRPG.Despair.revokeFrom` | e101 |
 | `DRPG.Despair.widgetTitle` | e101 |
-| `DRPG.DhSettings` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.DhSettings.details` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.DhSettings.title` | e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.DhSettings` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.DhSettings.details` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.DhSettings.title` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
 | `DRPG.Events` | e72, gaps-a |
 | `DRPG.Events.bodySubRoom` | e72, gaps-a |
 | `DRPG.Events.bodyTitle` | e72, gaps-a |
@@ -468,16 +468,16 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Panel.checksImagesBytes` | e101 |
 | `DRPG.Panel.checksImagesPixels` | e101 |
 | `DRPG.Panel.doColumn` | e101, e72 |
-| `DRPG.Panel.group` | e92, fervent-sagan-gme4vt |
-| `DRPG.Panel.group.monokumas` | e92, fervent-sagan-gme4vt |
-| `DRPG.Panel.group.notInClass` | e92, fervent-sagan-gme4vt |
-| `DRPG.Panel.group.students` | e92, fervent-sagan-gme4vt |
-| `DRPG.Panel.nextReady` | e92, fervent-sagan-gme4vt |
-| `DRPG.Panel.openSheet` | e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.group` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.group.monokumas` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.group.notInClass` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.group.students` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.nextReady` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.openSheet` | dh-212b, e92, fervent-sagan-gme4vt |
 | `DRPG.Panel.refundCrossing` | e72 |
-| `DRPG.Panel.role` | e92, fervent-sagan-gme4vt |
-| `DRPG.Panel.role.student` | e92, fervent-sagan-gme4vt |
-| `DRPG.Panel.roleColumn` | e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.role` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.role.student` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Panel.roleColumn` | dh-212b, e92, fervent-sagan-gme4vt |
 | `DRPG.Panel.seasonChecks` | e101, e72 |
 | `DRPG.Panel.whoIsAlive` | e101, e72 |
 | `DRPG.Panel.whoIsAliveNote` | e101, e72 |
@@ -566,13 +566,13 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Season.step.resources` | e101 |
 | `DRPG.Season.step.ultimate` | e101 |
 | `DRPG.Season.waitingForCast` | e101 |
-| `DRPG.Settings.glassPulse.hint` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Settings.glassPulse.name` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Settings.highContrast.hint` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Settings.highContrast.name` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Settings.reducedMotion` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Settings.reducedMotion.hint` | e61-62, e92, fervent-sagan-gme4vt |
-| `DRPG.Settings.reducedMotion.name` | e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Settings.glassPulse.hint` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Settings.glassPulse.name` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Settings.highContrast.hint` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Settings.highContrast.name` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Settings.reducedMotion` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Settings.reducedMotion.hint` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
+| `DRPG.Settings.reducedMotion.name` | dh-212b, e61-62, e92, fervent-sagan-gme4vt |
 | `DRPG.SettingsWindow.gameTitle` | e101 |
 | `DRPG.SettingsWindow.glassOnly` | e101 |
 | `DRPG.SettingsWindow.legacyOnly` | e101 |
@@ -589,8 +589,8 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.SettingsWindow.sections.rules` | e101 |
 | `DRPG.SettingsWindow.sections.tech` | e101 |
 | `DRPG.SheetNotes` | e101 |
-| `DRPG.SheetNotes.fogBudget` | e92, fervent-sagan-gme4vt |
-| `DRPG.SheetNotes.noExperiences` | e92, fervent-sagan-gme4vt |
+| `DRPG.SheetNotes.fogBudget` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.SheetNotes.noExperiences` | dh-212b, e92, fervent-sagan-gme4vt |
 | `DRPG.Trial.presentByButton` | e72 |
 | `DRPG.Trial.presentNobody` | e72 |
 | `DRPG.Trial.presentOnly` | e72 |
@@ -628,12 +628,12 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Voice` | e72 |
 | `DRPG.Voice.contested` | e72 |
 | `DRPG.Voice.deadRoom` | e72 |
-| `DRPG.Voice.held.deadAlone` | e92, fervent-sagan-gme4vt |
-| `DRPG.Voice.held.eclipse` | e92, fervent-sagan-gme4vt |
-| `DRPG.Voice.held.eclipseHeard` | e92, fervent-sagan-gme4vt |
-| `DRPG.Voice.held.external` | e92, fervent-sagan-gme4vt |
-| `DRPG.Voice.held.gmBlock` | e92, fervent-sagan-gme4vt |
-| `DRPG.Voice.held.offline` | e92, fervent-sagan-gme4vt |
+| `DRPG.Voice.held.deadAlone` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Voice.held.eclipse` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Voice.held.eclipseHeard` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Voice.held.external` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Voice.held.gmBlock` | dh-212b, e92, fervent-sagan-gme4vt |
+| `DRPG.Voice.held.offline` | dh-212b, e92, fervent-sagan-gme4vt |
 | `DRPG.Voice.mainRoom` | e72 |
 | `DRPG.Vote.verdictSteps.despair` | e72 |
 | `DRPG.Vote.verdictSteps.finalCard` | e72 |
@@ -648,6 +648,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 
 ## config.mjs hunks (base lines, for the record)
 
+- dh-212b: 243-247; 2040-2045; 4901-4906; 4963-4968; 4965-4970; 5070-5075
 - e61-62: 2040-2045; 4885-4890; 4925-4930; 4927-4932; 5026-5031
 - e64: 170-175; 1744-1749; 1746-1750; 1792-1797; 1859-1864; 3094-3098; 3118-3123; 3129-3134; 3207-3212; 3209-3213; 3331-3336; 3383-3388; 3509-3514; 3565-3570; 3583-3588; 3623-3628; 3646-3651; 3657-3662; 3668-3673; 3750-3755; 4047-4052; 4064-4069; 4066-4070; 4340-4347; 5087-5092
 - e72: 2103-2108; 2106-2111; 2142-2147; 2299-2304; 2502-2507; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230

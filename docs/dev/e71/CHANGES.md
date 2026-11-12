@@ -772,7 +772,7 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | pl.json | `DRPG.Bridge.refuseAttempt` | Odrzuć próbę | Odmów | Glossary refuse (DA18, S18-31, holds from E68): a GM's refusal button says "Odmów"; "Odrzuć" stays only at the Monocub's bribe. M8: the GM's refusal is the one word "Odmów". |
 | en.json | `DRPG.Settings.autoApproveTraits.hint` | On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings, and Dynamic actions always ask a GM; Resolve asks nobody. | On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings, and Dynamic Actions always ask a GM; Resolve asks nobody. | EN6/DB16 and the glossary's dynamic-action: a name in Title Case, "Dynamic Actions". |
 
-## X1 refusals (12)
+## X1 refusals (16)
 
 | File | Key / section | Before | After | Why |
 | --- | --- | --- | --- | --- |
@@ -788,6 +788,10 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | pl.json | `DRPG.Reroll.observeBusy` | GM wciąż opisuje, co znalazło to Observe. Zrób Reroll, gdy wynik już będzie. Nic nie zostało wydane. | GM wciąż opisuje, co znalazło to Observe. Zrób Reroll, gdy wynik już będzie. Hope zostaje przy tobie. | X1 (confirmed in the pilot) and O8: a refusal says what the reader keeps, not that nothing was spent; the owner-approved pairs N28-N30 are the model. |
 | en.json | `DRPG.Reroll.diceChanged` | This roll's dice are not the ones the GMs kept: a change to them is being put back. Reroll it in a moment. Nothing was spent. | This roll's dice are not the ones the GMs kept: a change to them is being put back. Reroll it in a moment. You keep your Hope. | X1 (confirmed in the pilot) and O8: a refusal says what the reader keeps, not that nothing was spent; the owner-approved pairs N28-N30 are the model. |
 | pl.json | `DRPG.Reroll.diceChanged` | Kości tego rzutu nie są tymi, które zachowali GM-owie: ich zmiana jest cofana. Zrób Reroll za chwilę. Nic nie zostało wydane. | Kości tego rzutu nie są tymi, które zachowali GM-owie: ich zmiana jest cofana. Zrób Reroll za chwilę. Hope zostaje przy tobie. | X1 (confirmed in the pilot) and O8: a refusal says what the reader keeps, not that nothing was spent; the owner-approved pairs N28-N30 are the model. |
+| en.json | `DRPG.Bridge.nothingSpent` | Nothing was spent. | You keep your action and your Hope. | O8 (to confirm in E71): a refusal says what the reader keeps; X1. Every caller (bridge-guards.mjs sayNotDone, ask's nothingSpent) refuses before an action or a Hope Call is paid |
+| pl.json | `DRPG.Bridge.nothingSpent` | Nic nie wydano. | Nie tracisz akcji ani Hope. | O8 (to confirm in E71): a refusal says what the reader keeps; X1. Every caller (bridge-guards.mjs sayNotDone, ask's nothingSpent) refuses before an action or a Hope Call is paid |
+| en.json | `DRPG.Calls.gatherNoRoom` | There is no room called “{room}” on {scene}. Nothing was spent. | There is no room called “{room}” on {scene}. The Despair stays in your pool. | O8, X1: call-effects.mjs gatherRefusal refuses this Despair Call before the pool is touched |
+| pl.json | `DRPG.Calls.gatherNoRoom` | Na scenie {scene} nie ma pokoju o nazwie „{room}”. Nic nie zostało wydane. | Na scenie {scene} nie ma pokoju o nazwie „{room}”. Despair zostaje w twojej puli. | O8, X1: call-effects.mjs gatherRefusal refuses this Despair Call before the pool is touched |
 
 ## X10 fillers (14)
 

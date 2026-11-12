@@ -3325,7 +3325,7 @@
       "newRuleNote": "{cost} Despair kupuje trwałą zmianę gry. Niech się liczy.",
       "newRuleAnnounced": "Nowa zasada została ogłoszona wszystkim.",
       "noSuchRoom": "Na tej scenie nie ma regionu o nazwie „{room}”.",
-      "gatherNoRoom": "Na scenie {scene} nie ma pokoju o nazwie „{room}”. Nic nie zostało wydane.",
+      "gatherNoRoom": "Na scenie {scene} nie ma pokoju o nazwie „{room}”. Despair zostaje w twojej puli.",
       "progressedTo": "{name} jest teraz na {current}/{target}.",
       "progressSent": "{name}: {n} postępu wysłano do GM-a.",
       "overflowFed": "{n} Despair wlane do overflow.",
@@ -4047,7 +4047,7 @@
         "ready.end": "Zamknięcie pytania do graczy"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
-      "nothingSpent": "Nic nie wydano.",
+      "nothingSpent": "Nie tracisz akcji ani Hope.",
       "emptyRequest": "Nic nie wysłano - najpierw wpisz swoją prośbę.",
       "why": {
         "unknownSender": "GM nie widzi cię jako połączonego. Przeładuj stronę i spróbuj ponownie.",
