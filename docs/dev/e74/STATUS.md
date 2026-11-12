@@ -36,6 +36,10 @@ killed.
 - known-leaks.json's row for the public flag (DA47): the file holds only leaks a harness run reproduced (its `about`),
   and no scenario barricades a room while 72-canary reads; the flag holds `true` and nothing else.
 - E53's ledger counters (Q-E74-5).
+- C7's Reroll branches (Shut replaces the strength, Force stays broken, Pick recounts): not built. Read on 12.11
+  (reroll.mjs `replayAction`, not run): `shut`, `force`, `pick` and `keepWatch` have no `case`, so a Reroll falls to
+  `default` - the GMs are told `DRPG.Reroll.noReplay` and what the first roll did stands - whose words ("this roll left no lasting
+  effect") are not true of these actions, which did leave one.
 - Keep Watch: the watcher held to the post during the Eclipse (`judgeEclipseCrossing`), a Sanity mark for a miss with
   Despair, and the hindrance die an 18+ watch adds to an opening roll (DA44: `LEGAL_ROLL_MODIFIERS`, `expectedFor`,
   `rollOpening`) - not built; the watch's cards are.

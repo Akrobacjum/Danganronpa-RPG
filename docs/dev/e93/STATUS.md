@@ -32,6 +32,9 @@ All nine killed. Not run as mutants: the draw's room check in roll-draw.mjs (sce
   payment, not its size (roll-draw.mjs: a ticket is one write). A console paying one under Toll rolls all the same.
 - A Reroll of a Facilities roll: not measured. Nothing in E93 replays a use after a Reroll; what reroll.mjs does with a
   roll of `actionKey` "facility" was not read or run in this round.
+ Read on 12.11 (reroll.mjs `replayAction`, not run): a roll of that action key has no `case`, so a Reroll falls to
+  `default` - the GMs are told `DRPG.Reroll.noReplay` and what the first roll did stands - whose words ("this roll left no lasting
+  effect") are not true of these actions, which did leave one.
 
 ## Test results
 

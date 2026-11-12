@@ -23,6 +23,9 @@ branch for a tail (`settleTail`) and a Dash.
 
 - A tail's Reroll: not built. A Reroll of either roll does not change the tail the GM keeps; what reroll.mjs does with
   a roll of `actionKey` "tail" or "tailUnseen" was not read or run.
+ Read on 12.11 (reroll.mjs `replayAction`, not run): a roll of that action key has no `case`, so a Reroll falls to
+  `default` - the GMs are told `DRPG.Reroll.noReplay` and what the first roll did stands - whose words ("this roll left no lasting
+  effect") are not true of these actions, which did leave one.
 - A tail's cards name the room the target reached by its region name, even a room the tailer never entered (Listen's
   window says "Unexplored room"); a default, owner to confirm.
 - A Dash's Reroll: not measured. Nothing in E69 takes back the free crossings of a Dash whose roll is rerolled; what
