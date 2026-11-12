@@ -4734,15 +4734,15 @@ function injectMonocubPanel(tab, actor) {
     grid.append(...monocubTiles(actor));
     panel.append(grid);
 
-    // Move's description, on screen (E100, R4107): its window is gone, and an action's description is never hidden.
-    panel.append(monocubMoveNote());
-
     if (isCrimeSilenced(actor)) {
         const note = document.createElement("p");
         note.className = "notes drpg-monocub-silenced";
         note.textContent = game.i18n.localize("DRPG.Monocub.silencedNoteShort");
         panel.append(note);
     }
+
+    // Move's description, on screen (E100, R4107): its window is gone, and an action's description is never hidden.
+    panel.append(monocubMoveNote());
 
     tab.prepend(panel);
 }
