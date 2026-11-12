@@ -405,6 +405,14 @@ function restoreDesk() {
     HOMES.clear();
     const column = document.getElementById(COLUMN_ID);
     if (column) for (const sel of STACKED) for (const el of column.querySelectorAll(`:scope > ${sel}`)) deskHome(el, column);
+    /* THE EVENT PANEL FOLLOWS THE RAIL, WHATEVER ITS RECORDED NEIGHBOUR SAYS (gaps G4, 12.11.2026; CI run 43198461948).
+       Since the panel stands empty for the whole session (events.mjs `paintEvents`) it is in the page when the stack is
+       first built, and its recorded neighbour can be from a moment it stood before the clock or the rail (drawn before
+       the rail was, or before a rebuilt rail was appended after it): put back by that neighbour, it went to the top of
+       the bar - R1401 inside 01-runtests' incident and trial read [panel, clock, rail]. Its desk place is the one
+       `DESK` states, right after the rail, as events.mjs draws it. */
+    const events = document.getElementById("drpg-events"), rail = document.getElementById("drpg-despair");
+    if (events && rail && !rail.closest(COLUMN_SEL) && !events.closest(COLUMN_SEL) && events.previousElementSibling !== rail) rail.after(events);
     const row = document.getElementById(ROW_ID);
     // the voice tile stands in the body on a desk (voice-tile.mjs `ensureVoiceTile`), where the curtain seats it
     for (const el of [...(row?.children ?? [])]) (el.id === "drpg-voice-tile" ? document.body : document.getElementById("ui-left-column-1") ?? document.body).append(el);

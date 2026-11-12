@@ -865,49 +865,64 @@ export function renderEvents() {
         const clock = getClock() ?? {};
         /* The safeword is first because it outranks everything: while the scene
            is stopped, nothing else on this panel is happening. */
-        const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
-            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
-        /* NOTHING TO SAY IS AN EMPTY REGION, NOT NO REGION (gaps G4, 12.11.2026; E48 K4's half left open in 1.2.105).
-           Until this the panel was removed with its last card and built again with the next one already in it, and a
-           polite live region announces changes to a region already in the page (WAI-ARIA, read in the specification;
-           LIVE-E48-06 is a reader at a table), so the first card after a quiet spell was the one a screen reader could
-           miss. Now the panel stands while the Event window is shown: emptied in place (the signature of no card), the
-           same element, its role and its name. The stylesheet gives an empty panel no margin, and its height is its
-           cards' (E49 A6), so it takes no room and the glass, which cuts for a block with a box (glass.mjs, BLOCKS'
-           measure), cuts nothing for it; it moves nothing and animates nothing, so reduced motion has nothing to stop.
-           R3663; read in Chromium in the commit that wrote this. */
-
-        // Redraw only when something changed: the panel is on the curtain, and
-        // every rebuild of it is a recut of the glass around it.
-        const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine, c.clock]));
-        if (existing && existing.dataset.signature === signature) { markEventsScrolls(existing); return; }
-
-        const rail = document.getElementById("drpg-despair");
-        // the card follows the rail wherever it stands, including into the narrow stack
-        const host = rail?.parentElement ?? narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
-        if (!host) return;
-        /* ONE REGION, REWRITTEN IN PLACE (E48 K4, 11.11.2026). The panel is a polite live region (`role="status"`, and
-           a11y.mjs `liveRegions` gives it `aria-live`), and until K4 every change of its cards built a new panel and
-           removed the old one: a region that is born with its words in it is one a screen reader may say nothing of
-           (WAI-ARIA's live regions announce changes to a region already in the page; read in the specification, not
-           measured with a reader - LIVE-E48-06). Now the panel standing is kept, its cards replaced inside it, and it is
-           moved only when the rail moved; a new panel is built only where none stands. R3462. */
-        const panel = existing ?? Object.assign(document.createElement("div"), { id: WIDGET_ID, className: "drpg-events" });
-        panel.dataset.signature = signature;
-        panel.setAttribute("role", "status");
-        panel.setAttribute("aria-label", game.i18n.localize("DRPG.Events.region"));
-        panel.replaceChildren(...cards.map(cardElement));
-        if (rail ? panel.previousElementSibling !== rail : panel.parentElement !== host) {
-            if (rail) rail.after(panel); else host.append(panel);
-        }
-        /* The box has one cap whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`, a `max-height` since E49
-           A6, under which the panel is as tall as its cards), so what is taller than it
-           scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
-           holds more than its box. Read now, on a render of the same cards, and whenever the panel or a card changes
-           size (`watchEventsBox`, above). */
-        markEventsScrolls(panel);
-        watchEventsBox(panel);
+        paintEvents([safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean));
     } catch (err) {
         error("Could not render the Event panel", err);
     }
+}
+
+/**
+ * Draw `cards` (`cardElement`'s shapes) into the one panel, after the Despair rail. `renderEvents` reads the world's
+ * cards and calls this; the suite calls it with cards of its own (R3663), so what it holds does not depend on the
+ * world the suite runs in.
+ *
+ * NOTHING TO SAY IS AN EMPTY REGION, NOT NO REGION (gaps G4, 12.11.2026; E48 K4's half left open in 1.2.105). Until
+ * this the panel was removed with its last card and built again with the next one already in it, and a polite live
+ * region announces changes to a region already in the page (WAI-ARIA, read in the specification; LIVE-E48-06 is a
+ * reader at a table), so the first card after a quiet spell was the one a screen reader could miss. Now the panel
+ * stands while the Event window is shown: emptied in place (the signature of no card), the same element, its role and
+ * its name. The stylesheet gives an empty panel no margin and takes it out of the flow, and its height is its cards'
+ * (E49 A6), so it takes no room and the glass, which cuts for a block with a box (glass.mjs, BLOCKS' measure), cuts
+ * nothing for it; it moves nothing and animates nothing, so reduced motion has nothing to stop. Read in Chromium on
+ * the glass harness (b40f98d7's message).
+ *
+ * AFTER THE RAIL ON EVERY RENDER, THE SAME CARDS' TOO (gaps G4, CI run 43198461948). The rail is rebuilt and appended
+ * at the end of its column (despair.mjs), and the place was checked only on a change of cards: a panel that stood
+ * through a rail's redraw was left in front of the new rail until its cards changed. Rare while the panel lived only
+ * as long as its cards; common once it stands for the whole session - R1401 inside 01-runtests' incident and trial
+ * read the panel before the rail. Now the place is checked before the same-cards return.
+ */
+export function paintEvents(cards = []) {
+    const existing = document.getElementById(WIDGET_ID);
+    const rail = document.getElementById("drpg-despair");
+    // the card follows the rail wherever it stands, including into the narrow stack
+    const host = rail?.parentElement ?? narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
+    if (!host) return null;
+    /* ONE REGION, REWRITTEN IN PLACE (E48 K4, 11.11.2026). The panel is a polite live region (`role="status"`, and
+       a11y.mjs `liveRegions` gives it `aria-live`), and until K4 every change of its cards built a new panel and
+       removed the old one: a region that is born with its words in it is one a screen reader may say nothing of
+       (WAI-ARIA's live regions announce changes to a region already in the page; read in the specification, not
+       measured with a reader - LIVE-E48-06). Now the panel standing is kept, its cards replaced inside it, and it is
+       moved only when the rail moved; a new panel is built only where none stands. R3462. */
+    const panel = existing ?? Object.assign(document.createElement("div"), { id: WIDGET_ID, className: "drpg-events" });
+    if (rail ? panel.previousElementSibling !== rail : panel.parentElement !== host) {
+        if (rail) rail.after(panel); else host.append(panel);
+    }
+    // Redraw only when something changed: the panel is on the curtain, and
+    // every rebuild of it is a recut of the glass around it.
+    const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine, c.clock]));
+    if (existing && existing.dataset.signature === signature) { markEventsScrolls(existing); return existing; }
+    panel.dataset.signature = signature;
+    panel.setAttribute("role", "status");
+    panel.setAttribute("aria-label", game.i18n.localize("DRPG.Events.region"));
+    panel.replaceChildren(...cards.map(cardElement));
+    /* The box has one cap whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`, a `max-height` since E49
+       A6, under which the panel is as tall as its cards), so what is taller than it
+       scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
+       holds more than its box. Read now, on a render of the same cards, and whenever the panel or a card changes
+       size (`watchEventsBox`, above). */
+    markEventsScrolls(panel);
+    watchEventsBox(panel);
+    return panel;
 }
