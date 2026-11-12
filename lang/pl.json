@@ -7618,6 +7618,22 @@
       "showPreview": "Pokaż podgląd",
       "notNow": "Nie teraz"
     },
+    "CaseTrial": {
+      "open": "Schemat sprawy",
+      "title": "Schemat sprawy",
+      "intro": "Zaznacz wniosek, kontrę albo rozwiązanie, gdy klasa do niego dojdzie. Do podsumowania dla graczy trafiają tylko zaznaczone. Podpowiedź znaczy, że pokazane dowody by je uniosły.",
+      "empty": "Ten rozdział nie ma jeszcze schematu sprawy. Zbuduj go na Mapie w panelu Investigation.",
+      "floorOpen": "Trwa tryb rozprawy. Zamknij go, zanim zaczniesz kolejny.",
+      "hint": "Podpowiedź: pokazane dowody to unoszą",
+      "presented": "Pokazany",
+      "ticked": "Zaznaczony",
+      "unknown": {
+        "one": "{n} pokazana karta nie wskazuje Remnantu ze schematu, więc nie daje podpowiedzi.",
+        "few": "{n} pokazane karty nie wskazują Remnantu ze schematu, więc nie dają podpowiedzi.",
+        "many": "{n} pokazanych kart nie wskazuje Remnantu ze schematu, więc nie dają podpowiedzi.",
+        "other": "{n} pokazanej karty nie wskazuje Remnantu ze schematu, więc nie daje podpowiedzi."
+      }
+    },
     "CaseSummary": {
       "show": "Pokaż podsumowanie",
       "previewTitle": "Podsumowanie sprawy",

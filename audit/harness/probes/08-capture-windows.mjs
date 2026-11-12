@@ -135,6 +135,14 @@ const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
     const c = globalThis.__probe08case;
     if (c) { for (const id of c.ids) await CS.dropCaseNode(c.ch, id); await CS.setCaseMeta(c.ch, { askedAt: null }); game.user.getFlag = c.real; }
     delete globalThis.__probe08case;`;
+/* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
+   the ticks and the modes taken back after. */
+const SEED_TRIAL = SEED_CASE + `
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-d2", { mode: "testimony" });
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-s1", { mode: "closing" });
+    await CS.setCaseTick(globalThis.__probe08case.ch, "probe08-d1", true);`;
+const DROP_TRIAL = `await (await import(\`\${repoUrl}/scripts/case-schema.mjs\`)).setCaseTick(globalThis.__probe08case.ch, "probe08-d1", false);
+    ` + DROP_CASE;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -150,6 +158,7 @@ export const WINDOWS = [
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
     { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
+    { id: "case-trial", module: "case-trial.mjs", before: SEED_TRIAL, after: DROP_TRIAL, call: "m.openTrialSchema()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.

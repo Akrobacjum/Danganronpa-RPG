@@ -3013,7 +3013,7 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
 .application.drpg-ui.drpg-window-case .drpg-case-view[data-drpg-view="map"] { overflow: hidden; }
 .application.drpg-window-case .drpg-case-form { height: 100%; margin: 0; }
 .application.drpg-window-case .drpg-case-map { display: flex; gap: var(--drpg-kit-gap); height: 100%; min-height: 0; }
-.application.drpg-window-case .drpg-case-graph {
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-graph {
     flex: 1 1 auto;
     min-width: 0;
     overflow: auto;
@@ -3041,11 +3041,11 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
 .application.drpg-window-case .drpg-case-panel-value { overflow-wrap: anywhere; }
 .application.drpg-window-case .drpg-case-panel-note { font-size: var(--drpg-text-sm); color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case .drpg-case-panel-warn { color: var(--drpg-kit-ink); border-left: 3px solid var(--drpg-kit-warn-edge); padding-left: 0.5rem; }
-.application.drpg-window-case .drpg-case-canvas { position: relative; }
-.application.drpg-window-case .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-.application.drpg-window-case .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
-.application.drpg-window-case .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
-.application.drpg-window-case .drpg-case-col-head {
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-canvas { position: relative; }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-col-head {
     position: absolute;
     top: 0.25rem;
     font-size: var(--drpg-text-xs);
@@ -3054,7 +3054,7 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
     color: var(--drpg-kit-help-ink);
     white-space: nowrap;
 }
-body .application.drpg-ui.drpg-window-case .drpg-case-canvas > button.drpg-case-node {
+body .application.drpg-ui:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-canvas > button.drpg-case-node {
     position: absolute;
     box-sizing: border-box;
     width: 196px;
@@ -3078,19 +3078,19 @@ body .application.drpg-ui.drpg-window-case .drpg-case-canvas > button.drpg-case-
     border-radius: var(--drpg-kit-btn-radius);
     cursor: pointer;
 }
-body .application.drpg-window-case button.drpg-case-node:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
-body .application.drpg-window-case button.drpg-case-node:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
-body .application.drpg-window-case button.drpg-case-node.is-selected {
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node.is-selected {
     background: var(--drpg-kit-row-highlight);
     border: 2px solid var(--drpg-kit-btn-on-edge);
 }
-body .application.drpg-window-case button.drpg-case-node.is-held { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-info-edge); }
-body .application.drpg-window-case button.drpg-case-node.is-planned,
-body .application.drpg-window-case button.drpg-case-node.is-loose { border-style: dashed; }
-body .application.drpg-window-case button.drpg-case-node--counter { border-color: var(--drpg-kit-warn-edge); }
-body .application.drpg-window-case button.drpg-case-node--solution { border-color: var(--drpg-kit-primary-edge); border-width: 2px; }
-.application.drpg-window-case .drpg-case-node-head { display: flex; align-items: center; gap: 0.375rem; min-width: 0; font-size: var(--drpg-text-xs); }
-.application.drpg-window-case .drpg-case-node-kind {
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node.is-held { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-info-edge); }
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node.is-planned,
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node.is-loose { border-style: dashed; }
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node--counter { border-color: var(--drpg-kit-warn-edge); }
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-node--solution { border-color: var(--drpg-kit-primary-edge); border-width: 2px; }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-head { display: flex; align-items: center; gap: 0.375rem; min-width: 0; font-size: var(--drpg-text-xs); }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-kind {
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
@@ -3099,21 +3099,21 @@ body .application.drpg-window-case button.drpg-case-node--solution { border-colo
     white-space: nowrap;
     color: var(--drpg-kit-help-ink);
 }
-.application.drpg-window-case .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
-.application.drpg-window-case .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
-.application.drpg-window-case .drpg-case-node-reach { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .drpg-case-node-warn { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-ink); padding: 0 0.25rem; border: 1px solid var(--drpg-kit-warn-edge); border-radius: 999px; }
-body .application.drpg-ui.drpg-window-case .drpg-case-canvas > button.drpg-case-node.has-warn { border-color: var(--drpg-kit-warn-edge); }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-reach { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-warn { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-ink); padding: 0 0.25rem; border: 1px solid var(--drpg-kit-warn-edge); border-radius: 999px; }
+body .application.drpg-ui:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-canvas > button.drpg-case-node.has-warn { border-color: var(--drpg-kit-warn-edge); }
 .application.drpg-window-case .drpg-case-check-head { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0 0.25rem; font-size: var(--drpg-text-sm); }
 body .application.drpg-window-case .drpg-case-check-head > button { flex: 0 0 auto; margin: 0; padding: 2px 8px; font-size: var(--drpg-text-xs); }
 .application.drpg-window-case .drpg-case-problems { margin: 0; padding-left: 1rem; font-size: var(--drpg-text-sm); }
-.application.drpg-window-case .drpg-case-node-reach.is-reachable { color: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-reach.is-reachable { color: var(--drpg-kit-check-done); }
 .application.drpg-window-case .drpg-case-students { padding: 0.25rem 0 0.5rem; border-bottom: 1px solid var(--drpg-kit-line); }
 .application.drpg-window-case .drpg-case-student { padding: 0.25rem 0; font-size: var(--drpg-text-sm); }
 .application.drpg-window-case .drpg-case-student ul { margin: 0; padding-left: 1rem; }
 .application.drpg-window-case .drpg-case-student-part { padding-left: 0.5rem; }
-.application.drpg-window-case .drpg-case-node-name {
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-node-name {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -3123,13 +3123,13 @@ body .application.drpg-window-case .drpg-case-check-head > button { flex: 0 0 au
     overflow-wrap: anywhere;
     font-size: var(--drpg-text-sm);
 }
-.application.drpg-window-case .drpg-case-gap {
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-gap {
     position: absolute;
     display: flex;
     align-items: center;
     border-top: 1px dashed var(--drpg-kit-line-strong);
 }
-body .application.drpg-window-case button.drpg-case-fold {
+body .application:is(.drpg-window-case, .drpg-window-case-trial) button.drpg-case-fold {
     min-width: 0;
     width: 100%;
     margin: 0.25rem 0 0;
@@ -3162,7 +3162,21 @@ body .application.drpg-window-case .drpg-case-tools-row > button { flex: 1 1 aut
 .application.drpg-window-case .drpg-case-edit-summary label :is(input[type="text"], select) { display: block; width: 100%; min-width: 0; box-sizing: border-box; }
 .application.drpg-window-case .drpg-case-switch-bar { display: flex; gap: 0; }
 .application.drpg-window-case .drpg-case-switch-bar > button { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0; }
-.application.drpg-window-case .drpg-case-glyph:empty { display: none; }
+.application:is(.drpg-window-case, .drpg-window-case-trial) .drpg-case-glyph:empty { display: none; }
+/* THE TRIAL'S CASE SCHEMA (E99 C5): the Map's drawing on the left at the view's height, the ticks beside it; the
+   presented evidence a solid info edge, a hint the reachable colour, a ticked node the done colour. */
+.application.drpg-window-case-trial .drpg-case-trial { display: flex; gap: var(--drpg-kit-gap); height: clamp(16rem, calc(100vh - 14rem), 45.5rem); min-height: 0; }
+.application.drpg-window-case-trial .drpg-case-trial-side { flex: 0 0 19rem; min-width: 0; overflow-y: auto; padding: 0 0.5rem; border-left: 1px solid var(--drpg-kit-line); color: var(--drpg-kit-ink); }
+.application.drpg-window-case-trial .drpg-case-trial-rows { list-style: none; margin: 0; padding: 0; }
+.application.drpg-window-case-trial .drpg-case-trial-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; padding: 0.375rem 0; border-bottom: 1px solid var(--drpg-kit-line); }
+.application.drpg-window-case-trial .drpg-case-trial-tick { display: flex; align-items: center; gap: 0.375rem; flex: 1 1 12rem; min-width: 0; margin: 0; }
+.application.drpg-window-case-trial .drpg-case-trial-kind { flex: 0 0 auto; font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case-trial .drpg-case-trial-name { min-width: 0; overflow-wrap: anywhere; }
+.application.drpg-window-case-trial .drpg-case-trial-hint { flex: 1 1 100%; font-size: var(--drpg-text-xs); color: var(--drpg-kit-check-done); }
+body .application.drpg-window-case-trial button.drpg-case-trial-start { flex: 0 0 auto; margin: 0; padding: 2px 8px; font-size: var(--drpg-text-xs); white-space: normal; }
+body .application.drpg-ui.drpg-window-case-trial .drpg-case-canvas > button.drpg-case-node.is-presented { border-color: var(--drpg-kit-info-edge); border-style: solid; }
+body .application.drpg-ui.drpg-window-case-trial .drpg-case-canvas > button.drpg-case-node.is-hinted { outline: 2px dashed var(--drpg-kit-check-done); outline-offset: 1px; }
+body .application.drpg-ui.drpg-window-case-trial .drpg-case-canvas > button.drpg-case-node.is-ticked { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-check-done); }
 
 /* ---- The project windows (E47-C6, 09.11.2026; cards M16-M19 of E47-M, approved by the owner on 09.11 with O1a, O2b, O3b
    and O4 as a setting; D31): the manager's `dataTable` and the create, edit and propose forms on `formGrid`. The rules

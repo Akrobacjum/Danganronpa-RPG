@@ -1340,6 +1340,8 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                     : []),
                 // The case's summary for the players (E99 C7): after the verdict, not in a Final Trial (Q-E99-5)
                 { action: "caseSummary", label: game.i18n.localize("DRPG.CaseSummary.show"), disabled: !progress.verdictApplied || Boolean(finalNow) },
+                // The case's schema with its ticks (E99 C5; Q-E99-1): its own window while the console's middle is E73's
+                { action: "caseSchema", label: game.i18n.localize("DRPG.CaseTrial.open") },
                 // Reachable before the verdict (a chapter can end without
                 // one). Never the default since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so
                 // after the verdict, when it is the next step, the lead names it and Enter presses Close.
@@ -1426,6 +1428,7 @@ const TRIAL_ACTIONS = {
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     caseSummary: async () => (await import("./case-summary.mjs")).showCaseSummary(),
+    caseSchema: async () => (await import("./case-trial.mjs")).openTrialSchema(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
        button opened `openVerdictDialog` whatever the trial was, and in a Final Trial that is the
        ordinary verdict: executions, Level Ups, Despair and a rule, none of which the guide gives the
@@ -1680,6 +1683,17 @@ export async function manageClassTrial() {
     if (!run) return null;
     await run();
     return manageClassTrial();
+}
+
+/**
+ * A trial mode started from the case's schema (E99 C5): only a start trial-floor.mjs MODE_STARTS names, on a GM, through
+ * the console's own action; answers its result, or null. The console is not reopened: the schema's window stays.
+ */
+export async function startTrialMode(action) {
+    if (!game.user?.isGM) return null;
+    const { MODE_STARTS } = await import("./trial-floor.mjs");
+    if (!Object.values(MODE_STARTS).some(row => row.action === action) || !TRIAL_ACTIONS[action]) return null;
+    return TRIAL_ACTIONS[action]();
 }
 
 /**

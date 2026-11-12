@@ -120,15 +120,18 @@ function reachOf(node, reach) {
     return !node.evidence && reach && Number.isInteger(reach.of) && reach.of > 0 ? reach : null;
 }
 
-function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false }) {
+/** The trial's marks on a node (E99 C5; case-trial.mjs): a class each, and its words in the node's label. */
+const MARK_KEYS = Object.freeze({ presented: "DRPG.CaseTrial.presented", hinted: "DRPG.CaseTrial.hint", ticked: "DRPG.CaseTrial.ticked" });
+
+function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [] }) {
     const kind = kindLabel(node);
     const name = nameOf(node);
     const stateText = STATE_KEYS[state] ? L(STATE_KEYS[state]) : "";
     const r = reachOf(node, reach);
     const reachText = r ? F(r.reachable ? "DRPG.CaseMap.reachYes" : "DRPG.CaseMap.reachNo", { held: r.held, of: r.of }) : "";
-    const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : ""].filter(Boolean).join(", ");
+    const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : "", ...marks.filter(m => MARK_KEYS[m]).map(m => L(MARK_KEYS[m]))].filter(Boolean).join(", ");
     const cls = ["drpg-case-node", `drpg-case-node--${node.kind}`, `is-${state}`, ...(loose ? ["is-loose"] : []),
-        ...(selected ? ["is-selected"] : []), ...(warn ? ["has-warn"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
+        ...(selected ? ["is-selected"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
     const mode = !node.evidence && node.mode ? `<span class="drpg-case-node-mode">${esc(modeLabel(node.mode))}</span>` : "";
     return `<button type="button" class="${cls.join(" ")}" data-drpg-node="${esc(node.id)}" style="left: ${p.x}px; top: ${p.y}px"`
         + `${selected ? ` aria-current="true"` : ""} aria-label="${esc(said)}" title="${esc(name)}">`
@@ -142,10 +145,11 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
 /**
  * THE GRAPH ALONE (E99 draws it too): `graph` of case-schema.mjs `graphOf`, `layout` of case-layout.mjs `layoutCase`,
  * `finders` a Map of token id to the names holding a copy, `authors` a Map of node id to who left it (GMs only),
- * `selected` a node id, `fold` true to fold the unrelated evidence (its nodes and their space left out, the head kept).
+ * `selected` a node id, `fold` true to fold the unrelated evidence (its nodes and their space left out, the head kept),
+ * `marks` the trial's marks by node id (E99 C5: "presented", "hinted", "ticked").
  * The scroll box (`.drpg-case-graph`) is the container's to size.
  */
-export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [] } = {}) {
+export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], marks = {} } = {}) {
     const warned = new Set((problems ?? []).map(p => p.node).filter(Boolean));
     const nodes = new Map((graph?.nodes ?? []).map(n => [n.id, n]));
     const unrelated = new Set(layout?.unrelated ?? []);
@@ -169,7 +173,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         const node = nodes.get(id);
         if (!node) continue;
         buttons.push(nodeButton(node, p, { state: nodeState(node, finders), selected: id === selected, loose: unrelated.has(id), author: authors?.get?.(id) ?? null,
-            reach: reach?.[id] ?? null, warn: warned.has(id) }));
+            reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [] }));
     }
     const gap = place.gapY === null ? "" : `<div class="drpg-case-gap" style="top: ${place.gapY}px; width: ${MAP_GEOMETRY.nodeW}px; left: ${MAP_GEOMETRY.pad}px">`
         + `<button type="button" class="drpg-case-fold" data-drpg-case-fold aria-expanded="${fold ? "false" : "true"}">${esc(F("DRPG.CaseMap.unrelated", { n: unrelated.size }))}</button></div>`;

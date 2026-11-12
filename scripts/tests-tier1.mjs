@@ -8273,6 +8273,92 @@ const INVARIANTS = [
             planted: [["poll: no start row"], ["gone: a start row of no mode"], ["panic: neither a console action nor a reason"]]
         }), "{census: what is wrong between the modes, their starts and the console's actions; unnamed: modes with no name in en, pl; planted: a mode with no row, a row of no mode, an unknown action}");
     }],
+    ["R3663 - hints after presentations (E99 C4; Q-E99-13): case-hints.mjs `presentationHints` holds what was presented to E98's rule - a conclusion is hinted when students other than the culprit presented strictly more than half of its inputs; a bullet only the culprit presented is marked and counts for nothing; a ticked node is never hinted again and a hint is never a tick; a card with no Remnant behind it (a copy from before E97) hints nothing and is counted for the GM", async () => {
+        /*
+         * E99 C4, 12.11.2026. A planted graph: d1 <- e1, e2, e3; d2 <- e3, d1; s <- d1, d2. Red at 9290ce0: no case-hints.mjs.
+         */
+        const H = await import("./case-hints.mjs").catch(() => null);
+        must(H && typeof H.presentationHints === "function", "there is no case-hints.mjs presentationHints - presentations hint nothing");
+        const node = (id, evidence) => ({ id, evidence, kind: evidence ? "trace" : "deduction" });
+        const graph = { nodes: [node("e1", true), node("e2", true), node("e3", true), node("d1", false), node("d2", false), node("s", false)],
+            edges: [["e1", "d1"], ["e2", "d1"], ["e3", "d1"], ["e3", "d2"], ["d1", "d2"], ["d1", "s"], ["d2", "s"]].map(([from, to]) => ({ from, to, kind: "input" })) };
+        const read = (cards, opts) => { const r = H.presentationHints(graph, cards, opts); return { hints: r.hints, presented: r.presented, unknown: r.unknown }; };
+        equal(JSON.stringify([
+            read([{ nodeId: "e1", actorId: "A" }], { culpritId: "K" }),
+            read([{ nodeId: "e1", actorId: "A" }, { nodeId: "e2", actorId: "B" }], { culpritId: "K" }),
+            read([{ nodeId: "e1", actorId: "A" }, { nodeId: "e2", actorId: "K" }], { culpritId: "K" }),
+            read([{ nodeId: "e1", actorId: "A" }, { nodeId: "e2", actorId: "B" }, { nodeId: "e3", actorId: "C" }], { culpritId: "K", ticks: { d1: true } }),
+            read([{ nodeId: null, actorId: "A" }, { nodeId: "gone", actorId: "A" }], { culpritId: "K" })
+        ]), JSON.stringify([
+            { hints: [], presented: ["e1"], unknown: 0 },
+            { hints: ["d1"], presented: ["e1", "e2"], unknown: 0 },
+            { hints: [], presented: ["e1", "e2"], unknown: 0 },
+            { hints: ["d2", "s"], presented: ["e1", "e2", "e3"], unknown: 0 },
+            { hints: [], presented: [], unknown: 2 }
+        ]), "[one of three; two of three; one and the culprit's (marked, not counted); all three with d1 ticked; an old card and a Remnant not on the schema]");
+    }],
+    ["R3664 - a presentation is read, never ticked (E99 C4): case-hints.mjs `casePresentations` turns the chapter's Present cards into { nodeId, actorId } through the GMs' answer key (`sceneId.remnantId`, the bullet's uuid off the card's speaker and item), skips another chapter's and a withdrawn Objection's (no bullet came; a refused one showed its bullet and counts), gives null for a bullet with no Remnant; the file names no tick writer (`setCaseTick`, `caseTickStore`)", async () => {
+        /* E99 C4, 12.11.2026. Planted cards and a planted answer key. Red at 9290ce0: no case-hints.mjs. */
+        const H = await import("./case-hints.mjs").catch(() => null);
+        must(H && typeof H.casePresentations === "function", "there is no case-hints.mjs casePresentations");
+        const { TRIAL_FLAGS } = await import("./trial.mjs");
+        const card = (actor, item, chapter, extra = {}) => ({ speaker: { actor }, getFlag: (m, k) => ({ [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.item]: item, [TRIAL_FLAGS.chapter]: chapter, ...extra })[k] });
+        const key = { "Actor.A.Item.i1": { sceneId: "S", remnantId: "t1" }, "Actor.B.Item.i2": { sceneId: "S", remnantId: "t2" }, "Actor.C.Item.i3": {} };
+        const got = H.casePresentations(3, { messages: [card("A", "i1", 3), card("B", "i2", 2), card("C", "i3", 3), card("B", "i2", 3, { [TRIAL_FLAGS.withdrawn]: true }), card("B", "i2", 3, { [TRIAL_FLAGS.refused]: true })],
+            secret: uuid => key[uuid] ?? {} });
+        equal(JSON.stringify(got), JSON.stringify([{ nodeId: "S.t1", actorId: "A" }, { nodeId: null, actorId: "C" }, { nodeId: "S.t2", actorId: "B" }]), "the chapter's cards, in order");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-hints.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(src.length > 100, "case-hints.mjs read as nothing - this would measure nothing");
+        equal(JSON.stringify(["setCaseTick", "caseTickStore", "setFlag", "update("].filter(w => src.includes(w))), "[]", "words of a write in case-hints.mjs");
+    }],
+    ["R3665 - the trial's Case schema window, drawn (E99 C5; Q-E99-1, the plan's C5 census): case-trial.mjs `trialSchemaHtml` draws the graph read-only, a tick box on each deduction, counter and solution (none on evidence), each ticked one checked; every node whose trial mode has a start in trial-floor.mjs MODE_STARTS a start button with the mode's name, greyed with the console's reason while a floor is open; a mode raised by a player no button; the presented evidence and the hinted conclusions marked, and the cards with no Remnant said", async () => {
+        /* E99 C5, 12.11.2026. A planted state. Red at 9290ce0: no case-trial.mjs. */
+        const T = await import("./case-trial.mjs").catch(() => null);
+        must(T && typeof T.trialSchemaHtml === "function", "there is no case-trial.mjs trialSchemaHtml - the trial has no schema");
+        const { MODE_STARTS } = await import("./trial-floor.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const node = (id, kind, extra = {}) => ({ id, kind, evidence: kind === "trace", name: id.toUpperCase(), label: id.toUpperCase(), ...extra });
+        const graph = { chapter: 1, nodes: [node("e1", "trace"), node("e2", "trace"), node("d1", "deduction", { mode: "testimony" }), node("c1", "counter", { mode: "objection" }), node("s", "solution", { mode: "closing" })],
+            edges: [["e1", "d1"], ["e2", "d1"], ["d1", "s"]].map(([from, to]) => ({ from, to, kind: "input" })).concat([{ from: "c1", to: "d1", kind: "refutes" }]) };
+        const draw = floorOpen => {
+            const box = document.createElement("div");
+            box.innerHTML = T.trialSchemaHtml({ graph, layout: layoutCase(graph), ticks: { d1: true }, presented: ["e1"], hints: ["s"], unknown: 2, floorOpen });
+            const starts = [...box.querySelectorAll("[data-drpg-case-start]")];
+            return {
+                ticks: [...box.querySelectorAll("input[data-drpg-case-tick]")].map(i => `${i.dataset.drpgCaseTick}:${i.checked}`),
+                starts: starts.map(b => `${b.dataset.drpgNode}:${b.dataset.drpgCaseStart}:${b.disabled}:${b.textContent.includes(game.i18n.localize(`DRPG.Floor.mode.${b.dataset.drpgMode}`))}`),
+                reasons: starts.filter(b => b.disabled).map(b => Boolean(b.title)),
+                presented: [...box.querySelectorAll(".drpg-case-node.is-presented")].map(b => b.dataset.drpgNode),
+                hinted: [...box.querySelectorAll(".drpg-case-node.is-hinted")].map(b => b.dataset.drpgNode),
+                unknown: box.querySelectorAll("[data-drpg-case-unknown]").length
+            };
+        };
+        const wanted = Object.entries(MODE_STARTS).filter(([, r]) => r.action).map(([m]) => m);
+        must(wanted.includes("testimony") && wanted.includes("closing") && !wanted.includes("objection"), "MODE_STARTS has changed under this test - its plant reads no start");
+        equal(JSON.stringify([draw(false), draw(true)]), JSON.stringify([
+            { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:false:true", "s:startClosing:false:true"], reasons: [], presented: ["e1"], hinted: ["s"], unknown: 1 },
+            { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:true:true", "s:startClosing:true:true"], reasons: [true, true], presented: ["e1"], hinted: ["s"], unknown: 1 }
+        ]), "[no floor open, a floor open]: tick boxes, start buttons (node:action:greyed:named), reasons on the greyed, marks, the unknown cards' line");
+    }],
+    ["R3666 - Case schema from the console, and nothing for a player (E99 C5): the console's trialButtons offers `caseSchema` while a trial runs and after it, and TRIAL_ACTIONS opens case-trial.mjs `openTrialSchema`; a player's `openTrialSchema` and `tickFromSchema` open and write nothing; trial-floor-ui.mjs `startTrialMode` starts only what MODE_STARTS names", async () => {
+        /* E99 C5, 12.11.2026. Read off the source and called on a planted player. Red at 9290ce0: no case-trial.mjs. */
+        const T = await import("./case-trial.mjs").catch(() => null);
+        must(T && typeof T.openTrialSchema === "function" && typeof T.tickFromSchema === "function", "there is no case-trial.mjs openTrialSchema / tickFromSchema");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(src.length > 1000, "trial-floor-ui.mjs read as nothing - this would measure nothing");
+        const buttons = fnSource(src, "trialButtons");
+        const UI = await import("./trial-floor-ui.mjs");
+        const counts = [];
+        Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+        try {
+            counts.push(await T.openTrialSchema(), await T.tickFromSchema(1, "d1", true), await UI.startTrialMode("startTestimony"));
+        } finally { delete game.user.isGM; }
+        equal(JSON.stringify({
+            button: /action: "caseSchema"/.test(buttons), action: /caseSchema: async \(\) => \(await import\("\.\/case-trial\.mjs"\)\)\.openTrialSchema\(\)/.test(src),
+            player: counts, refused: await UI.startTrialMode("end")
+        }), JSON.stringify({ button: true, action: true, player: [null, null, null], refused: null }),
+        "{the console's button; its action; a player's open, tick and start; a start of what is no mode's}");
+    }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*
          * E99 C3, 12.11.2026; as R3374 reads the schema's store. Red at 1e1c61c: no caseTickStore.
@@ -37267,12 +37353,12 @@ const INVARIANTS = [
             footers: {
                 none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
                 running: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
-                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
+                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
                 final: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
             },
             ended: null,

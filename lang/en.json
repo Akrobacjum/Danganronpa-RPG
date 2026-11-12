@@ -5868,6 +5868,20 @@
       "showPreview": "Show the preview",
       "notNow": "Not now"
     },
+    "CaseTrial": {
+      "open": "Case schema",
+      "title": "Case schema",
+      "intro": "Tick a deduction, counter or solution when the class reaches it. Only ticked ones go into the players' summary. A hint means the presented evidence would carry it.",
+      "empty": "This chapter has no case schema yet. Build it on the Map in the Investigation panel.",
+      "floorOpen": "A floor is open. Close it before you start another mode.",
+      "hint": "Hint: the presented evidence carries this",
+      "presented": "Presented",
+      "ticked": "Ticked",
+      "unknown": {
+        "one": "{n} presented card names no Remnant on the schema, so it gives no hint.",
+        "other": "{n} presented cards name no Remnant on the schema, so they give no hint."
+      }
+    },
     "CaseSummary": {
       "show": "Show summary",
       "previewTitle": "The case's summary",
