@@ -18091,7 +18091,9 @@ const SCENARIOS = [
         const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
         let F = null;
         try {
-            const [item] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C2 bandage", type: "loot", system: { quantity: 2 } }]);
+            // A Tier 1 usable: an item of no tier is a Tier 0 thing, whose use waits for the GM and is no item used (E64, D003).
+            const [item] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C2 bandage", type: "loot", system: { quantity: 2 },
+                flags: { [MODULE_ID]: { category: "usable", tier: 1 } } }]);
             F = await playerRollBookmark(player, killer, "crisis", {}, { record: { total: 20 } });
             const used = await F.ask({ action: "murder.crisis", requestId: "suite-e08c2-use", actorId: killer.id, key: "useItem",
                 total: 20, isCritical: false, withHope: true, usedItemId: item.id, before: { hp: 5, stress: "2", qty: 2, extra: 9 }, rollId: F.message.id });
@@ -88443,6 +88445,53 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ control: null, hidden: "notThere", monocubTaking: "cannotNow", monocubGiving: "cannotNow",
             monokumaGiving: "cannotNow", after: null }),
             `a give was let through where a steal or a Plant is refused, or refused standing together [the code per case]: ${stableJson(read)}`);
+    }],
+    ["E64 D003 - a Tier 0 item's Use an item waits for the GM's ruling: the crisis records no item used, says the use waits, and the item stays", async () => {
+        /*
+         * E64, D003 (the owner's word of 12.11.2026: fixed). A Tier 0 item is used creatively: use-items.mjs
+         * `useCreatively` asks the GM and answers `{ pending: true }`, and the player's browser sent the item's id as used
+         * (murder-rules.mjs `afterCrisisRoll`), so the GM's crisis receipt named it used ("The item goes in."), and a
+         * Reroll would put back a thing nobody had spent. Here a killer's Use an item with a Tier 0 item scored on the GM
+         * as its packet arrives (its id named), then read: the receipt's used item, whether a new card says the use
+         * waits ("useItemAsked") and none says it went in, and the item still on the sheet with its count. Red before
+         * E64: the receipt named the item and the card said it went in.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { wordsOf, contentOf } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const asked = game.i18n.localize("DRPG.Murder.useItemAsked"), went = game.i18n.localize("DRPG.Murder.useItemWorked");
+        must(!asked.startsWith("DRPG."), "the useItemAsked text is not in the language file");
+        const had = new Set([...killer.items, ...victim.items].map(item => item.id));
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        let read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            const [thing] = await killer.createEmbeddedDocuments("Item", [{ name: "Tier 2 E64 D003 curtain cord", type: "loot", system: { quantity: 1 },
+                flags: { [MODULE_ID]: { category: "usable", tier: 0 } } }]);
+            await turnFor(M, killer, "useItem");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 20, isCritical: false, withHope: true, usedItemId: thing.id });
+            await settle();
+            const said = [];
+            for (const m of game.messages.contents.filter(m => !seen.has(m.id))) said.push(contentOf(m) || String(await wordsOf(m, 1500) ?? ""));
+            read = {
+                receipt: M.murderState()?.lastCrisis?.usedItemId ?? null,
+                asked: said.some(t => t.includes(asked)), went: said.some(t => t.includes(went)),
+                kept: Number(killer.items.get(thing.id)?.system?.quantity ?? 0)
+            };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const actor of [killer, victim]) {
+                const made = actor.items.filter(item => !had.has(item.id)).map(item => item.id);
+                if (made.length) await actor.deleteEmbeddedDocuments("Item", made);
+            }
+            for (const m of game.messages.contents.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ receipt: null, asked: true, went: false, kept: 1 }),
+            `a Tier 0 Use an item was counted as used before the GM ruled [the receipt's used item, the card says it waits, the card says it went in, the item's count]: ${stableJson(read)}`);
     }],
 ];
 

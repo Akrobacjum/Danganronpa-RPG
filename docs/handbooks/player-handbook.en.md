@@ -611,7 +611,7 @@ The incident is turn-based. **You go first**. Alone with a trap, you roll every 
 | **Self-Defense** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role Reversal, Despair opens Role Reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. If all it would open is a Role Reversal you cannot take, it is not spent and you may try again. |
 | **Survive** | Leg, 18 | Withdraw. The incident ends and the drain stops. Despair adds a hint about who they were; a critical also gives immunity for this chapter and the next. A failure costs 1 extra. Needs Self-Defense first. |
 | **Role Reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope or a critical also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-Defense first. Not available against a trap, or once somebody has joined the killer. |
-| **Use an Item** | Hand, 15 | Press *use* on the item. It works on a critical or a success with Hope; a success with Despair leaves a trace and nothing else. A failure with Despair costs 1 extra. |
+| **Use an Item** | Hand, 15 | Press *use* on the item. It works on a critical or a success with Hope; a success with Despair leaves a trace and nothing else. A failure with Despair costs 1 extra. A Tier 0 item waits for the GM's ruling, and is not used up until the GM rules. |
 
 Survive and Role Reversal are resolution actions: they cost **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. Nothing the killer does can take Reinforced traces off the map.
 

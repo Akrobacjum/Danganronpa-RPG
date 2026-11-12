@@ -611,7 +611,7 @@ Incydent toczy się na tury. **Zaczynasz ty**. Sam z pułapką masz przewagę na
 | **Self-Defense** | Hand / Leg / Body, 18 | Walczysz. Jedna próba. Hope otwiera Survive i Role Reversal, Despair tylko Role Reversal, krytyk zatrzymuje drenaż i pozwala wziąć jedno z nich w tej turze bez rzutu. Przedmiot nadający się na broń daje przewagę. Porażka z Despair kosztuje 1 dodatkowo. Jeśli otworzyłoby tylko Role Reversal, którego nie możesz wziąć, nie zostaje zużyte i możesz spróbować znowu. |
 | **Survive** | Leg, 18 | Wycofujesz się. Incydent się kończy i drenaż ustaje. Despair dodaje podpowiedź, kto to był; krytyk daje też nietykalność na ten i następny rozdział. Porażka kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. |
 | **Role Reversal** | Hand / Leg / Body, 15 | Przechylasz szalę i zostajesz zabójcą. Hope albo krytyk przywraca też całe Health i Sanity; krytyk zabija ich od razu. Porażka z Despair kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. Niedostępne wobec pułapki ani wtedy, gdy ktoś już dołączył do zabójcy. |
-| **Use an Item** | Hand, 15 | Wciśnij *użyj* przy przedmiocie. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej. Porażka z Despair kosztuje 1 dodatkowo. |
+| **Use an Item** | Hand, 15 | Wciśnij *użyj* przy przedmiocie. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej. Porażka z Despair kosztuje 1 dodatkowo. Przedmiot Tier 0 czeka na decyzję GMa i nie jest zużyty, dopóki GM nie zdecyduje. |
 
 Survive i Role Reversal to akcje rozstrzygnięcia: kosztują **1 Sanity** zamiast akcji, a gdy Sanity się skończy - **1 Health**. Nic, co zrobi zabójca, nie zdejmie z mapy Reinforced śladów.
 

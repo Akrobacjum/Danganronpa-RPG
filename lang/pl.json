@@ -2209,6 +2209,7 @@
       "useItemGone": "Tego już przy tobie nie ma - nie ma czego użyć.",
       "useItemWorked": "Przedmiot idzie w ruch.",
       "useItemFumbled": "Zostaje w kieszeni, a ktoś widział, jak po niego sięgasz.",
+      "useItemAsked": "To GM rozstrzyga, czy to zadziała; do tego czasu przedmiot nie jest zużyty.",
       "notYourTurn": "To nie twoja tura.",
       "actionBlocked": "Na razie masz to zablokowane.",
       "actionHindered": "To jest teraz trudniejsze - rzucasz z utrudnieniem.",

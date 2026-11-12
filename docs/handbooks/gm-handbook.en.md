@@ -770,7 +770,7 @@ Every success leaves an Evident Incident Remnant, and a noticed trap leaves the 
 
 | Side | Action | Roll | What it does |
 |---|---|---|---|
-| victim, killer | Use an Item | Hand 15 | Get something out of a pocket. Works on a critical or a success with Hope; with Despair, a trace and nothing else; a failure with Despair costs 1 extra. Not a third party's |
+| victim, killer | Use an Item | Hand 15 | Get something out of a pocket. Works on a critical or a success with Hope; with Despair, a trace and nothing else; a failure with Despair costs 1 extra. A Tier 0 item is your ruling, as outside an incident: not counted as used, nor given back by a Reroll, until you rule (E64). Not a third party's |
 | victim | Leave a Clue | Hand/Leg/Shadow 12 | A Remnant meant to help the others (Evident / Subtle / Obvious). A failure with Hope gives advantage on the next attempt at this action |
 | victim | Secure a Trace | Hand/Leg/Shadow 15 | Take something off the killer and turn it into a trace tied to their identity (same visibilities) |
 | victim | Self-Defense | Hand/Leg/Body 18 | Fight. Hope opens Survive and Role Reversal; Despair opens Role Reversal only; critical stops the drain, opens both, and one may be taken this turn without rolling. A weapon gives advantage. Role Reversal opens only where it is available; a Self-Defense that would open nothing else (Despair, with Role Reversal not available) is not spent and may be tried again |

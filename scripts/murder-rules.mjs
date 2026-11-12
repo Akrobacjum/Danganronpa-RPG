@@ -1683,6 +1683,21 @@ async function applyCrisisAction({
             { choice: again.choice ?? null, resource: again.usedFor ?? null }, held));
     }
 
+    /* A TIER 0 USE WAITS FOR THE GM (E64, D003; the owner's word of 12.11.2026). A Tier 0 item is used creatively: the
+       player's browser asks the GM (use-items.mjs `useCreatively`, which answers `{ pending: true }`) and names the item, and
+       until E64 the receipt took it as used ("The item goes in."), so a Reroll put back a thing nobody had spent. Read as
+       the GMs hold the item (`held`, `usedCreatively`): such a use is no item used here - not on the receipt, so no
+       Reroll gives it back - and the card says the use waits; the GM's ruling on the ask uses it up, as any Tier 0 use. */
+    let askedItemId = null;
+    if (usedItemId) {
+        const { usedCreatively } = await import("./use-items.mjs");
+        const named = held.items?.get(usedItemId) ?? null;
+        if (named && usedCreatively(named)) {
+            askedItemId = usedItemId;
+            usedItemId = null;
+        }
+    }
+
     // What this roll swung (`swungWeapon`): the damage is read off it, the Despair
     // wears it, and Stage 6 ruins it. A replay swings the receipt's weapon or none: until
     // fix r1-G3 (02.10.2026; review S-m3) a first throw that swung nothing fell through
@@ -1777,8 +1792,8 @@ async function applyCrisisAction({
         if (def.usesItem) {
             receipt.usedItemId = usedItemId;
             receipt.hopeGranted = usedItemId ? hopeGranted : 0;
-            done.push(game.i18n.localize(usedItemId
-                ? "DRPG.Murder.useItemWorked" : "DRPG.Murder.useItemFumbled"));
+            done.push(game.i18n.localize(usedItemId ? "DRPG.Murder.useItemWorked"
+                : askedItemId ? "DRPG.Murder.useItemAsked" : "DRPG.Murder.useItemFumbled"));
         }
         await applyHindrance(state, def, band, done);
         promised = await applyUnlocks(state, def, key, band, done);

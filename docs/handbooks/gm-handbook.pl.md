@@ -770,7 +770,7 @@ Każdy sukces zostawia Evident Incident Remnant, a zauważona pułapka zostawia 
 
 | Strona | Akcja | Rzut | Co robi |
 |---|---|---|---|
-| ofiara, zabójca | Use an Item | Hand 15 | Wyjmij coś z kieszeni. Działa na krytyku albo sukcesie z Hope; z Despair - ślad i nic więcej; porażka z Despair kosztuje 1 dodatkowo. Nie dla trzeciej osoby |
+| ofiara, zabójca | Use an Item | Hand 15 | Wyjmij coś z kieszeni. Działa na krytyku albo sukcesie z Hope; z Despair - ślad i nic więcej; porażka z Despair kosztuje 1 dodatkowo. Przedmiot Tier 0 to twoja decyzja, jak poza incydentem: nie liczy się jako użyty ani nie wraca przez Reroll, dopóki nie zdecydujesz (E64). Nie dla trzeciej osoby |
 | ofiara | Leave a Clue | Hand/Leg/Shadow 12 | Remnant mający pomóc innym (Evident / Subtle / Obvious). Porażka z Hope daje przewagę przy następnej próbie tej akcji |
 | ofiara | Secure a Trace | Hand/Leg/Shadow 15 | Zabierz coś zabójcy i zrób z tego ślad związany z jego tożsamością (te same widoczności) |
 | ofiara | Self-Defense | Hand/Leg/Body 18 | Walcz. Hope otwiera Survive i Role Reversal; Despair tylko Role Reversal; krytyk zatrzymuje drenaż, otwiera oba i jedno można wziąć w tej turze bez rzutu. Broń daje przewagę. Role Reversal otwiera się tylko tam, gdzie jest dostępne; Self-Defense, które nie otworzyłoby niczego innego (Despair, gdy Role Reversal jest niedostępne), nie zostaje zużyte i można spróbować znowu |

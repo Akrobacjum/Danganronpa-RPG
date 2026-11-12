@@ -2062,6 +2062,7 @@
       "useItemGone": "That is not on you any more - nothing to use.",
       "useItemWorked": "The item goes in.",
       "useItemFumbled": "It stays in your pocket, and somebody saw you reaching for it.",
+      "useItemAsked": "It is the GM's to rule whether this works; until then the item is not used up.",
       "notYourTurn": "It is not your turn.",
       "actionBlocked": "They have shut this one down for now.",
       "actionHindered": "They have made this harder - you roll at disadvantage.",
