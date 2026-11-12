@@ -601,6 +601,8 @@ export const CAMERA_READERS = Object.freeze({
     "fog.mjs#revealStartingRooms": "draw",
     "fog.mjs#announceRoom": "draw",
     "fog.mjs#playDiscoveryAnimation": "draw",
+    // E73 C2: the zones drawn on the hall the canvas shows, during a zone mode.
+    "trial-zones-ui.mjs#drawZones": "draw",
     "fog.mjs#floorSwitcher": "draw",
     /* The pick of a new secret passage (E79 C6): it views the scene Room Setup was opened on and takes
        the floor on screen, the one the GM's two clicks land on; it writes on that scene alone. */

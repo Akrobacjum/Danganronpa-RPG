@@ -369,6 +369,10 @@ export const TRIAL_RECORD = Object.freeze({
     execution: row({ lives: "trial", by: "`carryOutSentence` (the execution at the trial's end)", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C8: the trial's Closing Argument, one per trial.
     closing: row({ lives: "trial", by: "trial-floor.mjs `commitFloor`", blank: fresh(null), atEntry: fresh(null) }),
+    // E73: the zone modes' Findings, the trial's own list (C6), and the last Straw Poll's count, whose split makes Scrum
+    // Debate the next step (C3).
+    findings: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`, `editFinding`", blank: fresh([]), atEntry: fresh([]) }),
+    strawPoll: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C5: the trial's list of the dead, written by the settle alone and taken out at the exit - in no blank, and
     // left by the entry (the settle that follows it writes it).
     mutedDead: row({ lives: "trial", by: "voice.mjs `settleTrialVoices`" })

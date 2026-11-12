@@ -76,6 +76,10 @@ export const ACTION_TRIAL_GM = "trial.gm";
 export const ACTION_TRIAL_TURN = "trial.turn";
 // A participant volunteering for the Closing Argument (E70 C8): the name kept by the GMs alone.
 export const ACTION_TRIAL_CLAIM = "trial.claim";
+// A participant with no token in the trial hall picking Zone A or Zone B in a zone mode (E73 C2; trial-zones.mjs `sideOnPrimary`).
+export const ACTION_TRIAL_SIDE = "trial.side";
+// A Scrum Debate speaker's thesis, posted as the mode's card (E73 C5; trial-zones.mjs `thesisOnPrimary`).
+export const ACTION_TRIAL_KEYWORD = "trial.keyword";
 // A Present posted by the primary with a copy as shown to every other participant (E70 C10; trial.mjs `presentOnPrimary`).
 export const ACTION_TRIAL_PRESENT = "trial.present";
 /** GM -> primary GM: open the readiness round before the clock moves (E37 C3; boundary.mjs `openRoundOnPrimary`). */

@@ -114,8 +114,8 @@ export const WORLD_SECRET_RULES = Object.freeze({
         /* The Closing Argument's volunteers and its draw (E70 C8; TR23 = 1): the GMs' store (gm-stores.mjs
            `closingClaimStore`); the floor says how many volunteered and whether there is somebody to confirm, never who. */
         trialQueue: Object.freeze({
-            fields: Object.freeze(["volunteers", "drawn"]),
-            since: "E70 C8", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52)"
+            fields: Object.freeze(["volunteers", "drawn", "truth"]),
+            since: "E70 C8; truth E73 C4", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52); a Logic Dive question's true answer, the GMs' store's (diveSetStore) until it is judged and never after (TR3)"
         }),
         /* E42's two records (E42 fix FG4; the end review's S-M4), each the primary GM's to write (R1259). */
         chapterEnd: Object.freeze({

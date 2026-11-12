@@ -13,6 +13,9 @@ import {
     adjustStep, drawOrder, debateSeconds, trialNextStep, TRIAL_NEXT_STEPS, trialStepView, trialStepText
 } from "./trial-floor.mjs";
 import { topicOf, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
+import { isZoneMode } from "./zone-machine.mjs";
+import { ZONE_PANELS, openZonePicker } from "./trial-zones-ui.mjs";
+import { countNow, skipQuestion } from "./trial-zones.mjs";
 import {
     closingRefusal, confirmClosingSpeaker, pickClosingSpeaker, continueClosing, resumeClosing, startClosing,
     missingKeys, revealLeft, revealMissingKey } from "./trial-modes.mjs";
@@ -821,6 +824,9 @@ const TRIAL_LEADS = {
     closeDebate: "DRPG.Floor.lead.closeDebate",
     endRound: "DRPG.Floor.lead.round",
     endClosing: "DRPG.Floor.lead.closing",
+    // E73: a zone mode running, and Scrum Debate next after a split Straw Poll.
+    endZone: "DRPG.Floor.lead.zones",
+    scrum: "DRPG.Floor.lead.scrum",
     now: "DRPG.Floor.lead.now",
     vote: "DRPG.Floor.lead.vote",
     verdict: "DRPG.Floor.lead.verdict",
@@ -844,7 +850,10 @@ const BAR_LABELS = {
     overrule: "DRPG.Floor.bar.overrule",
     endMode: "DRPG.Floor.bar.endMode",
     back: "DRPG.Floor.backToDebate",
-    repoint: "DRPG.Floor.repoint"
+    repoint: "DRPG.Floor.repoint",
+    // E73 C6: the zone modes' two, drawn only while one holds the floor (`trialBar`).
+    count: "DRPG.Floor.bar.count",
+    skipQuestion: "DRPG.Floor.bar.skipQuestion"
 };
 
 /**
@@ -876,8 +885,16 @@ const BAR_ACTIONS = {
     repoint: async () => {
         const { repointDialog } = await import("./trial.mjs");
         await repointDialog();
-    }
+    },
+    // E73 C6: Count now (a Straw Poll, a Logic Dive question) and Skip question (Logic Dive).
+    count: () => countNow(),
+    skipQuestion: () => skipQuestion()
 };
+
+/** The bar's ops drawn on `floor`: Count now and Skip question only in the zone modes, the last in Logic Dive (E73 C6). */
+function barOpsFor(floor) {
+    return BAR_OPS.filter(op => (op !== "count" && op !== "skipQuestion") || (isZoneMode(floor?.mode) && (op === "count" || floor.mode === FLOOR_MODES.dive)));
+}
 
 /*
  * THE CLOSING ARGUMENT ON THE CONSOLE (E70 C8, 28.10.2026; E70-52, E70-54, E70-56). Its row is drawn in the live region
@@ -1065,7 +1082,7 @@ function runBarOp(op, args = {}) {
 function trialBar({ floor, running, barNext }) {
     if (!running) return "";
     const now = serverNow();
-    const buttons = BAR_OPS.map(op => {
+    const buttons = barOpsFor(floor).map(op => {
         const refused = barRefusal(op, floor, { running, now });
         const label = barLabel(op, adjustStep(floor));
         const next = op === barNext ? " drpg-bar-next" : "";
@@ -1134,6 +1151,9 @@ export function trialConsoleHtml(view) {
                             seconds: Math.max(left, 0), next: esc(game.actors.get(next ?? "")?.name ?? "-") };
                         return `<p>${game.i18n.format(next ? "DRPG.Floor.holdingRound" : "DRPG.Floor.holdingRoundLast", words)}</p>`;
                     })()
+                : isZoneMode(floor.mode)
+                    // A zone mode (E73): its panel, by the contract's row for the mode (trial-zones-ui.mjs `ZONE_PANELS`).
+                    ? ZONE_PANELS[floor.mode].panel({ floor })
                 : floor.mode === FLOOR_MODES.closing
                     // The Closing Argument (E70 C8): its speaker and seconds, or its phase's line for the table.
                     ? `<p>${floor.holderId
@@ -1232,7 +1252,7 @@ export function trialConsoleHtml(view) {
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
             ${topicLine}
-            ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing ? `<p class="notes">${restrictive
+            ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing && !isZoneMode(floor.mode) ? `<p class="notes">${restrictive
                 ? game.i18n.format("DRPG.Floor.modeNote", { step: adjustStep(floor) }) : game.i18n.localize("DRPG.Floor.objectionNote")}</p>` : ""}
             ${closingOf(floor) && floor.mode !== FLOOR_MODES.closing ? `<p>${game.i18n.localize("DRPG.Floor.closing.inExchange")}</p>` : ""}
             ${closingConsole(view)}
@@ -1287,6 +1307,9 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                     ? (floorFamily(floor) === "round"
                         // A round's end (E70 C7): the bar's End this mode, here as the footer's step.
                         ? { action: "endRound", default: isDefault("endRound"), label: game.i18n.localize("DRPG.Floor.endRound") }
+                        : floorFamily(floor) === "zones"
+                            // A zone mode's end (E73): the bar's End this mode, here as the footer's step.
+                            ? { action: "endZone", default: isDefault("endZone"), label: game.i18n.localize("DRPG.Zones.end") }
                         : floorFamily(floor) === "closing" || closingOf(floor)
                             // The Closing's end (E70 C8), in its exchange too: End this mode, with no decision.
                             ? { action: "endClosing", default: isDefault("endClosing"), label: game.i18n.localize("DRPG.Floor.endClosing") }
@@ -1308,7 +1331,9 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                     { action: "startTestimony", label: game.i18n.localize("DRPG.Floor.startTestimony") },
                     { action: "startPanic", label: game.i18n.localize("DRPG.Floor.startPanic") },
                     // The Closing Argument (E70 C8): one per trial, greyed after it (its reason is the console's note).
-                    { action: "startClosing", label: game.i18n.localize("DRPG.Floor.startClosing"), disabled: Boolean(closingRefusal(progress, floor)) }
+                    { action: "startClosing", label: game.i18n.localize("DRPG.Floor.startClosing"), disabled: Boolean(closingRefusal(progress, floor)) },
+                    // The zone modes (E73): one button, the picker window; the next step after a split Straw Poll.
+                    { action: "zones", label: game.i18n.localize("DRPG.Zones.open"), default: isDefault("scrum") }
                 ]),
                 // End this mode now, Back to the debate, +30 seconds and Re-point stood here, each only in the
                 // modes it served: they are the bar's since E70 C1 (`trialBar`), in every mode, greyed with a reason.
@@ -1425,6 +1450,12 @@ const TRIAL_ACTIONS = {
     endRound: () => endMode(),
     startClosing: () => startClosing(),
     endClosing: () => endMode(),
+    // E73: the zone modes' window, opened on `mode` when the case's schema names one (Scrum Debate after a split); their end.
+    zones: async (mode = null) => {
+        const { trialProgress } = await import("./vote.mjs");
+        return openZonePicker({ mode: mode ?? (trialProgress().strawPoll?.split ? FLOOR_MODES.scrum : FLOOR_MODES.straw) });
+    },
+    endZone: () => endMode(),
     closeDebate: () => closeDebate(),
     vote: () => openVoteDialog(),
     caseSummary: async () => (await import("./case-summary.mjs")).showCaseSummary(),
@@ -1689,11 +1720,12 @@ export async function manageClassTrial() {
  * A trial mode started from the case's schema (E99 C5): only a start trial-floor.mjs MODE_STARTS names, on a GM, through
  * the console's own action; answers its result, or null. The console is not reopened: the schema's window stays.
  */
-export async function startTrialMode(action) {
+export async function startTrialMode(action, mode = null) {
     if (!game.user?.isGM) return null;
     const { MODE_STARTS } = await import("./trial-floor.mjs");
     if (!Object.values(MODE_STARTS).some(row => row.action === action) || !TRIAL_ACTIONS[action]) return null;
-    return TRIAL_ACTIONS[action]();
+    // The zone modes share one start (E73): the node's own mode opens the window on it.
+    return TRIAL_ACTIONS[action](MODE_STARTS[mode]?.action === action ? mode : undefined);
 }
 
 /**

@@ -599,6 +599,8 @@ export const SETTINGS = {
     /** THE CASE SCHEMA (E97 C3, 1.2.106): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
     gmCaseSchema: "gmCaseSchema",
     gmCaseTicks: "gmCaseTicks",
+    /** LOGIC DIVE'S SETS (E73 C4): a GM store (gm-stores.mjs `diveSetStore`), a row per set, the truth of each question in it. */
+    gmDiveSets: "gmDiveSets",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -2267,6 +2269,14 @@ export function registerSettings() {
     // The case's ticks at a trial (E99 C3): a GM store (`caseTickStore`), a row per chapter and node. No `onChange`: the
     // trial's case window reads it at each redraw.
     game.settings.register(MODULE_ID, SETTINGS.gmCaseTicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Logic Dive's sets (E73 C4): a GM store (`diveSetStore`), a row per set with each question's truth. No `onChange`:
+    // the set editor and the console read it at each redraw, and the primary at each question.
+    game.settings.register(MODULE_ID, SETTINGS.gmDiveSets, {
         scope: "client",
         config: false,
         type: Object,

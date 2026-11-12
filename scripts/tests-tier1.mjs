@@ -6938,6 +6938,10 @@ const INVARIANTS = [
             ["trialQueue.volunteers",
                 s => { s.settings.trialQueue = { active: true, mode: "closing", closing: { phase: "volunteer", count: 0, volunteers: [] } }; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "trialQueue" && h.path === "closing.volunteers"],
+            // E73 C4: a Logic Dive question's truth is the GMs' store's - never on the floor, at any depth.
+            ["trialQueue.truth",
+                s => { s.settings.trialQueue = { active: true, mode: "dive", zone: { phase: "vote", answers: { a: "x", b: "y" }, truth: "a" } }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "trialQueue" && h.path === "zone.truth"],
             ["trialQueue.drawn",
                 s => { s.settings.trialQueue = { active: true, mode: "closing", drawn: "R190BYSTANDER001" }; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "trialQueue" && h.path === "drawn"],
@@ -8438,6 +8442,145 @@ const INVARIANTS = [
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/rooms.mjs`).then(r => (r.ok ? lfText(r) : "")));
         ok(fnSource(src, "unmarkedRegions").includes("isZoneRegion("), "unmarkedRegions does not leave the zones out");
         ok(/if \(isTrialScene\(scene\)\) return \[\];/.test(fnSource(src, "roomPieces")), "roomPieces no longer answers none for the hall");
+    }],
+    ["R3903 - who stands on which side (E73 C2; the plan's sidesNow rules): trial-zones.mjs `sidesNow` puts each participant on the side whose zone holds their hall token's centre, by the region's `testPoint` - a token in a zone's hole is on neither side - a token on the line both zones hold on neither, a token outside both on neither; a participant with no token in the hall on the side they picked, and with no pick on neither; one entry per participant row however many tokens the hall holds of others", async () => {
+        /*
+         * E73 C2, 12.11.2026. A planted hall: Zone A the left half with a hole, Zone B the right half; tokens with their
+         * centres; six participant rows handed in. Red at 4077664: no trial-zones.mjs.
+         */
+        const Z = await import("./trial-zones.mjs").catch(() => null);
+        must(Z && typeof Z.sidesNow === "function", "there is no trial-zones.mjs sidesNow - nobody stands on a side");
+        const rect = (id, x, w, hole = null) => ({ id, testPoint: ({ x: px, y: py }) => px >= x && px <= x + w && py >= 0 && py <= 1000
+            && !(hole && px >= hole.x && px <= hole.x + 100 && py >= hole.y && py <= hole.y + 100) });
+        const regions = { a: rect("A", 0, 500, { x: 100, y: 100 }), b: rect("B", 500, 500) };
+        const token = (actorId, x, y) => ({ id: `t${actorId}`, actorId, center: { x, y }, elevation: 0 });
+        const hall = { id: "H", tokens: [token("p1", 50, 50), token("p2", 150, 150), token("p3", 700, 50), token("p4", 500, 500), token("p5", 2000, 50),
+            token("mono", 60, 60), token("p1", 700, 700)] };
+        const rows = ["p1", "p2", "p3", "p4", "p5", "p6", "p7"].map(id => ({ actor: { id }, user: { id: `u${id}` } }));
+        const floor = { mode: "straw", zone: { phase: "vote", picks: { p6: "b", p1: "b" } } };
+        const got = Z.sidesNow({ floor, participants: rows, hall, regions });
+        equal(stableJson(got), stableJson({ a: ["p1"], b: ["p3", "p6"], none: ["p2", "p5", "p7"], line: ["p4"], picked: ["p6"] }),
+            "{a: p1 by its first token (its pick ignored, a token answers); b: p3 by token, p6 by its pick; none: p2 in the hole, p5 outside, p7 no token and no pick; line: p4 on the border; picked: p6}");
+    }],
+    ["R3904 - no true answer on the floor (E73 C4; the plan's tier 0 shape guard 'trialQueue has no field for the truth'; TR3): a Logic Dive run through zone-machine.mjs from its start to a right answer, a second question, a tie, and a Skip question, with the truth handed to every step as a marker, writes no floor holding the marker or a `truth` field, no card naming the answer judged true of the tied question, and world-secrets.mjs keeps `truth` out of `trialQueue`", async () => {
+        /* E73 C4, 12.11.2026. Pure: the machine's answers read as JSON. Red at 4077664: no zone-machine.mjs. */
+        const M = await import("./zone-machine.mjs").catch(() => null);
+        must(M && typeof M.zoneStep === "function", "there is no zone-machine.mjs - Logic Dive has no rows");
+        const { WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        const MARK = "R3904-TRUTH-MARKER";
+        const sides = (a, b) => ({ a: Array.from({ length: a }, (_, i) => `a${i}`), b: Array.from({ length: b }, (_, i) => `b${i}`) });
+        const floors = [], cards = [];
+        const take = r => { floors.push(r.floor ?? null); cards.push(...(r.cards ?? [])); return r; };
+        let now = 1_000_000;
+        let r = take(M.zoneStart(null, { type: "zone", mode: "dive", question: "Q1 the door?", answers: { a: "Locked", b: "Open" }, set: { id: "S", index: 0, total: 3 } }, { now, stands: {} }));
+        r = take(M.zoneStep(r.floor, { type: "count" }, { now: now += 1000, sides: sides(5, 1), truthMarker: MARK }));
+        r = take(M.zoneStep(r.floor, { type: "due" }, { now: now += 6000, sides: sides(5, 1), truth: "a", conclusion: MARK,
+            next: { question: "Q2 the time?", answers: { a: "Night", b: "Morning" }, index: 1 } }));
+        const second = r.floor;
+        r = take(M.zoneStep(r.floor, { type: "count" }, { now: now += 1000, sides: sides(3, 3) }));
+        r = take(M.zoneStep(r.floor, { type: "due" }, { now: now += 6000, sides: sides(3, 3), truth: "b", next: { question: "Q3", answers: { a: "x", b: "y" }, index: 2 } }));
+        const tie = r;
+        const skipped = take(M.zoneStep(second, { type: "skipQuestion" }, { now: now += 1000, sides: sides(2, 2), truth: "a", next: null }));
+        const json = JSON.stringify(floors);
+        equal(stableJson({
+            marker: json.includes(MARK), truthField: /"truth"/.test(json), tie: [tie.floor, tie.dive?.outcome, Boolean(tie.zoneRecord)],
+            tieCardsNameMorning: cards.filter(c => c.key === "DRPG.Zones.dive.tie").some(c => JSON.stringify(c).includes("Morning")),
+            skipped: [skipped.floor, skipped.dive?.outcome, Boolean(skipped.zoneRecord)], second: second?.zone?.question,
+            rule: [...(WORLD_SECRET_RULES.settings?.trialQueue?.fields ?? [])].includes("truth")
+        }), stableJson({ marker: false, truthField: false, tie: [null, "tie", false], tieCardsNameMorning: false,
+            skipped: [null, "skipped", false], second: "Q2 the time?", rule: true }),
+            "{marker: the truth's marker in a floor; truthField: a truth field on a floor; tie: [no floor, its outcome, a record]; tie cards naming the true answer; skipped: [no floor, outcome, a record]; second: Q2 on the floor after a right answer; rule: world-secrets keeps truth out of trialQueue}");
+    }],
+    ["R3905 - the zone modes' census (E73 C5; the plan's 'every mode has a panel, a name and a start button'; the owner's 09.11 census): Straw Poll, Logic Dive and Scrum Debate are modes of floor-machine.mjs MODES, each with a MODE_RULES row of family \"zones\" and no Objection, a MODE_STARTS row naming the console's one zones action, a row of trial-zones-ui.mjs ZONE_PANELS with its panel and name, and the name in both languages; E99's case schema lists them (`caseModes`)", async () => {
+        /* E73 C5, 12.11.2026. Red at 4077664: no zone modes. */
+        const { MODES } = await import("./floor-machine.mjs");
+        const F = await import("./trial-floor.mjs");
+        const U = await import("./trial-zones-ui.mjs").catch(() => null);
+        const { caseModes } = await import("./case-schema.mjs");
+        const lang = async l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json());
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const zone = ["straw", "dive", "scrum"];
+        const row = m => ({ mode: MODES[m] ?? null, family: F.MODE_RULES[m]?.family ?? null, object: F.MODE_RULES[m]?.object ?? null,
+            start: F.MODE_STARTS[m]?.action ?? null, panel: typeof U?.ZONE_PANELS?.[m]?.panel, start2: U?.ZONE_PANELS?.[m]?.start ?? null,
+            names: [en.DRPG?.Floor?.mode?.[m] ?? null, pl.DRPG?.Floor?.mode?.[m] ?? null], inCase: caseModes().includes(m) });
+        equal(stableJson(zone.map(row)), stableJson([
+            { mode: "straw", family: "zones", object: false, start: "zones", panel: "function", start2: "zones", names: ["Straw Poll", "Straw Poll"], inCase: true },
+            { mode: "dive", family: "zones", object: false, start: "zones", panel: "function", start2: "zones", names: ["Logic Dive", "Logic Dive"], inCase: true },
+            { mode: "scrum", family: "zones", object: false, start: "zones", panel: "function", start2: "zones", names: ["Scrum Debate", "Scrum Debate"], inCase: true }
+        ]), "each zone mode: [its mode, family, Objection, start action, panel, panel's start, names en/pl, in the case schema]");
+    }],
+    ["R3906 - the Straw Poll's two thirds (E73 C3; TR3 = 2): zone-machine.mjs `strawVerdict` gives a Finding at two thirds of those counted and a split below - 6 people 4:2 and 7 people 5:2 a Finding, 4:3, 3:3 and 0:0 a split; the machine's count ends the floor with the Finding's text and its record, or the split's card and the split in the record; trial-floor.mjs's next step after a split is Scrum Debate", async () => {
+        /* E73 C3, 12.11.2026. Pure. Red at 4077664: no zone-machine.mjs. */
+        const M = await import("./zone-machine.mjs").catch(() => null);
+        must(M && typeof M.strawVerdict === "function", "there is no zone-machine.mjs strawVerdict");
+        const F = await import("./trial-floor.mjs");
+        const v = (a, b) => M.strawVerdict({ a, b });
+        const sides = (a, b) => ({ a: Array.from({ length: a }, (_, i) => `a${i}`), b: Array.from({ length: b }, (_, i) => `b${i}`) });
+        const start = M.zoneStart(null, { type: "zone", mode: "straw", question: "Who locked it?", answers: { a: "Inside", b: "Outside" } }, { now: 0 });
+        const found = M.zoneStep(start.floor, { type: "due" }, { now: 46_000, sides: sides(1, 4) });
+        const split = M.zoneStep(start.floor, { type: "count" }, { now: 2000, sides: sides(4, 3) });
+        const early = M.zoneStep(start.floor, { type: "due" }, { now: 2000, sides: sides(4, 0) });
+        const view = progress => F.trialNextStep({ floor: null, running: true, progress, afterwards: true, stopped: null, runner: null });
+        equal(stableJson({
+            verdicts: [v(4, 2), v(2, 5), v(4, 3), v(3, 3), v(0, 0)],
+            found: [found.floor, found.zoneRecord?.finding?.text, found.zoneRecord?.strawPoll?.split, found.cards?.[0]?.key, found.cards?.[0]?.sfx],
+            split: [split.zoneRecord?.finding ?? null, split.zoneRecord?.strawPoll?.split, split.cards?.[0]?.key], early: early.refused ?? null, seconds: start.floor.seconds,
+            next: [view({ strawPoll: { split: true } }), view({ strawPoll: { split: false } })]
+        }), stableJson({
+            verdicts: [{ answer: "a", split: false }, { answer: "b", split: false }, { answer: null, split: true }, { answer: null, split: true }, { answer: null, split: true }],
+            found: [null, "Outside", false, "DRPG.Zones.straw.finding", "strawPollResult"], split: [null, true, "DRPG.Zones.straw.split"], early: "DRPG.Floor.round.notDue", seconds: 45,
+            next: ["scrum", "openDebate"]
+        }), "{verdicts: 4:2, 2:5, 4:3, 3:3, 0:0; found: [floor, Finding, split, card, sound]; split: [Finding, split, card]; early: the clock not out; seconds; next: after a split, after a Finding}");
+    }],
+    ["R3907 - Logic Dive's judgement (E73 C4; TR3 = 2, TR27, TR32 = 2): `diveVerdict` 5:1 right, 4:3 wrong, 3:3 and 0:0 a tie; the machine's vote counted early only once everybody stands on one side after the grace, a count's 5 s pause with the count on the floor, right going on to the next question, the last one right the set's Finding (its conclusion), a wrong answer and a tie ending the set with no Finding, Skip question no answer kept, End this mode the question it stopped at", async () => {
+        /* E73 C4, 12.11.2026. Pure. Red at 4077664: no zone-machine.mjs. */
+        const M = await import("./zone-machine.mjs").catch(() => null);
+        must(M && typeof M.diveVerdict === "function", "there is no zone-machine.mjs diveVerdict");
+        const sides = (a, b) => ({ a: Array.from({ length: a }, (_, i) => `a${i}`), b: Array.from({ length: b }, (_, i) => `b${i}`) });
+        const start = M.zoneStart(null, { type: "zone", mode: "dive", question: "Q", answers: { a: "A1", b: "B1" }, set: { id: "S", index: 1, total: 2 } }, { now: 0 });
+        const tooSoon = M.zoneStep(start.floor, { type: "due" }, { now: 5000, sides: sides(6, 0), participants: 6 });
+        const notAll = M.zoneStep(start.floor, { type: "due" }, { now: 20_000, sides: sides(5, 0), participants: 6 });
+        const early = M.zoneStep(start.floor, { type: "due" }, { now: 20_000, sides: sides(6, 0), participants: 6 });
+        const judged = (a, b, truth) => M.zoneStep({ ...early.floor, zone: { ...early.floor.zone, counts: { a, b } } }, { type: "due" }, { now: 26_000, truth, conclusion: "The door was locked from inside" });
+        const solved = judged(5, 1, "a");
+        const stopped = M.zoneStep(start.floor, { type: "endMode" }, { now: 1000 });
+        equal(stableJson({
+            verdicts: [M.diveVerdict({ a: 5, b: 1 }, "a"), M.diveVerdict({ a: 4, b: 3 }, "b"), M.diveVerdict({ a: 3, b: 3 }, "a"), M.diveVerdict({ a: 0, b: 0 }, "a")],
+            early: [tooSoon.refused ?? null, notAll.refused ?? null, early.floor?.zone?.phase, early.floor?.seconds, stableJson(early.floor?.zone?.counts)],
+            solved: [solved.floor, solved.dive?.outcome, solved.zoneRecord?.finding?.text, solved.cards.map(c => c.key)],
+            wrong: [judged(4, 3, "b").dive?.outcome, Boolean(judged(4, 3, "b").zoneRecord)], tie: [judged(0, 0, "a").dive?.outcome, judged(0, 0, "a").cards.map(c => c.sfx)],
+            stopped: [stopped.dive?.outcome, stopped.dive?.index]
+        }), stableJson({
+            verdicts: ["right", "wrong", "tie", "tie"],
+            early: ["DRPG.Floor.round.notDue", "DRPG.Floor.round.notDue", "pause", 5, stableJson({ a: 6, b: 0 })],
+            solved: [null, "solved", "The door was locked from inside", ["DRPG.Zones.dive.right", "DRPG.Zones.dive.solved"]],
+            wrong: ["wrong", false], tie: ["tie", ["answerWrong"]], stopped: ["stopped", 1]
+        }), "{verdicts; early: [before the grace, not everybody, everybody: the pause, 5 s, the count]; solved: [floor, outcome, Finding, cards]; wrong; tie: [outcome, sound]; stopped: [outcome, question]}");
+    }],
+    ["R3908 - Scrum Debate's turns (E73 C5; the plan's 3:2 40 s, 4:3 37.5 s, 8:7 and 10:5 20 s): `scrumTurnSeconds` and `scrumTurns`; the setup's end fixes 2 x the larger camp's turns, the smaller camp first, the camps in turn and each camp's speakers in rotation from the camp as it stands; an empty camp ends it with the other camp's answer as a Finding; after the last turn the camps are told and no Finding made", async () => {
+        /* E73 C5, 12.11.2026. Pure. Red at 4077664: no zone-machine.mjs. */
+        const M = await import("./zone-machine.mjs").catch(() => null);
+        must(M && typeof M.scrumTurnSeconds === "function", "there is no zone-machine.mjs scrumTurnSeconds");
+        const start = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "In", b: "Out" } }, { now: 0 });
+        const camps = { a: ["x1", "x2", "x3"], b: ["y1", "y2"] };
+        let r = M.zoneStep(start.floor, { type: "due" }, { now: 46_000, sides: camps });
+        const speakers = [r.floor.holderId];
+        const first = { turns: r.floor.zone.turns, seconds: r.floor.seconds, side: r.floor.zone.side };
+        let now = 46_000;
+        for (let i = 0; i < 5; i++) {
+            now += 41_000;
+            r = M.zoneStep(r.floor, { type: "due" }, { now, sides: camps });
+            if (r.floor) speakers.push(r.floor.holderId);
+        }
+        const last = M.zoneStep(r.floor, { type: "due" }, { now: now + 41_000, sides: camps });
+        const emptied = M.zoneStep(start.floor, { type: "due" }, { now: 46_000, sides: { a: ["x1"], b: [] } });
+        equal(stableJson({
+            seconds: [[3, 2], [4, 3], [8, 7], [10, 5], [0, 0]].map(([a, b]) => M.scrumTurnSeconds(a, b)), turns: M.scrumTurns(4, 3), first, speakers,
+            last: [last.floor, last.cards.map(c => c.key), Boolean(last.zoneRecord)], emptied: [emptied.floor, emptied.zoneRecord?.finding?.text, emptied.cards.at(-1)?.key]
+        }), stableJson({
+            seconds: [40, 37.5, 20, 20, 0], turns: 8, first: { turns: 6, seconds: 40, side: "b" }, speakers: ["y1", "x1", "y2", "x2", "y1", "x3"],
+            last: [null, ["DRPG.Zones.scrum.over"], false], emptied: [null, "In", "DRPG.Zones.scrum.empty"]
+        }), "{seconds: 3:2, 4:3, 8:7, 10:5, 0:0; turns of 4:3; first: [turns, seconds, the smaller camp]; speakers in order; last: [floor, cards, a Finding]; emptied: [floor, Finding, card]}");
     }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*
@@ -27780,9 +27923,12 @@ const INVARIANTS = [
         for (const [name, [floor, running, record = { objections: {} }]] of Object.entries(states)) {
             read[name] = Object.fromEntries(F.BAR_OPS.map(op => [op, F.barRefusal(op, floor, { running, now: NOW, record })]));
         }
-        const OPS = ["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"];
+        // E73 C6 (12.11.2026): Count now and Skip question last, which only a zone mode's floor takes (the console draws
+        // them on one alone); every state here refuses them as no mode of theirs.
+        const OPS = ["skip", "minus", "plus", "overrule", "endMode", "back", "repoint", "count", "skipQuestion"];
         const all = key => Object.fromEntries(OPS.map(op => [op, key]));
-        const open = Object.fromEntries(OPS.map(op => [op, null]));
+        const zoneOps = { count: "DRPG.Floor.bar.noMode", skipQuestion: "DRPG.Floor.bar.noMode" };
+        const open = { ...Object.fromEntries(OPS.map(op => [op, null])), ...zoneOps };
         const none = "DRPG.Floor.bar.noOverrule";
         equal(stableJson(read), stableJson({
             order: OPS,
@@ -28601,8 +28747,9 @@ const INVARIANTS = [
         const M = await import("./floor-machine.mjs");
         ok(Mu.TRIAL_MODE_MUSIC && typeof Mu.trialMusicState === "function", "music.mjs has no table of the floor's modes (TRIAL_MODE_MUSIC, trialMusicState)");
         if (!Mu.TRIAL_MODE_MUSIC || typeof Mu.trialMusicState !== "function") return;
+        // E73 C6 (12.11.2026): the three zone modes play the debate's music.
         const want = { debate: "trial.debate", objection: "trial.objection", rebuttal: "trial.objection", testimony: "trial.discussion",
-            panic: "trial.discussion", closing: "trial.discussion" };
+            panic: "trial.discussion", closing: "trial.discussion", straw: "trial.debate", dive: "trial.debate", scrum: "trial.debate" };
         const NOW = 40_000_000, A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD";
         const speaking = { active: true, targetId: null, pending: false, messageId: null, before: [], gmNote: null, topic: null, round: null,
             mode: "closing", holderId: A, seconds: 300, startedAt: NOW - 100_000,
@@ -37435,12 +37582,12 @@ const INVARIANTS = [
             footers: {
                 none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
                 running: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["zones", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
                 chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
                 final: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["zones", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
             },
             ended: null,
@@ -44836,7 +44983,8 @@ const INVARIANTS = [
         const raw = await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText);
         const src = stripComments(raw);
         const table = bodyOf(raw, "export const TRIAL_NEXT_STEPS", { until: "export function trialNextStep(" });
-        ok(table.length > 300 && /Scrum Debate/.test(table) && /\/\/ \[view => [^\n]*"scrum"\]/.test(table), "the table holds no commented row slot for E73's Scrum Debate after a split in the Straw Poll");
+        // E73 C3 (12.11.2026) filled the slot: a row, no longer a comment, that answers Scrum Debate after a split Straw Poll.
+        ok(table.length > 300 && /Scrum Debate/.test(table) && /\n\s*\[view => [^\n]*strawPoll\?\.split === true, "scrum"\]/.test(table), "the table holds no row for E73's Scrum Debate after a split in the Straw Poll");
         ok(!/"closeTrial"|"endTrial"|"end"\]/.test(stripComments(table)) && src.length > 2000, "a row of the table closes the trial (05.10, topic C: the sentence after the verdict is E70's)");
         const steps = [...new Set(Object.values(HEAD))].sort();
         equal(steps.length, 13, "the views do not reach every step");

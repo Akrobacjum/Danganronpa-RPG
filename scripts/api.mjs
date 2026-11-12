@@ -1106,6 +1106,21 @@ export const DrpgApi = {
        has none, and past the Despair the fee charged for only with `beyondPaid`. Each said why when refused. */
     missingKeys: (...a) => import("./trial-modes.mjs").then(m => m.missingKeys(...a)),
     revealMissingKey: (...a) => import("./trial-modes.mjs").then(m => m.revealMissingKey(...a)),
+    /* The trial hall's zone modes (E73), on any GM, each said why when refused: `startStrawPoll({ question, a, b })` 45 s
+       and one count; `startLogicDive(setId, { from })` a set of the GMs' from its question `from` (from 1), else where it
+       stopped; `startScrumDebate({ question, a, b, thesis })` the camps' 45 s, then the turns; `countNow()` a Straw Poll
+       or a Logic Dive question counted at once; `skipQuestion()` the next question, no answer kept; `openZonePicker(mode)`
+       the console's window; `openDiveSets()` and `editDiveSet(id)` the sets' editor (the truth the GMs' alone); `zoneSides()`
+       who stands on which side now. Skip, -30 s, +30 s and End this mode are the bar's, above. */
+    startStrawPoll: (...a) => import("./trial-zones.mjs").then(m => m.startStrawPoll(...a)),
+    startLogicDive: (...a) => import("./trial-zones.mjs").then(m => m.startLogicDive(...a)),
+    startScrumDebate: (...a) => import("./trial-zones.mjs").then(m => m.startScrumDebate(...a)),
+    countNow: (...a) => import("./trial-zones.mjs").then(m => m.countNow(...a)),
+    skipQuestion: (...a) => import("./trial-zones.mjs").then(m => m.skipQuestion(...a)),
+    zoneSides: (...a) => import("./trial-zones.mjs").then(m => m.sidesNow(...a)),
+    openZonePicker: (mode = null) => import("./trial-zones-ui.mjs").then(m => m.openZonePicker({ mode })),
+    openDiveSets: (...a) => import("./trial-zones-ui.mjs").then(m => m.openDiveSets(...a)),
+    editDiveSet: (...a) => import("./trial-zones-ui.mjs").then(m => m.editDiveSet(...a)),
 
     openVote,
     closeVote,
