@@ -47330,6 +47330,10 @@ const INVARIANTS = [
          * has no glow; the voice tile does not stand right under the Projects tray". Chromium, the glass harness at
          * 1366x768, a player, Legacy, before: the tray 982-1344 x 74-196, the voice tile 1181-1344 x 395-583 (199 px
          * under it), the room tile's box-shadow none. jsdom lays nothing out, so the tray's box is handed in.
+         * E105, 12.11.2026: and clear of the corner's launchers. The glass sweep's Legacy check read the GM's tile at
+         * 1366x560 over the GM launcher and Foundry tools (the tile 1181-1344 x 204-392, the cluster's top 383); the third
+         * reading hands in that tile (163x188) and a launcher of the cluster at 1250-1344 x 383-560: the tile keeps its
+         * top and steps left to stand 8 px clear (right 124, its edge at 1242). Red on f06d0405: right 22.
          */
         const G = await import("./glass.mjs");
         ok(typeof G.flatVoicePlacement === "function", "glass.mjs exports no flatVoicePlacement");
@@ -47344,6 +47348,23 @@ const INVARIANTS = [
             read.push(G.flatVoicePlacement(1366));
             Object.defineProperty(tray, "offsetWidth", { configurable: true, get: () => 0 });
             read.push(G.flatVoicePlacement(1366));
+            Object.defineProperty(tray, "offsetWidth", { configurable: true, get: () => 362 });
+            const tilePlanted = !document.getElementById("drpg-voice-tile");
+            const tile = document.getElementById("drpg-voice-tile") ?? Object.assign(document.createElement("div"), { id: "drpg-voice-tile" });
+            if (tilePlanted) document.body.append(tile);
+            const launcher = Object.assign(document.createElement("button"), { id: "r3506-launcher" });
+            launcher.dataset.drpgCluster = "";
+            launcher.getBoundingClientRect = () => ({ left: 1250, top: 383, right: 1344, bottom: 560, width: 94, height: 177 });
+            document.body.append(launcher);
+            try {
+                Object.defineProperty(tile, "offsetWidth", { configurable: true, get: () => 163 });
+                Object.defineProperty(tile, "offsetHeight", { configurable: true, get: () => 188 });
+                read.push(G.flatVoicePlacement(1366));
+            } finally {
+                delete tile.offsetWidth; delete tile.offsetHeight;
+                launcher.remove();
+                if (tilePlanted) tile.remove();
+            }
         } finally {
             delete tray.offsetWidth; delete tray.getBoundingClientRect;
             if (planted) tray.remove();
@@ -47351,7 +47372,7 @@ const INVARIANTS = [
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         const seat = /body:not\(\.drpg-theme-stained-glass\) > #drpg-voice-tile\[data-place="tray"\]\s*\{[^}]*top:\s*var\(--drpg-voice-y\)[^}]*right:\s*var\(--drpg-voice-right\)/.test(css);
         const glow = /body:not\(\.drpg-theme-stained-glass\)\[data-drpg-phase\] #drpg-room-tile\s*\{[^}]*box-shadow:[^}]*var\(--drpg-room-phase\) 28%/.test(css);
-        equal(stableJson({ read, seat, glow }), stableJson({ read: [{ place: "tray", y: 204, right: 22 }, null], seat: true, glow: true }),
+        equal(stableJson({ read, seat, glow }), stableJson({ read: [{ place: "tray", y: 204, right: 22 }, null, { place: "tray", y: 204, right: 124 }], seat: true, glow: true }),
             "{read: the placement with the tray drawn and with none; seat: the sheet's rule; glow: the room tile's phase glow} - Legacy's tiles must stand at Stained Glass's anchors");
     }],
     ["R3507 - the notice history window wears the active theme's ground (styles/components.css; E48 K6, S12-100): under the theme that is not glass its content is the kit's `--drpg-kit-notice-ground`, Legacy's panel ground", async () => {

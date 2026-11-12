@@ -1345,7 +1345,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       return done();
     }
     if (out.expect === "none") {
-      if (tile.dataset.place || loose || !own) out.why.push(`without a curtain the tile is stamped ${tile.dataset.place ?? "-"} and its portrait ${own ? "inside" : "moved"}`);
+      /* UNDER THE PROJECTS TRAY SINCE E48 K6 (S12-98, the owner's "kafel głosu tuż pod tacą Projects"): without a curtain
+         glass.mjs `flatVoicePlacement` stamps the tile `tray` and stands it 8 px under the tray, right edge on the tray's
+         (or, E105 12.11.2026, stepped left clear of the corner's launchers on a short screen); with no tray drawn, no
+         place. This read "no place stamped" until 12.11 - stale since f22a7e87, every Legacy desk size red. So: the place
+         the placement gives, and the tile at its box (a pixel of slack). */
+      const fp = typeof g?.flatVoicePlacement === "function" ? g.flatVoicePlacement(W) : null;
+      const tb = tile.getBoundingClientRect();
+      out.place = tile.dataset.place ?? null;
+      if ((tile.dataset.place ?? null) !== (fp ? "tray" : null) || loose || !own) out.why.push(`without a curtain the tile is stamped ${tile.dataset.place ?? "-"} where its placement says ${fp ? "tray" : "-"}, and its portrait ${own ? "inside" : "moved"}`);
+      else if (fp && (!near(tb.top, fp.y) || !near(tb.right, W - fp.right))) out.why.push(`the tile stands at top ${Math.round(tb.top)}, right ${Math.round(tb.right)}; its placement says ${fp.y}, ${W - fp.right}`);
       /* WHERE NO CURTAIN IS CUT (E78 fix r2-H2, 14.10.2026): under Monokuma Legacy every desk line read "voice ok none"
          and nothing of the tile was measured - its box (163x188 at the right wall over the corner's foot, the base
          sheet's) and what it holds. Now: inside the screen, whole (`drpgVoiceParts`), and over none of the module's
@@ -1358,7 +1367,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       out.parts = parts.read; out.why.push(...parts.why);
       const meet = (p, q) => p.left < q.right - 1 && q.left < p.right - 1 && p.top < q.bottom - 1 && q.top < p.bottom - 1;
       const over = ["drpg-room-tile", "drpg-notices-corner", "drpg-hud", "drpg-player-status", "drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher",
-        "drpg-gm-launcher", "drpg-foundry-tools"].filter(id => { const e = document.getElementById(id), b = e?.getBoundingClientRect(); return b && b.width > 1 && b.height > 1 && meet(t, b); });
+        "drpg-gm-launcher", "drpg-foundry-tools", "countdowns"].filter(id => { const e = document.getElementById(id), b = e?.getBoundingClientRect(); return b && b.width > 1 && b.height > 1 && meet(t, b); });
       if (over.length) out.why.push(`the tile lies over ${over.join(", ")}`);
       /* and standing still - the ticker off - its band holds its widest word (H81 fix r1): read with the switch's class
          on the body for the reading alone (no curtain is cut here to recut), and put back */

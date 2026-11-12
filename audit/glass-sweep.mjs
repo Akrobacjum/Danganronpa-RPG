@@ -1549,10 +1549,12 @@ async function plantVoice() {
    (E78 fix r2-H2); and (H81 fix r1, the review's H81C2-02) the still word stood where dc35104 stood it, in the 69 px
    left of the buttons, must fail on its band. */
 async function plantVoiceNone() {
-    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("bottom"), res = {};
-    tile.style.setProperty("bottom", "-150px");
+    /* moved by `translate`, not `bottom` (E105, 12.11.2026): since E48 K6 the tile stands under the tray by its top
+       (`data-place="tray"`, --drpg-voice-y), and a `bottom` moved nothing - "voice control off reads as a pass" */
+    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("translate"), res = {};
+    tile.style.setProperty("translate", `0 ${innerHeight}px`);
     const r = await window.drpgVoiceCheck({ cuts: false });
-    if (was) tile.style.setProperty("bottom", was); else tile.style.removeProperty("bottom");
+    if (was) tile.style.setProperty("translate", was); else tile.style.removeProperty("translate");
     res.off = { ok: r.ok, why: r.why, pass: !r.ok && /on a screen/.test(r.why) };
     const style = document.createElement("style");
     style.textContent = "body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: 76px !important; }";

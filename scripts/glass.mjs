@@ -443,8 +443,23 @@ const VOICE_UNDER_TRAY = 8;
 export function flatVoicePlacement(W = innerWidth) {
   const tray = document.getElementById("countdowns");
   if (!tray || !(tray.offsetWidth > 0) || inFoundryWindow(tray)) return null;
-  const r = tray.getBoundingClientRect();
-  return { place: "tray", y: Math.round(r.bottom + VOICE_UNDER_TRAY), right: Math.max(0, Math.round(W - r.right)) };
+  const r = tray.getBoundingClientRect(), y = Math.round(r.bottom + VOICE_UNDER_TRAY);
+  let right = Math.max(0, Math.round(W - r.right));
+  /* AND CLEAR OF THE CORNER'S LAUNCHERS (E105, 12.11.2026; the glass sweep's Legacy voice check). Under the tray the tile
+     ran 188 px down; on a short screen that reached the launchers' column: the glass harness, the GM, 1366x560, the tile
+     1181-1344 x 204-392 over the GM launcher and Foundry tools (the cluster's top 383). There is no room for it above
+     them either (187 px between the tray's foot and the cluster's top, the tile 188 and two gaps of 8), so it keeps its
+     place under the tray and steps left until it stands VOICE_UNDER_TRAY clear of every launcher it would meet: at
+     1366x560 its right edge at 1242 (the cluster's left 1250 less 8), its top still 8 px under the tray. Where nothing
+     is in its way - every desk size of the harness taller than 600 - nothing moves. */
+  const tile = document.getElementById("drpg-voice-tile"), w = tile?.offsetWidth || 0, h = tile?.offsetHeight || 0;
+  if (w && h) {
+    const x1 = W - right, x0 = x1 - w;
+    const hit = [...document.querySelectorAll(LAUNCHERS)].map(e => e.getBoundingClientRect())
+      .filter(b => b.width > 1 && b.height > 1 && b.left < x1 && b.right > x0 && b.top < y + h + VOICE_UNDER_TRAY && b.bottom > y);
+    if (hit.length) right = Math.max(0, Math.round(W - (Math.min(...hit.map(b => b.left)) - VOICE_UNDER_TRAY)));
+  }
+  return { place: "tray", y, right };
 }
 function placeFlatVoiceTile() {
   const tile = document.getElementById("drpg-voice-tile"), body = document.body;
