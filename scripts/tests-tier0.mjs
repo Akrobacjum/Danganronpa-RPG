@@ -18953,7 +18953,7 @@ const REGRESSIONS = [
             en: {
                 broken: [],
                 armed: ["Aiko may now use advantage on their next roll.", "Aiko may now use a flat bonus or penalty on their next roll."],
-                forYou: "Another student spent Hope on you: your next roll has advantage. It applies by itself.",
+                forYou: "Another student spent Hope on you: your next roll gets advantage. It is already switched on in your roll window.",
                 pending: "Waiting on your next roll: a flat bonus or penalty. Spent the moment you roll.",
                 waits: "Armed after this window opened: advantage and a flat bonus or penalty. It is not part of this roll - it waits for your next one.",
                 price: ["You get 2 actions back.", true, true],
@@ -18966,7 +18966,7 @@ const REGRESSIONS = [
             pl: {
                 broken: [],
                 armed: ["Aiko może teraz użyć przewagi przy następnym rzucie.", "Aiko może teraz użyć stałej premii albo kary przy następnym rzucie."],
-                forYou: "Inny uczeń wydał na ciebie Hope: twój następny rzut ma przewagę. Działa samo.",
+                forYou: "Inny uczeń wydaje na ciebie Hope: twój następny rzut ma przewagę. Okno rzutu ma to już włączone.",
                 pending: "Czeka na twój następny rzut: stała premia albo kara. Zużyte w chwili rzutu.",
                 waits: "Nałożone po otwarciu tego okna: przewaga i stała premia albo kara. Nie wchodzi do tego rzutu - czeka na twój następny.",
                 price: ["Odzyskujesz: 2 akcje.", true, true],

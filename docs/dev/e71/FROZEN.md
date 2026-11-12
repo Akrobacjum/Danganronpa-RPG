@@ -16,7 +16,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | --- | --- | --- |
 | e61-62 | 7bbbd3cd | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
-| e97-98 | 5f57b861 | 7fa07aee |
+| e97-98 | 1b8d19af | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
 | e92 | 7d907a7e | fa73b601 |
 | e93 | 15843942 | f22a7e87 |
@@ -32,7 +32,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.en.md | ## 11. Projects and traps | e64, e93 |
 | gm-handbook.en.md | ## 14. Investigation | e64 |
 | gm-handbook.en.md | ## 15. The Class Trial | e64, e72, e73, e97-98 |
-| gm-handbook.en.md | ## 16. End of chapter and season reset | e61-62, e73, gaps-a |
+| gm-handbook.en.md | ## 16. End of chapter and season reset | e61-62, e73, e97-98, gaps-a |
 | gm-handbook.en.md | ## 20. Troubleshooting | gaps-a |
 | gm-handbook.en.md | ## 3. The GM panel | e72 |
 | gm-handbook.en.md | ## 5. Actions and budgets | e64 |
@@ -51,7 +51,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.pl.md | ## 11. Projekty i pułapki | e64, e93 |
 | gm-handbook.pl.md | ## 14. Investigation | e64 |
 | gm-handbook.pl.md | ## 15. Class Trial | e64, e72, e73, e97-98 |
-| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | e61-62, e73, gaps-a |
+| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | e61-62, e73, e97-98, gaps-a |
 | gm-handbook.pl.md | ## 20. Rozwiązywanie problemów | gaps-a |
 | gm-handbook.pl.md | ## 3. Panel GMa | e72 |
 | gm-handbook.pl.md | ## 5. Akcje i budżety | e64 |
@@ -79,7 +79,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.en.md | ### Despair Calls - what Monokuma can do to you | e72 |
 | player-handbook.en.md | ### If you are the killer | e64 |
 | player-handbook.en.md | ### If you are the victim | e64 |
-| player-handbook.en.md | ### Level Up | e64, e73 |
+| player-handbook.en.md | ### Level Up | e64, e73, e97-98 |
 | player-handbook.en.md | ### Listen - Shadow, 1 action | e93 |
 | player-handbook.en.md | ### Observe - Eye, 1 action | e64 |
 | player-handbook.en.md | ### Palm - Hand, 1 action | e93 |
@@ -88,7 +88,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.en.md | ### Rest - no roll, 1 or 2 actions | e93 |
 | player-handbook.en.md | ### Rolling | e92 |
 | player-handbook.en.md | ### Tamper - Shadow, 1 action | e64 |
-| player-handbook.en.md | ### The Final Trial | e73 |
+| player-handbook.en.md | ### The Final Trial | e73, e97-98 |
 | player-handbook.en.md | ### The morning after | e72 |
 | player-handbook.en.md | ### The overflow | e72 |
 | player-handbook.en.md | ### The vote | e72 |
@@ -100,12 +100,12 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ## 5. Hope i Hope Calls | e64, e72 |
 | player-handbook.pl.md | ### Despair Calls - co Monokuma może ci zrobić | e72 |
 | player-handbook.pl.md | ### Dwa stany, których nie chcesz | e64 |
-| player-handbook.pl.md | ### Final Trial | e73 |
+| player-handbook.pl.md | ### Final Trial | e73, e97-98 |
 | player-handbook.pl.md | ### Gra Monocubem | e64, e72 |
 | player-handbook.pl.md | ### Głosowanie | e72 |
 | player-handbook.pl.md | ### Jeśli jesteś ofiarą | e64 |
 | player-handbook.pl.md | ### Jeśli jesteś zabójcą | e64 |
-| player-handbook.pl.md | ### Level Up | e64, e73 |
+| player-handbook.pl.md | ### Level Up | e64, e73, e97-98 |
 | player-handbook.pl.md | ### Listen - Shadow, 1 akcja | e93 |
 | player-handbook.pl.md | ### Następny poranek | e72 |
 | player-handbook.pl.md | ### Observe - Eye, 1 akcja | e64 |
@@ -132,7 +132,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Bridge.what.advancement.apply` | e72 |
 | `DRPG.Bridge.what.analyze.resolve` | e93 |
 | `DRPG.Bridge.what.body.loot` | e72 |
-| `DRPG.Bridge.what.bridge.ack` | e73 |
+| `DRPG.Bridge.what.bridge.ack` | e73, e97-98 |
 | `DRPG.Bridge.what.call.arm` | e72 |
 | `DRPG.Bridge.what.handover.bullet` | e93 |
 | `DRPG.Bridge.what.handover.item` | e93 |
@@ -142,11 +142,11 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Bridge.what.observe.resolve` | e93 |
 | `DRPG.Bridge.what.overflow.check` | e93 |
 | `DRPG.Bridge.what.passage.share` | e93 |
-| `DRPG.Bridge.what.ready.answer` | e73 |
-| `DRPG.Bridge.what.ready.open` | e73 |
-| `DRPG.Bridge.what.trial.claim` | e73 |
-| `DRPG.Bridge.what.trial.present` | e73 |
-| `DRPG.Bridge.what.trial.turn` | e73 |
+| `DRPG.Bridge.what.ready.answer` | e73, e97-98 |
+| `DRPG.Bridge.what.ready.open` | e73, e97-98 |
+| `DRPG.Bridge.what.trial.claim` | e73, e97-98 |
+| `DRPG.Bridge.what.trial.present` | e73, e97-98 |
+| `DRPG.Bridge.what.trial.turn` | e73, e97-98 |
 | `DRPG.Bridge.why.answerKeyMissing` | e72, e92 |
 | `DRPG.Bridge.why.cannotLeave` | e93 |
 | `DRPG.Bridge.why.chained` | e93 |
@@ -235,16 +235,16 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Config.SFX_EVENTS.debateOpen.hint` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.debateOpen.label` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.execution` | e61-62, e92 |
-| `DRPG.Config.SFX_EVENTS.keyReveal` | e73 |
-| `DRPG.Config.SFX_EVENTS.keyReveal.hint` | e73 |
-| `DRPG.Config.SFX_EVENTS.keyReveal.label` | e73 |
+| `DRPG.Config.SFX_EVENTS.keyReveal` | e73, e97-98 |
+| `DRPG.Config.SFX_EVENTS.keyReveal.hint` | e73, e97-98 |
+| `DRPG.Config.SFX_EVENTS.keyReveal.label` | e73, e97-98 |
 | `DRPG.Config.SFX_EVENTS.verdict` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.verdict.hint` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.verdict.label` | e61-62, e92 |
 | `DRPG.DhSettings` | e61-62, e92 |
 | `DRPG.DhSettings.details` | e61-62, e92 |
 | `DRPG.DhSettings.title` | e61-62, e92 |
-| `DRPG.Events` | e72, e73, gaps-a |
+| `DRPG.Events` | e72, e73, e97-98, gaps-a |
 | `DRPG.Events.bodySubRoom` | e72, gaps-a |
 | `DRPG.Events.bodyTitle` | e72, gaps-a |
 | `DRPG.Events.incidentTitle` | e72 |
@@ -257,29 +257,29 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Explain.status.actionsWhat` | e64 |
 | `DRPG.Explain.status.actionsWounded` | e64 |
 | `DRPG.Explain.status.moveTitle` | e64 |
-| `DRPG.Floor` | e73 |
-| `DRPG.Floor.bar.inClosing` | e73 |
-| `DRPG.Floor.bar.minusSeconds` | e73 |
-| `DRPG.Floor.bar.plusSeconds` | e73 |
-| `DRPG.Floor.discussionNote` | e73 |
-| `DRPG.Floor.endClosing` | e72, e73, gaps-a |
-| `DRPG.Floor.gmStepTitle` | e73 |
-| `DRPG.Floor.lead.closing` | e73 |
-| `DRPG.Floor.lead.round` | e73 |
-| `DRPG.Floor.lead.sentenceWaits` | e73 |
-| `DRPG.Floor.mode.closing` | e73 |
-| `DRPG.Floor.mode.panic` | e73 |
-| `DRPG.Floor.mode.testimony` | e73 |
-| `DRPG.Floor.next` | e73 |
-| `DRPG.Floor.next.chapterEnd` | e73 |
-| `DRPG.Floor.next.finishElsewhere` | e73 |
-| `DRPG.Floor.next.start` | e73 |
-| `DRPG.Floor.next.verdictElsewhere` | e73 |
-| `DRPG.Floor.nobodyForTrial` | e73 |
-| `DRPG.Floor.objectionNote` | e73 |
-| `DRPG.Floor.startClosing` | e73 |
-| `DRPG.Mastermind.finalAddNote` | e73 |
-| `DRPG.Mastermind.finalPlacedIn` | e73 |
+| `DRPG.Floor` | e73, e97-98 |
+| `DRPG.Floor.bar.inClosing` | e73, e97-98 |
+| `DRPG.Floor.bar.minusSeconds` | e73, e97-98 |
+| `DRPG.Floor.bar.plusSeconds` | e73, e97-98 |
+| `DRPG.Floor.discussionNote` | e73, e97-98 |
+| `DRPG.Floor.endClosing` | e72, e73, e97-98, gaps-a |
+| `DRPG.Floor.gmStepTitle` | e73, e97-98 |
+| `DRPG.Floor.lead.closing` | e73, e97-98 |
+| `DRPG.Floor.lead.round` | e73, e97-98 |
+| `DRPG.Floor.lead.sentenceWaits` | e73, e97-98 |
+| `DRPG.Floor.mode.closing` | e73, e97-98 |
+| `DRPG.Floor.mode.panic` | e73, e97-98 |
+| `DRPG.Floor.mode.testimony` | e73, e97-98 |
+| `DRPG.Floor.next` | e73, e97-98 |
+| `DRPG.Floor.next.chapterEnd` | e73, e97-98 |
+| `DRPG.Floor.next.finishElsewhere` | e73, e97-98 |
+| `DRPG.Floor.next.start` | e73, e97-98 |
+| `DRPG.Floor.next.verdictElsewhere` | e73, e97-98 |
+| `DRPG.Floor.nobodyForTrial` | e73, e97-98 |
+| `DRPG.Floor.objectionNote` | e73, e97-98 |
+| `DRPG.Floor.startClosing` | e73, e97-98 |
+| `DRPG.Mastermind.finalAddNote` | e73, e97-98 |
+| `DRPG.Mastermind.finalPlacedIn` | e73, e97-98 |
 | `DRPG.Monocub` | e72 |
 | `DRPG.Monocub.cannotMeddle` | e72 |
 | `DRPG.Monocub.critHelpNothing` | e72 |
@@ -425,11 +425,11 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Trial.presentWithAnalysis` | e72 |
 | `DRPG.Trial.presentWithoutNote` | e72 |
 | `DRPG.Trial.presented` | e72 |
-| `DRPG.TrialScene.castHeading` | e73 |
-| `DRPG.TrialScene.hallRoom.words` | e73 |
-| `DRPG.TrialScene.noCast` | e73 |
-| `DRPG.TrialScene.noScene` | e73 |
-| `DRPG.TrialScene.reveal` | e73 |
+| `DRPG.TrialScene.castHeading` | e73, e97-98 |
+| `DRPG.TrialScene.hallRoom.words` | e73, e97-98 |
+| `DRPG.TrialScene.noCast` | e73, e97-98 |
+| `DRPG.TrialScene.noScene` | e73, e97-98 |
+| `DRPG.TrialScene.reveal` | e73, e97-98 |
 | `DRPG.Vault.descriptionColumn` | e93 |
 | `DRPG.Vault.descriptionPlaceholder` | e93 |
 | `DRPG.Vault.discoverAll` | e72 |
@@ -469,6 +469,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 ## config.mjs hunks (base lines, for the record)
 
 - e61-62: 4885-4890; 4925-4930; 4927-4932
+- e97-98: 3942-3946; 4910-4915
 - e73: 3942-3946; 4910-4915
 - e92: 243-247; 4885-4890; 4925-4930; 4927-4932
 - e93: 1653-1658; 1656-1660; 1672-1677; 1675-1679; 1679-1683; 2081-2086; 2409-2414; 5028-5033

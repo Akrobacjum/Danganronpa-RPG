@@ -21287,7 +21287,7 @@ const INVARIANTS = [
         equal(J([drawn.slice(0, 3), ends(drawn[3], 0), written, polish?.slice(0, 2), ends(polish?.[2], 1)]),
             J([[[["both", "Both ways", true], ["0", "Only from R902 Dorm to R902 Lab", false], ["1", "Only from R902 Lab to R902 Dorm", false]], false, START[0]], true,
                 [1, [["oneWay", true]], [false, false, true]],
-                [[["both", "W obie strony", false], ["0", "Tylko z: R902 Dorm, do: R902 Lab", false], ["1", "Tylko z: R902 Lab, do: R902 Dorm", true]], START[1]], true]),
+                [[["both", "W obie strony", false], ["0", "Tylko z pokoju R902 Dorm do pokoju R902 Lab", false], ["1", "Tylko z pokoju R902 Lab do pokoju R902 Dorm", true]], START[1]], true]),
             "[drawn: the tunnel's choice as [value, words, chosen], a choice on the wall's row, the column's line; the footnote's two sentences; "
             + "chosen 'from the Lab': the row's way, the log, the choice drawn again; in Polish: the choice, the column's line; the footnote's two sentences]");
     }],
@@ -21347,7 +21347,7 @@ const INVARIANTS = [
             J([[["R904 Dorm - R904 Lab", null, null, false], ["R904 Gym - R904 Pool", "oneWay", "One way only: from R904 Pool to R904 Gym.", false],
                 ["R904 Hall - R904 Kitchen", "walk", "Walk through the secret passage.", null]],
                 "Stand on the passage's mark, or a square next to it, first.",
-                "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez tajne przejście.", "Tylko w jedną stronę, z: {from}, do: {to}."]),
+                "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez tajne przejście.", "Tylko w jedną stronę: z pokoju {from} do pokoju {to}."]),
             "[each row as [its rooms, its line's kind, its line, 'Go through' disabled (null: no button)], the refusal away from an end in English, in Polish, the walk line and the way line in Polish]");
     }],
     ["R908 - a token moved onto a tunnel's end goes through it as 'Go through' does (H81-13, H81-14, H81-16): a knower's own move - a player's of their student or a GM's - that ends with the token's centre square on an end, on one floor or onto stairs to another, having started off it, names that tunnel, a one-way tunnel's way out included (its refusal is the button's); the crossing's own landing on the far end, a put-back, a teleport or a displace, a move that ends beside the end or runs across it, one that only climbs, turns or changes floor, another user's move and a character that knows no tunnel name none; the primary GM's landing write carries the crossing's mark", async () => {
