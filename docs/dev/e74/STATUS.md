@@ -99,8 +99,12 @@ None.
 Round 1 (12.11, C1-C6): https://claude.ai/artifact/KH6J3QM34VnLosMt9prJpU - the Infiltrate window with its seven rows,
 Force the Door's and Pick the Lock's windows (player), Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at scale 2.
 Headless harness in audit/style-harness.html: not Foundry, no Font Awesome, no window frame; the cards are not drawn.
-Seen there: Shut the Door and Force the Door draw the same door glyph (the module's glyph map, E48's, draws `fa-door-closed`
-and `fa-door-open` alike); the plan asks opposite actions to differ - owner to say, no glyph drawn in this round. Seen and
+Seen there: Shut the Door and Force the Door drew the same door glyph (`fa-door-closed` and `fa-door-open` are one
+drawing). Fixed after the coordinator's note: Shut wears `fa-road-barrier` (Legacy's barrier) and Force `fa-hand-fist`
+(Legacy's fist); under Stained Glass the six rows wear E48's own drawings (tail, dash, shut-door, force-door, pick-lock,
+keep-watch) through tests-glyphs.mjs `FACE_RULES`, pixel-icons.css regenerated; `node tools/check.mjs glyphs` green. Seen and
 fixed: Force's and Pick's windows had an empty left column (no briefing); they have the row's line now. Version 2 of the
 page adds Room Setup's Doors tab with the Broken column (GM); seen there in Monokuma Legacy PL: the headers "Zamknięte"
-and "Bez prywatności" are cut in their narrow columns - not checked whether that was so before the new column.
+and "Bez prywatności" are cut in their narrow columns. Checked at the base commit f22a7e87 (the Doors tab captured and
+shot the same way, Monokuma Legacy PL): already cut there, before the Broken column - not caused by this stage, left as it
+is (a Legacy CSS matter outside E74).

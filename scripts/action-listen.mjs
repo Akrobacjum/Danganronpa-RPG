@@ -43,7 +43,7 @@ export function listenLabels(neighbours, known) {
 }
 
 /** Each row's icon in the Infiltrate window. */
-const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-door-closed", force: "fa-door-open", pick: "fa-key", keepWatch: "fa-eye" });
+const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-road-barrier", force: "fa-hand-fist", pick: "fa-key", keepWatch: "fa-eye" });
 /** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
 const BUILT = new Set(["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"]);
 

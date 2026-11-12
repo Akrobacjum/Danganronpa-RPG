@@ -608,7 +608,15 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 /** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
 export const FACE_RULES = [
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
-    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"]
+    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
+    // The Infiltrate window's rows (E69, E74; E48 rows 47-55): each wears its own drawing under Stained Glass, where its FA
+    // class is another's (Move's prints, Sprint's runner, the key, Observe's eye) or Legacy's (the barrier, the fist).
+    ["Infiltrate: Tail Someone (its fa-shoe-prints is Move's)", '.drpg-choice:has(> input[value="tail"]) > i.fa-shoe-prints', "tail"],
+    ["Infiltrate: Dash (its fa-person-running is Sprint's)", '.drpg-choice:has(> input[value="dash"]) > i.fa-person-running', "dash"],
+    ["Infiltrate: Shut the Door (its fa-road-barrier is the barrier)", '.drpg-choice:has(> input[value="shut"]) > i.fa-road-barrier', "shut-door"],
+    ["Infiltrate: Force the Door (its fa-hand-fist is the fist)", '.drpg-choice:has(> input[value="force"]) > i.fa-hand-fist', "force-door"],
+    ["Infiltrate: Pick the Lock (its fa-key is the key)", '.drpg-choice:has(> input[value="pick"]) > i.fa-key', "pick-lock"],
+    ["Infiltrate: Keep Watch (its fa-eye is Observe's)", '.drpg-choice:has(> input[value="keepWatch"]) > i.fa-eye', "keep-watch"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,
