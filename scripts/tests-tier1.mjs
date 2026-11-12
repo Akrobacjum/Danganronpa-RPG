@@ -17993,6 +17993,35 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ en: want("en"), pl: want("pl") }),
             "{en, pl: [the Short Rest's sentence, the Long Rest's]} - a sentence with no rest's name in it");
     }],
+    ["R3664 - game.drpg.a11y() lists a nameless control while it is on the page and not after its window is gone (gaps, 12.11.2026; the E99 line's full tier-2 run): a11y.mjs `a11yReport` names a nameless control of a module window standing in the page, and once that window is removed counts its kind on the line of kinds met only in windows since closed, and no longer as a control that carries no name", async () => {
+        /*
+         * Gaps, 12.11.2026 (the coordinator: tier 2's "every control in the module's own chrome has a name" failed after
+         * R3551 and passed alone). R3551's windows were gone from the page (read after it: no `r3551-` element), but the
+         * report's map keeps a kind from its first sight and listed "input in r3551-character-..." for ever. Here: a
+         * `.drpg-panel` of the test's own with a button that has nothing to be named by, appended, swept, read, removed,
+         * read again. Red at 235c3210: after the removal the report still said the kind "carries no name".
+         */
+        const A = await import("./a11y.mjs");
+        const host = document.createElement("section");
+        host.className = "drpg-panel";
+        host.id = `r3664-${Date.now().toString(36)}`;
+        host.innerHTML = `<button type="button" class="r3664-nameless"></button>`;
+        let on = "", off = "";
+        try {
+            document.body.append(host);
+            A.nameControls(host);
+            on = A.a11yReport();
+        } finally { host.remove(); }
+        off = A.a11yReport();
+        const kind = "button.r3664-nameless";
+        const read = {
+            on: on.includes(`${kind} in ${host.id}`) && /carry no name/.test(on),
+            offListed: off.split("\n").some(l => l.trim().startsWith(`${kind} in`)),
+            offCounted: /windows no longer on the page: .*button\.r3664-nameless/.test(off)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ on: true, offListed: false, offCounted: true }),
+            `{on: listed while on the page; offListed: still listed as on screen after removal; offCounted: counted among the closed} - the reports: ${JSON.stringify({ on, off })}`);
+    }],
     ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
