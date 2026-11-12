@@ -2959,11 +2959,15 @@ const REGRESSIONS = [
 
         // Every GM-side charge is the no-claim fallback, and the only other writer
         // of the Sanity track in a refund path is `handBack`.
+        // Since E64 (f657e7d) the fallback's Sanity is `chargeUnclaimed`'s, and each call of it stands after a missing claim.
         for (const spent of [...cleanup.matchAll(/await spendStress\(actor\)/g)].map(m => m.index)) {
             const before = cleanup.slice(Math.max(0, spent - 260), spent);
-            ok(/validPrice\(|!paidStep|for \(let i = 0/.test(before),
+            ok(/validPrice\(|!paidStep|for \(let i = 0|function chargeUnclaimed\(/.test(before),
                 "a GM-side Sanity charge is back that no missing price claim explains");
         }
+        const unclaimed = [...cleanup.matchAll(/(?<!function )chargeUnclaimed\(/g)].map(m => m.index);
+        ok(unclaimed.length > 0 && unclaimed.every(at => /validPrice\(|!paidStep/.test(cleanup.slice(Math.max(0, at - 160), at))),
+            "chargeUnclaimed is called where no missing price claim explains it");
         ok(/function validPrice\(/.test(cleanup),
             "nothing bounds the step a Tamper packet claims to have paid");
         ok(/async function handBack\(/.test(cleanup),
@@ -5721,9 +5725,11 @@ const REGRESSIONS = [
         ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
-        ok(six.indexOf("framingCandidates(actor)") > 0 && six.indexOf("framingCandidates(actor)") < six.indexOf("spendStress("),
+        // The price is `chargeUnclaimed`'s since E64 (f657e7d), `spendStress` before: whichever comes first.
+        const paidAt = Math.min(...["spendStress(", "chargeUnclaimed("].map(k => six.indexOf(k)).filter(at => at >= 0));
+        ok(Number.isFinite(paidAt) && six.indexOf("framingCandidates(actor)") > 0 && six.indexOf("framingCandidates(actor)") < paidAt,
             "a misleading trail is not checked against who may be framed before it is paid for");
-        ok(six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < six.indexOf("spendStress("),
+        ok(Number.isFinite(paidAt) && six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < paidAt,
             "moving the body does not ask where the body is before it is paid for");
         ok(/receipt\.stressAfter - receipt\.stressBefore/.test(cleanup), "a clean-up's undo does not take back what it moved");
         // E09 fix r2-G10: and only what the attempt's own writes moved, never a write that landed while it ran.
