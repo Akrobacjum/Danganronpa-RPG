@@ -410,7 +410,7 @@ export const ELEMENTS = {
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
     "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale",
     "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.settings": "game-settings",
+    "gm.seasonSetup": "wand", "gm.settings": "settings",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup",
     "gm.rules": "rules", "gm.gmTeam": "team", "gm.mastermind": "mask", "gm.seasonChecklist": "season-checklist"
     /* E49 A1e: gm.jump left with its tile on 11.11.2026 (Edit campaign is Season setup's top block now). gm.gmTeam,
@@ -420,7 +420,8 @@ export const ELEMENTS = {
        row season-checklist (a calendar page with a check; the owner's free hand, 12.11.2026), not the Projects tile's
        checklist, which it wore for a day as the closest the rounds drew and which R3338 named as a shared pair. gm.settings
        (the game's settings, E49 A1d) wore the corner launcher's gear (F8: this browser's settings, another window),
-       a pair R3338 named from A1d on; it wears game-settings since 12.11.2026, three sliders, as its icon fa-sliders. */
+       a pair R3338 named from A1d on; it wears its own drawing since E105 FT batch 2 (the glass row settings, three
+       sliders, as its icon fa-sliders; E49 A1e drew the same sliders again as game-settings, dropped at the merge). */
 };
 
 /** What later stages build, by the inventory (S/stages/E48/GLYPH-INVENTORY.md, 10.11.2026): [row, stage, element,
@@ -572,8 +573,28 @@ export const FACES = {
     "id-card": "sheet", "masks-theater": "monokuma-mark", "paper-plane": "send", "pen-nib": "reshape", "thumbs-up": "favours",
     "thumbs-down": "hinders", "user-pen": "gm-picks", "wand-sparkles": "init",
     "box-archive": "stash", "dungeon": "passage", "eraser": "erase-trace", "microphone-lines": "voice-reset",
-    "microphone-slash": "mic-off", "volume-xmark": "sound-off", "camera": "photo"
+    "microphone-slash": "mic-off", "volume-xmark": "sound-off", "camera": "photo",
+    /* E105 FT-14 (11.11.2026): Tamper's Misleading Trail row (action-tamper.mjs, `fa-signs-post`) kept Font Awesome
+       under the glass - the one row of its picker FACES did not name; it wears the keyed CLEANUP row's drawing, the
+       same function (UNWORN.CLEANUP: "its picker rows are Tamper's, worn through FACES"). */
+    "signs-post": "misleading-trail"
 };
+
+/** Font Awesome icons in markup with no drpg- element round them, which FACES's `[class*="drpg-"]` cannot reach: [the
+ *  host's selector, what, { FA name: glyph }]. E105 FT-14 (11.11.2026): Daggerheart's countdown tray (countdowns.hbs
+ *  2.10.11, the module's Projects tray) draws a row's -1 and +1 as `<a><i class="fa-solid fa-minus|fa-plus">` and a hidden
+ *  countdown's mark as `fa-eye-slash`, in `#countdowns`, whose ancestors carry no drpg- class; under Stained Glass they
+ *  were the one Font Awesome in the dressed tray (the survey's glass-harness reading: 5 icons on the GM's page, 1 on a
+ *  player's). The minus and plus step a count, the function the kit's steppers' minus and plus are (FACES); the hidden
+ *  mark is not Averted Eyes (FACES's eye-slash), so it wears a drawing of its own, `unseen`. The owner's follow-up
+ *  ("Tak", 11.11.2026): a looping countdown's `<a class="looping-container"><i class="loop-marker fa-solid fa-repeat">` is
+ *  drawn too, with a drawing of its own (`countdown-loop`; FACES's repeat is the Reroll Hope Call's). No harness page
+ *  draws a looping row; the fix's shots add one to the glass harness's tray as a stand-in of countdowns.hbs's markup.
+ *  The tray's header clock is hidden under the glass (stained-glass.css) and is not mapped. Monokuma Legacy keeps Font
+ *  Awesome in the tray (option A). */
+export const HOST_FACES = [
+    ["#countdowns", "Daggerheart's countdown tray: a row's -1, +1 and hidden mark", { minus: "minus", plus: "plus", "eye-slash": "unseen", repeat: "countdown-loop" }]
+];
 
 /** Stained Glass's themes: the one constant option B changes (A1: B = add "monokuma-legacy"; not built). */
 export const GLASS_THEMES = ["stained-glass"];
@@ -617,7 +638,11 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 /** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
 export const FACE_RULES = [
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
-    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"]
+    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
+    /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
+       projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
+       gear, the corner Look launcher's gear with its sound waves. */
+    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,
@@ -652,6 +677,7 @@ export function glassRules() {
     for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
     for (const [, sel, glyph] of STATE_RULES) out.push([`state.${glyph}`, sel, glyph, "image"]);
     for (const [stat, glyph] of Object.entries(STAT_GLYPHS)) out.push([`stat.${stat}`, `i.drpg-stat-glyph[data-drpg-stat="${stat}"]`, glyph, "box"]);
+    for (const [host, , faces] of HOST_FACES) for (const [fa, glyph] of Object.entries(faces)) out.push([`host.${host}.fa-${fa}`, `${host} i.fa-${fa}`, glyph, "box"]);
     /* No rule for the GM launcher: its glass glyph is today's eye pixel for pixel (glass:gm same g:monokuma-eye, the owner
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */
@@ -753,6 +779,7 @@ export function glyphProbes(keyed) {
     }
     out.push(["rule.caution", `<div class="drpg-callout drpg-callout-caution"><p class="drpg-callout-title">${i("fa-hand")}</p></div>`]);
     out.push(["rule.project-new", `<div class="drpg-choices"><label class="drpg-choice"><input type="radio" name="variant" value="start">${i("fa-lightbulb")}</label></div>`]);
+    out.push(["rule.projects-manage", `<div class="countdowns-header"><button type="button" class="drpg-projects-gear">${i("fa-gear")}</button></div>`]);
     for (const act of Object.keys(REMNANT_ACTS)) out.push([`remnant.${act}`, `<div class="drpg-remnant-ring"><span class="drpg-remnant-glyph" data-drpg-act="${act}" data-drpg-probe aria-hidden="true"></span></div>`]);
     for (const fa of Object.keys(FACES)) out.push([`face.fa-${fa}`, `<div class="drpg-glyph-probe">${i(`fa-${fa}`)}</div>`]);
     return out;
@@ -1143,7 +1170,10 @@ export const LEGACY_ICONS = {
     "gm.tables": "--drpg-pix-tables",
     "gm.voiceReset": "fa:fa-microphone-lines",
     "gm.seasonSetup": "--drpg-pix-season-setup",
-    "gm.settings": "--drpg-pix-gear",
+    /* E105 FT batch 2 (11.11.2026): E49 A1d's Settings tile was added to danganronpa.css's hand-masked tiles with the
+       corner gear's drawing (legacy gear, the Look launcher's); one glyph per function, so under Legacy it wears its own
+       markup's Font Awesome sliders (gm-panel.mjs `icon: "fa-sliders"`), as the Sound and Voice reset tiles wear theirs. */
+    "gm.settings": "fa:fa-sliders",
     "gm.failureLog": "--drpg-pix-failure-log",
     "gm.caseWindow": "fa:fa-box-archive",
     "gm.rules": "--drpg-pix-new-rule",
@@ -1152,6 +1182,8 @@ export const LEGACY_ICONS = {
     "gm.seasonChecklist": "fa:fa-list-check",
     "rule.caution": "fa:fa-hand",
     "rule.project-new": "fa:fa-lightbulb",
+    /* E105 FT batch 2 follow-up (11.11.2026): the Projects tray's Manage projects probe; Legacy keeps its Font Awesome gear. */
+    "rule.projects-manage": "fa:fa-gear",
     "remnant.search": "--drpg-pix-search",
     "remnant.project": "--drpg-pix-project",
     "remnant.sabotage": "--drpg-pix-sabotage",
@@ -1279,5 +1311,7 @@ export const LEGACY_ICONS = {
     "face.fa-microphone-lines": "fa:fa-microphone-lines",
     "face.fa-microphone-slash": "fa:fa-microphone-slash",
     "face.fa-volume-xmark": "fa:fa-volume-xmark",
-    "face.fa-camera": "fa:fa-camera"
+    "face.fa-camera": "fa:fa-camera",
+    /* E105 FT-14 (11.11.2026): FACES's new name, Tamper's Misleading Trail row; Legacy keeps its Font Awesome (option A). */
+    "face.fa-signs-post": "fa:fa-signs-post"
 };

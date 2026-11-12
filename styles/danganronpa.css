@@ -15480,7 +15480,6 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i,
 .drpg-gmp-button[data-drpg-run="tables"] > i,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i,
-.drpg-gmp-button[data-drpg-run="settings"] > i,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i,
 .drpg-gmp-button[data-drpg-run="gmTeam"] > i,
 .drpg-gmp-button[data-drpg-run="mastermind"] > i,
@@ -15508,7 +15507,6 @@ i.drpg-pix-foot {
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i::before,
 .drpg-gmp-button[data-drpg-run="tables"] > i::before,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i::before,
-.drpg-gmp-button[data-drpg-run="settings"] > i::before,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i::before,
 .drpg-gmp-button[data-drpg-run="gmTeam"] > i::before,
 .drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
@@ -15557,10 +15555,9 @@ i.drpg-pix-foot::before {
     mask-image: var(--drpg-pix-season-setup);
 }
 
-.drpg-gmp-button[data-drpg-run="settings"] > i {
-    -webkit-mask-image: var(--drpg-pix-gear);
-    mask-image: var(--drpg-pix-gear);
-}
+/* The Settings tile (E49 A1d) stood here wearing the corner gear's drawing, the Look launcher's: one glyph per
+   function, so since E105 FT batch 2 (11.11.2026) it wears its own markup's Font Awesome sliders under Monokuma Legacy,
+   as the Sound and Voice reset tiles wear theirs, and Stained Glass's own `settings` drawing (pixel-icons.css). */
 
 .drpg-gmp-button[data-drpg-run="failureLog"] > i {
     -webkit-mask-image: var(--drpg-pix-failure-log);

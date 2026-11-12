@@ -562,6 +562,35 @@ body.drpg-theme-stained-glass .drpg-voice-panel :is(.drpg-voice-panel-row > span
     -webkit-mask-image: var(--drpg-pix-gear) !important;
     mask-image: var(--drpg-pix-gear) !important;
 }
+/* THE MESSENGER'S LAUNCHER WEARS THE MODULE'S CHAT BUBBLES, in both themes (E105 FT-14, 11.11.2026; the owner's "places
+   where Foundry shows through"). Its four neighbours in the corner - the gear above, the book, the anvil, the GM's eye -
+   are pixel masks in the button's colour under both themes, and it alone drew Font Awesome's `fa-comments` (the font
+   Foundry ships): pixel-icons.css masks an FA name only inside a drpg- element, and the button is `#drpg-messenger-launcher`
+   with no class (messenger-app.mjs). So it is masked here as the book and the anvil are (danganronpa.css, components.css):
+   at 24 px, the glyph's own grid, one CSS pixel to a cell, in its own colour - Legacy's eye red and the glass's bone, as
+   the Font Awesome glyph was. `--drpg-pix-chat` is the legacy row on :root (the notices' messenger source wears it) and
+   Stained Glass's own `chat` over it (pixel-icons.css's glass section), so each theme wears its drawing of the messenger.
+   Measured in Chromium on the glass harness, 1366x768: the glyph's box 25x20 under Legacy and 27.5x23.3 under the glass
+   (its turned bounding box) with Font Awesome, 24x24 and 27.1x27.1 now (the book's, beside it); the button's 66x66 and
+   74.5x74.5 unchanged. */
+#drpg-messenger-launcher > i {
+    display: block;
+    width: 24px;
+    height: 24px;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-pix-chat);
+    mask-image: var(--drpg-pix-chat);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    image-rendering: pixelated;
+}
+#drpg-messenger-launcher > i::before {
+    content: none;
+}
 body:not(.drpg-theme-stained-glass) .drpg-hud-ticker { display: none !important; }
 body.drpg-theme-stained-glass #drpg-sound-launcher.drpg-muted {
     border-color: color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent) !important;
@@ -3151,11 +3180,17 @@ body.drpg-theme-stained-glass #countdowns .countdown-tools .progress-tag {
 }
 body.drpg-theme-stained-glass #countdowns .countdown-tool-controls { display: contents; }
 body.drpg-theme-stained-glass #countdowns .countdown-tool-icons { order: 2; }
+/* THE -1 AND +1 WEAR THE MODULE'S PIXEL MINUS AND PLUS (E105 FT-14, 11.11.2026): pixel-icons.css's HOST_FACES rule masks
+   Daggerheart's `fa-minus` and `fa-plus` here in the FACES box, 22 px (a 24-grid glyph is not drawn smaller), where Font
+   Awesome's glyph was about 16 px wide; the 3 px either side that stood here went to that, so the button's width is
+   what it was and the row's name is cut where it was. Measured in Chromium on the glass harness, 1366x768 (the tray
+   turned 8 degrees, so its bounding boxes): the -1's 25.8x27.0 with Font Awesome and the padding, 31.3x29.2 with the
+   glyph and the padding, 25.3x28.3 now; the tray 349.9x141.5 and a row 322.2x68.7 throughout. */
 body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a {
     order: 1;
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     color: var(--drpg-glass-accent);
-    padding: 0 3px;
+    padding: 0;
 }
 
 /* ---- 5. A window's band is the curtain's glass, not a lighter copy of it -------------------
@@ -5138,4 +5173,33 @@ body.drpg-theme-stained-glass #drpg-notices-corner::before {
     border-radius: 0;
     background: var(--drpg-glass-accent);
     clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+}
+
+/* ---- the voice tile's two buttons, the notices' corner and the Projects gear: every state the module's (E105 FT-21) ----
+   The survey of 11.11.2026 (Chromium, the glass harness's GM and player pages, 1366x768) read on these four buttons a
+   property no rule of the module's sheets sets, which a table leaves to Foundry's `button` rules:
+   - the voice tile's mic and speaker (`.drpg-launch-mini`) under the glass: no face (Chromium's Arial; the button holds a
+     mask, and its PTT word has the chrome face of its own) and no hover ground or edge. Under the glass the button's own
+     ground and edge are `none` and `0` (components.css) and its hexagon is its ::before, so a core `button:hover` ground
+     would fill the square box behind the hexagon. The hover now keeps the box bare and lights the hexagon's edge in the
+     accent, as the corner's launchers light theirs; a held or speaking mic keeps its own edge (components.css's state
+     rules come later and weigh the same).
+   - the notices' corner and the Projects gear, both themes: their edge is `border: none !important` at rest
+     (danganronpa.css), so no hover edge of Foundry's can draw (the style stays none), but no rule said so for the hover.
+     The colour is stated here, transparent; it changes no pixel (the crops before and after are alike) and closes the
+     reading. Both themes' rules stand in this sheet, which is batch 2's of the fix.
+   Before -> after (the survey's open properties on these buttons, both pages): glass 12 -> 0, Legacy 4 -> 0. */
+body.drpg-theme-stained-glass .drpg-launch-mini {
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-stained-glass .drpg-launch-mini:is(:hover, :focus-visible) {
+    background: none;
+    border-color: transparent;
+}
+body.drpg-theme-stained-glass .drpg-launch-mini:is(:hover, :focus-visible)::before {
+    border-color: var(--drpg-glass-accent);
+}
+#drpg-notices-corner:is(:hover, :focus-visible),
+#countdowns .drpg-projects-gear:is(:hover, :focus-visible) {
+    border-color: transparent;
 }
