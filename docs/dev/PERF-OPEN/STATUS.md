@@ -145,3 +145,26 @@ when the server's answer lands, outside the idle period; each step stays one fil
 once 1.2.109 is on main, read its transition code for a "playing" state and skip a step while one plays.
 
 Runs: `npm run quick` green; tiers 0-1 in full 1271 tests, 1256 passed, 0 failed, 16 skipped, 0 red, 392.7 s.
+
+## A step waits while something plays (12.11.2026, on 1.2.109; branch from 9c088110 with this line merged)
+
+1.2.109 has no event for "the boards have played", and the boards play at load and at a change of day. What it does
+have, read in its tree:
+
+| What plays | Where | The mark open-cost.mjs reads |
+| --- | --- | --- |
+| a board or cut-in (the trial's entry, the verdict, the start and end of a day: up to 6450 ms, the day's end) | sequence.mjs `playSequence` / `endSequence` | `data-drpg-sequence` on the body, set at the start and taken off at the end |
+| the curtain's turn | glass.mjs `turning()` | `data-drpg-turning` on the body, for `TURN() + 120` ms |
+| a transition's flicker | transitions.mjs `flicker()` | `drpg-flicker` on the body |
+| a transition's span (its Escape window, `t.dur + 200` ms, about 3 s at most) | transitions.mjs `onClockHeard` from the clock's hooks | no mark: QUIET_AFTER_CLOCK_MS (3500 ms) after `drpgTimeOfDayChanged`, `drpgPhaseChanged` or `drpgEclipseChanged`; the body's announcement only by its flicker's `drpg-flicker` (its hook's name is chapter.mjs's alone, R3145) |
+
+`whenIdle` reads them (`playingNow`) when the browser calls back; while one stands it waits RECHECK_MS (400 ms) and asks
+for the next idle period again, and counts the step as held by what held it (`warmState().held`, printed by
+`openTimes()`). Read off the body, not imported: sequence.mjs reaches api.mjs's graph, which imports this file.
+R4204 (tier 0) was red on the behaviour first ("the step went on while a board played"), with the reader in and the wait
+unchanged; green after. Not covered: the few ms between the end of the day's board and the start of the next day's
+(`then:` starts the second as the first ends), where neither mark stands, and the 450 ms gaps between the body's announcement's four flickers.
+
+Runs (this branch, 12.11.2026): `npm run quick` green; tiers 0-1 in full 1325 tests, 1310 passed, 0 failed, 16 skipped,
+0 red, 413.8 s (a first full run had R3145 red: the body announcement's hook name spelt here a second time - taken out);
+00-boot 33/33.

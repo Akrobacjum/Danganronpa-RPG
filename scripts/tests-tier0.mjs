@@ -23732,7 +23732,8 @@ const REGRESSIONS = [
         let call = null;
         const ric = (cb, options) => { asked.push(options ?? null); call = cb; return 1; };
         let done = false;
-        const step = W.whenIdle({ ric, later: () => { throw new Error("the timer was asked while requestIdleCallback is there"); } }).then(() => { done = true; });
+        const quiet = { body: document.createElement("div"), heardAt: () => -Infinity };
+        const step = W.whenIdle({ ric, later: () => { throw new Error("the timer was asked while requestIdleCallback is there"); }, ...quiet }).then(() => { done = true; });
         await null; await null;
         equal(asked.length, 1, "requestIdleCallback asked for one step");
         equal(JSON.stringify(asked[0]?.timeout ?? null), "null", "the step's idle wait has a deadline - a busy page would be pushed after it");
@@ -23741,8 +23742,52 @@ const REGRESSIONS = [
         await step;
         ok(done, "the step did not go on once the browser called back");
         const timers = [];
-        await W.whenIdle({ ric: null, later: (fn, ms) => { timers.push(ms); fn(); } });
+        await W.whenIdle({ ric: null, later: (fn, ms) => { timers.push(ms); fn(); }, ...quiet });
         equal(JSON.stringify(timers), "[50]", "with no requestIdleCallback the step waits one 50 ms timer");
+    }],
+    ["R4204 - a warming step waits while a sequence, a curtain's turn or a transition plays, and goes on after it", async () => {
+        /*
+         * perf-open line, 12.11.2026 (the coordinator's ask, on 1.2.109). The boards and cut-ins of sequence.mjs mark the
+         * body `data-drpg-sequence` for as long as one plays, glass.mjs's turn marks it `data-drpg-turning`, the
+         * transitions' flicker `drpg-flicker`, and a transition runs from the clock's hook for about 3 s (the
+         * Investigation's flashes, 2.8 s, the longest read). `whenIdle` reads all four through `playingNow` when the
+         * browser calls back, and while one stands it waits `RECHECK_MS` and asks for the next idle period again,
+         * counting the step as held. Read on a body of the test's own and stand-ins for the two callbacks; the page's
+         * own body is not touched.
+         */
+        const W = await import("./open-cost.mjs");
+        const body = document.createElement("div");
+        const now = 100000;
+        equal(JSON.stringify([
+            W.playingNow(body, { now, heardAt: -Infinity }),
+            (body.setAttribute("data-drpg-sequence", "dayStart"), W.playingNow(body, { now, heardAt: -Infinity })),
+            (body.removeAttribute("data-drpg-sequence"), body.setAttribute("data-drpg-turning", ""), W.playingNow(body, { now, heardAt: -Infinity })),
+            (body.removeAttribute("data-drpg-turning"), body.classList.add("drpg-flicker"), W.playingNow(body, { now, heardAt: -Infinity })),
+            (body.classList.remove("drpg-flicker"), W.playingNow(body, { now, heardAt: now - 1000 })),
+            W.playingNow(body, { now, heardAt: now - W.QUIET_AFTER_CLOCK_MS - 1 })
+        ]), JSON.stringify([null, "sequence", "turn", "flicker", "transition", null]),
+            "what plays: [nothing, a board, the curtain's turn, the flicker, a second after the clock's hook, past the quiet span]");
+
+        body.setAttribute("data-drpg-sequence", "dayEnd");
+        let idleCall = null;
+        const timers = [];
+        let done = false;
+        const step = W.whenIdle({ ric: cb => { idleCall = cb; }, later: (fn, ms) => { timers.push({ fn, ms }); }, body, heardAt: () => -Infinity })
+            .then(() => { done = true; });
+        await null;
+        must(typeof idleCall === "function", "whenIdle asked for no idle period");
+        const first = idleCall; idleCall = null;
+        first();
+        await null; await null;
+        ok(!done, "the step went on while a board played");
+        equal(JSON.stringify(timers.map(t => t.ms)), JSON.stringify([W.RECHECK_MS]), "while a board plays, the step waits one recheck");
+        body.removeAttribute("data-drpg-sequence");
+        timers[0].fn();
+        await null;
+        must(typeof idleCall === "function", "after the recheck no idle period was asked again");
+        idleCall();
+        await step;
+        ok(done, "the step did not go on once the board had ended");
     }],
 ];
 

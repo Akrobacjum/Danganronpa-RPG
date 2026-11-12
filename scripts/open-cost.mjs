@@ -61,20 +61,51 @@ const TEMPLATE_BATCH = 6;
 const FONT_FAMILIES = Object.freeze(["DRPG Pixel", "VT323", "Special Elite"]);
 const FONT_SAMPLES = Object.freeze(["Aa", "ąęłńóśźżĄĘŁ"]);
 
-const state = { started: null, finished: null, imports: { ok: 0, failed: [] }, templates: { ok: 0, failed: [], skipped: null }, fonts: { ok: 0, failed: [], skipped: null } };
+const state = { started: null, finished: null, held: {}, imports: { ok: 0, failed: [] }, templates: { ok: 0, failed: [], skipped: null }, fonts: { ok: 0, failed: [], skipped: null } };
 let warming = null;
 
+/* What plays on the page that a step must not land in (the coordinator's ask, 12.11.2026, on 1.2.109; R4204): a board or
+   cut-in of sequence.mjs (`data-drpg-sequence` on the body for as long as it plays), the curtain's turn (glass.mjs,
+   `data-drpg-turning`), the transitions' flicker (transitions.mjs, `drpg-flicker`), and a transition's span after the
+   clock's hooks: `t.dur + 200` ms, about 3 s at most (the Investigation's flashes, 2.8 s, the longest read on 1.2.109),
+   so QUIET_AFTER_CLOCK_MS. Read off the body rather than imported: sequence.mjs reaches api.mjs's graph. */
+export const QUIET_AFTER_CLOCK_MS = 3500;
+/* How long a held step waits before it asks for the next idle period again. */
+export const RECHECK_MS = 400;
+/* The clock's three hooks (transitions.mjs `registerTransitions`). The body's announcement is not one of them: its name is
+   spelt in chapter.mjs alone (R3145), and its flicker marks the body `drpg-flicker` for each of its four onsets. */
+const CLOCK_HOOKS = Object.freeze(["drpgTimeOfDayChanged", "drpgPhaseChanged", "drpgEclipseChanged"]);
+let clockHeardAt = -Infinity;
+
+/** What plays on `body` now that a warming step waits for - "sequence", "turn", "flicker", "transition" - or null. */
+export function playingNow(body = globalThis.document?.body, { now = performance.now(), heardAt = clockHeardAt } = {}) {
+    if (body?.hasAttribute?.("data-drpg-sequence")) return "sequence";
+    if (body?.hasAttribute?.("data-drpg-turning")) return "turn";
+    if (body?.classList?.contains?.("drpg-flicker")) return "flicker";
+    if (now - heardAt < QUIET_AFTER_CLOCK_MS) return "transition";
+    return null;
+}
+
 /** One step's wait: the browser's next idle period (`requestIdleCallback`, no deadline), or 50 ms where it has none
- *  (Safari). `ric` and `later` stand in for the two in R4203. */
-export function whenIdle({ ric = undefined, later = undefined } = {}) {
+ *  (Safari); then, while something plays (`playingNow`), RECHECK_MS and the next idle period again, the step counted
+ *  in `warmState().held` by what held it. `ric`, `later`, `body` and `heardAt` stand in for the page's in R4203, R4204. */
+export function whenIdle({ ric = undefined, later = undefined, body = undefined, heardAt = () => clockHeardAt } = {}) {
     // Each called where it is named, never taken as a value (R571): a browser runs a window's function on the window.
     const asked = ric === undefined ? typeof globalThis.requestIdleCallback === "function" : typeof ric === "function";
+    const wait = (fn, ms) => { if (later) later(fn, ms); else setTimeout(fn, ms); };
     return new Promise(resolve => {
-        if (asked) {
-            if (ric) ric(() => resolve());
-            else globalThis.requestIdleCallback(() => resolve());
-        } else if (later) later(resolve, 50);
-        else setTimeout(resolve, 50);
+        const check = () => {
+            const why = playingNow(body === undefined ? globalThis.document?.body : body, { now: performance.now(), heardAt: heardAt() });
+            if (!why) { resolve(); return; }
+            state.held[why] = (state.held[why] ?? 0) + 1;
+            wait(ask, RECHECK_MS);
+        };
+        function ask() {
+            if (!asked) wait(check, 50);
+            else if (ric) ric(check);
+            else globalThis.requestIdleCallback(check);
+        }
+        ask();
     });
 }
 const idle = () => whenIdle();
@@ -180,6 +211,7 @@ export function warmFirstOpens({ delayMs = START_DELAY_MS } = {}) {
 /** What the warming has done so far: a copy, with its time in ms once it has finished. */
 export function warmState() {
     return {
+        held: { ...state.held },
         ms: state.finished === null || state.started === null ? null : Math.round(state.finished - state.started),
         imports: { ok: state.imports.ok, failed: [...state.imports.failed] },
         templates: { ok: state.templates.ok, failed: [...state.templates.failed], skipped: state.templates.skipped },
@@ -260,7 +292,7 @@ export function openTimes({ reset = false } = {}) {
     console.log(`${MODULE_ID} | window opens on this page, ms from the click (render: the window built; shown: two frames later); `
         + "a blank is an open no click came just before");
     if (typeof console.table === "function") console.table(rows);
-    console.log(`${MODULE_ID} | warmed: ${warm.ms === null ? "not finished" : `${warm.ms} ms`}; files ${warm.imports.ok} (failed ${warm.imports.failed.length}), `
+    console.log(`${MODULE_ID} | warmed: ${warm.ms === null ? "not finished" : `${warm.ms} ms`}; steps held by what played: ${JSON.stringify(warm.held)}; files ${warm.imports.ok} (failed ${warm.imports.failed.length}), `
         + `templates ${warm.templates.ok} (failed ${warm.templates.failed.length}${warm.templates.skipped ? `; ${warm.templates.skipped}` : ""}), `
         + `fonts ${warm.fonts.ok} (failed ${warm.fonts.failed.length}${warm.fonts.skipped ? `; ${warm.fonts.skipped}` : ""})`);
     if (reset) opens.length = 0;
@@ -276,5 +308,6 @@ export function registerOpenCost() {
     globalThis.addEventListener?.("pointerdown", mark, { capture: true, passive: true });
     globalThis.addEventListener?.("keydown", mark, { capture: true, passive: true });
     Hooks.on("renderApplicationV2", onRender);
+    for (const hook of CLOCK_HOOKS) Hooks.on(hook, () => { clockHeardAt = performance.now(); });
     warmFirstOpens().catch(err => error("Could not warm the windows' first opens", err));
 }
