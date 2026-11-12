@@ -8471,6 +8471,32 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
             "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
     }],
+    ["R3659 - a field of the case schema's editor is read out by its row's name (E97; CI run 43144994202, suite 3/8): editRow names the one field of its cell with the row's label, and leaves a field that already has a name, and a cell of a checkbox's own label, as they are", async () => {
+        /*
+         * 12.11.2026. Tier 2's "every control in the module's own chrome has a name to be read out" reads whatever is
+         * on screen when it runs; in CI's suite shard 3/8 on 1e1c61c9 a Map left open by an earlier test held the
+         * schema editor, and the sweep reported "3 control kinds carry no name a screen reader can read" (the Name
+         * field `case:1:deduction-...:label`, the Note textarea, the Trial mode select). editRow put its label in a
+         * <span> beside the cell, which names nothing. This test draws the rows itself, so it does not hang on which
+         * window another test left open.
+         */
+        const { editRow } = await import("./case-map.mjs");
+        const { nameControls } = await import("./a11y.mjs");
+        const host = document.createElement("div");
+        host.className = "drpg-panel";
+        host.innerHTML = editRow("Name", `<input type="text" name="case:1:x:label" value="" />`)
+            + editRow("Note", `<textarea name="case:1:x:text" rows="3"></textarea>`)
+            + editRow("Trial mode", `<select name="case:1:x:mode"><option value="">-</option></select>`)
+            + editRow("Kept", `<input type="text" name="kept" aria-label="Its own" />`)
+            + editRow("Links", `<label class="drpg-case-check"><input type="checkbox" name="l:a" /> A</label>`);
+        document.body.append(host);
+        try {
+            nameControls(host);
+            const read = [...host.querySelectorAll("input, select, textarea")].map(el => el.getAttribute("aria-label") ?? (el.labels?.length ? "label" : null));
+            equal(JSON.stringify(read), JSON.stringify(["Name", "Note", "Trial mode", "Its own", "label"]),
+                "the aria-label of each field (null: none; \"label\": a checkbox named by its own label)");
+        } finally { host.remove(); }
+    }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
          * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard

@@ -268,7 +268,16 @@ function editorsHtml(editors, picked, summary) {
 
 /** One field of a node's editor: its column's words over the Table's own cell. */
 export function editRow(label, cell) {
-    return `<div class="drpg-case-edit-row"><span class="drpg-case-edit-label">${esc(label)}</span><div class="drpg-case-edit-field">${cell}</div></div>`;
+    /* THE LABEL IS A <span>, SO IT NAMES NOTHING (12.11.2026, CI run 43144994202, suite 3/8: the schema editor's
+       Name, Note and Trial mode fields, "3 control kinds carry no name a screen reader can read"). A cell of one field
+       with no name of its own takes the row's label as its aria-label; a field that has one, a checkbox inside its
+       own <label>, and a cell of several fields stay as they are (R3659). */
+    const html = String(cell ?? "");
+    const fields = html.match(/<(?:input|select|textarea)\b[^>]*>/g) ?? [];
+    const one = fields.length === 1 ? fields[0] : "";
+    const bare = one && !/\saria-label(?:ledby)?=/.test(one) && !/\stype="(?:checkbox|radio|hidden)"/.test(one);
+    const named = bare ? html.replace(/<(input|select|textarea)\b/, `<$1 aria-label="${esc(label)}"`) : html;
+    return `<div class="drpg-case-edit-row"><span class="drpg-case-edit-label">${esc(label)}</span><div class="drpg-case-edit-field">${named}</div></div>`;
 }
 
 /**
