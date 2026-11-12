@@ -43196,7 +43196,7 @@ const INVARIANTS = [
         const R = await import("./room-setup.mjs");
         const K = await import("./ui-kit.mjs");
         const KINDS = {
-            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "text"],
+            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "check", "text"] /* E74 C5: Broken, after Locked at start */,
             search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check", "step"] /* E93 C2: the room actions' count */,
             stashes: null, description: ["room", "prose", "picture"], fog: null
         };

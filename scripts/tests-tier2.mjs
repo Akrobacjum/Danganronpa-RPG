@@ -88470,6 +88470,61 @@ const SCENARIOS = [
             crossings: [1, 1, 0, 0], counted: [1, 1, 3], end: [1, null, 4], theirs: "notYours", noRoll: "rollUnknown" }),
             "{low, kept: [answer, the row]; start: [posts taken, the post is the watcher's room, cards so far]; crossings: [in, out, elsewhere, no Eclipse]; counted: [entered, left, cards so far]; end: [summaries, the row, cards so far]; theirs; noRoll} - a watch on the GMs' record of its roll");
     }],
+    ["E74-T5 - Room setup's Broken column shows a forced lock and mends it (scripts/room-setup.mjs, movement.mjs `roomBroken`, `setRoomBroken`; E74 C5, Q-E74-4): a room broken open draws its Broken box ticked and a room not broken unticked; an Apply with the box unticked mends the lock (the flag off on every piece), and the room's GM lock is left as it was", async () => {
+        /*
+         * E74 C5, 12.11.2026. Room setup is answered as E46-T1 answers it: `DialogV2.wait` stood in for, the form drawn from
+         * the window's content, the box changed and Apply's callback pressed. The scene on screen's first room is broken
+         * and locked first; put back: both flags as they were. Red at d8905af: no Broken box is drawn.
+         */
+        needs(world.atLeast("namedRooms", 2), "Room setup lists two named rooms of the scene on screen");
+        const V = await import("./vault.mjs");
+        const M = await import("./movement.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [room, other] = M.allRooms(scene);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        // The room's module flags whole, piece by piece: an Apply of a changed row writes every field of the row.
+        const was = roomRegions(scene, room).map(piece => [piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const answer = async change => {
+            let drawn = null;
+            D.wait = async cfg => {
+                const element = document.createElement("div"), form = document.createElement("form");
+                if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                element.append(form);
+                const box = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                drawn = [box(`broken:${room}`)?.checked ?? null, box(`broken:${other}`)?.checked ?? null];
+                if (change) {
+                    const el = box(`broken:${room}`);
+                    must(el, "Room setup drew no Broken box - the answer would change nothing");
+                    el.checked = false;
+                }
+                const apply = (cfg.buttons ?? []).find(x => x.action === "ok");
+                return apply.callback(new Event("click"), apply, { element });
+            };
+            try { await V.openRoomSetupDialog(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            await settle();
+            return drawn;
+        };
+        const read = {};
+        try {
+            await M.setRoomBroken(scene, room, true);
+            for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+            await settle();
+            read.drawn = await answer(true);
+            read.after = [M.roomBroken(scene, room), M.isLocked(scene, room), roomRegions(scene, room).every(p => Boolean(p.getFlag(MODULE_ID, M.ROOM_FLAGS.locked)))];
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const [piece, flags] of was) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: [true, false], after: [false, true, true] }),
+            "{drawn: [the broken room's box, another room's]; after: [broken, locked to the rules, the lock flag kept]} - Room setup's Broken column");
+    }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*
          * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the

@@ -27,7 +27,7 @@
 
 import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
-import { neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
+import { neighbouringRooms, ROOM_FLAGS, roomBroken, setRoomBroken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -276,7 +276,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const COLUMN = {
             owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
             startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn",
-            neighbours: "DRPG.Vault.neighboursColumn",
+            neighbours: "DRPG.Vault.neighboursColumn", broken: "DRPG.Vault.brokenColumn",
             nosearch: "DRPG.SearchTokens.sealedColumn", table: "DRPG.Vault.table",
             short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
             desc: "DRPG.Vault.descriptionColumn"
@@ -327,6 +327,9 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             locked: check("locked", flagOver(pieces, ROOM_FLAGS.locked)),
             startlocked: check("startlocked", pieces.some(startLocked),
                 game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
+            // Broken (E74 C5): a lock Force the Door or a breach forced (movement.mjs `roomBroken`); unticked and applied,
+            // the lock holds again - the GM's repair by hand.
+            broken: check("broken", roomBroken(scene, room), game.i18n.localize("DRPG.Vault.brokenHint")),
             nosearch: check("nosearch", flagOver(pieces, SEARCH_FLAGS.sealed)),
             // Advice only: it changes no rule, just which regions the ratio
             // line above the table counts. See `sharedRooms`.
@@ -420,7 +423,7 @@ export function roomSetupTab(tab, holdsRooms) {
  * widths, the room's first ("room", the 220 px E12 C15 chose).
  */
 const ROOM_SETUP_COLUMN = {
-    owner: "select", isroom: "check", locked: "check", startlocked: "check", notshared: "check",
+    owner: "select", isroom: "check", locked: "check", startlocked: "check", broken: "check", notshared: "check",
     neighbours: "text", nosearch: "check", tokens: "step", table: "select", place: "place",
     short: "check", long: "check", facilities: "step", description: "prose", image: "picture"
 };
@@ -428,8 +431,8 @@ const ROOM_SETUP_COLUMN = {
 /* Each column's heading, by the cell's key in `roomCells`. */
 const ROOM_SETUP_HEAD = {
     owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
-    startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn", neighbours: "DRPG.Vault.neighboursColumn",
-    nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
+    startlocked: "DRPG.Vault.lockedAtStartColumn", broken: "DRPG.Vault.brokenColumn", notshared: "DRPG.Vault.notSharedColumn",
+    neighbours: "DRPG.Vault.neighboursColumn", nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
     place: "DRPG.Vault.placeColumn", short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
     facilities: "DRPG.Facility.roomColumn",
     description: "DRPG.Vault.descriptionColumn", image: "DRPG.Vault.imageColumn"
@@ -456,7 +459,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
             ${/* information, not a warning (D11; audit S06-59, E22 C6b): the count advises and changes no rule */ ""}
             ${box("info", `<p class="notes" data-drpg-ratio></p>`)}
-            ${tableFor(["isroom", "locked", "startlocked", "notshared", "neighbours"])}
+            ${tableFor(["isroom", "locked", "startlocked", "broken", "notshared", "neighbours"])}
             <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
         `,
@@ -529,6 +532,7 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         longRest: Boolean(pick(`long:${room}`)?.checked),
         locked: Boolean(pick(`locked:${room}`)?.checked),
         lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
+        broken: Boolean(pick(`broken:${room}`)?.checked),
         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
         notShared: Boolean(pick(`notshared:${room}`)?.checked),
         isRoom: roomBox(pick(`isroom:${room}`)),
@@ -991,6 +995,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         };
         const wasLocked = Boolean(flagOver(pieces, ROOM_FLAGS.locked));
         const wasLockedAtStart = pieces.some(startLocked);
+        const wasBroken = roomBroken(scene, row.room);
         const wasSealed = Boolean(flagOver(pieces, SEARCH_FLAGS.sealed));
         const wasNotShared = Boolean(flagOver(pieces, VAULT_FLAGS.notShared));
         // Settled when every piece that can be a room already says what the row says (E12 C1);
@@ -1012,6 +1017,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             && before.hinders.every(h => row.hinders.includes(h))
             && wasLocked === row.locked
             && wasLockedAtStart === row.lockedAtStart
+            && wasBroken === row.broken
             && wasSealed === row.noSearch
             && wasNotShared === row.notShared
             && roomSettled
@@ -1022,6 +1028,8 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             ownerMoved.push({ room: row.room, owner: row.owner });
         }
         if (same) continue;
+        // Broken (E74 C5): written on the room's pieces by its one writer, before the rest of the row.
+        if (wasBroken !== row.broken) await setRoomBroken(scene, row.room, row.broken);
 
         // "Stash hidden" is the Stashes tab's business (ITEM-02): the column
         // this tab used to carry wrote the LEGACY flag, which the Stashes list

@@ -11,10 +11,12 @@ origin/claude/plan-130.
 | C3 | Force the Door: `INFILTRATE.force` (Body; a lock and a seal at 18), the bridge road `door.force`; one roll against everything that holds the door at once - a barricade by its strength (a tie holds), a GM's or a bedroom's lock and a seal at 18, a critical all; a lock broken until repaired (`setRoomBroken`), a seal lifted for its time of day (`liftSeal`); the banging in the rooms next to either room with no name, who it was to the two rooms, the bedroom owner's card - on a pass and on a miss with Despair | E74-T2 (tier 2), scenario 30 "forgeries of Force the Door" |
 | C4 | Pick the Lock: `INFILTRATE.pick` (Hand 15, 18 clean; a Shadow 16 cover), the bridge road `door.pick` with both rolls; at a door held by a lock or a seal (never a barricade) an open walks the picker in (the GM's move) and the lock stays locked; the room beyond sees who it was below the cover; a bedroom's owner warned of an open below 18 and of a miss with Despair | E74-T3 (tier 2), scenario 30 "forgeries of Pick the Lock" |
 | C6 | Keep Watch: `INFILTRATE.keepWatch` (Body 12, a default), the bridge road `watch.declare`, the GM store `watches`; declared before an Eclipse (struck through in one and before the Night Eclipse, Q-E74-2), the post the watcher's room at the Eclipse's start with a card of who is in it, a card for each settled crossing into or out of it (never which way), a summary at its end (action-watch.mjs, watch-gm.mjs) | E74-T4 (tier 2), scenario 30 "forgeries of Keep Watch" |
+| C5 (part) | Room Setup's Doors tab: the **Broken** column (Q-E74-4's default: the Locked column kept beside it), ticked for a lock a Force the Door or a breach forced; unticked and applied, the lock is mended (`setRoomBroken`). GM handbook EN and PL | E74-T5 (tier 2) |
 
 ## Next
 
-C5 Repair the Lock, C7 the rest of the registration (the Reroll branches, `OWN_PERFORMERS`), C8 shots and the GM
+C5's preset Repair the Lock (a project at Trivial, offered only in a room with a broken lock, once a door, its completion
+mending the lock, its undo), C7 the rest of the registration (the Reroll branches, `OWN_PERFORMERS`), C8 shots and the GM
 handbook.
 
 ## Not built in C1+C2 (said, not hidden)
@@ -66,6 +68,9 @@ handbook.
 | 12.11, C1+C2 | the 34 scenarios (all but 01 and 84) at f7d9fb2 | all green |
 | 12.11, C6 | E74-T4 on a worktree of 4f21e9e with only tests-tier2.mjs copied in | failed: no watch-gm.mjs |
 | 12.11, C6 | E74-T4 on the tree; tiers 0-1 | 5 passed; 1165 passed, 0 failed, 16 skipped, 1 red (older) |
+
+| 12.11, C5 | E74-T5 on a worktree of d8905af with only tests-tier2.mjs copied in | failed: "Room setup drew no Broken box" |
+| 12.11, C5 | E74-T5 on the tree (after its put-back was made to restore the room's flags whole); tiers 0-1 | 5 passed; 1164 passed, 1 failed (R2010: the Doors tab's new column, intended), green after |
 
 ## Blockers
 

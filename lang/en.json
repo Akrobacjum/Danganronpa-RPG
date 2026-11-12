@@ -2393,6 +2393,8 @@
       "takeKey": "Take a room key away",
       "noKeysToTake": "{actor} holds no key to anybody else's room.",
       "lockedAtStartColumn": "Locked at start",
+      "brokenColumn": "Broken",
+      "brokenHint": "A lock forced open (Force the Door, a breach). While ticked the door opens for everyone; untick it to repair the lock.",
       "lockedAtStartHint": "Whether this door is locked when a season begins. A season reset puts every door back to this.",
       "isRoomColumn": "This is a room",
       "isRoomHint": "Whether this region is a room. A region with a Teleport or level-change behaviour, or one a player drew, cannot be one.",

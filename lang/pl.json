@@ -2590,6 +2590,8 @@
       "takeKey": "Zabierz klucz do pokoju",
       "noKeysToTake": "{actor} nie ma klucza do niczyjego pokoju.",
       "lockedAtStartColumn": "Zamknięte na start",
+      "brokenColumn": "Zepsute",
+      "brokenHint": "Zamek wyważony (Force the Door, wyłom). Póki zaznaczone, drzwi otwierają się każdemu; odznacz, by naprawić zamek.",
       "lockedAtStartHint": "Czy te drzwi są zamknięte na początku sezonu. Reset sezonu przywraca każde drzwi do tego stanu.",
       "isRoomColumn": "To jest pokój",
       "isRoomHint": "Czy ten region jest pokojem. Region z zachowaniem teleportu albo zmiany poziomu, albo narysowany przez gracza, nie może nim być.",
