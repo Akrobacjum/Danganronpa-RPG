@@ -2503,7 +2503,7 @@
         "many": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
         "other": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób."
       },
-      "notePlaceholder": "Co ten trop im mówi",
+      "notePlaceholder": "Co widzi uczeń",
       "analysisPlaceholder": "Co dodaje laboratorium",
       "difficulty": "Trudność",
       "onMap": "Który Remnant",
@@ -3226,7 +3226,7 @@
       "playerText": "Opis dla gracza",
       "playerTextPlaceholder": "Co naprawdę widzi osoba, która to znalazła.",
       "analyzedText": "Co ujawnia analiza",
-      "analyzedTextPlaceholder": "To, czego nie widać gołym okiem - czyja krew, który mankiet, czym pachnie.",
+      "analyzedTextPlaceholder": "Czyja krew?",
       "analyzedTextNote": "Pole opcjonalne. Przeczyta to tylko uczeń, któremu uda się Analyze na tym śladzie. Puste nie psuje niczego - Analyze i tak nazwie kategorię.",
       "analysisHeading": "Analiza:",
       "gmNote": "Notatka dla GM-a (nigdy nie pokazywana graczowi)",

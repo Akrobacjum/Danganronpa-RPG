@@ -50,3 +50,20 @@ repo with the same script.
 
 Not changed: a long placeholder in a text field is cut at the field's edge (New Remnant's "What analysis reveals"), as
 in one column before.
+
+## Round 3 (12.11.2026): placeholders that fit their fields
+
+The coordinator: shorten the cut placeholder rather than widen the field, and read every placeholder of New Remnant and
+the realization preview the same way. Read in Chromium at 1366x768, both themes, English and Polish, on the style
+harness's captures: each placeholder's text width (the field's placeholder font, a canvas measure) against its field's
+content box. A scratch script outside the repo, not a test: the fit pass reads scrolling and overflow, not a
+placeholder's text.
+
+- Before: 6 of 16 cut, all in New Remnant (the realization preview has no text field). "What analysis reveals" in both
+  themes (EN 453 px of text in 235, Legacy 1146 in 207) and "Player description" under Legacy (EN 333 in 223, PL 253
+  in 241).
+- Built: `DRPG.TruthBullet.analyzedTextPlaceholder` "Whose blood?" / "Czyja krew?" and
+  `DRPG.Investigation.notePlaceholder` "What they see" / "Co widzi uczeń". Both keys are shared: the Remnants tab, the Final Truth tab, the
+  Key plan, Create a Key Remnant here, Observe's describe window, the give window and the ring read them too, so they
+  are shorter there as well.
+- After: 0 of 32 cut (New Remnant, Create a Key Remnant here and both states of the preview).
