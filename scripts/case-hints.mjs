@@ -2,7 +2,7 @@
  * HINTS AFTER PRESENTATIONS (E99 C4, 12.11.2026; the plan's C4 and Q-E99-13's default, owner to confirm). At the trial
  * the GM's schema marks each input a student presented and, where the presentations would carry a conclusion, shows
  * a hint at it - a hint for the GM, never a tick: a node counts as discovered only when a GM ticks it (Q-E99-2), and
- * nothing here writes (R3664 reads this file for the words of a write).
+ * nothing here writes (R3675 reads this file for the words of a write).
  *
  * THE RULE is E98's reachability (case-schema.mjs `reachability`) over what was presented instead of what is held:
  * students other than the culprit presented strictly more than half of a conclusion's inputs, a ticked deduction

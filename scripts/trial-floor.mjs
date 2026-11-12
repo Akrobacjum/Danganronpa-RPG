@@ -100,7 +100,7 @@ export const MODE_RULES = Object.freeze({
  * HOW EACH MODE STARTS (E99 C2; the owner's 09.11: "stages adding trial minigames must wire into the builder (mode list
  * read from the trial's mode table + a census test)"; Q-E99-10's default). Every key of floor-machine.mjs `MODES`, the
  * console's action that starts it (trial-floor-ui.mjs `trialButtons`), or none with the reason it has no start button -
- * raised by a player. The case map's trial view (E99 C5) and R3659's census read it; a stage that adds a mode adds its
+ * raised by a player. The case map's trial view (E99 C5) and R3670's census read it; a stage that adds a mode adds its
  * row here, or the census fails.
  */
 export const MODE_STARTS = Object.freeze({

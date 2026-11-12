@@ -6,19 +6,19 @@ C1-C13 were pushed (1e1c61c). Plan: docs/dev/plans/E99.md on origin/claude/plan-
 ## Done (this commit)
 
 - **C2, the modes' census**: trial-floor.mjs `MODE_STARTS` (each mode of floor-machine.mjs `MODES`: the console's
-  start action, or `raisedByPlayer` for objection and rebuttal - Q-E99-10's default) and `modeCensus`. R3659.
+  start action, or `raisedByPlayer` for objection and rebuttal - Q-E99-10's default) and `modeCensus`. R3670.
 - **C3, the ticks**: gm-stores.mjs `caseTickStore` (`caseTicks` under `gmCaseTicks`, ledger, not backed up, synced,
-  cut with the trial's group; any GM - Q-E99-8), case-schema.mjs `caseTicks`, `setCaseTick`. R3661.
+  cut with the trial's group; any GM - Q-E99-8), case-schema.mjs `caseTicks`, `setCaseTick`. R3672.
 - **C6, the composer**: new scripts/case-summary.mjs `composeCaseSummary` - an allowlist: evidence on the schema a
   student found (public name and words), ticked deductions and counters by name, the solution only on a right vote
-  (whole, Q-E99-4); local indexes, no ids, no author, no counts of what was not found (Q-E99-12). R3660 (markers in
+  (whole, Q-E99-4); local indexes, no ids, no author, no counts of what was not found (Q-E99-12). R3671 (markers in
   every place that must not cross). graphOf now carries a trace's public words (`text`).
 - **C7, Show summary** (part): a "Show summary" button in the trial console after the verdict (greyed before it and
   in a Final Trial, Q-E99-5); a GM preview of exactly what goes out (Close the default, Send not under Enter); one
   public chat card that is the summary (Q-E99-6), sent once a chapter (a mark in the ticks store; Q-E99-9).
-  `caseSummaryHtml`, R3662. R1364 follows the console's footer.
+  `caseSummaryHtml`, R3673. R1364 follows the console's footer.
 
-Red first: R3659-R3662 red at 1e1c61c (no MODE_STARTS, no caseTickStore, no case-summary.mjs), green here.
+Red first: R3670-R3673 red at 1e1c61c (no MODE_STARTS, no caseTickStore, no case-summary.mjs), green here.
 
 - **C4, hints after presentations**: new scripts/case-hints.mjs - `presentationHints` (E98's rule over what was
   presented: students other than the culprit presented strictly more than half of a conclusion's inputs, a ticked
@@ -26,7 +26,7 @@ Red first: R3659-R3662 red at 1e1c61c (no MODE_STARTS, no caseTickStore, no case
   `casePresentations` (the chapter's Present cards through the GMs' answer key; a withdrawn Objection skipped, a refused
   one counted - its bullet was shown; a card with no Remnant behind it hints nothing and is counted for the GM).
   investigation.mjs exports `caseCulprit` (the first of the chapter's Blackened and killers, as the Map's reach reads).
-  R3663, R3664, and the tier-2 "E99 C5" test's last step (a Present's read changes no tick).
+  R3674, R3675, and the tier-2 "E99 C5" test's last step (a Present's read changes no tick).
 - **C5, the schema at the trial (as a window)**: new scripts/case-trial.mjs - `trialSchemaHtml` (the Map's graph read
   only, the unrelated evidence folded, the presented and hinted nodes and the ticked ones marked; beside it a tick box per
   deduction, counter and solution and the node's mode start where MODE_STARTS has one, greyed with a reason while a
@@ -34,7 +34,7 @@ Red first: R3659-R3662 red at 1e1c61c (no MODE_STARTS, no caseTickStore, no case
   the chat's cards), `tickFromSchema`. The console's footer gains "Case schema" while a trial runs and after it;
   trial-floor-ui.mjs `startTrialMode` starts only what MODE_STARTS names. case-map.mjs `caseGraphHtml` takes `marks`.
   The Map's drawing rules in components.css now read `:is(.drpg-window-case, .drpg-window-case-trial)` (same
-  specificity). R3665, R3666, tier-2 "E99 C5" (a click on a tick box reaches the store, a second click takes it off).
+  specificity). R3676, R3677, tier-2 "E99 C5" (a click on a tick box reaches the store, a second click takes it off).
   R1364 follows the console's footer. Probe 08 captures `case-trial`.
 
 **Q-E99-1, answered (12.11, about 11:00 Warsaw; the owner's "E99 tak" to the coordinator's question, relayed by the coordinator): the schema stands in the middle of the Class Trial screen.** Done after c73f5d7, below. What follows was the earlier deviation:
@@ -45,7 +45,7 @@ redrawn every second and its rebuild is E73's (the coordinator's line); `trialSc
 it there is one call once E73 has the layout. The plan's 86-frame-work risk (the SVG redrawn every second) does not
 arise in a window of its own, whose region redraws only on its watches.
 
-Red first: R3663-R3666 and the tier-2 "E99 C5" test red at 946c031 (no case-hints.mjs, no case-trial.mjs), green here.
+Red first: R3674-R3677 and the tier-2 "E99 C5" test red at 946c031 (no case-hints.mjs, no case-trial.mjs), green here.
 
 - **C5 fix (R1317)**: tiers 0-1 on c6d1e96 failed R1317 - the window's region read the clock and the incident's
   setting without declaring them, so it would not have redrawn on either. It now watches `clock` and `murderState` (and
@@ -56,8 +56,8 @@ Red first: R3663-R3666 and the tier-2 "E99 C5" test red at 946c031 (no case-hint
   composer that passes unticked deductions is caught: the marker found in the chat card on p1, p2 and p3 (measured,
   then reverted). 63-class-trial's part S (after I's correct verdict, gm3 connected for it): a tick on gm2 read on
   gm3 and gm3's on gm2; gm2's Show summary on p1 with both ticks and the solution. 63: 74/74 (71 before).
-  Not done of C8's list: a hint after p1's Present in 63 (tier 1 R3663 and R3664 hold the rule and the read), the
-  console's census in the DOM in 63 (R3659, R3665), the board on p1-p4 (E61).
+  Not done of C8's list: a hint after p1's Present in 63 (tier 1 R3674 and R3675 hold the rule and the read), the
+  console's census in the DOM in 63 (R3670, R3676), the board on p1-p4 (E61).
 - **C9, the text**: the GM handbook's section 15 in both languages (the schema at the trial, ticking, hints, Show
   summary); glossary `case-schema`, `case-summary` (E99, open); AUDIT 9.2 items 481-483 (LIVE-E99-01, -04, -05; -02 and
   -03 are the board's, E61). The player handbook's trial section waits for the board (what it shows).
@@ -93,7 +93,7 @@ public, with the flag `caseSummary`; its content is the payload's words and noth
 - c6d1e96 (C4, C5): tiers 0-1 1181 passed, 1 failed (R1317, fixed in c1bc17e); 14 scenarios (00, 30, 33, 41, 50, 61,
   62, 63, 65, 67, 72, 81, 86, 88) green.
 - c1bc17e (C5 fix, C8, C9): quick gate green; tiers 0-1 1182 passed, 0 failed, 16 skipped, 1 red (R3339, E48's); tier 2
-  by name ("E99 C5", "E97 C", R3663-R3666, R1317) 30 passed; 14 scenarios (00, 10, 11, 13, 30, 40, 41, 50, 63, 67, 72,
+  by name ("E99 C5", "E97 C", R3674-R3677, R1317) 30 passed; 14 scenarios (00, 10, 11, 13, 30, 40, 41, 50, 63, 67, 72,
   76, 86, 88) green; 63 74/74, 72 with its summary phase green. Pushed.
 - A slip, recorded: the dev worktree's `audit/harness/node_modules` (a symlink to the main tree's) was swept into a
   local commit by `git add -A audit`; fast-forwarding the main tree replaced its real node_modules with the symlink. Seen
@@ -110,8 +110,8 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
 - The coordinator's `claude/e97-fix` request (the owner's E97 review: nodes sized to their content, editing on the
   node, pan and zoom) was held here for the user's go-ahead, then withdrawn by the coordinator, who runs it in a
   session of its own. Nothing of it is on this branch.
-- **R-number collision**: fa73b60's 3a288fa takes R3659 on the 1.2.107 line, where claude/e97-98 has R3659-R3666 for
-  E99. The coordinator's decision: E99 renumbers at its merge onto the released 1.2.108 line; R3659-R3666 stay as they
+- **R-number collision**: fa73b60's 3a288fa takes R3670 on the 1.2.107 line, where claude/e97-98 has R3670-R3677 for
+  E99. The coordinator's decision: E99 renumbers at its merge onto the released 1.2.108 line; R3670-R3677 stay as they
   are until the coordinator names the base and the free range.
 
 ## C8's hint, end to end (after c1bc17e)
@@ -119,7 +119,7 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
 - Tier 2 "E99 C4: a Present card ...": a trace placed in this chapter, a real copy with its answer key, a card shaped
   as `presentBullet` posts it; the Case schema's state marks the Remnant presented and hints a deduction resting on it
   alone, the ticks unchanged. Written after the code, so not red first: its control is a mutant `casePresentations`
-  that skips every card, under which it fails (and R3664 with it); restored. Seen on the way: the suite's shared
+  that skips every card, under which it fails (and R3675 with it); restored. Seen on the way: the suite's shared
   `traceCopies` fixture places its trace with no chapter, so it is on no chapter's schema - this test places its own.
 
 ## The schema in the console's middle (Q-E99-1 answered)
@@ -134,7 +134,7 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
 - The Case schema window stays as the second way (the footer's button).
 - A mode's start in the schema is greyed while no Class Trial runs as well (the console offers no start then).
 - Tier 2 "E99 C5: the case schema stands in the middle ...": red at c73f5d7 (no slot), green here - the slot outside
-  the read-out, the same tick box after the clock moved, starts greyed under an open floor, a click stored. R3665 grows
+  the read-out, the same tick box after the clock moved, starts greyed under an open floor, a click stored. R3676 grows
   a third case (no trial running), changed with the code (not red first).
 - Round 3 (12.11.2026): https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC - the trial console with the schema in its
   middle, both themes, EN and PL, 1366x768 and 1920x1080, no trial running. Not Foundry, and not yet E73's layout; at
@@ -169,3 +169,9 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
   1366x768 and 1920x1080, both themes; the body scrolls to the schema (today's read-out above it is tall).
 - Shots: https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC (round 3c on top: from the window's top and scrolled to
   the schema).
+
+## Renumbered (12.11, the coordinator's step 2 before the merge of claude/e97-fix)
+
+E99's tests R3659-R3666 are R3670-R3677 (each +11, in order), because the 1.2.107 line took R3659 (3a288fa) and the
+E97 fix R3660-R3662. The registry keeps the old rows marked "(renumbered to R367x in E99)" until the merge, where
+R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved too.

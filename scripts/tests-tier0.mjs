@@ -23040,7 +23040,7 @@ const REGRESSIONS = [
             placed: [[["S.T9", "trace", true, false, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "S.T9", to: "deduction-x", kind: "input" }]]
         }), "{lines: each slot's line under a limit of 3; unlimited: with none; planned, placed: the graph's nodes [id, kind, evidence, planned, incident row] and edges, before and after the Remnant is on the map}");
     }],
-    ["R3660 - the players' case summary holds only what was discovered (E99 C6; the owner's goal for E99, Q-E99-2, -3, -4, -12): case-summary.mjs `composeCaseSummary` keeps each piece of evidence on the schema a student found, by its public name and words, each deduction and counter ticked at the trial by name, and the solution only on a right vote; it carries no node id, no author, nothing of an unfound Remnant, an untied one, a planned slot, an unticked deduction, and with a wrong vote no solution", async () => {
+    ["R3671 - the players' case summary holds only what was discovered (E99 C6; the owner's goal for E99, Q-E99-2, -3, -4, -12): case-summary.mjs `composeCaseSummary` keeps each piece of evidence on the schema a student found, by its public name and words, each deduction and counter ticked at the trial by name, and the solution only on a right vote; it carries no node id, no author, nothing of an unfound Remnant, an untied one, a planned slot, an unticked deduction, and with a wrong vote no solution", async () => {
         /*
          * E99 C6, 12.11.2026. Pure: a fixture graph with a marker in every place that must not cross (an unfound tied
          * Remnant, an untied found one, a planned slot, an unticked deduction, the solution, an author, every node id),
@@ -23078,7 +23078,7 @@ const REGRESSIONS = [
                 [{ from: 0, to: 1, kind: "input" }, { from: 2, to: 1, kind: "refutes" }, { from: 1, to: 3, kind: "input" }]]
         }), "{marks: a marker of what must not cross, in the wrong vote's payload; ids: a node id in either; markRight: a marker in the right vote's; wrong: its payload; right: its nodes and links}");
     }],
-    ["R3662 - the case summary's card draws its payload and nothing more (E99 C7; case-summary.mjs `caseSummaryHtml`): one column per role present, in the payload's order, each entry its name and words escaped, the links in words, and with a wrong vote the line that the solution stays closed", async () => {
+    ["R3673 - the case summary's card draws its payload and nothing more (E99 C7; case-summary.mjs `caseSummaryHtml`): one column per role present, in the payload's order, each entry its name and words escaped, the links in words, and with a wrong vote the line that the solution stays closed", async () => {
         /*
          * E99 C7, 12.11.2026. Pure: a payload with a tag in a name. Red at c53849d's parent: no caseSummaryHtml.
          */

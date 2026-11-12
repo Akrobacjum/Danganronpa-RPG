@@ -8250,7 +8250,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
             "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
     }],
-    ["R3659 - the trial modes' census (E99 C2; the owner's 09.11: every trial minigame wires into the case map, read from the trial's mode table, with a census test; Q-E99-10): every mode of floor-machine.mjs MODES has a row in trial-floor.mjs MODE_STARTS - an action the console's trialButtons draws, or a reason it has none - and a name in both languages (`DRPG.Floor.mode.<mode>`); a mode planted with no row, a row of no mode and a row with an unknown action are each found", async () => {
+    ["R3670 - the trial modes' census (E99 C2; the owner's 09.11: every trial minigame wires into the case map, read from the trial's mode table, with a census test; Q-E99-10): every mode of floor-machine.mjs MODES has a row in trial-floor.mjs MODE_STARTS - an action the console's trialButtons draws, or a reason it has none - and a name in both languages (`DRPG.Floor.mode.<mode>`); a mode planted with no row, a row of no mode and a row with an unknown action are each found", async () => {
         /*
          * E99 C2, 12.11.2026. The console's actions are read off trial-floor-ui.mjs's source (`action: "..."` in
          * trialButtons), the names off both language files as served. Red at 1e1c61c: no MODE_STARTS.
@@ -8273,7 +8273,7 @@ const INVARIANTS = [
             planted: [["poll: no start row"], ["gone: a start row of no mode"], ["panic: neither a console action nor a reason"]]
         }), "{census: what is wrong between the modes, their starts and the console's actions; unnamed: modes with no name in en, pl; planted: a mode with no row, a row of no mode, an unknown action}");
     }],
-    ["R3663 - hints after presentations (E99 C4; Q-E99-13): case-hints.mjs `presentationHints` holds what was presented to E98's rule - a conclusion is hinted when students other than the culprit presented strictly more than half of its inputs; a bullet only the culprit presented is marked and counts for nothing; a ticked node is never hinted again and a hint is never a tick; a card with no Remnant behind it (a copy from before E97) hints nothing and is counted for the GM", async () => {
+    ["R3674 - hints after presentations (E99 C4; Q-E99-13): case-hints.mjs `presentationHints` holds what was presented to E98's rule - a conclusion is hinted when students other than the culprit presented strictly more than half of its inputs; a bullet only the culprit presented is marked and counts for nothing; a ticked node is never hinted again and a hint is never a tick; a card with no Remnant behind it (a copy from before E97) hints nothing and is counted for the GM", async () => {
         /*
          * E99 C4, 12.11.2026. A planted graph: d1 <- e1, e2, e3; d2 <- e3, d1; s <- d1, d2. Red at 9290ce0: no case-hints.mjs.
          */
@@ -8297,7 +8297,7 @@ const INVARIANTS = [
             { hints: [], presented: [], unknown: 2 }
         ]), "[one of three; two of three; one and the culprit's (marked, not counted); all three with d1 ticked; an old card and a Remnant not on the schema]");
     }],
-    ["R3664 - a presentation is read, never ticked (E99 C4): case-hints.mjs `casePresentations` turns the chapter's Present cards into { nodeId, actorId } through the GMs' answer key (`sceneId.remnantId`, the bullet's uuid off the card's speaker and item), skips another chapter's and a withdrawn Objection's (no bullet came; a refused one showed its bullet and counts), gives null for a bullet with no Remnant; the file names no tick writer (`setCaseTick`, `caseTickStore`)", async () => {
+    ["R3675 - a presentation is read, never ticked (E99 C4): case-hints.mjs `casePresentations` turns the chapter's Present cards into { nodeId, actorId } through the GMs' answer key (`sceneId.remnantId`, the bullet's uuid off the card's speaker and item), skips another chapter's and a withdrawn Objection's (no bullet came; a refused one showed its bullet and counts), gives null for a bullet with no Remnant; the file names no tick writer (`setCaseTick`, `caseTickStore`)", async () => {
         /* E99 C4, 12.11.2026. Planted cards and a planted answer key. Red at 9290ce0: no case-hints.mjs. */
         const H = await import("./case-hints.mjs").catch(() => null);
         must(H && typeof H.casePresentations === "function", "there is no case-hints.mjs casePresentations");
@@ -8311,7 +8311,7 @@ const INVARIANTS = [
         must(src.length > 100, "case-hints.mjs read as nothing - this would measure nothing");
         equal(JSON.stringify(["setCaseTick", "caseTickStore", "setFlag", "update("].filter(w => src.includes(w))), "[]", "words of a write in case-hints.mjs");
     }],
-    ["R3665 - the trial's Case schema window, drawn (E99 C5; Q-E99-1, the plan's C5 census): case-trial.mjs `trialSchemaHtml` draws the graph read-only, a tick box on each deduction, counter and solution (none on evidence), each ticked one checked; every node whose trial mode has a start in trial-floor.mjs MODE_STARTS a start button with the mode's name, greyed with the console's reason while a floor is open or no Class Trial runs (E99 C5 placed); a mode raised by a player no button; the presented evidence and the hinted conclusions marked, and the cards with no Remnant said", async () => {
+    ["R3676 - the trial's Case schema window, drawn (E99 C5; Q-E99-1, the plan's C5 census): case-trial.mjs `trialSchemaHtml` draws the graph read-only, a tick box on each deduction, counter and solution (none on evidence), each ticked one checked; every node whose trial mode has a start in trial-floor.mjs MODE_STARTS a start button with the mode's name, greyed with the console's reason while a floor is open or no Class Trial runs (E99 C5 placed); a mode raised by a player no button; the presented evidence and the hinted conclusions marked, and the cards with no Remnant said", async () => {
         /* E99 C5, 12.11.2026. A planted state. Red at 9290ce0: no case-trial.mjs. */
         const T = await import("./case-trial.mjs").catch(() => null);
         must(T && typeof T.trialSchemaHtml === "function", "there is no case-trial.mjs trialSchemaHtml - the trial has no schema");
@@ -8341,7 +8341,7 @@ const INVARIANTS = [
             { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:true:true", "s:startClosing:true:true"], reasons: [true, true], presented: ["e1"], hinted: ["s"], unknown: 1 }
         ]), "[no floor open, a floor open, no Class Trial running]: tick boxes, start buttons (node:action:greyed:named), reasons on the greyed, marks, the unknown cards' line");
     }],
-    ["R3666 - Case schema from the console, and nothing for a player (E99 C5): the console's trialButtons offers `caseSchema` while a trial runs and after it, and TRIAL_ACTIONS opens case-trial.mjs `openTrialSchema`; a player's `openTrialSchema` and `tickFromSchema` open and write nothing; trial-floor-ui.mjs `startTrialMode` starts only what MODE_STARTS names", async () => {
+    ["R3677 - Case schema from the console, and nothing for a player (E99 C5): the console's trialButtons offers `caseSchema` while a trial runs and after it, and TRIAL_ACTIONS opens case-trial.mjs `openTrialSchema`; a player's `openTrialSchema` and `tickFromSchema` open and write nothing; trial-floor-ui.mjs `startTrialMode` starts only what MODE_STARTS names", async () => {
         /* E99 C5, 12.11.2026. Read off the source and called on a planted player. Red at 9290ce0: no case-trial.mjs. */
         const T = await import("./case-trial.mjs").catch(() => null);
         must(T && typeof T.openTrialSchema === "function" && typeof T.tickFromSchema === "function", "there is no case-trial.mjs openTrialSchema / tickFromSchema");
@@ -8360,7 +8360,7 @@ const INVARIANTS = [
         }), JSON.stringify({ button: true, action: true, player: [null, null, null], refused: null }),
         "{the console's button; its action; a player's open, tick and start; a start of what is no mode's}");
     }],
-    ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
+    ["R3672 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*
          * E99 C3, 12.11.2026; as R3374 reads the schema's store. Red at 1e1c61c: no caseTickStore.
          */
