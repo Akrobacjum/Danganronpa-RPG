@@ -18,6 +18,9 @@ opening from 2500 ms, 3.4 s in all (`scripts/sequence.mjs`).
   (`slidePlan`, `slideAt`); the closed curtain is the curtain's own paint (`curtainPaint`) of the whole cut; the
   opening is the reverse onto the trial's cut. The panes' colour turns from the Investigation's blue to the trial's
   pink in eight batches, outer first.
+- **Above 1366x768** (98e004c): the new panes keep 1366x768's share of the screen - the standing cut is built of fixed
+  pixel sizes, so its panes alone would make them half as large at 1920x1080 - with a grid at the curtain's slants and
+  the rim's small pieces joined with a neighbour; at 1366x768 and below the fill is the one the owner accepted.
 - **Monokuma Legacy** and wherever no curtain is cut: two black lids with a red edge, the same title and times.
 - **Esc** skips the one playing on that screen; **reduced motion** shows a still frame (the closed curtain and the
   title for 1.5 s); the room and voice tiles are covered for its span and come back with it.
@@ -75,18 +78,24 @@ the hour, and the cast in its order with the dead by the published flag alone; E
 - **The review page's frame strips are drawn on a held clock** with the module's own `slideAt`, not filmed: a
   real-time headless recording at 1920x1080 caught only 2-3 frames of the closing. They show where each pane is at a
   moment, not how smoothly it gets there.
+- **The at-rest cut is not scaled**: above 1366x768 the standing panes are smaller in share of the screen than at
+  1366x768 (1.19 % against 2.27 % at 1920x1080); only the entry's new panes follow 1366x768's proportions. One draw
+  swings by about a tenth (GM 1920x1080 2.14 % against 2.09 % at 1366x768, player 2.45 % against 1.76 %, in Chromium,
+  one seed each); over eight seeds 0.94 and 1.04.
+- R3703 allows one new pane out of range on its 1600x900 cut: a 630 px² chip in a notch between standing panes.
 - The microphone's keybinding while a sequence covers the voice tile: LIVE-E61-08.
 - A client that loads after the event plays nothing (Q-E61-1 and Q-E94-4 defaults, owner to confirm); the lead line's
   widths are read from the code (`paintGlass`'s 1.2, 0.5 and 0.7 px), not measured in pixels.
 
 ## Checked
 
-- Tiers 0-1 whole, headless, at 1db3f62: 1246 passed, 0 failed, 16 skipped. R3700-R3718 green by name; R3703, R3716
-  and R3718 red at 8ab5124 or earlier as their comments say.
+- Tiers 0-1 whole, headless, at 98e004c: 1247 passed, 0 failed, 16 skipped. R3700-R3719 green by name; R3703, R3716,
+  R3718 and R3719 red at 8ab5124 or 1db3f62 as their comments say.
 - Scenarios 14, 74 and 75 (the ones reading glass.mjs and the stylesheet) green at 1db3f62; the wider set for E61, E62
   and E94 green at their own commits (STATUS files).
 - `node tools/check.mjs` 17/17 green, `npm run lint` green.
-- `node audit/glass-sweep.mjs`: green at 8937575 (2 themes x 2 roles x 25 sizes, 0 failing); the run at 8ab5124 is
-  recorded in docs/dev/e61/STATUS.md.
-- CI: run 482 (8937575) green; runs 499 (8ab5124) and 505 (1db3f62) are recorded in docs/dev/e61/STATUS.md.
+- `node audit/glass-sweep.mjs`: green at 8937575 and at 8ab5124 (2 themes x 2 roles x 25 sizes, 46 with glass, 0
+  failing; the second run without the notice check); rounds 4 and 5 change no at-rest cut.
+- CI: run 482 (8937575) green; later runs were cancelled when CI moved to the release train (12.11), whose run on the
+  merged head is the authoritative one.
 - Not run: the local gate (no v14 sandbox on this line).

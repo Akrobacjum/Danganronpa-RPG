@@ -54,6 +54,9 @@ Glass and Monokuma Legacy as recordings and frame strips, close-ups at 25 %, 50 
 closed curtain in both themes at deviceScaleFactor 2, and the table below per size and role; Polish captions; what the
 pictures are not is on the page.
 
+Glass sweep at 8ab5124 (`--no-notices`): SWEEP GREEN, 2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing. CI moved
+to the release train (the coordinator, 12.11): this branch's runs 499, 505 and 508 were cancelled; local checks stand in.
+
 ## Round 5 results (12.11.2026): 1920x1080's proportions
 
 The owner (12.11): round 4 accepted at 1366x768; at 1920x1080 the animation's panes are a little small and too narrow.
