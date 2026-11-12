@@ -3179,10 +3179,15 @@ body .application.drpg-ui:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-
 body .application.drpg-ui:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > button.drpg-case-node.is-ticked { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-check-done); }
 /* IN THE TRIAL CONSOLE (E99 C5 placed): the console's column is narrower than the schema's window, so the graph takes the
    width at a stated height and the ticks follow under it; the slot sits between the read-out and the footer. */
+/* E73's mockup B reserves the graph's height for the slot and no more (its frame's `.drpg-trial-schema` keeps its own
+   display and order): the console's variant is the graph alone at that height, its boxes and starts inside it. */
 .application.drpg-window-trial .drpg-trial-schema { margin-top: var(--drpg-kit-gap); }
-.application.drpg-window-trial .drpg-case-trial { flex-direction: column; height: auto; }
-.application.drpg-window-trial .drpg-case-trial > .drpg-case-graph { flex: 0 0 auto; height: clamp(12rem, 30vh, 24rem); }
-.application.drpg-window-trial .drpg-case-trial-side { flex: 0 0 auto; padding: 0; border-left: 0; border-top: 1px solid var(--drpg-kit-line); overflow-y: visible; }
+.application.drpg-window-trial .drpg-case-trial.is-console { height: clamp(12rem, 30vh, 24rem); }
+.application.drpg-window-trial .drpg-case-trial.is-console > .drpg-case-graph { flex: 1 1 auto; height: 100%; }
+.application.drpg-window-trial .drpg-case-trial.is-console [data-drpg-case-unknown] { margin: 0.25rem 0.5rem; }
+/* The graph's own controls (case-map.mjs `controls`), in the column gap right of their node. */
+.application:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > input.drpg-case-node-tick { position: absolute; margin: 0; width: 18px; height: 18px; }
+body .application.drpg-ui:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > button.drpg-case-node-start { position: absolute; width: 24px; max-width: 24px; height: 22px; min-width: 0; min-height: 0; margin: 0; padding: 0; line-height: 1; font-size: var(--drpg-text-sm); }
 
 /* ---- The project windows (E47-C6, 09.11.2026; cards M16-M19 of E47-M, approved by the owner on 09.11 with O1a, O2b, O3b
    and O4 as a setting; D31): the manager's `dataTable` and the create, edit and propose forms on `formGrid`. The rules

@@ -51,7 +51,7 @@ function tickRow(node, { ticked, hinted, floorOpen, noTrial = false }) {
  * Pure over its state: `{ graph, layout, ticks, presented, hints, unknown, floorOpen }` (`trialSchemaState`). The
  * graph, then the rows; the unknown cards' line when any card named no Remnant of the schema.
  */
-export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, noTrial = false } = {}) {
+export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, noTrial = false, inConsole = false } = {}) {
     const nodes = graph?.nodes ?? [];
     if (!nodes.length) return `<p class="notes">${esc(L("DRPG.CaseTrial.empty"))}</p>`;
     const hinted = new Set(hints);
@@ -59,11 +59,26 @@ export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hin
     for (const id of presented) marks[id] = ["presented"];
     for (const id of hints) marks[id] = [...(marks[id] ?? []), "hinted"];
     for (const [id, on] of Object.entries(ticks ?? {})) if (on === true) marks[id] = [...(marks[id] ?? []), "ticked"];
+    const unknownLine = unknown > 0 ? `<p class="notes" data-drpg-case-unknown>${esc(plural("DRPG.CaseTrial.unknown", { n: unknown }))}</p>` : "";
+    /* IN THE CONSOLE (E73's mockup B gives the schema the graph's height and no more): the boxes and the starts are the
+       graph's own controls beside each node, and nothing is drawn under the graph; the unknown cards' line stands above
+       it, inside the same box. The window keeps the list. */
+    if (inConsole) {
+        const controls = {};
+        for (const n of nodes.filter(n => !n.evidence)) {
+            const start = n.mode ? MODE_STARTS[n.mode] : null;
+            controls[n.id] = { tick: ticks?.[n.id] === true,
+                start: start?.action ? { action: start.action, mode: n.mode, label: modeLabel(n.mode), disabled: noTrial || floorOpen,
+                    reason: noTrial ? L("DRPG.CaseTrial.noTrial") : floorOpen ? L("DRPG.CaseTrial.floorOpen") : "" } : null };
+        }
+        return `<div class="drpg-case-trial is-console"><div class="drpg-case-graph">${unknownLine}`
+            + `${caseGraphHtml({ graph, layout, fold: true, marks, controls, label: L("DRPG.CaseTrial.title") })}</div></div>`;
+    }
     const rows = nodes.filter(n => !n.evidence).map(n => tickRow(n, { ticked: ticks?.[n.id] === true, hinted: hinted.has(n.id), floorOpen, noTrial })).join("");
     return `<div class="drpg-case-trial">`
         + `<div class="drpg-case-graph">${caseGraphHtml({ graph, layout, fold: true, marks, label: L("DRPG.CaseTrial.title") })}</div>`
         + `<div class="drpg-case-trial-side"><p class="notes">${esc(L("DRPG.CaseTrial.intro"))}</p>`
-        + (unknown > 0 ? `<p class="notes" data-drpg-case-unknown>${esc(plural("DRPG.CaseTrial.unknown", { n: unknown }))}</p>` : "")
+        + unknownLine
         + `<ul class="drpg-case-trial-rows">${rows}</ul></div></div>`;
 }
 
@@ -95,7 +110,7 @@ export async function tickFromSchema(chapter, nodeId, ticked) {
 export const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
 
 /* The schema's region in `dialog` kept live on its own watches, its boxes and starts wired; answers the stop. */
-function liveSchema(dialog, chapter) {
+function liveSchema(dialog, chapter, { inConsole = false } = {}) {
     const regionOf = () => dialog.element?.querySelector(".drpg-case-trial-live");
     const wire = () => {
         const region = regionOf();
@@ -114,7 +129,7 @@ function liveSchema(dialog, chapter) {
     wire();
     return keepLive(dialog, {
         region: ".drpg-case-trial-live",
-        build: () => trialSchemaHtml(trialSchemaState(chapter)),
+        build: () => trialSchemaHtml({ ...trialSchemaState(chapter), inConsole }),
         watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
         after: wire
     });
@@ -130,8 +145,8 @@ export function mountTrialSchema(dialog) {
     if (!slot || slot.dataset.drpgMounted) return null;
     slot.dataset.drpgMounted = "1";
     const chapter = getClock().chapter;
-    slot.innerHTML = `<div class="drpg-case-trial-live">${trialSchemaHtml(trialSchemaState(chapter))}</div>`;
-    return liveSchema(dialog, chapter);
+    slot.innerHTML = `<div class="drpg-case-trial-live">${trialSchemaHtml({ ...trialSchemaState(chapter), inConsole: true })}</div>`;
+    return liveSchema(dialog, chapter, { inConsole: true });
 }
 
 /** THE WINDOW (C5; the second way since the console holds the schema): one at a time, a GM's. */

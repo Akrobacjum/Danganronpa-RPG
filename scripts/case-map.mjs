@@ -149,7 +149,7 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
  * `marks` the trial's marks by node id (E99 C5: "presented", "hinted", "ticked").
  * The scroll box (`.drpg-case-graph`) is the container's to size.
  */
-export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], marks = {} } = {}) {
+export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], marks = {}, controls = null } = {}) {
     const warned = new Set((problems ?? []).map(p => p.node).filter(Boolean));
     const nodes = new Map((graph?.nodes ?? []).map(n => [n.id, n]));
     const unrelated = new Set(layout?.unrelated ?? []);
@@ -175,12 +175,36 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         buttons.push(nodeButton(node, p, { state: nodeState(node, finders), selected: id === selected, loose: unrelated.has(id), author: authors?.get?.(id) ?? null,
             reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [] }));
     }
+    /* THE TRIAL'S CONTROLS IN THE GRAPH (E99 C5 in the console; E73's mockup B reserves the graph's height alone, so
+       nothing goes under it): `controls` by node id - `{ tick: bool, start: { action, mode, label, disabled, reason } }` -
+       each drawn in the column gap to the right of its node, a sibling of the node's button (a box inside a button is
+       not valid markup), the box named by the node, the start by its mode. */
+    const controlled = [];
+    for (const [id, c] of Object.entries(controls ?? {})) {
+        const p = place.at[id];
+        const node = nodes.get(id);
+        if (!p || !node || !c) continue;
+        const x = p.x + MAP_GEOMETRY.nodeW + 6;
+        const name = nameOf(node);
+        if (c.tick !== undefined && c.tick !== null) {
+            controlled.push(`<input type="checkbox" class="drpg-case-node-tick" data-drpg-case-tick="${esc(id)}" style="left: ${x}px; top: ${p.y + 4}px"`
+                + `${c.tick ? " checked" : ""} aria-label="${esc(F("DRPG.CaseTrial.tickLabel", { name }))}" title="${esc(F("DRPG.CaseTrial.tickLabel", { name }))}">`);
+        }
+        if (c.start?.action) {
+            const said = F("DRPG.CaseTrial.startLabel", { mode: c.start.label, name });
+            controlled.push(`<button type="button" class="drpg-case-node-start" data-drpg-node="${esc(id)}" data-drpg-case-start="${esc(c.start.action)}"`
+                + ` data-drpg-mode="${esc(c.start.mode)}" style="left: ${x}px; top: ${p.y + 28}px" aria-label="${esc(said)}"`
+                + ` title="${esc(c.start.disabled ? c.start.reason || said : said)}"${c.start.disabled ? " disabled" : ""}>&#9656;</button>`);
+        }
+    }
     const gap = place.gapY === null ? "" : `<div class="drpg-case-gap" style="top: ${place.gapY}px; width: ${MAP_GEOMETRY.nodeW}px; left: ${MAP_GEOMETRY.pad}px">`
         + `<button type="button" class="drpg-case-fold" data-drpg-case-fold aria-expanded="${fold ? "false" : "true"}">${esc(F("DRPG.CaseMap.unrelated", { n: unrelated.size }))}</button></div>`;
-    return `<div class="drpg-case-canvas" style="width: ${place.width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}">`
+    // The controls stand in the gap right of their node, so the last column's need room past the canvas's own width.
+    const width = place.width + (controlled.length ? MAP_GEOMETRY.colGap : 0);
+    return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}">`
         + heads.join("")
-        + `<svg class="drpg-case-edges" width="${place.width}" height="${place.height}" aria-hidden="true" focusable="false">${edges.join("")}</svg>`
-        + gap + buttons.join("") + `</div>`;
+        + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${edges.join("")}</svg>`
+        + gap + buttons.join("") + controlled.join("") + `</div>`;
 }
 
 /** One row of the side panel: a label and its value, both text. */

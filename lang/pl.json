@@ -7625,6 +7625,8 @@
       "empty": "Ten rozdział nie ma jeszcze schematu sprawy. Zbuduj go na Mapie w panelu Investigation.",
       "floorOpen": "Trwa tryb rozprawy. Zamknij go, zanim zaczniesz kolejny.",
       "noTrial": "Class Trial nie trwa. Zacznij go, zanim zaczniesz tryb.",
+      "tickLabel": "Zaznaczone: {name}",
+      "startLabel": "Zacznij {mode} od węzła {name}",
       "hint": "Podpowiedź: pokazane dowody to unoszą",
       "presented": "Pokazany",
       "ticked": "Zaznaczony",

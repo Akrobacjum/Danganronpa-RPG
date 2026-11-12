@@ -39755,20 +39755,22 @@ const SCENARIOS = [
             must(app?.element, "the trial console did not open");
             const slot = () => app.element.querySelector("[data-drpg-trial-schema]");
             must(slot(), "the console has no case schema slot ([data-drpg-trial-schema])");
-            const box = () => slot()?.querySelector(`input[data-drpg-case-tick="${id}"]`);
+            // In the console the boxes and starts are the graph's own (E73's mockup B reserves the graph's height alone)
+            const box = () => slot()?.querySelector(`.drpg-case-canvas input[data-drpg-case-tick="${id}"]`);
             await until(() => box(), 4000);
             const first = box();
             const secondsOf = () => Number(app.element.querySelector(".drpg-trial-console")?.textContent.match(/(\d+)\s*s/)?.[1] ?? NaN);
             const t0 = secondsOf();
             await until(() => secondsOf() < t0, 4000);
-            const start = slot()?.querySelector(`[data-drpg-case-start][data-drpg-node="${id}"]`);
+            const start = slot()?.querySelector(`.drpg-case-canvas [data-drpg-case-start][data-drpg-node="${id}"]`);
+            const listed = Boolean(slot()?.querySelector(".drpg-case-trial-rows"));
             const kept = Boolean(first) && first === box() && first.isConnected;
             box()?.click();
             await until(() => S.caseTicks(chapter)[id] === true, 3000).catch(() => {});
             equal(JSON.stringify({ outside: !slot().closest(".drpg-trial-console"), box: Boolean(first), ticked: secondsOf() < t0, kept,
-                startGreyed: Boolean(start?.disabled), stored: S.caseTicks(chapter)[id] === true }),
-            JSON.stringify({ outside: true, box: true, ticked: true, kept: true, startGreyed: true, stored: true }),
-            "{the slot outside the read-out; the deduction's tick box; the clock moved; the same box after it; the start greyed under the open floor; the click stored}");
+                startGreyed: Boolean(start?.disabled), listed, stored: S.caseTicks(chapter)[id] === true }),
+            JSON.stringify({ outside: true, box: true, ticked: true, kept: true, startGreyed: true, listed: false, stored: true }),
+            "{the slot outside the read-out; the deduction's tick box in the graph; the clock moved; the same box after it; the graph's start greyed under the open floor; no list under the graph; the click stored}");
         } finally {
             closeOpen("drpg-window-trial");
             await floorMod.endFloor();
@@ -39809,7 +39811,7 @@ const SCENARIOS = [
             const el = consoleApp()?.element;
             const slot = el?.querySelector("[data-drpg-trial-schema]");
             return { open: Boolean(el), slot: Boolean(slot), outside: Boolean(slot) && !slot.closest(".drpg-trial-console"),
-                box: Boolean(slot?.querySelector(`input[data-drpg-case-tick="${id}"]`)), bar: Boolean(el?.querySelector(".drpg-trial-console [data-drpg-bar], .drpg-trial-console .drpg-trial-bar")) };
+                box: Boolean(slot?.querySelector(`.drpg-case-canvas input[data-drpg-case-tick="${id}"]`)), bar: Boolean(el?.querySelector(".drpg-trial-console [data-drpg-bar], .drpg-trial-console .drpg-trial-bar")) };
         };
         const seen = {}, notReached = [];
         try {

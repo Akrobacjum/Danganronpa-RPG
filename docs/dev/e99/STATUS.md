@@ -154,3 +154,18 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
   scroll - the schema then shows at once, but the bar scrolls out of sight in the read-out. Both are on the round-3b
   page. Showing read-out, bar and schema together takes a wider console or E73's mockup B.
 - Shots: https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC (round 3b on top).
+
+## Round 3c (12.11, E73's mockup B slot as the coordinator relayed it: the graph's height reserved, nothing under it)
+
+- In the console the mount is the graph alone, at clamp(12rem, 30vh, 24rem) - B's reserved height. Each deduction's,
+  counter's and solution's tick box and its mode's start stand in the graph, in the column gap right of the node
+  (case-map.mjs `caseGraphHtml` `controls`; siblings of the node's button, each named: "Ticked: <name>", "Start <mode>
+  from <name>"). No list under the graph in the console; the Case schema window keeps it. The unknown cards' line
+  stands inside the graph's box. The slot's own display and order are B's: this stage's rule on
+  `.drpg-trial-schema` sets a margin only.
+- Tier 2's two console tests look for the boxes and starts in the graph and for no list: red before (no controls in
+  the graph), green after. The a11y sweep ("every control ... has a name to be read out") green.
+- Measured in Chromium through the style harness (today's console, not B): the footer stays in the window at
+  1366x768 and 1920x1080, both themes; the body scrolls to the schema (today's read-out above it is tall).
+- Shots: https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC (round 3c on top: from the window's top and scrolled to
+  the schema).
