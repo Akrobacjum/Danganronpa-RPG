@@ -25,7 +25,7 @@
 | **Dynamic** | You propose, the GM sets | Describe anything; the GM sets the difficulty. Gentler thresholds - the reward for inventing something. |
 | **Rest** | - | Short: 1 action, pick 1, once per time of day. Long: 2 actions, pick 2, once per session. Sleep = Health, Meal = Sanity, Breath = Hope. Only in rooms marked for it. |
 | **Listen** | Shadow | 14+ how many are next door, 18+ who, crit every adjacent room. Rooms you have not been in stay unnamed (Unexplored room 1, 2...). |
-| **Palm** | Hand + Shadow | Take (10+, unseen 15+) or plant (8+, unseen 13+) something in somebody's pocket. Or see what they carry: ask first, Body 12+ after a refusal; unseen Shadow 15+ then Hand 10+. |
+| **Palm** | Hand + Shadow | Take (12+, unseen 15+) or plant (8+, unseen 13+) something in somebody's pocket. Or see what they carry: ask first, Body 12+ after a refusal; unseen Shadow 15+ then Hand 10+. |
 | **Tamper** | Shadow | Erase a Trace you know of in this room (Hidden 9 to Obvious 18), reshape it (3 lower, the GM approves the new words) or plant a Misleading Trail (15). It costs an action and no Sanity; with no action left, no Tamper. Witnesses mean a cover roll (16) that can cost Sanity even when it works (1 on Despair, 1-2 if you are caught). |
 | **Direct Murder** | GM | Only during an Eclipse, agreed with the GM, with the victim's player's consent. Judged when the lights come up: you must then be <ins>alone with exactly one other person</ins>. |
 

@@ -329,7 +329,7 @@ A hand in somebody's pocket, going either way, or just a look inside. Two indepe
 
 | | Take something | Leave something | Frisk (unseen) |
 |---|---|---|---|
-| It works (Hand) | 10+ | 8+ | 10+ |
+| It works (Hand) | 12+ | 8+ | 10+ |
 | Unseen (Shadow) | 15+ | 13+ | 15+ |
 
 Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. What you take is whatever comes out; a critical lets you choose. Carry limits still apply, and one action moves one piece of a stack. Something you leave on somebody whose pockets are full stays with you - you are told so, and they are told nothing, whether they noticed you or not. Something you take with your own hands full goes into your stash, and with no stash it stays with them. Palm never reaches into a stash. A Palm refused before its dice are read - the target walked out, a Class Trial began - gives you its action back; leaving something in full pockets was a try, and its action is spent.

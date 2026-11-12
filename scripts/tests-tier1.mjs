@@ -32446,7 +32446,7 @@ const INVARIANTS = [
         equal(stableJson(missing), "[]", "the handbook lacks something the code has");
     }],
 
-    ["R1104 - the Palm and Frisk roll windows are named by their part: palm.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
+    ["R1104 - the Palm and Frisk roll windows are named by their part: palm.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 12\" (10 until E64's S02-75), \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
         /*
          * E51 C1, 30.10.2026; the owner's A11 (13.10): roll titles "Palm - Hand, beat 10", Frisk included, the numbers
          * from config. The cover's window read "Keep your hands out of sight · beat 15" and the hand's "Palm · beat 10";
@@ -32472,7 +32472,7 @@ const INVARIANTS = [
                 want(palm.frisk.trait, palm.frisk.threshold)],
             standIn: [f(stand, "leg", 4), f(stand, "eye", 3), f(stand, "shadow", 11)],
             missing: palm.label, noNumber: "R1104",
-            literal: game.i18n.lang === "en" ? ["Palm - Shadow, beat 15", "Palm - Hand, beat 10", "Palm - Body, beat 12"] : [read[0], read[1], read[6]]
+            literal: game.i18n.lang === "en" ? ["Palm - Shadow, beat 15", "Palm - Hand, beat 12", "Palm - Body, beat 12"] : [read[0], read[1], read[6]]
         }), "[the seven parts' titles off ACTIONS.palm; three off a stand-in table; a part the table lacks; a part with no number; in English the owner's three strings]");
     }],
 
@@ -49799,6 +49799,18 @@ const INVARIANTS = [
         equal(stableJson([C.MURDER_OPENING.victim.nightDisadvantage, C.MURDER_OPENING.victim.threshold, C.MURDER_OPENING.killer.nightAdvantage, reads]),
             stableJson([false, 20, true, [true, true]]),
             "[the victim's Night disadvantage, the victim's threshold, the killer's Night advantage, the two readers ask the flag] - a trap's notice at Night is not the owner's");
+    }],
+    ["R3966 - a Palm's steal needs 12, as a Search's Tier 1 (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: \"Zgoda na zmiany z kolumny opcje\", \"Zostaje to co wdrazamy i tylko to\"): config.mjs `ACTIONS.palm.threshold` is 12 and Search's Tier 1 band is 12; the cover (Shadow 15), the Plant (8, unseen 13) and the Frisk's hand (`rummage`, 10) are unchanged", async () => {
+        /*
+         * E64, 12.11.2026. S02-75's reading (STATUS): the steal at 10 took 77.8 / 83.3 / 87.5% at 0 / +1 / +2, surer than
+         * a Search's Tier 1 at 12 (65.3 / 72.2 / 77.8%); at 12 the two are one. Red before this commit: 10.
+         */
+        const { ACTIONS } = await import("./config.mjs");
+        const p = ACTIONS.palm;
+        const tierOne = ACTIONS.search.thresholds.find(band => band.tier === 1)?.min ?? null;
+        equal(stableJson([p.threshold, tierOne, p.unseen.threshold, p.plant.threshold, p.plant.unseen, p.rummage?.threshold ?? null]),
+            stableJson([12, 12, 15, 8, 13, 10]),
+            "[the steal, Search's Tier 1, the cover, the Plant, the Plant's cover, the Frisk's hand] - a Palm's numbers are not the owner's");
     }],
 ];
 

@@ -1751,8 +1751,12 @@ export const ACTIONS = {
          * The unseen axis does not move. Whether anybody watched you is a
          * different question from whether your fingers found it, and it was
          * balanced well.
+         *
+         * 12 SINCE E64, AS A SEARCH'S TIER 1 (S02-75; the owner's DRPG-D1 of 12.11.2026, "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). At 10 a steal took 77.8 / 83.3 / 87.5% at 0 / +1 / +2, surer
+         * than a Search's Tier 1 (65.3 / 72.2 / 77.8%); now the two are one. The Plant and the cover are unchanged.
          */
-        threshold: 10,
+        threshold: 12,
         /** Whether they noticed. Its own axis, rolled separately. */
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
         /** Leaving something is easier than taking it - both axes (D10a). */

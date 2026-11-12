@@ -329,7 +329,7 @@ Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie
 
 | | Weź coś | Zostaw coś | Frisk (ukradkiem) |
 |---|---|---|---|
-| Udaje się (Hand) | 10+ | 8+ | 10+ |
+| Udaje się (Hand) | 12+ | 8+ | 10+ |
 | Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
 Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Limity noszenia wciąż obowiązują, a jedna akcja przenosi jedną sztukę ze stosu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie - dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, mając pełne ręce, trafia do twojej skrytki, a gdy jej nie masz, zostaje u nich. Palm nigdy nie sięga do wnętrza skrytki. Palm odrzucony, zanim kości zostaną odczytane - cel wyszedł, zaczął się Class Trial - oddaje ci akcję; zostawienie czegoś w pełnych kieszeniach było próbą i akcja przepada.

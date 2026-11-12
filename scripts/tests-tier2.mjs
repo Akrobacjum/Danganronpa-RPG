@@ -78688,10 +78688,10 @@ const SCENARIOS = [
         const words = String(message ? contentOf(message) ?? "" : "");
         const whisper = [...(message?.whisper ?? [])].sort();
         for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
-        equal(stableJson({ title: titles[0], dc: roll?.dc ?? null, needed: words.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n: 10 }))),
+        equal(stableJson({ title: titles[0], dc: roll?.dc ?? null, needed: words.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n: ACTIONS.palm.threshold }))),
             whisper: stableJson(whisper) === stableJson([...new Set([...gmIds(), ...ownerIdsOf(student)])].sort()) }), stableJson({
-            title: A.palmTitle("hand"), dc: 10, needed: true, whisper: true
-        }), "[the window's title]; [the roll's dc]; [the card says needed 10]; [the card went to the GMs and the owners]");
+            title: A.palmTitle("hand"), dc: ACTIONS.palm.threshold, needed: true, whisper: true
+        }), "[the window's title]; [the roll's dc]; [the card says needed the steal's number (12 since E64)]; [the card went to the GMs and the owners]");
     }],
 
     ["E51-T7 - a free crisis take is not shown as a roll: the critical Self-defence's free Survive prints no \"0 >= N\" and says it worked with no roll, and its tracker line holds no score (E51 C1; E51-14)", async () => {
