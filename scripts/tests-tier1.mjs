@@ -47529,6 +47529,27 @@ const INVARIANTS = [
                 on2: [game.i18n.localize("DRPG.Spectator.talkBack"), "true"], off2: [game.i18n.localize("DRPG.Spectator.talk"), "false"] }),
             "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the line's switch]");
     }],
+    ["R3861 - what a Spectator sees of E61, E62 and E94 (E92 C7; the owner's 08.11 amend: \"E92 checks what a Spectator sees at the trial entry and cut-in, the day boards and phase transitions\"): the start-of-day board's cast, monokuma.mjs `studentActors`, leaves a Spectator out, as it leaves an NPC; and the trial's entry, the verdict's cut-in, the day's board and every transition play on every browser that hears them - none of sequence.mjs `playTrialEntry`, `playVerdictCut`, `playDayStart` or transitions.mjs asks who the viewer is, so a Spectator's browser plays them as a player's does", async () => {
+        /*
+         * E92 C7, 12.11.2026. The board is built as `playDayStart` builds it, from the roster, with a student flagged a
+         * Spectator in memory (`e24HeldFlagged`); the players are read in the source (no viewer, user or role gate).
+         * Green from C1 (the roster); the source half holds that E61, E62 and E94 stay ungated.
+         */
+        const S = await import("./sequence.mjs");
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const watcher = studentActors().find(owned);
+        must(watcher, "no student a player owns - this would measure nothing");
+        const castOf = () => S.dayStartBoard({ day: 2, chapter: 1, timeOfDay: "morning" }, studentActors()).cast.map(c => c.id);
+        const before = castOf().includes(watcher.id);
+        const after = await e24HeldFlagged(watcher, { [FLAGS.spectator]: true }, () => castOf().includes(watcher.id));
+        const src = new Map(await otherSources());
+        const seq = stripComments(src.get("sequence.mjs") ?? ""), tr = stripComments(src.get("transitions.mjs") ?? "");
+        const gate = /\b(?:isSpectator|spectatorViewer|ownStudent|ownSpectator|viewerActor|game\.user\.isGM)\b/;
+        const ungated = ["playTrialEntry", "playVerdictCut", "playDayStart"].map(fn => [fn, fnSource(seq, fn).length > 40 && !gate.test(fnSource(seq, fn))]);
+        equal(stableJson({ before, after, ungated, transitions: tr.length > 200 && !gate.test(tr) }),
+            stableJson({ before: true, after: false, ungated: [["playTrialEntry", true], ["playVerdictCut", true], ["playDayStart", true]], transitions: true }),
+            "[the day board's cast with the student, then flagged a Spectator; the three players and the transitions ask no viewer]");
+    }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*
          * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two

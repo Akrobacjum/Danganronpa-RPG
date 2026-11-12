@@ -76,6 +76,11 @@ The roll window is locked for players: dice, statistic, advantage, experiences a
 
 **With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, which counts as a reaction then, or a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it, and a reaction - the statistic included - moves nothing even then.
 
+### If you are a Spectator
+
+The GM may make your character a **Spectator**: you watch the game and play no part in it. You have no actions, Hope, Calls or Level Ups, nobody counts you in a room, and no vote, trial or incident counts you. The other players do not see your token. Your microphone stays off in every phase, and you hear the room your token stands in; **Talk with the Spectators** under your clock takes you to the Spectators' own voice room, where you can speak, and **Go back to your room** brings you back. You walk through walls and closed doors at no cost, and **Watch a room** moves your token to any room the class has found. You see the rooms the class has found and everybody's token, but nothing secret. The chat is hidden on your screen.
+
+
 ---
 
 ## 2. Time
