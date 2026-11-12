@@ -1702,6 +1702,10 @@
     "Events": {
       "redeemTitle": "Redeem is waiting",
       "redeemMeta": "+1 Hope, free, once a day.",
+      "bribeWaitTitle": "A Bribe waits",
+      "bribeWaitMeta": "From {name}.",
+      "betTitle": "Your Ghost Bet",
+      "betMeta": "On {name}.",
       "overflowMetaGm": "{count} of {max} in the hat",
       "bodyTitle": "A body is discovered",
       "bodySubRoom": "{victim}, in the {room}",
@@ -1717,7 +1721,9 @@
         "trial": "Class Trial",
         "assembly": "Assembly",
         "motive": "Motive",
-        "redeemHope": "Redeem"
+        "redeemHope": "Redeem",
+        "bribeHope": "Bribe",
+        "betHope": "Ghost Bet"
       },
       "incidentTitle": "A killing in the dark",
       "incidentTitleDirect": "Face to face",

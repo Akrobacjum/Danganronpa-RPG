@@ -17656,6 +17656,49 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["the Event panel tells a Monocub's own player that a Bribe waits and that its Ghost Bet stands, naming the payer and the student bet on, and draws neither for a GM or once both are gone (E72 C19, the owner's option A)", async () => {
+        /*
+         * E72 C19, 12.11.2026; the owner's option A. events.mjs `bribeWaitCard(user)` and `betCard(user)` answer a card for
+         * the Monocub `user` owns while its record holds an open offer or a bet (the sheet panel's reading, monocub.mjs
+         * `cubPanelLines`), or null. A Monocub with an offer from a stand-in payer and a bet on another student, read for
+         * its player (a) and for a GM (b); both gone (c). Read: the kind, the Monocub on the line, the name on the meta.
+         * Red at 848b449's runtime: no bribeWaitCard, no betCard.
+         */
+        const [cub, other] = cast(2);
+        needs(world.ownedByPlayer(cub), "a player who owns the Monocub, whose screen the cards are for");
+        const EV = await import("./events.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const player = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        const cards = user => [typeof EV.bribeWaitCard === "function" ? EV.bribeWaitCard(user) : "none", typeof EV.betCard === "function" ? EV.betCard(user) : "none"]
+            .map(c => (c && typeof c === "object" ? [c.kind, c.sub === cub.name, String(c.meta ?? "")] : c));
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await cubStore.patch(cub.id, { bribes: { SUITEC19BRIBE: { from: other.id, fromName: "SUITE C19 Payer", cost: 1, at: Date.now() } },
+                bet: { targetId: other.id, value: 3, at: Date.now() } });
+            await settle();
+            read.a = cards(player);
+            read.b = cards(game.user);
+            await cubStore.patch(cub.id, { bribes: null, bet: null });
+            await settle();
+            read.c = cards(player);
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            await settle();
+        }
+        const said = (key, name) => game.i18n.format(key, { name });
+        equal(stableJson(read), stableJson({
+            a: [["bribeHope", true, said("DRPG.Events.bribeWaitMeta", "SUITE C19 Payer")], ["betHope", true, said("DRPG.Events.betMeta", other.name)]],
+            b: [null, null], c: [null, null]
+        }), "the part B cards are not drawn for the Monocub's player alone while an offer waits and a bet stands ([kind, names the Monocub, the meta] for its player, a GM, both gone)");
+    }],
+
     ["the Monocub's panel says part B's state - offers waiting, Bounties open, its own Ghost Bet - and the GMs are flagged a Bribe from this chapter's killer and a pair's third accepted Bribe (E72 C19)", async () => {
         /*
          * E72 C19, 12.11.2026; the plan's C19 (the panel for part B; the log's flags). monocub.mjs `cubPanelLines(actor)`

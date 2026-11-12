@@ -1772,6 +1772,10 @@
     "Events": {
       "redeemTitle": "Redeem czeka",
       "redeemMeta": "+1 Hope za darmo, raz dziennie.",
+      "bribeWaitTitle": "Bribe czeka",
+      "bribeWaitMeta": "Od: {name}.",
+      "betTitle": "Twój Ghost Bet",
+      "betMeta": "Obstawiasz: {name}.",
       "overflowMetaGm": "{count} z {max} w kapeluszu",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",
@@ -1792,7 +1796,9 @@
         "trial": "Class Trial",
         "assembly": "Zgromadzenie",
         "motive": "Motive",
-        "redeemHope": "Redeem"
+        "redeemHope": "Redeem",
+        "bribeHope": "Bribe",
+        "betHope": "Ghost Bet"
       },
       "incidentTitle": "Zabójstwo w ciemności",
       "incidentTitleDirect": "Twarzą w twarz",
