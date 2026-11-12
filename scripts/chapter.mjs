@@ -2108,7 +2108,7 @@ export async function openChapterEndDialog() {
        all, and it is still a trial - see the note on the HUD's four states. */
     const trialSitting = getClock().phase === "classTrial";
     // The season's last chapter (CORE-10): moving on to a seventh is never what
-    // the GM means; the reset lives under Between sessions.
+    // the GM means; the reset is Season setup's (its destructive button since E49 A1d).
     const lastChapter = (Number(getClock().chapter) || 1) >= CHAPTERS_PER_SEASON;
 
     let faintable = 0, keyable = 0;

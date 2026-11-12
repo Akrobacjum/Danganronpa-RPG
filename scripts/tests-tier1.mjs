@@ -17960,6 +17960,27 @@ const INVARIANTS = [
             "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
             + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
     }],
+    ["R3660 - the season's last chapter sends the GM to Season setup to reset the season (gaps G1; Reset the season is Season setup's destructive button since E49 A1d, R3532): DRPG.Chapter.lastChapter names the window as DRPG.Season.title names it, Season setup / Ustawienia sezonu (in Polish declined, w Ustawieniach sezonu, as the module's other texts that send a GM there), and neither language names Between sessions / Między sesjami", async () => {
+        /*
+         * Gaps G1, 12.11.2026 (the 1.2.105 release notes' Known gaps). The End of chapter window's warning on chapter 6
+         * (chapter.mjs, CHAPTERS_PER_SEASON) said "Reset the season from Between sessions", the GM panel's section the
+         * reset tile stood in until E49 A1d moved it into Season setup's footer. Read in the lang files. The Polish
+         * window name is the title in its locative, „w Ustawieniach sezonu”, the form DRPG.Safeword.kept and
+         * DRPG.Fog.secretDoor.detail already use for the same window. Red at fa73b601: both texts named Between sessions.
+         */
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const en = await lang("en"), pl = await lang("pl");
+        const text = { en: en.DRPG?.Chapter?.lastChapter ?? "", pl: pl.DRPG?.Chapter?.lastChapter ?? "" };
+        must(text.en && text.pl && en.DRPG?.Season?.title, "DRPG.Chapter.lastChapter or DRPG.Season.title was not read - this would measure nothing");
+        const read = {
+            window: [text.en.includes(en.DRPG.Season.title), text.pl.includes("Ustawieniach sezonu"), pl.DRPG?.Season?.title],
+            between: [text.en.includes(en.DRPG?.Panel?.section?.between ?? "Between sessions"), /Between sessions/.test(text.pl),
+                text.pl.includes(pl.DRPG?.Panel?.section?.between ?? "Między sesjami")],
+            placeholders: [/\{n\}/.test(text.en) && /\{next\}/.test(text.en), /\{n\}/.test(text.pl) && /\{next\}/.test(text.pl)]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ window: [true, true, "Ustawienia sezonu"], between: [false, false, false], placeholders: [true, true] }),
+            "{window: [en names Season setup, pl names Ustawieniach sezonu, the pl title]; between: [en names Between sessions, pl names it in English, pl names Między sesjami]; placeholders: [en, pl]}");
+    }],
     ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at

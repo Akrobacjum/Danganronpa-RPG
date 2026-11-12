@@ -2702,7 +2702,7 @@
         "other": "Ujawniono typy {n} Truth Bulletów."
       },
       "optNextChapter": "Przejdź do rozdziału {to} (z {from})",
-      "lastChapter": "Rozdział {n} jest ostatnim w sezonie. Zresetuj sezon z Between sessions zamiast przechodzić do rozdziału {next}.",
+      "lastChapter": "Rozdział {n} jest ostatnim w sezonie. Zamiast przechodzić do rozdziału {next}, zresetuj sezon w Ustawieniach sezonu.",
       "optNextSession": "Licz to jako sesję {to} (z {from})",
       "optNextMorning": "Otwórz następny rozdział rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami",
       "moved": "Zegar wskazuje teraz rozdział {chapter}, sesję {session}.",
