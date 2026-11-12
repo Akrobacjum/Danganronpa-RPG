@@ -81,6 +81,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 import { stateHeld } from "./states.mjs";
+import { effectBadges as timedBadges } from "./timed-effects.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
@@ -1718,7 +1719,7 @@ function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false })
 // Call or a Monocub's Meddle landing on them are two different facts about
 // the same turn, and the layout has room for both stacked without moving
 // anything else.
-function pendingStack(actor) {
+export function pendingStack(actor) {
     const stack = document.createElement("div");
     stack.className = "drpg-pending-stack";
 
@@ -1762,6 +1763,20 @@ function pendingStack(actor) {
         });
         badge.innerHTML = `<i class="fa-solid ${despair ? "fa-skull" : "fa-hand-sparkles"}" inert></i>
                            <span>${foundry.utils.escapeHTML(label)}</span>`;
+        stack.append(badge);
+    }
+
+    // A room action's timed effects (the owner's answer to Q-E93-3; the owner's asks of 12.11.2026, "w podobnym miejscu co
+    // efekty hope calls", then a name of one or two words, the rest in the tooltip, and white): a Call's badge as a white
+    // chip, apart from the Hope Calls' gold - its short name on it, what it does and until when in the tooltip - read on a
+    // GM off the GMs' store and on an owner's browser off their copy (timed-effects.mjs `effectBadges`). Stained Glass
+    // wears the candle on it (tools/glyphs.json glass "timed-effect").
+    for (const { short, what, until } of timedBadges(actor)) {
+        const badge = document.createElement("div");
+        badge.className = "drpg-pending-call drpg-pending-timed drpg-timed-badge";
+        badge.dataset.tooltip = game.i18n.format("DRPG.Facility.timedBadge", { what, until });
+        badge.innerHTML = `<i class="fa-solid fa-hourglass-half" inert></i>
+                           <span>${foundry.utils.escapeHTML(short)}</span>`;
         stack.append(badge);
     }
     return stack;

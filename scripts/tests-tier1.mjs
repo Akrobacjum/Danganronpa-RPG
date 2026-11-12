@@ -621,7 +621,8 @@ const INVARIANTS = [
             // of those needs one: a subtraction with no floor reaches zero, and
             // zero actions or zero search tokens is a different game rather
             // than a harder one.
-            if (rule.kind === "state" && rule.by !== undefined) {
+            // A state whose size raises a price (`adds`, E93 C6's Toll: room actions cost more) takes nothing down.
+            if (rule.kind === "state" && rule.by !== undefined && !rule.adds) {
                 ok(Number.isFinite(rule.floor) && rule.floor >= 1,
                     `${key} subtracts ${rule.by} with no floor under it`);
             }
@@ -7057,7 +7058,8 @@ const INVARIANTS = [
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
-            ...["description"].map(f => [`projectMeta while secret: ${f}`,
+            // E93 C1: a secret project's room action (its label and effects) as well.
+            ...["description", "facility"].map(f => [`projectMeta while secret: ${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
@@ -40808,7 +40810,8 @@ const INVARIANTS = [
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
-            menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
+            // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
+            menus: ["action-analyze.mjs", "action-listen.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
                 "level-up.mjs", "palm.mjs"],
             never: [],
             frame: [false, true, true],
@@ -42009,6 +42012,8 @@ const INVARIANTS = [
         const RULES = {
             "character.mjs initCharacter": "a new character's starting maximum and no marks, written once",
             "cleanup.mjs undoLastCleanup": "a Reroll puts the clean-up's Sanity marks back",
+            // E74 C6: Keep Watch missed with Despair marks a Sanity, written by the primary GM.
+            "watch-gm.mjs declareWatch": "a watch missed with Despair, its Sanity mark, written",
             "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
             "cleanup.mjs restoreStress": "a refund of Sanity, written",
             "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",
@@ -45558,8 +45563,8 @@ const INVARIANTS = [
         const R = await import("./room-setup.mjs");
         const K = await import("./ui-kit.mjs");
         const KINDS = {
-            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "text"],
-            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check"],
+            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "check", "text"] /* E74 C5: Broken, after Locked at start */,
+            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check", "step"] /* E93 C2: the room actions' count */,
             stashes: null, description: ["room", "prose", "picture"], fog: null
         };
         const students = studentActors();
@@ -49839,6 +49844,214 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
             "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
+    }],
+    ["R3750 - a room action is held to the closed list as a GM types it (scripts/facilities.mjs `cleanAction`, `cleanEffect`, `cleanFacility`; E93 C1, the owner's audit entry E93 (2) and (5), 08.11): a GM's action keeps a label, a trait of TRAITS, a difficulty clamped to FACILITIES.dc and at most FACILITIES.maxEffects effects of FACILITIES.effects, each n clamped to its kind's amount and a scope of FACILITIES.scopes; an unknown kind, an empty label or text is dropped; a project's action costs an action unless its switch is false and its lifetime is forever unless it names timesOfDay or days with n from 1 to maxLifetime", async () => {
+        /*
+         * E93 C1, 12.11.2026. What a GM types in Room Setup or on a project reaches every browser (a region flag, projectMeta)
+         * and the GM's run reads it again; one cleaning for both, so a hand-edited flag is held to the list as a typed one.
+         */
+        const F = await import("./facilities.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const a = F.cleanAction({ id: "abc123", label: "  Brew tea  ", trait: "nope", dc: 99, effects: [
+            { kind: "health", n: 50, scope: "present" }, { kind: "fly", n: 1 }, { kind: "text", text: "  " },
+            { kind: "searchToken", n: 2, scope: "others" }, { kind: "hope", n: 0, scope: "nobody" }, { kind: "sanity", n: 2 }, { kind: "text", text: "x" }] });
+        const read = {
+            action: a && { id: a.id, label: a.label, trait: Object.hasOwn(TRAITS, a.trait), dc: a.dc, effects: a.effects },
+            noLabel: F.cleanAction({ label: "   " }),
+            newId: typeof F.cleanAction({ label: "x" })?.id === "string",
+            dcLow: F.cleanAction({ label: "x", dc: -4 })?.dc, dcNaN: F.cleanAction({ label: "x", dc: "q" })?.dc,
+            many: F.cleanActions(Array.from({ length: 12 }, (_, i) => ({ id: `id${i % 10}`, label: `a${i}` }))).length,
+            facility: F.cleanFacility({ label: "Soup", effects: [{ kind: "sanity", n: 1 }], costsAction: 0, lifetime: { kind: "days", n: 99 } }),
+            facilityDefaults: F.cleanFacility({ label: "Lamp" }),
+            facilityOff: F.cleanFacility({ label: "Lamp", costsAction: false, lifetime: { kind: "weeks", n: 3 } })
+        };
+        equal(stableJson(read), stableJson({
+            action: { id: "abc123", label: "Brew tea", trait: true, dc: FACILITIES.dc.max, effects: [
+                { kind: "health", n: FACILITIES.effects.health.amount, scope: "present" },
+                { kind: "searchToken", n: 2, scope: "self" }, { kind: "hope", n: 1, scope: "self" }, { kind: "sanity", n: 2, scope: "self" }] },
+            noLabel: null, newId: true, dcLow: FACILITIES.dc.min, dcNaN: FACILITIES.defaultDc, many: FACILITIES.maxActions,
+            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime } },
+            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" } },
+            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" } }
+        }), "{action: a GM's action cleaned; noLabel; newId; dcLow, dcNaN; many: twelve with ten ids, cut to maxActions; facility: a project's; facilityDefaults; facilityOff} - what a GM typed must be held to FACILITIES' closed list");
+    }],
+    ["R3751 - a completed project's action lives for its lifetime, counted in times of day from the one it was completed in (scripts/facilities.mjs `facilityOrdinal`, `facilityLive`, `facilityTimesLeft`, `facilityMark`; E93 C1, the owner's audit entry E93 (4)): forever stands, timesOfDay n the time of day of completion and the n - 1 after it, days n for n days of them; none outlives its chapter or its season; the mark of a use is the season, chapter, session, day and time of day, not the phase", async () => {
+        const F = await import("./facilities.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const at = (day, tod, more = {}) => ({ seasonStartedAt: 7, chapter: 2, session: 3, day, timeOfDay: TIMES_OF_DAY[tod], phase: "dailyLife", ...more });
+        const done = F.facilityOrdinal(at(2, 3));
+        const two = { label: "x", lifetime: { kind: "timesOfDay", n: 2 } }, day = { label: "x", lifetime: { kind: "days", n: 1 } }, ever = { label: "x", lifetime: { kind: "forever" } };
+        const read = {
+            ordinal: [F.facilityOrdinal(at(1, 0)).at, F.facilityOrdinal(at(1, 4)).at, F.facilityOrdinal(at(2, 0)).at, done.at],
+            two: [F.facilityLive(two, done, at(2, 2)), F.facilityLive(two, done, at(2, 3)), F.facilityLive(two, done, at(2, 4)), F.facilityLive(two, done, at(3, 0))],
+            day: [F.facilityLive(day, done, at(3, 2)), F.facilityLive(day, done, at(3, 3))],
+            ever: [F.facilityLive(ever, done, at(9, 0)), F.facilityLive(ever, done, at(1, 0, { chapter: 3 }))],
+            chapter: [F.facilityLive(day, done, at(2, 4, { chapter: 3 })), F.facilityLive(day, done, at(2, 4, { seasonStartedAt: 8 }))],
+            none: [F.facilityLive(null, done, at(2, 3)), F.facilityLive(two, null, at(9, 0))],
+            left: [F.facilityTimesLeft(two, done, at(2, 3)), F.facilityTimesLeft(two, done, at(2, 4)), F.facilityTimesLeft(two, done, at(3, 0)),
+                F.facilityTimesLeft(ever, done, at(2, 3)), F.facilityTimesLeft(day, null, at(2, 3))],
+            mark: [F.facilityMark(at(2, 3)) === F.facilityMark(at(2, 3, { phase: "investigation" })),
+                ...[{ seasonStartedAt: 8 }, { chapter: 3 }, { session: 4 }, { day: 3 }, { timeOfDay: TIMES_OF_DAY[0] }].map(d => F.facilityMark(at(2, 3)) !== F.facilityMark(at(2, 3, d)))]
+        };
+        const n = TIMES_OF_DAY.length;
+        equal(stableJson(read), stableJson({
+            ordinal: [0, 4, n, n + 3], two: [false, true, true, false], day: [true, false], ever: [true, true], chapter: [false, false],
+            none: [false, true], left: [2, 1, 0, null, n], mark: [true, true, true, true, true, true]
+        }), "{ordinal; two: timesOfDay 2 before, at, after, past; day: days 1 at the last and the first past; ever; chapter: a new chapter, a new season; none: no action, no stamp; left; mark: the phase not in it, then each of season, chapter, session, day, time of day} - a project's action must live its lifetime and no longer");
+    }],
+    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and not backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
+        const S = await import("./gm-stores.mjs");
+        const F = await import("./facilities.mjs");
+        const { COMPLETION_EFFECTS } = await import("./projects.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const store = S.facilityUseStore ?? null;
+        const row = COMPLETION_EFFECTS.find(r => r.key === "facility") ?? null;
+        const setting = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.facilityClosed}`) ?? null;
+        const read = {
+            store: store ? [store.spec.kind, store.spec.resetGroup, store.spec.sync, store.spec.backup] : null,
+            setting: setting ? setting.scope : null,
+            row: row ? [row.has({}), row.has({ facility: { label: "x" } }),
+                Object.keys(row.onCrossed({ id: "P1" }).meta?.P1 ?? {}).join(), row.onUncrossed({ id: "P1" }).meta?.P1?.completedAt === null] : null,
+            cost: [F.facilityCost("gm", null, 0), F.facilityCost("gm", null, 1), F.facilityCost("project", { costsAction: true }, 0),
+                F.facilityCost("project", { costsAction: false }, 0), F.facilityCost("project", { costsAction: false }, 1)],
+            shut: [F.facilityShut("gm", {}), F.facilityShut("gm", { lockdown: true }), F.facilityShut("project", { lockdown: true }),
+                F.facilityShut("gm", { powercut: true }), F.facilityShut("project", { powercut: true })],
+            keys: [F.gmActionKey("S1", "Kitchen", "a1"), F.projectActionKey("P1", "A1")]
+        };
+        equal(stableJson(read), stableJson({
+            store: ["ledger", "actions", true, false], setting: "world", row: [false, true, "completedAt", true],
+            cost: [FACILITIES.gmCost, FACILITIES.gmCost + 1, FACILITIES.projectCost, 0, 1],
+            shut: [null, "lockdown", "lockdown", null, "powercut"], keys: ["g:S1:Kitchen:a1", "p:P1:A1"]
+        }), "{store: [kind, reset group, synced, backed up]; setting: the closed keys' scope; row: [no action, an action, the crossed patch, the uncrossed stamp null]; cost; shut; keys} - a room action's uses, its closing, its price and its shutting");
+    }],
+    ["R3753 - the Despair Overflow has the five room-action states (scripts/config.mjs OVERFLOW.effects, overflow.mjs `facilityStatesFor`, `facilityTollFor`, `shortRestBarredBy`, `jittersFor`; E93 C6, the owner's audit entry E93 (6)): Lockdown, Insomnia, Toll, Jitters and Power cut are states, out of the hat until a GM ticks them (the owner to confirm), Toll the only one with a size; each reader answers for its own drawn key alone - Lockdown and Power cut shut room actions, Toll adds its size, Insomnia bars the Short rest, Jitters a die of disadvantage - and each has its name and its line in both languages", async () => {
+        /*
+         * E93 C6, 12.11.2026. Read on the drawn key, not on the world's stamp, so the readers are measured without
+         * writing a darkening (tier 1 writes nothing); overflow.mjs's `overflowFacility*` ask them with `overflowEffect()`.
+         */
+        const O = await import("./overflow.mjs");
+        const five = ["lockdown", "insomnia", "toll", "jitters", "powercut"];
+        const rules = { effects: { toll: { by: 2 } } };
+        const lang = await Promise.all(["en", "pl"].map(l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json())));
+        const said = l => five.every(k => typeof l?.DRPG?.Overflow?.name?.[k] === "string" && l.DRPG.Overflow.what?.[k] !== undefined);
+        const read = {
+            catalogue: five.map(k => [OVERFLOW.effects[k]?.kind ?? null, OVERFLOW.effects[k]?.on ?? null, OVERFLOW.effects[k]?.by ?? null]),
+            states: [...five, "fog", null].map(k => JSON.stringify(O.facilityStatesFor?.(k) ?? null)),
+            toll: [O.facilityTollFor?.("toll", rules), O.facilityTollFor?.("toll", { effects: { toll: { by: 0 } } }), O.facilityTollFor?.("jitters", rules)],
+            rest: ["insomnia", "lockdown", null].map(k => O.shortRestBarredBy?.(k) ?? null),
+            jitters: ["jitters", "toll", null].map(k => O.jittersFor?.(k) ?? null),
+            said: lang.map(said)
+        };
+        equal(stableJson(read), stableJson({
+            // In the draw by default (the owner's DRPG-D1 answer, 12.11.2026: "Wlaczone w losowaniu"), out of it until then.
+            catalogue: [["state", true, null], ["state", true, null], ["state", true, 1], ["state", true, null], ["state", true, null]],
+            states: ['{"lockdown":true,"powercut":false}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}',
+                '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":true}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}'],
+            toll: [2, 0, 0], rest: [true, false, false], jitters: [-1, 0, 0], said: [true, true]
+        }), "{catalogue: [kind, on, by] per state; states: the shut per drawn key; toll; rest: Short rest barred; jitters: the die; said: EN, PL names and lines} - the five Overflow states and their readers");
+    }],
+    ["R3754 - Room Setup's Rest tab is the Facilities tab and edits a room's actions (scripts/room-setup.mjs `ROOM_SETUP_TABS`, `wireFacilityButtons`; facility-editor.mjs `roomActionsBody`, `readRoomActions`, `projectFacilityBody`, `readProjectFacility`; E93 C2, the owner's audit entry E93 (1), (2), (4) and the 08.11 switch): the tab is named Facilities and holds, beside the two rest columns, a column of each room's action count with its edit button; a room's editor draws its actions and two blank rows and reads back what the GM typed; a project's editor reads its name, effects, switch and lifetime", async () => {
+        /*
+         * E93 C2, 12.11.2026. Read on Room Setup's window as this GM draws it (`roomSetupDrawn`, which stubs the window's
+         * wait), and on the editors' bodies parsed here: nothing is written.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room Setup lists a room");
+        const { ROOM_SETUP_TABS } = await import("./room-setup.mjs");
+        const E = await import("./facility-editor.mjs");
+        const { cfg, pane } = await roomSetupDrawn();
+        const rest = pane("rest");
+        const heads = rest ? [...rest.querySelectorAll("th")].map(th => th.textContent.trim()) : [];
+        const parse = html => { const d = document.createElement("div"); d.innerHTML = html; return d.querySelector(".drpg-facility-editor"); };
+        const room = parse(E.roomActionsBody("R3754 Kitchen", [{ id: "R3754a", label: "Tea", trait: "head", dc: 14, effects: [{ kind: "sanity", n: 2, scope: "present" }] }]));
+        const set = (form, name, value) => { const el = form.querySelector(`[name="${CSS.escape(name)}"]`); if (el) el.value = value; };
+        set(room, "a1.label", "Radio"); set(room, "a1.e0.kind", "text"); set(room, "a1.e0.text", "A song plays.");
+        const project = parse(E.projectFacilityBody({ name: "R3754 Soup" }, { label: "Soup", effects: [{ kind: "health", n: 1 }], costsAction: false, lifetime: { kind: "days", n: 1 } }));
+        const read = {
+            tab: ROOM_SETUP_TABS.find(([key]) => key === "rest")?.[1] ?? null,
+            label: game.i18n.localize("DRPG.Vault.tabFacilities"),
+            column: heads.includes(game.i18n.localize("DRPG.Facility.roomColumn")),
+            buttons: rest ? rest.querySelectorAll("button[data-drpg-facility-edit]").length > 0 : false,
+            counts: rest ? rest.querySelectorAll("[data-drpg-facility-count]").length === rest.querySelectorAll("button[data-drpg-facility-edit]").length : false,
+            rows: room ? room.querySelectorAll('input[name$=".label"]').length : 0,
+            room: room ? E.readRoomActions(room).map(a => [a.id, a.label, a.trait, a.dc, a.effects.map(e => [e.kind, e.n, e.scope, e.text])]) : null,
+            project: project ? E.readProjectFacility(project) : null
+        };
+        equal(stableJson({ ...read, project: read.project && { ...read.project, effects: read.project.effects.map(e => [e.kind, e.n, e.scope]) } }), stableJson({
+            tab: "DRPG.Vault.tabFacilities", label: "Facilities", column: true, buttons: true, counts: true, rows: 3,
+            room: [["R3754a", "Tea", "head", 14, [["sanity", 2, "present", ""]]], [null, "Radio", "eye", 12, [["text", 1, "self", "A song plays."]]], [null, "", "eye", 12, []]],
+            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 } }
+        }), `{tab; label; column, buttons, counts on the Facilities tab; rows; room: what the room's editor reads back; project: the project's} - Room Setup's Facilities tab and the two editors (window: ${Boolean(cfg)})`);
+    }],
+    ["R3755 - the Listen tile is the Infiltrate tile and its rows are one table (scripts/config.mjs `INFILTRATE`, `ACTIONS.listen`; E69 C1, DA27, DA28, DA48, DB40): the key stays `listen`, the label is Infiltrate in English and in Polish, the hint names all seven rows (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, Keep Watch) in both languages, `variants` lists `INFILTRATE`'s rows in order, Tail Someone's unseen roll is on Shadow at 15, and Dash rolls on Leg for 0 to 3 free crossings by band", async () => {
+        /*
+         * E69 C1, 12.11.2026. Read off the config and the two language files; nothing is written. The Polish label and hint are
+         * the config prose keys (`DRPG.Config.ACTIONS.listen.*`), read from lang/pl.json as i18n.mjs swaps them in.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const plRow = pl?.DRPG?.Config?.ACTIONS?.listen ?? {};
+        const seven = ["Listen", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch"];
+        const I = C.INFILTRATE ?? {};
+        const read = {
+            key: Object.hasOwn(C.ACTIONS, "listen"),
+            label: [C.ACTIONS.listen?.label ?? null, plRow.label ?? null],
+            hint: [seven.every(n => (C.ACTIONS.listen?.hint ?? "").includes(n)), seven.every(n => (plRow.hint ?? "").includes(n))],
+            variants: C.ACTIONS.listen?.variants ?? null,
+            rows: Object.keys(I),
+            // Tail Someone's effect statistics (Leg or Shadow, DA32) come with its GM ruling in C3 (R213 asks a ruling of any list of several).
+            tail: I.tail ? [I.tail.unseen?.trait, I.tail.unseen?.threshold] : null,
+            dash: I.dash ? [I.dash.traits, I.dash.bands?.map(b => [b.min, b.moves]), I.dash.critical?.moves] : null,
+            inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
+        };
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+            // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
+            rows: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 1], [18, 2]], 3], inAggregate: true }),
+            "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
+    }],
+    ["R3756 - the Infiltrate window is one list of rows, Listen first and shut with its reason where the room has no neighbour (scripts/action-listen.mjs `infiltrateRows`, `performListen`; E69 C1, DA28): one row a key of `ACTIONS.listen.variants` in its order, each with its price; Listen open where the character's room has a neighbour and greyed with the no-neighbour line where it has none; a row not built greyed with its line; and `performListen` asks the rows before Listen's own room", async () => {
+        /*
+         * E69 C1, 12.11.2026. Read for every student standing in a named room (the harness world has rooms with and without
+         * neighbours on its scene), against movement.mjs `neighbouringRooms` read here; nothing is written.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        const L = await import("./action-listen.mjs");
+        const M = await import("./movement.mjs");
+        const C = await import("./config.mjs");
+        const students = game.actors.filter(a => a.type === "character" && M.locateActor(a)?.room);
+        must(students.length, "no student stands in a named room - this would measure nothing");
+        const rows = students.map(a => {
+            const place = M.locateActor(a);
+            const open = M.neighbouringRooms(place.scene, place.room).length > 0;
+            const r = L.infiltrateRows(a);
+            return [r.map(x => x.value).join(), r[0].disabled === !open,
+                r[0].why === (open ? "" : game.i18n.localize("DRPG.Listen.noNeighbours")), r.every(x => /\d/.test(x.hint))];
+        });
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/action-listen.mjs`).then(lfText), "performListen") ?? "");
+        equal(stableJson({ rows: [...new Set(rows.map(stableJson))].map(JSON.parse), variants: C.ACTIONS.listen.variants,
+            asksFirst: src.indexOf("infiltrateRows(actor)") > 0 && src.indexOf("infiltrateRows(actor)") < src.indexOf("neighbouringRooms(scene, here)") }),
+            stableJson({ rows: [...new Set(rows.map(r => stableJson([C.ACTIONS.listen.variants.join(), true, true, true])))].map(JSON.parse),
+                // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
+                variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"], asksFirst: true }),
+            "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
+    }],
+    ["R3757 - a GM's room action is drawn only on a payment of its whole price (E93 C3, C6; the coordinator's fix of 12.11.2026, from E93's watched gap): the GM's price is one action, two under Toll; a payment's size is what its one write took down, a Burst's covering any price; a ticket of one action does not cover two, one of two and a Burst's do", async () => {
+        /*
+         * Pure readings, so tier 1 changes nothing. Until this test a ticket was "one payment" whatever it took down
+         * (roll-draw.mjs `notePayments`), so under Toll a console that paid one action drew the roll of a two-action room
+         * action as well as an honest player who paid two (docs/dev/e93/STATUS.md, "What a console can still do").
+         * Scenario 30's "a forged single payment under Toll" is the same on the road. Red at 30ad52a: no `paymentSize`.
+         */
+        const F = await import("./facilities.mjs");
+        const D = await import("./roll-draw.mjs");
+        ok(typeof D.paymentSize === "function" && typeof D.ticketCovers === "function", "roll-draw.mjs exports no paymentSize or ticketCovers");
+        const read = {
+            price: [F.facilityCost("gm", null, 0), F.facilityCost("gm", null, 1)],
+            size: [D.paymentSize({ action: 3, grant: 0 }, { action: 2, grant: 0 }), D.paymentSize({ action: 3, grant: 0 }, { action: 1, grant: 0 }),
+                D.paymentSize({ action: 3, grant: 1 }, { action: 3, grant: 0 }) === Infinity],
+            covers: [D.ticketCovers({ size: 1 }, 2), D.ticketCovers({ size: 2 }, 2), D.ticketCovers({ size: Infinity }, 2), D.ticketCovers({ size: 1 }, 1), D.ticketCovers({}, 1)]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ price: [1, 2], size: [1, 2, true], covers: [false, true, true, true, true] }),
+            "{price: a GM's room action without Toll and under it; size: one action taken, two, a Burst; covers: one for two, two for two, a Burst for two, one for one, a ticket of no size for one}");
     }],
     ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
         /*

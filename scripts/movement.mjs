@@ -59,7 +59,7 @@ import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-au
 import { actsAsMastermind } from "./passages-gm.mjs";
 // The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
 // static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
-import { eclipseMoveStore, crossingStore } from "./gm-stores.mjs";
+import { eclipseMoveStore, crossingStore, watchStore, lockpickStore, lockpickCopy, timedCrossingsOf } from "./gm-stores.mjs";
 // E89 fix FG2 (G3): the waits for a token at rest counted (perf-counters.mjs; a leaf, no cycle).
 import { count } from "./perf-counters.mjs";
 
@@ -100,8 +100,40 @@ export const ROOM_FLAGS = {
      * it or the courtroom. Taken off when the wall is given back (passages-gm.mjs `restoreBreach`) and by the
      * season's reset. A value with no builder, user or project in it: every browser holds the scene's regions.
      */
-    broken: "drpgBroken"
+    broken: "drpgBroken",
+
+    /**
+     * A room shut from inside (E74 C2, 12.11.2026; DA25, DA47): Shut the Door's barricade, `true` on every piece of the
+     * room while it stands - no author, no strength (those are the GMs', gm-stores.mjs `barricadeStore`). Written by
+     * `setRoomBarricaded` alone, read by `roomBarricaded` alone; stops a walk in through a door (`barricadedFrom`), never a
+     * passage, a breach or a tunnel (A10), and never the GM. The one public trace a barricade leaves (DA47: the accepted
+     * leak, audit/harness/known-leaks.json).
+     */
+    barricaded: "drpgBarricaded"
 };
+
+/** Is this room barricaded from inside, on this scene (`ROOM_FLAGS.barricaded`)? The one reader of the flag (E74 C2). */
+export function roomBarricaded(scene, room) {
+    if (!room) return false;
+    return Boolean(roomFlag(scene, room, ROOM_FLAGS.barricaded));
+}
+
+/**
+ * Barricade a room, or take the barricade down (`on` false): the flag on every piece of the room on `scene`, a GM's write
+ * (the primary's, doors-gm.mjs). The one writer of `ROOM_FLAGS.barricaded`; taken off with `unsetFlag`. Answers how many
+ * pieces were written.
+ */
+export async function setRoomBarricaded(scene, room, on = true) {
+    if (!game.user?.isGM || !scene || !room) return 0;
+    let wrote = 0;
+    for (const piece of roomRegions(scene, room)) {
+        if (Boolean(piece.getFlag(MODULE_ID, ROOM_FLAGS.barricaded)) === Boolean(on)) continue;
+        if (on) await piece.setFlag(MODULE_ID, ROOM_FLAGS.barricaded, true);
+        else await piece.unsetFlag(MODULE_ID, ROOM_FLAGS.barricaded);
+        wrote++;
+    }
+    return wrote;
+}
 
 /**
  * Has this room been forced open, on this scene (`ROOM_FLAGS.broken`)? The one reader of the flag (R981): a room
@@ -1142,12 +1174,33 @@ function eclipseSighting(student, from, tokenDoc, { adjacent = true } = {}) {
     if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
     const to = roomOfToken(tokenDoc), id = eclipseId(clock);
     if (!from || !to || from === to || !id) return null;
-    const allowance = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
+    // A watcher keeps to the post through the Eclipse (E74 C6; DA34, the plan's "judgeEclipseCrossing refuses the watcher"):
+    // a walk out of it is put back here, on the primary, where the watch is known (watch-gm.mjs takes the post at the start).
+    if (watchHolds(student, from)) return { spent: { code: "onWatch", text: game.i18n.localize("DRPG.Bridge.why.onWatch") } };
+    const base = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
+    // A room action's extra crossings are this student's alone (Q-E93-3; gm-stores.mjs `timedCrossingsOf`).
+    const allowance = base === null ? null : base + timedCrossingsOf(student.id);
     const tally = seenTally.get(student.id);
     const seen = Math.max(eclipseCountOf(eclipseMoveStore.get(student.id), id).seen, tally?.eclipse === id ? tally.seen : 0);
     const crossings = adjacent ? 1 : roomsApart(tokenDoc.parent, from, to);
     if (allowance !== null && seen + crossings > allowance) return { spent: { code: "eclipseSpent", text: game.i18n.localize("DRPG.Eclipse.noMovesLeft") } };
     return { actorId: student.id, eclipse: id, seen: seen + crossings };
+}
+
+/**
+ * Whether `actor` holds Pick the Lock's pass to `room` on `scene` (E74, DA9; lockpick-gm.mjs): a GM reads the GMs' store,
+ * the owner's browser its copy of its own characters' passes (gm-stores.mjs `lockpickCopy`). Asked by `restrictedFrom`.
+ */
+export function holdsPass(actor, scene, room) {
+    if (!actor?.id || !scene?.id || !room) return false;
+    const row = game.user?.isGM ? lockpickStore.get(actor.id) : (lockpickCopy.read() ?? {})[actor.id];
+    return Boolean(row) && row.sceneId === scene.id && row.room === room;
+}
+
+/** Whether `student` keeps watch over `from` through the running Eclipse, as the GMs hold it (gm-stores.mjs `watchStore`). */
+export function watchHolds(student, from) {
+    const row = student?.id ? watchStore.get(student.id) : null;
+    return Boolean(row?.post) && row.post === from;
 }
 
 /**
@@ -1266,6 +1319,10 @@ export async function recordCrossingInStep(actor, tokenDoc, { id = null, from = 
     if (awaitingPrice.get(actor.id)?.id !== row.id) awaitingPrice.delete(actor.id);
     await crossingStore.whenHydrated();
     await crossingStore.patch(actor.id, row);
+    // The crossing settles once the token has stood in `to` a while (E69 C2, crossing-settle.mjs): the one event every
+    // notice of another character's move comes from.
+    const { scheduleSettle } = await import("./crossing-settle.mjs");
+    scheduleSettle(actor.id, tokenDoc, { from, to, via, eclipse: row.eclipse }, { roomNow: roomOfToken });
     return true;
 }
 
@@ -1526,6 +1583,10 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
+        // A barricade (E74): its author is told somebody tries the door, through the primary (doors-gm.mjs `knockDoor`).
+        if (to && roomBarricaded(tokenDoc.parent, to) && allowed === game.i18n.localize("DRPG.Bridge.why.barricaded")) {
+            import("./bridge-asks.mjs").then(m => m.requestDoorKnock({ actorId: actor.id, room: to })).catch(() => {});
+        }
         return false;                                  // the move does not happen
     } catch {
         // Never block a move because our own check failed.
@@ -1619,6 +1680,10 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known, elevation });
     const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null, keyed });
     if (blocked) return blocked;
+    // A barricade (E74 C1): read here and by the GMs' audit through this verdict, never by the passages' glow, which asks
+    // `restrictedFrom` alone - so no surface shows a barricade before a pull on its door (the plan's risk 2).
+    const barred = barricadedFrom(actor, to, scene, mover, { via: passage ? "passage" : via, keyed });
+    if (barred) return barred;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
 
@@ -1660,7 +1725,10 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
      * gate and `judgeEclipseCrossing` skipped every check whenever the clock
      * said Morning or Night, and `freeBecomes` was a number nothing read.
      */
-    const allowance = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
+    const base = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
+    // A room action's extra crossings are this character's alone (Q-E93-3; gm-stores.mjs `timedCrossingsOf`): the GMs' rows
+    // on a GM, the owner's copy on the walker's browser.
+    const allowance = base === null ? null : base + timedCrossingsOf(actor.id);
 
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.
@@ -1909,7 +1977,8 @@ function lockedInIncident(actor, keyed = false) {
 function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
     try {
         if (isChained(actor)) return refusal(keyed, "chained", game.i18n.localize("DRPG.Calls.chainedBlocked"));
-        if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
+        // Pick the Lock's pass (E74, DA9): its holder walks into that one room past a lock, a bedroom and a seal.
+        if (to && !(mover ? mover.mastermind : iAmTheMastermind()) && !holdsPass(actor, scene, to)) {
             if (isLocked(scene, to)) return refusal(keyed, "doorLocked", game.i18n.localize("DRPG.Move.locked"));
             if (isSealed(to)) return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
             // Somebody's bedroom. The owner walks in; anybody else needs the
@@ -1922,6 +1991,24 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
         }
     } catch {
         // A restriction we cannot read must not block an ordinary move.
+    }
+    return false;
+}
+
+/**
+ * THE BARRICADE'S PART OF THE DOORS' RULES (E74 C1, 12.11.2026; A10). Apart from `restrictedFrom`, the fixed part - a lock,
+ * a seal, a bedroom, the chain - which the passages' glow reads too: a barricade is shown by no surface before somebody
+ * pulls on its door. A walk in through a door is refused for everyone but a GM moving a token and a Monokuma (the
+ * verdict's first line); a passage, a breach or a tunnel (`via`) goes through. The words say only that the door does not
+ * give.
+ */
+function barricadedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
+    try {
+        if (!to || ["passage", "breach", "tunnel"].includes(via)) return false;
+        if (mover ? mover.gm : game.user?.isGM) return false;
+        if (roomBarricaded(scene, to)) return refusal(keyed, "barricaded", game.i18n.localize("DRPG.Bridge.why.barricaded"));
+    } catch {
+        // A barricade we cannot read must not block an ordinary move.
     }
     return false;
 }
@@ -1958,7 +2045,7 @@ export function isLocked(scene, room) {
  * the mover's browser, and on the primary the student `judgeArrival` hands in, its items as the GMs' mark holds them
  * (`itemsHeldNow`), so a key's room or place a player's browser wrote and the audit has not let stand opens nothing there.
  */
-function bedroomShut(actor, scene, to) {
+export function bedroomShut(actor, scene, to) {
     // A bedroom a breach forced (E15 part 2 C4; E14's Q1 of 18.10: "bez klucza tunelem i breach") opens to everyone.
     if (roomBroken(scene, to)) return false;
     const owner = to ? roomFlag(scene, to, ROOM_OWNER_FLAG) : null;

@@ -768,6 +768,17 @@
         "source": ["DA27", "DA28"],
         "note": "The Listen tile's label; the key listen and the Listen row stay; the tile has no groups."
       },
+  {
+        "id": "facilities",
+        "en": "Facilities",
+        "pl": "Facilities",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E93",
+        "source": ["E93 plan"],
+        "note": "The tile that was Rest (E93, the owner's audit entry E93 (1)): its window holds the Short and the Long Rest and the room's actions; the key rest and the Rest window's rows stay. A tile name in English in Polish, as the other tiles (D33a)."
+      },
       {
         "id": "tail-someone",
         "en": "Tail Someone",

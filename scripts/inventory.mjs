@@ -346,6 +346,30 @@ export async function repairItem(actor, itemId, { ref = null } = {}) {
 }
 
 /**
+ * A ROOM ACTION'S MENDING (the owner's answer to Q-E93-3, 12.11.2026; facilities-gm.mjs `applyEffects`): `n` points of wear
+ * off the character's most worn thing as the GMs hold it (`itemsHeldNow`), the first on the sheet among equals. A broken
+ * thing is passed by - mending it whole is a Repair project's (`repairItem`) - and the rest of `n` past that thing's wear
+ * is not spread to another. One write of the GM's (`trustedWrite`, "facility"). Answers `{ id, name, back }`, or null when
+ * nothing on the sheet is worn.
+ */
+export async function mendWear(actor, n) {
+    if (!game.user?.isGM || !(n > 0)) return null;
+    const { itemsHeldNow } = await import("./sheet-audit.mjs");
+    let best = null;
+    for (const held of itemsHeldNow(actor)) {
+        if (isBroken(held)) continue;
+        const worn = wearOf(held);
+        if (worn > 0 && worn > (best?.worn ?? 0)) best = { held, worn };
+    }
+    const item = best ? actor.items.get(best.held.id) : null;
+    if (!item) return null;
+    const back = Math.min(best.worn, n);
+    await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: best.worn - back }, { reason: "facility" });
+    log(`"${item.name}" on ${actor.name}'s sheet has ${back} point(s) of durability back.`);
+    return { id: item.id, name: item.name, back };
+}
+
+/**
  * A Repair an item's completion taken back (the row "repairsItem"'s `onUncrossed`, E15 part 2 fix e1-G3; findings BEH-1,
  * E15p2-END-05; D40): the item as `repairItem` found it - broken (its flag as it was, put down) and its wear - in the
  * GMs' write, when it is still on the builder's sheet and still whole as the GMs hold it (one broken or worn again

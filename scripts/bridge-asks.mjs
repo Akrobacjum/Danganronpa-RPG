@@ -34,7 +34,7 @@ import {
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -45,6 +45,74 @@ import { ask } from "./bridge-table.mjs";
 export function requestOpeningResult({ actorId, side, total, isCritical, withHope, rollId = null }) {
     return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope, rollId }, {
         local: () => import("./murder.mjs").then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }))
+    });
+}
+
+/**
+ * Use a room action of the Facilities tile (E93 C3): a GM's, named by its id with the roll thrown for it (`rollId`, the
+ * message the GM wrote for it, whose record the GM reads the total and the critical off), or a completed project's,
+ * `project:<projectId>`, with no roll. Judged and carried out on the primary (facilities-gm.mjs `handleFacilityUse`); a
+ * GM runs it on their own client.
+ */
+export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_FACILITY_USE, { actorId, actionId, total, isCritical, rollId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleFacilityUse({ actorId, actionId, total, isCritical, rollId }, game.user))
+    });
+}
+
+/** Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`). */
+/** Shut the Door (E74 C2): the Body roll named by its message; answers `{ room }` as `.value`. */
+export function requestDoorShut({ actorId, total = 0, rollId = null }) {
+    const packet = { actorId, total, rollId };
+    return ask(ACTION_DOOR_SHUT, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorShut(packet, game.user))
+    });
+}
+
+/** Force the Door (E74 C3): the room beyond and the Body roll named by its message; answers `{ forced, held }` as `.value`. */
+export function requestDoorForce({ actorId, room, total = 0, isCritical = false, withHope = true, rollId = null }) {
+    const packet = { actorId, room, total, isCritical, withHope, rollId };
+    return ask(ACTION_DOOR_FORCE, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorForce(packet, game.user))
+    });
+}
+
+/** Pick the Lock (E74 C4): the room beyond and both rolls named by their messages; answers `{ opened, held }` as `.value`. */
+export function requestDoorPick({ actorId, room, total = 0, isCritical = false, withHope = true, coverTotal = 0, coverCritical = false,
+    rollId = null, coverRollId = null }) {
+    const packet = { actorId, room, total, isCritical, withHope, coverTotal, coverCritical, rollId, coverRollId };
+    return ask(ACTION_DOOR_PICK, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorPick(packet, game.user))
+    });
+}
+
+/** Somebody at a barricaded door (E74): the walker's veto refused the walk in; the GM tells the barricade's author. */
+export function requestDoorKnock({ actorId, room }) {
+    return ask(ACTION_DOOR_KNOCK, { actorId, room }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorKnock({ actorId, room }, game.user))
+    });
+}
+
+/** Keep Watch (E74 C6): the Body roll named by its message; answers `{ kept }` as `.value`. */
+export function requestWatchDeclare({ actorId, total = 0, isCritical = false, withHope = true, rollId = null }) {
+    const packet = { actorId, total, isCritical, withHope, rollId };
+    return ask(ACTION_WATCH_DECLARE, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleWatchDeclare(packet, game.user))
+    });
+}
+
+/** Begin a tail (E69 C3): the two rolls named by their messages; answers `{ seen }` as `.value`. */
+export function requestTailStart({ tailerId, targetId, total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false,
+    rollId = null, unseenRollId = null }) {
+    const packet = { tailerId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId };
+    return ask(ACTION_TAIL_START, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleTailStart(packet, game.user))
+    });
+}
+
+export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))
     });
 }
 

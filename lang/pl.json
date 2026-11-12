@@ -679,6 +679,9 @@
         "notKnown": "postać nie zna tego tajnego przejścia albo jest ono już zamknięte. Sprawdź je w zakładce Tajne przejścia.",
         "isBreach": "to wyłom, nie tajne przejście. Ścianę przywraca Zamknij wyłom.",
         "noSide": "nie ma żadnej strony w pokoju, w którym stoi postać. Zatwierdź go tylko z pokoju, do którego prowadzi to tajne przejście albo wyłom.",
+        "lockWhole": "ten zamek nie jest zepsuty - nie ma czego naprawiać.",
+        "lockTaken": "projekt już naprawia ten zamek.",
+        "lockFar": "ten zamek nie jest na żadnych drzwiach pokoju, w którym stoi postać. Zatwierdź go tylko z tego pokoju albo z sąsiedniego.",
         "noWall": "tej ściany już nie ma. Wybierz odcinek ponownie.",
         "taken": "odcinek nachodzi na inne tajne przejście na tej ścianie. Wybierz odcinek obok niego.",
         "levels": "pokój przy odcinku jest na innym piętrze. Wybierz odcinek na piętrze postaci.",
@@ -2709,6 +2712,7 @@
       "tabPassages": "Tajne przejścia",
       "tabSearching": "Przeszukiwanie",
       "tabRest": "Odpoczynki",
+      "tabFacilities": "Facilities",
       "tabDescription": "Opis",
       "descriptionColumn": "Jak wygląda",
       "descriptionPlaceholder": "np. Długie stoły, okienko do wydawania i zapach wybielacza, którego nikt nie umie umiejscowić.",
@@ -2757,6 +2761,8 @@
       "takeKey": "Zabierz klucz do pokoju",
       "noKeysToTake": "{actor} nie ma klucza do niczyjego pokoju.",
       "lockedAtStartColumn": "Zamknięte na start",
+      "brokenColumn": "Zepsute",
+      "brokenHint": "Zamek wyważony (Force the Door, wyłom). Póki zaznaczone, drzwi otwierają się każdemu; odznacz, by naprawić zamek.",
       "lockedAtStartHint": "Czy te drzwi są zamknięte na początku sezonu. Reset sezonu przywraca każde drzwi do tego stanu.",
       "isRoomColumn": "To jest pokój",
       "isRoomHint": "Czy ten region jest pokojem. Region z zachowaniem teleportu albo zmiany poziomu, albo narysowany przez gracza, nie może nim być.",
@@ -3359,6 +3365,219 @@
       "discardNote": "{actor} - wyrzucone {item} w: {room} (rzut {total}).",
       "cardUnread": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę."
     },
+    "Infiltrate": {
+      "force": {
+        "which": "Które drzwi",
+        "prompt": "Wyważ drzwi z: {room}. Barykada ustępuje rzutowi powyżej swojej siły, zamek albo pieczęć wynikowi {n} lub więcej; wszystko na drzwiach naraz. Pokoje dookoła to słyszą.",
+        "forced": "Drzwi do: {room} ustępują.",
+        "held": "Drzwi do: {room} trzymają.",
+        "open": "Nic nie trzyma drzwi do: {room}.",
+        "banging": "Łomot z: {room}.",
+        "forcedBy": "{name} wyważa drzwi do: {room}.",
+        "triedBy": "{name} próbuje wyważyć drzwi do: {room}.",
+        "yourDoor": "Ktoś wyważył drzwi: {room}. Zamek zostaje zepsuty, póki ktoś go nie naprawi."
+      },
+      "pick": {
+        "prompt": "Otwórz zamek z: {room}. Hand {n} go otwiera dla ciebie samego, dopóki nie wyjdziesz z pokoju za nim; {clean} lub więcej i właściciel się nie dowie. Shadow {cover} lub więcej i nikt nie widzi, kto to był.",
+        "coverTitle": "Pick the Lock - czy ktoś widzi?",
+        "opened": "Zamek ustępuje. Możesz wejść do: {room}, dopóki z niego nie wyjdziesz; dla wszystkich innych zostaje zamknięty.",
+        "held": "Zamek do: {room} trzyma.",
+        "open": "Żaden zamek nie trzyma drzwi do: {room}.",
+        "seenBy": "{name} majstruje przy zamku do: {room}.",
+        "warned": "Ktoś majstrował przy zamku: {room}."
+      },
+      "trace": {
+        "shut": "Coś dosunięto do drzwi: {room}.",
+        "force": "Drzazgi i otarcia przy drzwiach do: {room}.",
+        "pick": "Drobne rysy wokół zamka drzwi do: {room}."
+      },
+      "repair": {
+        "mended": "Zamek: {room} naprawiono, drzwi znów trzymają.",
+        "dropped": "„{name}” usunięto: zamek {room} naprawiono ręcznie.",
+        "notMended": "{name} ukończono, ale zamka nie dało się naprawić: {why}"
+      },
+      "watch": {
+        "notInEclipse": "Czuwanie ustala się przed Eclipse, nie w trakcie.",
+        "notAtNight": "Bez czuwania przed nocnym Eclipse.",
+        "kept": "Czuwasz przez nadchodzący Eclipse, w pokoju, w którym stoisz, gdy się zacznie.",
+        "notKept": "Tym razem nie udaje się zacząć czuwania.",
+        "start": "Czuwasz w: {room}. Są tam: {who}.",
+        "startEmpty": "Czuwasz w: {room}. Nikogo więcej tam nie ma.",
+        "entered": "{name} wchodzi do: {room}.",
+        "left": "{name} wychodzi z: {room}.",
+        "summary": "Czuwanie w: {room} się skończyło. Weszło: {entered}. Wyszło: {left}."
+      },
+      "shut": {
+        "knock": "Ktoś próbuje wejść, ale drzwi nie ustępują.",
+        "done": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia."
+      },
+      "tail": {
+        "nobody": "Nikt inny nie stoi w tym pokoju, by go śledzić.",
+        "prompt": "Wybierz, kogo śledzić. Shadow {n} lub więcej: bez zauważenia; poniżej cel dowie się, kto go śledzi.",
+        "who": "Kogo",
+        "unseenTitle": "Tail Someone - czy zauważy?",
+        "started": "Śledzisz: {name}. Dowiadujesz się, dokąd idzie, do końca dnia.",
+        "startedSeen": "Śledzisz: {name}, ale cię zauważono.",
+        "noticed": "{name} idzie za tobą.",
+        "moved": "{name} przechodzi do: {room}.",
+        "movedWith": "{name} przechodzi do: {room}. Tam: {who}.",
+        "end": {
+          "lost": "Zgubiono trop: {name}.",
+          "day": "Śledzenie ({name}) kończy się z dniem.",
+          "body": "Śledzenie ({name}) się kończy: znaleziono ciało.",
+          "dash": "{name} ucieka Dashem. Zgubiono trop."
+        }
+      },
+      "notBuilt": "Jeszcze niezrobione.",
+      "dashResult": {"one": "Dash: {n} darmowe przejście do końca pory dnia.", "few": "Dash: {n} darmowe przejścia do końca pory dnia.", "many": "Dash: {n} darmowych przejść do końca pory dnia.", "other": "Dash: {n} darmowego przejścia do końca pory dnia."},
+      "row": {
+        "listen": {
+          "label": "Listen",
+          "hint": "Shadow przy ścianie: kto jest w sąsiednim pokoju."
+        },
+        "tail": {
+          "label": "Tail Someone",
+          "hint": "Idź za kimś z twojego pokoju i dowiedz się, dokąd idzie."
+        },
+        "shut": {
+          "label": "Shut the Door",
+          "hint": "Body: zabarykaduj od środka pokój, w którym stoisz."
+        },
+        "force": {
+          "label": "Force the Door",
+          "hint": "Body przy drzwiach obok: barykada, zamek albo pieczęć ustępuje. Głośno."
+        },
+        "pick": {
+          "label": "Pick the Lock",
+          "hint": "Hand przy zamkniętych albo zapieczętowanych drzwiach obok: wejście otwarte tylko dla ciebie, dopóki nie wyjdziesz z tego pokoju."
+        },
+        "keepWatch": {
+          "label": "Keep Watch",
+          "hint": "Body, przed Eclipse: przez cały Eclipse wiesz, kto jest w twoim pokoju, kto wchodzi i kto wychodzi."
+        },
+        "dash": {
+          "label": "Dash",
+          "hint": "Leg: darmowe przejścia na szybki bieg."
+        }
+      }
+    },
+    "Facility": {
+      "timedBadge": "{what}, {until}",
+      "badge": {"traitBonus": "+{n} {trait}", "experience": "Experience +{n}", "despairShield": "Tarcza Despair", "eclipseCrossing": "Eclipse +{n}", "ultimateBoost": "Mocne Ultimate"},
+      "timed": {
+        "traitBonus": "+{n} {trait}",
+        "experience": "Experience {label} +{n}",
+        "despairShield": "Twój następny rzut z Fear nie daje Despair",
+        "eclipseCrossing": "Przejścia w Eclipse +{n}",
+        "ultimateBoost": "Następne Ultimate: druga kość przewagi"
+      },
+      "until": {
+        "timeOfDay": "do końca pory dnia",
+        "day": "do końca dnia",
+        "nextRoll": "na twój następny rzut",
+        "eclipse": "w najbliższym Eclipse"
+      },
+      "usedOk": "{action}: zrobione.",
+      "usedFailed": "{action}: nie wyszło. Akcja jest zużyta na tę porę dnia.",
+      "traceNote": "Akcja w pokoju: {action}",
+      "closed": "Ktoś już tego użył o tej porze dnia.",
+      "noActions": "Za mało akcji.",
+      "shut": {
+        "lockdown": "Lockdown: żadnych akcji w pokojach o tej porze dnia.",
+        "powercut": "Power cut: żadnych akcji z ukończonych projektów o tej porze dnia."
+      },
+      "gmHint": "{trait}, próg {dc}",
+      "projectHint": "Z projektu {project} · {life}",
+      "forGood": "na stałe",
+      "projectLine": "{action} w Facilities, {life}",
+      "timesLeft": {
+        "one": "jeszcze {n} pora dnia",
+        "few": "jeszcze {n} pory dnia",
+        "many": "jeszcze {n} pór dnia",
+        "other": "jeszcze {n} pory dnia"
+      },
+      "editor": {
+        "until": "Trwa",
+        "trait": "Statystyka",
+        "roomTitle": "Facilities: {room}",
+        "saveProject": "Zapisz akcję",
+        "actionN": "Akcja {n}",
+        "tabNote": "Akcje w pokoju: ile ich ma pokój i przycisk, który je otwiera. Ich okno zapisuje od razu, nie przy Apply.",
+        "roomIntro": "Akcje w pokoju {room}. Każda to rzut i kosztuje akcję; po użyciu jest zamknięta dla wszystkich do następnej pory dnia. Wiersz bez nazwy znika.",
+        "roomNote": "Zapis od razu zmienia akcje pokoju. Widzi je tylko postać stojąca w pokoju.",
+        "projectTitle": "Akcja w pokoju: {project}",
+        "projectIntro": "Co daje {project} po ukończeniu: akcję w pokoju, bez rzutu, raz na postać na porę dnia.",
+        "projectNote": "Czas działania liczy się od pory dnia, w której projekt ukończono, i kończy się z końcem rozdziału.",
+        "label": "Nazwa",
+        "labelPlaceholder": "Zaparz herbatę",
+        "trait": "Statystyka",
+        "dc": "Próg",
+        "effects": "Efekty",
+        "effect": "Efekt",
+        "amount": "Ile",
+        "scope": "Kto",
+        "text": "Tekst",
+        "textPlaceholder": "Słowa GM-a",
+        "noEffect": "Bez efektu",
+        "costsAction": "Kosztuje akcję",
+        "lifetime": "Czas działania",
+        "lifetimeN": "Ile",
+        "life": {
+          "forever": "Na stałe",
+          "timesOfDay": "Pory dnia",
+          "days": "Dni"
+        },
+        "save": "Zapisz akcje w pokoju",
+        "remove": "Usuń akcję",
+        "edit": "Edytuj akcje",
+        "projectButton": "Akcja w pokoju"
+      },
+      "roomColumn": "Akcje w pokoju",
+      "applied": {
+        "timed": "{name}: {what}",
+        "advantage": "{name}: przewaga przy następnym rzucie",
+        "health": { "one": "{name}: +{n} Health", "few": "{name}: +{n} Health", "many": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
+        "sanity": { "one": "{name}: +{n} Sanity", "few": "{name}: +{n} Sanity", "many": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
+        "hope": { "one": "{name}: +{n} Hope", "few": "{name}: +{n} Hope", "many": "{name}: +{n} Hope", "other": "{name}: +{n} Hope" },
+        "hopeBlocked": "{name}: o tej porze dnia nie zdobywa się Hope",
+        "freeMove": "{name}: +{n} Free Move",
+        "text": "{name}: słowa GM-a wysłane",
+        "searchToken": "{room}: +{n} search token",
+        "overflowDown": "Despair overflow: -{n}",
+        "durability": { "one": "{name}: {item}, +{n} wytrzymałości", "few": "{name}: {item}, +{n} wytrzymałości", "many": "{name}: {item}, +{n} wytrzymałości", "other": "{name}: {item}, +{n} wytrzymałości" },
+        "durabilityNone": "{name}: nie ma nic zużytego do naprawy",
+        "stateEnded": "{name}: koniec stanu {state}",
+        "stateNotHeld": "{name}: nie ma stanu {state}, nic się nie zmienia",
+        "projectProgress": { "one": "{project}: +{n} postępu", "few": "{project}: +{n} postępu", "many": "{project}: +{n} postępu", "other": "{project}: +{n} postępu" },
+        "projectFull": "{project}: nie dało się dodać postępu",
+        "projectNone": "{room}: nie ma tu niedokończonego projektu"
+      },
+      "state": { "wounded": "Wounded", "breakdown": "Breakdown" },
+      "effect": {
+        "traitBonus": "Statystyka, podniesiona na jakiś czas",
+        "experience": "Experience na jakiś czas",
+        "advantage": "Przewaga przy następnym rzucie",
+        "despairShield": "Ochrona przed Despair przy rzucie",
+        "eclipseCrossing": "Przejścia w najbliższym Eclipse",
+        "durability": "Wytrzymałość z powrotem dla najbardziej zużytego przedmiotu",
+        "endWounded": "Koniec stanu Wounded",
+        "endBreakdown": "Koniec stanu Breakdown",
+        "projectProgress": "Postęp najstarszego projektu w pomieszczeniu",
+        "ultimateBoost": "Mocniejsze następne Ultimate",
+        "health": "Health",
+        "sanity": "Sanity",
+        "hope": "Hope",
+        "freeMove": "Free Move",
+        "searchToken": "Search token",
+        "overflowDown": "Overflow w dół",
+        "text": "Tekst GM-a"
+      },
+      "scope": {
+        "self": "używający",
+        "present": "wszyscy obecni",
+        "others": "pozostali obecni"
+      }
+    },
     "Rest": {
       "short": "Short Rest",
       "long": "Long Rest",
@@ -3376,7 +3595,8 @@
       "manageIntro": "Zaznacz, które pokoje pozwalają na Short Rest, a które na Long Rest. Per scena, więc mapa każdego sezonu może się różnić.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
-      "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów."
+      "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów.",
+      "insomnia": "Insomnia: o tej porze dnia nie ma Short Rest."
     },
     "Calls": {
       "resolveNext": "Następny rzut zapyta, której statystyki użyć.",
@@ -3621,7 +3841,12 @@
         "silence": "Silence",
         "fog": "Fog",
         "rot": "Rot",
-        "earthquake": "Earthquake"
+        "earthquake": "Earthquake",
+        "lockdown": "Lockdown",
+        "insomnia": "Insomnia",
+        "toll": "Toll",
+        "jitters": "Jitters",
+        "powercut": "Power cut"
       },
       "what": {
         "darkness": {
@@ -3646,7 +3871,12 @@
         "silence": "Żadnych Hope Calls. Ani jednego, u nikogo.",
         "fog": "Nie znajdujesz drogi za darmo: brak Free Move. Przejścia wciąż kosztują akcje jak zwykle.",
         "rot": "Wszystko, co ma szkoła, psuje się naraz: o {n} wytrzymałości mniej na każdym przedmiocie, który jakąś ma; nic nie łamie się do końca.",
-        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt w toku traci {n} postępu."
+        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt w toku traci {n} postępu.",
+        "lockdown": "Pokoje są zamknięte: żadnych akcji w pokojach o tej porze dnia. Odpoczynki działają.",
+        "insomnia": "Nikt nie może zasnąć: żadnego Short Rest o tej porze dnia. Long Rest działa.",
+        "toll": { "one": "Akcje w pokoju kosztują o {n} akcję więcej, także darmowe.", "few": "Akcje w pokoju kosztują o {n} akcje więcej, także darmowe.", "many": "Akcje w pokoju kosztują o {n} akcji więcej, także darmowe.", "other": "Akcje w pokoju kosztują o {n} akcji więcej, także darmowe." },
+        "jitters": "Ręce się trzęsą: rzuty na akcje GM-a w pokojach są z utrudnieniem.",
+        "powercut": "Nie ma prądu: żadnych akcji z ukończonych projektów o tej porze dnia. Akcje GM-a w pokojach działają."
       },
       "rulesChanged": "Overflow przestrojony. Odpala teraz przy {n}.",
       "explainTitle": "Czym jest Despair overflow",
@@ -3768,7 +3998,8 @@
         "breach": "Breach the Wall",
         "sealPassage": "Seal the passage",
         "closeBreach": "Close the breach",
-        "repairItem": "Repair an item"
+        "repairItem": "Repair an item",
+        "repairLock": "Repair the Lock"
       },
       "kindOwn": "Własny projekt",
       "sealWhich": "Przejście do zasypania",
@@ -3782,6 +4013,9 @@
       "sealPassageSummary": "Seal the passage: {target}",
       "closeBreachSummary": "Close the breach: {target}",
       "repairItemSummary": "Repair an item: {target}",
+      "repairLockWhich": "Zamek do naprawy",
+      "repairLockNote": "Repair the Lock: Hand, Trivial (3). Po ukończeniu zamek znów trzyma, dla wszystkich.",
+      "repairLockSummary": "Repair the Lock: {target}",
       "repairLabel": "{item} (Tier {tier}): {state}",
       "repairBroken": "zepsuty przedmiot",
       "repairWorn": "zużyty przedmiot",
@@ -3914,6 +4148,8 @@
       "proposalPrompt": "Powiedz, co naprawdę robisz i po co. GM czyta to razem z twoimi odpowiedziami i decyduje - może zmienić skalę, pokój albo brzmienie, zanim projekt ruszy.",
       "proposalPlaceholder": "Co budujesz i co chcesz z tego mieć…",
       "proposerKnows": "Twój projekt „{name}” jest w toku w pokoju {room}. Widać go w twoim zasobniku Projektów i na mapie.",
+      "facilityTold": "Twój projekt {name} daje akcję w swoim pokoju: {action}.",
+      "facilityGone": "Twój projekt {name} nie daje już akcji w pokoju.",
       "descriptionTold": "Opis projektu „{name}”:",
       "proposalSent": "„{name}” poszedł do GM-a. Nic nie rusza, dopóki GM nie zatwierdzi.",
       "proposalNotSent": "Nic nie trafiło do GM-a.",
@@ -4076,6 +4312,7 @@
       "unlockedByCall": "Odblokowane przez opłacony Call.",
       "freeCritArmed": "Loaded Die uzbrojony. Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
       "forcedByCall": "Ustawione przez opłacony Call. Nie da się tego wyłączyć.",
+      "forcedByHindrance": "Na tym rzucie jest kość utrudnienia. Nie da się tego wyłączyć.",
       "forcedBySituation": "Ustawione przez to, gdzie jesteś i czego szukasz. Nie da się tego wyłączyć.",
       "forcedByState": "Jesteś w Breakdown - każdy rzut z utrudnieniem, dopóki nie wróci trochę Sanity. Nie da się tego wyłączyć.",
       "lockedByCall": "O modyfikatorze tego rzutu zdecydował już Call.",
@@ -4091,6 +4328,7 @@
       },
       "source": {
         "call": "Call",
+        "hindrance": "kość utrudnienia",
         "situation": "miejsce, w którym jesteś",
         "state": "Breakdown"
       }
@@ -4120,6 +4358,14 @@
         "overflow.check": "Sprawdzenie Overflow",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
+        "facility.use": "Akcja w pokoju",
+        "dash.settle": "Dash",
+        "tail.start": "Tail Someone",
+        "door.shut": "Shut the Door",
+        "door.force": "Force the Door",
+        "door.pick": "Pick the Lock",
+        "watch.declare": "Keep Watch",
+        "door.knock": "Ktoś przy drzwiach",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
@@ -4275,6 +4521,8 @@
         "oneWay": "Tym przejściem nie da się przejść z tej strony.",
         "doorLocked": "Drzwi są zamknięte.",
         "roomSealed": "To pomieszczenie jest zapieczętowane na tę porę dnia. Nikt nie wchodzi.",
+        "barricaded": "Drzwi nie ustępują.",
+        "onWatch": "Czuwasz: zostajesz na posterunku do końca Eclipse.",
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",
         "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
@@ -5006,6 +5254,29 @@
       "critHopeGained": "Nowy wynik to krytyk: zyskujesz drugi punkt Hope, który jest wart krytyk.",
       "critHopeReturned": "Stary wynik był krytykiem: drugi punkt Hope, który wypłacił, zostaje odebrany.",
       "progressAdjusted": "{name}: postęp z tej akcji zmienił się z {was} na {now}.",
+      "infiltrate": {
+        "dash": "Po Rerollu: Dash daje teraz darmowe przejścia: {n}.",
+        "tail": "Po Rerollu: siła śledzenia to teraz {n}.",
+        "tailGone": "Po Rerollu: śledzenie już nie trwa, więc nic się nie zmienia.",
+        "shut": "Po Rerollu: siła barykady to teraz {n}.",
+        "shutGone": "Po Rerollu: barykady już nie ma, więc nic się nie zmienia.",
+        "forceStands": "Po Rerollu: pierwszy rzut wyważył drzwi i zostają wyważone.",
+        "forceRefused": "Po Rerollu: tych drzwi nie da się stąd spróbować ponownie.",
+        "forced": "Po Rerollu: drzwi ustępują teraz.",
+        "forceHeld": "Po Rerollu: drzwi dalej trzymają.",
+        "pickStands": "Po Rerollu: pierwszy rzut otworzył zamek i postać już przez niego przeszła, więc to zostaje.",
+        "pickTaken": "Po Rerollu: zamek jednak trzyma, a przejście otwarte pierwszym rzutem przepada.",
+        "pickRefused": "Po Rerollu: tego zamka nie da się stąd spróbować ponownie.",
+        "picked": "Po Rerollu: zamek ustępuje teraz i postać może wejść.",
+        "pickHeld": "Po Rerollu: zamek dalej trzyma.",
+        "watchStands": "Po Rerollu: czuwania nie da się już ustalić, więc zostaje wynik pierwszego rzutu.",
+        "watchKept": "Po Rerollu: czuwanie zostaje.",
+        "watchNone": "Po Rerollu: bez czuwania.",
+        "facilityStands": "Po Rerollu: akcja w pokoju udała się za pierwszym razem i jej efekty zostają.",
+        "facilityGone": "Po Rerollu: tej akcji w pokoju już tu nie ma, więc nic się nie zmienia.",
+        "facilityMissed": "Po Rerollu: akcja w pokoju dalej się nie udaje.",
+        "facility": "Po Rerollu: akcja w pokoju udaje się teraz."
+      },
       "noReplay": "Do cofnięcia są tylko kości: ten rzut nie zostawił trwałego efektu.",
       "replayFailed": "Reroll zrobiony, ale akcji nie dało się odtworzyć. Powiedz GM-owi, co pierwszy rzut już zrobił.",
       "observeReplayed": "Ten sam ślad wraca do GM-a z nowym rzutem. GM powie, co znajdujesz tym razem.",
@@ -6365,13 +6636,13 @@
           "failure": "Bez postępu."
         },
         "rest": {
-          "label": "Rest",
+          "label": "Facilities",
           "hint": "Odzyskaj Health, Sanity albo Hope w pokoju, w którym GM pozwala odpoczywać. Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji, raz na sesję, i daje więcej.",
           "description": "Do wyboru masz Sleep (Health), Meal (Sanity) i Breath (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
         },
         "listen": {
-          "label": "Listen",
-          "hint": "Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny.",
+          "label": "Infiltrate",
+          "hint": "Listen przy ścianie, Tail Someone, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Keep Watch. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "thresholds": {
             "0": {
@@ -7561,6 +7832,12 @@
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
         "lootRolls": "Pierwszy rzut na Hand i Shadow każdej osoby do jej następnego zabrania z każdego ciała",
         "rifles": "Którą skrytkę każda postać przetrząsnęła, i o jakiej porze dnia",
+        "facilityUses": "Których akcji w pokojach użyła każda postać, i o jakiej porze dnia",
+        "tails": "Kto dziś śledzi kogo, i jak dobrze",
+        "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
+        "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
+        "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
+        "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",

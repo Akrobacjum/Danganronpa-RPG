@@ -4271,9 +4271,13 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
     const owner = ownerOf(actor);
     const trait = await openingTraitFor(side, actor, state, { tell: Boolean(owner?.active), proposal });
     if (!trait) return null;
+    // A victim's watch of 18 or more: one hindrance die on the killer's roll (E74, DA44 option A). The invitation says
+    // how many dice and nothing of why; the GM's draw reads the watch again (roll-draw.mjs `situationReading`).
+    const { openingHindrance } = await import("./watch-gm.mjs");
+    const hindrance = openingHindrance(side, state);
     if (owner?.active) {
         const { askOpeningRoll } = await import("./gm-bridge.mjs");
-        if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait })) {
+        if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait, hindrance })) {
             openingInvited = { openedAt: state?.openedAt ?? null, userId: owner.id };
             const title = openingTitle(side, state);
             keepOpeningNotice(await whisperToOwner(actor,
@@ -4283,7 +4287,7 @@ export async function rollOpening(side, state, { proposal = null } = {}) {
         }
     }
 
-    return throwOpeningRoll(side, actor.id, trait);
+    return throwOpeningRoll(side, actor.id, trait, { hindrance });
 }
 
 /** Whether this browser has the GM's window open for an opening's statistic: a re-ask meanwhile sends nothing, the window answers for it. */
@@ -4457,7 +4461,7 @@ async function revokeOpeningInvitation(state) {
  * trap's victim - and nobody was asked. One the side does not list is no roll; the GM's
  * tracker asks again.
  */
-export async function throwOpeningRoll(side, actorId, trait = null) {
+export async function throwOpeningRoll(side, actorId, trait = null, { hindrance = 0 } = {}) {
     const def = MURDER_OPENING[side];
     const actor = game.actors.get(actorId);
     if (!def || !actor) return null;
@@ -4502,6 +4506,8 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
                 remember: false,
                 byGm: true,
                 situational,
+                // A watch's hindrance die (E74, DA44), named in the window, its cause not (`rollOpening`).
+                hindrance: hindrance > 0 ? 1 : 0,
                 actionKey: "murderOpening",
                 // Thrown on the participant's own client - see `openingTitle`.
                 title: openingTitle(side),

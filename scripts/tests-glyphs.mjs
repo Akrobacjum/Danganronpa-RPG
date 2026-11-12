@@ -647,10 +647,21 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 export const FACE_RULES = [
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
     ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
+    // The Infiltrate window's rows (E69, E74; E48 rows 47-55): each wears its own drawing under Stained Glass, where its FA
+    // class is another's (Move's prints, Sprint's runner, the key, Observe's eye) or Legacy's (the barrier, the fist).
+    ["Infiltrate: Tail Someone (its fa-shoe-prints is Move's)", '.drpg-choice:has(> input[value="tail"]) > i.fa-shoe-prints', "tail"],
+    ["Infiltrate: Dash (its fa-person-running is Sprint's)", '.drpg-choice:has(> input[value="dash"]) > i.fa-person-running', "dash"],
+    ["Infiltrate: Shut the Door (its fa-road-barrier is the barrier)", '.drpg-choice:has(> input[value="shut"]) > i.fa-road-barrier', "shut-door"],
+    ["Infiltrate: Force the Door (its fa-hand-fist is the fist)", '.drpg-choice:has(> input[value="force"]) > i.fa-hand-fist', "force-door"],
+    ["Infiltrate: Pick the Lock (its fa-key is the key)", '.drpg-choice:has(> input[value="pick"]) > i.fa-key', "pick-lock"],
+    ["Infiltrate: Keep Watch (its fa-eye is Observe's)", '.drpg-choice:has(> input[value="keepWatch"]) > i.fa-eye', "keep-watch"],
     /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
        projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
        gear, the corner Look launcher's gear with its sound waves. */
-    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"]
+    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"],
+    /* E93 (the owner's ask of 12.11.2026): a room action's timed effect on the sheet, a white chip beside the armed Calls
+       (sheet.mjs `pendingStack`); its fa-hourglass-half has no glass drawing, and Stained Glass's hourglass is the projects'. */
+    ["a timed effect's badge beside the Hope Calls (its fa-hourglass-half has no glass drawing)", ".drpg-pending-call.drpg-timed-badge > i.fa-hourglass-half", "timed-effect"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,

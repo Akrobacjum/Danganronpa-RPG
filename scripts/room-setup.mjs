@@ -27,7 +27,7 @@
 
 import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
-import { neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
+import { neighbouringRooms, ROOM_FLAGS, roomBroken, setRoomBroken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -40,6 +40,7 @@ import {
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
+import { roomActions } from "./facilities.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
     listOver, isTrialScene, homeScene, sceneHoldsRooms
@@ -275,7 +276,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const COLUMN = {
             owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
             startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn",
-            neighbours: "DRPG.Vault.neighboursColumn",
+            neighbours: "DRPG.Vault.neighboursColumn", broken: "DRPG.Vault.brokenColumn",
             nosearch: "DRPG.SearchTokens.sealedColumn", table: "DRPG.Vault.table",
             short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
             desc: "DRPG.Vault.descriptionColumn"
@@ -316,10 +317,19 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             },
             concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
+            /* THE ROOM'S ACTIONS (E93 C2): how many, and the button that opens their editor (facility-editor.mjs
+               `editRoomActions`), which writes at once on its Save, as the search token buttons write at once; Apply reads
+               nothing of this cell. Drawn off where no piece of the name may be a room (nothing could hold them). */
+            facilities: `<span class="drpg-facility-cell"><span data-drpg-facility-count="${escRoom}">${roomActions(scene, room).length}</span>
+                ${iconButton({ icon: "fa-solid fa-pen-to-square", label: `${game.i18n.localize("DRPG.Facility.editor.edit")}: ${room}`,
+                    disabled: !possible, attrs: { "data-drpg-facility-edit": room } })}</span>`,
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
             locked: check("locked", flagOver(pieces, ROOM_FLAGS.locked)),
             startlocked: check("startlocked", pieces.some(startLocked),
                 game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
+            // Broken (E74 C5): a lock Force the Door or a breach forced (movement.mjs `roomBroken`); unticked and applied,
+            // the lock holds again - the GM's repair by hand.
+            broken: check("broken", roomBroken(scene, room), game.i18n.localize("DRPG.Vault.brokenHint")),
             nosearch: check("nosearch", flagOver(pieces, SEARCH_FLAGS.sealed)),
             // Advice only: it changes no rule, just which regions the ratio
             // line above the table counts. See `sharedRooms`.
@@ -378,7 +388,9 @@ export const ROOM_SETUP_TABS = Object.freeze([
     ["doors", "DRPG.Vault.tabDoors"],
     ["passages", "DRPG.Vault.tabPassages"],
     ["search", "DRPG.Vault.tabSearching"],
-    ["rest", "DRPG.Vault.tabRest"],
+    // The Rest tab is the Facilities tab since E93 C2 (the owner's audit entry E93 (1)): the two rest flags and the room's
+    // actions. Its key stays `rest`, as the tile's does.
+    ["rest", "DRPG.Vault.tabFacilities"],
     ["stashes", "DRPG.Vault.tabStashes"],
     ["description", "DRPG.Vault.tabDescription"],
     ["fog", "DRPG.Vault.tabFog"],
@@ -411,17 +423,18 @@ export function roomSetupTab(tab, holdsRooms) {
  * widths, the room's first ("room", the 220 px E12 C15 chose).
  */
 const ROOM_SETUP_COLUMN = {
-    owner: "select", isroom: "check", locked: "check", startlocked: "check", notshared: "check",
+    owner: "select", isroom: "check", locked: "check", startlocked: "check", broken: "check", notshared: "check",
     neighbours: "text", nosearch: "check", tokens: "step", table: "select", place: "place",
-    short: "check", long: "check", description: "prose", image: "picture"
+    short: "check", long: "check", facilities: "step", description: "prose", image: "picture"
 };
 
 /* Each column's heading, by the cell's key in `roomCells`. */
 const ROOM_SETUP_HEAD = {
     owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
-    startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn", neighbours: "DRPG.Vault.neighboursColumn",
-    nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
+    startlocked: "DRPG.Vault.lockedAtStartColumn", broken: "DRPG.Vault.brokenColumn", notshared: "DRPG.Vault.notSharedColumn",
+    neighbours: "DRPG.Vault.neighboursColumn", nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
     place: "DRPG.Vault.placeColumn", short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
+    facilities: "DRPG.Facility.roomColumn",
     description: "DRPG.Vault.descriptionColumn", image: "DRPG.Vault.imageColumn"
 };
 
@@ -446,7 +459,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
             ${/* information, not a warning (D11; audit S06-59, E22 C6b): the count advises and changes no rule */ ""}
             ${box("info", `<p class="notes" data-drpg-ratio></p>`)}
-            ${tableFor(["isroom", "locked", "startlocked", "notshared", "neighbours"])}
+            ${tableFor(["isroom", "locked", "startlocked", "broken", "notshared", "neighbours"])}
             <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
         `,
@@ -464,7 +477,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
         rest: `
             <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
-            ${tableFor(["short", "long"])}
+            ${tableFor(["short", "long", "facilities"])}
+            <p class="notes">${game.i18n.localize("DRPG.Facility.editor.tabNote")}</p>
         `,
 
         stashes: `
@@ -518,6 +532,7 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         longRest: Boolean(pick(`long:${room}`)?.checked),
         locked: Boolean(pick(`locked:${room}`)?.checked),
         lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
+        broken: Boolean(pick(`broken:${room}`)?.checked),
         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
         notShared: Boolean(pick(`notshared:${room}`)?.checked),
         isRoom: roomBox(pick(`isroom:${room}`)),
@@ -691,6 +706,20 @@ function wirePlaceSwitches(root) {
 // recounted at (`data-drpg-shown`) and added to the count read now, as `now + by` was: a spend a player made while the
 // GM clicked is kept, not overwritten. A number typed is a step of its difference, the same rule. Refill writes the
 // cap. `SearchTokens` is the window's own, handed in, so R2010 counts the writes on a stand-in.
+/** The Facilities tab's edit buttons (E93 C2): each opens its room's editor, and the count in its cell follows the Save. */
+export function wireFacilityButtons(root, scene) {
+    for (const button of root.querySelectorAll("button[data-drpg-facility-edit]")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const room = button.dataset.drpgFacilityEdit;
+            const { editRoomActions } = await import("./facility-editor.mjs");
+            await editRoomActions(scene, room);
+            const count = root.querySelector(`[data-drpg-facility-count="${CSS.escape(room)}"]`);
+            if (count) count.textContent = String(roomActions(scene, room).length);
+        });
+    }
+}
+
 export function wireTokenButtons(root, scene, recount, { tokens = SearchTokens } = {}) {
     for (const input of root.querySelectorAll("input[data-drpg-token]")) {
         input.dataset.drpgShown ??= input.value;
@@ -966,6 +995,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         };
         const wasLocked = Boolean(flagOver(pieces, ROOM_FLAGS.locked));
         const wasLockedAtStart = pieces.some(startLocked);
+        const wasBroken = roomBroken(scene, row.room);
         const wasSealed = Boolean(flagOver(pieces, SEARCH_FLAGS.sealed));
         const wasNotShared = Boolean(flagOver(pieces, VAULT_FLAGS.notShared));
         // Settled when every piece that can be a room already says what the row says (E12 C1);
@@ -987,6 +1017,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             && before.hinders.every(h => row.hinders.includes(h))
             && wasLocked === row.locked
             && wasLockedAtStart === row.lockedAtStart
+            && wasBroken === row.broken
             && wasSealed === row.noSearch
             && wasNotShared === row.notShared
             && roomSettled
@@ -997,6 +1028,12 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             ownerMoved.push({ room: row.room, owner: row.owner });
         }
         if (same) continue;
+        // Broken (E74 C5): written on the room's pieces by its one writer, before the rest of the row.
+        if (wasBroken !== row.broken) {
+            await setRoomBroken(scene, row.room, row.broken);
+            // Mended by hand: a Repair the Lock under way on it goes, with a note to the GMs (E74 C5).
+            if (!row.broken) await (await import("./doors-gm.mjs")).dropLockRepairs(scene, row.room);
+        }
 
         // "Stash hidden" is the Stashes tab's business (ITEM-02): the column
         // this tab used to carry wrote the LEGACY flag, which the Stashes list
@@ -1277,6 +1314,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             wireStashCells(root);
             wirePlaceSwitches(root);
             wireTokenButtons(root, scene, recount);
+            wireFacilityButtons(root, scene);
 
             // The picture column (E77 C1): the file picker on each thumbnail, its field named `img:<room>`
             // as the description's is `desc:<room>`, and the button that empties the cell it stands in.

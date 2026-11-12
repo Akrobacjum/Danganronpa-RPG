@@ -27,6 +27,7 @@ import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
 import { drpgWindow } from "./ui-kit.mjs";
+import { overflowBlocksShortRest } from "./overflow.mjs";
 
 /** Flags set on a Scene Region. */
 export const REST_FLAGS = {
@@ -179,9 +180,12 @@ function currentClock() {
 export function restVariants(actor) {
     const place = locateActor(actor);
     const room = place?.room ?? null;
+    // Insomnia (E93 C6): the Despair Overflow's darkening that bars the Short rest this time of day; the Long stays.
+    const sleepless = overflowBlocksShortRest();
     return ["short", "long"].map(kind => {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
+        const barred = kind === "short" && sleepless;
         // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
         // character's scene, the school's for one with no token (E12 fix r1-G4).
         const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
@@ -194,8 +198,8 @@ export function restVariants(actor) {
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
                     : elsewhere}`,
-            disabled: spent || !allowed,
-            why: spent
+            disabled: spent || !allowed || barred,
+            why: barred ? game.i18n.localize("DRPG.Rest.insomnia") : spent
                 ? game.i18n.localize(kind === "long"
                     ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
                 : elsewhere
@@ -242,6 +246,12 @@ export async function takeRest(actor, kind = "short", {
         if (!actor || !rules) return null;
 
         const clock = currentClock();
+        // Insomnia bars the Short rest; a Relief's free rest (`ignoreLimit`, a Call paid in Hope) is not barred by it
+        // (E93 C6; default taken, the owner to confirm).
+        if (kind === "short" && !ignoreLimit && overflowBlocksShortRest()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Rest.insomnia"));
+            return null;
+        }
         if (!ignoreLimit && restSpent(actor, kind, clock)) {
             ui.notifications.warn(game.i18n.format(
                 kind === "long" ? "DRPG.Rest.alreadyThisSession" : "DRPG.Rest.alreadyThisTimeOfDay",
