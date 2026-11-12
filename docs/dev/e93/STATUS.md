@@ -97,6 +97,48 @@ The owner's answers on the decisions page DRPG-D1, 12.11.2026, through the coord
 | The five states | Lockdown, Insomnia, Toll, Jitters and Power cut in the draw by default (config.mjs `OVERFLOW.effects`, `on: true`); GM handbook EN and PL: each older effect now 1 in 13 where the eight were 1 in 8 (the draw is even) | R3753 at 68e4e88: catalogue `on` false | R3753, E15-T4, every test named "verflow" and E93-T*: 41 ran, 45 passed, 0 failed |
 | Insiders | a secret project's room action told to its insiders alone, on a veiled private card whose words and meta reach its readers alone (projects.mjs `tellFacility`, read on the insider's browser by facilities.mjs `toldFacility`), as its description is; an action taken off told as none; texts EN and PL | scenario 33 E93-B at 9eddf3d: p1 offered nothing | scenario 33 80/80 (E93-B: p1 offered and uses it; p2's browser: 0 messages, 0 settings name it); mutant sending the card to every player killed (p2: 1 message, 2 settings); tier 2 "secret project", "description", "E93-T", "E44": 78 ran, 81 passed, 0 failed, 1 skipped; tiers 0-1 1166 passed, 0 failed; scenario 72 124/128 (its 4 expected reds) |
 
+## Timed effects (Q-E93-3, "Dodajemy teraz"): the design
+
+The owner's answer of 12.11.2026 (DRPG-D1, through the coordinator) asks for the timed effects and the effects the card
+listed as needing a mechanism the module did not have. One shared mechanism, then one effect a commit, red first.
+
+**The mechanism.** A GM store `timedEffects` (gm-stores.mjs), written by the primary alone: a row per effect given,
+`{ actorId, kind, n, trait | label | state, until, mark, at, source }`. `until` is one of:
+
+- `timeOfDay`: ends when the time of day it was given in ends (`mark` = chapter, day, time of day);
+- `day`: ends when the clock's day changes;
+- `nextRoll`: ends with the character's next roll the GM draws (or, for the two that wait on one kind of roll, that roll);
+- `eclipse`: ends with the next Eclipse's end.
+
+On the primary, at `drpgTimeOfDayChanged` (and an Eclipse's end) the rows past their end are dropped and what they did is
+taken back (a trait's +X written back down, a temporary Experience deleted). Who sees it: the GMs (the store), and the
+character's owners through a copy of their own characters' rows (the pattern of the pick's pass, lockpick-gm.mjs), which
+the sheet reads. On the sheet: one line under the resources, "Effects", each effect named with what ends it ("+2 Body
+until the time of day ends", "advantage on your next roll"). The effects that change a number (a trait, an Experience)
+also show in that number itself, which every browser that sees the sheet sees, as any sheet value.
+
+**The effects, as read** (a default where the card's words leave a choice, marked so; owner may revise):
+
+| Effect | Kind | Reading | Ends |
+| --- | --- | --- | --- |
+| temporary +X to a trait | `traitBonus` | the GM picks the trait and X in the editor; the GM writes the trait up by X | `timeOfDay` or `day`, the GM's pick |
+| temporary Experience | `experience` | the GM names it and its value in the editor; added to the sheet's Experiences | `timeOfDay` or `day` |
+| advantage on the next trait roll | `advantage` | one die of advantage on the character's next roll the GM draws | `nextRoll` |
+| protection from Despair on a roll | `despairShield` | the character's next drawn roll awards no Despair (a default: the roll's Despair to the pool, not the Sanity a failure costs) | `nextRoll` |
+| a stronger next Ultimate Hope Call | `ultimateBoost` | the character's next Ultimate Call gives two dice of advantage instead of one (a default reading of "stronger") | that Call |
+| a crossing in an Eclipse | `eclipseCrossing` | X more crossings in the next Eclipse | `eclipse` |
+| an item's durability | `durability` | X durability back to the character's most worn module item that can wear (a default: no pick in the window) | at once |
+| a state removed | `removeState` | the GM picks Wounded or Breakdown in the editor; the use clears the one mark that keeps it (a default: the module's states are read off the tracks) | at once |
+| project progress | `projectProgress` | +X to the oldest unfinished project in the room the character can see (a default: no pick in the window) | at once |
+
+The last three are not timed; they are listed here because the card named them with the rest. Each effect is a kind of
+`FACILITIES.effects` with its fields in the room-action editor (facility-editor.mjs) and a line on the user's card, EN and
+PL.
+
+**Order of building**: the mechanism with `traitBonus`, then `experience`, `advantage`, `despairShield`,
+`eclipseCrossing`, `durability`, `removeState`, `projectProgress`, `ultimateBoost` (last: its Call is approved on a GM's
+card, the largest of them). Progress is kept in "This round's changes" above.
+
 ## Not built in this round (said, not hidden)
 
 The effects that need a mechanism the module does not have: an item's durability, a state removed, temporary +X to a
