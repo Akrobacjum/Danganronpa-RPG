@@ -101,7 +101,12 @@ function recountTokenCells(root, scene) {
  * coordinates, so Apply reads the same form it always did and never learns
  * which way the table was laid out.
  */
-function fogMatrixRows(rooms, students, known) {
+function fogMatrixRows(rooms, students, known, mastermindId = null) {
+    /* THE MASTERMIND'S COLUMN (E91 C4; the owner's deferred item D067): the ledger keeps no row of their walks (fog.mjs
+       `recordDiscovery`) and every reader that asks for them counts every room as known (`myDiscoveredRooms`), so their
+       boxes are drawn ticked and disabled, the reason as the tooltip - drawn empty, a GM's tick wrote cells nobody reads.
+       A disabled box is never changed, so `readRoomSetupForm` sends nothing for it. */
+    const why = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.fogMastermind"));
     // A row a room for the kit's `dataTable` (E46-C2a): the room's cell under `name`, a student's under their id.
     return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
@@ -110,8 +115,8 @@ function fogMatrixRows(rooms, students, known) {
         return Object.fromEntries([["name", `<strong>${escRoom}</strong>`], ...students.map(actor => [actor.id,
             `<input type="checkbox"
                 aria-label="${escRoom} - ${foundry.utils.escapeHTML(actor.name)}"
-                name="fog:${escRoom}:${actor.id}" ${
-                known.get(actor.id)?.has(room) ? "checked" : ""} />`])]);
+                name="fog:${escRoom}:${actor.id}" ${actor.id === mastermindId ? `checked disabled data-tooltip="${why}"`
+                : known.get(actor.id)?.has(room) ? "checked" : ""} />`])]);
     });
 }
 
@@ -775,6 +780,8 @@ function wireFogButtons(root) {
             ev.preventDefault();
             const value = button.dataset.drpgFogAll === "discover";
             for (const box of root.querySelectorAll('input[type="checkbox"][name^="fog:"]')) {
+                // The Mastermind's column is shut (E91 C4, `fogMatrixRows`): every room stays known to them.
+                if (box.disabled) continue;
                 box.checked = value;
             }
         });
@@ -1226,7 +1233,8 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const maxTokens = SearchTokens.max;
 
     const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
-    const fogRows = fogMatrixRows(rooms, students, known);
+    const { mastermindActor } = await import("./mastermind.mjs");
+    const fogRows = fogMatrixRows(rooms, students, known, mastermindActor()?.id ?? null);
     const stashRows = stashMatrixRows(rooms, students, scene);
     const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
 

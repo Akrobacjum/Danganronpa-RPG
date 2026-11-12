@@ -87004,6 +87004,56 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the English reason or a raw key}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
+    ["Room setup's Fog tab draws the Mastermind's column as knowing every room, its boxes ticked and shut, and Discover all or Hide all leaves them (E91 C4, D067)", async () => {
+        /*
+         * E91 C4, 12.11.2026; the owner's deferred item D067 ("the other places that read discoveredFor for the
+         * Mastermind"). The discovery ledger keeps no row of the Mastermind's walks (fog.mjs `recordDiscovery`), and every
+         * reader of it that asks for them counts every room as known (`myDiscoveredRooms`, `roomEnteredByMe`,
+         * projects.mjs `hasStoodIn`, passages-gm.mjs `roomNamerFor`) - but Room setup's Fog tab, which drew the
+         * Mastermind's column empty, a GM's tick writing cells nobody reads. Now the column is drawn ticked and disabled,
+         * its tooltip `DRPG.Vault.fogMastermind`, and the tab's two buttons pass it by. In a GM-store world of the suite's
+         * own: a Mastermind and another student; the window's content read, nothing applied. Red before C4: the
+         * Mastermind's boxes as the other's.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const [mm, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const G = await import("./gm-store.mjs");
+        const MM = await import("./mastermind.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let read = null;
+        await G.withGmStoreWorld(`suite-e91c4-${foundry.utils.randomID(8)}`, async () => {
+            await MM.setMastermind(mm);
+            await settle();
+            let form = null;
+            D.wait = async cfg => {
+                form = document.createElement("form");
+                if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                return null;
+            };
+            try { await V.openRoomSetupDialog({ tab: "fog" }); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            await settle();
+            must(form, "Room setup drew no window - this would measure nothing");
+            const boxes = id => [...form.querySelectorAll('input[type="checkbox"][name^="fog:"]')].filter(b => b.name.endsWith(`:${id}`));
+            must(boxes(mm.id).length > 0 && boxes(other.id).length > 0, "the Fog tab has no column for the two - this would measure nothing");
+            const tip = game.i18n.localize("DRPG.Vault.fogMastermind");
+            read = {
+                mastermind: boxes(mm.id).every(b => b.hasAttribute("checked") && b.disabled && b.getAttribute("data-tooltip") === tip),
+                other: boxes(other.id).some(b => b.disabled || b.getAttribute("data-tooltip") === tip),
+                tip: !tip.startsWith("DRPG.")
+            };
+        });
+        // The two buttons are wired on the live window (no window is drawn here): read off room-setup.mjs, comments blanked.
+        const src = stripComments((await moduleSources()).get("room-setup.mjs") ?? "");
+        const wire = bodyOf(src, "function wireFogButtons(root) {", { until: "\n}\n" });
+        read.buttons = /if\s*\(\s*box\.disabled\s*\)\s*continue/.test(wire);
+        equal(stableJson(read), stableJson({ mastermind: true, other: false, tip: true, buttons: true }),
+            "the Fog tab does not draw the Mastermind's column as knowing every room ({the Mastermind's boxes ticked, shut and told why; another's shut or told; the words exist; the buttons pass a shut box by})");
+    }],
+
     ["E46-T1 - Room setup opened on a scene while the GM views another (E46-C2a; E46-05, R119, near a road): Apply with nothing changed writes no region; one change on each room tab (Bedrooms' owner, Doors' lock, Searching's seal, Rests' short rest, Stashes' cell, Description's words, Fog's box) writes only its own field and only on the scene it was opened on; Apply with the Passages tab drawn writes no region (its buttons write at once), and the Scenes tab's school linked writes the scene roles and no region (E46-C2b); drawn on the GM, the footer is Apply and Cancel after every tab", async () => {
         /*
          * E46-C2a. Two scenes of the suite's own, each a room of one name (as R119's tier-2 test builds them), in a

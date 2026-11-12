@@ -2441,6 +2441,7 @@
       "fogUncovered": "{pct}% of this scene's surface belongs to no room region at all - it will show as permanent fog rather than a wall gap, which usually means a room still needs drawing.",
       "fogNote": "Discover all / Hide all tick or clear every checkbox above for every character at once. Nothing changes until you press Apply. The individual checkboxes are for one room, one character.",
       "discoverAll": "Discover all",
+      "fogMastermind": "The Mastermind knows every room.",
       "hideAll": "Hide all",
       "unlockedAnnounce": "The door to {room} is unlocked.",
       "inspectTitle": "Look inside the stashes",
