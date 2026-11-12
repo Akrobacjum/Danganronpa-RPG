@@ -64,22 +64,25 @@ all green. `node tools/check.mjs` 17/17, lint green.
   Checked: tiers 0-1 whole 1258 passed, 0 failed, 16 skipped; scenarios 13, 15, 30, 40, 50, 61, 62, 63, 72, 73, 75 green;
   check 17/17, lint green.
 
-- **C7, texture through a turn - measured, not changed; waits on the owner.** The `--turn` baseline (turn-baseline.json,
+- **C7, texture through a turn - measured, not changed.** The `--turn` baseline (turn-baseline.json,
   the code of e1154c1) holds every turn of the clock above E23-04's 80 % bar: phase, hour and the phase recut read their
   worst 64 px square at 81-130 % of rest (12 readings: both sizes, both roles; two at 81 %, close to the bar), and E96's
   first-frame check ("still") holds on every recolour. The layout turn at 1366x768 moved no frame to read. The one
-  reading under the bar is the **layout** turn (the room tile hidden) at 1600x900, both roles: 39 % in the square
-  at 256,256, the same at E62's base d03c509. Frozen frames of that turn (12.11.2026, the glass harness, GM, pulse off,
-  at 100, 300, 500, 700, 900, 1100 ms and after) read: at rest the square is inside the room tile's picture; when the
-  tile goes, the glass that framed it has no new pane to become, so it fades out over the new glass in its batch (E23
-  C1b's design: "an old pane nothing comes from fades in the batch of its distance"); at 100 ms that fading layer
-  flattens the grid under it, and from 300 ms the square stands as it does after. So the dip is a vanishing pane's
-  crossfade, not texture lost on a pane that moves. That is my reading of the frames, not a proof by planting.
-  What it waits on: the owner's choice of how a pane that vanishes leaves. **Proposed default**: it leaves in the turn's
-  first 120 ms (gone before the moving panes are under way), so no frame holds the old and the new glass half and half;
-  the alternative is to slide it off under its neighbour. Either is a look change to review in motion. And the owner's
-  1.2.103 report ("textures and effects still change while the curtain animates") is not reproduced on the clock's turns
-  here: a table check of it is LIVE-E62-01's.
+  reading under the bar is the **layout** turn (the room tile hidden) at 1600x900, both roles: 39 % in the square at
+  256,256, the same at E62's base d03c509.
+  **What that dip is (corrected, 12.11.2026).** A first reading from frozen frames put it on a vanishing pane's
+  crossfade; it was wrong. The room tile's frame is a pane with content, so it takes the turn's hole path, not the fade
+  path, and a change of the fade path (built on a scratch tree: a pane that vanishes gone in 120 ms) left the reading at
+  39 %, so it was not committed. The screencast frames of the turn in real time, measured at that square (the mean
+  absolute 4-neighbour Laplacian of luminance, by a script of the work line's own, not the sweep's code; screenshot and
+  screencast agree within 0.1 on a page at rest),
+  read: 9.5 at rest; **1.65 at 262 and 377 ms**, where the old look still carries the room's picture - a smooth photo,
+  the DOM tile already gone (its chevron button is not there); 4.12 at 499 ms, a flat dark patch; then 8.4 from 632 ms and
+  6.9 at the end. So the 39 % is the room picture's smoothness in the turn's first frames, counted by the measure as
+  texture lost - not glass losing its texture. The one frame of flat dark at about 500 ms (60 % of the end state) may be a
+  real step worth the owner's eye; it is not under the bar and it is not changed here.
+  So C7 has, on this harness, nothing under the bar that is glass losing texture, and no choice to put to the owner; the
+  owner's 1.2.103 report is LIVE-E62-01's to check at a table. The A/B question sent on 12.11 is withdrawn.
 
 ## Not done, and why
 
