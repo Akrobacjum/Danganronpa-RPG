@@ -29,8 +29,8 @@ import { error, esc, plural, proseOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { onSweep } from "./a11y.mjs";
 import { overflowCrossings } from "./overflow.mjs";
-import { baseActions } from "./actions.mjs";
-import { viewerNeedsAssigning } from "./monokuma.mjs";
+import { baseActions, actionsMax } from "./actions.mjs";
+import { viewerNeedsAssigning, isMonokuma } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
 import { clockForDisplay, viewerActor } from "./hud.mjs";
@@ -91,7 +91,7 @@ function subjectActor() {
  * it is the loudest thing on screen while it runs and the one a player is most
  * likely to be confused by, so it answers here first.
  */
-export function phaseExplanation(clock) {
+export function phaseExplanation(clock, { actor = null } = {}) {
     if (clock?.eclipse === true) return eclipseExplanation();
     const key = clock?.phase ?? "dailyLife";
     // The hint on the phase itself is the short form the GM panel shows; the
@@ -101,8 +101,20 @@ export function phaseExplanation(clock) {
     // paragraph's - Daily Life's, the one that names them - from actions.mjs `baseActions`, the budget's own road.
     const hint = proseOf(PHASES[key], "hint");
     const long = game.i18n.has(`DRPG.Explain.phase.${key}`)
-        ? t(`DRPG.Explain.phase.${key}`, { actions: plural("DRPG.Unit.actionAcc", { n: baseActions() }) }) : "";
+        ? t(`DRPG.Explain.phase.${key}`, { actions: plural("DRPG.Unit.actionAcc", { n: actionsOf(actor) }) }) : "";
     return [hint, long].filter(Boolean).map(esc).join("<br>");
+}
+
+/*
+ * THE CHARACTER'S OWN COUNT, WHERE THERE IS ONE (E100 item 7, 12.11.2026; the owner on the player-screens review, #9:
+ * the window said "2 actions each time of day" beside "You have 3 of 3" for a character with a third action). The
+ * explainers' `{actions}` is the maximum the strip's "of" reads (actions.mjs `actionsMax`) for the character the window
+ * shows, and the rule's (`baseActions`) with none, or for a Monokuma, who has no actions. R4106.
+ */
+function actionsOf(actor) {
+    const own = Number(actor?.system?.resources?.actions?.max);
+    const monokuma = typeof actor?.getFlag === "function" && isMonokuma(actor);
+    return actor && !monokuma && Number.isFinite(own) ? actionsMax(actor) : baseActions();
 }
 
 /**
@@ -121,9 +133,10 @@ export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) 
  * section 14): the budget opens the sentence, a Rest's cost follows "kosztuje", Wounded's follows "dostajesz" and the
  * budget after it "zamiast".
  */
-export function actionsExplained() {
+export function actionsExplained({ actor = null } = {}) {
     const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });
-    const whole = baseActions(), hurt = Math.max(0, baseActions({ wounded: true }));
+    // The character's own count (E100 item 7), and Wounded's that count less what a wound takes.
+    const whole = actionsOf(actor), hurt = Math.max(0, whole - (baseActions() - baseActions({ wounded: true })));
     return [
         t("DRPG.Explain.status.actionsWhat", {
             actions: unit("action", whole), short: unit("actionAcc", REST.short.actionCost), long: unit("actionAcc", REST.long.actionCost)
@@ -215,7 +228,7 @@ export async function openStateExplainer() {
             ]),
             section(clock?.eclipse === true
                 ? t("DRPG.Explain.phase.eclipseTitle")
-                : phaseLabel(clock.phase), [phaseExplanation(clock)]),
+                : phaseLabel(clock.phase), [phaseExplanation(clock, { actor: subjectActor() })]),
             section(t("DRPG.Explain.time.title"), timeOfDayBlock(clock)),
             await roomBlock()
         ].join("");
@@ -331,7 +344,7 @@ export async function openStatusExplainer() {
 
         const body = [
             section(t("DRPG.Explain.status.actionsTitle"), [
-                ...actionsExplained().map(esc)
+                ...actionsExplained({ actor }).map(esc)
             ]),
             section(t("DRPG.Explain.status.moveTitle"), [esc(t("DRPG.Explain.status.moveWhat"))]),
             section(t("DRPG.Explain.status.hopeTitle"), [esc(t("DRPG.Explain.status.hopeWhat"))]),

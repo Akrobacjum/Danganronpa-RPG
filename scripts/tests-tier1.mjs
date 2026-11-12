@@ -48847,6 +48847,32 @@ const INVARIANTS = [
             proceed: ["action-menus.mjs"]
         }), "{the words [en, pl] of each button kind; the button keys each window's opener localizes; the module files that still name Do it}");
     }],
+    ["R4106 - the explainers count the character's own actions (E100 item 7; the owner's 12.11.2026, the player-screens review's #9): explain.mjs `phaseExplanation` (Daily Life's paragraph, the clock's window) and `actionsExplained` (the strip's window) put the open character's own maximum into `{actions}` - the number \"Masz 3 z 3\" beside them reads (actions.mjs `actionsMax`) - and Wounded's sentence that maximum less what a wound takes; with no character, or a Monokuma, the rule's (`baseActions`); both windows hand them the character they show (`subjectActor`)", async () => {
+        /*
+         * E100 item 7, 12.11.2026 (the coordinator's message: review #9, owner-approved). The review: the window said
+         * "2 akcje na każdą porę dnia" beside "Masz 3 z 3" for a character with a third action. Read on a stand-in with
+         * the rule's base plus one (no flags: a student), and with none; the lang values are the texts line's, so the
+         * reading is the unit each `{actions}` is filled with. Red at 6bc3b8c8: both answered the rule's number.
+         */
+        const E = await import("./explain.mjs"), A = await import("./actions.mjs"), { plural } = await import("./utils.mjs");
+        const base = A.baseActions(), lost = base - A.baseActions({ wounded: true });
+        const actor = { system: { resources: { actions: { value: base + 1, max: base + 1 } } } };
+        const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });
+        const has = (text, words) => String(text).includes(foundry.utils.escapeHTML(words));
+        const daily = { phase: "dailyLife", eclipse: false };
+        const own = E.actionsExplained({ actor }), rule = E.actionsExplained();
+        const src = stripComments((await moduleSources()).get("explain.mjs") ?? "");
+        must(src.length > 1000, "explain.mjs was not read");
+        const read = {
+            phase: [has(E.phaseExplanation(daily, { actor }), unit("actionAcc", base + 1)), has(E.phaseExplanation(daily), unit("actionAcc", base))],
+            what: [own[0].includes(unit("action", base + 1)), rule[0].includes(unit("action", base))],
+            wounded: [own[1].includes(unit("actionAcc", Math.max(0, base + 1 - lost))), own[1].includes(unit("actionGen", base + 1))],
+            windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "openStateExplainer")),
+                /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "openStatusExplainer"))]
+        };
+        equal(stableJson(read), stableJson({ phase: [true, true], what: [true, true], wounded: [true, true], windows: [true, true] }),
+            "{Daily Life's paragraph [with the character: its own count; with none: the rule's]; the strip's budget sentence [own, rule]; Wounded's [own less a wound, own]; the windows hand the character in [the clock's, the strip's]}");
+    }],
 
     ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {
         /*

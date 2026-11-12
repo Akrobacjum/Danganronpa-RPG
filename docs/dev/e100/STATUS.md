@@ -1,19 +1,20 @@
 # E100 - status of the work line, branch e100
 
 The player screens' cleanup: the six items of the player-screens review (shot on main 1.2.108 in the harness, not
-in Foundry; review page YH2SiTx2Rbv2s38YQgs8H3) that the owner approved on 12.11.2026. Base: origin/main 4dfac3a9
+in Foundry; review page YH2SiTx2Rbv2s38YQgs8H3) that the owner approved on 12.11.2026, and a seventh (review #9)
+the coordinator added the same day. Base: origin/main 4dfac3a9
 (1.2.108). Not in this line: the Rest window's empty word (gaps line), module-mechanics sentences and the Status
 explainer (texts line), the Hope Calls windows (E72).
 
 ## R numbers
 
-R4100-R4105, tier 1, registry Since E100 (set by hand: `tools/stages.json` has no E100 row, so `--write` stamps a new
+R4100-R4106, tier 1, registry Since E100 (set by hand: `tools/stages.json` has no E100 row, so `--write` stamps a new
 row with the first unshipped stage, E61, and keeps a row's Since once written). Not R3917-R3922, which
 `node tools/registry.mjs --next` gave on main: the e97-98 line already holds R3917 and R3918, e64 holds R3950-R3970
-and the texts line wrote and dropped R4000. The registry's "Next free" line now reads R4106; whoever merges
+and the texts line wrote and dropped R4000. The registry's "Next free" line now reads R4107; whoever merges
 re-runs `node tools/registry.mjs --write` (the file is generated, and conflicts with e64's and e97-98's).
 
-## The six items
+## The items
 
 | # | Review | What changed | Red test (red at) | Green |
 | --- | --- | --- | --- | --- |
@@ -23,6 +24,7 @@ re-runs `node tools/registry.mjs --write` (the file is generated, and conflicts 
 | 4 | #5 Notice filters | Chips All, For you, Not done; Announcements, From players, Evidence and Messenger in one select (`.drpg-notices-more`) after "More filters" / "Więcej filtrów", each with its count; a menu pick presses no chip, a chip resets the menu; a filter at 0 is disabled and moves the window back to All. | R4103 (a5dc2ba7: seven chips, no menu) | 693a1020 |
 | 5 | #8 Search's statistic | `traitFieldHtml` with `fold`: the proposal (statistic and words of how) in a closed `details` under "Another statistic" / "Inna statystyka"; Eye is the first choice and what an unopened window proposes, which asks nobody. Search alone asks with `fold`; Dynamic and the crisis rows, where the statistic is the point, do not. | R4104 (693a1020: the field drawn open) | b123a686 |
 | 6 | #10 Button words | One word per kind: rolls "Rzuć" / "Roll", the GM decides "Wyślij do GM-a" / "Send to the GM", leads on "Dalej" / "Next". The list is below. | R4105 (b123a686: "Rzut", Do it in five openers, "Send to GM", "Send it to the GM", "Roll it") | fa450138 |
+| 7 | #9 The explainers' count | explain.mjs `phaseExplanation` (Daily Life's paragraph in the clock's window) and `actionsExplained` (the strip's window) fill `{actions}` with the shown character's own maximum (actions.mjs `actionsMax`, the number "Masz 3 z 3" beside it reads) and Wounded's sentence with that maximum less what a wound takes; with no character, or a Monokuma, the rule's (`baseActions`). Code only: the texts line rewords the keys (texts-e71 d640019e), no lang value changed here. R503's census gains the clock window's read of the character. | R4106 (6bc3b8c8: both answered the rule's number) | see the log |
 
 Each commit's message holds its red and green readings and its gate.
 
@@ -62,7 +64,9 @@ Another statistic) and 859 (Open the Sound window); GM 79 and player 852 are lef
 
 ## Runs
 
-Per commit: `npm run quick` (lint, check, gate), prose 527/527, tiers 0-1, the commits' own tier-2 tests by name. At the
+Per commit: `npm run quick` (lint, check, gate), prose 527/527, tiers 0-1, the commits' own tier-2 tests by name.
+Item 7: quick green; tiers 0-1 1258 passed, 1 failed (R503, the census row - added, re-run green with R4106), 16
+skipped. At the
 last commit of the six and its renumbering: quick green, tiers 0-1 1258 passed, 0 failed, 16 skipped; scenarios 75
 (41/41, at item 2), 73 (32/32, at item 4) and 71 (41/41, at the renumbering).
 No run in a real Foundry; the review page's shots are the harness's (see the page).
