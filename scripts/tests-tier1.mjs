@@ -41526,6 +41526,42 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
             "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
     }],
+    ["R3985 - the panes that stand keep their frost through a turn (glass.mjs `glassTurn`, `turnPlan`; gaps, the owner's table on 1.2.108): on a stand-in curtain a recut that moves two panes and leaves two standing lays no animation that takes the frost to 0, clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`convexOverlap`), and to the new cut once they end", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: folding or unfolding the Projects tray takes the blur off the notices tile
+         * beside it for a moment, and it comes back. The blur under Stained Glass is one element, `#drpg-curtain-frost`,
+         * clipped to the cut; E23 C1b's turn faded the whole of it out over 120 ms whenever a recut moved glass, and back
+         * in over 180 ms once the moves were over - so every pane, the ones the fold never touched included, stood
+         * unfrosted for the turn's 700 ms. Measured on the glass harness at 1366x768 (4dfac3a9, the tray's class
+         * toggled): the frost's opacity 1.00 at 9 ms, 0.00 from 401 to 959 ms, 1.00 again at 1230 ms. Read here on a
+         * stand-in curtain (`turnRig`: panes 0 and 2 move, 1 and 3 stand), the colour kept, so it is the fold's kind of
+         * turn. Red at 4dfac3a9: the frost faded to 0 and was clipped to nothing of its own for the moves.
+         * Pane 0 moves from (0,0 200,0 0,150) to (0,0 260,0 0,190): its overlap is the old place whole, and 260 stands only
+         * in the new.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const rig = turnRig(G);
+        let read = null;
+        try {
+            rig.job.pathD = "M0 0H400V300H0Z";
+            const h = rig.turn({ force: true, flash: false });
+            must(h, "the stand-in recut planned no turn - this reads nothing");
+            must(h.plan.moves.length === 2 && !h.plan.recolour, `the stand-in recut does not move two panes in its colour (${h.plan.moves.length} moves) - this reads nothing`);
+            rig.frames();
+            const frost = document.getElementById("drpg-curtain-frost");
+            must(frost, "the turn laid no frost - this reads nothing");
+            const faded = rig.animations().some(a => a.el === frost && a.frames.some(f => Number(f.opacity) === 0));
+            const during = frost.style.clipPath;
+            for (const a of rig.animations()) if (a.el !== frost) a.finish();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise(resolve => setTimeout(resolve, 0));
+            read = [faded, during.includes("M200 0L400 0L400 150Z"), during.includes("M400 150L400 300L200 300Z"), during.includes("M0 0L200 0L0 150Z"), during.includes("260"), frost.style.clipPath === "path('M0 0H400V300H0Z')"];
+            h.cancel();
+        } finally { rig.done(); }
+        equal(JSON.stringify(read), JSON.stringify([false, true, true, true, false, true]),
+            "[a frost animation reaches 0, the moves' frost holds pane 1, holds pane 3, holds pane 0's old and new overlap, holds a corner only pane 0's new place has, the frost on the new cut after the moves]");
+    }],
     ["R3120 - a recolour is a crossfade (glass.mjs `glassTurn`, E96 C2; the owner at the table on 1.2.101, H102 DIAGNOSIS 6): on a stand-in curtain a turn under a new accent bakes the new look per batch beside the old, rising 0 to 1 on the old one's delay while the old falls 1 to 0, each batch's two layers a group of their own with the new one added on; a moving pane's new place rises the same way under it; and the curtain is held at 0 under them until every rising layer ends, at one time", async () => {
         /*
          * E96 C2, 09.11.2026. C1b painted the new look beneath at once and laid the old over it, so the first frame of
