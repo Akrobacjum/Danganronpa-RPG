@@ -94,3 +94,36 @@ Legacy: the same timings, four groups, each flickering once.
 `shots-c3/strip-glass-death.jpg`, `strip-glass-monocub.jpg`, `strip-legacy-death.jpg`, `strip-legacy-monocub.jpg`:
 contact strips of the frames above at half size, each frame labelled with its id and time. The full-size frames are on
 the review page.
+
+## The owner's answers to SB-C3 (12.11.2026, read from the page's answers, 18 of 18)
+
+Approved as drawn or as proposed: #2 (order), #3 (3.6 s), #5 (only the glass goes out), #6-#10 (the whole Monocub
+return, its order, 2.4 s, the existing "Monocub" sound only, the flag taken off with no animation), #11-#13 (Legacy as
+drawn, the whole frame greys, the same timings), #14-#18 (the shared rules; only the victim's player sees it; the
+sequences switch turns both off; a GM's correction plays no animation; a live mockup next).
+
+Two changes, in the owner's words:
+
+- #4, the fade's sound: "Z dzwiekiem". The fade has a sound. The coordinator's proposed default, being confirmed with the
+  owner: a new Sound row "Death fade" / "Gaśnięcie" in the incident category, its default file the existing death sound,
+  played once at the fade's start on the victim's screen only. The mockup carries it as a stub (a tag and an optional
+  test tone).
+- #1, the fade as drawn: "Martwy automatycznie staje sie obserwatorem z nowym tokenem obserwatora. Kurtyna pozostaje
+  zgaszona do czasu az postac zostanie monocubem, wtedy jej token obserwatora zmienia sie w monocuba". The dead becomes a
+  Spectator (E92's role) with a new spectator token; the curtain stays out until the character becomes a Monocub, and
+  then the spectator token turns into the Monocub. The coordinator holds the open questions (a secret death against a
+  spectator's view, the voice room against E72's room of the dead, where the token stands); not built and not in the
+  mockup until the owner answers.
+
+## The live mockup (MK-C3, round 1)
+
+Review page: artifact `4kuhjmCmKNgygbUKuKvBUA` (private, link with the coordinator; Approve / Change / Hold for the fade,
+the return and the sound row). Its copy without the review's decision code: `docs/dev/e62/mock-c3/index.html` with the
+five layers it composes in `mock-c3/img/` (open it from a local server at the repository root, as the glass harness).
+
+What it is: a canvas that composes three real glass-harness frames of a player's screen at 1366x768 (the full curtain;
+every pane bare with its edges lit; every pane bare with its edges dimmed) inside `glass.mjs`'s own 20 pane outlines,
+and Legacy's full and greyed frames inside its four groups' boxes, by the motion spec above. Controls: Stained Glass or
+Legacy; play the fade or the return; Esc (button and key) to the end state; a scrubber; reduced motion and the table's
+sequences switch (both: the end state at once, the sound still played); pulse off (the batches go out with no flicker,
+only the edges flicker); slow x4; the test tone. Not Foundry; the pulse is static; the spectator token is not in it.

@@ -1,0 +1,183 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Makieta: gaśnięcie i Monocub (MK-C3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,700..900&family=Open+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: the mockup's stage first (1366x768 scaled to the column), its controls beside the clock, then the decision cards as SB-C3. */
+:root{--bg:#f6f3ee;--panel:#ffffff;--ink:#1d1b18;--ink2:#6b655c;--line:#e4ddd2;--hot:#e0901f;--rust:#b5541a;--go:#0f7a3c;--warn:#a8620a;--dark:#15120e;--stage:#120f14;
+--disp:"Archivo","Arial Narrow",Arial,sans-serif;--body:"Open Sans",system-ui,-apple-system,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15120e;--panel:#1f1b16;--ink:#f3ece0;--ink2:#b3a894;--line:#383128;--hot:#ffb547;--rust:#f08a4b;--go:#4cc47f;--warn:#f0b04a;--dark:#0c0a08;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15120e;--panel:#1f1b16;--ink:#f3ece0;--ink2:#b3a894;--line:#383128;--hot:#ffb547;--rust:#f08a4b;--go:#4cc47f;--warn:#f0b04a;--dark:#0c0a08;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:26px 80px}
+h1,h2{font-family:var(--disp);line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,4.6vw,50px);font-weight:900;font-stretch:110%;text-transform:uppercase}
+h2{font-size:clamp(21px,2.8vw,30px);font-weight:800;margin-top:6px}
+p{margin:0 0 12px;max-width:74ch}
+.eye{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--rust);margin:0}
+.lede{font-size:17px;color:var(--ink2);margin-top:12px}
+.warnbox{border:1.5px dashed var(--warn);border-radius:12px;padding:10px 14px;margin:14px 0 0;font-size:15px}
+.warnbox b{color:var(--warn)}
+code{font-size:13px;background:color-mix(in srgb,var(--ink) 7%,transparent);padding:1px 5px;border-radius:5px}
+section.page{background:var(--panel);border-radius:18px;padding:22px;margin-top:20px;box-shadow:0 0 0 1px var(--line)}
+.stagebox{position:relative;background:var(--stage);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
+.stagebox canvas{display:block;width:100%;height:auto;aspect-ratio:1366/768}
+.hudline{position:absolute;left:10px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.tag{font:700 12.5px/1 var(--body);font-variant-numeric:tabular-nums;color:#f3ece0;background:rgba(10,8,12,.78);border:1px solid rgba(243,236,224,.25);border-radius:99px;padding:6px 10px}
+.tag.snd{background:#6b2a12;border-color:#f08a4b}
+.controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-top:14px}
+.controls .grp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.controls button{font:700 14px/1 var(--body);padding:10px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.controls button.main{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.controls button[aria-pressed="true"]{background:var(--rust);border-color:var(--rust);color:var(--panel)}
+.controls button:focus-visible,.controls input:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+.controls label{display:flex;gap:6px;align-items:center;font-size:14.5px;cursor:pointer}
+.controls input[type=checkbox]{width:18px;height:18px;accent-color:var(--rust)}
+.scrub{display:flex;gap:10px;align-items:center;margin-top:12px}
+.scrub input{flex:1;min-width:0;accent-color:var(--rust)}
+.scrub output{font:700 14px/1 var(--body);font-variant-numeric:tabular-nums;min-width:96px;text-align:right}
+.log{margin-top:12px;font-size:13.5px;color:var(--ink2);min-height:1.6em}
+.tbl{overflow-x:auto;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+td:first-child{white-space:nowrap;font-weight:700}
+details.en{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+details.en summary{cursor:pointer;font-weight:700}
+.ask{border-left:4px solid var(--hot);padding:10px 14px;margin:16px 0 4px;background:color-mix(in srgb,var(--hot) 9%,transparent);border-radius:0 10px 10px 0}
+.ask>b{display:block;font-family:var(--disp);font-size:15px;margin-bottom:4px}
+.q{border-top:1px solid color-mix(in srgb,var(--ink) 12%,transparent);padding:12px 0 6px}
+.q:first-of-type{border-top:0;padding-top:4px}
+.qt{margin:0 0 8px;font-weight:600}
+.qbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.qbar button{font:700 14px/1 var(--body);padding:9px 14px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.qbar button:focus-visible,.q textarea:focus-visible,.dock button:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+.qbar button[aria-pressed="true"][data-v="approve"]{background:var(--go);border-color:var(--go);color:var(--panel)}
+.qbar button[aria-pressed="true"][data-v="change"]{background:var(--hot);border-color:var(--hot);color:var(--dark)}
+.qbar button[aria-pressed="true"][data-v="hold"]{background:var(--ink2);border-color:var(--ink2);color:var(--panel)}
+.qbar button:disabled{opacity:.45;cursor:default}
+.q textarea,textarea.gen{display:block;width:100%;min-height:58px;margin-top:8px;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font:15px/1.45 var(--body);background:var(--panel);color:var(--ink);resize:vertical;box-sizing:border-box}
+.qsave{font-size:12.5px;color:var(--ink2);margin-left:auto}
+.qref{font:600 12.5px/1 var(--body);color:var(--ink2);margin-right:4px}
+.dock{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;background:var(--panel);border-radius:14px;padding:10px 14px;margin-top:16px;box-shadow:0 0 0 1px var(--line),0 6px 18px color-mix(in srgb,var(--ink) 8%,transparent)}
+.dock b{font-family:var(--disp)}
+.dock .meter{flex:1 1 140px;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.dock .meter i{display:block;height:100%;width:0;background:var(--go);transition:width .3s}
+.dock button{font:700 14px/1 var(--body);padding:9px 16px;border-radius:99px;border:0;background:var(--ink);color:var(--bg);cursor:pointer}
+.dock button:disabled{opacity:.45;cursor:default}
+.dock small{color:var(--ink2);font-size:13px}
+@media (prefers-reduced-motion:reduce){.dock .meter i{transition:none}}
+@media (max-width:700px){section.page{padding:16px 12px}}
+</style>
+<div class="wrap" data-code="MK-C3">
+<p class="eye">E62 C3 · makieta, runda 1</p>
+<h1>Makieta: gaśnięcie kurtyny i powrót przy Monocubie</h1>
+<p class="lede">Storyboard SB-C3 zatwierdzony z dwiema zmianami. Tu ruch na żywo: odtwórz, przewiń, naciśnij Esc, włącz ograniczone animacje. Czasy są te z SB-C3. Dźwięk gaśnięcia jest zaślepką: wiersz &quot;Gaśnięcie&quot; w oknie Sound, domyślnie plik &quot;death&quot;; tutaj tylko ton testowy, jeśli go włączysz.</p>
+<div class="warnbox"><b>To nie jest Foundry.</b> Obrazy to prawdziwe klatki glass harness (ekran gracza, 1366x768) i obrysy szyb z <code>glass.mjs</code>; animację składa ta strona na canvasie, z czasami ze specyfikacji. Puls jest tu nieruchomy. Twoja druga zmiana (martwy jako obserwator z tokenem, który przy Monocubie staje się Monocubem) czeka na Twoje odpowiedzi i nie jest w tej makiecie.</div>
+
+<section class="page" id="stage">
+<div class="stagebox"><canvas id="cv" width="1366" height="768" aria-label="Ekran gracza ofiary w makiecie"></canvas>
+<div class="hudline"><span class="tag" id="tClock">0 ms</span><span class="tag" id="tState">spoczynek: pełna kurtyna</span><span class="tag snd" id="tSnd" hidden></span></div></div>
+<div class="controls">
+<div class="grp" role="group" aria-label="Motyw"><button type="button" id="thSG" aria-pressed="true">Stained Glass</button><button type="button" id="thLG" aria-pressed="false">Monokuma Legacy</button></div>
+<div class="grp"><button type="button" class="main" id="playDeath">Odtwórz gaśnięcie</button><button type="button" class="main" id="playMono">Odtwórz Monocuba</button><button type="button" id="escBtn">Esc</button><button type="button" id="resetBtn">Od nowa</button></div>
+<div class="grp"><label><input type="checkbox" id="optReduced"> Ograniczone animacje</label><label><input type="checkbox" id="optPulse"> Puls wyłączony</label><label><input type="checkbox" id="optSeq"> Sekwencje stołu wyłączone</label><label><input type="checkbox" id="optSound"> Ton testowy</label><label><input type="checkbox" id="optSlow"> Zwolnij x4</label></div>
+</div>
+<div class="scrub"><input type="range" id="scrub" min="0" max="3600" step="10" value="0" aria-label="Przewiń sekwencję"><output id="scrubOut" for="scrub">0 ms</output></div>
+<p class="log" id="log" aria-live="polite">Gotowe. Esc działa także z klawiatury.</p>
+<div class="tbl"><table><thead><tr><th>Co</th><th>Gaśnięcie (3,6 s)</th><th>Monocub (2,4 s)</th></tr></thead><tbody>
+<tr><td>Start</td><td>Kopia wiersza śmierci u ofiary; dźwięk &quot;Gaśnięcie&quot; (nowy wiersz Sound, domyślnie &quot;death&quot;), tylko u ofiary</td><td>Flaga Monocuba; istniejący dźwięk &quot;Monocub&quot;</td></tr>
+<tr><td>Kolejność</td><td>5 partii co 600 ms od pustych odłamków do kafla głosu; krawędzie na końcu (3000, 3300, spoczynek 3600)</td><td>Krawędzie (0-200), puls (500), partie odwrotnie co 400 ms od 600</td></tr>
+<tr><td>Mignięcie</td><td>Każda partia raz: kolor wraca o +180 ms na 90 ms</td><td>Każda partia raz o +180 ms</td></tr>
+<tr><td>Esc / ograniczone / sekwencje wyłączone</td><td colspan="2">Od razu stan końcowy; puls wyłączony: partie gasną bez mignięcia, migają tylko krawędzie</td></tr>
+<tr><td>Legacy</td><td colspan="2">4 grupy ramek, te same czasy</td></tr>
+</tbody></table></div>
+<details class="en"><summary>In English</summary><p>A live mockup composed on a canvas from real glass-harness frames (a player's screen, 1366x768) and glass.mjs's own pane outlines, with SB-C3's timings: the death fade 3.6 s (five batches outside in, each flickering once, the edges last) and the Monocub return 2.4 s (edges, pulse, then the batches in reverse). Esc, reduced motion and the table's sequences switch jump to the end state; pulse off leaves only the edges flickering. The fade's new sound row is a stub (a test tone, off by default). The pulse is static here. Not Foundry. The owner's second note (the dead becoming a Spectator whose token turns into the Monocub) waits for the owner's answers and is not in this mockup.</p></details>
+</section>
+<p style="font-size:13px;color:var(--ink2);margin-top:16px">Strona MK-C3. Storyboard: SB-C3.</p>
+</div>
+<script>
+(function(){
+  /* ---------- the mockup ---------- */
+  var META={"panes":[[[290.2,0],[324.3,242.2],[0,287.8],[0,0]],[[886.2,0],[886.2,145.1],[479.8,145.1],[479.8,0]],[[999,63],[1007.9,0],[1366,0],[1366,114.5]],[[978.7,207.5],[999,63],[1366,114.5],[1366,261.9]],[[1366,578.8],[1131.1,545.8],[1174.8,235],[1366,261.9]],[[0,388.9],[365.3,440.2],[319.3,768],[0,768]],[[389.2,566],[712.5,600],[694.8,768],[368,768]],[[1222.4,635.9],[1366,615.7],[1366,768],[1241,768]],[[319.3,768],[368,768],[389.2,566.6],[347,570.8]],[[694.8,768],[949.2,768],[947.3,733],[711.2,612.5]],[[949.2,768],[976.8,768],[970.9,607.1],[947.3,733]],[[976.8,768],[991.3,768],[990.8,737.9],[975.5,733]],[[991.3,768],[1241,768],[1223.6,644.4],[990.8,737.9]],[[290.2,0],[479.8,0],[479.8,145.3],[432.1,155.6],[309.6,137.7]],[[432.1,155.6],[315.6,180.8],[309.6,137.7]],[[886.2,0],[1007.9,0],[989.2,132.9],[926,142.4],[886.2,141.2]],[[989.2,132.9],[987.6,144.3],[926,142.4]],[[134.9,292.5],[69.6,398.6],[0,388.9],[0,306]],[[150.8,266.6],[134.9,292.5],[0,306],[0,287.8]],[[1217.7,557.9],[1292.3,626.1],[1366,615.7],[1366,578.8]]],"legacy":[[[455,18,457,105]],[[978,18,370,182]],[[12,18,438,518]],[[1177,200,171,196],[1260,631,74,74],[1246,698,52,52],[1296,698,52,52]]],"batches":[[13,14,15,16,17,18],[8,9,10,11,12,19],[1,2,3],[0,5,6],[4,7]]};
+  var cv=document.getElementById('cv'), g=cv.getContext('2d');
+  var imgs={}, names=['sg-full','sg-bare-edges','sg-bare-rest','lg-full','lg-grey'], left=names.length;
+  var theme='sg', seq=null, t0=0, at=0, playing=false, raf=0, sounded=false;
+  var opt={reduced:false,pulse:false,seq:false,sound:false,slow:false};
+  try{opt.reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+  var $=function(id){return document.getElementById(id);};
+  $('optReduced').checked=opt.reduced;
+  names.forEach(function(n){var im=new Image();im.onload=function(){if(--left===0)draw();};im.src='img/'+n+'.jpg';imgs[n]=im;});
+  var DEATH_LEN=3600, MONO_LEN=2400;
+  // bareness of batch b (0 colour .. 1 bare) at time t of the death fade
+  function deathBatch(b,t){var s=600*b; if(t<s)return 0; if(t<s+180)return (t-s)/180; if(!opt.pulse&&t<s+270)return 0.35; return 1;}
+  // edge dimness (0 lit .. 1 dim) during the fade
+  function deathEdge(t){if(t<3000)return 0; if(t<3090)return 0.7; if(t<3300)return 0.2; if(t<3390)return 0.8; if(t<3600)return 0.4+0.6*(t-3390)/210; return 1;}
+  function monoBatch(b,t){var k=4-b, s=600+400*k; if(t<s)return 1; if(t<s+180)return 1-(t-s)/180; if(!opt.pulse&&t<s+270)return 0.65; return 0;}
+  function monoEdge(t){if(t<90)return 0; if(t<200)return 1; return 0;}
+  function state(){
+    if(!seq) return {bare:[0,0,0,0,0],edge:0,label:'spoczynek: pełna kurtyna'};
+    var t=at, n=seq==='death'?DEATH_LEN:MONO_LEN;
+    if(t>=n) return seq==='death'?{bare:[1,1,1,1,1],edge:1,label:'spoczynek: gołe szkło'}:{bare:[0,0,0,0,0],edge:0,label:'spoczynek: pełna kurtyna'};
+    var bare=[0,1,2,3,4].map(function(b){return seq==='death'?deathBatch(b,t):monoBatch(b,t);});
+    var edge=seq==='death'?deathEdge(t):(t<600?monoEdge(t):0);
+    if(seq==='mono'&&t<200&&edge===0&&t>=90) edge=1;
+    return {bare:bare,edge:edge,label:seq==='death'?'gaśnięcie':'powrót (Monocub)'};
+  }
+  function clipPoly(p){g.beginPath();p.forEach(function(q,i){i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]);});g.closePath();}
+  function draw(){
+    if(left>0) return;
+    var s=state();
+    g.globalAlpha=1;
+    if(theme==='sg'){
+      g.drawImage(imgs['sg-full'],0,0);
+      META.batches.forEach(function(list,b){var a=s.bare[b]; if(!a) return;
+        list.forEach(function(i){g.save();clipPoly(META.panes[i]);g.clip();
+          g.globalAlpha=a*(1-s.edge); g.drawImage(imgs['sg-bare-edges'],0,0);
+          g.globalAlpha=a*s.edge; g.drawImage(imgs['sg-bare-rest'],0,0); g.restore();});
+      });
+    } else {
+      g.drawImage(imgs['lg-full'],0,0);
+      // Legacy: 4 groups; batch b of the curtain maps to group min(b-1,3), batch 0 (empty slivers) has no frame
+      var gl=[s.bare[1],s.bare[2],Math.max(s.bare[3],0),s.bare[4]];
+      META.legacy.forEach(function(rects,k){var a=gl[k]; if(!a) return;
+        rects.forEach(function(r){g.save();g.beginPath();g.rect(r[0],r[1],r[2],r[3]);g.clip();g.globalAlpha=a;g.drawImage(imgs['lg-grey'],0,0);g.restore();});});
+    }
+    $('tClock').textContent=Math.round(seq?Math.min(at,seq==='death'?DEATH_LEN:MONO_LEN):0)+' ms';
+    $('tState').textContent=s.label;
+    $('scrub').value=String(Math.round(at)); $('scrubOut').textContent=Math.round(at)+' ms';
+  }
+  function tone(kind){
+    var tag=$('tSnd'); tag.hidden=false;
+    tag.textContent=kind==='death'?'Dźwięk: Gaśnięcie (zaślepka, domyślnie plik death)':'Dźwięk: Monocub (istniejący)';
+    setTimeout(function(){tag.hidden=true;},1600);
+    if(!opt.sound) return;
+    try{var ac=new (window.AudioContext||window.webkitAudioContext)(),o=ac.createOscillator(),v=ac.createGain();
+      o.frequency.value=kind==='death'?196:392; o.type='sine'; v.gain.value=0.0001; o.connect(v); v.connect(ac.destination);
+      o.start(); v.gain.exponentialRampToValueAtTime(0.18,ac.currentTime+0.05); v.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+(kind==='death'?1.4:0.6));
+      o.stop(ac.currentTime+1.5);}catch(e){}
+  }
+  function stop(){playing=false; cancelAnimationFrame(raf);}
+  function end(why){stop(); at=seq==='death'?DEATH_LEN:MONO_LEN; draw(); $('log').textContent=why;}
+  function play(kind){
+    stop(); seq=kind; at=0; $('scrub').max=String(kind==='death'?DEATH_LEN:MONO_LEN); sounded=false;
+    tone(kind==='death'?'death':'mono');
+    if(opt.reduced||opt.seq){end(opt.seq?'Sekwencje stołu wyłączone: od razu stan końcowy (dźwięk gra).':'Ograniczone animacje: od razu stan końcowy (dźwięk gra).'); return;}
+    playing=true; t0=performance.now(); $('log').textContent=kind==='death'?'Gaśnięcie gra. Esc kończy je na gołym szkle.':'Powrót gra. Esc kończy go na pełnej kurtynie.';
+    var n=kind==='death'?DEATH_LEN:MONO_LEN;
+    (function step(now){at=(now-t0)/(opt.slow?4:1); if(at>=n){end('Koniec: stan końcowy zostaje.');return;} draw(); raf=requestAnimationFrame(step);})(t0);
+  }
+  $('playDeath').addEventListener('click',function(){play('death');});
+  $('playMono').addEventListener('click',function(){play('mono');});
+  function esc(){if(playing) end('Esc: od razu stan końcowy.');}
+  $('escBtn').addEventListener('click',esc);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape') esc();});
+  $('resetBtn').addEventListener('click',function(){stop(); seq=null; at=0; draw(); $('log').textContent='Od nowa: pełna kurtyna.';});
+  $('scrub').addEventListener('input',function(){stop(); if(!seq){seq='death'; $('scrub').max=String(DEATH_LEN);} at=Number($('scrub').value); draw();});
+  function setTheme(t){theme=t; $('thSG').setAttribute('aria-pressed',String(t==='sg')); $('thLG').setAttribute('aria-pressed',String(t==='lg')); draw();}
+  $('thSG').addEventListener('click',function(){setTheme('sg');}); $('thLG').addEventListener('click',function(){setTheme('lg');});
+  [['optReduced','reduced'],['optPulse','pulse'],['optSeq','seq'],['optSound','sound'],['optSlow','slow']].forEach(function(p){$(p[0]).addEventListener('change',function(e){opt[p[1]]=e.target.checked; draw();});});
+
+})();
+</script>
+</body></html>
