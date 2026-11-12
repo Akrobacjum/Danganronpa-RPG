@@ -49674,15 +49674,13 @@ const INVARIANTS = [
         }), stableJson({ order: [true, true, true, true], focus: [true, true] }),
             "{order: [the box under the critical's line, above the name, the description, the lab's reading]; focus: [the box takes it, the description only off a critical]}");
     }],
-    ["R3961 - a crisis action aimed at the other side is one harder when that side is strong, and the opening never (E64; the owner's DA6/DA23 of 05.10 and answer of 12.11.2026: \"Ok. Nigdy nie dotyczy otwarcia\"; the eight rows a default the owner may revise): `DEFENSE.cap` is 1; eight CRISIS_ACTIONS rows carry `defense { side, trait }` - Strike, the blow with a weapon and Pin the victim's Body, Keep Your Distance the victim's Leg, Self-Defense and Role Reversal the killer's Body, Survive and Escape Together the killer's Leg; murder-rules.mjs `crisisThreshold` adds `crisisDefense`, the defender's statistic held to 0..cap, to those rows alone and to no Finishing Blow; the opening rolls (`resolveKillerOpening`, `resolveVictimOpening`, `throwOpeningRoll`) read MURDER_OPENING's threshold and no defence", async () => {
+    ["R3961 - a crisis action aimed at the other side is one harder when that side is strong, and the opening never (E64; the owner's DA6/DA23 of 05.10 and answer of 12.11.2026: \"Ok. Nigdy nie dotyczy otwarcia\"; the eight rows a default the owner may revise): `DEFENSE.cap` is 1; eight CRISIS_ACTIONS rows carry `defense { side, trait }` - Strike, Attack with a Weapon and Pin the victim's Body, Keep Your Distance the victim's Leg, Self-Defense and Role Reversal the killer's Body, Survive and Escape Together the killer's Leg; murder-rules.mjs `crisisThreshold` adds `crisisDefense`, the defender's statistic held to 0..cap, to those rows alone and to no Finishing Blow; the opening rolls (`resolveKillerOpening`, `resolveVictimOpening`, `throwOpeningRoll`) read MURDER_OPENING's threshold and no defence", async () => {
         /*
          * E64, 12.11.2026. Red at 8b17220: no `DEFENSE`, no `defense` on any row, `crisisThreshold` read `def.threshold`
          * alone. Asked of the pure reading with a stand-in for the defender's statistics (`traitOf`), so no world is read.
          */
         const C = await import("./config.mjs");
         const R = await import("./murder-rules.mjs");
-        // The weapon's row by its key's first word: the one key of CRISIS_ACTIONS that starts so.
-        const WEAPON_ROW = Object.keys(C.CRISIS_ACTIONS).find(key => /^weapon/.test(key)) ?? "none";
         const rows = Object.entries(C.CRISIS_ACTIONS).filter(([, def]) => def.defense).map(([key, def]) => [key, def.defense.side, def.defense.trait]).sort();
         const state = { victimId: "zV", killerId: "zK", stage: "incident" };
         const at = (key, stats) => R.crisisThreshold(key, state, { traitOf: (id, dh) => stats[id]?.[dh] ?? 0 });
@@ -49704,7 +49702,7 @@ const INVARIANTS = [
         }), stableJson({
             cap: 1,
             rows: [["keepDistance", "victim", "leg"], ["pin", "victim", "body"], ["roleReversal", "killer", "body"], ["selfDefence", "killer", "body"],
-                ["sharedEscape", "killer", "leg"], ["strike", "victim", "body"], ["survive", "killer", "leg"], [WEAPON_ROW, "victim", "body"]],
+                ["sharedEscape", "killer", "leg"], ["strike", "victim", "body"], ["survive", "killer", "leg"], ["weaponAttack", "victim", "body"]],
             strike: [16, 16, 15, 15], keepDistance: 13, selfDefence: 19, survive: 19, leaveClue: 12,
             openings: [[true, false], [true, false], [true, false]]
         }), "{cap; rows [key, side, trait]; Strike at the victim's Body 2, 1, 0, -1; Keep Your Distance at Leg 3; Self-Defense at the killer's Body 1; Survive at the killer's Leg 2; Leave a Clue, no defence; openings [read their own threshold, read a defence]}");

@@ -11,13 +11,13 @@ Each rule change is its own commit, so one can be reverted alone. The owner answ
 
 | Id | Question | Default taken | State |
 | --- | --- | --- | --- |
-| Q-E64-1 | E53's balance log does not exist yet; where are before and after written? | Here: the "Before and after" table below; E53 imports it | default taken, owner to confirm |
-| Q-E64-2 | E72's numbers ship on another line; review them here? | Review E68's and topic A/C numbers now; E72 reviews its own | default taken, owner to confirm |
+| Q-E64-1 | E53's balance log does not exist yet; where are before and after written? | Here: the "Before and after" table below; E53 imports it | approved, owner 12.11 (DRPG-D1) |
+| Q-E64-2 | E72's numbers ship on another line; review them here? | Review E68's and topic A/C numbers now; E72 reviews its own | approved, owner 12.11 (DRPG-D1) |
 | Q-E64-3 | S02-58: a Tamper attempt limit per time of day? | Yes, 2 attempts per character per time of day | owner confirmed 12.11: no cap; 1 action and no Sanity (b42cc23, f657e7d) |
-| Q-E64-4 | DA39 on a world with past +1 Health / +1 Sanity picks | Keep what was taken; the new rule from the next Level Up | default taken, owner to confirm |
-| Q-E64-5 | S02-75: the sabotage lever | No change before 1.3.0; logged for sessions 0 | default taken, owner to confirm |
-| Q-E64-6 | The incident model (S18-05) is outside the repository; who reruns it? | The auditor's session, with the result quoted in the ledger | default taken, owner to confirm |
-| Q-E64-7 | S02-57 Hope's armour on Role reversal | No change unless the rebuilt model moves lethality by more than 5 points | default taken, owner to confirm |
+| Q-E64-4 | DA39 on a world with past +1 Health / +1 Sanity picks | Keep what was taken; the new rule from the next Level Up | owner 12.11 (DRPG-D1): changed - past picks are migrated so every level-up follows DA39 ("Rekompensujemy by lvl upy byly spojne"); in progress |
+| Q-E64-5 | S02-75: the sabotage lever | No change before 1.3.0; logged for sessions 0 | owner 12.11 (DRPG-D1): changed - analyse and propose changes before 1.3.0; in progress |
+| Q-E64-6 | The incident model (S18-05) is outside the repository; who reruns it? | The auditor's session, with the result quoted in the ledger | approved, owner 12.11 (DRPG-D1) |
+| Q-E64-7 | S02-57 Hope's armour on Role reversal | No change unless the rebuilt model moves lethality by more than 5 points | owner 12.11 (DRPG-D1): "Nie rozumiem" - a plain explanation sent to the coordinator; no code change yet |
 
 ## Before and after (the balance log's entries, Q-E64-1)
 
@@ -25,18 +25,18 @@ One row per rule. "State" is "default taken, owner to confirm" for every row tha
 
 | Item | Before (3ccfde3e) | After | Commit | Test | State |
 | --- | --- | --- | --- | --- | --- |
-| S05-60 fresh scene (C1a) | -3 on every clean-up threshold whenever no body was found and the phase was not Investigation or trial (a quiet afternoon: 6/9/12/15) | -3 only while an incident runs or a body of this chapter lies unfound (`CLEANUP.freshScene.onlyWith`); a quiet afternoon reads 9/12/15/18 | 629f52e | R3950 | default taken, owner to confirm |
+| S05-60 fresh scene (C1a) | -3 on every clean-up threshold whenever no body was found and the phase was not Investigation or trial (a quiet afternoon: 6/9/12/15) | -3 only while an incident runs or a body of this chapter lies unfound (`CLEANUP.freshScene.onlyWith`); a quiet afternoon reads 9/12/15/18 | 629f52e | R3950 | approved, owner 12.11 (DRPG-D1) |
 | DA12 Tamper minimum (C1b) | reliefs stopped at 0 (Hidden, Tier 3 tool, fresh scene, reshape: 9 - 3 - 3 - 3 = 0) | never below 8 after every relief (`CLEANUP.minDc: 8`), on the GM's score and on the card | 383cf11 | R3951 | owner confirmed 12.11 (kept) |
-| DC5 Confusion (C5a) | first tier 12 (+1/-1): a hit, a double counted as critical, 94/144 = 65.3% | first tier 11: 104/144 = 72.2% (counted over the 144 throws of 2d12); 16 for advantage unchanged | ce58136 | R3952 | default taken, owner to confirm |
-| Fisher-Yates in drawItem (C3, S17-29) | `sort(() => rng() - 0.5)`: chi-square over 24 orders of four, 24,000 shuffles, one fixed sequence: 27967.36 | utils.mjs `shuffle`, Fisher-Yates: 28.10 on the same sequence (23 df; 49.7 at p = 0.001) | 3c6383a | R3953, R1234 updated | default taken (D21), owner to confirm |
+| DC5 Confusion (C5a) | first tier 12 (+1/-1): a hit, a double counted as critical, 94/144 = 65.3% | first tier 11: 104/144 = 72.2% (counted over the 144 throws of 2d12); 16 for advantage unchanged | ce58136 | R3952 | approved, owner 12.11 (DRPG-D1) |
+| Fisher-Yates in drawItem (C3, S17-29) | `sort(() => rng() - 0.5)`: chi-square over 24 orders of four, 24,000 shuffles, one fixed sequence: 27967.36 | utils.mjs `shuffle`, Fisher-Yates: 28.10 on the same sequence (23 df; 49.7 at p = 0.001) | 3c6383a | R3953, R1234 updated | approved, owner 12.11 (DRPG-D1) |
 | S03-49 Wounded (C1c, then the owner's review) | -1 action in every phase (the trial's refill too: 1 of 2) | -1 action in Daily Life and in the Investigation; the Class Trial keeps 2 of 2 (`STATES.wounded.actionsLostIn: ["dailyLife", "investigation"]`); the state and its badge stay. 91ff70f had Daily Life alone; the owner's review of 12.11.2026 added the Investigation | 91ff70f, bb78af3 | R3954, R1160 | owner confirmed 12.11 (Daily Life and the Investigation, not the Class Trial) |
-| S05-59 Observe critical hint (C2) | the hint was typed in the trace's description box, which is public: every later finder's copy read it | a box of its own on a critical; written on that finder's Truth Bullet alone; since 8b17220 asked first, right under the critical's line, and focused (Q-E64-11) | 7469197, 8b17220 | R3955, R3960 | owner confirmed 12.11 (moved up, measured below) |
+| S05-59 Observe critical hint (C2) | the hint was typed in the trace's description box, which is public: every later finder's copy read it | a box of its own on a critical; written on that finder's Truth Bullet alone; since 8b17220 asked first, right under the critical's line, and focused (Q-E64-11) | 7469197, 8b17220 | R3955, R3960 | approved, owner 12.11 (moved up, measured below) |
 | S02-58 Tamper attempts per time of day (C1d, Q-E64-3, Q-E64-12) | no limit; price 1 action, or 1 Sanity once no action is left (T-1) | no cap (4f3882f added one, b42cc23 took it out with its store and setting); Tamper costs **1 action and no Sanity** on every road but the killer's own Stage 6, which keeps its Sanity price (f657e7d: `tamperPriceSkip`, `validPrice` with `viaAction`, `chargeUnclaimed`); with no action left it is refused ("No action left, and Tamper takes nothing else.") | 4f3882f, b42cc23, f657e7d | R3958, R3959; R1155's quote (719f466) | owner confirmed 12.11 |
 | DA6/DA23 crisis defence (C5) | `crisisThreshold` reads `def.threshold` only | +1 to the threshold of eight rows aimed at the other side when that side's statistic is 1 or more (`DEFENSE.cap: 1`; the table below); never on an opening (the killer's opening roll, a trap victim's opening) | f058147 | R3961; 88 crisis tier-2 tests | owner confirmed 12.11 ("never on the opening"); the eight rows a default the owner may revise |
-| DA39 Level Up (C6) | options +1 Health, +1 Sanity, +1 statistic, +1 experience, new experience | +1 statistic, +1 experience, new experience; a point in Head +1 Sanity maximum, in Body or Leg +1 Health maximum (`LEVEL_UP_TRAIT_RESOURCES`); past picks kept (Q-E64-4) | 2031ebd | R3956; 15 tier-2 tests and scenarios 61, 63, 72, 83 moved to Body/Head picks | default taken, owner to confirm |
-| moveBody two rooms (C4) | `rooms.critical: 2` read by nothing; only connected rooms offered | the rooms two away are offered under their own heading; a critical carries the body there, any other hit to the room between; never through a bedroom (`bodyReach`, `bodyLanding`) | 4535acc | R3957, LIVE-E64-01 | owner confirmed 12.11 (Q-E64-10: the room between, kept) |
-| S02-75 sabotage lever, trap, Palm (Q-E64-5) | unchanged | unchanged before 1.3.0; logged for sessions 0 | - | - | default taken, owner to confirm |
-| S02-57 Hope's armour on Role reversal (Q-E64-7) | unchanged | unchanged: the rebuilt incident model is outside the repository (Q-E64-6) | - | - | default taken, owner to confirm |
+| DA39 Level Up (C6) | options +1 Health, +1 Sanity, +1 statistic, +1 experience, new experience | +1 statistic, +1 experience, new experience; a point in Head +1 Sanity maximum, in Body or Leg +1 Health maximum (`LEVEL_UP_TRAIT_RESOURCES`); past picks kept (Q-E64-4) | 2031ebd | R3956; 15 tier-2 tests and scenarios 61, 63, 72, 83 moved to Body/Head picks | approved, owner 12.11 (DRPG-D1), with the migration of past picks (Q-E64-4) |
+| moveBody two rooms (C4) | `rooms.critical: 2` read by nothing; only connected rooms offered | the rooms two away are offered under their own heading; a critical carries the body there, any other hit to the room between; never through a bedroom (`bodyReach`, `bodyLanding`) | 4535acc | R3957, LIVE-E64-01 | approved, owner 12.11 (Q-E64-10: the room between, kept) |
+| S02-75 sabotage lever, trap, Palm (Q-E64-5) | unchanged | unchanged before 1.3.0; logged for sessions 0 | - | - | owner 12.11 (DRPG-D1): changes before 1.3.0; in progress |
+| S02-57 Hope's armour on Role reversal (Q-E64-7) | unchanged | unchanged: the rebuilt incident model is outside the repository (Q-E64-6) | - | - | owner 12.11 (DRPG-D1): explanation asked; no code change yet |
 | DA11 trait ceiling | - | closed with no code (the owner's DA11) | - | - | owner's decision |
 | D193 (orphan) | movement-audit.mjs and the moveAudit setting promised the default to E82, not a stage | comments say no stage holds it; "log" stays | 88b26ab | none (comments) | closed |
 | D052 (orphan) | a Loaded Die that did not hold (a dice method that draws no uniform sample) was spent: 6 Hope for an ordinary roll | its Call is armed again for the next roll under a new nonce, its `by` kept, the owner whispered "loadedDieBack"; on a GM's own roll and on a player's roll the GM drew (`giveBackLoadedDie`) | 6abe17d | tier 2 "E64 D052" (measured, the GM's road); R3962 (the drawn road, read off the source) | owner confirmed 12.11 (default accepted) |
@@ -87,7 +87,7 @@ aimed at the other person"); the owner may revise it.
 | Row | Who rolls | Base threshold | Defended by | With a defender of 1+ |
 | --- | --- | --- | --- | --- |
 | Strike | killer | 15 | the victim's Body | 16 |
-| the blow with a weapon (the row after Strike) | killer | 15 | the victim's Body | 16 |
+| Attack with a Weapon | killer | 15 | the victim's Body | 16 |
 | Pin Them Down | killer | 12 | the victim's Body | 13 |
 | Keep Your Distance | killer | 12 | the victim's Leg | 13 |
 | Self-Defense | victim | 18 | the killer's Body | 19 |
@@ -182,7 +182,16 @@ Every red-first reading is quoted in its commit. Every rule is in the GM's and t
 
 ## In progress
 
-Nothing.
+The owner's DRPG-D1 answers of 12.11: the DA39 migration of past picks (Q-E64-4), the sabotage lever, trap and Palm
+before 1.3.0 (Q-E64-5), and a plain explanation of S02-57 for the owner (Q-E64-7).
+
+## A note on the history
+
+Before the push of 585bc09 the messages of the unpushed commits from f657e7d on were rewritten with `git filter-branch
+--msg-filter` (to add "[skip ci]" and drop a listed word from f058147's message); the trees were unchanged. That
+command is on this project's forbidden list (the coordinator, 12.11); it is not used again. The word list holds for
+commit messages, release notes and branch names, not the game's own text: the two handbook sentences and R3961 name
+"Attack with a Weapon" again, as before 585bc09.
 
 ## Test results
 
