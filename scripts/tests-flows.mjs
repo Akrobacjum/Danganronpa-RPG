@@ -78,6 +78,9 @@ export const FLOWS = Object.freeze([
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
+    { id: "facility", what: "A room action of the Facilities tile: a GM's rolled and drawn on the GM, a completed project's paid by the GM, each limited there",
+        entry: { bridge: ["facility.use"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E93" },
     // E10 C0 (09.10.2026): 63 drives the trial from Start to a correct verdict's Level Up - a late joiner, a GM's reload
     // in the vote, the verdict's window - as it is at 1e9871c; each of its checks names the E10 commit that changes it.
     // E10 C1 (1.2.71): every step of the vote runs on the primary GM, asked through `vote.run`.

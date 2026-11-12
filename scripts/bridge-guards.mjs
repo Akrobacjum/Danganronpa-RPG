@@ -261,6 +261,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionLocked", /^that action is locked$/],
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
+    // E93 C3: a room action the Despair Overflow shuts (Lockdown, Power cut; facilities-gm.mjs `handleFacilityUse`).
+    ["actionBlocked", /^that room action is shut by the overflow$/],
     // E32+E07 C11a: an action the incident took away, or never gave that side (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is not open to that character now$/],
     // E51 C1: an action the incident took away, kept in the list struck through and refused (murder-rules.mjs `crisisRefusal`).
@@ -315,6 +317,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that Frisk ask has been answered already$/],
     // E14 part 1 C4: a stash's free reach, once a time of day per thief (stash-reach.mjs `stealFromVault`).
     ["alreadyDone", /^that stash has been gone through already this time of day$/],
+    // E93 C3: a GM's room action anyone used, or a project's this character used, this time of day.
+    ["alreadyDone", /^that room action has been used already this time of day$/],
     // E17 C3: "Refund last crossing" (movement.mjs `refundLastCrossing`), a GM's ask of the primary.
     ["nothingToUndo", /^the GMs hold no crossing of that character to give back$/],
     ["alreadyDone", /^that crossing was given back already$/],
@@ -326,6 +330,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["notThere", /^the character has no token on a scene$/],
     ["notThere", /^the character is not in that room$/],
     ["notThere", /^the character is not standing in any room$/],
+    // E93 C3: a room action not in the room the GMs hold the character in.
+    ["notThere", /^that action is not in the character's room$/],
     // E32+E07 C11d: a statistic ruling for a project the sender cannot see, or the character cannot reach (guardTraitRuling).
     ["notThere", /^that project is not one the character can work on or break here$/],
     ["notThere", /^the character is not in ".*": .+$/],
@@ -413,6 +419,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotLeave", /^the character is held in the incident$/],
     ["trialLocked", /^the Class Trial is in session$/],
     ["noBudget", /^the character has no Move and no action left$/],
+    // E93 C3: a project's room action whose price the character's actions do not cover.
+    ["noBudget", /^the character has not enough actions for that room action$/],
     ["eclipseSpent", /^the character's Eclipse crossings are used up$/],
     // E79 C16: an Objection raised from the trial bar and proved after, judged by the primary GM (gm-bridge.mjs
     // `trial.object`, `trial.evidence`, `floor.repoint`; trial.mjs `objectOnPrimary`, `evidenceOnPrimary`,

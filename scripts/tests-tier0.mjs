@@ -7691,7 +7691,8 @@ const REGRESSIONS = [
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
             "vault.steal": ["viaSearch", "clumsy"] };
         const WAITING = [];
-        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm" };
+        // A Facilities roll (E93 C3) is thrown from the tile whose key is still `rest` (the Facilities tile).
+        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm", facility: "rest" };
         // A Take from the Body's two rolls (E68 C10): its Hand and its cover, both of config.mjs `LOOT`.
         const { LOOT } = await import("./config.mjs");
         const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING, loot: LOOT, lootCover: LOOT?.cover };
@@ -7900,7 +7901,8 @@ const REGRESSIONS = [
         const listed = new Set(guard.WRITE_REASONS ?? []);
         equal(JSON.stringify([...listed]), JSON.stringify(["spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash",
             "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText", "sheetReserve"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
+            // E93 C3: `facility`, a room action's effect, a GM's write alone (not judged).
+            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText", "sheetReserve", "facility"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
         const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
             ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
             // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
@@ -9753,6 +9755,7 @@ const REGRESSIONS = [
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action one of `ANALYZE_ROW_REQUEST`'s literals, the reason checked against `REASONS`; a row the Class Trial filter shuts, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-facilities.mjs#useFacility", "composed on this client from closed lists (`sayNotDone`: the action the literal `facility.use`, the reason the literal noGm); a room action with no GM connected, before its price (E93 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-search.mjs#performSearch", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); a Search for something specific with no GM connected, before the price (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-search.mjs#performSearch (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); the same after the dice, before the room's search token is taken (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-analyze.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],

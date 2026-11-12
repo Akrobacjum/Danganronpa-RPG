@@ -21,13 +21,16 @@
  */
 
 import { TRAITS, LEVEL_UP, LEVEL_UP_OPTIONS } from "./config.mjs";
-import { whisperToGms, debug, error, esc } from "./utils.mjs";
+import { whisperToGms, debug, error, esc, serialWrite } from "./utils.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import {
     askHopeCallByCard, askDynamicByCard, askTraitByCard, expiredOnPrimary, receivedOnPrimary, yesOnPrimary,
     dynamicOnPrimary
 } from "./call-gm.mjs";
 import { SOCKET_EVENT, ACTION_ADVANCEMENT_OFFERS, ACTION_SHARE_BULLET, ACTION_DONE } from "./bridge-wire.mjs";
+import { facilityUseStore } from "./gm-stores.mjs";
+import { facilityMark, facilityCost, facilityShut } from "./facilities.mjs";
+import { offerAt, overflowNow, closeForAll, applyEffects, leaveTrace, tellUse } from "./facilities-gm.mjs";
 
 /*
  * THE RUNS (E31, 25.09.2026). Each handler below is the `run` of one
@@ -92,6 +95,49 @@ export async function handleObserveResolve(payload, sender, ctx) {
     // Not a guard: the key is judged inside `resolveObserve`, against the entry
     // it has just read, and for a GM's own resolve as much as for a packet.
     if (result?.refused) return { refused: result.refused };
+}
+
+/**
+ * The bridge's run of `facility.use` (bridge-table.mjs): `{ actorId, actionId, total, isCritical, rollId }`, the total
+ * and the critical the GMs' record of the roll's where `rollId` names one. Answers `{ reply: { success, source,
+ * label, lines } }`, or `{ refused }` - each refusal a reason of bridge-guards.mjs `REASON_PATTERNS`.
+ */
+export async function handleFacilityUse(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const place = gmPlaceOf(actor);
+    if (!place?.room) return { refused: "the character is not standing in any room" };
+    const offer = await offerAt(actor, place, payload.actionId, sender);
+    if (!offer) return { refused: "that action is not in the character's room" };
+    const { states, toll } = await overflowNow();
+    if (facilityShut(offer.source, states)) return { refused: "that room action is shut by the overflow" };
+    if (offer.source === "gm" && !sender?.isGM && typeof payload.rollId !== "string") {
+        const { rollDrawState } = await import("./roll-draw.mjs");
+        if (rollDrawState().state === "ok") return { refused: "no roll the GM drew is named" };
+    }
+    await facilityUseStore.whenHydrated();
+    return serialWrite(`facility:${offer.key}`, async () => {
+        const mark = facilityMark();
+        if (facilityUseStore.get(offer.key)?.mark === mark) return { refused: "that room action has been used already this time of day" };
+        if (offer.source === "project") {
+            const cost = facilityCost("project", offer.facility, toll);
+            const { actionsLeft, spendAction } = await import("./actions.mjs");
+            if (cost > 0 && (actionsLeft(actor) < cost || !await spendAction(actor, cost, { quiet: true }))) {
+                return { refused: "the character has not enough actions for that room action" };
+            }
+        }
+        const success = offer.source === "project" || Boolean(payload.isCritical) || Number(payload.total) >= offer.action.dc;
+        await facilityUseStore.patch(offer.key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success });
+        if (offer.source === "gm") await closeForAll(offer.key, mark);
+        const effects = offer.source === "gm" ? offer.action.effects : offer.facility.effects;
+        const lines = success ? await applyEffects(actor, effects, place, sender) : [];
+        if (offer.source === "gm") await leaveTrace(actor, offer.label);
+        await tellUse(actor, offer, success, lines);
+        debug(`${actor.name} used the room action "${offer.label}" in ${place.room} (${offer.source}): ${success ? "success" : "failure"}.`);
+        Hooks.callAll("drpgFacilityUsed", { actor, source: offer.source, key: offer.key, success });
+        return { reply: { success, source: offer.source, label: offer.label, lines } };
+    });
 }
 
     // Analyze is scored here for the same reason as Observe: the difficulty is

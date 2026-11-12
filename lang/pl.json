@@ -3175,6 +3175,50 @@
       "discardNote": "{actor} - wyrzucone {item} w: {room} (rzut {total}).",
       "cardUnread": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę."
     },
+    "Facility": {
+      "usedOk": "{action}: zrobione.",
+      "usedFailed": "{action}: nie wyszło. Akcja jest zużyta na tę porę dnia.",
+      "traceNote": "Akcja w pokoju: {action}",
+      "closed": "Ktoś już tego użył o tej porze dnia.",
+      "noActions": "Za mało akcji.",
+      "shut": {
+        "lockdown": "Lockdown: żadnych akcji w pokojach o tej porze dnia.",
+        "powercut": "Power cut: żadnych akcji z ukończonych projektów o tej porze dnia."
+      },
+      "gmHint": "{trait}, próg {dc}",
+      "projectHint": "Z projektu {project} · {life}",
+      "forGood": "na stałe",
+      "timesLeft": {
+        "one": "jeszcze {n} pora dnia",
+        "few": "jeszcze {n} pory dnia",
+        "many": "jeszcze {n} pór dnia",
+        "other": "jeszcze {n} pory dnia"
+      },
+      "applied": {
+        "health": { "one": "{name}: +{n} Health", "few": "{name}: +{n} Health", "many": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
+        "sanity": { "one": "{name}: +{n} Sanity", "few": "{name}: +{n} Sanity", "many": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
+        "hope": { "one": "{name}: +{n} Hope", "few": "{name}: +{n} Hope", "many": "{name}: +{n} Hope", "other": "{name}: +{n} Hope" },
+        "hopeBlocked": "{name}: o tej porze dnia nie zdobywa się Hope",
+        "freeMove": "{name}: +{n} Free Move",
+        "text": "{name}: słowa GM-a wysłane",
+        "searchToken": "{room}: +{n} search token",
+        "overflowDown": "Despair overflow: -{n}"
+      },
+      "effect": {
+        "health": "Health",
+        "sanity": "Sanity",
+        "hope": "Hope",
+        "freeMove": "Free Move",
+        "searchToken": "Search token",
+        "overflowDown": "Overflow w dół",
+        "text": "Tekst GM-a"
+      },
+      "scope": {
+        "self": "używający",
+        "present": "wszyscy obecni",
+        "others": "pozostali obecni"
+      }
+    },
     "Rest": {
       "short": "Short Rest",
       "long": "Long Rest",
@@ -3946,6 +3990,7 @@
         "overflow.check": "Sprawdzenie Overflow",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
+        "facility.use": "Akcja w pokoju",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",

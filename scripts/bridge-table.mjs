@@ -46,7 +46,7 @@ import {
     ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
-    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
+    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -55,7 +55,7 @@ import {
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
-    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling
+    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -141,6 +141,20 @@ export const BRIDGE_ACTIONS = table({
         rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
         claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and an Analyze not thrown as a Find Passage (`notFindPassageRoll`)" }
+    },
+    [ACTION_FACILITY_USE]: {
+        label: "DRPG.Bridge.what.facility.use",
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, actionId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        run: handleFacilityUse,
+        // The asker's window says what the use did (`useFacility`), so the answer is the run's.
+        answer: "reply",
+        /* A GM's room action's total and critical are the GMs' record of the roll `rollId` names (E93 C3): a Facilities
+           roll of this character, the sender's, drawn for this action (`named`: the record's `facility`, roll-draw.mjs
+           `drawOnGm`). A project's action has no roll; a GM's packet with none is refused in the run while the GMs draw. */
+        rolled: { field: "rollId", actor: "actorId", kind: "facility", when: "rollId", named: { facility: "actionId" } },
+        claims: { actionId: "looked up in the room the GMs hold the character in, and nowhere else (facilities-gm.mjs offerAt): a GM's action on the room's own pieces, a project's among the completed projects standing there that the sender can see",
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): the sender's own drawn roll of that character, a Facilities roll drawn for that action" }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",

@@ -108,6 +108,8 @@ export const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 export const ACTION_OBSERVE_PICK = "observe.pick";
 export const ACTION_CLEANUP_TRACES = "cleanup.traces";
 export const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
+/** player -> primary GM: a room action of the Facilities tile used (E93 C3; facilities-gm.mjs `handleFacilityUse`). */
+export const ACTION_FACILITY_USE = "facility.use";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw

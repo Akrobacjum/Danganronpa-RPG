@@ -8,15 +8,24 @@ origin/claude/plan-130.
 | Commit | What | Tests |
 | --- | --- | --- |
 | C1 | data: config.mjs `FACILITIES`; facilities.mjs (cleaning, marks, lifetime, the room's and the projects' actions, cost, Overflow shut); the GM store `facilityUses`; the world setting `facilityClosed`; projects.mjs completion row `facility`; a secret project's `facility` kept in the GMs' half (PROJECT_SECRET_WHILE_SECRET and the world-secrets rule) | R3750-R3752 (tier 1) |
+| C6 | five Overflow states: Lockdown, Insomnia, Toll, Jitters, Power cut (config.mjs OVERFLOW.effects, overflow.mjs readers); Insomnia read by rest.mjs and sheet-audit.mjs `restCovers` | R3753 (tier 1), E93-T1 (tier 2) |
+| C3 | the bridge road `facility.use`: bridge-wire, bridge-table row (`rolled` kind `facility`, named by the action), run bridge-runs-acts.mjs `handleFacilityUse` with facilities-gm.mjs's helpers (offer in the GMs' room, limit, cost, effects, trace, card); roll-draw.mjs: the statistic from the GMs' copy of the action, the record names it, Jitters' die, no draw for an action not in the room; the ask `requestFacilityUse`; the window (action-rest.mjs, action-facilities.mjs); `facility` a write reason (GM's alone) | E93-T2 (tier 2), the GMs' roll-list fixture `situation: "facility"`, scenario 33 E93-A (legal), scenario 30 "forgeries of a room action" (2 checks), flow `facility` |
 
 ## In progress
 
-- C3: the bridge road `facility.use` (facilities-gm.mjs written, not yet wired).
+- C2: Room Setup's Facilities tab (the GM's editor for a room's actions; a GM's editor for a project's action).
 
 ## Next
 
-C6 Overflow's five states (their readers are needed by C3), C3 the road and its scenarios (33, 30, 83), C2 Room Setup's
-Facilities tab, C4 the tile and window, C7 the scenario and the handbooks. Then E69, E74.
+C4 the tile renamed Facilities and its window's look, the Projects window's lifetime line; C7 the scenario and the
+handbooks; screenshots. Then E69, E74.
+
+## What a console can still do (watched, not caught)
+
+- Under Toll a GM's action costs 2 actions; the roller's browser pays both before the roll, and the GM's draw sees one
+  payment, not its size (roll-draw.mjs: a ticket is one write). A console paying one under Toll rolls all the same.
+- A Reroll of a Facilities roll: not measured. Nothing in E93 replays a use after a Reroll; what reroll.mjs does with a
+  roll of `actionKey` "facility" was not read or run in this round.
 
 ## Test results
 

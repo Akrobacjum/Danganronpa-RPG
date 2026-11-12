@@ -3327,6 +3327,25 @@ const MODIFIER_FIXTURES = Object.freeze([
         claim: (t, s, on) => ({ actionKey: "sabotage", trait: s.trait, window: true, situational: on ? 1 : 0, ready: () => c3Pick(t.theirs, "project", s.id, s.trait),
             edit: p => ({ ...p, context: { targetProjectId: s.id } }) }),
         expect: 1, moves: 4 },
+    // E93 C3/C6: a GM's room action under the Despair Overflow's Jitters is rolled at a die of disadvantage, read on the GM.
+    { key: "situation", situation: "facility", cite: "docs/dev/e93/SPEC.md (Jitters: a GM's room action's roll at disadvantage)", road: "a room action set and Jitters drawn by a GM",
+        arrange: async t => {
+            const F = await import("./facilities.mjs");
+            const { FACILITIES } = await import("./config.mjs");
+            const { gmPlaceOf } = await import("./movement.mjs");
+            const { writablePieces } = await import("./rooms.mjs");
+            const place = gmPlaceOf(t.theirs);
+            must(place?.room, `${t.theirs.name} stands in no room the GMs hold - this would measure nothing`);
+            const pieces = writablePieces(place.scene, place.room);
+            const was = pieces.map(p => foundry.utils.deepClone(p.getFlag(MODULE_ID, FACILITIES.flag) ?? null));
+            await F.setRoomActions(place.scene, place.room, [{ id: "SUITEC3fac", label: "SUITE E33 C3 radio", trait: "eye", dc: 12, effects: [] }]);
+            const dark = await e93Darkening("jitters");
+            const back = async () => place.scene.updateEmbeddedDocuments("Region", pieces.map((p, i) => ({ _id: p.id,
+                [`flags.${MODULE_ID}.${FACILITIES.flag}`]: was[i] === null ? forcedDeletion() : was[i] })));
+            return { off: dark, undo: async () => { await dark(); await back(); } };
+        },
+        claim: (t, s, on) => ({ actionKey: "facility", trait: "eye", window: true, situational: on ? -1 : 0, edit: p => ({ ...p, context: { facilityId: "SUITEC3fac" } }) }),
+        expect: -1, moves: -4 },
     { key: "situation", situation: "cleanup", cite: "player-handbook.en.md:594 (a Cleaning Tool in hand gives advantage)", road: "a fight a GM's Finishing blow ended into Stage 6, gloves in hand",
         arrange: async t => {
             const M = await import("./murder.mjs");
@@ -3738,6 +3757,17 @@ async function e93Darkening(effect) {
         await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
         await settle();
     };
+}
+
+/** The traces a test's room action left (E93 C3): their tokens and the GMs' rows of them, through remnants.mjs's own remover. */
+async function e93DropTraces(scene, tokenIds) {
+    const R = await import("./remnants.mjs");
+    for (const id of tokenIds) {
+        const doc = scene.tokens.get(id);
+        if (!doc) continue;
+        if (typeof R.removeRemnant === "function") await R.removeRemnant(doc);
+        else await doc.delete();
+    }
 }
 
 const SCENARIOS = [
@@ -87878,6 +87908,83 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ under: [true, true, false], take: [null, true], after: false }),
             "{under: [Short greyed, its why the Insomnia line, the Long's why it]; take: [takeRest's answer, the Insomnia warning]; after: the Short's why with the darkening gone} - Insomnia must bar the Short rest and nothing else");
+    }],
+    ["E93-T2 - a GM's room action is used once a time of day, by anyone, on the GMs' record of its roll (scripts/facilities-gm.mjs `handleFacilityUse`, bridge-table.mjs `facility.use`; E93 C3, the owner's audit entry E93 (2), (3) and the 05.11 limits): a player's use in their character's room with a roll of that action at its difficulty clears the Sanity its effect names and closes the action for everyone (facilityClosed), a second use is refused alreadyDone, one with no roll rollUnknown, one with the roll of another action rollOtherAction, a failed roll uses the action and does nothing, Lockdown refuses actionBlocked and uses nothing, and each use the GMs keep names its character and whether it worked", async () => {
+        /*
+         * E93 C3, 12.11.2026. The packet is judged as the primary judges a player's (`G.judge` with the player's id), the
+         * roll a message of the character's with the GMs' record of it as `drawOnGm` writes one (`recordFor`), the action's
+         * name on the record as the draw writes it (`facility`). Red at f22a7e87+C1+C6: no `facility.use` in the table.
+         */
+        const F = await import("./facilities.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { writablePieces } = await import("./rooms.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const pieces = writablePieces(where.scene, where.room);
+        must(pieces.length, `the room ${where.room} has no piece to hold an action - this would measure nothing`);
+        const flagsBefore = pieces.map(p => foundry.utils.deepClone(p.getFlag(MODULE_ID, FACILITIES.flag) ?? null));
+        const closedBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {});
+        const stressBefore = Number(actor.system.resources.stress.value) || 0;
+        const tokensBefore = new Set(where.scene.tokens.map(t => t.id));
+        const ids = ["E93T2a", "E93T2b", "E93T2c"];
+        const keys = ids.map(id => F.gmActionKey(where.scene.id, where.room, id));
+        const made = [];
+        const told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "facility.use", requestId: `E93T2${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value?.success ?? null;
+        };
+        const rollOf = async (total, facility) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, "facility", { total });
+            await S.rollStore.patch(kept.rollId, { facility });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const read = {};
+        let dark = null;
+        try {
+            await F.setRoomActions(where.scene, where.room, [
+                { id: ids[0], label: "E93-T2 tea", trait: "eye", dc: 10, effects: [{ kind: "sanity", n: 1 }] },
+                { id: ids[1], label: "E93-T2 lamp", trait: "eye", dc: 30, effects: [{ kind: "sanity", n: 1 }] },
+                { id: ids[2], label: "E93-T2 radio", trait: "eye", dc: 10, effects: [] }]);
+            await trustedWrite(actor, { "system.resources.stress.value": 2 }, { reason: "gmRuling" });
+            await settle();
+            read.first = [await ask({ actionId: ids[0], total: 0, rollId: await rollOf(15, ids[0]) }), Number(actor.system.resources.stress.value)];
+            read.closed = F.closedNow().has(keys[0]);
+            read.again = await ask({ actionId: ids[0], total: 15, rollId: await rollOf(15, ids[0]) });
+            read.noRoll = await ask({ actionId: ids[1], total: 30 });
+            read.otherRoll = await ask({ actionId: ids[1], total: 30, rollId: await rollOf(30, ids[2]) });
+            read.failed = [await ask({ actionId: ids[1], total: 30, rollId: await rollOf(5, ids[1]) }), Number(actor.system.resources.stress.value),
+                F.closedNow().has(keys[1])];
+            dark = await e93Darkening("lockdown");
+            read.lockdown = [await ask({ actionId: ids[2], total: 15, rollId: await rollOf(15, ids[2]) }), S.facilityUseStore.has(keys[2])];
+            await dark();
+            read.rows = keys.slice(0, 2).map(k => { const row = S.facilityUseStore.get(k); return row ? [row.actorId === actor.id, row.userId === player.id, row.success] : null; });
+        } finally {
+            if (dark) await dark();
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            for (const k of keys) if (S.facilityUseStore.has(k)) await S.facilityUseStore.drop(k);
+            await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, closedBefore);
+            await where.scene.updateEmbeddedDocuments("Region", pieces.map((p, i) => ({ _id: p.id,
+                [`flags.${MODULE_ID}.${FACILITIES.flag}`]: flagsBefore[i] === null ? forcedDeletion() : flagsBefore[i] })));
+            const placed = where.scene.tokens.filter(t => !tokensBefore.has(t.id)).map(t => t.id);
+            if (placed.length) await e93DropTraces(where.scene, placed);
+            await trustedWrite(actor, { "system.resources.stress.value": stressBefore }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [true, 1], closed: true, again: "alreadyDone", noRoll: "rollUnknown", otherRoll: "rollOtherAction",
+            failed: [false, 1, true], lockdown: ["actionBlocked", false], rows: [[true, true, true], [true, true, false]] }),
+            "{first: [the use's success, Sanity after]; closed; again; noRoll; otherRoll; failed: [success, Sanity, closed]; lockdown: [the code, a use kept]; rows: [its character, its user, success] per use} - a GM's room action once a time of day, on the GMs' roll");
     }],
 ];
 

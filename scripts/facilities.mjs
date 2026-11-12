@@ -174,6 +174,9 @@ export function roomActions(scene, room) {
     return Array.isArray(stored) ? cleanActions(stored) : [];
 }
 
+/** The id a packet and a Facilities row name a completed project's action by: `project:<projectId>`. */
+export const PROJECT_PREFIX = "project:";
+
 /** The key a GM's action's use is kept under, in the GMs' store and in the public `facilityClosed`. */
 export function gmActionKey(sceneId, room, actionId) {
     return `g:${sceneId}:${room}:${actionId}`;

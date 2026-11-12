@@ -6550,6 +6550,48 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     for (const c of [p1, p3]) await c.eval(`globalThis.__dialogAuto = ${JSON.stringify(readyAuto[c.who])} ?? undefined; if (globalThis.__dialogAuto === undefined) delete globalThis.__dialogAuto; return true;`);
     await settle(500);
 
+    /* FORGERIES OF A ROOM ACTION (E93 C3, 12.11.2026; the owner's audit entry E93 (2)-(5)). `facility.use` from p1's console:
+       Botan's character (not p1's), an action of the Gym while Aiko stands in the Cafeteria, a GM's action named with no roll
+       and with a roll that does not exist - each refused, nothing written: no Hope moved on anyone in the room, no use kept,
+       nothing closed. Then the draw: a Facilities roll naming the Gym's action is not drawn, and one naming the Cafeteria's
+       claimed on Hand is drawn on the Eye the GM set, its record naming that action. The legal road is 33's E93-A. */
+    phase("forgeries of a room action", { flow: "facility" });
+    const facSetup = await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        await F.setRoomActions(scene, "Cafeteria", [{ id: "SECfac", label: "SEC tea", trait: "eye", dc: 10, effects: [{ kind: "hope", n: 3, scope: "present" }] }]);
+        await F.setRoomActions(scene, "Gym", [{ id: "SECgym", label: "SEC weights", trait: "body", dc: 10, effects: [{ kind: "hope", n: 3 }] }]);
+        return { closed: foundry.utils.deepClone(game.settings.get("${MOD}", "facilityClosed") ?? {}) };`, { timeout: 60000 });
+    await settle(500);
+    const readFac = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { hope: ["${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id).system.resources.hope.value),
+            uses: Object.keys(S.facilityUseStore.entries() ?? {}).length, closed: game.settings.get("${MOD}", "facilityClosed") ?? {} };`;
+    const fac = {
+        theirs: await forge("facility.use", { actorId: ids.botan, actionId: "SECfac", total: 30 }, readFac),
+        elsewhere: await forge("facility.use", { actorId: ids.aiko, actionId: "SECgym", total: 30 }, readFac),
+        noRoll: await forge("facility.use", { actorId: ids.aiko, actionId: "SECfac", total: 30, isCritical: true }, readFac),
+        noSuchRoll: await forge("facility.use", { actorId: ids.aiko, actionId: "SECfac", total: 30, rollId: "SECnoSuchRoll000" }, readFac)
+    };
+    const facDraw = {
+        gym: await drawnRoll(p1, ids.aiko, "facility", "body", { hope: 9, fear: 3 }, { context: { facilityId: "SECgym" } }),
+        hand: await drawnRoll(p1, ids.aiko, "facility", "hand", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } })
+    };
+    facDraw.record = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = Object.values(S.rollStore.entries() ?? {}).find(r => r?.messageId === "${facDraw.hand?.messageId ?? ""}") ?? null;
+        return row ? { facility: row.facility ?? null, trait: row.scored?.trait ?? row.legal?.trait ?? null } : null;`);
+    check("SECURITY: a console's room action is refused for another's character, for an action of another room, and for a GM's action with no roll or a roll that does not exist - no Hope moved, no use kept, nothing closed - and each refusal is logged on the GM and told to p1",
+        Object.values(fac).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && fac.theirs.forOwnership && fac.elsewhere.reasons[0].includes("that action is not in the character's room")
+            && fac.noRoll.reasons[0].includes("no roll the GM drew is named") && fac.noSuchRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(fac).slice(0, 3000), { flow: "facility" });
+    check("SECURITY: the GM draws no Facilities roll for an action not in the character's room, and draws one claimed on Hand on the Eye the GM set, its record naming the action",
+        facDraw.gym?.messageId === null && Boolean(facDraw.hand?.messageId) && facDraw.record?.facility === "SECfac" && facDraw.record?.trait === "eye",
+        JSON.stringify(facDraw), { flow: "facility" });
+    await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const scene = game.scenes.get("${IDS.scene}");
+        await F.setRoomActions(scene, "Cafeteria", []); await F.setRoomActions(scene, "Gym", []);
+        await game.settings.set("${MOD}", "facilityClosed", ${JSON.stringify(facSetup?.closed ?? {})});
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

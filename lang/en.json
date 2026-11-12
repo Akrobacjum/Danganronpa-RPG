@@ -2913,6 +2913,48 @@
       },
       "discardNote": "{actor} threw away {item} in {room} (rolled {total})."
     },
+    "Facility": {
+      "usedOk": "{action}: done.",
+      "usedFailed": "{action}: it did not work. The action is used for this time of day.",
+      "traceNote": "Room action: {action}",
+      "closed": "Someone used this already this time of day.",
+      "noActions": "Not enough actions.",
+      "shut": {
+        "lockdown": "Lockdown: no room actions this time of day.",
+        "powercut": "Power cut: no actions from completed projects this time of day."
+      },
+      "gmHint": "{trait}, beat {dc}",
+      "projectHint": "From the project {project} · {life}",
+      "forGood": "for good",
+      "timesLeft": {
+        "one": "{n} time of day left",
+        "other": "{n} times of day left"
+      },
+      "applied": {
+        "health": { "one": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
+        "sanity": { "one": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
+        "hope": { "one": "{name}: +{n} Hope", "other": "{name}: +{n} Hope" },
+        "hopeBlocked": "{name}: no Hope is earned this time of day",
+        "freeMove": "{name}: +{n} Free Move",
+        "text": "{name}: the GM's words were sent",
+        "searchToken": "{room}: +{n} search token",
+        "overflowDown": "Despair overflow: -{n}"
+      },
+      "effect": {
+        "health": "Health",
+        "sanity": "Sanity",
+        "hope": "Hope",
+        "freeMove": "Free Move",
+        "searchToken": "Search token",
+        "overflowDown": "Overflow down",
+        "text": "GM's text"
+      },
+      "scope": {
+        "self": "the user",
+        "present": "everyone present",
+        "others": "the others present"
+      }
+    },
     "Rest": {
       "short": "Short Rest",
       "long": "Long Rest",
@@ -3619,6 +3661,7 @@
         "overflow.check": "Checking the Overflow",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
+        "facility.use": "Room action",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",

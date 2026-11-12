@@ -59,6 +59,7 @@ import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, r
 import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
+import { overflowFacilityDie } from "./overflow.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -440,7 +441,7 @@ function startOnMessage(message) {
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text",
-    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text", bodyId: "id" });
+    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text", bodyId: "id", facilityId: "id" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -1023,6 +1024,9 @@ async function drawRefusal(actor, key, context) {
        of each for a taker and a body since their last Take of it is the one their next Take reads (`lootDrawRefusal` below, the
        loot bind); the GM's run asks the one gate before anything moves (handover.mjs `lootBody`). */
     if (PAID_BY_NOTHING.includes(key)) return lootDrawRefusal(actor, context);
+    // A GM's room action is drawn only for one the room the GMs hold the character in has, and that no use closed this time
+    // of day (E93 C3): else a console draws rolls of a statistic it chose for an action that is not there.
+    if (key === "facility" && !await facilityOfDraw(actor, context, { open: true })) return "that cannot be done now";
     for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -1597,6 +1601,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         findPassage: key === "analyze" ? told.context.findPassage === true : null,
         // The body a Take's roll was drawn for (E68 loot bind), which `body.loot` holds its packet's `bodyId` to (`named`).
         body: PAID_BY_NOTHING.includes(key) ? told.context.bodyId ?? null : null,
+        // The GM's room action a Facilities roll was drawn for (E93 C3), which `facility.use` holds its `actionId` to (`named`).
+        facility: key === "facility" ? told.context.facilityId ?? null : null,
         incident, superseded: null, at: Date.now(),
         // The GM that drew it: a part that only rides reads a handover off it (`handedOver`, E80 fix r1-G3).
         drawnBy: game.user?.id ?? null
@@ -1786,6 +1792,12 @@ async function listedFor(actor, key, context) {
         return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
     }
     if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
+    // A GM's room action (E93 C3): the statistic the GM set on it, read on this GM's copy of the room the character
+    // stands in (`facilityOfDraw`), never the packet's; none where the room holds no such action (the draw is refused).
+    if (key === "facility") {
+        const action = await facilityOfDraw(actor, context);
+        return action ? [action.trait] : [];
+    }
     // Take from the Body (E68 C10): its Hand and its cover's Shadow, one statistic each (config.mjs `LOOT`).
     if (key === "loot") return [LOOT.trait];
     if (key === "lootCover") return [LOOT.cover.trait];
@@ -1802,6 +1814,23 @@ async function listedFor(actor, key, context) {
     const part = typeof context?.part === "string" ? context.part : null;
     const piece = part && Object.hasOwn(ACTIONS[key ?? ""] ?? {}, part) ? ACTIONS[key][part] : null;
     return listedTraits({ kind: "action", key, ...(typeof piece?.trait === "string" ? { part } : {}) });
+}
+
+/**
+ * The GM's room action a Facilities roll's context names (`facilityId`, E93 C3), as this GM holds the room the character
+ * stands in (movement.mjs `gmPlaceOf`, facilities.mjs `roomActions`), or null; with `open`, only one no use has closed this
+ * time of day (the GMs' store, facilities-gm.mjs `handleFacilityUse` writes it).
+ */
+async function facilityOfDraw(actor, context, { open = false } = {}) {
+    const id = typeof context?.facilityId === "string" ? context.facilityId : null;
+    if (!id) return null;
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const F = await import("./facilities.mjs");
+    const place = gmPlaceOf(actor);
+    const action = place?.room ? F.roomActions(place.scene, place.room).find(row => row.id === id) ?? null : null;
+    if (!action || !open) return action;
+    const { facilityUseStore } = await import("./gm-stores.mjs");
+    return facilityUseStore.get(F.gmActionKey(place.scene.id, place.room, id))?.mark === F.facilityMark() ? null : action;
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
@@ -2020,6 +2049,8 @@ function situationReading(actor, { key, context, ready: { vault, murder, items, 
         const crisis = typeof context.crisis === "string" && Object.hasOwn(CRISIS_ACTIONS, context.crisis) ? context.crisis : null;
         return crisis ? murder.crisisSituational(actor, crisis, undefined, heldNow(actor)) : 0;
     }
+    // Jitters (E93 C6): a GM's room action's roll at a die of disadvantage, as this GM reads the Overflow.
+    if (key === "facility") return overflowFacilityDie();
     // A tool in hand is worth a die (action-rolls.mjs, "A TOOL IN HAND IS WORTH A DIE").
     if (key === "project" || key === "sabotage") return items.equippedFor(heldNow(actor), "tool") ? 1 : 0;
     if (key === "cleanup") {

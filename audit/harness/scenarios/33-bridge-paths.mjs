@@ -1571,6 +1571,73 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     for (const c of players) await c.eval(`const was = ${JSON.stringify(a18Auto[c.who])}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
     await settle(500);
 
+    /* E93-A. A ROOM ACTION OF THE FACILITIES TILE, FROM p1'S OWN PAGE (E93 C3, 12.11.2026; the owner's audit entry E93 (2)-(5)).
+       The legal control of `facility.use`: in Aiko's room (Dorm A) the GM sets one action of its own (Eye, beat 10, one
+       Sanity) and a completed project's (one Hope, an action, one time of day), and p1 uses each as its window would
+       (action-facilities.mjs `useFacility`): the GM's paid on p1's browser and rolled, drawn by the GM on Aiko's Eye; the
+       project's paid by the GM. Read: the rows p1's window offers, each answer, Aiko's actions, Sanity and Hope after each,
+       whether p2's browser holds the GM's action closed, the project's second use (refused, alreadyDone) and the GM's log
+       of refusals. Put back: the room's actions, the project, Aiko's numbers, the closed list, the uses and the trace. */
+    phase("a room action of the Facilities tile", { flow: "facility" });
+    const e93a = { setup: await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const P = ${projects};
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const scene = game.scenes.get("${IDS.scene}"), aiko = game.actors.get("${IDS.aiko}");
+        const r = aiko.system.resources;
+        const was = { closed: foundry.utils.deepClone(game.settings.get("${MOD}", "facilityClosed") ?? {}), stress: r.stress.value, hope: r.hope.value,
+            actions: r.actions.value, tokens: scene.tokens.map(t => t.id) };
+        await F.setRoomActions(scene, "Dorm A", [{ id: "A19tea", label: "A19 tea", trait: "eye", dc: 10, effects: [{ kind: "sanity", n: 1 }] }]);
+        await trustedWrite(aiko, { "system.resources.stress.value": 2, "system.resources.hope.value": 2, "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        const soup = await P.createProject({ name: "A19 soup", target: 2, room: "Dorm A", secret: false });
+        await P.addProgress(soup.id, 2);
+        const given = await F.setProjectFacility(soup.id, { label: "A19 soup", effects: [{ kind: "hope", n: 1 }], costsAction: true, lifetime: { kind: "timesOfDay", n: 1 } });
+        return { was, soup: soup.id, given: Boolean(given) };`, { timeout: 60000 }) };
+    await settle(800);
+    await clearFailures(gm);
+    const a19Refused = (await refusedSince(p1)).length;
+    e93a.p1 = await p1.eval(`const A = await import("${repoUrl}/scripts/action-facilities.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const now = () => { const r = aiko.system.resources; return [r.actions.value, r.stress.value, r.hope.value]; };
+        const rows = (await A.facilityRows(aiko)).map(r => [r.value, Boolean(r.disabled)]);
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let tea = null;
+        try { tea = await A.useFacility(aiko, "gm:A19tea"); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        const afterTea = now();
+        const soup = await A.useFacility(aiko, "project:${e93a.setup?.soup ?? ""}");
+        await new Promise(r => setTimeout(r, 600));
+        const afterSoup = now();
+        const again = await A.useFacility(aiko, "project:${e93a.setup?.soup ?? ""}");
+        await new Promise(r => setTimeout(r, 400));
+        return { rows, tea: tea?.success ?? null, afterTea, soup: soup?.success ?? null, afterSoup, again: again?.success ?? null, last: now() };`,
+        { timeout: 60000 });
+    await settle(600);
+    e93a.p2 = await p2.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); return F.closedNow().has(F.gmActionKey("${IDS.scene}", "Dorm A", "A19tea"));`);
+    e93a.told = (await refusedSince(p1)).slice(a19Refused).map(r => r.reason);
+    e93a.logged = await refusalsLogged(gm, "facility.use");
+    e93a.back = await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const P = ${projects};
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const scene = game.scenes.get("${IDS.scene}"), aiko = game.actors.get("${IDS.aiko}"), was = ${JSON.stringify(e93a.setup?.was ?? {})};
+        const rows = Object.keys(S.facilityUseStore.entries() ?? {});
+        for (const k of rows) await S.facilityUseStore.drop(k);
+        await F.setRoomActions(scene, "Dorm A", []);
+        if ("${e93a.setup?.soup ?? ""}") await P.deleteProject("${e93a.setup?.soup ?? ""}");
+        await game.settings.set("${MOD}", "facilityClosed", was.closed ?? {});
+        await trustedWrite(aiko, { "system.resources.stress.value": was.stress, "system.resources.hope.value": was.hope, "system.resources.actions.value": was.actions }, { reason: "gmRuling" });
+        const placed = scene.tokens.filter(t => !(was.tokens ?? []).includes(t.id));
+        for (const t of placed) await R.removeRemnant(t);
+        return { rows: rows.length, placed: placed.length };`, { timeout: 60000 });
+    await settle(600);
+    check("E93-A: p1's Facilities window offers Dorm A's GM action and the completed project's, the GM's is rolled and drawn on the GM and clears one Sanity for one action, the project's costs the GM's action and gives one Hope, p2's browser holds the GM's action closed, and the project's second use this time of day is refused alreadyDone and logged",
+        e93a.setup?.given === true && JSON.stringify(e93a.p1?.rows) === JSON.stringify([["gm:A19tea", false], [`project:${e93a.setup?.soup}`, false]])
+            // [actions, Sanity, Hope]: the GM's roll is thrown with Hope (9 against 3), which gives Aiko a Hope of its own.
+            && e93a.p1?.tea === true && JSON.stringify(e93a.p1?.afterTea) === JSON.stringify([2, 1, 3])
+            && e93a.p1?.soup === true && JSON.stringify(e93a.p1?.afterSoup) === JSON.stringify([1, 1, 4])
+            && e93a.p1?.again === null && JSON.stringify(e93a.p1?.last) === JSON.stringify([1, 1, 4])
+            && e93a.p2 === true && JSON.stringify(e93a.told) === JSON.stringify(["alreadyDone"]) && e93a.logged.length === 1
+            && e93a.back?.rows === 2 && e93a.back?.placed === 1,
+        JSON.stringify(e93a), { flow: "facility" });
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });
