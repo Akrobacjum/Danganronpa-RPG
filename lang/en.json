@@ -1832,7 +1832,7 @@
       "which": "Which Remnant?",
       "confirm": "Scrub at it",
       "withTool": "{item} (Tier {tier}) in hand - advantage, and that much off the threshold.",
-      "bareHands": "Nothing readied. Bare hands, then.",
+      "bareHands": "You hold no tool, so you clean with bare hands, without advantage.",
       "readied": "Readied: {item}.",
       "noneReadied": "No Cleaning Tool readied. Hold one ready on the Inventory tab first.",
       "blocked": {

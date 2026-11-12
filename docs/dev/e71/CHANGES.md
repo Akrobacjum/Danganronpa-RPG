@@ -831,3 +831,63 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | gm-handbook.en.md | `line 79 (## 1. Installation and dependencies)` | Health, Sanity or statistics | Health, Sanity, or statistics | The handbook names the setting by its label, DRPG.Settings.lockPlayerResources.name, which now has the Oxford comma (EN2/DB35). |
 | gm-handbook.en.md | `line 388 (### 6.3 Rulings, cards and the messenger)` | Health, Sanity or statistics | Health, Sanity, or statistics | The handbook names the setting by its label, DRPG.Settings.lockPlayerResources.name, which now has the Oxford comma (EN2/DB35). |
 | player-handbook.en.md | `line 59 (### What your sheet says)` | Health, Sanity or statistics | Health, Sanity, or statistics | The handbook names the setting by its label, DRPG.Settings.lockPlayerResources.name, which now has the Oxford comma (EN2/DB35). |
+
+## X6 telegraph (1)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| en.json | `DRPG.Cleanup.bareHands` | Nothing readied. Bare hands, then. | You hold no tool, so you clean with bare hands, without advantage. | X6 (telegraph style, to confirm in E71): a whole sentence with its verb; the facts are those of the owner-approved Polish pair N49. |
+
+## Remnant in sentences (handbooks) (49)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| gm-handbook.en.md | `line 77 (## 1. Installation and dependencies)` | trace, traces', traces', traces | Remnant, Remnants', Remnants', Remnants | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.en.md | `line 86 (## 1. Installation and dependencies)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.en.md | `line 88 (## 1. Installation and dependencies)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.en.md | `line 372 (### 6.3 Rulings, cards and the messenger)` | traces, | Remnants, | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.en.md | `line 384 (### 6.3 Rulings, cards and the messenger)` | traces, trace | Remnants, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.en.md | `line 1316 (## 21. Session checklist)` | traces, | Remnants, | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.en.md | `line 1323 (## 21. Session checklist)` | traces | Remnants | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.en.md | `line 1334 (## 21. Session checklist)` | traces | Remnants | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 28 (### Statistics)` | traces | Remnants | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 217 (### Search - Eye, 1 action)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 294 (### Dynamic Action - any statistic, 1 action)` | trace. | Remnant. | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 461 (### Tiers and durability)` | trace, trace | Remnant, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 495 (### Remnants)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 497 (### Remnants)` | trace, traces, trace | Remnant, Remnants, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 505 (### Remnants)` | trace, trace | Remnant, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 511 (### Truth Bullets)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 517 (### Truth Bullets)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 531 (### Reading the difficulty ladder)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 538 (### Reading the difficulty ladder)` | trace, trace, trace | Remnant, Remnant, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 546 (## 9. Traps and projects that kill)` | traces: | Remnants: | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 661 (### If you walk in on it)` | trace | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 681 (## 11. Investigation)` | traces | Remnants | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.en.md | `line 683 (## 11. Investigation)` | trace, trace, trace | Remnant, Remnant, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-brochure.en.md | `line 52 (## Things)` | trace). | Remnant). | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 77 (## 1. Instalacja i zależności)` | śladu, śladów,, śladów., ślady, | Remnantu, Remnantów,, Remnantów., Remnanty, | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 86 (## 1. Instalacja i zależności)` | ślad | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 88 (## 1. Instalacja i zależności)` | śladu | Remnantu | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 97 (## 1. Instalacja i zależności)` | śladu, | Remnantu, | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 372 (### 6.3 Decyzje, karty i komunikator)` | ślady, | Remnanty, | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 384 (### 6.3 Decyzje, karty i komunikator)` | ślady, ślad | Remnanty, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 1316 (## 21. Lista kontrolna sesji)` | ślady, | Remnanty, | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 1323 (## 21. Lista kontrolna sesji)` | ślady | Remnanty | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| gm-handbook.pl.md | `line 1334 (## 21. Lista kontrolna sesji)` | ślady | Remnanty | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 28 (### Statystyki)` | śladów | Remnantów | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 217 (### Search - Eye, 1 akcja)` | ślad, | Remnant, | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 294 (### Dynamic Action - dowolna statystyka, 1 akcja)` | ślad. | Remnant. | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 461 (### Tier i wytrzymałość)` | ślad,, ślad | Remnant,, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 495 (### Remnants)` | ślad | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 497 (### Remnants)` | Ślad, (ślady, ślad | Remnant, (Remnanty, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 505 (### Remnants)` | ślad, Ślad | Remnant, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 511 (### Truth Bullets)` | śladu | Remnantu | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 517 (### Truth Bullets)` | śladu | Remnantu | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 531 (### Drabina trudności)` | ślad | Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 538 (### Drabina trudności)` | ślad, śladu, ślad | Remnant, Remnantu, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 546 (## 9. Pułapki i projekty, które zabijają)` | ślady: | Remnanty: | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 661 (### Jeśli na to wchodzisz)` | śladu. | Remnantu. | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 681 (## 11. Investigation)` | śladach | Remnantach | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-handbook.pl.md | `line 683 (## 11. Investigation)` | ślad,, ślad,, ślad | Remnant,, Remnant,, Remnant | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |
+| player-brochure.pl.md | `line 52 (## Rzeczy)` | ślad). | Remnant). | EN15/PL-r, DB15: Remnant in every sentence (glossary remnant, scope handbooks); "Trace" only in the five fixed names. |

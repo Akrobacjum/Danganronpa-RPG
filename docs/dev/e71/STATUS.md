@@ -29,6 +29,8 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | X1 refusals | 7 | 5 | 0 | X1 (confirmed in the pilot) and O8: "You keep your action/Hope" instead of "Nothing was spent"; pairs N28-N30 the model |
 | X10 fillers | 7 | 5 | 2 (GM section 2's copy of `Season.roomGuide`, EN and PL) | X10 (confirmed in the pilot): "simply", "actually", "just" as a filler, „po prostu”, „naprawdę” as a filler; "just" meaning "a moment ago" and "actually" setting truth against appearance (`TruthBullet.reallyTooltip`) stay |
 | Oxford comma | 49 | 0 | 3 (the setting's name where the GM and player handbooks quote it) | EN2/DB35: the comma before the last "and"/"or" of a list; T17's candidates read one by one, 18 left as not a list ("folded or open", "kill and revive") or as a sentence a frozen handbook section copies (`Contract.*`) |
+| Remnant in sentences (handbooks) | 0 | 0 | 49 lines (unfrozen sections of all six handbooks) | EN15/PL-r, DB15 (glossary remnant, scope handbooks), Polish in DB4's cases; code spans and the five Trace names kept |
+| X6 telegraph | 1 | 0 | 0 | X6 (to confirm in E71): `Cleanup.bareHands` as a whole sentence, the facts of the owner's pair N49 |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 7 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial") | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -45,6 +47,7 @@ rule's shape was found, and no applied text needed an exception.
 | X15 (no "!") | not applied | All 24 finds are the genre's call-outs: "OBJECTION!" (button, banner, and sentences that name the button) and "Nonstop Debate!". Changing them changes the button's name. Proposal: an allow row for `DRPG.Trial.objection*`, `DRPG.Floor.debateOpenedTitle` and the sentences that quote the button. |
 | O8 (a refusal says what the reader keeps) | through the pilot's approved afters: `DRPG.Action.noRoom` ("you keep your action" / "akcji nie tracisz"), `DRPG.SearchTokens.exhausted` | Applied as the owner approved them. The pilot's EN reviewer note (O8 reads wrong on a dimmed tile's reason, `SearchTokens.exhausted`, and before any price, `Actions.notEnough`) is still the owner's: the owner approved both afters with "ok", so they landed as written. |
 | M5 / O5 (no digit typed into prose) | the pilot's approved Polish after of `DRPG.Settings.searchTokensPerRoom.hint` says "od 0 do 10" | Landed as approved; still a digit the code knows (settings.mjs:1300-1308 `range: { min: 0, max: 10 }`), as the pilot recorded. Stays to confirm. |
+| X6 (telegraph style) | `DRPG.Cleanup.bareHands` "Nothing readied. Bare hands, then." -> a whole sentence with the facts of N49 | Applied once. T18's other finds are short labels, world-voice flavor ("No Hope Calls. Not one, by anybody.") or config prose, left. |
 | N1, N2 (keys and placeholders stay) | every change | Holds: the edit script refuses a change to the placeholder set; no key was renamed. |
 | T29 (new, the owner's) | 21 lang values and 10 handbook fragments: browsers, clients and "the primary GM's browser" cut from player texts; the reason behind a GM's limit cut, the limit kept | Applied; the examples are in docs/text-style.md. A first pass only: about 270 English values still name a browser, a client, the console or a store, most of them GM diagnostics (Case, Season, DiceLook, Contract, GmStore), where some of it is what a GM needs. |
 | X13 (singular "they" as a Polish plural) | read T5's 6 finds | All six are real plurals (`ich` for two students, for Remnants, for Truth Bullets, for tokens): the detector's candidates, not faults. Nothing changed. |
@@ -92,6 +95,7 @@ edited unless the row says so.
 | 12.11, run k | 9e4c7be1 and seven more X12 values | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run l | 7f2a51eb and the Vote, Calls and MG edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run n | 3883b5ce and the Oxford commas | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run o | 6fcaa102 and Remnant in the handbooks | 1229 passed, 1 failed (R310: two player handbook regexes read "no trace"/"żaden ślad"; fixed, R310 green alone), 16 skipped |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
@@ -107,4 +111,5 @@ then given the new wording.
 | R3136 | scripts/tests-tier1.mjs | `DRPG.Observe.anythingHint` read for /trace/ and /ślad/ | /Remnant/ in both (red first: failed in the tier 1 run) |
 | R518 | (no test change) | the GM handbook's quote of `DRPG.Vault.descriptionNote` (section 1, line 88) | the quote was updated with the key (red first) |
 | R387, R603 | scripts/tests-tier0.mjs (lines 13491, 14918, 14919, 14934) | Polish handbook sentences read with "GMowi", "GMa" | the same sentences with "GM-owi", "GM-a" (red first: both failed in the tier 1 run) |
+| R310 | scripts/tests-tier0.mjs | the player handbook's Daily Life ladder sentence with "no trace" / "żaden ślad" | "no Remnant" / "żaden Remnant" (red first in run o) |
 | R431 | (no test change) | the GM handbook's copy of `DRPG.Season.roomGuide` (section 2, line 136) | the handbook line was updated with the key |

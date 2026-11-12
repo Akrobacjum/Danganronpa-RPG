@@ -49,7 +49,7 @@
 **3 usables**; **2 gear slots** shared by Murder Weapons, Cleaning Tools and Tools, only one of them stowed - **hold a tool ready or it does not count**. Truth Bullets and keys are unlimited.
 
 > [!WARNING]
-> Despair on a roll wears the tool you used by 1 point, and it breaks when its points run out (Tier 0-1: 1 point, Tier 2: 2, Tier 3: 3). Broken things stay in your pocket until you stash or throw them away (that leaves a trace).
+> Despair on a roll wears the tool you used by 1 point, and it breaks when its points run out (Tier 0-1: 1 point, Tier 2: 2, Tier 3: 3). Broken things stay in your pocket until you stash or throw them away (that leaves a Remnant).
 
 Your bedroom is locked to others without a key (a key opens it for whoever holds it, even a stolen one); its stash holds 3 things and anyone in the room can rifle an open stash. Hand things over or share Truth Bullet copies with anyone in your room, free.
 

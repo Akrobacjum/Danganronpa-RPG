@@ -25,7 +25,7 @@ Daggerheart's six traits are renamed. Your sheet shows these:
 | **Body** | BOD | Physical strength | Projects, fighting, moving heavy things, making somebody turn out their pockets |
 | **Hand** | HAN | Dexterity and precise action | Search, Palm, Projects, crisis actions |
 | **Eye** | EYE | Perceptiveness and noticing things | Search, Observe, sensing a trap |
-| **Shadow** | SHA | Hiding and the sixth sense | Listen, Tamper, staying unseen, covering traces |
+| **Shadow** | SHA | Hiding and the sixth sense | Listen, Tamper, staying unseen, covering Remnants |
 | **Head** | HEA | Connecting facts | Analyze, Projects, sensing a trap |
 
 At character creation the spread is **+2, +1, +1, 0, 0, -1**, placed where you like.
@@ -214,7 +214,7 @@ What turns up is what the room holds: a room the GM has stocked answers first, s
 Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one with one more step of disadvantage on your roll (one of your bonus dice set aside, or one more penalty die). The window does not show that step, because it would tell you a hidden stash is here before you had spent anything: it is taken once the dice have fallen, and your card says what it did.
 
 > [!WARNING]
-> Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a trace that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
+> Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a Remnant that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
 
 ### Observe - Eye, 1 action
 
@@ -291,7 +291,7 @@ Anything at all, provided you describe it in detail. You may propose the statist
 | Demands very niche expertise | 19 | Tier 3 | Hidden |
 
 > [!IMPORTANT]
-> The scale is upside down on purpose: the easier the thing, the louder the trace.
+> The scale is upside down on purpose: the easier the thing, the louder the Remnant.
 
 ### Rest - no roll, 1 or 2 actions
 
@@ -458,7 +458,7 @@ None of these ever takes you below one action or one search token (a room the GM
 **Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll - Hope, Despair or a critical - and its row says "Single use" instead of showing pips. A used usable is Broken too.
 
 > [!WARNING]
-> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**. Not during a Class Trial: the button is greyed there, and its tooltip says *Nothing can be thrown away during the Class Trial.*
+> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the Remnant is, and the Remnant stays in the room) or put it in your **stash**. Not during a Class Trial: the button is greyed there, and its tooltip says *Nothing can be thrown away during the Class Trial.*
 
 ### Categories and what you can carry
 
@@ -492,9 +492,9 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 ### Remnants
 
-A **Remnant** is a trace on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic Action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
+A **Remnant** is a Remnant on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic Action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
 
-A trace appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the traces of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the trace itself keeps one neutral name. It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic Action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
+A Remnant appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the Remnants of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the Remnant itself keeps one neutral name. It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic Action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
 
 | Remnant | What it means |
 |---|---|
@@ -502,19 +502,19 @@ A trace appears on your map <ins>only once you hold a Truth Bullet copied from i
 | Prep Remnant | Left while preparing a murder or gathering tools. |
 | Incident Remnant | Left during the confrontation or the victim's death. |
 | Tamper Remnant | Left by tampering - the too-clean patch, the thing moved back slightly wrong. |
-| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep trace can carry - the one a Search for a tool, a Sabotage or a Misleading Trail leaves. A trace with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
+| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep Remnant can carry - the one a Search for a tool, a Sabotage or a Misleading Trail leaves. A Remnant with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
 | Autopsy Remnant | The state of the body. Handed out at the start of an Investigation, no roll. |
 | Final Truth Remnant | One per chapter. Points at the Mastermind. Unremovable. |
 
 ### Truth Bullets
 
-A **Truth Bullet** is what an Observe gives you: a copy of a Remnant, in your inventory under Truth Bullets. Most arrive **Neutral** - you do not yet know what kind of trace it is - and need an Analyze. A Key or a Final Truth shows its kind the moment you pick it up, but what it says still waits for an Analyze; only the Autopsy arrives fully read.
+A **Truth Bullet** is what an Observe gives you: a copy of a Remnant, in your inventory under Truth Bullets. Most arrive **Neutral** - you do not yet know what kind of Remnant it is - and need an Analyze. A Key or a Final Truth shows its kind the moment you pick it up, but what it says still waits for an Analyze; only the Autopsy arrives fully read.
 
 A Truth Bullet card shows:
 
 - its name,
 - the description the finder was given,
-- what kind of trace it is as far as you know (Faint only once identified),
+- what kind of Remnant it is as far as you know (Faint only once identified),
 - how visible the original was (Obvious, Evident, Subtle or Hidden),
 - the chapter,
 - the room you picked it up in,
@@ -528,14 +528,14 @@ Your sheet does not let you rename an item or change its picture or description:
 
 You are never shown a difficulty at the roll, but the shape of the ladder is not a secret:
 
-| Original trace | Observe (to spot it) | Analyze (to read it) |
+| Original Remnant | Observe (to spot it) | Analyze (to read it) |
 |---|---|---|
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
 | Something from Daily Life | 8 / 12 / 18 / 21 | - |
 
-Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. No roll is scored on the Daily Life row either: no trace is of that kind. It is the ladder your Observe briefing shows for something with no trace behind it, which the GM rules on. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
+Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. No roll is scored on the Daily Life row either: no Remnant is of that kind. It is the ladder your Observe briefing shows for something with no Remnant behind it, which the GM rules on. A faint Remnant is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
 
 ---
 
@@ -543,7 +543,7 @@ Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladde
 
 An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the Weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the Trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **7-10 progress** in total, what the two parts come to at their smallest and largest scales.
 
-Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes") - everyone in the room is told that you are busy with something there, without the project's name. Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
+Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes") - everyone in the room is told that you are busy with something there, without the project's name. Alone, the project simply gains +1. Every project action also rolls Shadow to hide its Remnants:
 
 | Shadow roll | Remnant it leaves |
 |---|---|
@@ -658,7 +658,7 @@ Crossing into a room where a direct murder is running gives you **one free choic
 | Escape Together | Leg, 15 | Both of you get out; Hope restores the victim's Health and Sanity, a critical adds immunity for this chapter and the next. On a failure only you get out, and you do not come back in. |
 | Double Role Reversal | no roll | You and the victim turn on the attacker together. They become the victim. Nobody is healed. |
 | Partners in Crime | no roll | You side with the attacker. The victim is unlikely to walk out. |
-| Averted Eyes | no roll | You leave and take no part, and do not come back in. It leaves no trace of you. |
+| Averted Eyes | no roll | You leave and take no part, and do not come back in. It leaves no Remnant of you. |
 
 Escape Together costs the same as the victim's resolution actions: 1 Sanity, or 1 Health once your Sanity is gone. The three no-roll choices are free. Use an Item is not one of your choices.
 
@@ -678,9 +678,9 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 ## 11. Investigation
 
 - Every living student receives an **Autopsy Truth Bullet** - time of discovery, cause of death, what the body shows. No roll.
-- **Observe** the traces on the map, **Analyze** what you collect, **Share** copies with people in your room. Remnants tied to the crime are shown first.
+- **Observe** the Remnants on the map, **Analyze** what you collect, **Share** copies with people in your room. Remnants tied to the crime are shown first.
 - The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name.
-- The **body** can be searched: open the dead student's sheet, tick what they carried and press *Take the ticked* (or *Take* on one thing). It costs no action. You roll **Hand** once for what you take, every time you take - only the first roll thrown for a Take counts, and a Take refused because you had walked out keeps its roll for your next try: the lower the roll, the easier the trace you leave is to find - under 12 it is easy to find, 12 to 17 harder, 18 or more or a critical hardest. With anyone else in the room - as the GMs' side reads it, which can count somebody your screen does not show - you also roll **Shadow** against **16** to go unnoticed: a miss tells the others in the room and the GMs that you went through the body's pockets - after a Despair, what you took - and costs no Sanity. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets one trace that somebody has been through the pockets, however many things leave it; later Takes can make that trace easier to find, never harder.
+- The **body** can be searched: open the dead student's sheet, tick what they carried and press *Take the ticked* (or *Take* on one thing). It costs no action. You roll **Hand** once for what you take, every time you take - only the first roll thrown for a Take counts, and a Take refused because you had walked out keeps its roll for your next try: the lower the roll, the easier the Remnant you leave is to find - under 12 it is easy to find, 12 to 17 harder, 18 or more or a critical hardest. With anyone else in the room - as the GMs' side reads it, which can count somebody your screen does not show - you also roll **Shadow** against **16** to go unnoticed: a miss tells the others in the room and the GMs that you went through the body's pockets - after a Despair, what you took - and costs no Sanity. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets one Remnant that somebody has been through the pockets, however many things leave it; later Takes can make that Remnant easier to find, never harder.
 - Investigators and killers alike can **Tamper**. A too-clean patch is evidence of tidying.
 - A Key Remnant nobody finds costs Despair (below), and at the trial Monokuma may reveal it to everyone taking part as a Key Remnant found - its kind and its text, to Analyze as usual.
 

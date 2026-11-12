@@ -25,7 +25,7 @@ Sześć cech Daggerheart nosi tu inne nazwy. Na arkuszu widzisz:
 | **Body** | BOD | Siła fizyczna | Projects, walka, przenoszenie ciężarów, zmuszanie kogoś do pokazania kieszeni |
 | **Hand** | HAN | Zręczność i precyzja | Search, Palm, Projects, akcje kryzysowe |
 | **Eye** | EYE | Spostrzegawczość i zauważanie rzeczy | Search, Observe, wyczucie pułapki |
-| **Shadow** | SHA | Ukrywanie się i szósty zmysł | Listen, Tamper, pozostanie niezauważonym, zacieranie śladów |
+| **Shadow** | SHA | Ukrywanie się i szósty zmysł | Listen, Tamper, pozostanie niezauważonym, zacieranie Remnantów |
 | **Head** | HEA | Łączenie faktów | Analyze, Projects, wyczucie pułapki |
 
 Przy tworzeniu postaci rozkład to **+2, +1, +1, 0, 0, -1**, rozłożony, jak chcesz.
@@ -214,7 +214,7 @@ Znajdujesz to, co ma pokój: pokój, który GM zaopatrzył, odpowiada pierwszy, 
 Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z jednym stopniem utrudnienia więcej (jedna z twoich kości premii odłożona albo jeszcze jedna kość kary). Okno rzutu tego stopnia nie pokazuje, bo powiedziałoby ci, że jest tu ukryta skrytka, zanim cokolwiek wydasz: dokłada się go, gdy kości już upadną, a twoja karta mówi, co zrobił.
 
 > [!WARNING]
-> Wzięcie narzędzia zbrodni albo narzędzia do sprzątania **zostawia Prep Remnant** w pokoju - ślad, że ktoś tu zbierał narzędzia. Narzędzie nie zostawia nic, chyba że to, co się znajdzie, jest też bronią.
+> Wzięcie narzędzia zbrodni albo narzędzia do sprzątania **zostawia Prep Remnant** w pokoju - Remnant, że ktoś tu zbierał narzędzia. Narzędzie nie zostawia nic, chyba że to, co się znajdzie, jest też bronią.
 
 ### Observe - Eye, 1 akcja
 
@@ -291,7 +291,7 @@ Cokolwiek, byle opisane szczegółowo. Możesz zaproponować statystykę, opisuj
 | Wymaga bardzo niszowej wiedzy | 19 | Tier 3 | Hidden |
 
 > [!IMPORTANT]
-> Skala jest odwrócona celowo: im łatwiejsza rzecz, tym głośniejszy ślad.
+> Skala jest odwrócona celowo: im łatwiejsza rzecz, tym głośniejszy Remnant.
 
 ### Rest - bez rzutu, 1 albo 2 akcje
 
@@ -458,7 +458,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
-> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trial: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trial nie można niczego wyrzucić.*
+> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie Remnant, a Remnant zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trial: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trial nie można niczego wyrzucić.*
 
 ### Kategorie i ile nosisz
 
@@ -492,9 +492,9 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 ### Remnants
 
-**Remnant** to ślad na mapie. Większość tego, co robisz w pokoju, jakiś zostawia: wzięcie broni, Dynamic Action, sabotaż, praca nad projektem morderstwa, wyrzucenie czegoś, przeszukanie kieszeni ciała, walka, sprzątanie. To, jak trudno go zobaczyć, to jego **widoczność**: Obvious, Evident, Subtle, Hidden. Niektóre są **Reinforced** - nikt nie może ich usunąć.
+**Remnant** to Remnant na mapie. Większość tego, co robisz w pokoju, jakiś zostawia: wzięcie broni, Dynamic Action, sabotaż, praca nad projektem morderstwa, wyrzucenie czegoś, przeszukanie kieszeni ciała, walka, sprzątanie. To, jak trudno go zobaczyć, to jego **widoczność**: Obvious, Evident, Subtle, Hidden. Niektóre są **Reinforced** - nikt nie może ich usunąć.
 
-Ślad pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins> (ślady walki, w której bierzesz udział, widać od chwili, gdy powstają). Na twoim ekranie nosi nazwę i obrazek twojej kopii - na niczyim innym: sam ślad ma jedną neutralną nazwę. Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło - Search, Dynamic Action, projekt, sabotaż, sama walka, sprzątanie, wyrzucona rzecz, przeszukane ciało, ręka samego GM-a. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
+Remnant pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins> (Remnanty walki, w której bierzesz udział, widać od chwili, gdy powstają). Na twoim ekranie nosi nazwę i obrazek twojej kopii - na niczyim innym: sam Remnant ma jedną neutralną nazwę. Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło - Search, Dynamic Action, projekt, sabotaż, sama walka, sprzątanie, wyrzucona rzecz, przeszukane ciało, ręka samego GM-a. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
 
 | Remnant | Co znaczy |
 |---|---|
@@ -502,19 +502,19 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 | Prep Remnant | Zostawiony przy przygotowaniu morderstwa albo zbieraniu narzędzi. |
 | Incident Remnant | Zostawiony podczas konfrontacji albo śmierci ofiary. |
 | Tamper Remnant | Zostawiony przez majstrowanie - zbyt czysta plama, rzecz odłożona odrobinę nie tak. |
-| Faint Remnant | Wątpliwy związek ze sprawą. Faint to też znacznik, który może nosić ślad Prep - ten, który zostawia Search za narzędziem, sabotaż albo Misleading Trail. Ślad z nim GM czyści, chyba że jest powiązany z morderstwem; Truth Bullet z nim zostaje u ciebie po końcu rozdziału, nieodczytany, i wciąż można go przeanalizować. |
+| Faint Remnant | Wątpliwy związek ze sprawą. Faint to też znacznik, który może nosić Remnant Prep - ten, który zostawia Search za narzędziem, sabotaż albo Misleading Trail. Remnant z nim GM czyści, chyba że jest powiązany z morderstwem; Truth Bullet z nim zostaje u ciebie po końcu rozdziału, nieodczytany, i wciąż można go przeanalizować. |
 | Autopsy Remnant | Stan ciała. Wydawany na początku Investigation, bez rzutu. |
 | Final Truth Remnant | Jeden na rozdział. Wskazuje Masterminda. Nieusuwalny. |
 
 ### Truth Bullets
 
-**Truth Bullet** to to, co daje Observe: kopia Remnantu w twoim ekwipunku, pod Truth Bullets. Większość przychodzi jako **Neutral** - jeszcze nie wiesz, jaki to rodzaj śladu - i wymaga Analyze. Key albo Final Truth pokazuje swój rodzaj w chwili podniesienia, ale to, co mówi, wciąż czeka na Analyze; w pełni odczytany przychodzi tylko Autopsy.
+**Truth Bullet** to to, co daje Observe: kopia Remnantu w twoim ekwipunku, pod Truth Bullets. Większość przychodzi jako **Neutral** - jeszcze nie wiesz, jaki to rodzaj Remnantu - i wymaga Analyze. Key albo Final Truth pokazuje swój rodzaj w chwili podniesienia, ale to, co mówi, wciąż czeka na Analyze; w pełni odczytany przychodzi tylko Autopsy.
 
 Karta Truth Bulleta pokazuje:
 
 - nazwę,
 - opis, który dostał znalazca,
-- jaki to rodzaj śladu według twojej wiedzy (Faint dopiero po rozpoznaniu),
+- jaki to rodzaj Remnantu według twojej wiedzy (Faint dopiero po rozpoznaniu),
 - jak widoczny był oryginał (Obvious, Evident, Subtle albo Hidden),
 - rozdział,
 - pokój, w którym go podniosłeś,
@@ -528,14 +528,14 @@ Karta nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu: to, jak rzecz si
 
 Przy rzucie nigdy nie widzisz trudności, ale kształt drabiny nie jest tajemnicą:
 
-| Oryginalny ślad | Observe (żeby zauważyć) | Analyze (żeby odczytać) |
+| Oryginalny Remnant | Observe (żeby zauważyć) | Analyze (żeby odczytać) |
 |---|---|---|
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
 | Coś z Daily Life | 8 / 12 / 18 / 21 | - |
 
-Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje dla czegoś bez śladu za sobą, a orzeka o tym GM. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
+Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Na wierszu Daily Life nie jest też liczony żaden rzut: żaden Remnant nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje dla czegoś bez Remnantu za sobą, a orzeka o tym GM. Wątpliwy Remnant trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
 
 ---
 
@@ -543,7 +543,7 @@ Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Lif
 
 **Morderstwo pośrednie** buduje się jako projekty, tajne dla wszystkich poza budującym i GM-ami - *Prepare the Weapon* (Standardowy albo Złożony, 4-6 postępu, może wymagać konkretnego pokoju) i *Set the Trap* (Trywialny albo Standardowy, 3-4 postępu, zawsze wymaga konkretnego pokoju). Zaplanuj około **7-10 postępu** łącznie, tyle, ile dają obie części w najmniejszej i największej skali.
 
-Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach") - wszyscy w pokoju dowiadują się, że czymś się tam zajmujesz, bez nazwy projektu. W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć ślady:
+Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow przeciw 16**, by ukryć zamiar: sukces i możesz swobodnie kłamać; porażka i pozostali dostają ogólny opis ("grzebie przy probówkach") - wszyscy w pokoju dowiadują się, że czymś się tam zajmujesz, bez nazwy projektu. W samotności projekt po prostu zyskuje +1. Każda akcja projektu rzuca też Shadow, by ukryć Remnanty:
 
 | Rzut Shadow | Remnant, który zostawia |
 |---|---|
@@ -658,7 +658,7 @@ Wejście do pokoju, w którym trwa Direct Murder, daje ci **jeden darmowy wybór
 | Escape Together | Leg, 15 | Oboje wychodzicie; Hope przywraca ofierze Health i Sanity, krytyk dodaje nietykalność na ten i następny rozdział. Przy porażce wychodzisz tylko ty i już nie wracasz. |
 | Double Role Reversal | bez rzutu | Ty i ofiara razem zwracacie się przeciw napastnikowi. To on staje się ofiarą. Nikt nie zostaje uleczony. |
 | Partners in Crime | bez rzutu | Stajesz po stronie napastnika. Ofiara raczej stąd nie wyjdzie. |
-| Averted Eyes | bez rzutu | Wychodzisz, nie bierzesz udziału i już nie wracasz. Nie zostawia po tobie śladu. |
+| Averted Eyes | bez rzutu | Wychodzisz, nie bierzesz udziału i już nie wracasz. Nie zostawia po tobie Remnantu. |
 
 Escape Together kosztuje tyle co akcje rozstrzygnięcia ofiary: 1 Sanity, a gdy Sanity się skończy - 1 Health. Trzy wybory bez rzutu są darmowe. Use an Item nie należy do twoich wyborów.
 
@@ -678,9 +678,9 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 ## 11. Investigation
 
 - Każdy żyjący uczeń dostaje **Autopsy Truth Bullet** - godzina odkrycia, przyczyna śmierci, to, co pokazuje ciało. Bez rzutu.
-- **Observe** na śladach na mapie, **Analyze** na tym, co zbierzesz, **Podziel się kopią** z osobami w twoim pokoju. Remnanty powiązane ze zbrodnią pokazywane są pierwsze.
+- **Observe** na Remnantach na mapie, **Analyze** na tym, co zbierzesz, **Podziel się kopią** z osobami w twoim pokoju. Remnanty powiązane ze zbrodnią pokazywane są pierwsze.
 - GM-owie przygotowali do tej sprawy **Key Remnants** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
-- **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia, zaznacz, co mieli przy sobie, i wciśnij *Weź zaznaczone* (albo *Weź* przy jednej rzeczy). To nie kosztuje akcji. Rzucasz **Hand** raz na to, co bierzesz, za każdym razem, gdy bierzesz - liczy się tylko pierwszy rzut wykonany na dane zabranie, a zabranie odrzucone, bo wyszedłeś z pokoju, zachowuje swój rzut na następną próbę: im niższy wynik, tym łatwiej znaleźć ślad, który zostawiasz - poniżej 12 łatwo, od 12 do 17 trudniej, od 18 albo przy krytyku najtrudniej. Gdy ktoś jeszcze jest w pokoju - tak, jak czyta to strona GM-ów, która może policzyć kogoś, kogo twój ekran nie pokazuje - rzucasz też **Shadow** przeciw **16**, żeby nikt nie zauważył: chybienie mówi pozostałym w pokoju i GM-om, że przeszukałeś kieszenie ciała - przy Despair także, co zabrałeś - i nie kosztuje Sanity. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje jeden ślad, że ktoś przeszedł przez kieszenie, ile by rzeczy z niego nie wyszło; kolejne zabrania mogą ten ślad uczynić łatwiejszym do znalezienia, nigdy trudniejszym.
+- **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia, zaznacz, co mieli przy sobie, i wciśnij *Weź zaznaczone* (albo *Weź* przy jednej rzeczy). To nie kosztuje akcji. Rzucasz **Hand** raz na to, co bierzesz, za każdym razem, gdy bierzesz - liczy się tylko pierwszy rzut wykonany na dane zabranie, a zabranie odrzucone, bo wyszedłeś z pokoju, zachowuje swój rzut na następną próbę: im niższy wynik, tym łatwiej znaleźć Remnant, który zostawiasz - poniżej 12 łatwo, od 12 do 17 trudniej, od 18 albo przy krytyku najtrudniej. Gdy ktoś jeszcze jest w pokoju - tak, jak czyta to strona GM-ów, która może policzyć kogoś, kogo twój ekran nie pokazuje - rzucasz też **Shadow** przeciw **16**, żeby nikt nie zauważył: chybienie mówi pozostałym w pokoju i GM-om, że przeszukałeś kieszenie ciała - przy Despair także, co zabrałeś - i nie kosztuje Sanity. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje jeden Remnant, że ktoś przeszedł przez kieszenie, ile by rzeczy z niego nie wyszło; kolejne zabrania mogą ten Remnant uczynić łatwiejszym do znalezienia, nigdy trudniejszym.
 - Śledczy i zabójcy jednakowo mogą użyć **Tamper**. Zbyt czysta plama to dowód sprzątania.
 - Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trial Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
 

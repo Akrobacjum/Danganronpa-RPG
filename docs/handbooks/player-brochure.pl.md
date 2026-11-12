@@ -49,7 +49,7 @@
 **3 użytkowe**; **2 miejsca ekwipunku** wspólne dla narzędzi zbrodni, narzędzi do sprzątania i narzędzi, tylko jedno z nich schowane - **weź narzędzie do ręki, inaczej się nie liczy**. Truth Bullets i klucze bez limitu.
 
 > [!WARNING]
-> Despair na rzucie zużywa narzędzie, którego użyłeś, o 1 punkt, a gdy punkty się skończą, narzędzie się psuje (Tier 0-1: 1 punkt, Tier 2: 2, Tier 3: 3). Zepsute rzeczy zostają w kieszeni, dopóki ich nie schowasz albo nie wyrzucisz (to zostawia ślad).
+> Despair na rzucie zużywa narzędzie, którego użyłeś, o 1 punkt, a gdy punkty się skończą, narzędzie się psuje (Tier 0-1: 1 punkt, Tier 2: 2, Tier 3: 3). Zepsute rzeczy zostają w kieszeni, dopóki ich nie schowasz albo nie wyrzucisz (to zostawia Remnant).
 
 Twoja sypialnia jest zamknięta dla innych bez klucza (klucz otwiera ją temu, kto go trzyma, nawet ukradziony); jej skrytka mieści 3 rzeczy, a otwartą skrytkę przejrzy każdy w pokoju. Przekazuj rzeczy i dziel się kopiami Truth Bulletów z każdym w swoim pokoju, za darmo.
 
