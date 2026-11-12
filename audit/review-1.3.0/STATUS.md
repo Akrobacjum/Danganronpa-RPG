@@ -19,7 +19,9 @@ Pytanie Q1: czy taki skład wystarcza zamiast 24 agentów na etap? Proponowana o
 - (nic jeszcze)
 
 ## W toku
-- Przygotowanie: worktree 1.2.104, npm ci w audit/harness, pakiety wejściowe etapów.
+- Pomiar bazowy 1.2.104 (b97028e), `node run-tests.mjs --tier 1` w audit/harness: 1108 testów uruchomionych, 1093 passed, 0 failed, 16 skipped, 0 red, 291,9 s (12.11.2026, 4 rdzenie, obok dwa agenty). Uwaga do sprawdzenia: 1093 + 0 + 16 = 1109, a nie 1108.
+- Próba metody na E27, E03, E30 (weryfikator + sceptyk na etap), potem reszta etapów w kolejności wydań.
+- Przegląd modułu: 45 jednostek audytu (36 obszarów U i 9 przekrojów L), recenzent + weryfikator kontradyktoryjny na jednostkę, wyniki w units/.
 
 ## Dalej
 - Weryfikacja etapów w kolejności wydań, potem przegląd modułu (modul.md, scores.json), potem E83.
