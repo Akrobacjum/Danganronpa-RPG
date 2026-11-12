@@ -7,6 +7,9 @@ import { SETTINGS, pageLanguage, documentLanguage } from "./settings.mjs";
 import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+import { cardMarkup, chatCard } from "./chat-card.mjs";
+// A card's warning line, for the procedures that take utils.mjs alone (steps.mjs, R161).
+export { cardWarn } from "./chat-card.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -626,6 +629,13 @@ export async function announce(data = {}) {
     // people in the room, a GM's ruling, an incident cancelled because a fourth
     // person walked in. Routing on the presence of the list rather than on the
     // call site means a new caller cannot forget.
+    //
+    // A CARD (E49 B5a): `data.card`, a chat-card.mjs spec, is drawn into `content` here, as the four helpers below draw
+    // a spec handed as their content. The words are the spec's; the recipients are `data.whisper`'s, as before.
+    if (data?.card) {
+        const { card, ...rest } = data;
+        return privately(stamped({ ...rest, content: chatCard(card) }));
+    }
     return privately(stamped(data));
 }
 
@@ -649,18 +659,23 @@ export async function announce(data = {}) {
 export async function whisperToOwnerOnly(actor, content, extra = {}) {
     const owners = ownerIdsOf(actor);
     return privately(stamped({
-        content,
+        content: cardMarkup(content),
         speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,
         whisper: owners.length ? owners : [game.user.id],
         ...extra
     }));
 }
 
-/** Whisper to every player who owns an actor (`ownerIdsOf`, E18 C5) plus every GM. */
+/**
+ * Whisper to every player who owns an actor (`ownerIdsOf`, E18 C5) plus every GM.
+ *
+ * `content` is markup, or a card's spec (E49 B5a: `{ glyph, title, body, foot, tone }`, chat-card.mjs `chatCard`), drawn
+ * here - the same for whisperToOwnerOnly and whisperToGms. Who reads it is decided as it always was.
+ */
 export async function whisperToOwner(actor, content, extra = {}) {
     const ids = [...gmIds(), ...ownerIdsOf(actor)];
     return privately(stamped({
-        content,
+        content: cardMarkup(content),
         speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,
         whisper: Array.from(new Set(ids)),
         ...extra
@@ -670,7 +685,7 @@ export async function whisperToOwner(actor, content, extra = {}) {
 /** Whisper to GMs only. */
 export async function whisperToGms(content, extra = {}) {
     return privately(stamped({
-        content,
+        content: cardMarkup(content),
         whisper: gmIds(),
         ...extra
     }));
@@ -689,8 +704,10 @@ export async function whisperToGms(content, extra = {}) {
  * so the four behave alike. `title` is already localised; `html` is the body.
  */
 export async function gmReport(title, html) {
+    // A card since E49 B5a, its title the card's `h3` (escaped there, as `esc` did here), which the notice lifts into its
+    // bar as it lifted the old opening heading; the report's list glyph.
     return privately(stamped({
-        content: `<h3>${esc(title)}</h3>${html}`,
+        content: chatCard({ glyph: "list-check", title, body: html }),
         whisper: [game.user.id]
     }));
 }

@@ -447,6 +447,10 @@ export const REASON_PATTERNS = Object.freeze([
     // E70 C8: a volunteer for the Closing Argument ("trial.claim", trial-modes.mjs `volunteerOnPrimary`).
     ["cannotNow", /^nobody is volunteering for the Closing Argument now$/],
     ["alreadyDone", /^that character has already volunteered$/],
+    // E73 C2, C5: a side picked from the window ("trial.side") and a Scrum speaker's thesis ("trial.keyword"; trial-zones.mjs).
+    ["floorClosed", /^no zone mode holds the floor now$/],
+    ["cannotNow", /^that character stands in the hall: their token answers$/],
+    ["alreadyDone", /^that character has already picked that side$/],
     ["cannotNow", /^a dead student does not present$/],
     ["cannotNow", /^that character may not present now$/],
     ["failed", /^the Present's card could not be posted$/],

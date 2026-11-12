@@ -29,6 +29,7 @@
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
+import { chatCard, cardWarn } from "./chat-card.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
@@ -718,11 +719,12 @@ export function verdictCardContent({ banner, lines = [], flags = null, tone = ""
  * stopped). Answers the whisper's HTML.
  */
 export function verdictSummaryContent({ title, summary, lines = null, warning = "" }) {
-    return `
-            <h3>${game.i18n.localize(title)}</h3>
+    // A card since E49 B5a: the title in its head (the notice lifts it, as it lifted the old opening heading), the
+    // verdict's gavel, and the warning tone where the verdict stopped.
+    return chatCard({ glyph: "gavel", title: game.i18n.localize(title), tone: warning ? "warning" : "info", body: `
             <p>${summary}</p>
             ${lines ? `<ul>${lines.map(line => `<li>${line}</li>`).join("")}</ul>` : ""}
-            ${warning ? `<p class="drpg-warning">${warning}</p>` : ""}`;
+            ${warning ? cardWarn(warning) : ""}` });
 }
 
 /*

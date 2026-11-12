@@ -471,10 +471,9 @@ export function renderSoundLauncher() {
         // Its language, the page's (E66 C3; C1's `lang` on the module's containers, STATUS Open 3).
         markLanguage(button);
 
-        // Under the Stained Glass theme this is the settings button: the two
-        // volumes plus the look of this browser, in one window (see look.mjs).
-        // Under both themes this is the settings button: the two volumes plus the
-        // look of this browser (theme, glass effects, scale), in one window (look.mjs).
+        // Under both themes this is the settings button: this browser's settings
+        // window (settings-window.mjs, through look.mjs `openLookDialog`; E49 A1d) -
+        // the volumes, the voice, the look - the same for a GM and a player.
         // A player has no other door to the theme switch.
         const tip = game.i18n.localize("DRPG.Look.launcherTooltip");
         button.dataset.tooltip = tip;
@@ -518,47 +517,36 @@ export function refreshSoundLauncher() {
         (sfxVolume("sound") <= 0 && sfxVolume("music") <= 0) || game.webrtc?.settings?.client?.muteAll === true);
 }
 
+/**
+ * The volume sliders as they stand, `{ key, label, hint, position }` per SFX_SLIDERS row (`position` 0-100, the
+ * slider's, `volumeToSlider`): one reading for the Sound window's fieldset below and for the settings window's Sound
+ * section (settings-window.mjs, E49 A1d), which draw it each in their own rows.
+ */
+export function volumeSliders() {
+    return Object.entries(SFX_SLIDERS).map(([key, slider]) => ({
+        key, label: slider.label, hint: slider.hint, position: Math.round(volumeToSlider(key, sfxVolume(key)) * 100)
+    }));
+}
+
 /** The two sliders. The whole of the window for a player - see `openSoundDialog`. */
 export function soundSlidersHtml() {
-    const rows = Object.entries(SFX_SLIDERS).map(([key, slider]) => {
-        const position = Math.round(volumeToSlider(key, sfxVolume(key)) * 100);
-        return `
+    const rows = volumeSliders().map(({ key, label, hint, position }) => `
         <label class="drpg-sound-slider" data-drpg-slider="${key}">
-            <span class="drpg-sound-slider-name">${foundry.utils.escapeHTML(slider.label)}</span>
+            <span class="drpg-sound-slider-name">${foundry.utils.escapeHTML(label)}</span>
             <input type="range" min="0" max="100" step="1"
                    name="vol:${key}" value="${position}" />
             <output>${position}%</output>
-            <span class="notes">${foundry.utils.escapeHTML(slider.hint)}</span>
-        </label>`;
-    }).join("");
+            <span class="notes">${foundry.utils.escapeHTML(hint)}</span>
+        </label>`).join("");
 
     /*
-     * The variation switch rides with the sliders and is GM-only.
-     *
-     * Here rather than on the mapping table because it is one control for the
-     * whole panel and the table is one row per event - and a switch buried at
-     * the top of forty rows is a switch nobody finds. Hidden from players
-     * entirely: this is a world setting they could not write anyway, and a dead
-     * control is worse than no control.
+     * THE VARIATION SWITCH LEFT THE SLIDERS (E49 A1d, 11.11.2026). It rode here, GM-only, a world setting among this
+     * browser's own - so the gear's window was a different window for a GM than for a player, which is exactly what
+     * the owner refused on A1's shots ("Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz"). Vary
+     * the sounds is a row of the game's settings now, the GM panel's tab (settings-window.mjs GAME_SECTIONS, audio),
+     * the one place it is set; the GM's Sound window under Monokuma Legacy, which drew these sliders, lost it with them.
      */
-    const variation = game.user.isGM
-        ? `<label class="drpg-sound-switch">
-            <input type="checkbox" name="sfxVary"${
-                getSetting(SETTINGS.sfxVary) ? " checked" : ""} />
-            <span>${game.i18n.localize("DRPG.Sound.varyLabel")}</span>
-            <span class="notes">${game.i18n.localize("DRPG.Sound.varyHint")}</span>
-        </label>`
-        : "";
 
-    /*
-     * The messenger's three sounds are muted here now, not in the Look window.
-     *
-     * They were one of two switches in a fieldset called "Look", which is where nobody
-     * goes to turn a sound off (Dawid, 08.09). This fieldset is called Volume and holds
-     * everything else that decides what this browser hears. Client-scoped like the
-     * sliders, so it is shown to a player and a GM alike - unlike the variation switch
-     * above it, which is the world's.
-     */
     const messenger = `<label class="drpg-sound-switch">
             <input type="checkbox" name="messengerSound"${
                 getSetting(SETTINGS.messengerSound) !== false ? " checked" : ""} />
@@ -571,7 +559,7 @@ export function soundSlidersHtml() {
         <legend>${game.i18n.localize("DRPG.Sound.volumes")}</legend>
         ${rows}
         <p class="notes">${game.i18n.localize("DRPG.Sound.volumeNote")}</p>
-        ${messenger}${variation}
+        ${messenger}
     </fieldset>`;
 }
 
@@ -686,8 +674,11 @@ function countLine() {
  * mapping wants to be testable the moment it is chosen, and a Test button that
  * needs the window closed and reopened first is a Test button nobody trusts.
  */
-export function wireSoundPanel(root) {
-    /* ---- volumes ---------------------------------------------------- */
+/**
+ * Every `[data-drpg-slider]` under `root` wired: its range writes its volume as it moves (`setSfxVolume`), its output
+ * follows. The Sound window's (below) and the settings window's Sound section's (E49 A1d) - the one writer of both.
+ */
+export function wireVolumeSliders(root) {
     for (const label of root.querySelectorAll("[data-drpg-slider]")) {
         const key = label.dataset.drpgSlider;
         const input = label.querySelector("input[type=range]");
@@ -702,19 +693,17 @@ export function wireSoundPanel(root) {
                 .catch(err => error(`Could not set the ${key} volume`, err));
         });
     }
+}
+
+export function wireSoundPanel(root) {
+    /* ---- volumes ---------------------------------------------------- */
+    wireVolumeSliders(root);
 
     /* ---- the messenger's sounds -------------------------------------- */
     const messengerBox = root.querySelector('input[name="messengerSound"]');
     messengerBox?.addEventListener("change", () => {
         setSetting(SETTINGS.messengerSound, messengerBox.checked)
             .catch(err => error("Could not change the messenger sounds", err));
-    });
-
-    /* ---- the variation switch ---------------------------------------- */
-    const varyBox = root.querySelector('input[name="sfxVary"]');
-    varyBox?.addEventListener("change", () => {
-        setSetting(SETTINGS.sfxVary, varyBox.checked)
-            .catch(err => error("Could not set sound variation", err));
     });
 
     /* ---- the mapping table ------------------------------------------ */

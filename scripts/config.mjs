@@ -4077,7 +4077,23 @@ export const TRIAL = {
          * A drawn or picked speaker's Pass in their first `passWindowSeconds` hands the choice back to the GM; later it
          * is Done. Chosen from the owner's words, not measured at a table (LIVE-E70-09).
          */
-        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 }
+        closing: { volunteerSeconds: 30, seconds: 300, perTrial: 1, objection: "exchange", gmDecides: true, passWindowSeconds: 30 },
+        /*
+         * THE ZONE MODES (E73, 12.11.2026; the plan's goal and C3-C5; zone-machine.mjs). Straw Poll: `seconds` of standing
+         * in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, closed early once everybody
+         * stands on one side after `earlyAfterSeconds` (chosen here, so stands left in one zone do not close a question at
+         * its first second), then `pauseSeconds` with the count shown before the judgement; a set holds 1 to
+         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form, then 2 x the larger camp's turns of
+         * `budgetSeconds` / turns, held to `minTurn`-`maxTurn` (3:2 40 s, 4:3 37.5 s, 8:7 20 s); a thesis up to
+         * `thesisLength`. The texts' lengths: `questionLength`, `answerLength`. Chosen from the plan, not measured at a
+         * table (LIVE-E73-02).
+         */
+        zones: {
+            straw: { seconds: 45 },
+            dive: { seconds: 60, pauseSeconds: 5, earlyAfterSeconds: 10, maxQuestions: 5 },
+            scrum: { setupSeconds: 45, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
+            questionLength: 200, answerLength: 80
+        }
     },
     /**
      * How long, in milliseconds, somebody has to stay in LiveKit's list of active speakers to count as speaking for
@@ -5046,6 +5062,28 @@ export const SFX_EVENTS = {
         hint: "Monokuma reveals a Key Remnant nobody found. Heard by everyone taking part in the trial.",
         category: "incident"
     },
+    /* The zone modes (E73 C2-C4; the owner's 11.10: every new event a Sound row or a written reason). */
+    strawPollResult: {
+        label: "Straw Poll result",
+        hint: "A Straw Poll is counted: the class agrees or is split. Heard by the whole table.",
+        category: "incident"
+    },
+    answerRight: {
+        label: "Logic Dive: right answer",
+        hint: "The class answers a Logic Dive question right. Heard by the whole table.",
+        category: "incident"
+    },
+    answerWrong: {
+        label: "Logic Dive: wrong answer",
+        hint: "The class answers a Logic Dive question wrong, or is tied, and the set ends. Heard by the whole table.",
+        category: "incident"
+    },
+    zoneEntered: {
+        label: "Zone entered",
+        hint: "Your token enters Zone A or Zone B during a Straw Poll, Logic Dive or Scrum Debate. Heard by whoever crossed. With no file of its own it plays the Room entered sound.",
+        category: "incident",
+        vary: true
+    },
     rebuttal: {
         label: "Rebuttal",
         hint: "The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.",
@@ -5069,6 +5107,12 @@ export const SFX_EVENTS = {
     execution: {
         label: "An execution",
         hint: "The trial ends and the sentence is carried out on whoever the verdict named. Heard by the whole table.",
+        category: "incident"
+    },
+    // E99 C7 (Q-E99-7): the case summary's card, sent once a trial (case-summary.mjs `showCaseSummary`)
+    caseSummary: {
+        label: "The case summary",
+        hint: "Heard by the whole table when the GM sends the case summary.",
         category: "incident"
     },
     trialClose: {

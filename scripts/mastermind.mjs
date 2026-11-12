@@ -783,7 +783,7 @@ export function finalRemnants() {
  * windows could write the same record. One entry, one place it is changed.
  */
 export async function placeFinalRemnant({ room, scene: onScene = null, visibility = "evident", note = "",
-                                          name = "", text = "", analysis = "" } = {}) {
+                                          name = "", text = "", analysis = "", author = "" } = {}) {
     if (!game.user.isGM || !room) return null;
 
     /* ON THE ROOM'S SCENE (E12 C5, 1.2.74; plan-E12 C5). The clue went to a room of that name
@@ -816,6 +816,8 @@ export async function placeFinalRemnant({ room, scene: onScene = null, visibilit
         x: spot.x, y: spot.y, sceneId: scene?.id ?? null,
         type: "final", visibility, faint: false,
         tiedToCrime: true, reinforced: true, note,
+        // Who left it, as the Final Truth form says (E97 C1): the GMs' alone, nobody by default.
+        sourceActor: author || null, sourceName: (author && game.actors.get(author)?.name) || "",
         subject: game.i18n.localize("DRPG.Remnant.finalSubject"),
         room,
         chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay

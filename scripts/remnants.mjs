@@ -256,10 +256,10 @@ export async function dropRemnant(actor, {
             actor: actor?.name ?? "?"
         }));
         const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Remnant.noTokenGm", {
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Remnant.noTokenGm", {
             actor: foundry.utils.escapeHTML(actor?.name ?? "?"),
             action: foundry.utils.escapeHTML(action)
-        })}</p>`);
+        })}</p>` });
         return null;
     }
 
@@ -1243,6 +1243,41 @@ export async function setRemnantSecret(tokenDoc, patch = {}, opts = {}) {
     // never fail a ledger write.
     import("./remnant-icons.mjs").then(m => m.repaintRemnants()).catch(() => {});
     return remnantStore.get(key);
+}
+
+/**
+ * WHO LEFT A TRACE, AS A GM SAYS IT (E97 C1, 11.11.2026; the owner's Q1, Q2 and Q6 of 11.11). The ledger has held
+ * `sourceActor` and `sourceName` for every player's trace (`dropRemnant`, `narrowPlayerRemnant`) and a looted body's
+ * (handover.mjs), and no GM's road could write them: New trace, a Key Remnant and the Final Truth named nobody, and
+ * the GM's card printed the name without a way to change it. Both fields go together, as one patch (`authorPatch`),
+ * so a name never stands beside another student's id; `null` is nobody ("- unknown -", Q6), which is what every
+ * trace placed before 1.2.107 already holds, so nothing is migrated. On the row only (`ifLive`: it amends a trace
+ * this GM holds, never starts one), and never on a token, an item, a chat card or a player's copy: Q1, "Nigdy i bez
+ * opcji analyze. To tylko info dla gma". An author a GM sets acts as a player's (Q2): Observe's preference
+ * (observe.mjs), an incident's tie (`placeRemnant`) and Tamper (cleanup.mjs) read the same field. The row's `label`,
+ * worded when the trace was placed, keeps the name it was placed with. R3370.
+ */
+export function authorPatch(actor) {
+    return { sourceActor: actor?.id ?? null, sourceName: actor?.id ? (actor.name ?? "") : "" };
+}
+
+export async function setRemnantAuthor(tokenDoc, actor) {
+    if (!game.user.isGM || !tokenDoc) return null;
+    return setRemnantSecret(tokenDoc, authorPatch(actor), { ifLive: true });
+}
+
+/**
+ * The options of a GM's author select (E97 C1; R3372): "- unknown -" first, chosen while the trace names nobody, then
+ * each of `students` - the caller's `studentActors()`, the living and the dead, since a body leaves traces too - by
+ * name, `selected` chosen. An author the list does not hold (a character no longer in class) is kept as one more
+ * option under the name the row holds, so drawing the select never changes what Save reads back.
+ */
+export function authorOptions(selected = null, students = [], selectedName = "") {
+    const list = [...(students ?? [])];
+    const unknown = `<option value=""${selected ? "" : " selected"}>${esc(game.i18n.localize("DRPG.Remnant.authorUnknown"))}</option>`;
+    const kept = selected && !list.some(a => a.id === selected)
+        ? `<option value="${esc(selected)}" selected>${esc(selectedName || selected)}</option>` : "";
+    return unknown + list.map(a => `<option value="${esc(a.id)}"${a.id === selected ? " selected" : ""}>${esc(a.name)}</option>`).join("") + kept;
 }
 
 /**

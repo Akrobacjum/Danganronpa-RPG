@@ -295,7 +295,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
        `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
        this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue - on one GM's
        browser: the queue is that browser's memory (a hand-over and a Present run on the primary; a GM's Give on another
-       GM's browser races it still, E38's, row 1.2.127; E60's fix round, FG6). */
+       GM's browser races it still, E38's, row 1.2.126; E60's fix round, FG6). */
     const { copiedRemnants } = await import("./truth-bullets.mjs");
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {
@@ -334,6 +334,9 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
         // browser holds not one word of it in the meantime.
         sourceAction: secret.sourceAction ?? null,
         tiedToCrime: secret.tiedToCrime ?? null,
+        // Who left the trace, as the giver's key names it (E97 C1); a key that names nobody leaves it to the trace's row.
+        leftBy: secret.leftBy ?? undefined,
+        leftByName: secret.leftByName ?? undefined,
         analyzedText: secret.analyzedText ?? "",
         /* And `faint` moved onto this road in 1.2.47. Read off the giver's ITEM
            it would have come back false for every unidentified bullet, so every

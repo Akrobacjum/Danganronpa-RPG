@@ -145,6 +145,7 @@ import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { gatherEveryone, carryAcross, clearCarriedFrom, CARRIED_FROM } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
 import { formGrid, dataTable, toggle, box } from "./ui-kit.mjs";
+import { storedZones, zoneCandidates, zoneWarnings } from "./zone-geometry.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
 export const TRIAL_RETURN_FLAG = "trialReturnTo";
@@ -1206,7 +1207,7 @@ export function hallRoomNames(hall) {
  * then `missing`, the students a player plays with no token in it); `dark`, `hallIsDark`'s answer.
  * Reads nothing else (R120 asks it of plain objects).
  */
-export function sceneReport({ school = null, hall = null, rooms = [], cast = [], handPlaced = [], dark = false } = {}) {
+export function sceneReport({ school = null, hall = null, rooms = [], cast = [], handPlaced = [], dark = false, zones = [] } = {}) {
     const rows = [];
     const row = (key, text, block = false) => rows.push({ key, text, block });
     const names = list => list.map(name => esc(name)).join(", ");
@@ -1220,6 +1221,9 @@ export function sceneReport({ school = null, hall = null, rooms = [], cast = [],
     const unlinked = cast.filter(token => token.linked === false).map(token => token.name);
     if (unlinked.length) row("unlinkedToken", game.i18n.format("DRPG.TrialScene.unlinkedToken", { names: names(unlinked) }));
     if (dark) row("hallDark", game.i18n.localize("DRPG.TrialScene.hallDark"));
+    // The two zones' warnings (E73 C1; zone-geometry.mjs `zoneWarnings`): a key each, never a block - the zones are
+    // read only by the zone modes, which say again what they lack when one is started.
+    for (const key of Array.isArray(zones) ? zones : []) row(key, game.i18n.localize(`DRPG.TrialScene.zones.${key}`));
     return rows;
 }
 
@@ -1240,16 +1244,18 @@ export function hallIsDark(hall) {
  * ownership are read off the actor, so an unlinked token shows neither - and the cast the module
  * makes no token for with none there (`handPlacedActors`).
  */
-export function scenesReportOf(school, hall) {
+export function scenesReportOf(school, hall, zones = null) {
     const cast = hall ? readCast(hall).map(token => ({ ...token, linked: Boolean(hall.tokens.get(token.id)?.actorLink) })) : [];
+    // The zones as the tab's selects hold them (`zones` { a, b }), else as stored (E73 C1).
+    const roles = zones ? { ...sceneRoles(), zones } : sceneRoles();
     return sceneReport({ school, hall, rooms: hallRoomNames(hall), cast,
-        handPlaced: handPlacedActors(hall).map(actor => actor.name), dark: hallIsDark(hall) });
+        handPlaced: handPlacedActors(hall).map(actor => actor.name), dark: hallIsDark(hall), zones: zoneWarnings(hall, roles) });
 }
 
 /* The report's lines in one kit warning box (E46-C2b, 09.11.2026), none when there is nothing to say; each line keeps
    its `data-drpg-scene-warning` key (tier 2, scenario 41). Until C2b each was a `p.drpg-warning`. */
-function reportHtml(school, hall) {
-    const rows = scenesReportOf(school, hall);
+function reportHtml(school, hall, zones = null) {
+    const rows = scenesReportOf(school, hall, zones);
     return rows.length ? box("warning", rows.map(row => `<p data-drpg-scene-warning="${row.key}">${row.text}</p>`).join("")) : "";
 }
 
@@ -1396,16 +1402,34 @@ function hallRoomFields(hall) {
 const PROXIMITY_VOICE = "proximity-voice-chat";
 
 /**
- * WHERE E73 PUTS ZONE A AND ZONE B (E46-C2b, 09.11.2026; E47's 05.10 point 5 and 27.10: "the Scenes tab on the kit keeps
- * an empty row for E73's Zone A and Zone B"). A row of `scenesTabRows`, after the school and the hall: a list of kit
- * `formGrid` rows spliced in where it stands, empty until E73 - so it draws nothing (R2018). E73 fills it with the two
- * zones' selects (`scenes:zoneA`, `scenes:zoneB`) and reads them in `readScenesTab`; the rows' `sceneRoles` already has
- * `zones` (rooms.mjs).
+ * ZONE A AND ZONE B (E73 C1, 12.11.2026; the owner's TR20 = 1, DX1 = 2, DX5 = 1; E46-C2b's reserved row, E47's 05.10
+ * point 5): two kit `formGrid` rows after the school and the hall, a select each of the hall's regions that are not rooms
+ * (zone-geometry.mjs `zoneCandidates`), named `scenes:zoneA` and `scenes:zoneB` and read in `readScenesTab`; stored in
+ * `sceneRoles` as `zones: { a, b }`. With no hall chosen both selects are greyed. Until E73 the row was an empty list
+ * (`SCENES_ZONE_SLOT`, R2018).
  */
-export const SCENES_ZONE_SLOT = Object.freeze([]);
+export function scenesZoneRows(roles = sceneRoles(), hall = null) {
+    const zones = storedZones(roles);
+    const regions = zoneCandidates(hall);
+    const drawn = side => (zones[side] && regions.some(r => r.id === zones[side]) ? zones[side] : "");
+    return ["a", "b"].map(side => {
+        const key = side === "a" ? "zoneA" : "zoneB";
+        const id = scenesFieldId(key);
+        const field = `<select id="${id}" name="scenes:${key}" data-drawn="${esc(drawn(side))}"${hall ? "" : " disabled"}>
+        ${zoneOptions(regions, drawn(side))}
+    </select>`;
+        return { label: game.i18n.localize(`DRPG.TrialScene.${key}`), id, field };
+    });
+}
+
+/** A zone select's options: "- none -" and each region of `regions` by name, `selected` the one drawn. */
+function zoneOptions(regions, selected = "") {
+    return `<option value="">${game.i18n.localize("DRPG.TrialScene.noZone")}</option>
+        ${regions.map(r => `<option value="${esc(r.id)}"${r.id === selected ? " selected" : ""}>${esc(r.name || r.id)}</option>`).join("")}`;
+}
 
 /**
- * The Scenes tab's rows, a kit `formGrid`'s (E46-C2b): the two selects, `SCENES_ZONE_SLOT`, the hall's name, picture
+ * The Scenes tab's rows, a kit `formGrid`'s (E46-C2b): the two selects, the two zones (`scenesZoneRows`), the hall's name, picture
  * and words for the room tile (E79 C11), the warnings and the cast of the hall linked now, and "Prepare the hall" -
  * each but the selects a line across both columns. Until C2b the panel was labels around two selects and two fieldsets.
  */
@@ -1423,7 +1447,7 @@ export function scenesTabRows(roles = sceneRoles()) {
     return [
         { label: game.i18n.localize("DRPG.TrialScene.school"), id: ids.school, field: select("school") },
         { label: game.i18n.localize("DRPG.TrialScene.hall"), id: ids.trial, field: select("trial") },
-        SCENES_ZONE_SLOT,
+        scenesZoneRows(roles, hall),
         { full: `<fieldset class="drpg-scene-hall-room" data-drpg-hall-room>${hallRoomFields(hall)}</fieldset>` },
         { full: `<div data-drpg-scenes-report>${reportHtml(school, hall)}</div>` },
         { full: `<div data-drpg-cast-box>${castPickerHtml(hall)}</div>` },
@@ -1450,8 +1474,13 @@ export function wireScenesTab(root, block = () => {}) {
     const hallBox = root?.querySelector?.("[data-drpg-hall-room]");
     if (!school || !trial || !report || !castBox) return;
     const scene = select => (select.value ? game.scenes.get(select.value) : null) ?? null;
+    const zoneSelects = () => ["zoneA", "zoneB"].map(key => root.querySelector(`[name="scenes:${key}"]`));
+    const zonesNow = () => {
+        const [a, b] = zoneSelects();
+        return a && b ? { a: a.value || null, b: b.value || null } : null;
+    };
     const redraw = () => {
-        report.innerHTML = reportHtml(scene(school), scene(trial));
+        report.innerHTML = reportHtml(scene(school), scene(trial), zonesNow());
         let reason = null;
         if (scenesClash({ school: school.value, trial: trial.value })) reason = game.i18n.localize("DRPG.TrialScene.sameScene");
         else {
@@ -1471,8 +1500,17 @@ export function wireScenesTab(root, block = () => {}) {
             callback: path => { const live = field(); if (live) live.value = path; }
         }).render(true);
     });
+    // The zones are the hall's regions (E73 C1): the selects follow the hall chosen, empty for a new one.
+    for (const select of zoneSelects()) select?.addEventListener("change", redraw);
     trial.addEventListener("change", () => {
         castBox.innerHTML = castPickerHtml(scene(trial));
+        const regions = zoneCandidates(scene(trial));
+        for (const select of zoneSelects()) {
+            if (!select) continue;
+            const same = trial.value === trial.dataset.drawn && regions.some(r => r.id === select.dataset.drawn);
+            select.innerHTML = zoneOptions(regions, same ? select.dataset.drawn : "");
+            select.disabled = !scene(trial);
+        }
         // the fields show the hall now chosen: what Apply compares them with is that hall's (`hallRoomWrite`)
         if (hallBox) {
             hallBox.innerHTML = hallRoomFields(scene(trial));
@@ -1497,6 +1535,9 @@ export function readScenesTab(root) {
         school: school.value, trial: trial.value,
         drawn: { school: school.dataset.drawn ?? "", trial: trial.dataset.drawn ?? "" },
         cast: readCastPicker(root),
+        // The two zones (E73 C1): each select's value and what it drew; null without the selects.
+        zones: pick("zoneA") && pick("zoneB") ? { a: pick("zoneA").value, b: pick("zoneB").value,
+            drawn: { a: pick("zoneA").dataset.drawn ?? "", b: pick("zoneB").dataset.drawn ?? "" } } : null,
         hallRoom: pick("hallName") ? { name: pick("hallName").value, picture: pick("hallPicture")?.value ?? "", words: pick("hallWords")?.value ?? "" } : null,
         prepare: pick("prepare")?.checked
             ? { playlist: Boolean(pick("preparePlaylist")?.checked), voice: Boolean(pick("prepareVoice")?.checked) } : null
@@ -1543,7 +1584,14 @@ export function scenesTabWrites(read, stored = {}) {
     if (!read || scenesClash(read)) return none;
     const patch = {};
     for (const role of ["school", "trial"]) if (read[role] !== read.drawn?.[role]) patch[role] = read[role] || null;
-    const moved = Object.keys(patch).some(role => (stored?.[role] ?? null) !== patch[role]);
+    // The zones (E73 C1): written whole when either select changed, and when the hall did - a zone is a region of the
+    // hall it was picked on, so a new hall's zones are whatever its selects say, none until a GM picks them.
+    const zoneRead = read.zones ?? null;
+    const zonesMoved = zoneRead && (zoneRead.a !== zoneRead.drawn?.a || zoneRead.b !== zoneRead.drawn?.b);
+    if (zonesMoved || (zoneRead && "trial" in patch)) patch.zones = { a: zoneRead.a || null, b: zoneRead.b || null };
+    const same = (role, value) => (role === "zones"
+        ? (storedZones(stored).a === value.a && storedZones(stored).b === value.b) : (stored?.[role] ?? null) === value);
+    const moved = Object.keys(patch).some(role => !same(role, patch[role]));
     const hall = read.trial || null;
     const changes = read.cast?.sceneId === hall ? read.cast.changes ?? {} : {};
     return {

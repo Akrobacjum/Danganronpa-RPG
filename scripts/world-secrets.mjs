@@ -114,8 +114,8 @@ export const WORLD_SECRET_RULES = Object.freeze({
         /* The Closing Argument's volunteers and its draw (E70 C8; TR23 = 1): the GMs' store (gm-stores.mjs
            `closingClaimStore`); the floor says how many volunteered and whether there is somebody to confirm, never who. */
         trialQueue: Object.freeze({
-            fields: Object.freeze(["volunteers", "drawn"]),
-            since: "E70 C8", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52)"
+            fields: Object.freeze(["volunteers", "drawn", "truth"]),
+            since: "E70 C8; truth E73 C4", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52); a Logic Dive question's true answer, the GMs' store's (diveSetStore) until it is judged and never after (TR3)"
         }),
         /* E42's two records (E42 fix FG4; the end review's S-M4), each the primary GM's to write (R1259). */
         chapterEnd: Object.freeze({
@@ -135,9 +135,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         })
     }),
     everySetting: Object.freeze({
-        fields: Object.freeze(["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"]),
-        since: "R9; analysis, analyzedText, note and tokenId since E05 C5",
-        why: "a trace's answer key: what it really is, who left it, what it points at, how hard it is to read, what its analysis says, the GM's note on it, and which token on the map it is",
+        fields: Object.freeze(["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId", "leftBy"]),
+        since: "R9; analysis, analyzedText, note and tokenId since E05 C5; leftBy since E97 C1",
+        why: "a trace's answer key: what it really is, who left it (a bullet's key names them as leftBy), what it points at, how hard it is to read, what its analysis says, the GM's note on it, and which token on the map it is",
         /* ONE SETTING MAY HOLD tokenId, AND WHY (E05 C5, 26.09.2026). projectMeta names each
            project's own map token, `tokenId` beside `tokenScene` (projects-map.mjs
            `placeProjectToken`). That token is a world document every browser holds, and it
@@ -182,7 +182,8 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // its owner's copy (`mineBulletRefs`); the bullet's `remnantRef` flag, which told every
         // console which traces had been found and by whom, is gone - a `null` one as well
         // (truth-bullets.mjs `liftBulletRefs`; S05-39 (2)). An item on a sheet or in the sidebar.
-        Item: Object.freeze(["remnantRef"])
+        // E97 C1: who left the trace a bullet came from is its answer key's (truth-bullets.mjs `leftByOf`; Q1), never the item's.
+        Item: Object.freeze(["remnantRef", "leftBy", "leftByName"])
     }),
     messages: Object.freeze([
         /* E06 C5b: a roll the module threw (`supersedingRoll` stamps the flag) is emptied as it
@@ -211,6 +212,15 @@ export const WORLD_SECRET_RULES = Object.freeze({
             when: "secret",
             flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage", "thread", "kind", "gmAsk", "settled"]),
             since: "E06 C7a", why: "a private card's document says what it is about - its action, its roll's way, its sound, its item, a ruling asked (L16, S02-02)"
+        }),
+        /* E99 C7: the case's summary is one public card (case-summary.mjs `showCaseSummary`): what it says is the
+           allowlisted payload in its words (R3671), and its document says nothing more - it speaks under its own name,
+           never as a student, and carries its kind and its sound alone, no node id, tick or author. */
+        Object.freeze({
+            when: "caseSummary",
+            fields: Object.freeze(["speaker.actor", "speaker.token"]),
+            flagsOnly: Object.freeze(["caseSummary", "sfx"]),
+            since: "E99 C7", why: "the case summary's card holds only what its words say: no student speaks it, and no flag carries a node, a tick or who made them"
         }),
         /* E06 C8: a veiled card's document is addressed to the whole table, and a veiled thread
            card's placement - whose thread, its kind, that it asks the GM - goes with its words

@@ -34,8 +34,8 @@ async function tellGmsKeyMissing(item) {
     if (keyMissingTold.has(item.uuid)) return;
     keyMissingTold.add(item.uuid);
     try {
-        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.answerKeyMissing", {
-            bullet: item.name, actor: item.actor?.name ?? "?" }))}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Case.answerKeyMissing", {
+            bullet: item.name, actor: item.actor?.name ?? "?" }))}</p>` });
     } catch (err) {
         error("Could not tell the GMs a bullet's answer key is missing", err);
     }

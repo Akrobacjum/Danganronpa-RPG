@@ -17,6 +17,7 @@
  */
 
 import { MODULE_ID, MOTIVE } from "./config.mjs";
+import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, log, error, plural, esc} from "./utils.mjs";
@@ -147,9 +148,9 @@ export async function setMotive(input) {
     await game.settings.set(MODULE_ID, SETTINGS.motive, record);
 
     const consequence = record.consequence
-        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Motive.orElse", {
+        ? cardWarn(game.i18n.format("DRPG.Motive.orElse", {
             what: esc(record.consequence)
-        })}</p>`
+        }))
         : "";
 
     await announce({
@@ -278,7 +279,7 @@ function dueCard(stored) {
                 <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.dueBanner")}</div>
                 <p>${esc(stored.text)}</p>
                 ${stored.consequence
-                    ? `<p class="drpg-warning">${esc(stored.consequence)}</p>`
+                    ? cardWarn(esc(stored.consequence))
                     : ""}
             </div>`
     };

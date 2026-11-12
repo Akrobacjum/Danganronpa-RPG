@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Jedna strona. Moduł 1.2.104 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*Jedna strona. Moduł 1.2.108 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **Jesteś:** Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (maks. 6)**. Sanity na zerze = **Breakdown** (utrudnienie na każdym rzucie). Health na zerze = **Wounded** (o jedną akcję mniej). Rzut z Hope daje ci 1 Hope; rzut z Despair zasila Monokumę; krytyk daje 2 Hope.
 
@@ -71,7 +71,7 @@ W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Saf
 - **Class Trial.** Zaczyna się ze świeżym kompletem akcji i nikt nie wychodzi z pokoju; z akcji zostaje tylko Analyze, do tego Hope Calle i przedmioty. Otwarta dyskusja; Przedstawiaj Truth Bullets z ekwipunku, za darmo. Przedstaw pokazuje Truth Bullet z wynikiem twojego Analyze albo bez niego, a każdy inny dostaje kopię tak, jak ją pokazano; w rozprawie nie ma Udostępnij. Gdy GM otworzy Nonstop Debate, **OBJECTION!** na twoim kaflu głosu przerywa temu, kto mówi (albo mówił ostatni); potem masz 30 s na wybór Truth Bulleta, inaczej Objection zostaje wycofane, a cena nie wraca. Potem 60 s tylko ty, potem 120 s rebuttalu z osobą, w którą trafiło. Objection, tak jak Analyze na procesie, kosztuje 1 akcję, a bez niej 1 Hope, a bez tego 1 Sanity. W Testimony i Panic Round każdy mówi po kolei (Gotowe, Pasuję); w Closing Argument GM zatwierdza jednego zgłoszonego na 300 s; w nich dowody przedstawia tylko mówca, a Panic Round nie ma Objection. Potem tajne głosowanie - <ins>więcej niż połowa kart</ins> skazuje, remis liczy się jak pomyłka. Trafnie: Blackened stracony, gdy rozprawa się kończy, ocalali dostają Level Up. Błędnie: oskarżony ginie, gdy rozprawa się kończy, Blackened zostaje z Reinforced Level Up, który czeka na następny Level Up klasy.
 - **Śmierć.** Twoje Truth Bullets giną z tobą, gdy twoja śmierć wyjdzie na jaw; reszta zostaje przy ciele. Dopóki nikt cię nie znajdzie, wiedzą tylko GMowie i ci, którzy tam byli, a po incydencie twój głos jest w kanale tylko dla ciebie, którego nikt inny nie słyszy. Gdy twoja śmierć wyjdzie na jaw, GMowie mogą cię zaprosić do dalszej gry jako Monocub, jeśli przyjmiesz Zasadę Monocuba (nigdy nie mów żywym tego, co wiedzą tylko zmarli): Move, Confusion, Redeem, Ask for Hope, Tinker i Ghost Bet; żywy uczeń może zaproponować ci Bribe.
 
-**Zębatka ustawień**, prawy dolny róg: Język (English / Polski, tylko ta przeglądarka), motyw, skala, dźwięki, ograniczone animacje, wysoki kontrast.
+**Zębatka ustawień**, prawy dolny róg: Język (English / Polski, tylko ta przeglądarka), motyw, skala, dźwięki i głos (mikrofon, wyjście, push to talk), ograniczone animacje, wysoki kontrast.
 
 **Przycisk z książką**, prawy dolny róg pod komunikatorem, na prawo od zębatki: ta ulotka i Podręcznik gracza, w języku wybranym dla modułu.
 

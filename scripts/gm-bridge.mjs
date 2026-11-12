@@ -51,7 +51,7 @@ export { BRIDGE_ACTIONS } from "./bridge-table.mjs";
 export {
     requestOpeningResult, requestOfferRecord, requestCardPost, requestBodyLoot, requestPassageShare,
     requestPassageCross, requestLairLock, requestLairSeal, requestRefundCrossing, requestPassageFind, requestObject, requestEvidence, requestWithdraw,
-    requestRepoint, requestTrialGm, requestClaim, requestPresent, requestTurn, requestReadyOpen, requestReadyAnswer,
+    requestRepoint, requestTrialGm, requestClaim, requestTrialSide, requestTrialKeyword, requestPresent, requestTurn, requestReadyOpen, requestReadyAnswer,
     requestReadyEnd, requestArmCall, sendDespairToPrimary, requestOverflowAdd, requestOverflowClear, requestDespairSet,
     requestDespairAll, requestDespairRoster, requestOverflowTake, requestOverflowCheck, requestSabotage,
     requestUndoSabotage, requestProjectChange, requestSendBack, requestEclipseMove, requestNoteSave, requestBallotCast,

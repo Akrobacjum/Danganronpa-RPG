@@ -527,10 +527,10 @@ const CLAUSES = [
             }
 
             if (wideOpen.length) {
-                await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+                await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(
                     "DRPG.Anonymity.aboveLimited", {
                         actors: foundry.utils.escapeHTML(wideOpen.join(", "))
-                    })}</p>`);
+                    })}</p>` });
             }
 
             return opened.length || wideOpen.length ? { opened, wideOpen } : null;

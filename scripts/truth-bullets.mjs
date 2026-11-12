@@ -656,12 +656,24 @@ async function revealSourceOf(sceneId, remnantId) {
     }
 }
 
+/**
+ * WHO LEFT THE TRACE A BULLET CAME FROM, AS ITS ANSWER KEY NAMES IT (E97 C1, 11.11.2026; R3371): `leftBy`, the
+ * author's actor id, and `leftByName`, read off a trace's ledger row (remnants.mjs `remnantData`: `sourceActor`,
+ * `sourceName`) - `null` and "" for a row with no author or no row at all. The GMs' alone (Q1): it goes into the
+ * bullet's row of `bulletStore`, never onto the item, so the case map and E99 can name the author once the trace is
+ * gone. Pure.
+ */
+export function leftByOf(row) {
+    const leftBy = row?.sourceActor || null;
+    return { leftBy, leftByName: leftBy ? (row?.sourceName ?? "") : "" };
+}
+
 export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
     faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null, foundIn = undefined, epoch = undefined,
-    sourceAction = null, tiedToCrime = null
+    sourceAction = null, tiedToCrime = null, leftBy = undefined, leftByName = undefined
 } = {}) {
     if (!actor || !name) return null;
 
@@ -740,12 +752,19 @@ export async function createTruthBullet(actor, {
     if (!item) return null;
 
     const season = epoch !== undefined ? epoch : realType === "autopsy" && foundIn === undefined ? seasonEpoch() : undefined;
+    /* Who left its trace (E97 C1): the caller's word where it gives one - a copy hands on its giver's key
+       (handover.mjs `mintCopy`) - else the trace's row, read now. Written only when there is an author: a bullet of a
+       trace nobody is named for, or of none, keeps a row without the two fields, as every bullet before 1.2.107. */
+    const author = leftBy !== undefined
+        ? { leftBy: leftBy || null, leftByName: leftBy ? (leftByName ?? "") : "" }
+        : leftByOf(sceneId && remnantId ? await import("./remnants.mjs").then(m => m.remnantData(m.remnantById(sceneId, remnantId))).catch(() => null) : null);
     // `analyzedText` goes into the secret whether or not it went onto the item:
     // that is what lets `identify` publish it later without going back to the
     // Remnant, and what lets a trace the killer has since wiped still pay out.
     await setSecret(item.uuid, {
         realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText,
         faint: !!faint,
+        ...(author.leftBy ? author : {}),
         chapter: foundIn !== undefined ? foundIn : (stamp?.chapter ?? clock.chapter),
         ...(season !== undefined ? { epoch: season } : {})
     });
@@ -1400,11 +1419,11 @@ async function revertPlayerBulletEdit(item, touched, author) {
     // Only what was really put back is called put back. A field with no record
     // stays as the player wrote it, on this copy alone - the edit is never
     // carried up to the trace - and the GMs are told to look.
-    await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(
         missed.length ? "DRPG.TruthBullet.editUnrestored" : "DRPG.TruthBullet.editReverted", {
             player: foundry.utils.escapeHTML(author?.name ?? "?"),
             bullet: foundry.utils.escapeHTML(String(patch.name ?? item.name ?? "?"))
-        })}</p>`);
+        })}</p>` });
 }
 
 /**

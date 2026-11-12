@@ -5807,8 +5807,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
                 unreviewed: failures.filter(e => e.message.includes('Daggerheart sent "')).map(e => e.message),
                 toasts: (globalThis.__notifications ?? []).filter(n => String(n.msg ?? "").includes(name)
                     && String(n.msg ?? "").includes("new countdowns (${ACTION_COUNTDOWN})")).length,
-                // A whisper's words are a private card's (utils.mjs whisperToGms), read as the GM reads them.
-                whispers: game.messages.contents.filter(m => !seen.has(m.id) && String(S.contentOf(m)).includes("drpg-warning")).map(m => S.contentOf(m)),
+                // A whisper's words are a private card's (utils.mjs whisperToGms), read as the GM reads them; a warning is
+                // chat-card.mjs's card in the warning tone since E49 B5a (a \`p.drpg-warning\` before).
+                whispers: game.messages.contents.filter(m => !seen.has(m.id) && String(S.contentOf(m)).includes('data-drpg-tone="warning"')).map(m => S.contentOf(m)),
                 refused: (game.drpg.relayGuard().refused.countdownsFromAction ?? 0) - ${fromActionBefore.refused} };`);
         const fromActionHeard = await p1.eval(`return globalThis.__refused.filter(r => r.what === "daggerheart").length;`);
         check("RELAY: a player's countdown from an action adds nothing on the GM, is logged by name, the player is told and the GM reads which countdown",

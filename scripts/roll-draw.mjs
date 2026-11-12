@@ -131,9 +131,32 @@ export function rollDrawState() {
  * "changed", with the review's reason. Split out in fix r2-H6 (05.10.2026; review m3) so R217
  * reads the decision on a build that is not the reviewed one, not only the review.
  */
-export function seamFor(cls) {
+export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototype?.rollTrait } = {}) {
     const review = reviewBuild(cls);
-    return review.ok ? { state: "ok", why: "" } : { state: "changed", why: review.why };
+    if (!review.ok) return { state: "changed", why: review.why };
+    const road = reviewTraitRoad(rollTrait);
+    return road.ok ? { state: "ok", why: "" } : { state: "changed", why: road.why };
+}
+
+/**
+ * THE ROAD AN ACTION'S OPTIONS TAKE TO THE BUILD (E76 C3, 12.11.2026; R3602). The draw reads the
+ * module's marks off the config `build` is handed - `drpgActionRoll` decides an action from a statistic
+ * on the sheet (`drawOrThrow`), the nonce the claim - and they reach it only if Daggerheart's
+ * `rollTrait` hands its options on. Up to 2.10.x it does. From 2.12 (read in 2.12.8: actor.mjs
+ * `rollTrait` :727-743, move-context.mjs's constructor) it builds a `MoveContext`, which copies only
+ * the properties it names, so every module mark is gone and an action would be drawn as a statistic
+ * from the sheet. A `rollTrait` that names a MoveContext, or whose source cannot be read (a bound or
+ * native function), is a road this draw was not written for: "changed", the roll thrown on the
+ * player's browser and the GM told once per version. Not having one (no Actor class here) is not
+ * judged: the build's review decides alone. Carrying the marks through a MoveContext is the 2.12
+ * rework the plan splits off (Q-E76-5).
+ */
+function reviewTraitRoad(rollTrait) {
+    if (typeof rollTrait !== "function") return { ok: true, why: "" };
+    const text = Function.prototype.toString.call(rollTrait);
+    if (/\{\s*\[native code\]\s*\}/.test(text)) return { ok: false, why: "the actor's rollTrait cannot be read" };
+    if (/\bMoveContext\b/.test(text)) return { ok: false, why: "the actor's rollTrait builds a MoveContext, which keeps none of the module's roll marks" };
+    return { ok: true, why: "" };
 }
 
 /**
@@ -2225,8 +2248,8 @@ export function flagText(flag) {
 /** One whisper to the GMs for a roll with anything flagged: whose roll, and each difference. */
 async function tellUnexpected(actor, flags) {
     try {
-        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rolls.unexpected", {
-            name: actor.name, list: flags.map(flagText).join("; ") }))}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Rolls.unexpected", {
+            name: actor.name, list: flags.map(flagText).join("; ") }))}</p>` });
     } catch (err) {
         error("Could not tell the GMs of a roll's unexpected modifiers", err);
     }

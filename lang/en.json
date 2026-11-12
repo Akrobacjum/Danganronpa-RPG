@@ -231,6 +231,21 @@
     }
   },
   "DRPG": {
+    "DhSettings": {
+      "title": "Character settings",
+      "details": "Details",
+      "experiences": "Experiences",
+      "statistics": "Statistics",
+      "reserves": "Health and Sanity",
+      "maxHealth": "Max Health",
+      "maxSanity": "Max Sanity",
+      "newExperience": "New Experience",
+      "delete": "Delete",
+      "coreExperience": "A Level Up gave this experience; it cannot be removed here.",
+      "name": "Name",
+      "value": "Value",
+      "description": "Description"
+    },
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",
@@ -395,7 +410,13 @@
       "scopeWorld": "The whole table",
       "glassOnly": "Stained Glass only: pick that theme to change it.",
       "legacyOnly": "Monokuma Legacy only: pick that theme to change it.",
+      "gameTitle": "Game settings",
+      "mayNot": "Only a user Foundry lets change the world's settings can open the game's settings.",
+      "gameNote": "These are the whole table's settings: a change here changes the game for everybody.",
+      "liveNote": "The volumes and the voice settings apply as you move them; the rest waits for Save.",
       "sections": {
+        "audio": "Music and voice",
+        "foundry": "Foundry and the system",
         "look": "Look",
         "effects": "Effects and accessibility",
         "sound": "Sound and voice",
@@ -1320,6 +1341,132 @@
       "finalAddNote": "Save places it on the scene you are looking at, somewhere inside the room you pick. With no room picked, Save places none.",
       "finalPlacedIn": "Final Truth Remnant placed in {room}."
     },
+    "Zones": {
+      "open": "Hall zones",
+      "end": "End this mode",
+      "busy": "Another mode holds the floor. End it first, or close the debate.",
+      "noZones": "The trial hall has no Zone A and Zone B. Pick them in Room Setup's Scenes tab.",
+      "noAnswers": "Give both answers: one for Zone A and one for Zone B.",
+      "noQuestion": "A Logic Dive question has no words.",
+      "noSet": "Pick a Logic Dive set.",
+      "noCount": "Nothing to count now: the count is already in.",
+      "noQuestionHere": "Only in a Logic Dive.",
+      "noSide": "Pick Zone A or Zone B.",
+      "samePick": "That side is already picked.",
+      "noThesis": "Only the speaker, during their turn, with a few words.",
+      "notStarted": "The mode did not start. The console says why when the floor or the zones are not ready.",
+      "straw": {
+        "opened": "{question} Stand in Zone A for {a}, or in Zone B for {b}. The count comes in {seconds} s.",
+        "openedBare": "Stand in Zone A for {a}, or in Zone B for {b}. The count comes in {seconds} s.",
+        "finding": "The class thinks: {answer}. (Zone A {a}, Zone B {b})",
+        "split": "The class is split: Zone A {a}, Zone B {b}. A Scrum Debate can settle it."
+      },
+      "dive": {
+        "opened": "Question {n} of {total}: {question} Zone A: {a}. Zone B: {b}. {seconds} s to choose.",
+        "openedBare": "Question {n} of {total}. Zone A: {a}. Zone B: {b}. {seconds} s to choose.",
+        "right": "Right! Zone A {a}, Zone B {b}.",
+        "wrong": "Wrong. The Logic Dive ends here. (Zone A {a}, Zone B {b})",
+        "tie": "A tie counts as wrong. The Logic Dive ends here. (Zone A {a}, Zone B {b})",
+        "solved": "The Logic Dive is solved: {finding}",
+        "skipped": "The GM skips question {n}.",
+        "replay": "This set was played before: it ended {when} ({outcome}). Players may remember it.",
+        "replayStopped": "This set was played before: it stopped at question {n}, {when} ({outcome}). It starts there unless you pick another question.",
+        "outcome": {
+          "played": "played",
+          "solved": "solved",
+          "wrong": "wrong answer",
+          "tie": "a tie",
+          "stopped": "stopped by the GM",
+          "skipped": "the last question skipped",
+          "broken": "a question with no words"
+        },
+        "editor": {
+          "listTitle": "Logic Dive sets",
+          "newTitle": "New Logic Dive set",
+          "editTitle": "Edit a Logic Dive set",
+          "secret": "Only the GMs see this window. The players see each question and its two answers, never which one is right.",
+          "name": "Set name",
+          "conclusion": "Finding when solved (optional)",
+          "question": "Question {n}",
+          "truth": "Right answer",
+          "save": "Save the set",
+          "new": "New set",
+          "edit": "Edit",
+          "delete": "Delete",
+          "deleteTitle": "Delete a Logic Dive set",
+          "deleteBody": "Delete the set {name}? This cannot be undone.",
+          "noName": "Give the set a name.",
+          "count": "A set holds 1 to {max} questions.",
+          "blank": "Every question needs its words and both answers.",
+          "noTruth": "Mark the right answer of every question.",
+          "names": "A question or an answer names a student: {names}. No question in the zones should ask who did it."
+        }
+      },
+      "scrum": {
+        "opened": "{question} Camps form: Zone A for {a}, Zone B for {b}. The turns start in {seconds} s.",
+        "openedBare": "Camps form: Zone A for {a}, Zone B for {b}. The turns start in {seconds} s.",
+        "begins": "Zone {zone} speaks first; the camps take turns of {seconds} s until turn {turns}.",
+        "over": "The Scrum Debate is over: Zone A {a}, Zone B {b}.",
+        "empty": "Zone {zone} is empty. The class thinks: {answer}.",
+        "thesis": "Zone {zone}'s thesis: {text}"
+      },
+      "panel": {
+        "nobody": "nobody",
+        "counted": "Counted: Zone A {a}, Zone B {b}.",
+        "outside": "In neither zone: {names}.",
+        "thesis": "Thesis: {text}",
+        "straw": {
+          "vote": "{seconds} s to the count."
+        },
+        "dive": {
+          "vote": "Question {n} of {total} - {seconds} s to choose.",
+          "pause": "Question {n} of {total} is counted - the answer in {seconds} s."
+        },
+        "scrum": {
+          "setup": "The camps form - {seconds} s.",
+          "speak": "Turn {turn} of {turns}: {who} speaks for Zone {zone} - {seconds} s."
+        }
+      },
+      "picker": {
+        "title": "Hall zones",
+        "mode": "Mode",
+        "question": "Question",
+        "a": "Zone A's answer",
+        "b": "Zone B's answer",
+        "thesis": "Thesis (optional)",
+        "set": "Set",
+        "noSets": "No Logic Dive set yet.",
+        "editSets": "Logic Dive sets...",
+        "start": "Start",
+        "hint": {
+          "straw": "45 s for everyone to stand in a zone, then one count. Two thirds on one side is a Finding.",
+          "dive": "The set's questions one at a time, 60 s each. A majority goes on; a wrong answer or a tie ends the set.",
+          "scrum": "45 s for the camps to form, then the camps speak in turn, the smaller first."
+        }
+      },
+      "pick": {
+        "body": "You have no token in the trial hall. Pick the side you stand on.",
+        "side": "{zone}: {answer}",
+        "done": "You stand in {zone}."
+      },
+      "findings": {
+        "title": "Findings",
+        "button": "Findings ({n})",
+        "none": "No Findings yet in this trial.",
+        "intro": "What the class settled in the zone modes, and what you add. Every change here is told to the table.",
+        "confirmedMark": "Monokuma confirms",
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirm": "Monokuma confirms",
+        "add": "Add a Finding",
+        "text": "Finding",
+        "save": "Save",
+        "added": "The GM adds a Finding: {text}",
+        "edited": "The GM changes a Finding: {was} - now: {text}",
+        "deleted": "The GM takes a Finding off the list: {text}",
+        "confirmed": "Monokuma confirms: {text}"
+      }
+    },
     "Floor": {
       "next": {
         "start": "No Class Trial is running. Start the Class Trial.",
@@ -1334,7 +1481,9 @@
         "finishVerdict": "The verdict stopped before every step was done. Finish the verdict.",
         "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it.",
         "verdictElsewhere": "{name} is giving the verdict. End the chapter once it is done.",
-        "chapterEnd": "The verdict is in. End the chapter."
+        "chapterEnd": "The verdict is in. End the chapter.",
+        "endZone": "A zone mode holds the floor. It counts on its own; End this mode ends it.",
+        "scrum": "The Straw Poll split the class. Open a Scrum Debate from Hall zones, or open the debate."
       },
       "nobodyForTrial": "There is nobody alive to hold a Class Trial with.",
       "trialBegins": "The Class Trial begins",
@@ -1390,7 +1539,9 @@
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter.",
         "sentenceWaits": "The trial goes on: the sentence is carried out when it ends.",
         "round": "A round holds the floor: each speaker in turn. Skip moves to the next speaker; End this mode ends the round.",
-        "closing": "The Closing Argument holds the floor: confirm or pick its speaker, and after an Objection decide who continues. End the Closing Argument ends it; the vote is the next step."
+        "closing": "The Closing Argument holds the floor: confirm or pick its speaker, and after an Objection decide who continues. End the Closing Argument ends it; the vote is the next step.",
+        "zones": "A zone mode holds the floor: everyone answers by where their token stands. Count now and Skip on the bar bring the count forward; End this mode ends it.",
+        "scrum": "The Straw Poll split the class. A Scrum Debate from Hall zones lets the two camps argue it out; the debate and the vote are still open to you."
       },
       "objectionNote": "You never move the debate for an objection: a player's OBJECTION! takes it, and the minute starts when their Truth Bullet is on the table.",
       "manageTrial": "Class Trial",
@@ -1400,7 +1551,10 @@
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
         "panic": "Panic Round",
-        "closing": "Closing Argument"
+        "closing": "Closing Argument",
+        "straw": "Straw Poll",
+        "dive": "Logic Dive",
+        "scrum": "Scrum Debate"
       },
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An Objection is what takes the debate away from the table.",
       "holdingDebateOver": "Nonstop Debate - {seconds} s over your budget. Everyone may speak; +{step} s puts {step} s back on the clock.",
@@ -1426,7 +1580,9 @@
         "inRound": "A round has no debate to go back to: End this mode ends it.",
         "minusSeconds": "-{seconds} s",
         "plusSeconds": "+{seconds} s",
-        "inClosing": "The Closing Argument has no debate to go back to: End this mode ends it."
+        "inClosing": "The Closing Argument has no debate to go back to: End this mode ends it.",
+        "count": "Count now",
+        "skipQuestion": "Skip question"
       },
       "gmStepTitle": "The GM steps in",
       "turnSkipped": "Turn skipped: {name}.",
@@ -1543,7 +1699,8 @@
         "inExchange": "An Objection in the Closing Argument: after its exchange you decide who continues."
       },
       "startClosing": "Closing Argument",
-      "endClosing": "End the Closing Argument"
+      "endClosing": "End the Closing Argument",
+      "pickerLabel": "Start a mode"
     },
     "Events": {
       "redeemTitle": "Redeem is waiting",
@@ -2651,6 +2808,17 @@
         "words": "Description"
       },
       "noScene": "- none -",
+      "zoneA": "Zone A",
+      "zoneB": "Zone B",
+      "noZone": "- none -",
+      "zones": {
+        "zonesNone": "The trial hall has no zones. Straw Poll, Logic Dive and Scrum Debate need Zone A and Zone B: pick two regions of the hall above.",
+        "zoneMissing": "Only one zone is picked, or a zone's region is gone. Pick both Zone A and Zone B.",
+        "zonesSame": "Zone A and Zone B are the same region. Pick two different regions.",
+        "zonesOverlap": "Zone A and Zone B overlap. A token whose centre stands in both is counted on neither side.",
+        "zonesGap": "The zones do not cover the whole hall. A token outside both is counted on neither side.",
+        "zonesUnchecked": "This hall has no grid, and whether the zones cover it could not be checked in time."
+      },
       "castHeading": "Who takes part",
       "reveal": "Ticked: they take part - a token in the hall when the Class Trial opens (the GMs' own if there is one, else one the module makes), and brought to the room End the trial chooses. Unticked: no token of theirs is shown, and they are not moved after the trial - a test student, or a player nobody should see yet.",
       "noCast": "The world has no student or Monokuma yet.",
@@ -2960,6 +3128,11 @@
       "noToken": "{actor} has no token on any scene, so the trace could not be left. Tell the GM.",
       "noTokenGm": "{actor} performed “{action}” with no token anywhere, so no Remnant was placed. Place one by hand if it matters.",
       "leftBy": "Left by",
+      "authorLabel": "Left by (GMs only)",
+      "authorUnknown": "- unknown -",
+      "authorReplaceTitle": "Who left this trace",
+      "authorReplace": "This trace names {was} as the one who left it. Name {now} instead? It counts as theirs from now on, as a trace a player left would: Observe, an incident's tie and Tamper read it.",
+      "authorReplaceYes": "Replace",
       "revealWarning": "Remnants are your notes. Revealing this puts it on the map for everyone.",
       "dynamicNote": "{actor} did something in {room} (roll {total}): {what}",
       "searchNote": "{actor} searched {room} for a {category} (rolled {total}) and came away with {item} - Tier {tier}.",
@@ -3784,6 +3957,8 @@
         "bridge.ack": "A GM's word that your request arrived",
         "trial.turn": "Your turn in the round",
         "trial.claim": "Volunteering for the Closing Argument",
+        "trial.side": "Picking a side in the trial hall",
+        "trial.keyword": "A Scrum Debate thesis",
         "trial.present": "Presenting a Truth Bullet",
         "ready.open": "Asking the players whether they are done",
         "ready.answer": "Your answer to the GM",
@@ -4012,6 +4187,7 @@
       "woundedNote": "Down to one action this time of day, no Health left: {names}."
     },
     "Panel": {
+      "settings": "Settings",
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
       "title": "Danganronpa - GM Panel",
       "launcher": "Open the GM panel",
@@ -4033,7 +4209,7 @@
       "goStartInvestigationButton": "Start the Investigation",
       "goAutopsyButton": "Issue the autopsy",
       "goBodyButton": "Announce the body",
-      "goSeasonSetupButton": "Set the season up",
+      "goSeasonChecklistButton": "Season checklist",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
@@ -4051,8 +4227,8 @@
         "other": "{n} students still have actions to spend."
       },
       "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
-      "nextSeasonSetup": "The season is not set up yet. Next in Set the season up: {step}.",
-      "nextSeasonSetupAside": "Set the season up still waits on: {step}.",
+      "nextSeasonSetup": "The season is not set up yet. Next in the Season checklist: {step}.",
+      "nextSeasonSetupAside": "The Season checklist still waits on: {step}.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
       "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
@@ -4291,7 +4467,7 @@
         "permissions": "the file permissions"
       },
       "failed": "Foundry's settings could not be given back or held. The console says why.",
-      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Set the season up, or this module's settings) and press Hold them again.",
+      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Season setup, or this module's settings) and press Hold them again.",
       "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
@@ -4971,12 +5147,9 @@
     "Season": {
       "missingPool": "no Despair pool yet (every full Gamemaster account holds one)",
       "missingMonokumaActor": "no character is marked as Monokuma (Despair Flow, or the Actors list's right-click menu)",
-      "title": "Set the season up",
+      "title": "Season setup",
       "introOutstanding": "{n} still to do. A season can start without them; each missing piece shows up the moment it matters.",
       "introReady": "Every row this list needs is done. Pre-season checks look at more than this list - room pictures, voice, who can open the sheets - so run them before the first session.",
-      "campaignName": "Campaign name",
-      "campaignPlaceholder": "Hope's Peak: Drowned Summer",
-      "chapter": "Chapter",
       "note": "Every row is something a season needs, in the order a season is actually built.",
       "resourcesButton": "Give the starting resources",
       "cursorButton": "Hide the GMs' cursor",
@@ -5222,9 +5395,10 @@
       "firstSessionNote": "Set once, before the first session: where the trial is held, what the module holds of Foundry, and the dice.",
       "safeword": "Safeword",
       "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default.",
-      "campaignBlock": "This campaign",
+      "windows": "The season's windows",
+      "checklistTitle": "Season checklist",
       "startHereTitle": "Where to start",
-      "startHereText": "Start here: GM panel > Set the season up. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
+      "startHereText": "Start here: GM panel > Season setup. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
       "state": {
@@ -5717,6 +5891,7 @@
         "eclipseMoves": "Who has crossed how often in the Eclipse",
         "keyPlan": "The Key Remnant plan, chapter by chapter",
         "trialCast": "Which of the trial hall's tokens the trial shows",
+        "caseSchema": "The case map: each chapter's deductions, counters and solution",
         "notes": "The players' pre-session notes",
         "deaths": "The deaths nobody has found yet",
         "deferredOffers": "The Reinforced Level Ups waiting for the class",
@@ -5746,7 +5921,9 @@
         "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",
         "trialMute": "The microphones the Class Trial turned off, and what each player had before, kept by the GMs until it ends",
         "closingClaim": "Who volunteered for the Closing Argument, and who was drawn, kept by the GMs",
-        "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once"
+        "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once",
+        "caseTicks": "The trial's ticks: each chapter's deductions, counters and solution a GM ticked",
+        "diveSets": "Logic Dive sets: each set's questions, their answers and which answer is right"
       },
       "row": {
         "traces": {
@@ -5841,6 +6018,173 @@
       "restoredClamped": {"one": "{n} row was stamped later than the clock allows and was taken at this moment.", "other": "{n} rows were stamped later than the clock allows and were taken at this moment."},
       "moveTraces": "Move them into the ledger",
       "moveNote": "Move them into the ledger takes each trace's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
+    },
+    "CaseMap": {
+      "viewSwitch": "Investigation view",
+      "editLabel": "Fields of {name}",
+      "toolsLabel": "Map tools",
+      "cameraLabel": "Camera",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "zoomLevel": "Zoom",
+      "zoomFit": "Fit to view",
+      "viewMap": "Map",
+      "viewTable": "Table",
+      "graphLabel": "Case map, chapter {chapter}",
+      "colEvidence": "Evidence",
+      "colDeductions": "Deductions",
+      "colSolution": "Solution",
+      "unrelated": "Not tied to the murder: {n}",
+      "kind": {
+        "deduction": "Deduction",
+        "counter": "Counter",
+        "solution": "Solution",
+        "slot": "Key Remnant slot",
+        "remnant": "Remnant"
+      },
+      "state": {
+        "held": "Found",
+        "onMap": "On the map",
+        "planned": "Planned"
+      },
+      "slotNumber": "Slot {n}",
+      "noName": "(no name)",
+      "leftBy": "left by {name}",
+      "panelKind": "Kind",
+      "panelState": "State",
+      "panelRoom": "Room",
+      "panelAuthor": "Left by (GMs only)",
+      "panelWhoHas": "Who has it",
+      "panelMode": "Trial mode",
+      "nobodyYet": "Nobody yet",
+      "summaryTitle": "Chapter {chapter}",
+      "sumEvidence": "Evidence",
+      "sumTied": "Tied to the murder",
+      "sumHeld": "Found by students",
+      "sumDeductions": "Deductions",
+      "sumCounters": "Counters",
+      "noSchema": "No deduction yet.",
+      "cycle": "These inputs go round in a circle, so the map leaves them out: {nodes}.",
+      "noMode": "- no trial mode -",
+      "nothingToRefute": "No deduction to refute yet.",
+      "removeNode": "Remove from the case",
+      "removeAsk": "Remove {name} from the case? A node that rests on it keeps naming it, and the check says so.",
+      "addDeduction": "Add deduction",
+      "addCounter": "Add counter",
+      "addSolution": "Add solution",
+      "sortLabel": "Order in a column",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "field": {
+        "label": "Name",
+        "text": "Note for the GMs",
+        "mode": "Trial mode",
+        "inputs": "Rests on",
+        "refutes": "Refutes"
+      },
+      "sort": {
+        "manual": "By hand",
+        "kind": "By kind",
+        "room": "By room",
+        "state": "By state",
+        "uncrossed": "Fewer crossings"
+      },
+      "newLabel": {
+        "deduction": "New deduction",
+        "counter": "New counter",
+        "solution": "Solution",
+        "incident": "New Incident Remnant"
+      },
+      "reachYes": "{held}/{of}: the students can reach it",
+      "reachNo": "{held}/{of}: not yet",
+      "panelReach": "Students hold",
+      "culpritOnly": "Only the culprit holds it, so it does not count.",
+      "studentBullets": "Truth Bullets",
+      "studentItems": "Items",
+      "none": "None",
+      "checkCase": "Check consistency",
+      "noProblems": "Nothing to fix.",
+      "problemsFound": "Problems: {n}",
+      "hasProblem": "has a problem",
+      "problem": {
+        "noInputs": "{node} rests on nothing.",
+        "cycle": "{node} is on a circle of inputs, so the map leaves it out.",
+        "missing": "{node} refers to “{ref}”, which is gone.",
+        "noTarget": "{node} refutes nothing.",
+        "noSolution": "The case has deductions and no solution.",
+        "twoSolutions": "{node} is a second solution.",
+        "solutionUnreached": "Nothing on the map leads to {node}.",
+        "badMode": "{node} asks for a trial mode the trial does not have, “{ref}”.",
+        "culpritOnly": "Only the culprit holds {ref}, an input of {node}, so it does not count.",
+        "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares."
+      },
+      "addIncident": "Add Incident Remnant",
+      "placeOnMap": "Place on the map",
+      "showOnMap": "Show",
+      "waitingNone": "Every Incident Remnant the case plans is on the map.",
+      "waiting": {
+        "one": "The case waits for {n} Incident Remnant.",
+        "other": "The case waits for {n} Incident Remnants."
+      }
+    },
+    "CaseRealize": {
+      "preview": "Realization preview",
+      "undo": "Undo realization",
+      "title": "Realization of the case, chapter {chapter}",
+      "intro": "Nothing changes until you press Run realization. Each Key Remnant slot not on the map yet is placed in the room you pick; a slot with no room stays as it is.",
+      "colWhat": "What",
+      "colSlot": "Slot",
+      "colName": "Name",
+      "colRoom": "Room",
+      "noRoom": "- leave it -",
+      "run": "Run realization",
+      "undoNote": "Undo realization removes only what nobody has found.",
+      "action": {
+        "create": "Will place",
+        "placed": "On the map",
+        "overLimit": "Past the limit"
+      },
+      "ran": "Key Remnants the realization placed: {n}.",
+      "notRun": "Nothing was placed.",
+      "nothingMade": "The realization placed nothing this chapter.",
+      "undoAsk": "Take back what the realization placed? Marked: {n}. What a student has found stays.",
+      "undone": "Removed {removed}; {kept} stay, found or revealed.",
+      "askTitle": "The case's realization",
+      "askBody": "A body was found. The case for this chapter has not been realized yet. Nothing happens until you choose.",
+      "showPreview": "Show the preview",
+      "notNow": "Not now"
+    },
+    "CaseTrial": {
+      "title": "Case schema",
+      "empty": "No case schema yet. Build it on the Map in the Investigation panel.",
+      "floorOpen": "Another mode is running. End it first.",
+      "tickLabel": "Ticked: {name}",
+      "startLabel": "Start {mode} from {name}",
+      "hint": "Hint: the evidence shown supports this",
+      "presented": "Presented",
+      "ticked": "Ticked",
+      "unknown": {
+        "one": "{n} presented card isn't on the schema.",
+        "other": "{n} presented cards aren't on the schema."
+      }
+    },
+    "CaseSummary": {
+      "show": "Show summary",
+      "previewTitle": "The case's summary",
+      "intro": "Players get only this: what they found, the ticked deductions and counters, and the solution if they voted right.",
+      "send": "Send to everyone",
+      "sent": "Summary sent.",
+      "already": "Already sent for this trial.",
+      "noVerdict": "Only after the verdict.",
+      "title": "Chapter {chapter}: how the case was solved",
+      "speaker": "Case summary",
+      "noSolution": "The class voted wrong, so the solution stays hidden.",
+      "role": {
+        "evidence": "Evidence",
+        "deduction": "Deductions",
+        "counter": "Counters",
+        "solution": "Solution"
+      }
     },
     "Reveal": {
       "section": "Missing Key Remnants",
