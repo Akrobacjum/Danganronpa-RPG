@@ -3454,7 +3454,7 @@ const levelKey = level => level?.id ?? level ?? null;
  * corpse in the next room (a free answer to "where is the body") and the
  * Monokuma who happened to be walking through it.
  *
- * Three exclusions, each for its own reason:
+ * Three exclusions, each for its own reason (and a Spectator since E92 C1, which watches and is nobody in the room):
  *
  *   Monokuma  the GM standing on the map, not a witness who could testify.
  *             Counting one made a murder impossible to open in any room a GM
@@ -3472,6 +3472,8 @@ function countsAsPresent(token) {
     const actor = doc?.actor;
     if (!actor || actor.type !== "character") return false;
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
+    // A Spectator watches and is nobody in the room (E92 C1): no witness, no target, nobody overheard, no company.
+    if (actor.getFlag(MODULE_ID, FLAGS.spectator)) return false;
     if (isDeadForGm(actor)) return false;
     return !doc.hidden;
 }

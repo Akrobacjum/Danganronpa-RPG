@@ -47313,7 +47313,7 @@ const INVARIANTS = [
         must(watcher, "no living student a player owns - this would measure nothing");
         const has = list => [...list].some(a => (a?.actor ?? a)?.id === watcher.id);
         const read = () => ({
-            spectator: e92Export(M, "isSpectator")?.(watcher) ?? null, studentActors: has(M.studentActors()), acting: has(M.actingStudents()),
+            spectator: M.isSpectator(watcher), studentActors: has(M.studentActors()), acting: has(M.actingStudents()),
             census: has(M.studentCensus().all), handed: has(M.studentCensus([watcher]).all), owned: has(M.ownedStudents()),
             murderCast: has(livingStudentsForGm()), assignments: has(students()), ballots: has(trialParticipants({ connected: false })),
             trialCast: has(castActors())
@@ -47326,7 +47326,7 @@ const INVARIANTS = [
             after: { spectator: true, studentActors: false, acting: false, census: false, handed: false, owned: false, murderCast: false, assignments: false, ballots: false, trialCast: false },
             candidates: ["R3850free"] }),
             "[each reader of the roster with the student in the class, then flagged a Spectator; Pre-season's candidates]");
-    }, expectedRed("E92", "C1 writes the flag and isSpectator")],
+    }],
     ["R3851 - the Spectator is a GM's role, set in the Students window (E92 C1; the owner's 04.11 amend \"the GM assigns it in the Students window\"): config.mjs `FLAGS.spectator`; sheet-audit.mjs `kindOf` answers \"flag\" for a write of it, so a player's own write is put back; gm-students.mjs `changeRole` moves a character to and from \"spectator\" through monokuma.mjs `setSpectator`, unmarking the role it held first", async () => {
         /*
          * E92 C0, 12.11.2026. Stand-in roads record their calls and answer the actor (R2081's pattern); the characters
@@ -47355,7 +47355,7 @@ const INVARIANTS = [
             watchToKuma: [true, ["markFromSheet R3851-watch", "setSpectator R3851-watch false"]],
             same: [false, []] }),
             "[FLAGS.spectator; kindOf of its write; changeRole's roads for each move to and from the Spectator]");
-    }, expectedRed("E92", "C1 writes the flag, its road and the fourth role")],
+    }],
     ["R3852 - a Spectator is nobody in the room (E92 C1; the owner's E92 goal (3), (5)): movement.mjs `othersInNamedRoom` - Listen's names, the witnesses, a Palm's targets, a trap's \"alone\" - leaves its token out as it leaves a Monokuma's, and murder-rules.mjs `maybeThirdParty` passes it over", async () => {
         /*
          * E92 C0, 12.11.2026. A scene stand-in with three tokens in one room (a student, a Spectator, a Monokuma); the
@@ -47370,7 +47370,7 @@ const INVARIANTS = [
         const third = stripComments(fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "maybeThirdParty"));
         equal(stableJson({ present, third: /\bisSpectator\(actor\)\)\s*return/.test(third) }),
             stableJson({ present: ["R3852-student"], third: true }), "[who counts in the room; maybeThirdParty passes a Spectator over]");
-    }, expectedRed("E92", "C1 leaves the Spectator out of the room's people")],
+    }],
     ["R3853 - a Spectator's microphone is held in every phase (E92 C2; the owner's E92 goal (2)): voice.mjs `micHold` answers `{ reason: \"spectator\", held: true }` for an account whose characters are Spectators, in Daily Life and in the Class Trial alike, and nothing for a student's account", async () => {
         /*
          * E92 C0, 12.11.2026. The facts are handed (`micHold` takes them all), so no LiveKit and no world is read.
@@ -47467,7 +47467,7 @@ const INVARIANTS = [
          * comments that spell it are counted as they stand). Green from C0: the count is the census's own.
          */
         const CENSUS = { "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1,
-            "fog.mjs": 5, "gm-stores.mjs": 2, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 3, "monokuma.mjs": 8,
+            "fog.mjs": 5, "gm-stores.mjs": 2, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 3, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
             "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "states.mjs": 1, "trial-scene.mjs": 4,

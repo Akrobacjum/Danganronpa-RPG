@@ -604,6 +604,17 @@
         "note": "DB32 names the two pl.json keys that change: DRPG.Assign.footnote and DRPG.Season.hint.assignments."
       },
       {
+        "id": "spectator",
+        "en": "Spectator",
+        "pl": "Widz",
+        "gender": "m",
+        "inflection": "English plural: Spectators. Polish: Widz, Widza, Widzowi; plural Widzowie, Widzów.",
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E92",
+        "source": ["E92 plan"],
+        "note": "The kind of player who watches (E92): a character flagged `spectator`, no student. Never \"Obserwator\" for the role in Polish: that word is Foundry's OBSERVER permission level, which lang/pl.json names in its sheet-sharing texts (DRPG.Anonymity), so it is not a forbidden variant here - a lint would flag those. Q-E92-2's default, the owner to confirm."
+      },
+      {
         "id": "secure-a-trace",
         "en": "Secure a Trace",
         "pl": "Secure a Trace",

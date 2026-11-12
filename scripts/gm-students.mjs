@@ -25,7 +25,7 @@
  * header's - with its own row's actor; the window adds no road.
  */
 
-import { studentActors, isMonokuma, isNotInClass, markFromSheet, setMonokuma, setNotInClass } from "./monokuma.mjs";
+import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
@@ -166,7 +166,9 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
 
     const students = roster();
     const rest = others();
+    // The Spectators (E92 C1) are a group of their own, with the NPC's row: no State, nothing to do - no student.
     const groups = [["students", students, studentRow], ["monokumas", rest.filter(a => roleOf(a) === "monokuma"), otherRow],
+        ["spectators", rest.filter(a => roleOf(a) === "spectator"), otherRow],
         ["notInClass", rest.filter(a => roleOf(a) === "npc"), otherRow]].filter(([, list]) => list.length);
     // One group needs no heading: the rows say it already.
     const headed = groups.length > 1;
@@ -200,15 +202,22 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
  * Monokuma to Not in the class is the two in order (unmark, then mark out). Not in the class to Monokuma marks FIRST
  * and unmarks out after a yes: STAGE.md's order (unmark out, then mark) wrote the unmark before the ask, so a Cancel
  * left a student who had been an NPC. Answers whether the role moved; false when the ask was cancelled or a road refused.
- * `roads` is the suite's to hand (R2081, R2084): stand-ins for the three, each called as the module's own.
+ * `roads` is the suite's to hand (R2081, R2084, R3851): stand-ins for the four, each called as the module's own.
+ *
+ * THE SPECTATOR, A FOURTH ROLE (E92 C1, 12.11.2026; the owner's 04.11 amend: "the GM assigns it in the Students
+ * window"): monokuma.mjs `setSpectator(actor, true | false)`, a GM's road as the other two. The role it leaves is
+ * unmarked first (a Monokuma's by `setMonokuma(actor, false)`, an NPC's by `setNotInClass(actor, false)`), then the
+ * flag set; to Monokuma marks first and unmarks the Spectator after a yes, as from an NPC. A Monokuma flag wins over it
+ * (`roleOf`, as the sheet reads a character carrying both), and a Spectator over "Not in the class".
  */
-const ROLES = Object.freeze(["student", "monokuma", "npc"]);
-const ROLE_WORDS = Object.freeze({ student: "DRPG.Panel.role.student", monokuma: "DRPG.Monokuma.isMonokuma", npc: "DRPG.Class.notInClass" });
-const ROLE_ROADS = Object.freeze({ markFromSheet, setMonokuma, setNotInClass });
+const ROLES = Object.freeze(["student", "monokuma", "spectator", "npc"]);
+const ROLE_WORDS = Object.freeze({ student: "DRPG.Panel.role.student", monokuma: "DRPG.Monokuma.isMonokuma", spectator: "DRPG.Spectator.role",
+    npc: "DRPG.Class.notInClass" });
+const ROLE_ROADS = Object.freeze({ markFromSheet, setMonokuma, setNotInClass, setSpectator });
 
 /** The role a character holds by its flags, as the window's select names it. */
 function roleOf(actor) {
-    return isMonokuma(actor) ? "monokuma" : isNotInClass(actor) ? "npc" : "student";
+    return isMonokuma(actor) ? "monokuma" : isSpectator(actor) ? "spectator" : isNotInClass(actor) ? "npc" : "student";
 }
 
 /** Move `actor` to the role `to` through the roads above; see the note above. */
@@ -219,9 +228,15 @@ export async function changeRole(actor, to, roads = {}) {
     const road = { ...ROLE_ROADS, ...roads };
     if (to === "monokuma") {
         if (!(await road.markFromSheet(actor))) return false;
+        if (from === "spectator") return Boolean(await road.setSpectator(actor, false));
         return from === "npc" ? Boolean(await road.setNotInClass(actor, false)) : true;
     }
     if (from === "monokuma" && !(await road.setMonokuma(actor, false))) return false;
+    if (from === "spectator" && !(await road.setSpectator(actor, false))) return false;
+    if (to === "spectator") {
+        if (isNotInClass(actor) && !(await road.setNotInClass(actor, false))) return false;
+        return Boolean(await road.setSpectator(actor, true));
+    }
     // The sheet sets the two flags apart: a Monokuma marked out as well is out already, and is unmarked out on its way to student.
     if (to === "npc") return isNotInClass(actor) ? true : Boolean(await road.setNotInClass(actor, true));
     return isNotInClass(actor) ? Boolean(await road.setNotInClass(actor, false)) : true;

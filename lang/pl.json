@@ -3373,6 +3373,11 @@
       "fogBudget": "Fog: bez Free Move",
       "noExperiences": "Nie masz jeszcze doświadczeń. Zaczynasz z dwoma po +2, a Level Up może dodać kolejne."
     },
+    "Spectator": {
+      "role": "Widz",
+      "marked": "{name} jest teraz Widzem.",
+      "unmarked": "{name} nie jest już Widzem."
+    },
     "Class": {
       "notInClass": "Poza klasą",
       "outTooltip": "Oznacz jako poza klasą: NPC bez akcji, głosów i Level Upów.",
@@ -4429,6 +4434,7 @@
       "group": {
         "students": "Uczniowie",
         "monokumas": "Monokumy",
+        "spectators": "Widzowie",
         "notInClass": "Poza klasą"
       }
     },

@@ -22,7 +22,7 @@ cast, the trial's floor, the investigation's suspects, the Calls' targets, the d
 the Despair pools) and leaves the Spectator by C1's change to `studentActors` and `studentCensus`. R3850 reads the main
 ones.
 
-## 2. `type === "character"` - 73 lines in 35 files
+## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1)
 
 | File:line (at 59d1935) | What it is | Class |
 | --- | --- | --- |
@@ -47,6 +47,7 @@ ones.
 | monokuma.mjs:125, 131 `ownStudent`, `ownedStudents` | the account's student | leave it out (C1): a Spectator account has no student view |
 | monokuma.mjs:150, 164 | `viewerOf` / several | leave it out (C1) |
 | monokuma.mjs:220 `classCandidates` | Pre-season's NPC candidates | leave it out (C1) |
+| monokuma.mjs `ownSpectator` (new in C1) | the account's own Spectator | character here |
 | movement.mjs:1094 | a GM told a token was dropped | character here |
 | movement.mjs:2495 | rotation locked on a character's token | character here |
 | palm.mjs:287 | Palm's targets, after `othersInRoom` | roster-like: `othersInRoom` leaves it out (C1, `countsAsPresent`) |

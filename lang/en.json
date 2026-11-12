@@ -3103,6 +3103,11 @@
       "fogBudget": "Fog: no Free Move",
       "noExperiences": "No experiences yet. You start with two at +2, and a Level Up can add one."
     },
+    "Spectator": {
+      "role": "Spectator",
+      "marked": "{name} is now a Spectator.",
+      "unmarked": "{name} is no longer a Spectator."
+    },
     "Class": {
       "notInClass": "Not in the class",
       "outTooltip": "Mark as not in the class: an NPC, with no actions, ballots or Level Ups.",
@@ -4061,6 +4066,7 @@
       "group": {
         "students": "Students",
         "monokumas": "Monokumas",
+        "spectators": "Spectators",
         "notInClass": "Not in the class"
       }
     },

@@ -2402,7 +2402,8 @@ export function sameDecision(shown, now) {
  */
 export async function enterCastByHand() {
     if (!game.user?.isGM) return null;
-    const students = (game.actors?.contents ?? []).filter(a => a.type === "character");
+    // No Spectator (E92 C1): it is in nobody's incident.
+    const students = (game.actors?.contents ?? []).filter(a => a.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.spectator));
     const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
     const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;
