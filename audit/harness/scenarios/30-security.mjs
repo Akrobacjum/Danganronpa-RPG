@@ -6147,6 +6147,65 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await settle(300);
 
     /*
+     * FORGERIES OF A DEAD STUDENT'S ANSWER TO THE INVITATION (E72 C6, 12.11.2026; DC17, DC18). The Monocub Rule is taken
+     * by the dead student's own player: `monocub.answer` is judged on its owner (`owns`), and on the GMs' row of the
+     * invitation (`cubStore`), never on the packet. The GM marks Botan (p2's) dead and invites him, with p2's windows
+     * held shut so p2 does not answer first. Then p1's console accepts for Botan in p2's name (refused for ownership,
+     * told; Botan no Monocub, the invitation still open); the GM withdraws the invitation; and p2's console accepts for
+     * Botan with none open (refused, told `refused`; Botan no Monocub). The control - p2's yes from the Rule's window -
+     * is 33-bridge-paths A20.
+     */
+    phase("forgeries of a dead student's answer to the invitation", { flow: "monocub-invite" });
+    const p2Auto = await p2.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readInvite = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}"); const row = S.cubStore.get(b.id) ?? null;
+        return { cub: Mc.isMonocub(b), invite: Boolean(row?.invite), accepted: row?.acceptedRule ?? null };`;
+    const inviteSetup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}");
+        globalThis.__s30inviteRow = foundry.utils.deepClone(S.cubStore.get(b.id) ?? null);
+        await C.markDeceased(b);
+        return { open: await Mc.offerMonocub(b) };`, { timeout: 60000 });
+    await settle(800);
+    const inviteForged = await forge("monocub.answer", { actorId: ids.botan, accept: true }, readInvite);
+    check("SECURITY: p1 accepting the Monocub Rule for p2's dead Botan is refused for ownership and told - Botan no Monocub, the invitation still open",
+        inviteSetup.open === true && inviteForged.unchanged && inviteForged.forOwnership && inviteForged.after.cub === false
+            && inviteForged.after.invite === true && inviteForged.told.some(r => r.what === "monocub.answer"),
+        JSON.stringify({ inviteSetup, inviteForged }), { flow: "monocub-invite" });
+    await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); return await Mc.cancelMonocubOffer(game.actors.get("${ids.botan}"));`);
+    await settle(500);
+    const inviteBefore = await gm.eval(readInvite);
+    await p2.eval(`
+        if (!globalThis.__inviteToldHook) {
+            globalThis.__inviteToldHook = true; globalThis.__inviteTold = [];
+            game.socket.on("${SOCKET}", payload => {
+                if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__inviteTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+            });
+        }
+        globalThis.__inviteTold.length = 0;
+        game.socket.emit("${SOCKET}", { action: "monocub.answer", userId: game.user.id, requestId: "SECINVITENONE", actorId: "${ids.botan}", accept: true },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(900);
+    const inviteNone = { before: inviteBefore, after: await gm.eval(readInvite),
+        told: await p2.eval(`return globalThis.__inviteTold.filter(t => t[0] === "SECINVITENONE");`) };
+    check("SECURITY: p2 accepting the Monocub Rule for its own Botan with no invitation open is refused and told - Botan no Monocub",
+        JSON.stringify(inviteNone.before) === JSON.stringify(inviteNone.after) && inviteNone.after.cub === false && inviteNone.after.invite === false
+            && JSON.stringify(inviteNone.told) === JSON.stringify([["SECINVITENONE", "bridge.refused", "refused"]]),
+        JSON.stringify(inviteNone), { flow: "monocub-invite" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}");
+        if (Mc.isMonocub(b)) await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        const was = globalThis.__s30inviteRow; delete globalThis.__s30inviteRow;
+        if (was) await S.cubStore.patch(b.id, was);
+        else if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        return true;`, { timeout: 60000 });
+    await p2.eval(`const was = ${JSON.stringify(p2Auto)}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(300);
+
+    /*
      * FORGERIES OF AN OBJECTION (E79 C16, 1.2.79; the owner, 17.10.2026). OBJECTION! is aimed at whoever the primary
      * GM's LiveKit Room counts as speaking (trial.mjs `objectOnPrimary`), its Truth Bullet is chosen after it on the
      * objector's own pending Objection inside its 30 s (`evidenceOnPrimary`), and the card is the primary's. The

@@ -22,7 +22,8 @@
  *      since H82 C6 on the GM's own screen: started at its throw, before its message's echo, once, the audience told.
  *      Since E37 C3 also the readiness round before the clock moves: opened and ended by the Assistant GM on the primary,
  *      and a player's own Done (A18). Since E37 C7 also every road of the Despair pools and the Overflow from the
- *      Assistant GM, written on the primary (A19).
+ *      Assistant GM, written on the primary (A19). Since E72 C6 also a dead student's player's yes to the GMs'
+ *      invitation to become a Monocub, from the window with the Rule (A20).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -1569,6 +1570,44 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await (await import("${repoUrl}/scripts/clock.mjs")).setClock(${JSON.stringify(a18Clock)});
         return true;`, { timeout: 60000 });
     for (const c of players) await c.eval(`const was = ${JSON.stringify(a18Auto[c.who])}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(500);
+
+    /* A20. A DEAD STUDENT'S YES TO THE INVITATION (E72 C6, 12.11.2026; DC17, DC18). The GMs invite Botan (p2's), dead, to
+       become a Monocub (monocub.mjs `offerMonocub`): the invitation is the GMs' row (`cubStore`), its copy reaches p2's
+       browser, which opens the window with the Monocub Rule (`openInvitation`), and p2 - a client that presses a window's
+       first button - accepts. The answer goes to the primary as `monocub.answer`: Botan a Monocub, the Rule's acceptance
+       kept with p2's id, the invitation closed, nothing refused. 30-security sends the same packet from consoles. */
+    phase("a dead student's answer to the invitation", { flow: "monocub-invite" });
+    const a20Read = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${IDS.botan}"); const row = S.cubStore.get(b.id) ?? null;
+        return { cub: Mc.isMonocub(b), invite: Boolean(row?.invite), accepted: row?.acceptedRule?.by ?? null };`;
+    await clearFailures(gm);
+    const a20Refused = (await refusedSince(p2)).length;
+    const a20Log = await p2.eval(`return globalThis.__dialogLog.length;`);
+    const a20Setup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${IDS.botan}");
+        globalThis.__a20Row = foundry.utils.deepClone(S.cubStore.get(b.id) ?? null);
+        await C.markDeceased(b);
+        return { dead: C.isDeadForGm(b), open: await Mc.offerMonocub(b) };`, { timeout: 60000 });
+    await settle(1500);
+    const a20 = { setup: a20Setup, after: await gm.eval(a20Read),
+        windows: await p2.eval(`return globalThis.__dialogLog.slice(${a20Log}).map(d => d.title);`),
+        refused: (await refusedSince(p2)).length - a20Refused, logged: await refusalsLogged(gm, "monocub.answer") };
+    check("A20: p2's yes to the GMs' invitation, from the window with the Monocub Rule, makes its dead Botan a Monocub on the primary - the Rule's acceptance kept with p2's id, the invitation closed, nothing refused (E72 C6)",
+        a20.setup.dead === true && a20.setup.open === true && a20.windows.includes("Become a Monocub?")
+            && a20.after.cub === true && a20.after.invite === false && a20.after.accepted === p2.userId
+            && a20.refused === 0 && a20.logged.length === 0,
+        JSON.stringify(a20), { flow: "monocub-invite" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const b = game.actors.get("${IDS.botan}");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        const was = globalThis.__a20Row; delete globalThis.__a20Row;
+        if (was) await S.cubStore.patch(b.id, was);
+        else if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        return true;`, { timeout: 60000 });
     await settle(500);
 
     /* ------------------------------------------- A. the Assistant as the primary */

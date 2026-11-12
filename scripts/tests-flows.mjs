@@ -222,9 +222,10 @@ export const FLOWS = Object.freeze([
     // it, and no scenario or tier-1 test clicks the sheet's Monocub tile - 40 and 83 call `performCubAbility` from
     // p2's console, 71's part C reads the tile turn affordable. Moved to E72, the Monocub's stage.
     // E72 C6 (12.11.2026): the invitation, answered from the dead student's player's window (monocub.mjs `openInvitation`)
-    // as `monocub.answer`; tier 2 judges a player's packet, and no scenario drives the window yet.
+    // as `monocub.answer`; tier 2 judges a player's packet, 33-bridge-paths A20 drives the window's yes, and
+    // 30-security sends the packet from consoles.
     { id: "monocub-invite", what: "A dead student's player answers the GMs' invitation to become a Monocub",
-        entry: { bridge: ["monocub.answer"] }, scenarios: [], status: "partial", stage: "E72" },
+        entry: { bridge: ["monocub.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E72" },
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
     // E72 C2 (12.11.2026): the Monocubs' record (gm-stores.mjs `cubStore`, the crime witness's mark) is the GMs' with its
     // owner's copy, whose ask and answer are monocub.mjs's socket (`registerCubCopy`).
