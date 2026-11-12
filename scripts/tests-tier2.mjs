@@ -48918,6 +48918,19 @@ const SCENARIOS = [
                 gone: (report, key) => !S.traceDigestStore.has(key),
                 back: key => stableJson([S.traceDigestStore.get(key)?.note, S.traceDigestStore.get(key)?.chapter]) === stableJson(["SUITE backed-up digest row", 99])
             },
+            // A Logic Dive set, through its store (E73 C4; backed up with the case, `backup: true`). Backed up with no
+            // fixture here from 5101742, and this test failed naming it (CI 12.11, run 43164772167, shard 7). A set no
+            // floor plays: no card is posted and nobody is sent it.
+            diveSets: {
+                seed: async () => {
+                    await S.diveSetStore.patch("SUITEE73DIVESET0", { name: "SUITE backed-up set", conclusion: null, chapter: 99,
+                        questions: [{ question: "SUITE question", a: "one", b: "two", truth: "b" }],
+                        usedAt: null, endedAt: null, stoppedAt: null, outcome: null, made: 1, by: game.user.id });
+                    return "SUITEE73DIVESET0";
+                },
+                gone: (report, key) => !S.diveSetStore.has(key),
+                back: key => stableJson([S.diveSetStore.get(key)?.name, S.diveSetStore.get(key)?.questions?.[0]?.truth]) === stableJson(["SUITE backed-up set", "b"])
+            },
             bullets: {
                 seed: async () => {
                     const item = await bullets.createTruthBullet(holder, { name: "Suite fixture: a backed-up answer", realType: "final",

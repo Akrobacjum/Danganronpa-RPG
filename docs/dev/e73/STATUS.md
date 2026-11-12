@@ -45,11 +45,11 @@ on the vote's opening card; the GM edits, deletes and marks "Monokuma confirms" 
 
 ## Deviations, defaults taken (owner to confirm)
 
-- **Q-E73-2, the console rebuild: not in this line.** The coordinator's rule for this line is to keep the console's
-  changes to what E73 needs (E61 rebuilds parts of it on another line). The three modes join the console as it is: one
-  footer button for the zone modes' picker window, their panel in the console's middle drawn from one contract
-  (`ZONE_PANELS`, trial-zones-ui.mjs), so the rebuild reads it. C0b's mock-ups are drawn for the owner's pick; the
-  rebuild waits for that pick and E61's merge.
+- **Q-E73-2, the console rebuild: answered by the owner, mockup B (12.11 ~10:17).** Built in 5fc377d: three sections
+  `data-drpg-trial-region` "status" (the lead, the time, the table, the register and one mode picker with every mode,
+  greyed with its reason while another holds the floor), "mode" (the mode's name, line, bar, log, Findings and an empty
+  `data-drpg-trial-schema-slot`) and "manage" (the Reveal, the vote); the footer no longer holds the mode starts.
+  Its layout facts: R3911, green on 5fc377d.
 - Q-E73-1: the scenario is 68-trial-zones. Q-E73-3: the set editor a kit window, the run in the console. Q-E73-4 as
   above. Q-E73-5: the modes are in floor-machine.mjs `MODES`, so E99's `caseModes` and the census have them.
 - A wrong majority in Logic Dive ends the set as a tie does, and shows no truth either (the set stays replayable).
@@ -67,9 +67,18 @@ on the vote's opening card; the GM edits, deletes and marks "Monokuma confirms" 
 Red first: each commit's new tests were run on a worktree at 4077664 with the new test files copied in, and failed
 for the reason named in the commit; green on the commit.
 
-| (this) | The console's lead in a zone mode says the zone mode's line, not "An objection or a rebuttal holds the floor" (seen on the screenshots) | R1364, R1124, R2050, R2051, "E73" by name |
+| 38654b1 | The console's lead in a zone mode says the zone mode's line, not "An objection or a rebuttal holds the floor" (seen on the screenshots) | R1364, R1124, R2050, R2051, "E73" by name |
+
+| e94630a | Merge of origin/claude/fervent-sagan-gme4vt (fa73b601); E99's census renumbered R3659 -> R3910 (the release line's R3659 took the number); R3510 pins trial-zones.mjs and case-summary.mjs; AUDIT 9 items renumbered 488-495 | tiers 0-1 |
+| 5fc377d | Mockup B console (above) | R3911; R1020, R1025, R1036, R1046, R1257 follow the regions |
+| (this) | The tier-2 "Back up the case, then Restore" test gains its `diveSets` fixture: CI on ec0775f (run 43164287414) and 38654b1 (run 43164772167) failed there, shard 7, the one failure of each | that test by name, red in CI, green here |
 
 ## Test results
+
+- 5fc377d (pre-push): tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; tier 2 by name (E73, E70-T, E99, Testimony,
+  Closing Argument, Scenes tab) 56 green; scenarios 41 (51/51), 63 (74/74), 67 (45/46, 1 expected red), 68 (20/20),
+  72 (132/136, 4 expected red), 81 (32/32), 88 (26/26). CI's only red on the two pushes before was the backup fixture
+  (above), which the local by-name runs had not selected.
 
 - 5101742: tiers 0-1 1191 passed, 0 failed, 16 skipped, 1 red (R3339, E48's).
 - ec0775f (pre-push): tiers 0-1 1192 passed, 0 failed, 16 skipped, 1 red; lint, check (17 parts), gate green; prose
@@ -90,10 +99,12 @@ for the reason named in the commit; green on the commit.
   picker, the Logic Dive editor, Findings, the Scenes tab's zones, both themes, EN and PL (GM windows); and C0b's two
   console mock-ups at 1366x768 and 1920x1080. Not Foundry: the style harness. Not on the page: the side-pick window
   (a player's), the zones on the canvas. Seen and fixed: the console's lead in a zone mode.
+- Round 2 (12.11.2026): https://claude.ai/artifact/MZ5j81TzpNU59Pgp6cH8Bh - the mockup B console at 5fc377d in a Straw
+  Poll and with no trial, both themes, EN and PL. Not Foundry: the style harness; the schema slot is empty (E99).
 
 ## Open questions for the owner
 
-- Q-E73-2: which console frame (mock-up A or B), and the rebuild in its own stage after E61? Default taken: not in E73.
+- Q-E73-2: answered, mockup B; built in this line (5fc377d), not after E61 as the default had it.
 - Q-E73-1, -3, -4, -5: defaults taken (above), owner to confirm.
 - A wrong Logic Dive majority shows no truth, as a tie does (the set stays replayable): default taken, owner to confirm.
 - The Pre-season check's hall row now counts "no zones" as not done (optional row): owner to confirm it should.
@@ -102,9 +113,9 @@ Tokens so far: not measured by this line.
 
 - Q-E99-1 (the coordinator's addition, 12.11): the case schema (`trialSchemaHtml`) belongs in the console's middle
   once the console is rebuilt, with the frame's button opening it larger, redrawn only on its own watches (the
-  86-frame-work risk of an SVG redrawn every second). The rebuild is not in E73 (Q-E73-2 above), so the schema stays
-  E99's window of its own from the footer for now; the move goes with the rebuild. Default as the coordinator worded it
-  ("schema in the console's middle") recorded for that stage, owner to confirm.
+  86-frame-work risk of an SVG redrawn every second). The owner's words in E97/E99: "schemat na środku ekranu
+  rozprawy, status na górze, zarządzanie na dole". Mockup B holds the slot for it in the mode section; E99 (1.2.109)
+  fills it. E73 does not draw the schema there.
 
 ## Waits for other lines
 
@@ -112,7 +123,7 @@ Tokens so far: not measured by this line.
   Monocub (vote.mjs `trialParticipants` leaves them out already).
 - **E61** (trial entry, cut-in): no cut-in in a zone mode yet.
 - **E74**: nothing of E74 is read here.
-- **The console rebuild** (Q-E73-2): waits for the owner's pick of the mock-ups (C0b, the review page) and E61's merge.
+- **The case schema in the console's middle**: E99 (1.2.109) fills the slot. E73 ships as 1.2.116.
 
 ## Not done (named for the next round)
 
