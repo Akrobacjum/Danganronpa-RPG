@@ -13,6 +13,11 @@ poucinane. Powiekszmy je by zawsze wyswietlaly cala swoja zawartosc, a edycja ni
 ekranu (usuwamy panel), tylko na samych modulach. Dodajmy ruch i oddalanie i przyblizanie 'kamery' na schemacie jesli
 jeszcze go nie ma."
 
+**The Map as the default view (the owner's decision relayed 12.11, "E97 tak"):** already so on this base since C9 -
+`investigationView` answers "map" for a GM with no `investigationView` flag - and held by tier 1's R3652, which opens the
+dashboard for a GM with no flag and expects `opened: "map"`. Checked by a mutant here: the default turned to "table"
+-> R3652 failed (1 passed, 1 failed); put back -> green (2 passed). No code change needed.
+
 ### What changed
 
 | Ask | What was built | Test |
