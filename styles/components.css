@@ -2925,7 +2925,6 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-sound tr.drpg-data-
    the Monokuma panel's portrait, its ticked row, the warning's `:empty`) with the kit's tokens for the base sheet's
    ink and line. The ticked Monokuma's row takes the info box's ground (it was the eye's colour at 12 %: no new
    colour, E48). The warning box hides by its `hidden` attribute, written with its text. */
-.application.drpg-ui.drpg-window-gmteam .drpg-data-table-box > table.drpg-data-table td.drpg-data-col-despair-mark { text-align: center; }
 .application.drpg-ui.drpg-window-gmteam .drpg-monokuma-portrait {
     width: 1.6rem;
     height: 1.6rem;
@@ -3002,10 +3001,10 @@ body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-k
    as the end of Edit campaign's block; its own height (`.drpg-kit-pinned`), so the body above scrolls and the row stays. */
 body .application.drpg-window-season .drpg-kit-pinned { padding: 10px 0 2px; border-top: 1px solid var(--drpg-line-strong); }
 body .application.drpg-window-season .drpg-season-tiles .drpg-gmp-grid { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
-body .application.drpg-window-preseason .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
-body .application.drpg-window-preseason .drpg-check-title { overflow-wrap: anywhere; }
-body .application.drpg-window-preseason .drpg-check-unknown > summary { cursor: pointer; }
-body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(--drpg-kit-help-ink); padding-left: 1em; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-title { overflow-wrap: anywhere; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > summary { cursor: pointer; }
+body .application:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-unknown > div { color: var(--drpg-kit-help-ink); padding-left: 1em; }
 /* Measured in Chromium (probe 08's capture, the style harness, 1366x768, 09.11): under Legacy the marks are set in the
    pixel face, which draws nothing for a check or a cross (a 20 x 16 px box, the colour right, no glyph), and a title that
    wraps set its lines into each other; the marks take the face Pre-season's report was set in before (over the pixel
@@ -3013,8 +3012,8 @@ body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(-
    the fix lines a line height of their own (the marks' face is the kit's since E47-KFa: danganronpa.css's exception to
    the pixel face, beside the icon fonts', reaches every checklist). Pre-season's fine print (the cast's header, "no scene has rooms") from the
    start, where the dialog's paragraph rule centred it. */
-body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-preseason) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
-body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-foundry-report) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
+body .application.dialog:is(.drpg-window-season-checklist, .drpg-window-foundry-report) .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
 
 /* ---- the Class Trial console and the vote (E47 C1, 09.11.2026; M6, the owner's q-console; S12-51, S18-89) ----
    The console's rules, moved from danganronpa.css with the window (the CSS contract), selector for selector, so their

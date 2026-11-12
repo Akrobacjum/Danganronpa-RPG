@@ -78666,6 +78666,70 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ musicEnabled: [true, true, true], sfxVary: [true, true, true], sameWindow: true, save: 0, closed: true }),
             "{each switch: [drawn as the setting stood, flipped and stored, flipped back and stored]; the same window; Apply buttons; Close closes}");
     }],
+    ["E101-T6 - Despair Flow's Monokumas tab lists the Monokumas alone with their pool, and two on one pool are said in a warning box above its table (E101 item 6; R4051, R2030)", async () => {
+        /*
+         * E101 item 6, 12.11.2026 (the owner's yes to the GM screens' review, #7). The Monokuma box is gone, so the warning
+         * R2030 read by ticking two boxes is read here on two characters made Monokumas by monokuma.mjs `setMonokuma` (the
+         * Students window's road), both put on the GM's pool in the form; closed with Cancel, so the form writes nothing.
+         * Each character's flag and the tracks `setMonokuma` clears are put back.
+         */
+        needs(env.dialogs(), "Despair Flow is read on a drawn window");
+        needs(world.atLeast("livingStudents", 2), "two characters to make Monokumas");
+        const T = await import("./gm-team-dialog.mjs");
+        const { monokumas } = await import("./despair.mjs");
+        const { isMonokuma, setMonokuma, studentActors } = await import("./monokuma.mjs");
+        const gms = monokumas();
+        must(gms.length >= 1, "nobody holds a Despair pool here - the window would not open");
+        const pair = studentActors().filter(a => !isMonokuma(a)).slice(0, 2);
+        must(pair.length === 2, "two students to mark - this would measure nothing");
+        const R = "system.resources";
+        const was = pair.map(actor => ({ actor, flag: actor._source.flags?.[MODULE_ID]?.[FLAGS.monokuma],
+            tracks: Object.fromEntries(["hope", "actions"].filter(k => foundry.utils.getProperty(actor._source, `${R}.${k}`) !== undefined)
+                .map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(actor._source, `${R}.${k}`))])) }));
+        const poolsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.monokumaPools) ?? {});
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-gmteam"));
+        const read = {};
+        let answer = null;
+        try {
+            for (const actor of pair) await setMonokuma(actor, true);
+            await settle();
+            answer = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            await until(() => open()[0]?.element, 6000);
+            const root = open()[0]?.element;
+            must(root, "Despair Flow did not open - this would measure nothing");
+            root.querySelector("[data-drpg-flow-unfold]")?.click();
+            root.querySelector('nav.drpg-tabs [data-drpg-tab-key="monokumas"]')?.click();
+            const pane = root.querySelector('[data-drpg-pane="monokumas"]');
+            const rows = [...pane.querySelectorAll("tbody tr")];
+            read.rows = rows.map(tr => tr.dataset.actor).filter(id => pair.some(a => a.id === id)).sort();
+            read.others = rows.filter(tr => !isMonokuma(game.actors.get(tr.dataset.actor))).length;
+            read.boxes = pane.querySelectorAll("input[type=checkbox]").length;
+            for (const actor of pair) {
+                const select = pane.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`);
+                select.value = gms[0].id;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            const warn = pane.querySelector(".drpg-monokuma-warning");
+            const table = pane.querySelector("table.drpg-data-table");
+            read.warning = [Boolean(warn?.querySelector('.drpg-box[data-drpg-box="warning"]')), Boolean(warn && !warn.hidden),
+                Boolean(warn && table && (warn.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                pair.every(a => warn?.textContent.includes(a.name))];
+            root.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+        } finally {
+            for (const app of open()) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            for (const { actor, flag, tracks } of was) {
+                if (flag === undefined) { if (actor._source.flags?.[MODULE_ID]?.[FLAGS.monokuma] !== undefined) await actor.unsetFlag(MODULE_ID, FLAGS.monokuma); }
+                else await actor.setFlag(MODULE_ID, FLAGS.monokuma, flag);
+                if (Object.keys(tracks).length) await actor.update(Object.fromEntries(Object.entries(tracks).map(([k, v]) => [`${R}.${k}`, v])));
+            }
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.monokumaPools) ?? {}) !== stableJson(poolsWas)) await game.settings.set(MODULE_ID, SETTINGS.monokumaPools, poolsWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ rows: pair.map(a => a.id).sort(), others: 0, boxes: 0, warning: [true, true, true, true] }),
+            "{the two Monokumas' rows; rows of a character that is no Monokuma; checkboxes on the tab; the warning [a warning box, shown, above the table, both names]}");
+    }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-34. `registerMusic`'s `updateSetting` listener answered a `musicMap` write with
@@ -86443,7 +86507,7 @@ const SCENARIOS = [
         }), `{steps: per Apply [a region update on the scene opened on, the updates on the scene on screen, the module flags whose value changed on each]; fog: ${a.name}'s fog box on each scene; footers: the buttons after each tab}`);
     }],
 
-    ["E46-T4 - Pre-season checks drawn on the GM (E46-C5b; card M4): the window holds its parts in today's order - the cast and the scenes always, the room pictures and the voice when they have a row, the contract, the dice look, the anonymity audit - each but the audit a kit checklist under its heading (or its one line, or the contract's unread rows folded); red only where a row is blocking, in a part whose rows may block (the cast, the scenes, the room pictures); no `pre`, no `p.drpg-check-report`, no mark of `checkMarks` outside the audit", async () => {
+    ["E46-T4 - Pre-season checks drawn on the GM (E46-C5b; card M4; the Season checklist's further checks since E101): the parts in order - the room pictures and the voice when they have a row, the dice look, the anonymity audit - each but the audit a kit checklist under its heading (or its one line); red only where a row is blocking, in a part whose rows may block (the room pictures); no `pre`, no `p.drpg-check-report`, no mark of `checkMarks` outside the audit", async () => {
         /*
          * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"). R2033 reads `preSessionReport` with the
          * facts handed in; this reads the window a GM opens (Season setup's Pre-season checks, `runPreSessionChecks`) over
@@ -86451,20 +86515,23 @@ const SCENARIOS = [
          * look. It is closed with Close; nothing is written. Red first on c1046f5e: `runPreSessionChecks` is not exported
          * (and the window drew `pre`).
          */
+        /* E101 item 2 (12.11.2026): Pre-season checks are the Season checklist's further checks, under its rows
+           (`fillMoreChecks`); the cast and the scenes are the rows', the contract and given-back line gone from the
+           report (Diagnostics' `foundryReport`, the What the module holds row). Changed on purpose: read in the checklist. */
         needs(env.dialogs(), "Pre-season checks are read on a drawn window");
         const SS = await import("./season-setup.mjs");
-        must(typeof SS.runPreSessionChecks === "function", "season-setup.mjs exports no runPreSessionChecks");
-        const ORDER = ["givenBack", "cast", "scenes", "pictures", "voice", "contract", "dice", "anonymity"];
-        const ALWAYS = ["cast", "scenes", "contract", "dice", "anonymity"];
-        const MAY_BLOCK = ["cast", "scenes", "pictures"];
-        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-preseason"));
-        must(of().length === 0, "a Pre-season checks window stands open already");
-        const run = SS.runPreSessionChecks();
+        must(typeof SS.openSeasonChecklist === "function", "season-setup.mjs exports no openSeasonChecklist");
+        const ORDER = ["pictures", "voice", "dice", "anonymity"];
+        const ALWAYS = ["dice", "anonymity"];
+        const MAY_BLOCK = ["pictures"];
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-season-checklist"));
+        must(of().length === 0, "a Season checklist window stands open already");
+        const run = SS.openSeasonChecklist();
         let got = null;
         try {
-            await until(() => of()[0]?.element?.querySelector('[data-drpg-check-part="anonymity"]'), 20000);
-            const el = of()[0]?.element;
-            must(el, "no Pre-season checks window was drawn - this would measure nothing");
+            await until(() => of()[0]?.element?.querySelector('[data-drpg-season-more] [data-drpg-check-part="anonymity"]'), 20000);
+            const el = of()[0]?.element?.querySelector("[data-drpg-season-more]");
+            must(el, "no Season checklist with its further checks was drawn - this would measure nothing");
             const parts = [...el.querySelectorAll("[data-drpg-check-part]")];
             const names = parts.map(p => p.dataset.drpgCheckPart);
             got = {
@@ -86483,7 +86550,7 @@ const SCENARIOS = [
             await Promise.race([run, wait(3000)]);
         }
         equal(stableJson(got), stableJson({ order: true, always: true, listed: true, headed: true, red: [], old: 0, marks: 0 }),
-            "Pre-season checks on the GM [its parts in today's order, the five that are always there, a checklist, a line or the contract's "
+            "The Season checklist's further checks on the GM [its parts in order, the two that are always there, a checklist, a line or the contract's "
             + "unread rows folded in each but the audit, a heading on each | parts with a blocking row that may not have one | pre and p.drpg-check-report left | checkMarks' "
             + "marks outside the audit]");
     }],

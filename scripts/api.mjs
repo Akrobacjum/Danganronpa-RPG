@@ -1186,7 +1186,7 @@ export const DrpgApi = {
     diagnoseDespair,
 
     /** Who is still missing the guide's starting resources - run before a session
-     *  zero. Also a line of Season setup's pre-session checks and of `diagnose()`. */
+     *  zero. Also a line of `diagnose()`; the Season checklist's rows check the same since E101. */
     diagnoseCharacters,
 
     /** Why does the sheet look different here than on another install? */

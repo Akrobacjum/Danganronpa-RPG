@@ -249,7 +249,11 @@ export const WINDOWS = [
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
     // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
     { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
-    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
+    /* E101 item 2: Pre-season checks are the checklist's further checks, filled under its rows once the window stands - the
+       page keeps its id (audit/style-baseline.json and R1323's pages name it) and is the checklist with them drawn
+       (`waitFor`); their technical lines are Foundry and modules, from the Debug log. */
+    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", waitFor: "[data-drpg-season-more] [data-drpg-check-part=\"anonymity\"]" },
+    { id: "foundry-report", module: "season-setup.mjs", call: "m.openFoundryReport()" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard({ view: \"table\" })" },
     { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
@@ -339,6 +343,9 @@ const capture = (repoUrl, w) => `
         app.element.querySelector(click)?.click();
         await new Promise(r => setTimeout(r, 300));
     }
+    /* A part the window fills after it stands (E101: the Season checklist's further checks), waited for, up to 6 s. */
+    const waitFor = ${JSON.stringify(w.waitFor ?? null)};
+    for (let i = 0; app && waitFor && i < 120 && !app.element.querySelector(waitFor); i++) await new Promise(r => setTimeout(r, 50));
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {
         const step = new Set(foundry.applications.instances.keys());

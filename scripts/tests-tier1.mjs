@@ -18605,6 +18605,49 @@ const INVARIANTS = [
             folded: [true, true, read.folded[2] === "none" ? "none" : true, false], open: "overflow", show: 1, boxes: 0, pools: monokumaIds, setsRole: false
         }), "{layouts: [one GM; two; one and an Assistant to grant; two with one to revoke]; the tab buttons hidden (pools, monokumas, students, overflow); the tab open; the Show button; Monokuma boxes; the pool selects' actors; Save sets a role}");
     }],
+    ["R4052 - the Season checklist and Pre-season checks are one window, each check once, the technical lines in Diagnostics (E101 item 2; the owner's yes of 12.11.2026 to the GM screens' review, #3): season-setup.mjs exports no `runPreSessionChecks`, the checklist's footer has no Pre-season button and no closing note, and it fills its further checks (`preSessionReport`: the room pictures, the voice, the dice look with its button and no console line, the anonymity audit) under its rows; that report has no cast, scenes, contract or given-back part; `steps()` has no Sound files row and no hall-tokens row of its own (the hall's lines are the Scenes row's), names the characters no player owns (`npcs`), draws What the module holds only while Foundry's settings are given back, sends the Monokuma row to the Students window, and its rooms row asks fog.mjs `sceneVisionReady`; `foundryReport` holds the contract and the dice look's console line, opened from the Debug log in Diagnostics (gm-panel.mjs `openFailureLog`'s Foundry and modules button), no tile of its own", async () => {
+        /*
+         * E101 item 2, 12.11.2026. The review (artifact T8eePyz1, Season checklist and Pre-season checks): the cast, the
+         * starting item, the Despair pools and the rooms were checked twice in other words, and the report carried lines
+         * a GM cannot act on (the contract's unread places, a console command). The one check only Pre-season made - a
+         * room scene still on Foundry's own vision, black for the players - is the rooms row's now. The rows read with
+         * the facts handed in; the report with its facts handed in (no A/V, no scene, no dice look, the contract empty);
+         * the windows' sources cut with the kit. Red at 4dfac3a.
+         */
+        const SS = await import("./season-setup.mjs");
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const keys = givenBack => SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, givenBack, dsn: true }).map(s => s.key);
+        const list = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, givenBack: false, dsn: true });
+        const row = key => list.find(s => s.key === key);
+        const box = document.createElement("div");
+        box.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), diceLook: [], contract: { rows: [], failed: [], unknown: [] } });
+        const parts = [...box.querySelectorAll("[data-drpg-check-part]")].map(p => p.dataset.drpgCheckPart);
+        const intro = game.i18n.localize("DRPG.DiceLook.diag.introGm");
+        const tech = document.createElement("div");
+        tech.innerHTML = typeof SS.foundryReport === "function" ? await SS.foundryReport({ contract: { rows: [], failed: [], unknown: [{ target: "R4052", where: "x", note: "y" }] } }) : "";
+        const checklist = fnSource(src("season-setup.mjs"), "openSeasonChecklist");
+        const panelList = src("gm-panel.mjs").match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        const read = {
+            alias: Object.keys(SS).includes("runPreSessionChecks") ? "exported" : "undefined",
+            footer: [/action:\s*"checks"/.test(checklist), /DRPG\.Season\.note"/.test(checklist),
+                /fillMoreChecks\(/.test(checklist) && /preSessionReport\(/.test(fnSource(src("season-setup.mjs"), "fillMoreChecks"))],
+            // The pictures and the voice draw a part only when they have a row to say (no scene and no A/V handed in here).
+            parts: parts.filter(p => p !== "pictures" && p !== "voice"),
+            dice: [box.querySelectorAll("[data-drpg-dice-look]").length, box.textContent.includes(intro)],
+            keys: [keys(false).includes("sound"), keys(false).includes("hallTokens"), keys(false).includes("npcs"), keys(false).includes("foundryHeld"), keys(true).includes("foundryHeld")],
+            monokuma: /openWhoIsAliveDialog/.test(String(row("monokumas")?.open ?? "")),
+            vision: /sceneVisionReady\(/.test(fnSource(src("season-setup.mjs"), "steps")) && /export function sceneVisionReady\(/.test(src("fog.mjs")),
+            tech: [tech.querySelectorAll('[data-drpg-check-part="contract"]').length, tech.textContent.includes(intro)],
+            tile: /action:\s*"foundry"/.test(fnSource(src("gm-panel.mjs"), "openFailureLog")) && /openFoundryReport\(\)/.test(fnSource(src("gm-panel.mjs"), "openFailureLog"))
+                && !/foundryReport/.test(panelList)
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            alias: "undefined", footer: [false, false, true], parts: ["dice", "anonymity"], dice: [1, false],
+            keys: [false, false, true, false, true], monokuma: true, vision: true, tech: [1, true], tile: true
+        }), "{runPreSessionChecks; [the checklist's Pre-season button, its closing note, its further checks]; the report's parts with nothing to say; [the dice look's button, its console line]; "
+            + "[Sound files, hall tokens, npcs, What the module holds (not given back), (given back)]; the Monokuma row opens Students; the rooms row asks the scene's vision; [Diagnostics' report: the contract part, the console line]; the Debug log's button and no tile}");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
@@ -18900,16 +18943,19 @@ const INVARIANTS = [
             checks: (first.buttons ?? []).find(b => b.action === "checks")?.label ?? null,
             player: [player, asked.length]
         }), stableJson({
-            asked: [KNOWN[0], KNOWN[1], KNOWN[0]],
+            /* E101 item 2 (changed on purpose; the owner's yes to the GM screens' review, #3): no Pre-season checks button
+               and no second window - the further checks are the slot after the First session rows, and the closing note
+               is gone. */
+            asked: [KNOWN[0]],
             title: L("DRPG.Season.checklistTitle"),
             width: true,
-            parts: ["p", "checklist", "firstSession", "p"],
+            parts: ["p", "checklist", "firstSession", "div"],
             rows: want,
             fields: 0,
-            footer: [["checks", "secondary"], ["close", "close"]],
-            checks: L("DRPG.Panel.seasonChecks"),
+            footer: [["close", "close"]],
+            checks: null,
             player: [null, 0]
-        }), "{asked: the windows in order [the checklist, Pre-season checks, the checklist back]; title; width: the tables'; parts: the body's in order; rows: "
+        }), "{asked: the windows in order [the checklist alone since E101]; title; width: the tables'; parts: the body's in order; rows: "
             + "the checklist's keys (steps() not of the First session); fields: named fields in the window; footer: [action, role] sorted; checks: its label; player: [the answer, windows asked]}");
     }],
     ["R3585 - Season setup's tiles are the GM panel's, in look and in glyph, in both themes (E49 A1e; the owner, 12.11.2026: \"the same shape as the GM panel's tiles\", \"the glyphs those windows had as tiles\"): each tile Season setup draws is gm-panel.mjs `tileHtml`'s markup of its `SEASON_TILES` row; the cascade gives a Season setup tile what it gives a tile of the panel's window, property by property, under Monokuma Legacy and under Stained Glass; and its icon wears the drawing tests-glyphs.mjs names for it - under the glass Despair Flow team, The Mastermind mask, Killing game rules rules and the Season checklist season-checklist (a drawing of its own, not the Projects tile's), under Legacy the hand drawings the three tiles wore at ecba3f21 and the Season checklist's Font Awesome icon", async () => {
@@ -31330,7 +31376,8 @@ const INVARIANTS = [
         must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const wired = [/readDraft\(dialog\.element, \{ step: step\.key \}\)/.test(fnSource(src, "wireSetupSteps")),
             /readDraft\(dialog\.element, \{ action: entry\.key \}\)/.test(fnSource(src, "wireSeasonTiles")),
-            /readDraft\(d\.element, \{ action: "checks" \}\)/.test(fnSource(src, "openSeasonChecklist")),
+            // No Pre-season checks button since E101 item 2 (changed on purpose): its round trip is gone with it.
+            !/action: "checks"/.test(fnSource(src, "openSeasonChecklist")),
             ...["openSeasonSetup", "openSeasonChecklist"].map(fn => /seasonOpening\(dialog\.element, draft\?\.place \?\? null\)/.test(fnSource(src, fn)))];
         equal(stableJson({ ...out, wired }), stableJson({
             place: [{ scrollTop: 420, step: "items", action: null }, { scrollTop: 420, step: null, action: "checks" }],
@@ -31644,12 +31691,10 @@ const INVARIANTS = [
         }
         const row = givenBack => SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map(), givenBack }).find(r => r.key === "foundryHeld") ?? null;
         const rows = [row(true), row(false)].map(r => (r ? [r.done, r.optional === true, typeof r.open === "function"] : null));
-        const report = async givenBack => {
-            const el = document.createElement("div");
-            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), givenBack });
-            return el.textContent.includes(words("DRPG.GiveBack.preSeason"));
-        };
-        const lines = [await report(true), await report(false)];
+        /* E101 item 2 (changed on purpose): Pre-season's report is the Season checklist's further checks, and its given-back
+           line is the What the module holds row's, drawn only while Foundry's settings are given back. */
+        const report = givenBack => (row(givenBack)?.missing?.() ?? []).includes(words("DRPG.GiveBack.preSeason"));
+        const lines = [report(true), report(false)];
         const sources = new Map(await otherSources());
         const module = stripComments(sources.get("module.mjs") ?? "");
         must(module.length, "module.mjs is not among the module's sources - this would measure nothing");
@@ -31666,7 +31711,7 @@ const INVARIANTS = [
             books: [await box("en", "**Before you switch the module off**", words("DRPG.GiveBack.holdAgain")),
                 await box("pl", "**Zanim wyłączysz moduł**", pl.DRPG?.GiveBack?.holdAgain ?? "\u0000")] }), stableJson({
             offers: [true, true, false, false], asked: ["hold", "close"], held: 1,
-            rows: [[false, true, true], [true, true, true]], lines: [true, false], ready: true,
+            rows: [[false, true, true], null], lines: [true, false], ready: true,
             keys: [true, true, true, true], books: [true, true]
         }), "a module holding nothing after Give back says nothing [asked: given back and Hold, given back and Not now, not given back, a player | "
             + "the questions | the holds | Season setup's row given back, not (done, optional, opens) | Pre-season's line given back, not | ready asks | "
@@ -32022,7 +32067,8 @@ const INVARIANTS = [
         const SS = await import("./season-setup.mjs");
         const read = async contract => {
             const el = document.createElement("div");
-            el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract });
+            // Diagnostics' Foundry and modules since E101 item 2 (Pre-season checks until then): changed on purpose.
+            el.innerHTML = await SS.foundryReport({ contract });
             return el.textContent;
         };
         const failed = await read(mod.runContract({ rows }));
@@ -32718,7 +32764,8 @@ const INVARIANTS = [
             why: "R1553", when: "always", fallback: `R1553 fallback ${id}`, probe });
         const rows = [...Array.from({ length: 20 }, (_, i) => row(`blind${i}`, () => ({ present: null }))), row("gone", () => ({ present: false }))];
         const el = document.createElement("div");
-        el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract: mod.runContract({ rows }) });
+        // Diagnostics' Foundry and modules since E101 item 2 (Pre-season checks until then): changed on purpose.
+        el.innerHTML = await SS.foundryReport({ contract: mod.runContract({ rows }) });
         const full = el.textContent;
         const shown = el.cloneNode(true);
         for (const fold of shown.querySelectorAll("details:not([open])")) for (const child of [...fold.children]) if (child.tagName !== "SUMMARY") child.remove();
@@ -33007,8 +33054,10 @@ const INVARIANTS = [
             /extraPoolUserIds\(\)/.test(pools), docOver("\n    monokumas,").includes("Assistant GM"),
             REST.long.perSession === true && /roomFlag\(/.test(fnSource(rest, "roomAllows") ?? ""),
             docOver("\n    takeRest,").includes("once per session") && docOver("\n    takeRest,").includes("roomAllows") && !/bedroom/i.test(docOver("\n    takeRest,")),
-            /diagnoseCharacters\(\{ toChat: false \}\)/.test(sources.get("season-setup.mjs") ?? "") && !/diagnoseCharacters/.test(panelText(sources)),
-            docOver("\n    diagnoseCharacters,").includes("pre-session checks") && !/GM panel/.test(docOver("\n    diagnoseCharacters,")),
+            // E101 item 2 (changed on purpose): Pre-season checks became the Season checklist's further checks, whose rows
+            // ask what this report printed, so the window calls it no more; still no panel tile.
+            !/diagnoseCharacters\(/.test(stripComments(sources.get("season-setup.mjs") ?? "")) && !/diagnoseCharacters/.test(panelText(sources)),
+            docOver("\n    diagnoseCharacters,").includes("Season checklist") && !/GM panel/.test(docOver("\n    diagnoseCharacters,")),
             /migrateTruthBullets/.test(migrate) && /migrateRemnants/.test(migrate), /the data migration runs\s+\*?\s*them too/.test(docOver("\n    migrateTruthBullets,"))
         ]), stableJson([true, true, true, true, true, true, true, true, true, true]),
         "[clock: search tokens by default, actions opt-in | its comment | pools: Assistant GMs granted one | its comment | rest: per session, by room flag | "
@@ -33077,7 +33126,8 @@ const INVARIANTS = [
             "the notice does not give the row's sentence in the table's language, or still gives the register's English [notices | the sentence | the fallback]");
         const SS = await import("./season-setup.mjs");
         const el = document.createElement("div");
-        el.innerHTML = await SS.preSessionReport({ av: {}, scenes: [], head: async () => ({ status: 200, bytes: 1 }), contract: mod.runContract({ rows: [failing] }) });
+        // Diagnostics' Foundry and modules since E101 item 2 (Pre-season checks until then): changed on purpose.
+        el.innerHTML = await SS.foundryReport({ contract: mod.runContract({ rows: [failing] }) });
         equal(stableJson([el.textContent.includes(sentence), el.textContent.includes(real.fallback)]), stableJson([true, false]),
             "Pre-season's line does not give the row's sentence, or still gives the register's English [the sentence | the fallback]");
         // The console and the report keep the English the author reads: the run still carries `fallback`.
@@ -33859,7 +33909,7 @@ const INVARIANTS = [
                 + "one over no token answered null, and the stack reader on a region's frame and on another behaviour's");
     }],
 
-    ["R1132 - Set the season up has a First session screen: season-setup.mjs `steps()` gives hallTokens, scenes, foundryHeld and diceSoNice the group `firstSession`, each optional with its state and, while not done, its Open where it has a window; `firstSessionHtml` draws them under their heading, and the window keeps them out of the checklist's list and wires both lists (E51 C8; E51-48, audit S17-49)", async () => {
+    ["R1132 - Set the season up has a First session screen: season-setup.mjs `steps()` gives scenes (with the hall's tokens since E101), foundryHeld (while given back, since E101) and diceSoNice the group `firstSession`, each optional with its state and, while not done, its Open where it has a window; `firstSessionHtml` draws them under their heading, and the window keeps them out of the checklist's list and wires both lists (E51 C8; E51-48, audit S17-49)", async () => {
         /*
          * E51 C8, 31.10.2026; audit S17-49. What a GM new to the module sets once - the hall and its tokens, the
          * Scenes, what the module holds of Foundry (enforced.mjs, the ENFORCED rows) and Dice So Nice - was spread over
@@ -33894,12 +33944,14 @@ const INVARIANTS = [
             window: [/setupRows\(list\.filter\(step => step\.group !== FIRST_SESSION\)[,)]/.test(opener), /\$\{firstSessionHtml\(list\)\}/.test(opener),
                 /querySelectorAll\("ul\.drpg-checklist"\)/.test(wiring)]
         }), JSON.stringify({
-            keys: ["hallTokens", "scenes", "foundryHeld", "diceSoNice"], optional: true,
-            state: [[false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), false, false], [false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), true, true]],
+            /* E101 item 2 (changed on purpose; the owner's yes to the GM screens' review, #3): the hall's tokens are the
+               Scenes row's lines (no hall here: not done, "No trial hall is linked."), and What the module holds is drawn
+               only while Foundry's settings are given back, with the line Pre-season's report gave. */
+            keys: ["scenes", "foundryHeld", "diceSoNice"], optional: true,
+            state: [[false, false, false], [false, true]],
             heading: game.i18n.localize("DRPG.Season.firstSession"),
-            drawn: [["hallTokens", DASH, true, game.i18n.localize("DRPG.Season.noHall")],
-                ["scenes", SS.steps().find(r => r.key === "scenes")?.done ? "✓" : DASH, !SS.steps().find(r => r.key === "scenes")?.done, null],
-                ["foundryHeld", DASH, true, null], ["diceSoNice", DASH, modules, null]],
+            drawn: [["scenes", DASH, true, game.i18n.localize("DRPG.Season.noHall")],
+                ["foundryHeld", DASH, true, game.i18n.localize("DRPG.GiveBack.preSeason")], ["diceSoNice", DASH, modules, null]],
             window: [true, true, true]
         }), "the First session rows (keys, optional, done with no hall, Dice So Nice off and Foundry given back, then on and held), their section as drawn (key, mark, Open, what is missing), and the window's lists");
     }],
@@ -38354,7 +38406,7 @@ const INVARIANTS = [
          * opener a DialogV2 call, the tiles `drpg-gm-route`, the Next button `DRPG.Panel.nextGo`.
          */
         const SOURCE_B = [["gm-panel.mjs", "openGmPanel"], ["gm-panel.mjs", "openFailureLog"], ["season-setup.mjs", "openSeasonSetup"], ["season-setup.mjs", "openSeasonChecklist"],
-            ["season-setup.mjs", "askStartHere"], ["season-setup.mjs", "runPreSessionChecks"], ["season-wipe.mjs", "resetSeason"],
+            ["season-setup.mjs", "askStartHere"], ["season-setup.mjs", "openFoundryReport"], ["season-wipe.mjs", "resetSeason"],
             ["gm-campaign.mjs", "confirmCorrection"], ["gm-campaign.mjs", "openClockDialog"], ["gm-items.mjs", "openItemManager"],
             ["gm-items.mjs", "giveKeyDialog"], ["gm-items.mjs", "gmGiveItemDialog"], ["gm-items.mjs", "giveTruthBulletDialog"],
             ["gm-items.mjs", "issueAutopsyDialog"], ["gm-items.mjs", "takeItemDialog"], ["tables-editor.mjs", "installTables"],
@@ -38386,7 +38438,8 @@ const INVARIANTS = [
             // E49 A1d: Reset the season moved in from its tile, destructive (R3532). E49 A1e: Pre-season checks left the footer
             // (R3580) for the Season checklist's, a read-out's Close beside it (R3584).
             ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", reset: "destructive", close: "cancel" }, ["save", "reset", "close"]],
-            ["./season-setup.mjs", "openSeasonChecklist", undefined, "drpg-window-season-checklist", { checks: "secondary", close: "close" }, ["checks", "close"]],
+            // E101 item 2: Pre-season checks became its further checks; Close alone (changed on purpose).
+            ["./season-setup.mjs", "openSeasonChecklist", undefined, "drpg-window-season-checklist", { close: "close" }, ["close"]],
             ["./season-setup.mjs", "resetSeason", undefined, "drpg-window-season-reset", { reset: "destructive", cancel: "cancel" }, ["reset", "cancel"]],
             ["./gm-campaign.mjs", "openClockDialog", undefined, "drpg-window-clock", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./gm-items.mjs", "openItemManager", undefined, "drpg-window-items",
@@ -38742,7 +38795,7 @@ const INVARIANTS = [
         const wideAdded = [...sources].filter(([file]) => !/^tests/.test(file)).filter(([, text]) => /["'`]drpg-wide["'`]/.test(stripComments(text))).map(([file]) => file);
         // Each window that had a width rule, and the name it states now.
         const SITES = [["sound-panel.mjs", "openSoundDialog", "wide"], ["tables-editor.mjs", "placeResultDialog", "wide"], ["tables-editor.mjs", "openItemTables", "tables"],
-            ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "tables"], ["season-setup.mjs", "runPreSessionChecks", "wide"],
+            ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "tables"], ["season-setup.mjs", "openFoundryReport", "wide"],
             ["dice-look.mjs", "diagnoseDiceLook", "wide"], ["gm-panel.mjs", "openFailureLog", "wide"], ["gm-panel.mjs", "openGmPanel", "panel"], ["projects-ui.mjs", "openProjectManager", "matrix"]];
         const sites = SITES.filter(([file, fn, name]) => !new RegExp(`\\bwidth:\\s*"${name}"`).test(fnSource(stripComments(sources.get(file) ?? ""), fn))).map(([file, fn]) => `${file} ${fn}`);
         // The kit: the width's classes and position, its screen cap, the GM panel's ultrawide box, a ceiling alone.
@@ -46490,7 +46543,7 @@ const INVARIANTS = [
         }), "{grid: [the tab a formGrid, the school's and the hall's selects labelled in it, the hall's three fields labelled]; switches: prepare and the playlist; slot: the zones' rows (E73 C1) [scenesZoneRows exported, two rows third in the list, each select labelled, the grid drawing every row]; warn: [the report in a warning box, old warning lines]; cast: [a kit table, a row an actor, a switch a row, list items left]; read: readScenesTab's answer}");
     }],
 
-    ["R2030 - Despair Flow's three tables on the kit (E46-C5a; E46-15, card M3): Pools, Monokumas and Students each one `dataTable` in its tab, today's columns in today's order, one row per account, character and student, the fields' names unchanged; two Monokumas ticked onto one pool are said in a `box(\"warning\")` above the Monokumas' table", async () => {
+    ["R2030 - Despair Flow's three tables on the kit (E46-C5a; E46-15, card M3): Pools, Monokumas and Students each one `dataTable` in its tab, today's columns in today's order, one row per account, Monokuma (since E101; no Monokuma box) and student, the fields' names unchanged; the shared pool's warning hidden while nothing is changed (tier 2 E101-T6 reads it shown)", async () => {
         /*
          * E46-C5a, 09.11.2026; card M3 (Approve) and STAGE E46's Despair Flow shape. At 3c952c67 the three tabs drew
          * three hand tables (`<table>` with no class, the Monokuma column centred by an inline style) and the shared
@@ -46528,38 +46581,25 @@ const INVARIANTS = [
                 tr.dataset.actor ?? null, tr.querySelector("[data-drpg-mk]")?.name ?? null, tr.querySelector("[data-drpg-pool]")?.name ?? null]),
                 inlineStyle: pane("monokumas").querySelectorAll("[style]").length };
             got.students = pane("students") ? { ...table("students"), names: [...pane("students").querySelectorAll("tbody select[data-drpg-assign]")].map(s => s.name) } : null;
-            const [a, b] = [...pane("monokumas").querySelectorAll("tbody tr")].slice(0, 2);
-            for (const tr of [a, b]) {
-                const mk = tr.querySelector("[data-drpg-mk]");
-                mk.checked = true;
-                mk.dispatchEvent(new Event("change", { bubbles: true }));
-                const select = tr.querySelector("[data-drpg-pool]");
-                select.value = gms[0].id;
-                select.dispatchEvent(new Event("change", { bubbles: true }));
-            }
-            const warn = pane("monokumas").querySelector(".drpg-monokuma-warning");
-            const kitTable = pane("monokumas").querySelector("table.drpg-data-table");
-            got.warning = { box: warn?.querySelector('.drpg-box[data-drpg-box="warning"]') ? true : false, shown: Boolean(warn && !warn.hidden),
-                red: Boolean(warn?.querySelector(".drpg-warning")), above: Boolean(warn && kitTable && (warn.compareDocumentPosition(kitTable) & Node.DOCUMENT_POSITION_FOLLOWING)),
-                names: [a, b].every(tr => warn?.textContent.includes(tr.querySelector("td")?.textContent.trim() ?? "?")) };
-            for (const tr of [a, b]) {
-                const mk = tr.querySelector("[data-drpg-mk]");
-                mk.checked = false;
-                mk.dispatchEvent(new Event("change", { bubbles: true }));
-            }
-            got.warning.goneWithIt = Boolean(warn?.hidden);
+            /* E101 item 6 (changed on purpose; the owner's yes to the GM screens' review, #7): no Monokuma box - the tab lists
+               the world's Monokumas alone, each with its pool, and none is made here; the shared pool's warning is read by
+               tier 2 E101-T6, which marks two Monokumas and puts them back. With none, the tab says where the role is set. */
+            got.warning = { hidden: Boolean(pane("monokumas").querySelector(".drpg-monokuma-warning")?.hidden),
+                none: pane("monokumas").querySelectorAll("[data-drpg-no-monokuma]").length };
         } finally {
             for (const app of of()) await app.close().catch(() => {});
             await Promise.race([answer, wait(3000)]);
         }
-        const sorted = [...actors].sort((x, y) => x.name.localeCompare(y.name));
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const marked = [...actors].filter(x => isMonokuma(x)).sort((x, y) => x.name.localeCompare(y.name));
         equal(stableJson(got), stableJson({
             pools: { tables: 1, kit: 1, heads: [L("DRPG.Despair.account"), L("DRPG.Despair.poolName")], rows: gms.length, names: gms.map(u => `poolName.${u.id}`) },
-            monokumas: { tables: 1, kit: 1, heads: [L("DRPG.Panel.character"), L("DRPG.Monokuma.isMonokuma"), L("DRPG.Monokuma.pool")], rows: sorted.length,
-                names: sorted.map(x => [x.id, `mk.${x.id}`, `pool.${x.id}`]), inlineStyle: 0 },
+            monokumas: marked.length ? { tables: 1, kit: 1, heads: [L("DRPG.Panel.character"), L("DRPG.Monokuma.pool")], rows: marked.length,
+                names: marked.map(x => [x.id, null, `pool.${x.id}`]), inlineStyle: 0 }
+                : { tables: 0, kit: 0, heads: [], rows: 0, names: [], inlineStyle: 0 },
             students: roster.length ? { tables: 1, kit: 1, heads: [L("DRPG.Panel.character"), L("DRPG.Assign.monokuma")], rows: roster.length, names: roster.map(x => `assign.${x.id}`) } : null,
-            warning: { box: true, shown: true, red: false, above: true, names: true, goneWithIt: true }
-        }), "{pools, monokumas, students: [tables in the tab, of them the kit's, the kit table's heads, its rows, the fields' names]; warning: two ticked on one pool - a warning box, shown, no red paragraph, above the table, both names; unticked - hidden}");
+            warning: { hidden: true, none: marked.length ? 0 : 1 }
+        }), "{pools, monokumas, students: [tables in the tab, of them the kit's, the kit table's heads, its rows, the fields' names]; warning: [hidden, the no-Monokuma line]}");
     }],
     ["R2031 - Despair Flow's Overflow tab on the kit (E46-C5a; E46-15): the threshold a `formGrid` row with its suggestion and its range as fine print in its field; \"Right now\" body text, Clear beside it; what can be drawn and the one-offs each a `dataTable` of rules in `OVERFLOW.effects`' order - on (a `toggle`, `ovf-<key>-on`), what, by (a compact `stepper`, `ovf-<key>-by`, only where the rule has a size), what it does (fine print); `readOverflowForm` reads the drawn tab back as the rules stand", async () => {
         /*
@@ -46679,7 +46719,7 @@ const INVARIANTS = [
             + "what it waits on, its button's action and word | the rooms row repainted done: state, mark, the mark's name, a line of what "
             + "it waits on, a button, the rest of the row kept]");
     }],
-    ["R2033 - Pre-season checks on the kit's checkList (E46-C5b; card M4): each part a `ul.drpg-checklist` under its heading in today's order - the cast, the scenes, the room pictures (the decode row and the size row), the voice, the contract (a failed row named, the unread folded under it), the dice look - and the anonymity audit's own markup with its marks (R1530); red only for a blocking row (a student not set up, a scene not ready, a picture that does not load), every other finding a `warning`; no `pre`, no `p.drpg-check-report`", async () => {
+    ["R2033 - Pre-season checks on the kit's checkList (E46-C5b; card M4): each part a `ul.drpg-checklist` under its heading in today's order - the room pictures (the decode row and the size row), the voice, the dice look - and the anonymity audit's own markup with its marks (R1530), the contract (a failed row named, the unread folded under it) in Diagnostics' `foundryReport` since E101; red only for a blocking row (a picture that does not load), every other finding a `warning`; no `pre`, no `p.drpg-check-report`", async () => {
         /*
          * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"; A/V off with the voice tile on is one of
          * its rows). At c1046f5e the cast and the scenes were each a `pre.drpg-check-report` of marked text and every other
@@ -46692,7 +46732,6 @@ const INVARIANTS = [
         needs(world.atLeast("livingStudents", 1), "a cast for the cast's part to list");
         const SS = await import("./season-setup.mjs");
         const { runContract } = await import("./patches.mjs");
-        const { diagnoseCharacters } = await import("./diagnostics.mjs");
         const L = key => game.i18n.localize(key);
         const { DISABLED = 0 } = foundry.av?.AVSettings?.AV_MODES ?? {};
         const fx = await e20Fixture();
@@ -46710,18 +46749,19 @@ const INVARIANTS = [
                 async decode() { if (this.path.includes("gone")) throw new Error("R2033: the stand-in does not decode"); }
             };
             root.innerHTML = await SS.preSessionReport({ av: { mode: DISABLED, on: true, available: false }, scenes: [scene],
-                head: async () => ({ status: 200, bytes: 400000 }), contract, diceLook: [{ code: "r2033", words: "R2033 dice" }], givenBack: false }) ?? "";
+                head: async () => ({ status: 200, bytes: 400000 }), diceLook: [{ code: "r2033", words: "R2033 dice" }] }) ?? "";
         } finally {
             globalThis.Image = RealImage;
         }
+        /* E101 item 2 (changed on purpose; the owner's yes to the GM screens' review, #3): the report is the Season
+           checklist's further checks - the cast and the scenes are its rows - and the contract is Diagnostics' Foundry and
+           modules (`foundryReport`), read here beside it. */
+        const tech = document.createElement("div");
+        tech.innerHTML = await SS.foundryReport({ contract });
         const parts = [...root.querySelectorAll("[data-drpg-check-part]")];
-        const part = name => parts.find(p => p.dataset.drpgCheckPart === name) ?? null;
+        const part = name => (name === "contract" ? tech.querySelector('[data-drpg-check-part="contract"]') : parts.find(p => p.dataset.drpgCheckPart === name)) ?? null;
         const rowsOf = p => [...(p?.querySelectorAll("ul.drpg-checklist > li.drpg-check-row") ?? [])];
-        const states = p => [...new Set(rowsOf(p).map(li => li.dataset.drpgState))].sort();
         const keyed = p => rowsOf(p).map(li => [li.dataset.drpgKey ?? null, li.dataset.drpgState]);
-        const cast = diagnoseCharacters({ toChat: false });
-        const castMarked = cast.split("\n").filter(line => /^\s*[✓✗] /.test(line)).length;
-        const castCrossed = cast.split("\n").filter(line => /^\s*✗ /.test(line)).length;
         const big = part("pictures")?.querySelector('li.drpg-check-row[data-drpg-key="large"] .drpg-check-title')?.textContent ?? "";
         const gone = part("pictures")?.querySelector('li.drpg-check-row[data-drpg-key="missing"] .drpg-check-title')?.textContent ?? "";
         const contractText = part("contract")?.textContent ?? "";
@@ -46730,10 +46770,6 @@ const INVARIANTS = [
             order: parts.map(p => p.dataset.drpgCheckPart),
             heads: parts.map(p => p.querySelector(":scope > h3")?.textContent ?? null),
             listed: parts.map(p => p.querySelectorAll(":scope > ul.drpg-checklist").length > 0),
-            cast: [rowsOf(part("cast")).filter(li => li.dataset.drpgKey !== "classCandidates").length === castMarked,
-                rowsOf(part("cast")).filter(li => li.dataset.drpgState === "blocking").length === castCrossed,
-                rowsOf(part("cast")).every(li => !/^[✓✗]/.test(li.querySelector(".drpg-check-title")?.textContent ?? ""))],
-            scenes: states(part("scenes")).every(s => s === "done" || s === "blocking"),
             pictures: [keyed(part("pictures")), gone.includes("R2033 Gym"), big.includes("R2033 Hall") && big.includes("6000")],
             voice: keyed(part("voice")),
             contract: [keyed(part("contract")), contractText.includes("R2033 target gone") && contractText.includes("R2033 fallback gone"),
@@ -46741,15 +46777,12 @@ const INVARIANTS = [
             dice: [keyed(part("dice")), part("dice")?.querySelector(".drpg-check-title")?.textContent ?? null, Boolean(part("dice")?.querySelector("[data-drpg-dice-look]"))],
             anon: [Boolean(part("anonymity")?.querySelector(":scope > [data-drpg-anon]")),
                 [...root.querySelectorAll(".drpg-check-ok, .drpg-check-bad")].every(mark => mark.closest("[data-drpg-anon]"))],
-            red: [...new Set(blocking)].filter(p => !["cast", "scenes", "pictures"].includes(p)),
+            red: [...new Set(blocking)].filter(p => !["pictures"].includes(p)),
             old: root.querySelectorAll("pre, p.drpg-check-report").length
         }), stableJson({
-            order: ["cast", "scenes", "pictures", "voice", "contract", "dice", "anonymity"],
-            heads: [L("DRPG.Panel.checksSetup"), L("DRPG.Fog.checksScenes"), L("DRPG.Panel.checksImages"), L("DRPG.Voice.panel.legend"),
-                L("DRPG.Contract.checksTitle"), L("DRPG.DiceLook.diag.title"), L("DRPG.Anonymity.audit.title")],
-            listed: [true, true, true, true, true, true, false],
-            cast: [true, true, true],
-            scenes: true,
+            order: ["pictures", "voice", "dice", "anonymity"],
+            heads: [L("DRPG.Panel.checksImages"), L("DRPG.Voice.panel.legend"), L("DRPG.DiceLook.diag.title"), L("DRPG.Anonymity.audit.title")],
+            listed: [true, true, true, false],
             pictures: [[["missing", "blocking"], ["large", "warning"]], true, true],
             voice: [["checksAvOff", "warning"]],
             contract: [[["gone", "warning"]], true, true],
@@ -46757,8 +46790,7 @@ const INVARIANTS = [
             anon: [true, true],
             red: [],
             old: 0
-        }), "Pre-season checks [the parts in order, their headings, a checklist in each | the cast: a row a marked line, blocking a crossed "
-            + "one, no mark left in a title | the scenes done or blocking | the pictures' rows (key, state), the Gym that does not decode, "
+        }), "the Season checklist's further checks [the parts in order, their headings, a checklist in each | the pictures' rows (key, state), the Gym that does not decode, "
             + "the Hall's 6000 px | the voice's rows | the contract's rows, the failed one named, the unread folded | the dice look's rows, "
             + "its finding, its button | the audit's own markup, every checkMarks mark inside it | parts with a blocking row that may not "
             + "have one | pre and p.drpg-check-report left]");

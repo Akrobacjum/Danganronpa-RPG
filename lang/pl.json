@@ -4573,6 +4573,7 @@
       "checksImagesPixels": "{width} x {height} px",
       "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Kontrola przed sezonem",
+      "foundryReport": "Foundry i moduły",
       "whoIsAlive": "Uczniowie",
       "whoIsAliveNote": "Stan tylko przestawia flagi, po Zastosuj - narzędzie naprawcze na pomyłkę. Rola zmienia się od razu. Przyciski robią to naprawdę: śmierć niszczy Truth Bullets, zaproszenie tworzy Monocuba.",
       "doColumn": "Zrób",
@@ -5516,6 +5517,7 @@
       "step": {
         "name": "Nazwij kampanię",
         "cast": "Obsada istnieje",
+        "npcs": "Postacie bez gracza są oznaczone",
         "monokumas": "Co najmniej jeden Monokuma",
         "resources": "Startowe Health, Sanity i Hope",
         "ultimate": "Każdy ma Ultimate",
@@ -5542,6 +5544,7 @@
       "hint": {
         "name": "Wyświetlana u góry ekranu każdego, nad rozdziałem i zegarem.",
         "cast": "Jedna postać na ucznia. Monokumy są osobno i tu się nie liczą.",
+        "npcs": "Postać, której nie gra żaden gracz, to pewnie NPC: oznacz ją na jej karcie jako Poza klasą albo zostaw, jak jest.",
         "monokumas": "Despair potrzebuje puli, do której trafia, i postaci Monokumy, która go wydaje: Despair Calls są na karcie tej postaci. Gra jest pisana dla więcej niż jednego GM-a - podziel uczniów równo między Monokumy.",
         "resources": "Dopóki to nie jest ustawione, postać liczy się jako Wounded i w Breakdown naraz: jedna akcja zamiast dwóch i utrudnienie na każdym rzucie.",
         "ultimate": "Tytuł to postać. To zdanie, które ktoś pisze, więc to otwiera arkusz zamiast wymyślać za niego.",
@@ -5657,6 +5660,9 @@
       "checkRooms": "Sprawdź pokoje na tej scenie",
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
       "waitingForCast": "Czeka na obsadę: najpierw utwórz uczniów.",
+      "roomsVision": "{scene}: działa tam jeszcze widzenie, mgła albo globalne światło Foundry, więc gracze mogą widzieć czerń.",
+      "moreChecking": "Sprawdzam zdjęcia pokoi, głos, kości i karty...",
+      "moreFailed": "Nie udało się pokazać dalszych sprawdzeń. Powód podaje Dziennik debugowania w panelu GM-a.",
       "splitUneven": "Nierówny podział: {counts}.",
       "fallsBackTo": "{name} (bez przypisania: trafia do {pool})",
       "overflowNow": "{line} Teraz {n}.",

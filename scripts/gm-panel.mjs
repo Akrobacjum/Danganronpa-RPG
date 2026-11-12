@@ -757,7 +757,15 @@ async function openFailureLog() {
         </div>`,
         footer: {
             close: { role: "close", action: "close" },
-            secondary: rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : [],
+            /* FOUNDRY AND MODULES (E101 item 2; the owner's yes of 12.11.2026 to the GM screens' review, #3): the lines of
+               Pre-season checks a GM cannot act on before a session - which of the module's places in Foundry hold and
+               which could not be read here, and the console command that reads another person's dice look - are this
+               section's since Pre-season checks became part of the Season checklist (season-setup.mjs `openFoundryReport`).
+               A button of the Debug log, the Diagnostics window a report of a fault starts from, not a tile of its own. */
+            secondary: [
+                ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : []),
+                { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport") }
+            ],
             destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : []
         },
         rejectClose: false
@@ -785,6 +793,11 @@ async function openFailureLog() {
         }
         // Back to the log - the button copied, it did not mean "and close".
         return openFailureLog();
+    }
+
+    if (action === "foundry") {
+        const { openFoundryReport } = await import("./season-setup.mjs");
+        return openFoundryReport();
     }
 
     if (action === "clear") {

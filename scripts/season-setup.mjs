@@ -52,6 +52,8 @@ import { unmarkedRegions, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene,
 // How much of a map is in no room, on its worst floor (E20 C1; fix round C-4), and what of Check rooms the rooms row
 // waits on (fix round G-1): fog-diagnostics.mjs never reaches back here.
 import { sceneUncoveredShare, roomCheckProblems } from "./fog-diagnostics.mjs";
+// Whether a scene stands as the room fog needs it (E101 item 2): fog.mjs never reaches back here.
+import { sceneVisionReady } from "./fog.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
@@ -307,6 +309,15 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             done: roster.length > 0,
             missing: () => []
         },
+        /* THE CHARACTERS NO PLAYER OWNS (E24 C3a, the owner's Q-E24-5; a row of Pre-season's cast part until E101 item 2,
+           which made the two windows one): named as NPCs to mark, advice only - nothing is marked by itself, the GM
+           decides on each sheet ("Not in the class"). */
+        {
+            key: "npcs",
+            optional: true,
+            done: !classCandidates().length,
+            missing: () => classCandidates().map(actor => actor.name)
+        },
         {
             key: "monokumas",
             /* A POOL AND SOMEBODY TO SPEND IT (22.09). This ticked as soon as a pool-holding GM
@@ -319,10 +330,9 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
                 ...(monokumas().length ? [] : [game.i18n.localize("DRPG.Season.missingPool")]),
                 ...(game.actors.some(a => isMonokuma(a)) ? [] : [game.i18n.localize("DRPG.Season.missingMonokumaActor")])
             ],
-            // The window the two Despair rows further down already open: opting
-            // somebody in is what it is for, and a row that says "at least one
-            // Monokuma" with no way to make one reports rather than helps (SEASON-02).
-            open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
+            // A row that says "at least one Monokuma" with no way to make one reports rather than helps (SEASON-02). The
+            // Students window since E101 item 6: its Role list makes a Monokuma, and Despair Flow no longer does.
+            open: async () => (await import("./gm-panel.mjs")).openWhoIsAliveDialog()
         },
         {
             key: "resources",
@@ -435,22 +445,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
                 line: overflowSuggestionLine(living, monokumas().length), n: overflowThreshold() })],
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
-        {
-            /*
-             * THE MODULE SHIPS NO AUDIO AND ASSIGNS NONE (Dawid, 28.08).
-             *
-             * Which makes this row necessary rather than decorative: without it
-             * the only way to find out that the game can make sounds at all is
-             * to open a panel nobody has told you about. Optional, and it means
-             * it - a table that wants to play silent has decided something,
-             * not forgotten it, so this gets the dash rather than the cross.
-             */
-            key: "sound",
-            optional: true,
-            done: Object.keys(game.settings.get(MODULE_ID, SETTINGS.sfxMap) ?? {}).length > 0,
-            missing: () => [],
-            open: async () => (await import("./music.mjs")).openSoundDialog()
-        },
+        /* No Sound files row since E101 item 2 (the owner's yes of 12.11.2026 to the GM screens' review, #3): it checked
+           nothing - a table with no sound has decided something, and the Sound window says what is assigned. */
         {
             /*
              * G-36: HOW MANY ROOMS, AS ADVICE.
@@ -496,8 +492,12 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
                CHECKED, NOT ONLY PRESENT (E20 C1, S06-28, S07-33): done when a scene holds rooms and the
                scene it judges has at most `UNCOVERED_LIMIT_PCT` in no room and no error from its last
                Check rooms; the line under it names that scene and counts every scene with rooms. */
-            done: withRooms.length > 0 && sceneHoldsRooms(roomScene) && uncovered <= UNCOVERED_LIMIT_PCT && !checkErrors,
+            /* FOUNDRY'S OWN VISION (E101 item 2): a scene with rooms still on token vision, fog or no global light shows
+               the players black - Pre-season's scene part asked it until the two windows were one; every such scene. */
+            done: withRooms.length > 0 && sceneHoldsRooms(roomScene) && uncovered <= UNCOVERED_LIMIT_PCT && !checkErrors
+                && withRooms.every(sceneVisionReady),
             missing: () => [
+                ...withRooms.filter(scene => !sceneVisionReady(scene)).map(scene => game.i18n.format("DRPG.Season.roomsVision", { scene: scene.name })),
                 ...(roomScene && uncovered > UNCOVERED_LIMIT_PCT
                     ? [game.i18n.format("DRPG.Season.roomsUncovered", { pct: uncovered, scene: share.floor
                         ? game.i18n.format("DRPG.Fog.sceneFloor", { scene: roomScene.name, floor: share.floor }) : roomScene.name })] : []),
@@ -535,31 +535,21 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         },
         {
             /*
-             * THE HALL AND ITS TOKENS (E51 C8, 31.10.2026; audit S17-49; E51-48), the First session screen's first row:
-             * a trial hall linked, and nothing the Scenes tab warns of in it - a student with no token the module can
-             * make, a second token, an unlinked one, a room region, a dark hall (trial-scene.mjs `sceneReport`). Optional,
-             * as the Scenes row under it: a table may hold its trial on the school's map. Open is that tab.
-             */
-            key: "hallTokens",
-            group: FIRST_SESSION,
-            optional: true,
-            done: hall.done,
-            missing: () => hall.missing,
-            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "scenes" })
-        },
-        {
-            /*
              * THE SCHOOL AND THE TRIAL HALL LINKED (E13 C5; plan-E13 C5, D7). With both linked
              * every road into the Class Trial takes the table to the hall and back (trial-scene.mjs
              * `followPhase`); with neither the trial opens wherever the table is, as before 1.2.74.
              * `optional: true` for that reason - a table that holds its trial on the school's map
              * has decided something. The button opens Room Setup on the Scenes tab.
              */
+            /* AND THE HALL'S TOKENS (E51 C8; audit S17-49): nothing the Scenes tab warns of in it - a student with no
+               token the module can make, a second token, an unlinked one, a room region, a dark hall (trial-scene.mjs
+               `sceneReport`). Its own row until E101 item 2 (the owner's yes to the GM screens' review, #3): two rows
+               about one tab, both optional, are one. */
             key: "scenes",
             group: FIRST_SESSION,
             optional: true,
-            done: Boolean(schoolScene() && trialScene()),
-            missing: () => [],
+            done: Boolean(schoolScene() && trialScene()) && hall.done,
+            missing: () => hall.missing,
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "scenes" })
         },
         {
@@ -630,15 +620,17 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
         /* THE MODULE HOLDS NOTHING (E20 fix round, the goal review's G-2). After Give back Foundry's settings the module
            writes none of them until a GM holds them again - also after it was switched off and on, which is when a GM
            forgets. Optional: a table may want Daggerheart's automations; Open is the Give back window, Hold them again. */
-        {
+        // Drawn only while Foundry's settings are given back (E101 item 2): held, it is a tick that says nothing to do.
+        ...(givenBack ? [{
             key: "foundryHeld",
             // The First session screen's ENFORCED row (E51 C8): what enforced.mjs holds of Foundry's settings.
             group: FIRST_SESSION,
             optional: true,
-            done: !givenBack,
-            missing: () => [],
+            done: false,
+            // The line Pre-season's report put first until E101 item 2: what giving back means, said on the row.
+            missing: () => [game.i18n.localize("DRPG.GiveBack.preSeason")],
             open: () => openGiveBackFoundry()
-        },
+        }] : []),
         /* DICE SO NICE (E51 C8, 31.10.2026; audit S17-49; E51-48). The module draws every player's throw on the GM
            (roll-draw.mjs) and keeps each player's dice look (dice-sync.mjs) for it; a table without it rolls, and sees
            no dice. Optional. Open is Foundry's module list, where it is switched on - offered only where this Foundry
@@ -1246,7 +1238,7 @@ export async function openSeasonChecklist({ draft = null, opened = null } = {}) 
     // A row button's round trip, if one is running (SEASON-02), as in Season setup until E49 A1e.
     let roundTrip = null;
 
-    const result = await drpgWindow({
+    await drpgWindow({
         classes: ["drpg-panel", "drpg-window-season-checklist"],
         // Season setup's width, which the rows had there (E49 A1d).
         width: "tables",
@@ -1257,18 +1249,15 @@ export async function openSeasonChecklist({ draft = null, opened = null } = {}) 
 
             ${rows}
             ${firstSessionHtml(list)}
-            <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>`,
-        footer: {
-            secondary: [
-            // "What is missing" and "fix it" are one errand (the checks were a GM-panel tile beside Set the season up
-            // once). The place is read here, while the window is on screen: a bare action would answer the string
-            // "checks", which carries nothing.
-            {
-                action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks"),
-                callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element, { action: "checks" }) })
-            }],
-            close: { role: "close", action: "close" }
-        },
+            <div class="drpg-season-more" data-drpg-season-more aria-live="polite">
+                <p class="notes">${esc(game.i18n.localize("DRPG.Season.moreChecking"))}</p>
+            </div>`,
+        /* ONE WINDOW (E101 item 2; the owner's yes of 12.11.2026 to the GM screens' review, #3). Pre-season checks was a
+           second window behind this footer's button, and it checked the cast, the starting item, the Despair pools and
+           the rooms again in other words. What only it checked is under the rows now (`preSessionReport`, filled once
+           the window stands: the pictures are asked of the server), the scene's own vision is the rooms row's, and its
+           technical lines are Diagnostics' (`openFoundryReport`). The closing note went with it: the list says it. */
+        footer: { close: { role: "close", action: "close" } },
         render: (event, dialog) => {
             /*
              * The room check reports INTO THE WINDOW, not only to the console.
@@ -1282,16 +1271,38 @@ export async function openSeasonChecklist({ draft = null, opened = null } = {}) 
             // At its top, or where the copy that closed was (C-2); then what a row's Open opened, in front of it (S06-30).
             seasonOpening(dialog.element, draft?.place ?? null);
             if (opened) raiseOpened(opened);
+            void fillMoreChecks(dialog.element);
         },
         rejectClose: false
     });
 
     if (roundTrip) return roundTrip;
-    if (result?.checks) {
-        await runPreSessionChecks();
-        return openSeasonChecklist({ draft: result.draft });
-    }
     return null;
+}
+
+/** The checklist's further checks, drawn under its rows once the report is in, with their two buttons wired. */
+async function fillMoreChecks(root) {
+    const slot = root?.querySelector("[data-drpg-season-more]");
+    if (!slot) return;
+    try {
+        const [body, { wireAnonymityFix }] = await Promise.all([preSessionReport(), import("./anonymity.mjs")]);
+        if (!slot.isConnected) return;
+        slot.innerHTML = body;
+        // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
+        wireAnonymityFix(slot.querySelector("[data-drpg-anon]"));
+        wireDiceLookButton(slot);
+    } catch (err) {
+        error("Could not draw the season's further checks", err);
+        if (slot.isConnected) slot.innerHTML = `<p class="notes">${esc(game.i18n.localize("DRPG.Season.moreFailed"))}</p>`;
+    }
+}
+
+/* The dice look's whole window (E60 C5b2): this browser's read, with no test throw. */
+function wireDiceLookButton(root) {
+    root?.querySelector("[data-drpg-dice-look]")?.addEventListener("click", ev => {
+        ev.preventDefault();
+        import("./dice-look.mjs").then(m => m.diagnoseDiceLook({ test: false })).catch(err => error("Could not open the dice look", err));
+    });
 }
 
 /* ==========================================================================
@@ -1336,34 +1347,36 @@ async function askStartHere() {
 }
 
 /**
- * Both pre-session checks, answered in one window.
- *
- * "Is everybody set up" and "can anybody read a sheet they should not" are one
- * question asked at one moment - before a session - so they are one tile and
- * now one answer. Neither report goes to chat from here: they are handed back
- * as text and put on screen, because a question asked with a button should be
- * answered where the button was. Exported for E46-T4, which reads the window it draws.
+ * Foundry and modules (E101 item 2): the technical half of what Pre-season checks printed, in Diagnostics - which of the
+ * module's places in Foundry, Daggerheart and the modules hold today and which could not be read here (`contractSection`),
+ * and how another person's dice look is read (the console command). A GM cannot act on these before a session; a report
+ * of a fault can. A read-out: Close. The GM panel's Diagnostics tile `foundryReport` opens it.
  */
-export async function runPreSessionChecks() {
-    const [body, { wireAnonymityFix }] = await Promise.all([preSessionReport(), import("./anonymity.mjs")]);
-    // A read-out: Close (E21 C2b).
+export async function openFoundryReport() {
+    if (alreadyOpen("drpg-window-foundry-report")) return RAISED;
+    const body = await foundryReport();
     await drpgWindow({
-        classes: ["drpg-panel", "drpg-window-preseason"],
+        classes: ["drpg-panel", "drpg-window-foundry-report"],
         width: "wide",
-        title: game.i18n.localize("DRPG.Panel.seasonChecks"),
+        title: game.i18n.localize("DRPG.Panel.foundryReport"),
         body,
         footer: { close: { role: "close", action: "close" } },
-        render: (event, dialog) => {
-            // Set them to Observer (E20 C2, S11-19): the audit's own fix, drawn again in place.
-            wireAnonymityFix(dialog.element.querySelector("[data-drpg-anon]"));
-            // The dice look's whole window (E60 C5b2): this browser's read, with no test throw.
-            dialog.element.querySelector("[data-drpg-dice-look]")?.addEventListener("click", ev => {
-                ev.preventDefault();
-                import("./dice-look.mjs").then(m => m.diagnoseDiceLook({ test: false })).catch(err => error("Could not open the dice look", err));
-            });
-        },
+        render: (event, dialog) => wireDiceLookButton(dialog.element),
         rejectClose: false
     });
+    return null;
+}
+
+/** Foundry and modules' body: the contract (`contract` a run of patches.mjs `runContract`, the world's unless handed) and the dice look's console line with its button. */
+export async function foundryReport({ contract = null } = {}) {
+    const { runContract } = await import("./patches.mjs");
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    const title = game.i18n.localize("DRPG.DiceLook.diag.title");
+    return `<div>
+            ${contractSection(contract ?? runContract(), esc)}
+            ${checkPart("diceRead", title, `<p class="drpg-help">${esc(game.i18n.localize("DRPG.DiceLook.diag.introGm"))}</p>
+                <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`)}
+        </div>`;
 }
 
 /**
@@ -1376,21 +1389,13 @@ export async function runPreSessionChecks() {
  * @param {object} [options]
  * @returns {Promise<string>} HTML
  */
-export async function preSessionReport({ av = {}, scenes = game.scenes, head, probeMs, givenBack = foundryGivenBack(), contract = null,
-    diceLook } = {}) {
-    const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }, { videoUnwatched, avOffForTile, videoWithoutAudio },
-        { checkRoomImages }, { runContract }] = await Promise.all([
-        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs"),
-        import("./patches.mjs")
+export async function preSessionReport({ av = {}, scenes = game.scenes, head, probeMs, diceLook } = {}) {
+    const [{ auditAnonymity }, { videoUnwatched, avOffForTile, videoWithoutAudio }, { checkRoomImages }] = await Promise.all([
+        import("./anonymity.mjs"), import("./voice-tile.mjs"), import("./room-tile.mjs")
     ]);
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 
-    const setup = diagnoseCharacters({ toChat: false });
     const anon = await auditAnonymity({ toChat: false });
-    // A scene that has rooms but still uses Foundry's own vision renders as a
-    // black screen for players on v14 and says nothing about why, so it belongs
-    // on the list of things checked before anybody sits down.
-    const sceneLines = diagnoseScenes({ lastChecks: lastRoomChecks });
     // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
     // the voice tile stands in for the dock, which shows none of them. E20 C3 (amend 11.10): the two worlds where the
     // tile the GM switched on cannot stand - A/V off, and video alone. A row only when one is so; each a warning (the
@@ -1401,32 +1406,19 @@ export async function preSessionReport({ av = {}, scenes = game.scenes, head, pr
             { label: game.i18n.localize("DRPG.Voice.panel.legend") })) : "";
     const pictures = roomImagesSection(await checkRoomImages({ scenes, ...(head ? { head } : {}), ...(probeMs ? { probeMs } : {}) }), esc,
         probeMs ?? ROOM_IMAGE_LIMITS.probeMs);
-    // The module holds nothing while Foundry's settings are given back (E20 fix round, G-2): said first, it explains the rest.
-    const held = givenBack ? checkPart("givenBack", null, checkList([{ key: "givenBack", state: "warning",
-        title: game.i18n.localize("DRPG.GiveBack.preSeason") }])) : "";
-    // The contract (E52 C2, E52-05): run now, the rows the load's notice names, so the report says what holds today.
-    const reaches = contractSection(contract ?? runContract(), esc);
+    /* WHAT THE CHECKLIST'S ROWS DO NOT ALREADY SAY (E101 item 2; the owner's yes of 12.11.2026 to the GM screens' review,
+       #3). The given-back line is the What the module holds row, the cast part the cast's rows (its NPCs the `npcs` row),
+       the scenes part the rooms row (with the scene's own vision, fog.mjs `sceneVisionReady`), and the contract with the
+       dice look's console line Diagnostics' Foundry and modules (`foundryReport`). */
     const dice = diceLookSection(diceLook === undefined ? await diceLookFindingsHere() : diceLook, esc);
-    // The characters no player owns, named as NPCs to mark (E24 C3a; the owner's Q-E24-5): a row only when there is one,
-    // advisory, and nothing marked by itself - the GM decides on each sheet ("Not in the class").
-    const unowned = classCandidates();
-    const npcs = unowned.length ? checkList([{ key: "classCandidates", state: "advisory", title: game.i18n.format("DRPG.Class.candidates",
-        { names: listOf(unowned.map(actor => actor.name)) }) }]) : "";
-    const castHead = game.i18n.localize("DRPG.Panel.checksSetup"), scenesHead = game.i18n.localize("DRPG.Fog.checksScenes");
 
-    /* ONE CHECKLIST A PART (E46-C5b, 09.11.2026; card M4: "red only for a blocking row"). The cast and the scenes come as
-       marked text (diagnostics.mjs `diagnoseCharacters`, fog.mjs `diagnoseScenes`, read on c1046f5e: a line "✓ " or
-       "✗ ", a fix line indented under a cross, the header lines unmarked) and are read into rows here (`markedChecks`);
-       a cross there is blocking - a student not set up, a scene the players see black. The contract, the dice look, the
-       room pictures and the voice are built here from data. The anonymity audit stays the audit's own markup with its
+    /* ONE CHECKLIST A PART (E46-C5b, 09.11.2026; card M4: "red only for a blocking row"). The dice look, the room
+       pictures and the voice are built here from data (the cast and the scenes, read as marked text through
+       `markedChecks` until E101, are the checklist's rows now; `markedChecks` stays for R2033's reading). The anonymity audit stays the audit's own markup with its
        marks (`checkMarks`, R1530): anonymity.mjs `wireAnonymityFix` draws it again in place after "Set them to Observer". */
     return `<div>
-            ${held}
-            ${checkPart("cast", castHead, markedChecks(setup, { label: castHead }) + npcs)}
-            ${checkPart("scenes", scenesHead, markedChecks(sceneLines, { label: scenesHead }))}
             ${pictures}
             ${video}
-            ${reaches}
             ${dice}
             ${checkPart("anonymity", game.i18n.localize("DRPG.Anonymity.audit.title"), `<div data-drpg-anon>${checkMarks(anon.body ?? "")}</div>`)}
         </div>`;
@@ -1486,8 +1478,8 @@ function diceLookSection(findings, esc) {
         : findings.length ? findings.map(finding => ({ key: finding.code ?? null, state: "warning", title: finding.words }))
             : [{ key: "nothingFound", state: "done", title: game.i18n.localize("DRPG.DiceLook.diag.nothingFound") }];
     const title = game.i18n.localize("DRPG.DiceLook.diag.title");
-    return checkPart("dice", title, `<p class="drpg-help">${esc(game.i18n.localize("DRPG.DiceLook.diag.introGm"))}</p>
-            ${rows.length ? checkList(rows, { label: title }) : ""}
+    // Its console line ("ask them to run game.drpg.diagnoseDiceLook()") is Diagnostics' since E101 item 2 (`foundryReport`).
+    return checkPart("dice", title, `${rows.length ? checkList(rows, { label: title }) : ""}
             <p><button type="button" data-drpg-dice-look>${esc(game.i18n.localize("DRPG.DiceLook.diag.open"))}</button></p>`);
 }
 

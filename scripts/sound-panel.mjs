@@ -218,7 +218,7 @@ export function soundSettingSwitch(key) {
     const hint = firstSentence(game.i18n.localize(reg.hint ?? ""));
     return `<div class="drpg-sound-setting" data-drpg-sound-setting="${esc(key)}">${
         toggle({ name: `setting:${key}`, checked: getSetting(SETTINGS[key] ?? key) === true, label: game.i18n.localize(reg.name) })}${
-        hint ? `<p class="drpg-help">${esc(hint)}</p>` : ""}</div>`;
+        hint ? `<div class="drpg-help">${esc(hint)}</div>` : ""}</div>`;
 }
 
 /** The Effects tab: sfx.mjs `soundEffectsHtml`, handed in (it is reached by `import()`), with Vary the sounds before its table. */
