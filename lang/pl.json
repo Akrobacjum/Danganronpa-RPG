@@ -3376,7 +3376,11 @@
     "Spectator": {
       "role": "Widz",
       "marked": "{name} jest teraz Widzem.",
-      "unmarked": "{name} nie jest już Widzem."
+      "unmarked": "{name} nie jest już Widzem.",
+      "watching": "Oglądasz z pokoju {room}.",
+      "watchingOutside": "Oglądasz spoza pokojów.",
+      "watchRoom": "Oglądaj pokój",
+      "watchLabel": "Przenieś swój żeton do pokoju, który klasa już odkryła"
     },
     "Class": {
       "notInClass": "Poza klasą",

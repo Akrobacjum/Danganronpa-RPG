@@ -3320,3 +3320,13 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel.drpg-window-
 body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"] > i { color: inherit; opacity: 1; }
 .drpg-window-settings .drpg-settings-rows > .drpg-settings-row[data-drpg-setting="moveAudit"] { grid-column: 1 / -1; }
 
+/* E92 C5 (12.11.2026; the owner's E92 goal and its 04.11 amend "the Spectator does NOT read the chat"). On a Spectator's
+   browser (`body.drpg-spectator`, spectator-ui.mjs `paintSpectatorLine`) the chat log, its pop-up notifications and the box
+   a message is typed in are not drawn: a display only, every message still reaches the browser (Q-E92-4). THE WATCHING
+   LINE under the clock: where the token stands, then the room picker, wrapping under it on a narrow clock. */
+body.drpg-spectator #chat-log,
+body.drpg-spectator #chat-notifications,
+body.drpg-spectator #chat-message { display: none; }
+#drpg-hud > .drpg-spectator-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; font-size: 0.85em; }
+#drpg-hud > .drpg-spectator-line > .drpg-spectator-where { flex: 1 1 auto; min-width: 0; }
+#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms { flex: 1 1 8rem; min-width: 0; max-width: 100%; }

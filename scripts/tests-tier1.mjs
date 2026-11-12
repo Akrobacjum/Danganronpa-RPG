@@ -47470,7 +47470,31 @@ const INVARIANTS = [
         };
         const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: false, acts: false, spectator: true };
         equal(stableJson({ owner: read(owner), gm: read(gm) }), stableJson({ owner: want, gm: want }), "[sheetMode of a Spectator for its owner and a GM]");
-    }, expectedRed("E92", "C5 writes the Spectator's sheet")],
+    }],
+    ["R3859 - a Spectator's line under the clock (scripts/spectator-ui.mjs `spectatorLineHtml`; E92 C5, the owner's E92 goal (3), (5)): it says the room the Spectator's token stands in, or that it stands outside the rooms, and offers every room handed - the class's found rooms - in its order, the room it stands in not to be picked, under a label that says what the picker does; with no room to offer the picker is shut; a GM's browser is no Spectator's (scripts/spectator.mjs `spectatorViewer`)", async () => {
+        /*
+         * E92 C5, 12.11.2026. The markup is pure; it is read in a detached element, in this browser's language. Red
+         * before C5: no spectator-ui.mjs.
+         */
+        const UI = await import("./spectator-ui.mjs");
+        const { spectatorViewer } = await import("./spectator.mjs");
+        const read = html => {
+            const root = document.createElement("div");
+            root.innerHTML = html;
+            const line = root.querySelector("[data-drpg-spectator-line]");
+            const select = line?.querySelector("select");
+            return { where: line?.querySelector(".drpg-spectator-where")?.textContent ?? null, label: select?.getAttribute("aria-label") ?? null,
+                shut: Boolean(select?.disabled), options: [...(select?.options ?? [])].map(o => [o.value, o.disabled]) };
+        };
+        const L = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
+        const here = read(UI.spectatorLineHtml({ room: "R3859 Gym", rooms: ["R3859 Dorm", "R3859 Gym"] }));
+        const outside = read(UI.spectatorLineHtml({ room: null, rooms: [] }));
+        equal(stableJson({ here, outside, gm: spectatorViewer({ id: "R3859gm", isGM: true }, [e92Char("R3859-watch", { spectator: true })]) }), stableJson({
+            here: { where: L("DRPG.Spectator.watching", { room: "R3859 Gym" }), label: L("DRPG.Spectator.watchLabel"), shut: false,
+                options: [["", false], ["R3859 Dorm", false], ["R3859 Gym", true]] },
+            outside: { where: L("DRPG.Spectator.watchingOutside"), label: L("DRPG.Spectator.watchLabel"), shut: true, options: [["", false]] },
+            gm: false }), "[the line in a room with two found; outside every room with none; a GM's browser]");
+    }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*
          * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two

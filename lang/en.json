@@ -3106,7 +3106,11 @@
     "Spectator": {
       "role": "Spectator",
       "marked": "{name} is now a Spectator.",
-      "unmarked": "{name} is no longer a Spectator."
+      "unmarked": "{name} is no longer a Spectator.",
+      "watching": "You watch from {room}.",
+      "watchingOutside": "You watch from outside the rooms.",
+      "watchRoom": "Watch a room",
+      "watchLabel": "Move your token to a room the class has found"
     },
     "Class": {
       "notInClass": "Not in the class",
