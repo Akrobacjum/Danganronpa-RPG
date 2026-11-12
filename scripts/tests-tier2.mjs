@@ -48774,6 +48774,24 @@ const SCENARIOS = [
                 back: ({ T, sceneId, tokenId, actorId }) => S.trialCastStore.get(T.castKey(sceneId, tokenId))?.reveal === false
                     && T.castRow(S.trialCastStore.entries(), sceneId, actorId, seasonEpoch(), tokenId)?.reveal === false
             },
+            // The Monocubs' record and their moves on each student (E72 C2, C4): a witness's mark of another season's
+            // chapter, which reads as no mark, and a count of another day, which counts nothing.
+            cubs: {
+                seed: async () => {
+                    await S.cubStore.patch(holder.id, { witness: { chapter: 99, epoch: -1 } });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.cubStore.has(id),
+                back: id => S.cubStore.get(id)?.witness?.chapter === 99 && S.cubStore.get(id)?.witness?.epoch === -1
+            },
+            cubTargets: {
+                seed: async () => {
+                    await S.cubTargetStore.patch(holder.id, { chapter: 99, epoch: -1, day: 1, timeOfDay: "morning", slot: 1, today: 1 });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.cubTargetStore.has(id),
+                back: id => S.cubTargetStore.get(id)?.chapter === 99 && S.cubTargetStore.get(id)?.today === 1
+            },
             // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
             eclipseMoves: {
                 seed: async () => {
