@@ -889,7 +889,7 @@
       "unknown": "Nieznana akcja: {key}.",
       "failed": "Nie udało się wykonać tej akcji. Powiedz GM-owi.",
       "nothing": "Nic się nie dzieje.",
-      "roll": "Rzut",
+      "roll": "Rzuć",
       "critical": "Krytyk",
       "duality": {
         "hope": "z Hope",
@@ -961,6 +961,9 @@
       "dynamicDescription": "Opisujesz, co robisz, a GM wybiera próg trudności i statystykę albo odrzuca pomysł. Trafienie zostawia Remnant, tym widoczniejszy, im łatwiejsze zadanie, a pudło nie zostawia nic.",
       "difficulty": "Trudność",
       "proceed": "Zrób to",
+      "next": "Dalej",
+      "restNow": "Odpocznij",
+      "askThem": "Poproś",
       "willCost": {
         "one": "Koszt: {n} akcja. Masz {left}.",
         "few": "Koszt: {n} akcje. Masz {left}.",

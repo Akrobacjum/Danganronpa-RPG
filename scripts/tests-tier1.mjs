@@ -21278,7 +21278,8 @@ const INVARIANTS = [
         const [first, moved, askOnly] = choosePalm ? drawn.map(read) : [{ html: "" }, {}, {}];
         const hint = (unseen, hand) => game.i18n.format("DRPG.Frisk.unseenHint", { unseen, hand });
         const open = force => game.i18n.format("DRPG.Frisk.openHint", { force });
-        const roll = game.i18n.localize("DRPG.Action.roll"), proceed = game.i18n.localize("DRPG.Action.proceed");
+        // An open Frisk asks the person: Ask them since E100 item 6 (R3922), Do it until then.
+        const roll = game.i18n.localize("DRPG.Action.roll"), proceed = game.i18n.localize("DRPG.Action.askThem");
         equal(stableJson([first.rows, first.frisk, first.modes, moved.modes, askOnly.modes, first.labels]), stableJson([
             ["steal", "plant", "frisk"],
             [game.i18n.localize("DRPG.Frisk.rowLabel"), game.i18n.localize("DRPG.Frisk.rowHint")],
@@ -50205,6 +50206,44 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ fold: [false, true, true, true], first: "eye", value: "eye", unopened: "eye", plain: 0, search: true, dynamic: false, words: true }),
             "{the fold [open, its summary's words, the statistic inside, the words of how inside]; the statistic's first choice; the one picked; read back unopened; "
             + "folds without `fold`; Search asks with fold; the Dynamic action asks with fold; the summary's key}");
+    }],
+    ["R3922 - one word per kind of button (E100 item 6; the owner's 12.11.2026, the player-screens review's #10): a button that rolls says Roll / Rzuć (Observe, Search, Tamper, Listen, Palm, Analyze, a project's work and sabotage and the project picker; the crisis roll), one whose words go to a GM to decide says Send to the GM / Wyślij do GM-a (the Dynamic action, a project's proposal), one that only leads to the next window says Next / Dalej (Rest's choice, Propose a project, both Level Up menus), Rest's picks say Rest / Odpocznij and an open Frisk Ask them / Poproś; Do it is left to `chooseVariant`'s fallback alone, which no action window reaches, and Got it is gone", async () => {
+        /*
+         * E100 item 6, 12.11.2026. The review: Observe, Search and Tamper ended on "Rzut", Analyze and Projects on "Zrób to",
+         * Dynamic on "Wyślij do GM-a", Move on "Jasne", Level Up on "Zrób to". Each window's button read off its opener's
+         * source (the key it localizes), and the words off both files. Red at the item 5 commit: Rzut, Do it in five
+         * openers, "Send to GM", "Send it to the GM", "Roll it".
+         */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
+        const words = key => [at(en, key) ?? null, at(pl, key) ?? null];
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const keysIn = (file, fn) => [...new Set([...fnSource(src(file), fn).matchAll(/"DRPG\.(Action\.(?:roll|proceed|next|restNow|askThem)|Murder\.brief\w+|Bridge\.send|Project\.proposeButton)"/g)].map(m => m[1]))].sort();
+        const proceedUsers = [...sources].filter(([file, text]) => !file.startsWith("tests") && /"DRPG\.Action\.proceed"/.test(stripComments(text))).map(([file]) => file);
+        const read = {
+            words: {
+                roll: words("DRPG.Action.roll"), next: words("DRPG.Action.next"), restNow: words("DRPG.Action.restNow"), askThem: words("DRPG.Action.askThem"),
+                send: words("DRPG.Bridge.send"), propose: words("DRPG.Project.proposeButton"), crisis: words("DRPG.Murder.briefRoll"), gotIt: words("DRPG.Action.gotIt")
+            },
+            openers: {
+                observe: keysIn("action-observe.mjs", "askDeclaration"), search: keysIn("action-search.mjs", "chooseSearchCategory"),
+                tamper: keysIn("action-tamper.mjs", "chooseTamper"), listen: keysIn("action-listen.mjs", "performListen"), palm: keysIn("palm.mjs", "choosePalm"),
+                analyze: keysIn("action-analyze.mjs", "askWhatToAnalyze"), project: keysIn("action-project.mjs", "performProject"),
+                picker: keysIn("action-project.mjs", "chooseProject"), rest: keysIn("action-rest.mjs", "performRest"), picks: keysIn("rest.mjs", "choosePicks"),
+                levelUp: keysIn("level-up.mjs", "openAdvancementFor"), dynamic: keysIn("call-gm.mjs", "askForRequest"), proposal: keysIn("action-project.mjs", "startProject")
+            },
+            proceed: proceedUsers
+        };
+        equal(stableJson(read), stableJson({
+            words: { roll: ["Roll", "Rzuć"], next: ["Next", "Dalej"], restNow: ["Rest", "Odpocznij"], askThem: ["Ask them", "Poproś"],
+                send: ["Send to the GM", "Wyślij do GM-a"], propose: ["Send to the GM", "Wyślij do GM-a"], crisis: ["Roll", "Rzuć"], gotIt: [null, null] },
+            openers: { observe: ["Action.roll"], search: ["Action.roll"], tamper: ["Action.roll"], listen: ["Action.roll"], palm: ["Action.askThem", "Action.roll"],
+                analyze: ["Action.roll"], project: ["Action.next", "Action.roll"], picker: ["Action.roll"], rest: ["Action.next"], picks: ["Action.restNow"],
+                levelUp: ["Action.next"], dynamic: ["Bridge.send"], proposal: ["Project.proposeButton"] },
+            proceed: ["action-menus.mjs"]
+        }), "{the words [en, pl] of each button kind; the button keys each window's opener localizes; the module files that still name Do it}");
     }],
 ];
 

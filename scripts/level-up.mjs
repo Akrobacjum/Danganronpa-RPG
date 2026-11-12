@@ -65,6 +65,8 @@ export async function openAdvancementFor(actor) {
         actor,
         // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
         columns: false,
+        // Each menu leads to the next step (E100 item 6, R3922; "Do it" until then).
+        confirm: game.i18n.localize("DRPG.Action.next"),
         title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
         prompt: game.i18n.format("DRPG.Advance.whichKind", {
             actor: foundry.utils.escapeHTML(actor.name)
@@ -102,6 +104,8 @@ export async function openAdvancementFor(actor) {
         actor,
         // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
         columns: false,
+        // Each menu leads to the next step (E100 item 6, R3922; "Do it" until then).
+        confirm: game.i18n.localize("DRPG.Action.next"),
         title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
         prompt: game.i18n.format("DRPG.Advance.whoPicks", {
             actor: foundry.utils.escapeHTML(actor.name)
