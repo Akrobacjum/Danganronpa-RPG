@@ -127,3 +127,78 @@ and Legacy's full and greyed frames inside its four groups' boxes, by the motion
 Legacy; play the fade or the return; Esc (button and key) to the end state; a scrubber; reduced motion and the table's
 sequences switch (both: the end state at once, the sound still played); pulse off (the batches go out with no flicker,
 only the edges flicker); slow x4; the test tone. Not Foundry; the pulse is static; the spectator token is not in it.
+
+## The dead as Spectators: the owner's answers (12.11.2026, about 00:40 CET, relayed by the coordinator)
+
+- A, "Tak": every death (murder, execution, any other) makes the dead a Spectator at the moment of death.
+- B, "Tak": a dead Spectator sees only what a dead student sees today - not E92's full view (every room, every token,
+  secret projects); the full view stays for a Spectator a GM sets, since the dead may come back as a Monocub.
+- C, "Tak": the Spectator's token stands in the room where the body lies; the body stays a corpse; the token is hidden
+  from the living, and a GM sees it at 0.3 (as E92).
+- D, "Nie - od razu w obserwatora. Wiem ze to duza zmiana, ale mysle ze to lepsze": not E72's room of the account's own
+  until the body is found; the dead goes straight into the Spectators' voice (Talk with the Spectators). E72 C8 ships
+  the per-account dead room in 1.2.110; this reverses it for the dead. **The owner's accepted trade-off:** another dead
+  student or a Spectator may hear of a secret death before the body is found.
+- E (no answer, the default taken): on becoming a Monocub the same token turns into the Monocub's (image and role) and the
+  curtain plays the return.
+- F, "Tak": a dead student who never becomes a Monocub stays a Spectator to the season's end, the curtain out.
+- The sound (no answer, the default taken): a new Sound row "Death fade" / "Gaśnięcie" in the incident category, its
+  default file the existing death sound, played once at the fade's start on the victim's screen only.
+
+## Spec: the dead as Spectators (part of E62 C3; no code before the coordinator schedules it, after 1.2.112)
+
+What exists (main, 1.2.109): E92's Spectator is a character flagged `spectator` (config.mjs `FLAGS.spectator`), owned by
+an account with no student (monokuma.mjs `isSpectator`; spectator.mjs `spectatorViewer`, `watcherOf`); the flag is
+public by design ("who watches is the table's to know", spectator.mjs's header). Voice routes a Spectator account by
+voice.mjs `spectatorAccount` / `spectatorTalks` (`SPECTATOR_ROOM`) and a death kept secret to `DEAD_ROOM`
+(voice.mjs, the routing of the dead); E72 C8 (1.2.110) gives each dead account its own room (voice-client.mjs
+`deadRoomFor`). Death is two predicates (settings.mjs `isDeceased`, the table's; `isDeadForGm`, the GMs' and the
+player's own copy) and becomes the table's only at `publishDeath` (chapter.mjs). A Monocub needs a published death
+(monocub.mjs `eligibleForMonocub` reads `isDeceased`); `setMonocub` writes its flag.
+
+### What changes where
+
+1. **The role, without a public flag before the death is published.** A dead Spectator is a reading, not E92's flag:
+   `deadWatcher(actor)` = dead by the reader's own predicate (`isDeadForGm` on a GM and on the player's own copy,
+   `isDeceased` elsewhere) and not a Monocub. Nothing in world data says it before `publishDeath` (E05, R190, R9;
+   world-secrets.mjs). E92's `FLAGS.spectator` and its full view stay the GM-set Spectator's alone (B). After
+   publication nothing new is needed: the death is public.
+2. **What the dead see.** Unchanged from today (B): a dead student's view. The changes are the curtain (bare glass, C3's
+   fade), the token, the voice and the sound.
+3. **The token (C).** Made by the primary GM at the moment its record of the death is written (the GMs' `deaths`
+   store), in the scene and room where the body's token stands, hidden from the living (`hidden: true`), seen by a GM at
+   0.3 as E92's. The body's own token stays the corpse. On whose actor: see Q1 below.
+4. **Voice (D).** At the death the primary routes the dead account to `SPECTATOR_ROOM` (Talk with the Spectators), not to
+   `DEAD_ROOM` nor E72 C8's `deadRoomFor`; voice.mjs's routing of the dead is the one place. The trade-off above is the
+   owner's accepted choice; the handbook says it.
+5. **The Monocub (E).** `setMonocub(actor, true)` turns the same token into the Monocub's token (its image and role)
+   and the victim's curtain plays the return (MK-C3); `setMonocub(actor, false)` gives the Spectator back, bare glass at
+   once (SB-C3 #10).
+6. **Never a Monocub (F).** The Spectator token and bare glass stay to the season's end; the season reset removes the
+   token (a row of season-reset.mjs's registry, walked by season-wipe.mjs `wipeSeason`).
+7. **Corrections are silent (SB-C3 #17).** A death or a revive written from the Students window or Edit campaign makes
+   or removes the token and sets the curtain with no animation; a death in play (murder, execution) plays the fade and
+   its sound.
+8. **Migration.** A clause of migrate.mjs's `CLAUSES`, run by `runMigrationOnLoad` on the primary GM when the version
+   has moved (R178: no other road lifts data), idempotent like every clause; beside `bodiesToLay`: each student
+   `isDeadForGm` and not a Monocub without a Spectator token gets one where its body's token stands, with no animation;
+   one whose body has no token is listed for the GM (Pre-season's checks). On the player's next load the curtain is at
+   bare glass at once.
+9. **Sound.** A new `SFX_EVENTS` row "Death fade" / "Gaśnięcie" (incident), default the death file, played once at the
+   fade's start on the victim's browser only (sfx-play.mjs `playSfx`, no socket); none under a correction.
+10. **Files, as far as read:** settings.mjs (the predicate), chapter.mjs and the death's record (the moment), a new
+    spectator-dead.mjs or spectator.mjs (the token, the conversion), voice.mjs (routing), monocub.mjs (`setMonocub`'s
+    conversion), migrate.mjs (the lift), season-reset.mjs (the reset's row), glass.mjs and motion.css (the fade and the
+    return), config.mjs and lang/ (the Sound row and texts, EN and PL), the handbooks (the trade-off), world-secrets.mjs
+    (the rule for whatever Q1 decides).
+
+### Questions left, each with the default this line would build on
+
+| # | Question | Default |
+| --- | --- | --- |
+| Q-C3b-1 | A token made at a secret death is world data every browser receives, hidden or not (D2): a console reads that a new token stands in the body's room. Accept it, as the owner accepted the voice's (D), or make the token only at the death's publication? | Make it at the death (A, C), and write it beside D's trade-off; world-secrets.mjs gets a rule that the token carries no flag naming the death |
+| Q-C3b-2 | Whose token: the student's own actor (a second token beside the corpse) or a new Spectator actor per student owned by the same player? | A new actor per student, owned by the player, named after the student: the module reads one token per student (rooms, movement, the body), and a second one would break those readings |
+| Q-C3b-3 | May the dead move their Spectator token, as an E92 Spectator moves freely? | Yes, with no costs and no room rules, and the living never see it |
+| Q-C3b-4 | A revive in play (not a correction): does the curtain play the return, and the token go? | The token goes, and the curtain plays the return (MK-C3's) |
+| Q-C3b-5 | E72 C8's per-account dead room (1.2.110): kept for anything once the dead go to the Spectators' voice? | Retired for the dead; the trial's own rules for the dead in the Class Trial unchanged |
+| Q-C3b-6 | Migration: an already-dead student whose body has no token anywhere | Listed for the GM in Pre-season's checks, no token made |
