@@ -1573,6 +1573,34 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
 
     /* ------------------------------------------- A. the Assistant as the primary */
 
+    /* E92 C3 (12.11.2026): the legal road of `spectator.move`, while the GM is here (the phases after it take the GMs away). The GM makes Chie (p3's) a Spectator by the Students
+       window's road (monokuma.mjs `setSpectator`, not under test); p3 asks for its token in the Gym, a room away: the
+       primary writes it there, charges no action and records no room found for Chie; then the GM puts both back. */
+    phase("a Spectator's ghost move", { flow: "spectator-move" });
+    const ghostBefore = await gm.eval(`const M = await import("${repoUrl}/scripts/monokuma.mjs");
+        const F = await import("${repoUrl}/scripts/fog.mjs");
+        const chie = game.actors.get("${IDS.chie}"), t = canvas.scene.tokens.get("TOKCHIE000000000");
+        await M.setSpectator(chie, true);
+        return { x: t.x, y: t.y, actions: game.drpg.actionsLeft(chie), found: F.discoveredFor(canvas.scene.id, chie.id).slice().sort() };`);
+    await settle(800);
+    const ghostAsked = await p3.eval(`const B = await import("${repoUrl}/scripts/bridge-asks.mjs");
+        const res = await B.requestSpectatorMove(canvas.scene.id, "TOKCHIE000000000", 1500, 1400);
+        return { ok: res.ok === true, refused: res.refused ?? null };`);
+    await settle(1500);
+    const ghostAfter = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const { roomOfToken } = await import("${repoUrl}/scripts/movement.mjs");
+        const chie = game.actors.get("${IDS.chie}"), t = canvas.scene.tokens.get("TOKCHIE000000000");
+        const out = { x: t.x, y: t.y, room: roomOfToken(t), actions: game.drpg.actionsLeft(chie), found: F.discoveredFor(canvas.scene.id, chie.id).slice().sort() };
+        const M = await import("${repoUrl}/scripts/monokuma.mjs");
+        await t.update({ x: ${ghostBefore?.x ?? 350}, y: ${ghostBefore?.y ?? 1300} }, { animate: false });
+        await M.setSpectator(chie, false);
+        return out;`);
+    await settle(800);
+    check("E92: a Spectator's ghost move is written on the primary where its player asks, a room away, at no price, and finds no room",
+        ghostAsked?.ok === true && ghostAfter?.x === 1500 && ghostAfter?.y === 1400 && ghostAfter?.room === "Gym"
+        && ghostAfter?.actions === ghostBefore?.actions && JSON.stringify(ghostAfter?.found) === JSON.stringify(ghostBefore?.found),
+        JSON.stringify({ ghostBefore, ghostAsked, ghostAfter }), { flow: "spectator-move" });
+
     phase("the Assistant as the primary", { flow: "give-take-stash" });
     const gift = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 1500, y: 300 });
@@ -1736,34 +1764,6 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         JSON.stringify({ c6, c7, c67 }));
     const sentence = [c1, c2, c3].map(c => (c.said[0] ?? "").split(c.label).join("{what}"));
     check("C: the three say the same sentence apart from what they name", sentence.every(s => s && s === sentence[0]), JSON.stringify(sentence));
-
-    /* E92 C3 (12.11.2026): the legal road of `spectator.move`. The GM makes Chie (p3's) a Spectator by the Students
-       window's road (monokuma.mjs `setSpectator`, not under test); p3 asks for its token in the Gym, a room away: the
-       primary writes it there, charges no action and records no room found for Chie; then the GM puts both back. */
-    phase("a Spectator's ghost move", { flow: "spectator-move" });
-    const ghostBefore = await gm.eval(`const M = await import("${repoUrl}/scripts/monokuma.mjs");
-        const F = await import("${repoUrl}/scripts/fog.mjs");
-        const chie = game.actors.get("${IDS.chie}"), t = canvas.scene.tokens.get("TOKCHIE000000000");
-        await M.setSpectator(chie, true);
-        return { x: t.x, y: t.y, actions: game.drpg.actionsLeft(chie), found: F.discoveredFor(canvas.scene.id, chie.id).slice().sort() };`);
-    await settle(800);
-    const ghostAsked = await p3.eval(`const B = await import("${repoUrl}/scripts/bridge-asks.mjs");
-        const res = await B.requestSpectatorMove(canvas.scene.id, "TOKCHIE000000000", 1500, 1400);
-        return { ok: res.ok === true, refused: res.refused ?? null };`);
-    await settle(1500);
-    const ghostAfter = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
-        const { roomOfToken } = await import("${repoUrl}/scripts/movement.mjs");
-        const chie = game.actors.get("${IDS.chie}"), t = canvas.scene.tokens.get("TOKCHIE000000000");
-        const out = { x: t.x, y: t.y, room: roomOfToken(t), actions: game.drpg.actionsLeft(chie), found: F.discoveredFor(canvas.scene.id, chie.id).slice().sort() };
-        const M = await import("${repoUrl}/scripts/monokuma.mjs");
-        await t.update({ x: ${ghostBefore?.x ?? 350}, y: ${ghostBefore?.y ?? 1300} }, { animate: false });
-        await M.setSpectator(chie, false);
-        return out;`);
-    await settle(800);
-    check("E92: a Spectator's ghost move is written on the primary where its player asks, a room away, at no price, and finds no room",
-        ghostAsked?.ok === true && ghostAfter?.x === 1500 && ghostAfter?.y === 1400 && ghostAfter?.room === "Gym"
-        && ghostAfter?.actions === ghostBefore?.actions && JSON.stringify(ghostAfter?.found) === JSON.stringify(ghostBefore?.found),
-        JSON.stringify({ ghostBefore, ghostAsked, ghostAfter }), { flow: "spectator-move" });
 
     /* ------------------------------------------------- B1 and D, over the whole run */
 
