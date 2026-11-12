@@ -3188,6 +3188,15 @@
         "triedBy": "{name} próbuje wyważyć drzwi do: {room}.",
         "yourDoor": "Ktoś wyważył drzwi: {room}. Zamek zostaje zepsuty, póki ktoś go nie naprawi."
       },
+      "pick": {
+        "prompt": "Otwórz zamek z: {room}. Hand {n} go otwiera i przechodzisz; {clean} lub więcej i właściciel się nie dowie. Shadow {cover} lub więcej i nikt nie widzi, kto to był.",
+        "coverTitle": "Pick the Lock - czy ktoś widzi?",
+        "opened": "Zamek ustępuje. Wślizgujesz się do: {room}.",
+        "held": "Zamek do: {room} trzyma.",
+        "open": "Żaden zamek nie trzyma drzwi do: {room}.",
+        "seenBy": "{name} majstruje przy zamku do: {room}.",
+        "warned": "Ktoś majstrował przy zamku: {room}."
+      },
       "shut": {
         "done": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia."
       },
@@ -3226,6 +3235,10 @@
         "force": {
           "label": "Force the Door",
           "hint": "Body przy drzwiach obok: barykada, zamek albo pieczęć ustępuje. Głośno."
+        },
+        "pick": {
+          "label": "Pick the Lock",
+          "hint": "Hand przy zamkniętych albo zapieczętowanych drzwiach obok: wchodzisz ty i nikt więcej."
         },
         "dash": {
           "label": "Dash",
@@ -4089,6 +4102,7 @@
         "tail.start": "Tail Someone",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
+        "door.pick": "Pick the Lock",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",

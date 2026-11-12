@@ -192,6 +192,25 @@ export async function handleDoorForce(payload) {
     return { reply: { forced: out.forced, held: out.held } };
 }
 
+/** The two rolls of a pick (E74 C4): the Hand and the Shadow cover the two rooms' seeing is read from. */
+export function pickRolls(actor) {
+    return [
+        { field: "rollId", actor, kind: "pick" },
+        { field: "coverRollId", actor, kind: "pickCover", into: { total: "coverTotal", isCritical: "coverCritical" } }
+    ];
+}
+
+/** PICK THE LOCK (E74 C4, 12.11.2026; doors-gm.mjs). Answers `{ reply: { opened, held } }`. */
+export async function handleDoorPick(payload) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { pickLock } = await import("./doors-gm.mjs");
+    const out = await pickLock({ actor, room: payload.room, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope,
+        coverTotal: payload.coverTotal, coverCritical: payload.coverCritical });
+    if (out.refused) return { refused: out.refused };
+    return { reply: { opened: out.opened, held: out.held } };
+}
+
 /** The two rolls of a tail, as `rolled` names them (E69 C3): the effect's and the Shadow the target's noticing is read from. */
 export function tailRolls(actor) {
     return [

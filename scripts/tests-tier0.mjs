@@ -6298,6 +6298,8 @@ const REGRESSIONS = [
             shutDoor: "refused", shutRefusal: "why",
             // E74 C3: a door forced on the primary (doors-gm.mjs), whose run passes its `{ refused }` on.
             forceDoor: "refused",
+            // E74 C4: a lock picked on the primary (doors-gm.mjs), whose run passes its `{ refused }` on.
+            pickLock: "refused",
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
             // `{ refused }` on, and a force's roll held to its ask (bridge-runs-acts.mjs `friskForceRoll`, a `derive`).
             askToFrisk: "refused", answerFrisk: "refused", followFrisk: "refused", friskForceRoll: "why",
@@ -7472,7 +7474,8 @@ const REGRESSIONS = [
             "action-listen.mjs performDash": INFILTRATE.dash,
             // E74 C2: Shut the Door rolls its one statistic (INFILTRATE.shut, Body).
             "action-doors.mjs performShut": INFILTRATE.shut,
-            "action-doors.mjs performForce": INFILTRATE.force
+            "action-doors.mjs performForce": INFILTRATE.force,
+            "action-doors.mjs performPick": INFILTRATE.pick
         };
         const sites = [];
         for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
@@ -7705,7 +7708,7 @@ const REGRESSIONS = [
         const WAITING = [];
         // A Facilities roll (E93 C3) is thrown from the tile whose key is still `rest` (the Facilities tile).
         // A Dash (E69 C5) and a tail's two rolls (E69 C3) are thrown from the Infiltrate tile, whose key is still `listen`.
-        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm", facility: "rest", dash: "listen", tail: "listen", tailUnseen: "listen", shut: "listen", force: "listen" };
+        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm", facility: "rest", dash: "listen", tail: "listen", tailUnseen: "listen", shut: "listen", force: "listen", pick: "listen", pickCover: "listen" };
         // A Take from the Body's two rolls (E68 C10): its Hand and its cover, both of config.mjs `LOOT`.
         const { LOOT } = await import("./config.mjs");
         const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING, loot: LOOT, lootCover: LOOT?.cover };
@@ -8164,6 +8167,7 @@ const REGRESSIONS = [
             ["music-play.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
             ["music-play.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
+            ["gm-bridge.mjs", "pickLock", "token", "a token walked through a picked door by the primary GM (E74 C4): the lock judged and the Hand read off the GMs' record before it, in the run of `door.pick`"],
             ["passages-gm.mjs", "crossTunnel", "doc", "a token moved through a tunnel by the primary GM: 'Go through', its default write, the crossing judged and paid before it (E80 C2; a bridge run, gated on the primary)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
@@ -9770,6 +9774,7 @@ const REGRESSIONS = [
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action one of `ANALYZE_ROW_REQUEST`'s literals, the reason checked against `REASONS`; a row the Class Trial filter shuts, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-doors.mjs#performPick", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.pick`, the reason the literal noGm); Pick the Lock with no GM connected, before its price (E74 C4); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-doors.mjs#performForce", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.force`, the reason the literal noGm); Force the Door with no GM connected, before its price (E74 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-doors.mjs#performShut", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.shut`, the reason the literal noGm); Shut the Door with no GM connected, before its price (E74 C2); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-tail.mjs#performTail", "composed on this client from closed lists (`sayNotDone`: the action the literal `tail.start`, the reason the literal noGm); a tail with no GM connected, before its window and its price (E69 C3); kept as a notDone entry: read, these words and no others (R297)"],
@@ -10642,6 +10647,7 @@ const REGRESSIONS = [
             ["OPT movement.mjs#tunnelStepTarget#displace -> exempt", "this file's own: as `movementAction` above (H81-14)"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
+            ["OPT gm-bridge.mjs#pickLock#displace -> exempt", "the primary GM's own write walking a picker through the door it opened (E74 C4, doors-gm.mjs `pickLock`: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             ["OPT projects-map.mjs#moveProjectToken#displace -> exempt", "the primary GM's own write of a project token into its project's room (E36 C4: `teleport`, `displace`, no animation, and the module's own move option, which the project's drag handler skips): a GM's move is let through because a GM made it (the hook's user), not because of these options; a project token is no character and crosses nothing"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets

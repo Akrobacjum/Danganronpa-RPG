@@ -343,6 +343,10 @@ Barricade the room you stand in, from inside. It works in a room with at most tw
 
 At a door from your room to the next: one Body roll against everything that holds it at once. A barricade gives to a roll above its strength; a lock (a GM's or a bedroom's) and a seal give to 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it, a forced seal is gone for the rest of its time of day. It is loud: the rooms next to either room hear "A banging from: {room}" without a name, and the people in the two rooms see who it was - on a success, and on a miss with Despair. A bedroom's owner is told their door was forced. Not during a Class Trial, not when you are Chained.
 
+### Pick the Lock - Shadow, then Hand, 1 action
+
+At a locked or sealed door from your room to the next (not a barricade): Hand 15 or more opens it and you slip through - you alone; the lock stays locked for everyone else. First a Shadow roll: 16 or more and nobody in the room beyond sees who it was. A bedroom's owner learns somebody was at their lock when you open it below 18 or miss with Despair; at 18 or more they never know.
+
 ### Dash - Leg, 1 action
 
 Run: a Leg roll gives free crossings until the time of day ends, spent like a Free Move.

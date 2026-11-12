@@ -830,9 +830,11 @@ const PAY_WAIT_MS = 1500;
  */
 const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.freeze(["palm", "rummage"]), Object.freeze(["friskAsk", "frisk"]),
     // Tail Someone (E69 C3): whether the target notices, then the effect, on one action (action-tail.mjs `performTail`).
-    Object.freeze(["tailUnseen", "tail"])]);
+    Object.freeze(["tailUnseen", "tail"]),
+    // Pick the Lock (E74 C4): the cover, then the Hand, on one action (action-doors.mjs `performPick`).
+    Object.freeze(["pickCover", "pick"])]);
 /** The parts that only ride a ticket their partner was drawn or claimed on, and are paid by nothing of their own (`paysFor`). */
-const RIDES_ONLY = Object.freeze(["rummage", "frisk", "tail"]);
+const RIDES_ONLY = Object.freeze(["rummage", "frisk", "tail", "pick"]);
 /** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride. */
 const CLAIMED_ONLY = Object.freeze(["friskAsk"]);
 /** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
@@ -1803,6 +1805,9 @@ async function listedFor(actor, key, context) {
     // Shut the Door (E74 C2): Body, from this GM's config.
     if (key === "shut") return [...INFILTRATE.shut.traits];
     if (key === "force") return [...INFILTRATE.force.traits];
+    // Pick the Lock (E74 C4): its Hand and its cover's Shadow, one statistic each.
+    if (key === "pick") return [...INFILTRATE.pick.traits];
+    if (key === "pickCover") return [INFILTRATE.pick.cover.trait];
     // A GM's room action (E93 C3): the statistic the GM set on it, read on this GM's copy of the room the character
     // stands in (`facilityOfDraw`), never the packet's; none where the room holds no such action (the draw is refused).
     if (key === "facility") {

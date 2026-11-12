@@ -26,8 +26,15 @@
  * (DA43 = 1), and those in the two rooms are told who forced which door; a bedroom's owner is told their door was
  * forced, wherever they are.
  *
+ * PICK THE LOCK (E74 C4; DA9, DA29, DA30, DA31 = 2). At a door to a neighbouring room held by a lock (a GM's or a bedroom's)
+ * or a seal, never a barricade: Hand at `INFILTRATE.pick.dc` (15) opens it, a critical too, and the GM walks the picker
+ * through it into the room (a GM's move, which no door stops) - the pass used at once, so it needs no store and no copy (a
+ * default taken where the plan keeps a pass until the picker leaves the room; docs/dev/e74/STATUS.md). The lock stays
+ * locked for everyone else. The owner of a bedroom is warned on an open below `clean` (18) and on a miss with Despair
+ * (DA30); the Shadow cover below its threshold (16) lets the two rooms see who it was.
+ *
  * NOT BUILT IN THIS ROUND (docs/dev/e74/STATUS.md): the "Someone tries to get in" card to a barricade's author, the
- * Remnants (a barricade's neutral one, Force's Evident one), Pick the Lock, Repair the Lock, Keep Watch.
+ * Remnants (a barricade's neutral one, Force's Evident one, a pick's by its band), Repair the Lock, Keep Watch.
  */
 
 import { MODULE_ID, FLAGS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
@@ -158,6 +165,45 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
     }
     log(`${actor.name} ${forced ? "forced" : "failed to force"} the door to ${room} (${sum}; held by ${held.join(", ") || "nothing"}).`);
     return { forced, held, heard };
+}
+
+/**
+ * Pick a lock on the primary GM (the run of `door.pick`): `room` the room beyond; `total`, `isCritical`, `withHope` the Hand
+ * roll's and `coverTotal`, `coverCritical` the Shadow's, each the GMs' record. Answers `{ refused }` or `{ opened, held }`.
+ */
+export async function pickLock({ actor, room, total = 0, isCritical = false, withHope = true, coverTotal = 0, coverCritical = false }) {
+    const M = await import("./movement.mjs");
+    const { getClock } = await import("./settings.mjs");
+    const { isChained } = await import("./call-world.mjs");
+    const place = M.gmPlaceOf(actor);
+    if (!place?.room) return { refused: "the character is not standing in any room" };
+    if (isDeadForGm(actor)) return { refused: "that cannot be done now" };
+    if (getClock()?.phase === "classTrial") return { refused: "that waits until the Class Trial is over" };
+    if (isChained(actor)) return { refused: "that cannot be done now" };
+    if (!room || room === place.room || !M.neighbouringRooms(place.scene, place.room).includes(room)) return { refused: "the character is not in that room" };
+    await barricadeStore.whenHydrated();
+    const holds = await whatHolds(actor, place.scene, room);
+    const held = Object.entries(holds).filter(([, v]) => v !== null && v !== false).map(([k]) => k);
+    const rule = INFILTRATE.pick;
+    const sum = Number(total) || 0;
+    const lockish = held.length > 0 && !held.includes("barricade");
+    const opened = lockish && (isCritical || sum >= rule.dc);
+    if (opened) {
+        const token = place.tokenDoc;
+        await token.update(M.positionIn(room, token), { teleport: true, movementAction: "displace", animate: false });
+    }
+    const seen = !(coverCritical || (Number(coverTotal) || 0) >= rule.cover.threshold);
+    if (seen && lockish) {
+        await tellRooms(place.scene, [place.room, room], game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room }), new Set([actor.id]));
+    }
+    const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
+    const careless = lockish && ((opened && !isCritical && sum < rule.clean) || (!opened && !withHope));
+    if (careless && owner && owner !== actor.id && game.actors.get(owner)) {
+        const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
+        await whisperToOwnerOnly(game.actors.get(owner), `<p>${esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room }))}</p>`);
+    }
+    log(`${actor.name} ${opened ? "picked" : "failed to pick"} the lock of ${room} (${sum}; held by ${held.join(", ") || "nothing"}).`);
+    return { opened, held };
 }
 
 /** Take a barricade down: the row dropped and the public flag taken off. Answers whether there was one. */

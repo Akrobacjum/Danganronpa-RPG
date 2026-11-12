@@ -2926,6 +2926,15 @@
         "triedBy": "{name} tries to force the door to {room}.",
         "yourDoor": "Somebody forced the door of {room}. Its lock stays broken until it is repaired."
       },
+      "pick": {
+        "prompt": "Pick a lock out of {room}: Hand {n} opens it and you go through; {clean} or more and the owner never knows. Shadow {cover} or more and nobody sees who it was.",
+        "coverTitle": "Pick the Lock - does anyone see?",
+        "opened": "The lock gives. You slip into {room}.",
+        "held": "The lock to {room} holds.",
+        "open": "No lock holds the door to {room}.",
+        "seenBy": "{name} is picking the lock to {room}.",
+        "warned": "Somebody has been at the lock of {room}."
+      },
       "shut": {
         "done": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends."
       },
@@ -2964,6 +2973,10 @@
         "force": {
           "label": "Force the Door",
           "hint": "Body at a door next to you: a barricade, a lock or a seal gives way. Loud."
+        },
+        "pick": {
+          "label": "Pick the Lock",
+          "hint": "Hand at a locked or sealed door next to you: you slip in, and nobody else."
         },
         "dash": {
           "label": "Dash",
@@ -3760,6 +3773,7 @@
         "tail.start": "Tail Someone",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
+        "door.pick": "Pick the Lock",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",

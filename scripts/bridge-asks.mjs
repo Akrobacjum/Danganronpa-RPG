@@ -34,7 +34,7 @@ import {
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -74,6 +74,15 @@ export function requestDoorForce({ actorId, room, total = 0, isCritical = false,
     const packet = { actorId, room, total, isCritical, withHope, rollId };
     return ask(ACTION_DOOR_FORCE, packet, {
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorForce(packet, game.user))
+    });
+}
+
+/** Pick the Lock (E74 C4): the room beyond and both rolls named by their messages; answers `{ opened, held }` as `.value`. */
+export function requestDoorPick({ actorId, room, total = 0, isCritical = false, withHope = true, coverTotal = 0, coverCritical = false,
+    rollId = null, coverRollId = null }) {
+    const packet = { actorId, room, total, isCritical, withHope, coverTotal, coverCritical, rollId, coverRollId };
+    return ask(ACTION_DOOR_PICK, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorPick(packet, game.user))
     });
 }
 

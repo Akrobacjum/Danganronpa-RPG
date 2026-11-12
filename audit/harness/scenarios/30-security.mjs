@@ -6644,6 +6644,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && force.theirs.forOwnership && force.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(force).slice(0, 2000), { flow: "door-force" });
 
+    /* FORGERIES OF PICK THE LOCK (E74 C4, 12.11.2026). `door.pick` from p1's console at Dorm B: for Botan's character, and for
+       Aiko with no roll named - each refused, nobody walked anywhere. The legal road is tier 2's E74-T3. */
+    phase("forgeries of Pick the Lock", { flow: "door-pick" });
+    const readPlaces = `return ["${ids.aiko}", "${ids.botan}"].map(id => { const t = game.scenes.get("${ids.scene}").tokens.find(t => t.actorId === id); return t ? [t.x, t.y] : null; });`;
+    const pickLock = {
+        theirs: await forge("door.pick", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces),
+        noRoll: await forge("door.pick", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces)
+    };
+    check("SECURITY: a console's Pick the Lock is refused for another's character and with no roll named - nobody walked in - and each refusal is logged on the GM and told to p1",
+        Object.values(pickLock).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && pickLock.theirs.forOwnership && pickLock.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(pickLock).slice(0, 2000), { flow: "door-pick" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the
