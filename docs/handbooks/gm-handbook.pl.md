@@ -928,7 +928,7 @@ Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok,
 (DC Analyze, `ANALYZE_DC`. Bez kolumny Daily Life: bullet czyta się w kolumnie tego, czym naprawdę jest. Key i Final Truth Bullets oraz Autopsy wydany jako Neutral czyta się w kolumnie Key: 6 / 9 / 12 / 15. W Class Trial Analyze kosztuje akcję, albo 1 Hope, gdy akcji nie ma, albo 1 Sanity, gdy nie ma ani jednego, ani drugiego.)
 
 > [!IMPORTANT]
-> **Krytyczne** Observe albo Analyze jest ci winne solidną wskazówkę dla gracza - karta mówi to na czerwono.
+> **Krytyczne** Observe albo Analyze jest ci winne solidną wskazówkę dla gracza - karta mówi to na czerwono. Przy krytycznym Observe okno opisu ma na nią osobne pole, **Podpowiedź tylko dla tej osoby**: to, co tam wpiszesz, trafia tylko na Truth Bullet tego ucznia, pod opisem śladu, i nigdy do opisu śladu, który kopiują późniejsi znalazcy.
 
 **Sekcję** wydajesz z pulpitu albo z ekranu po incydencie zaznaczonym uczniom: nazwa, co gracz czyta, twoja notatka. Klucz odpowiedzi za każdym bulletem żyje tylko w przeglądarkach GMów, razem z resztą sprawy.
 

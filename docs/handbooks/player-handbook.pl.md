@@ -218,7 +218,7 @@ Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe;
 
 ### Observe - Eye, 1 akcja
 
-Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa. Jeden ślad masz najwyżej w jednej kopii: na ślad, który już masz albo którego znalezisko z innego twojego Observe GM jeszcze opisuje, twój wzrok nie pada, a druga kopia śladu nigdy nie powstaje.
+Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa, zapisaną tylko na twojej kopii - kto znajdzie ślad po tobie, jej nie przeczyta. Jeden ślad masz najwyżej w jednej kopii: na ślad, który już masz albo którego znalezisko z innego twojego Observe GM jeszcze opisuje, twój wzrok nie pada, a druga kopia śladu nigdy nie powstaje.
 
 Wybierasz, jak patrzysz:
 

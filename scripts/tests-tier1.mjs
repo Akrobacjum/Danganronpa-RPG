@@ -48913,6 +48913,34 @@ const INVARIANTS = [
             readers: [true, true]
         }), `per phase [actions, wounded, costsAction] against a whole budget of ${whole.total}; the clock's note and the sheet's mark read costsAction`);
     }],
+    ["R3955 - Observe's critical hint is the finder's alone (E64 C2; audit S05-59; default taken, owner to confirm): observe.mjs `findTexts` puts a critical's hint under the trace's description on that finder's copy only, and none on an ordinary find; `describeFind` draws the hint's box on a critical alone and answers it as `critHint`; `createFind` writes back to the trace only the window's name and texts, never the hint, and hands the copy `findTexts`'s text", async () => {
+        /*
+         * E64 C2, 12.11.2026. Red at 91ff70f: no `findTexts`, no `critHint` - the hint was typed in the description
+         * box, which `createFind` writes back to the trace's public record, so every later finder's copy read it.
+         * The window and the write are read off the source (comments and strings kept apart); the texts are asked
+         * of the pure helper. A whole find on a real trace is tier 2's (62-investigation drives Observe).
+         */
+        const O = await import("./observe.mjs");
+        must(typeof O.findTexts === "function", "observe.mjs exports no findTexts - the critical's hint is not kept apart");
+        const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
+        must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
+        const create = fnSource(src, "createFind"), describe = fnSource(src, "describeFind");
+        const publicWrite = /setRemnantPublicById\(entry\.sceneId, entry\.tokenId, \{([\s\S]*?)\}\)/.exec(create)?.[1] ?? null;
+        must(publicWrite !== null, "createFind's write back to the trace was not found - this would measure nothing");
+        const pub = { playerText: "A smear on the sill." };
+        equal(stableJson({
+            critical: O.findTexts({ pub, written: { playerText: "A smear on the sill.", critHint: "  It was wiped from inside. " }, isCritical: true }),
+            ordinary: O.findTexts({ pub, written: { playerText: "A smear on the sill.", critHint: "a forged hint" }, isCritical: false }),
+            undescribed: O.findTexts({ pub: null, written: { playerText: "", critHint: "Only you noticed." }, isCritical: true }),
+            box: [/isCritical\s*\?\s*`<label>\$\{game\.i18n\.localize\("DRPG\.Observe\.critHint"\)\}/.test(describe), /critHint: f\.critHint\?\.value\.trim\(\) \?\? ""/.test(describe)],
+            write: [/critHint|hint/i.test(publicWrite), /playerText: texts\.copyText/.test(create)]
+        }), stableJson({
+            critical: { described: "A smear on the sill.", hint: "It was wiped from inside.", copyText: "A smear on the sill.\n\nIt was wiped from inside." },
+            ordinary: { described: "A smear on the sill.", hint: "", copyText: "A smear on the sill." },
+            undescribed: { described: "", hint: "Only you noticed.", copyText: "Only you noticed." },
+            box: [true, true], write: [false, true]
+        }), "the texts of a critical's copy, an ordinary find's, an undescribed trace's critical; the window's box and answer; the trace's write and the copy's text");
+    }],
 ];
 
 /**

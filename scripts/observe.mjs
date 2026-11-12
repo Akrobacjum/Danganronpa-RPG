@@ -1051,9 +1051,10 @@ async function createFind(actor, entry, isCritical) {
        either one's find was being made: `pendingTracesOf` holds a trace only then) both passed it and both made a bullet - tier 2 "H84-02 ...": 2 with this
        check taken out (mutant h8402-noRecheck, 27.10.2026), 1 here. The copy is read again and the bullet made in one step of `serialWrite` under the character's
        key, after the window: the step awaits the create and its secret, never a person. */
+    const texts = findTexts({ pub, written, isCritical });
     const made = await mintFindCopy(actor, entry, {
         name: pub?.name || written?.name || fallbackName,
-        playerText: pub?.playerText ?? written?.playerText ?? "",
+        playerText: texts.copyText,
         analyzedText: pub?.analyzedText ?? written?.analyzedText ?? "",
         img: pub?.img ?? null,
         isCritical
@@ -1067,11 +1068,24 @@ async function createFind(actor, entry, isCritical) {
         <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
         <p><strong>${foundry.utils.escapeHTML(item.name)}</strong></p>
         ${pub?.playerText ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : ""}
+        ${texts.hint ? `<p>${foundry.utils.escapeHTML(texts.hint)}</p>` : ""}
         ${isCritical ? `<p><em>${game.i18n.localize("DRPG.Observe.critIdentified")}</em></p>` : ""}
         <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
 
     log(`Observe: ${actor.name} copied a ${data.type} Remnant as "${item.name}".`);
     return item;
+}
+
+/**
+ * What a find's copy says, and what of it is the finder's alone (E64 C2; audit S05-59). `pub` is the trace's public
+ * record after the window's write, `written` what the window answered. The copy's text is the trace's description and,
+ * on a critical, the hint below it; the hint is never in what `createFind` writes back to the trace (it reads
+ * `written.playerText`, never `critHint`). Pure, for tier 1 R3955.
+ */
+export function findTexts({ pub = null, written = null, isCritical = false } = {}) {
+    const described = pub?.playerText ?? written?.playerText ?? "";
+    const hint = isCritical ? String(written?.critHint ?? "").trim() : "";
+    return { described, hint, copyText: [described, hint].filter(Boolean).join("\n\n") };
 }
 
 /**
@@ -1225,6 +1239,18 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.analyzedText ?? "")}</textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.analyzedTextNote")}</p>
+            ${/*
+                * THE CRITICAL'S HINT IS THE FINDER'S (E64 C2, 12.11.2026; audit S05-59; default taken, owner to
+                * confirm). Until 1.2.105 the hint went in the description box above, which is the trace's own
+                * (`setRemnantPublicById`): every later finder's copy read it, a hint they had not earned. Its own
+                * box now, on a critical only, and `findTexts` hands it to this copy alone.
+                */ ""}
+            ${isCritical
+                ? `<label>${game.i18n.localize("DRPG.Observe.critHint")}
+                    <textarea name="critHint" rows="3"
+                        placeholder="${game.i18n.localize("DRPG.Observe.critHintPlaceholder")}"></textarea></label>
+                   <p class="notes">${game.i18n.localize("DRPG.Observe.critHintNote")}</p>`
+                : ""}
         </form>`,
         footer: {
             primary: {
@@ -1234,7 +1260,8 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     return {
                         name: f.name.value.trim(),
                         playerText: f.playerText.value.trim(),
-                        analyzedText: f.analyzedText.value.trim()
+                        analyzedText: f.analyzedText.value.trim(),
+                        critHint: f.critHint?.value.trim() ?? ""
                     };
                 }
             }

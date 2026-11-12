@@ -928,7 +928,7 @@ Both of the last two have rolled before you see them: refusing the Focus pick, a
 (Analyze DCs, `ANALYZE_DC`. No Daily Life column: a bullet is read on the column of what it really is. Key and Final Truth Bullets, and an Autopsy handed out as Neutral, read on a Key column of 6 / 9 / 12 / 15. Inside a Class Trial an Analyze costs an action, or 1 Hope when none is left, or 1 Sanity when neither is.)
 
 > [!IMPORTANT]
-> A **critical** Observe or Analyze owes the player a substantial hint from you - the card says so in red.
+> A **critical** Observe or Analyze owes the player a substantial hint from you - the card says so in red. On a critical Observe the describe window has a box of its own for it, **Hint for this finder alone**: what you write there goes on that student's Truth Bullet only, under the trace's description, and never into the trace's description that later finders copy.
 
 The **autopsy** is issued from the dashboard or the after-incident screen to the students you tick: a name, what the player reads, your note. The answer key behind every bullet lives only in GM browsers, with the rest of the case.
 
