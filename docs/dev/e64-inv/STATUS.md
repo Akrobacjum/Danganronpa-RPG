@@ -34,3 +34,19 @@ So one control could not say both. The GM handbook's table of Remnant types alre
 ## Questions
 
 None open.
+
+## Round 2 (12.11.2026): two windows held to the screen
+
+The coordinator's ask after the review page: New Remnant and the realization preview fit at 1366x768 with nothing cut,
+both themes, English and Polish. Read by the fit pass (`audit/style-sweep.mjs --fit`; probe 08's `new-trace`,
+`case-realize`, `case-realize--made`; the first two held unscrolled in STILL), the Polish from a capture outside the
+repo with the same script.
+
+| Window | Red on 76d4373's parent | Built | After |
+| --- | --- | --- | --- |
+| New Remnant | its body scrolled at 1366x768 under Stained Glass, EN and PL | two columns, 900 px; its selects keep their widest option (the tie's read "- nie rozs" under Glass) | fits, EN and PL, every size |
+| Realization preview, after a run | its body scrolled 12 px in PL under Glass (the footer on two rows); its table 521 px in a 510 px body under Legacy | a stated width, 720 px | fits, one footer row |
+| Realization preview, before a run | the same table, 521 px in 510 under Legacy (1.2.107's window) | the same width | fits |
+
+Not changed: a long placeholder in a text field is cut at the field's edge (New Remnant's "What analysis reveals"), as
+in one column before.

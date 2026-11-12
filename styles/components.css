@@ -339,6 +339,9 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows .drpg-role-primary { order: 3; }
 .application.drpg-window-case-realize table.drpg-case-realize { width: 100%; }
+/* New Remnant's selects keep their widest option (E64-inv round 2): beside a label of two or three lines the tie's select
+   shrank and cut "- nie rozstrzygnięto -" under Stained Glass (Chromium, 1366x768); the label wraps instead. */
+body .application.drpg-window-newtrace .drpg-wide-col label > :is(select, .drpg-select) { flex-shrink: 0; }
 /* The case's summary card (E99 C7): one column per role, then the links; in the chat and in the GM's preview. */
 .drpg-case-summary-cols { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .drpg-case-summary-col { flex: 1 1 8rem; min-width: 0; }

@@ -64,6 +64,9 @@ function previewHtml(lines) {
         + `<p class="notes">${esc(L("DRPG.CaseRealize.undoNote"))}</p>`;
 }
 
+/* The preview's width (E64-inv round 2): its table and a footer of three in one row, measured in Chromium (the fit pass). */
+const REALIZE_WIDTH = 720;
+
 /**
  * THE PREVIEW'S FOOTER (C10; Q7: Close, the default and Enter's, and "Run realization", a state change never under
  * Enter). UNDO LIVES HERE (E64-inv, 12.11.2026; the owner's pick of the Investigation review): it was a destructive
@@ -91,6 +94,10 @@ export async function openRealization({ chapter = keyPlan().chapter } = {}) {
     const picks = await drpgWindow({
         title: F("DRPG.CaseRealize.title", { chapter }),
         classes: ["drpg-panel", "drpg-window-case-realize"],
+        /* A stated width (E64-inv round 2, 12.11.2026): at the kit's default its table ran 521 px in a 510 px body under
+           Monokuma Legacy, and with Undo its footer went to two rows and its body scrolled 12 px in Polish under Stained
+           Glass at 1366x768 (audit/style-sweep.mjs `--fit`, STILL `case-realize--made`). */
+        width: REALIZE_WIDTH,
         body: previewHtml(lines),
         footer: realizationFooter({
             made: Object.keys(madeOf(chapter)).length,

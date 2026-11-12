@@ -40,7 +40,7 @@ import {
     plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
-import { WIDE } from "./ui-columns.mjs";
+import { WIDE, columnsHtml } from "./ui-columns.mjs";
 import { caseGraph, caseRows, caseNodeOf, caseModes, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
@@ -983,6 +983,9 @@ export function randomPointIn(region, scene) {
 }
 
 
+/* New Remnant's width (E64-inv round 2): its two columns at 1366x768 in both themes, measured in Chromium (the fit pass). */
+const NEW_TRACE_WIDTH = 900;
+
 /**
  * Put a trace of any kind on the map, by hand (N-4, Dawid 21.09).
  *
@@ -1047,8 +1050,14 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.newTraceTitle"),
         classes: ["drpg-panel", "drpg-window-newtrace"],
+        /* TWO COLUMNS (E64-inv round 2, 12.11.2026; the coordinator's ask after the Investigation review): in one column
+           of the kit's default width the window scrolled 61 px under Stained Glass at 1366x768 (audit/style-sweep.mjs
+           `--fit`, STILL `new-trace`). Where and what the trace is on the left, what a student reads on the right
+           (ui-columns.mjs `columnsHtml`), in a stated width the kit holds under the screen. */
+        width: NEW_TRACE_WIDTH,
         body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceIntro")}</p>
+            ${columnsHtml([`
             <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceType")}
@@ -1057,6 +1066,11 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
                 <select name="author">${authorOptions(null, studentActors())}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${visOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
+                <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+                    `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
+            <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
+                ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>`, `
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="tname" value="${esc(name ?? "")}" maxlength="60"
                        placeholder="${esc(traceLabel(null))}" /></label>
@@ -1072,12 +1086,7 @@ export async function openNewTrace({ room = null, sceneId = null, type = null, n
                 <input type="text" name="note" value=""
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.keyNotePlaceholder"))}" /></label>
-            <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
-                <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
-                    `<option value="${value}"${value === tied ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
-            <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
-                ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>`])}
         </form>`,
         footer: {
             primary: {
