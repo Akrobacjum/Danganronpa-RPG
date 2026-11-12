@@ -672,7 +672,7 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.pl.md | `line 859 (## 16. Wskazówki do interfejsu)` | GMowie, GMów | GM-owie, GM-ów | PL-i/D33c: "GM-a", "GM-owie", "GM-ów" with a hyphen (glossary gm-a, scope ui and handbooks). |
 | player-brochure.pl.md | `line 65 (## Safeword)` | GMowie | GM-owie | PL-i/D33c: "GM-a", "GM-owie", "GM-ów" with a hyphen (glossary gm-a, scope ui and handbooks). |
 
-## Polish grammar (32)
+## Polish grammar (35)
 
 | File | Key / section | Before | After | Why |
 | --- | --- | --- | --- | --- |
@@ -708,6 +708,9 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | pl.json | `DRPG.Vote.opened.few` | Rozesłano {n} karty. Wskażcie, kto waszym zdaniem jest Blackened. | Rozesłano {n} karty. Każdy wskazuje, kogo uważa za Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
 | pl.json | `DRPG.Vote.opened.many` | Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened. | Rozesłano {n} kart. Każdy wskazuje, kogo uważa za Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
 | pl.json | `DRPG.Vote.opened.other` | Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened. | Rozesłano {n} kart. Każdy wskazuje, kogo uważa za Blackened. | P2 (confirmed in the pilot) and P1/DB19: a card the whole table reads speaks in the third person; the guide names this key as its example. |
+| gm-handbook.pl.md | `line 724 (## 12. Eclipse)` | overflow sprawdzany dla | overflow sprawdzane dla | PL-b/DB28: Eclipse and Overflow are neuter ("następne Eclipse", "overflow sprawdzane"). |
+| gm-handbook.pl.md | `line 726 (## 12. Eclipse)` | następny Eclipse znów odnawia | następne Eclipse znów odnawia | PL-b/DB28: Eclipse and Overflow are neuter ("następne Eclipse", "overflow sprawdzane"). |
+| player-handbook.pl.md | `line 555 (## 9. Pułapki i projekty, które zabijają)` | albo każdy Eclipse) | albo każde Eclipse) | PL-b/DB28: Eclipse and Overflow are neuter ("następne Eclipse", "overflow sprawdzane"). |
 
 ## settings (10)
 

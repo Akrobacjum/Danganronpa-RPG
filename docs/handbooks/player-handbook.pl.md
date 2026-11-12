@@ -552,7 +552,7 @@ Praca nad takim projektem, gdy ktoś inny jest w pokoju, dodaje **rzut Shadow pr
 | 18+ | Subtle |
 | krytyk | Hidden |
 
-Ukończona pułapka czeka na warunek - ktoś sam w pokoju, ktoś wchodzi, przeszukuje, odpoczywa, szuka skrytki, pracuje nad wskazanym projektem albo go sabotuje, używa podłożonego przedmiotu, a także własny warunek budującego, którego wypatruje sam budujący - opcjonalnie tylko po zmroku (Wieczór, Noc albo każdy Eclipse), i domyślnie nigdy budujący. Moduł pilnuje pozostałych; GM decyduje, czy odpaliła.
+Ukończona pułapka czeka na warunek - ktoś sam w pokoju, ktoś wchodzi, przeszukuje, odpoczywa, szuka skrytki, pracuje nad wskazanym projektem albo go sabotuje, używa podłożonego przedmiotu, a także własny warunek budującego, którego wypatruje sam budujący - opcjonalnie tylko po zmroku (Wieczór, Noc albo każde Eclipse), i domyślnie nigdy budujący. Moduł pilnuje pozostałych; GM decyduje, czy odpaliła.
 
 **Podłożony przedmiot** przychodzi jako to, czego szukał znalazca. Odpala tylko dla kogoś, kto <ins>szukał przedmiotu użytkowego i potem go użył</ins>.
 
