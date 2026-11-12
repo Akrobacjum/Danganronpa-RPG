@@ -3924,7 +3924,7 @@ const layerBox = b => "left:" + b.x0 + "px;top:" + b.y0 + "px;width:" + (b.x1 - 
    on the screen is one of the look's. What it costs: a seam crossing the screen in a move is drawn in steps of a
    pixel, not smoothed (seen at four times its size); at rest and in the standing layers nothing
    changes. Headless and software; a table's pixels are a live reading's, not this one's. */
-function cutLook(look, polys, box, cls) {
+function cutLook(look, polys, box, cls, ink = null) {
   const c = document.createElement("canvas"), moves = cls === "drpg-turn-pane";
   c.className = cls; c.width = Math.max(1, box.x1 - box.x0); c.height = Math.max(1, box.y1 - box.y0);
   c.style.cssText = TURN_LAYER + layerBox(box) + (moves ? "image-rendering:pixelated;" : "");
@@ -3935,6 +3935,8 @@ function cutLook(look, polys, box, cls) {
     g.beginPath();
     for (const poly of polys) poly.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])));
     g.closePath(); g.clip();
+    // a piece of the closed curtain stands on the glass's ink (E61 C3): the look alone is translucent glass
+    if (ink) { g.fillStyle = ink; g.fillRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0); }
     g.drawImage(look, 0, 0);
   }
   return c;
@@ -4269,19 +4271,53 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
 }
 /* ---- THE CLOSED CURTAIN (E61 C3, 12.11.2026; the owner's 05.11, MK-R1 #3 and #13, MK-R2 #2) ----
    The Class Trial's entry closes the curtain over the school by moving the panes that stand, never by drawing new
-   ones: each pane is carried toward the centre by the mockup's radial map (`closedPoint`: a point at the hole's edge
-   goes to the centre, the screen's edge stays) and grown about its new centre until the panes, overlapping, leave no
-   point of the screen uncovered - the owner's "overlapping shards, scaled to the real cut, no gaps" (MK-R1 #13).
-   `closedPlan` is pure and answers, per pane, the affine map `A` (least squares on its corners, `fitAffine`), its CSS
-   matrix at the pane's box, its batch (outer panes first, MK-R2 #2), and the plan's `gaps`: the share of a 48 x 27
-   grid of the screen's points no closed pane covers, which R3704 holds at 0. `grow` starts at 1.08 and rises in steps of
-   0.04 to 1.6 until the grid is covered; a cut it cannot cover answers its last `gaps`, never a rounded 0. */
+   ones: each pane is carried toward the screen's centre by a radial map - along each ray from the centre, the hole's
+   rim (where the ray first meets glass: the map shows through the hole) goes to the centre and the screen's edge stays
+   (`closedPoint`) - and grown about its new centre until the panes, overlapping, leave no point of the screen
+   uncovered: the owner's "overlapping shards, scaled to the real cut, no gaps" (MK-R1 #13). The map is continuous, so
+   neighbours stay neighbours and the frame of panes is stretched over the hole; each pane follows it by one affine map
+   (`fitAffine` on its corners). Measured on the glass harness at 1600x900 (12.11.2026, 21 panes, 48 % of the grid's
+   points in the hole at rest): the mockup's map - one reach for the whole hole, read off a square - left 4.3 % of the
+   screen open at the largest growth; the rim read ray by ray is what closes it. `closedPlan` is pure and answers, per
+   pane, the affine map `A`, its CSS matrix at the pane's box, its batch (outer panes first, MK-R2 #2), and the plan's
+   `gaps`: the share of a 48 x 27 grid of the screen's points no closed pane covers. `grow` starts at 1.08 and rises in
+   steps of 0.04 to 1.6 until the grid is covered; a cut it cannot cover answers its last `gaps`, never a rounded 0.
+   WHY 1.6 AND NOT UNTIL IT IS COVERED. The harness's cut at 1600x900 is covered at 2.56 and not before: each pane then
+   stands two and a half times its size, and recorded in headless Chromium (software, 12.11.2026) the 21 layers at that
+   size stalled the compositor - no frame after the curtain closed for over three seconds, the title never drawn. At 1.6
+   the same cut leaves 1.8 % of the grid open, and the sequence lays the glass's ink under the pieces as they close
+   (sequence.mjs, `drpg-seq-ink`), so what shows there is the lead between shards, never the page. R3703 holds a ring's
+   plan at 0; the harness's cut's number is the owner's to read on the screenshots (STATUS, Q-E61-12). */
 const CLOSED_GRID = [48, 27], CLOSED_GROW = [1.08, 0.04, 1.6];
-export function closedPoint([x, y], W, H, r0) {
-  const cx = W / 2, cy = H / 2, u = (x - cx) / cx, v = (y - cy) / cy, r = Math.max(Math.abs(u), Math.abs(v));
-  if (r < 1e-6) return [cx, cy];
-  const k = Math.max(0, (r - r0) / Math.max(1e-6, 1 - r0)) / r;
-  return [cx + u * k * cx, cy + v * k * cy];
+/* how far along the ray from `c` at angle `a` the first edge of any of `polys` stands, or null */
+function rayReach(c, a, polys) {
+  const dx = Math.cos(a), dy = Math.sin(a);
+  let near = null;
+  for (const poly of polys) for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [x1, y1] = poly[j], [x2, y2] = poly[i], ex = x2 - x1, ey = y2 - y1, den = dx * ey - dy * ex;
+    if (Math.abs(den) < 1e-9) continue;
+    const t = ((x1 - c[0]) * ey - (y1 - c[1]) * ex) / den, u = ((x1 - c[0]) * dy - (y1 - c[1]) * dx) / den;
+    if (t > 1e-6 && u >= -1e-9 && u <= 1 + 1e-9 && (near === null || t < near)) near = t;
+  }
+  return near;
+}
+/* how far along the same ray the screen's edge stands */
+function screenReach(c, a, W, H) {
+  const dx = Math.cos(a), dy = Math.sin(a), ts = [];
+  if (dx > 1e-9) ts.push((W - c[0]) / dx); else if (dx < -1e-9) ts.push(-c[0] / dx);
+  if (dy > 1e-9) ts.push((H - c[1]) / dy); else if (dy < -1e-9) ts.push(-c[1] / dy);
+  return ts.length ? Math.min(...ts) : 0;
+}
+/** Where the closed curtain carries the point `p` on a W x H screen: along its ray from the centre, the hole's rim -
+    the first glass of `polys`, or with none a square of reach `r0` (the mockup's map) - goes to the centre. */
+export function closedPoint(p, W, H, r0 = 0.5, polys = null) {
+  const c = [W / 2, H / 2];
+  const dx = p[0] - c[0], dy = p[1] - c[1], d = Math.hypot(dx, dy);
+  if (d < 1e-6) return [c[0], c[1]];
+  const a = Math.atan2(dy, dx), s = screenReach(c, a, W, H);
+  const h = Math.min(d, (polys ? rayReach(c, a, polys) : null) ?? r0 * s);
+  const k = s - h > 1e-6 ? Math.max(0, (d - h) / (s - h)) * s / d : 1;
+  return [c[0] + dx * k, c[1] + dy * k];
 }
 const insidePoly = (poly, x, y) => {
   let ins = false;
@@ -4291,34 +4327,38 @@ const insidePoly = (poly, x, y) => {
   }
   return ins;
 };
+/** The closed curtain of the panes `panes` (`{ poly }`) on a W x H screen (above). */
 export function closedPlan(panes, W, H) {
   if (!panes?.length || !(W > 0) || !(H > 0)) return null;
-  const cx = W / 2, cy = H / 2;
-  const rOf = ([x, y]) => Math.max(Math.abs((x - cx) / cx), Math.abs((y - cy) / cy));
-  // the hole's nearest edge: the smallest reach of any corner, so the innermost corners meet at the centre
-  const r0 = Math.min(0.95, Math.max(0, Math.min(...panes.flatMap(p => p.poly.map(rOf)))));
-  const mapped = panes.map(p => p.poly.map(q => closedPoint(q, W, H, r0)));
+  const polys = panes.map(p => p.poly);
+  const mapped = polys.map(poly => poly.map(q => closedPoint(q, W, H, 0.5, polys)));
   const [gx, gy] = CLOSED_GRID, [g0, gs, g1] = CLOSED_GROW;
-  let grow = g0, polys = null, gaps = 1;
+  let grow = g0, fits = null, gaps = 1;
   for (; grow <= g1 + 1e-9; grow += gs) {
-    polys = mapped.map(m => { const c = meanOf(m); return m.map(([x, y]) => [c[0] + (x - c[0]) * grow, c[1] + (y - c[1]) * grow]); });
-    // the affine fit, not the polygon itself, is what the screen shows: the coverage is read on the fitted shapes
-    polys = panes.map((p, i) => { const A = fitAffine(p.poly, polys[i]); return { A, poly: p.poly.map(([x, y]) => [A[0] * x + A[1] * y + A[2], A[3] * x + A[4] * y + A[5]]) }; });
+    // the affine fit, not the mapped polygon, is what the screen shows: the coverage is read on the fitted shapes
+    fits = panes.map((p, i) => {
+      const m = mapped[i], c = meanOf(m), T = m.map(([x, y]) => [c[0] + (x - c[0]) * grow, c[1] + (y - c[1]) * grow]);
+      const A = fitAffine(p.poly, T);
+      return { A, poly: p.poly.map(([x, y]) => [A[0] * x + A[1] * y + A[2], A[3] * x + A[4] * y + A[5]]) };
+    });
     let miss = 0;
     for (let a = 0; a < gx; a++) for (let b = 0; b < gy; b++) {
       const x = (a + 0.5) * W / gx, y = (b + 0.5) * H / gy;
-      if (!polys.some(q => insidePoly(q.poly, x, y))) miss++;
+      if (!fits.some(f => insidePoly(f.poly, x, y))) miss++;
     }
     gaps = miss / (gx * gy);
     if (!miss) break;
   }
-  const { dist } = centreOrder(panes, W, H);
-  const order = panes.map((_, i) => i).sort((a, b) => dist[b] - dist[a] || a - b);
+  const { dist, order: inward } = centreOrder(panes, W, H);
+  const order = inward.slice().reverse();
   const per = Math.ceil(order.length / TURN_BATCHES), batchOf = [];
   order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
   return {
-    r0: +r0.toFixed(3), grow: +Math.min(grow, g1).toFixed(2), gaps: +gaps.toFixed(4), batches: TURN_BATCHES,
-    panes: panes.map((p, i) => { const box = boxOf([p.poly], 1); return { box, A: polys[i].A, poly: polys[i].poly, batch: batchOf[i], closed: matrixAt(polys[i].A, [box.x0, box.y0]) }; })
+    grow: +Math.min(grow, g1).toFixed(2), gaps: +gaps.toFixed(4), batches: TURN_BATCHES, reach: +Math.min(...dist).toFixed(3),
+    panes: panes.map((p, i) => {
+      const box = boxOf([p.poly], 1);
+      return { box, A: fits[i].A, poly: fits[i].poly, batch: batchOf[i], closed: matrixAt(fits[i].A, [box.x0, box.y0]) };
+    })
   };
 }
 /* THE ENTRY'S PIECES (E61 C3). What the sequence moves: the panes on screen cut from the look as it stands (`from`,
@@ -4343,11 +4383,14 @@ export function entryPieces() {
   const fromPlan = closedPlan(oldPanes, j.W, j.H), toPlan = closedPlan(j.panes, j.W, j.H);
   if (!fromPlan || !toPlan) return null;
   count("sequence.glassPieces", oldPanes.length + j.panes.length);
-  const cut = (panes, plan, look) => panes.map((p, i) => ({ ...plan.panes[i], canvas: cutLook(look, [p.poly], plan.panes[i].box, "drpg-seq-pane") }));
+  /* the pieces stand on the glass's ink, drawn into their canvases rather than laid under them as a clipped element: a
+     clip path on each of 21 moving layers, and a blended pulse over them, stalled headless Chromium's frames (12.11) */
+  const ink = getComputedStyle(document.body).getPropertyValue("--drpg-sg-ink").trim() || "#07070a";
+  const cut = (panes, plan, look) => panes.map((p, i) => ({ ...plan.panes[i], home: p.poly, canvas: cutLook(look, [p.poly], plan.panes[i].box, "drpg-seq-pane", ink) }));
   return {
     W: j.W, H: j.H, gaps: Math.max(fromPlan.gaps, toPlan.gaps), grow: [fromPlan.grow, toPlan.grow],
     // the closing pieces carry both colours, the old one fading in its batch; the opening ones the new colour alone
-    close: oldPanes.map((p, i) => ({ ...fromPlan.panes[i], old: cutLook(oldLook, [p.poly], fromPlan.panes[i].box, "drpg-seq-pane"), canvas: cutLook(newLook, [p.poly], fromPlan.panes[i].box, "drpg-seq-pane") })),
+    close: oldPanes.map((p, i) => ({ ...fromPlan.panes[i], home: p.poly, old: cutLook(oldLook, [p.poly], fromPlan.panes[i].box, "drpg-seq-pane", ink), canvas: cutLook(newLook, [p.poly], fromPlan.panes[i].box, "drpg-seq-pane", ink) })),
     open: cut(j.panes, toPlan, newLook)
   };
 }

@@ -22727,8 +22727,9 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
-            sections: [["look", 5, true], ["effects", 5, true], ["sound", 5, true], ["rules", 7, true], ["privacy", 6, true], ["gm", 4, true], ["tech", 3, true]],
-            once: [], others: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            // E61 C1 (12.11.2026) adds the one key born in this window, never `config: true`: the table's switch for the sequences
+            sections: [["look", 5, true], ["effects", 6, true], ["sound", 5, true], ["rules", 7, true], ["privacy", 6, true], ["gm", 4, true], ["tech", 3, true]],
+            once: [], others: ["sequences"], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true]
         }), "[the window's module loads; its sections (key, size, an icon); keys not in exactly one; keys no frozen one; settings still config: true; "

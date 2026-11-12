@@ -17369,9 +17369,11 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     transition: opacity var(--drpg-t-beat) var(--drpg-ease-leave);
 }
 #drpg-sequence .drpg-seq-glass,
+#drpg-sequence .drpg-seq-ink,
 #drpg-sequence .drpg-seq-pulse { position: absolute; inset: 0; }
-#drpg-sequence .drpg-seq-piece { position: absolute; transform-origin: 0 0; will-change: transform; }
-#drpg-sequence .drpg-seq-pulse { background: color-mix(in srgb, var(--drpg-seq-light) 16%, transparent); mix-blend-mode: screen; opacity: 0; }
+#drpg-sequence .drpg-seq-ink { background: var(--drpg-seq-dark); }
+#drpg-sequence .drpg-seq-piece { position: absolute; transform-origin: 0 0; }
+#drpg-sequence .drpg-seq-pulse { background: color-mix(in srgb, var(--drpg-seq-light) 10%, transparent); opacity: 0; }
 #drpg-sequence .drpg-seq-lid { position: absolute; left: 0; width: 100%; height: 50%; background: var(--drpg-seq-dark); }
 #drpg-sequence .drpg-seq-lid.is-top { top: 0; border-bottom: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
 #drpg-sequence .drpg-seq-lid.is-bottom { top: 50%; border-top: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }

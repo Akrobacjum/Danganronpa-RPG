@@ -46873,6 +46873,253 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
             "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
     }],
+    ["R3700 - a sequence plays from one event and changes nothing (scripts/sequence.mjs `playSequence`; E61 C1, the A7 rule of 11.10, SB-R1 of 05.11): the same event heard twice starts one; Escape ends it here and is taken from the windows behind it, the next Escape is not; it writes no setting and no document; the notice stack and the tile stand where they stood; the host and the body's mark go with it; and the module asks Escape of the sequences before Foundry's windows", async () => {
+        /*
+         * E61 C1, 12.11.2026. Red at f22a7e87: scripts/sequence.mjs does not exist and the import throws. jsdom has no
+         * `Element.animate`, so the frames are not played here; what is read is the engine's contract around them.
+         */
+        const S = await import("./sequence.mjs");
+        const { watchWrites } = await import("./tests-kit.mjs");
+        const C = await import("./perf-counters.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const popups = document.getElementById("drpg-popups"), corner = document.getElementById("drpg-notices-corner");
+        const stood = { popups: popups?.childElementCount ?? null, corner: corner?.parentElement?.id ?? null };
+        const key = `R3700:${Date.now()}`, read = {};
+        const w = watchWrites(() => "R3700");
+        const before = C.snapshot();
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            read.first = S.playSequence("trialEntry", key, ctx => { const d = document.createElement("div"); d.className = "drpg-seq-r3700"; ctx.host.append(d); }, { on: true });
+            read.again = S.playSequence("trialEntry", key, () => {}, { on: true });
+            read.playing = S.sequenceNow()?.kind ?? null;
+            read.host = Boolean(document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-r3700`));
+            read.mark = body.getAttribute(S.SEQUENCE_ATTR);
+            const esc1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+            window.dispatchEvent(esc1);
+            read.escTaken = esc1.defaultPrevented;
+            read.after = { playing: S.sequenceNow(), host: Boolean(document.getElementById(S.SEQUENCE_HOST_ID)), mark: body.hasAttribute(S.SEQUENCE_ATTR) };
+            const skipped = C.snapshot()["sequence.skipped"] ?? 0;
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true }));
+            read.secondEscSkipsNothing = (C.snapshot()["sequence.skipped"] ?? 0) === skipped;
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            w.stop();
+        }
+        read.writes = w.seen.filter(s => s.includes("R3700"));
+        read.counted = ["sequence.started", "sequence.skipped"].map(k => (C.snapshot()[k] ?? 0) - (before[k] ?? 0));
+        read.stack = { popups: popups?.childElementCount ?? null, corner: corner?.parentElement?.id ?? null };
+        const src = stripComments((await moduleSources()).get("sequence.mjs") ?? "");
+        const mod = stripComments((await moduleSources()).get("module.mjs") ?? "");
+        must(src.length > 2000 && mod.length > 2000, "sequence.mjs or module.mjs was not read - the source half reads nothing");
+        read.noNotices = !/recordNotice|showPopup|notice-history\.mjs|popup\.mjs/.test(src);
+        read.noToggle = !/toggleFoundryTools/.test(src);
+        const seq = mod.indexOf('safely("the sequences", registerSequences)'), win = mod.indexOf('safely("Foundry\'s windows", registerFoundryWindows)');
+        read.escapeFirst = seq > 0 && win > seq;
+        equal(stableJson(read), stableJson({
+            first: "motion", again: null, playing: "trialEntry", host: true, mark: "trialEntry", escTaken: true,
+            after: { playing: null, host: false, mark: false }, secondEscSkipsNothing: true,
+            writes: [], counted: [1, 1], stack: stood, noNotices: true, noToggle: true, escapeFirst: true
+        }), "[the first start; the same event again; what plays; its host; the body's mark; Escape taken; after Escape; the next Escape skips nothing; the world written during the run; started and skipped counted; the notice stack after; sequence.mjs names no notice road; nor the sidebar's collapse; registered before Foundry's windows]");
+    }],
+    ["R3701 - a sequence is still under reduced motion and drawn nowhere with the table's switch off, and its sound plays once either way (scripts/sequence.mjs; E61 C1, C2, MK-R1 #3, #4, the plan's Q-E61-2 default): reduced motion draws the still frame (`data-drpg-sequence-mode` \"still\") and plays the sound at once; the switch off draws no host and plays the sound; in motion the sound waits for its frame (the title's, the stamp's) and plays once", async () => {
+        /* E61 C1, C2, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. */
+        const S = await import("./sequence.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const stamp = Date.now(), heard = { still: 0, off: 0, motion: 0 }, read = {};
+        try {
+            body.classList.add("drpg-reduced-motion");
+            read.still = S.playSequence("verdictCut", `R3701s:${stamp}`, () => {}, { on: true, sound: () => heard.still++ });
+            read.stillMode = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceMode ?? null;
+            read.stillHeard = heard.still;
+            S.endSequence("cut");
+            body.classList.remove("drpg-reduced-motion");
+            read.off = S.playSequence("verdictCut", `R3701o:${stamp}`, () => { throw new Error("drawn with the switch off"); }, { on: false, sound: () => heard.off++ });
+            read.offHost = Boolean(document.getElementById(S.SEQUENCE_HOST_ID));
+            read.offHeard = heard.off;
+            read.motion = S.playSequence("verdictCut", `R3701m:${stamp}`, () => {}, { on: true, sound: () => heard.motion++ });
+            read.motionAtOnce = heard.motion;
+            await wait(S.SEQUENCE_TIMES.verdictCut.sound + 150);
+            read.motionAtFrame = heard.motion;
+            read.switchDefault = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.sequences}`)?.default ?? null;
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson(read), stableJson({ still: "still", stillMode: "still", stillHeard: 1, off: "off", offHost: false, offHeard: 1, motion: "motion", motionAtOnce: 0, motionAtFrame: 1, switchDefault: true }),
+            "[reduced motion: what it played, the host's mode, the sound at once; switch off: what it played, a host, the sound; in motion: what it played, the sound at once, the sound at its frame; the switch's default]");
+    }],
+    ["R3702 - the two sound slots and the table's switch are rows a GM can see (scripts/config.mjs `SFX_EVENTS`, scripts/settings.mjs, scripts/settings-window.mjs; E61 C1, C2, MK-R1 #9, #10, the plan's Q-E61-7 default): `trialStart` and `verdictCut` are incident rows with a label and a hint in English and Polish; the vote's count's row `verdict` is labelled as the vote's result; the switch `sequences` is a world Boolean, on by default, of the table's lifetime, in the Effects section, named in both languages", async () => {
+        /* E61 C1, C2, 12.11.2026. Red at f22a7e87: no row `trialStart` or `verdictCut`, no setting `sequences`. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
+        const row = key => SFX_EVENTS[key] ? [SFX_EVENTS[key].category, Boolean(SFX_EVENTS[key].label && SFX_EVENTS[key].hint),
+            typeof at(pl, `DRPG.Config.SFX_EVENTS.${key}.label`) === "string" && typeof at(pl, `DRPG.Config.SFX_EVENTS.${key}.hint`) === "string"] : null;
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.sequences}`);
+        const { WORLD_LIFETIMES } = await import("./settings.mjs");
+        const W = await import("./settings-window.mjs");
+        const read = {
+            trialStart: row("trialStart"), verdictCut: row("verdictCut"),
+            verdictLabel: [SFX_EVENTS.verdict?.label ?? null, at(pl, "DRPG.Config.SFX_EVENTS.verdict.label") ?? null],
+            setting: reg ? [reg.scope, reg.type === Boolean, reg.default, reg.config] : null,
+            lifetime: WORLD_LIFETIMES[SETTINGS.sequences] ?? null,
+            section: W.SETTINGS_SECTIONS.filter(s => s.keys.includes("sequences")).map(s => s.key),
+            words: ["name", "hint"].map(k => [en, pl].every(t => typeof at(t, `DRPG.Settings.sequences.${k}`) === "string"))
+        };
+        equal(stableJson(read), stableJson({
+            trialStart: ["incident", true, true], verdictCut: ["incident", true, true], verdictLabel: ["The vote's result", "Wynik głosowania"],
+            setting: ["world", true, true, false], lifetime: "table", section: ["effects"], words: [true, true]
+        }), "[the trial's start row; the cut-in's row; the vote's row's labels; the switch's scope, type, default, shown by Foundry; its lifetime; its section; its words in both]");
+    }],
+    ["R3703 - the closed curtain is the panes on screen, moved, with no gap (scripts/glass.mjs `closedPlan`, `closedPoint`; E61 C3, MK-R1 #13, MK-R2 #2): on a ring of 24 panes around a hole, at 1600x900 and 1366x768, the closed plan keeps one entry a pane, covers every point of its 48x27 grid (`gaps` 0), batches the outer panes first; the radial map leaves the screen's corner where it is and sends the hole's edge to the centre", async () => {
+        /*
+         * E61 C3, 12.11.2026. Red at f22a7e87: glass.mjs exports neither. The ring is the curtain's shape in small - a frame
+         * of panes around the map, its inner edge at 0.55 of the half-screen - not a cut of `curtainShapes`, which needs a
+         * layout jsdom has not got; the cut's own closed state is read in Chromium (audit/glass-sweep.mjs `--entry`).
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.closedPlan === "function" && typeof G.closedPoint === "function", "glass.mjs exports no closedPlan or closedPoint");
+        if (typeof G.closedPlan !== "function") return;
+        const ring = (W, H) => {
+            const cx = W / 2, cy = H / 2, at = (t, r) => { const a = t * Math.PI * 2, u = Math.cos(a), v = Math.sin(a), m = Math.max(Math.abs(u), Math.abs(v)); return [cx + cx * r * u / m, cy + cy * r * v / m]; };
+            return Array.from({ length: 24 }, (_, i) => ({ poly: [at(i / 24, 0.55), at((i + 1) / 24, 0.55), at((i + 1) / 24, 1), at(i / 24, 1)] }));
+        };
+        const read = [[1600, 900], [1366, 768]].map(([W, H]) => {
+            const panes = ring(W, H), plan = G.closedPlan(panes, W, H);
+            // outer as the curtain's own batches read it (glass.mjs `centreOrder`): the mean corner's reach, in half-screens
+            const far = panes.map((p, i) => { const m = p.poly.reduce((s, q) => [s[0] + q[0] / 4, s[1] + q[1] / 4], [0, 0]); return [Math.hypot((m[0] - W / 2) / (W / 2), (m[1] - H / 2) / (H / 2)), i]; });
+            return {
+                n: plan?.panes?.length ?? null, gaps: plan?.gaps ?? null,
+                batches: plan ? [Math.min(...plan.panes.map(p => p.batch)), Math.max(...plan.panes.map(p => p.batch))] : null,
+                cornerFirst: plan ? plan.panes[far.sort((a, b) => b[0] - a[0])[0][1]].batch === 0 : null,
+                corner: G.closedPoint([W, H], W, H, 0.55).map(v => Math.round(v)),
+                edge: G.closedPoint([W / 2 + 0.55 * W / 2, H / 2], W, H, 0.55).map(v => Math.round(v))
+            };
+        });
+        equal(stableJson(read), stableJson([
+            { n: 24, gaps: 0, batches: [0, 7], cornerFirst: true, corner: [1600, 900], edge: [800, 450] },
+            { n: 24, gaps: 0, batches: [0, 7], cornerFirst: true, corner: [1366, 768], edge: [683, 384] }
+        ]), "[per screen: panes in the plan, the grid's share uncovered, the batches' range, the farthest pane in the first batch, the corner's image, the hole's edge's image]");
+    }],
+    ["R3704 - every road into the Class Trial plays the entry from the phase's one event, and the curtain's own turn stands aside for it (scripts/sequence.mjs `onPhaseChanged`, `playTrialEntry`; scripts/glass.mjs `entryPieces`, `rebuildAll`; E61 C3, C4): the clock's row fires `drpgPhaseChanged` once a phase moved, which the sequences hear; the entry's key is the trial's edge stamp, so a second hearing starts nothing; a phase change ends a running sequence; with no curtain the entry closes two lids (Monokuma Legacy's look), with no glass code run; and while the entry takes its pieces `rebuildAll` turns nothing", async () => {
+        /*
+         * E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. Every road in - Start the Class Trial,
+         * `setPhase` (a debate opened outside a trial among its callers), Edit campaign, `setClock` - writes the clock,
+         * and the clock's row is the one place `drpgPhaseChanged` is fired (sync.mjs `phaseHook`), so the roads are read
+         * as the one event here. The theme's class is taken off for the run so the entry draws the lids.
+         */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), phase = body.dataset.drpgPhase;
+        const clock = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R3704:${Date.now()}` }, read = {};
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            read.key = S.trialEntryKey(clock) === `classTrial:${clock.timeOfDayStartedAt}`;
+            read.notTrial = S.trialEntryKey({ ...clock, phase: "investigation" });
+            read.first = await S.onPhaseChanged("classTrial", clock);
+            read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
+            read.lids = document.querySelectorAll(`#${S.SEQUENCE_HOST_ID} .drpg-seq-lid`).length;
+            read.again = await S.onPhaseChanged("classTrial", clock);
+            read.stillPlaying = S.sequenceNow()?.kind ?? null;
+            read.out = await S.onPhaseChanged("investigation", clock);
+            read.ended = S.sequenceNow();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        const sources = await moduleSources();
+        const sync = stripComments(sources.get("sync.mjs") ?? ""), seq = stripComments(sources.get("sequence.mjs") ?? ""), glass = stripComments(sources.get("glass.mjs") ?? "");
+        must(sync.length > 2000 && seq.length > 2000 && glass.length > 20000, "a source was not read - the source half reads nothing");
+        read.row = /onlyWhen\("phaseHook", "phase"\)/.test(sync) && /Hooks\.callAll\("drpgPhaseChanged"/.test(sync);
+        read.heard = /Hooks\.on\("drpgPhaseChanged", onPhaseChanged\)/.test(seq);
+        read.held = /oldLook && !entryHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
+        equal(stableJson(read), stableJson({ key: true, notTrial: null, first: "motion", look: "lids", lids: 2, again: null, stillPlaying: "trialEntry", out: null, ended: null, row: true, heard: true, held: true }),
+            "[the key is the edge's stamp; another phase has none; the first hearing; its look with no curtain; its lids; a second hearing; still playing; another phase; ended; the clock's row fires the hook once a phase moved; the sequences hear it; rebuildAll turns nothing while the entry holds it]");
+    }],
+    ["R3705 - the entry's still frame is the title on the closed curtain, and the tiles come back with it (scripts/sequence.mjs `drawTrialEntry`; E61 C3, C4, MK-R1 #3: \"reduced motion: a still board with the title for 1.5 s\"; A8): under reduced motion the entry's host holds the title in this language - CLASS TRIAL and the chapter's line - and the closed lids, and the room and voice tiles are covered (`data-drpg-sequence-cover`) while it stands and uncovered after; it ends on its own at 1.5 s", async () => {
+        /* E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}` }, read = {};
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            read.mode = await S.onPhaseChanged("classTrial", clock);
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            read.title = host?.querySelector(".drpg-seq-title-band")?.textContent ?? null;
+            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.trialSubtitle", { chapter: 3 });
+            read.lids = host?.querySelectorAll(".drpg-seq-lid").length ?? 0;
+            read.cover = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            await wait(S.SEQUENCE_TIMES.trialEntry.still + 200);
+            read.endedAlone = !document.getElementById(S.SEQUENCE_HOST_ID) && S.sequenceNow() === null;
+            read.uncovered = !body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({ mode: "still", title: game.i18n.localize("DRPG.Sequence.trialTitle"), sub: true, lids: 2, cover: true, endedAlone: true, uncovered: true }),
+            "[the entry's mode under reduced motion; the title; the chapter's line in this language; the closed lids; the tiles covered; ended on its own at its hold; the tiles uncovered]");
+    }],
+    ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
+        /*
+         * E61 C5, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. The messages are stand-ins with `author` and
+         * `getFlag` (the two the cut-in reads), the record a stand-in of `trialProgress`'s public count; the planted
+         * Blackened is a third student, named in no flag and no count, as a wrong verdict leaves the real one.
+         */
+        const S = await import("./sequence.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [a, b, blackened] = cast(3);
+        const msg = (flags, isGM = true) => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const progress = { accused: [{ id: a.id, n: 3 }, { id: b.id, n: 1 }], total: 4, majority: 3 };
+        const draw = (sentenced, right) => {
+            const board = S.verdictBoard(msg({ verdictAt: 1, verdictCut: { sentenced, right } }), progress);
+            const el = board ? S.verdictBoardElement(board) : null;
+            return { board, el, text: el?.textContent ?? "", html: el?.outerHTML ?? "" };
+        };
+        const right = draw([a.id], true), wrong = draw([a.id], false), nobody = draw([], false);
+        const clean = d => !d.text.includes(blackened.name) && !d.html.includes(blackened.id);
+        const read = {
+            variants: [right.board?.variant, wrong.board?.variant, nobody.board?.variant],
+            stamps: [right, wrong, nobody].map(d => d.el?.querySelector(".drpg-seq-stamp")?.textContent ?? null),
+            name: right.el?.querySelector(".drpg-seq-name")?.textContent === a.name,
+            portraits: [right, nobody].map(d => d.el?.querySelectorAll(".drpg-seq-portrait").length ?? null),
+            votes: [...(right.el?.querySelectorAll(".drpg-seq-vrow em") ?? [])].map(e => e.textContent),
+            sentences: [right, wrong, nobody].map(d => d.el?.querySelector(".drpg-seq-sentence")?.textContent ?? null),
+            blackenedNowhere: [right, wrong, nobody].every(clean),
+            player: S.playVerdictCut(msg({ verdictAt: `R3706:${Date.now()}`, verdictCut: { sentenced: [a.id], right: true } }, false)),
+            noAt: S.playVerdictCut(msg({ verdictCut: { sentenced: [a.id], right: true } })),
+            noFlag: S.verdictBoard(msg({ verdictAt: 2 }))
+        };
+        S.endSequence("cut");
+        const L = k => game.i18n.localize(k);
+        equal(stableJson(read), stableJson({
+            variants: ["guilty", "innocent", "nobody"], stamps: [L("DRPG.Sequence.stampGuilty"), L("DRPG.Sequence.stampInnocent"), null], name: true,
+            portraits: [1, 0], votes: ["3", "1"], sentences: [L("DRPG.Vote.verdictRight"), L("DRPG.Vote.verdictWrong"), L("DRPG.Vote.nobodyExecuted")],
+            blackenedNowhere: true, player: null, noAt: null, noFlag: null
+        }), "[the variants: right, wrong, nobody; their stamps; the sentenced's name; portraits with one and with nobody; the votes; the card's sentences; the Blackened in none; a player's message; a GM's with no verdictAt; a card with no verdictCut]");
+    }],
+    ["R3707 - the verdict's card carries what the cut-in draws, and nothing the card does not say (scripts/verdict.mjs `postVerdictCard`; E61 C5): its flags hold `verdictCut` with the sentenced's ids and whether the class got it right, beside `verdictCard` and `verdictAt`; the cut-in plays from a GM's new chat message, never from the vote's close; and its frame 5 is the board as it stands, its stamp over the portrait and the name and votes kept (MK-R1 #4)", async () => {
+        /* E61 C5, 12.11.2026. Red at f22a7e87: the card's flags hold no `verdictCut`, and sequence.mjs does not exist. */
+        const sources = await moduleSources();
+        const verdict = stripComments(sources.get("verdict.mjs") ?? ""), seq = stripComments(sources.get("sequence.mjs") ?? ""), vote = stripComments(sources.get("vote.mjs") ?? "");
+        must(verdict.length > 5000 && seq.length > 2000 && vote.length > 5000, "a source was not read - this reads nothing");
+        const card = bodyOf(verdict, "export async function postVerdictCard(", { until: "\nexport function " });
+        const S = await import("./sequence.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [a] = cast(1);
+        const el = S.verdictBoardElement({ variant: "guilty", sentenced: [{ id: a.id, name: a.name, img: null }], votes: [{ name: a.name, n: 2 }], total: 3, majority: 2, sentence: "s" });
+        const person = el.querySelector(".drpg-seq-person");
+        equal(stableJson({
+            flag: /verdictCut:\s*\{\s*sentenced:\s*executed\.map\(actor => actor\.id\),\s*right:\s*record\?\.correct === true\s*\}/.test(card) && /verdictAt:/.test(card),
+            fromCard: /Hooks\.on\("createChatMessage"/.test(seq) && /message\?\.author\?\.isGM/.test(seq),
+            notFromVote: !/sequence\.mjs/.test(vote),
+            frame5: [Boolean(person?.querySelector(".drpg-seq-portrait .drpg-seq-stamp")), Boolean(person?.querySelector(".drpg-seq-name")), el.querySelectorAll(".drpg-seq-vrow").length, Boolean(el.querySelector(".drpg-seq-sentence"))]
+        }), stableJson({ flag: true, fromCard: true, notFromVote: true, frame5: [true, true, 1, true] }),
+            "[the card's verdictCut flag; the cut-in hears a GM's new message; the vote's close does not start it; frame 5: the stamp on the portrait, the name, the vote rows, the sentence]");
+    }],
 ];
 
 /**

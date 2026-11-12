@@ -39,7 +39,6 @@ import { SETTINGS, getSetting, getClock } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
 import { esc } from "./utils.mjs";
-import { safeRoomImage } from "./vault-store.mjs";
 
 export const SEQUENCE_HOST_ID = "drpg-sequence";
 export const SEQUENCE_ATTR = "data-drpg-sequence";
@@ -107,9 +106,10 @@ export function endSequence(why = "cut") {
  * Play a sequence: `kind` one of SEQUENCE_TIMES, `key` the event's own name (one start per key), `draw(ctx)` the
  * sequence's frames, `sound` the event's sound (played once, at `SEQUENCE_TIMES[kind].sound` in motion, at once when
  * still or when the table's switch is off). Synchronous; answers what it did - "off", "still", "motion", or null when
- * the event started nothing (before ready, or heard again). Never throws to its caller.
+ * the event started nothing (before ready, or heard again). Never throws to its caller. `on` is the table's switch as
+ * read now (`sequencesOn`); the suite hands in false, since tiers 0-1 write no setting.
  */
-export function playSequence(kind, key, draw, { sound = null } = {}) {
+export function playSequence(kind, key, draw, { sound = null, on = sequencesOn() } = {}) {
     const times = SEQUENCE_TIMES[kind];
     if (!ready || !times || key == null) return null;
     const id = `${kind}\u0000${key}`;
@@ -117,7 +117,7 @@ export function playSequence(kind, key, draw, { sound = null } = {}) {
     started.add(id);
     endSequence("cut");
     count("sequence.started");
-    if (!sequencesOn()) {
+    if (!on) {
         count("sequence.off");
         sound?.();
         return "off";
@@ -204,21 +204,26 @@ function pieceLayer(pieces, cls) {
  * curtain and back (glass.mjs `entryPieces`, the closed plan); otherwise - Monokuma Legacy, a narrow screen, a curtain
  * not cut yet - two lids close from above and below (MK-R1: "two black panels with a red edge"). Both carry the title.
  */
-function drawTrialEntry(ctx, glass) {
+function drawTrialEntry(ctx, glass, clock = getClock()) {
     const { host, still, times: T, anim, at, ARRIVE: IN, LEAVE: OUT } = ctx;
-    const chapter = getClock()?.chapter ?? null;
+    const chapter = clock?.chapter ?? null;
     host.dataset.drpgSequenceLook = glass ? "glass" : "lids";
     const title = titleBand(chapter);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
         const close = pieceLayer(glass.close, "is-close"), open = pieceLayer(glass.open, "is-open");
-        host.append(close.layer, open.layer);
+        // the glass's ink under the pieces: where the closed shards leave a seam open, the lead shows, not the page
+        const ink = document.createElement("div");
+        ink.className = "drpg-seq-ink";
+        host.append(ink, close.layer, open.layer);
         if (still) {
             close.layer.remove();
             glass.open.forEach((p, i) => { open.els[i].style.transform = p.closed; });
         } else {
             open.layer.hidden = true;
             const stagger = p => p.batch * 32;
+            anim(ink, [{ opacity: 0 }, { opacity: 1 }], { duration: T.close, easing: "linear" });
+            at(T.titleOut, () => anim(ink, [{ opacity: 1 }, { opacity: 0 }], { duration: T.open, easing: "linear" }));
             glass.close.forEach((p, i) => {
                 anim(close.els[i], [{ transform: "none" }, { transform: p.closed }], { duration: T.close, delay: stagger(p) });
                 // the hour's colour goes from the Investigation's blue to the trial's pink in batches, outer panes first
@@ -279,7 +284,7 @@ export async function playTrialEntry(clock = getClock()) {
         document.body.dataset.drpgPhase = "classTrial";
         try { glass = (await import("./glass.mjs")).entryPieces?.() ?? null; } catch { glass = null; }
     }
-    return playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass), { sound: () => playSound("trialStart") });
+    return playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart") });
 }
 
 /* ========================================================================== *
@@ -311,9 +316,11 @@ function safeProgress() {
 }
 
 /* The sentenced's picture through the module's one filter of image paths (vault-store.mjs `safeRoomImage`, as the voice
-   tile reads a portrait); Foundry's stand-in silhouette is no portrait, and the initial stands instead. */
+   tile reads a portrait), read at ready by `import()` so this file stays a leaf: vault-store.mjs reaches most of the
+   module. Before it is read, and for Foundry's stand-in silhouette, the initial stands instead of a portrait. */
+let safeImage = () => null;
 function portraitOf(actor) {
-    const path = safeRoomImage(actor?.img);
+    const path = safeImage(actor?.img);
     return path && !/mystery-man|\/icons\/svg\//.test(path) ? path : null;
 }
 
@@ -387,6 +394,14 @@ function onEscape(event) {
     endSequence("skipped");
 }
 
+/** The phase moved on this browser (sync.mjs's clock row): a running sequence ends - the entry itself excepted, when
+    the trial is what it was heard for - and the trial's phase starts the entry. Answers the entry's promise or null. */
+export function onPhaseChanged(phase, clock = getClock()) {
+    if (running && !(running.kind === "trialEntry" && phase === "classTrial")) endSequence("cut");
+    if (phase !== "classTrial") return null;
+    return playTrialEntry(clock).catch(err => { console.error(`${MODULE_ID} | the trial's entry failed`, err); return null; });
+}
+
 /**
  * Once at ready, before foundry-windows.mjs's own Escape listener (module.mjs): from now on an event starts a
  * sequence. The phase's hook starts the entry and ends anything else that plays; a GM's verdict card starts the cut-in.
@@ -394,11 +409,9 @@ function onEscape(event) {
 export function registerSequences() {
     if (ready) return;
     ready = true;
+    import("./vault-store.mjs").then(m => { safeImage = m.safeRoomImage; }).catch(() => null);
     window.addEventListener("keydown", onEscape, { capture: true });
-    Hooks.on("drpgPhaseChanged", phase => {
-        if (running && !(running.kind === "trialEntry" && phase === "classTrial")) endSequence("cut");
-        if (phase === "classTrial") playTrialEntry().catch(err => console.error(`${MODULE_ID} | the trial's entry failed`, err));
-    });
+    Hooks.on("drpgPhaseChanged", onPhaseChanged);
     Hooks.on("createChatMessage", message => {
         try { playVerdictCut(message); } catch (err) { console.error(`${MODULE_ID} | the verdict's cut-in failed`, err); }
     });
