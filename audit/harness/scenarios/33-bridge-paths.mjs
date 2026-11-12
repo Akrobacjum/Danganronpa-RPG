@@ -484,6 +484,23 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A8: a save for a token the player does not play is refused, logged and told, and not marked",
         !saves?.TOKBOTAN00000000 && relayLogged.length === 1 && relayTold.length === 1, JSON.stringify({ saves, relayLogged, relayTold }));
 
+    /* E76 C2 (12.11.2026): the same save in the shape Daggerheart 2.12.5 sends (chatMessage.mjs
+       `onRollSave`, 2.12.8:274-290: `saveTotal` and `isCritical` beside the message, no `result`).
+       The guard forwards it in both shapes, so the relay copied here - 2.10.11's, which reads
+       `result` - marks it; until C2 the guard dropped it as "a save with no roll in it". Whether
+       2.12.5's own handler marks it is LIVE-E76-02: this copy is not that build's. */
+    const card2 = await p1.eval(`const m = await ChatMessage.create({ content: "E76 save card",
+        speaker: { scene: canvas.scene.id, actor: "${IDS.aiko}" } }); return m.id;`, { timeout: 30000 });
+    await settle(600);
+    await p1.eval(`game.socket.emit("${DH}", { action: "DhGMUpdate", data: { action: "DhGMUpdateSaveMessage",
+            uuid: null, data: { action: null, message: "${card2}", token: "TOKAIKO000000000", saveTotal: 11, isCritical: true } } });
+        return true;`);
+    await settle(1500);
+    const saves2 = await gm.eval(`const m = game.messages.get("${card2}");
+        return m?.system?.targetSaves ?? m?._source?.system?.targetSaves ?? null;`);
+    check("A8: a player's save in Daggerheart 2.12.5's shape is marked on the card, with its total and critical",
+        saves2?.TOKAIKO000000000?.value === 11 && saves2?.TOKAIKO000000000?.isCritical === true, JSON.stringify({ card2, saves2 }));
+
     /* --------------------------------------------- A. a neutral roll's subject (E06 C5a) */
 
     /* A module roll's speaker and `system.source.actor` are emptied as the roll is created (E06
@@ -545,7 +562,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     await settle(1500);
     const putBack = { thrown, rewrite, gm: await gm.eval(totalOf), p1: await p1.eval(totalOf), p2: await p2.eval(totalOf),
         warned: await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
-            return game.messages.contents.slice(${warnedBefore}).filter(m => S.contentOf(m).includes("drpg-warning")).length;`) };
+            // A warning is chat-card.mjs's card in the warning tone since E49 B5a (a p.drpg-warning before).
+            return game.messages.contents.slice(${warnedBefore}).filter(m => S.contentOf(m).includes('data-drpg-tone="warning"')).length;`) };
     check("A10: p1 rewriting the rolls of its neutral roll is refused (the GM wrote it) or put back on every browser, and a put-back is told to the GMs",
         typeof thrown === "number" && thrown !== 99 && putBack.gm === thrown && putBack.p1 === thrown && putBack.p2 === thrown
         && (rewrite.refused ? /permission/i.test(rewrite.refused) : putBack.warned >= 1), JSON.stringify(putBack), { flow: "reroll" });

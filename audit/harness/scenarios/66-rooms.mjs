@@ -1315,9 +1315,11 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
        from its own memory of which piece was renamed from which name (rooms.mjs `joinsAnotherRoom`). On a scene made
        here: Aiko's bedroom, the 66 Den, drawn first, and Daichi's 66 Wing in two pieces with his stash; Aiko has
        discovered both. The seeded GM renames the Wing's pieces to the 66 Q Hall one after the other, then the Den. */
+    // A warning to the GMs is chat-card.mjs's card in the warning tone since E49 B5a (a p.drpg-warning before): Q1's joined and
+    // Q2-Q3's warnings() read that tone, or Q1 sees no warning and Q3's "nobody is told" holds by measuring nothing.
     const QNAMES = `const W = async (ok, ms = 6000) => { const end = Date.now() + ms; while (!ok() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); };
         const F = await import("${repoUrl}/scripts/fog.mjs"), U = await import("${repoUrl}/scripts/utils.mjs"), { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
-        const joined = () => game.messages.filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes("66 Den")
+        const joined = () => game.messages.filter(m => /data-drpg-tone="warning"/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes("66 Den")
             && String(contentOf(m) ?? "").includes("66 Q Hall")).length;`;
     let setQ = null, readQ = null;
     await connect("gm0");
@@ -1365,7 +1367,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
        to the 66 Q2 Hall and the Lab's to the 66 Q3 Hall; gm0 connects and is the primary; then the seeded GM renames the
        Wing's other piece (Q2: the primary's judgement of the carry) and gm0 the Lab's (Q3: the writer's judgement as well).
        Read on gm0, the primary. */
-    const WARNED = `const warnings = () => game.messages.filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes("66 Q3 Hall")).length;`;
+    const WARNED = `const warnings = () => game.messages.filter(m => /data-drpg-tone="warning"/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes("66 Q3 Hall")).length;`;
     const setQ2 = await gm.eval(`${QNAMES}
         const box = x => [{ type: "rectangle", x, y: 100, width: 250, height: 250 }];
         const room = (owner, stash) => ({ "${MOD}": { room: true, drpgVaultOwner: owner, drpgStashes: stash ? [{ actorId: owner, concealed: true }] : [] } });

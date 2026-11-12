@@ -77,7 +77,7 @@ const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`
 /*
  * The windows, each `{ id, client, module, call, press, click }`: the opener's module under scripts/ and the call made on it
  * (`m` is the module), on the GM unless `client` names a player; with `press`, the window the opener drew is a step on
- * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from Season setup). The list is E44's mockup set as far as an opener
+ * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from the Season checklist). The list is E44's mockup set as far as an opener
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
  * the mockup round's to build, not this probe's.
  */
@@ -116,6 +116,20 @@ const SEED_PASSAGES = `const PG = await import(\`\${repoUrl}/scripts/passages-gm
 const DROP_PASSAGES = `const st = (await import(\`\${repoUrl}/scripts/passages-gm.mjs\`)).PASSAGE_STORES;
     await st.access.dropMany(globalThis.__probe08seed?.access ?? []); await st.map.dropMany(globalThis.__probe08seed?.rows ?? []);
     delete globalThis.__probe08seed;`;
+const VOICE_ON = `const AVM = "avclient-livekit", mod = game.modules.get(AVM);
+    globalThis.__probe08voice = { mod, active: mod?.active, rtc: Object.getOwnPropertyDescriptor(game, "webrtc"), keys: Object.getOwnPropertyDescriptor(game, "keybindings") };
+    if (mod) mod.active = true; else game.modules.set(AVM, { id: AVM, active: true, __probe08: true });
+    const keys = game.keybindings;
+    Object.defineProperty(game, "webrtc", { configurable: true, writable: true, value: { mode: 1,
+        settings: { client: { audioSrc: "mic1", audioSink: "out1", voice: { mode: "ptt" } }, world: { mode: 1 }, set: async () => {} },
+        client: { getAudioSources: async () => ({ mic1: "USB microphone (Blue Yeti)", mic2: "Built-in microphone" }),
+            getAudioSinks: async () => ({ out1: "Headphones (USB)", out2: "Speakers" }) } } });
+    Object.defineProperty(game, "keybindings", { configurable: true, writable: true, value: { get: (ns, k) => (ns === "core" && k === "pushToTalk" ? [{ key: "Backquote" }] : keys?.get?.(ns, k)) } });`;
+const VOICE_OFF = `const v = globalThis.__probe08voice ?? {};
+    if (v.mod) v.mod.active = v.active; else if (game.modules.get("avclient-livekit")?.__probe08) game.modules.delete("avclient-livekit");
+    if (v.rtc) Object.defineProperty(game, "webrtc", v.rtc); else delete game.webrtc;
+    if (v.keys) Object.defineProperty(game, "keybindings", v.keys); else delete game.keybindings;
+    delete globalThis.__probe08voice;`;
 /* E97 C5: the Investigation panel's Map view, with a small case seeded in the GMs' store (two deductions on the
    chapter's evidence, a counter, the solution) and dropped after; the view is the GM's own User flag, stubbed for the
    capture (`getFlag` answers "map" for it) rather than written, so the world dump is the same before and after. */
@@ -196,7 +210,9 @@ export const WINDOWS = [
     { id: "sound", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "despair-flow", module: "gm-team-dialog.mjs", call: "m.openGmTeamDialog()" },
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
-    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonSetup()", press: "checks" },
+    // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
+    { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
+    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard({ view: \"table\" })" },
     { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
@@ -227,8 +243,13 @@ export const WINDOWS = [
     // E49 A4: Room pools with a room pool seeded (the header's SEEDED).
     { id: "item-tables--rooms", module: "tables-editor.mjs", before: SEED_ROOM_POOL, after: DROP_ROOM_POOL, open: "editRooms", perTab: false, call: "m.openItemTables()" },
     { id: "look-gm", module: "look.mjs", call: "m.openLookDialog()" },
-    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player (the client rows alone).
+    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player - the same window since
+    // A1d (this browser's settings; look-gm and look-player open it too, through the gear's `openLookDialog`). The game's
+    // settings are a window of their own (`game-settings`), the GM panel's Settings tile. `drpg-settings-player-voice`:
+    // p1's window with a voice to set (VOICE_ON: avclient-livekit active, an audio world, two named devices of each kind,
+    // push to talk on a key), every stand-in put back after; the harness has no voice of its own outside 75-voice-tile.
     { id: "drpg-settings", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
+    { id: "game-settings", module: "settings-window.mjs", call: "m.openGameSettingsWindow()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
     { id: "gm-panel", module: "gm-panel.mjs", call: "m.openGmPanel()" },
     // E46 C0: the four GM windows E46 and E47 change that open with no state built.
@@ -239,6 +260,7 @@ export const WINDOWS = [
     { id: "sound-player", client: "p1", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "look-player", client: "p1", module: "look.mjs", call: "m.openLookDialog()" },
     { id: "drpg-settings-player", client: "p1", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
+    { id: "drpg-settings-player-voice", client: "p1", module: "settings-window.mjs", before: VOICE_ON, after: VOICE_OFF, call: "m.openSettingsWindow()" },
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
     ...ACTION_WINDOWS.map(key => ({ id: `action-${key}`, client: "p1", module: "action-rolls.mjs", call: `m.performAction(${MINE}, ${JSON.stringify(key)})` })),
     { id: "notices-player-250", client: "p1", module: "notice-history-app.mjs", before: NOTICES_250, call: "m.openNotices()" },

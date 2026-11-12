@@ -635,7 +635,7 @@ const plain = value => (value && typeof value === "object" ? foundry.utils.deepC
  * The look the source throws in, as every forced user must hold it. The appearance is the one DSN works out for
  * the source (`Dice3D.ALL_CUSTOMIZATION`, read in the 26.09 design: a GM with no flag of their own still has a
  * look, from their colour; absent from Dice So Nice 6.3 and later, where the diagnostic says so, `dsnApiMoved`, and
- * reading it there is E76's, row 1.2.122 - E60's fix round, FG5), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
+ * reading it there is E76's, row 1.2.106 - E60's fix round, FG5), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
  * has no such method). A library die's owner is written in where it is missing, since DSN looks the die up in
  * its owner's library and a player's own would not hold it. No special effect is part of it (H82 C1, the header): until
  * then the GM's effects were, all but those that run a macro, which would have run on every browser at a player's throw.
@@ -689,9 +689,28 @@ function sameLook(a, b) {
     return stableJson(a) === stableJson(b);
 }
 
+/*
+ * DICE SO NICE 6.4'S SAVED MARKER (E76 C6, 12.11.2026; R3603, scenario 17 G1b). Read in DSN 6.4.5's source (tag b365efc,
+ * 04.11.2026; module/settings/DsnSettings.js): a user's `dice-so-nice.saved` says whether they saved a look of their own
+ * (`SAVED`, :160-163). Without `sfx: true` DSN throws with `DEFAULT_SFX()`, the lines packages register through
+ * `game.dice3d.addSFXDefaults`, whatever the user's `sfxList` holds (`SFX_LIST`, :249-253); without `appearance: true` it
+ * merges the package's "basic" role look under the user's own (`APPEARANCE`, :191-196). So a forced user is written the
+ * marker with the look, and holds the table's look only with both marks true: else a player who never saved a look of
+ * their own would throw with a package's effects. Daggerheart 2.12.8 registers none (no `addSFXDefaults` in its module/,
+ * git grep); another module may. A DSN before 6.4 reads no such flag, and the marker changes nothing there. Off, the
+ * marker is left as it was, as the look is (Q4). What 6.4.5 draws from it, at a table, is LIVE-E76-07.
+ */
+const SAVED_MARK = Object.freeze({ appearance: true, sfx: true });
+
+/** Whether a user's flags carry DSN 6.4's saved marker, both marks true. */
+function markedSaved(user) {
+    const saved = user?.getFlag(DSN, "saved");
+    return saved?.appearance === true && saved?.sfx === true;
+}
+
 /** Whether a user's flags hold the table's look, so that a sweep or a put-back writes nothing on it. */
 export function holdsTableLook(user, look) {
-    return sameLook(lookOf(user), look);
+    return sameLook(lookOf(user), look) && markedSaved(user);
 }
 
 function schedule(key) {
@@ -1073,7 +1092,7 @@ async function rollerOf(message) {
 }
 
 /**
- * Both flags replaced whole: in one `updateDocuments` of the User class where v14's ForcedReplacement is there, else unset
+ * Both flags, and DSN 6.4's saved marker (`SAVED_MARK`), replaced whole: in one `updateDocuments` of the User class where v14's ForcedReplacement is there, else unset
  * and set one user at a time, as utils.mjs `replaceFlag` does in the module's own scope. A write refused (an
  * Assistant primary writing another Assistant's User may be, on v14: LIVE-E16-04) is tried user by user and
  * said once.
@@ -1082,7 +1101,8 @@ async function writeLooks(users, look) {
     // R220's census reads a gate in the writing declaration itself; sweep and putBack hold the same one.
     if (!isPrimaryGm() || !users.length) return;
     const replaced = value => forcedReplacement(foundry.utils.deepClone(value));
-    const updates = users.map(u => ({ _id: u.id, flags: { [DSN]: { appearance: replaced(look.appearance), sfxList: replaced(look.sfxList) } } }));
+    const updates = users.map(u => ({ _id: u.id, flags: { [DSN]: { appearance: replaced(look.appearance), sfxList: replaced(look.sfxList),
+        saved: replaced(SAVED_MARK) } } }));
     if (updates[0].flags[DSN].appearance !== null) {
         try { return void await CONFIG.User.documentClass.updateDocuments(updates); }
         catch (err) { if (users.length === 1) return refused(users[0], err); }
@@ -1098,6 +1118,7 @@ async function writeLooks(users, look) {
             await user.unsetFlag(DSN, "sfxList");
             await user.setFlag(DSN, "appearance", foundry.utils.deepClone(look.appearance));
             await user.setFlag(DSN, "sfxList", foundry.utils.deepClone(look.sfxList));
+            await user.setFlag(DSN, "saved", { ...SAVED_MARK });
         } catch (err) { refused(user, err); }
     }
 }

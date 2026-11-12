@@ -45,9 +45,10 @@
  *   `update` spied on, so nothing is written). p2's character killed in secret (`killCharacter`, revived
  *   quietly after): a click on the block still drawn as free is judged again by `moduleHoldsMic` and
  *   writes nothing, the GM told why; drawn again it is disabled with that line. The gear's window
- *   (`openLookDialog`, real windows) has the Voice section on p1 - the shim names no device, so the
- *   microphone's line and the mode - after the volumes and right before the look's fieldset since E79 C12
- *   (N9; until then after the look) - and push to talk writes p1's `voice.mode`; on p3 there is none.
+ *   (`openLookDialog`, real windows; the settings window since E49 A1d) has the Voice section on p1 - the shim
+ *   names no device, so the microphone's line and the mode - in its Sound section after the volumes (E79 C12, N9:
+ *   between the volumes and the look; E49 A1d: the look is a section of its own) - and push to talk writes p1's
+ *   `voice.mode`; on p3 there is none.
  * D (C6): where the tile stands. The harness's screen is 1024 px wide, a stacked one, and jsdom cuts no curtain
  *   (its canvas is 0 px wide), so this reads the stacked half: on p1 the voice tile is in `#drpg-tile-row` beside the
  *   room tile, unstamped, its portrait inside its face and nothing of it on the body; a speaker shown and the list
@@ -542,7 +543,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         const { closeOpen } = await import("${repoUrl}/scripts/live.mjs");
         const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
         const until = async (test, ms = 3000) => { const end = Date.now() + ms; while (Date.now() < end && !test()) await sleep(25); return test(); };
-        const form = () => document.querySelector(".drpg-window-look form");
+        const form = () => document.querySelector(".drpg-window-settings form");
         const panel = () => form()?.querySelector("fieldset.drpg-voice-panel") ?? null;
         const windows = globalThis.__dialogWindows, mode = game.webrtc?.settings?.client?.voice?.mode;
         globalThis.__dialogWindows = true;
@@ -553,10 +554,10 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             const out = { form: Boolean(form()), panel: Boolean(panel()) };
             if (!panel()) return out;
             out.names = [...new Set([...panel().querySelectorAll("[name]")].map(el => el.name))];
-            // E79 C12 (N9): between the volumes and the look - after every volume slider, right before the look's fieldset
-            const sliders = [...form().querySelectorAll(".drpg-sound-slider")];
-            out.between = sliders.length > 0 && sliders.every(s => Boolean(s.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING))
-                && panel().nextElementSibling?.matches("fieldset.drpg-look") === true;
+            // E79 C12 (N9), E49 A1d: in the Sound section, after every volume slider
+            const sound = form().querySelector('[data-drpg-settings-pane="sound"]');
+            const sliders = [...(sound?.querySelectorAll("[data-drpg-slider]") ?? [])];
+            out.between = sliders.length > 0 && sound.contains(panel()) && sliders.every(s => Boolean(s.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING));
             out.note = panel().querySelector(".drpg-voice-panel-mic-note")?.textContent === game.i18n.localize("DRPG.Voice.panel.micNote");
             const ptt = panel().querySelector("[name='voice:mode'][value='ptt']");
             ptt.checked = true;
@@ -567,10 +568,10 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         } finally {
             if (game.webrtc?.settings?.client?.voice) game.webrtc.settings.set("client", "voice.mode", mode ?? "always");
             globalThis.__dialogWindows = windows;
-            closeOpen("drpg-window-look");
+            closeOpen("drpg-window-settings");
         }`, { timeout: 15000 });
     const gearP1 = await gear(p1), gearP3 = await gear(p3);
-    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else, standing after the volumes and right before the look (E79 C12, N9); choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
+    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else, standing in its Sound section after the volumes (E79 C12, N9; E49 A1d); choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
         J(gearP1) === J({ form: true, panel: true, names: ["voice:mode"], between: true, note: true, wrote: "ptt" }) && J(gearP3) === J({ form: true, panel: false }),
         J({ gearP1, gearP3 }));
 
@@ -783,7 +784,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
                 expanded: el?.getAttribute("aria-expanded") ?? null };
         };
         const list = () => document.getElementById("drpg-voice-list");
-        const panel = () => document.querySelector(".drpg-window-look form fieldset.drpg-voice-panel");
+        const panel = () => document.querySelector(".drpg-window-settings form fieldset.drpg-voice-panel");
         const client = () => JSON.parse(JSON.stringify(settings.client ?? {}));
         __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])} });
         const serial = __liveKit.read().serial;
@@ -838,7 +839,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             out.used = client();
         } finally {
             const { closeOpen } = await import("${repoUrl}/scripts/live.mjs");
-            closeOpen("drpg-window-look");
+            closeOpen("drpg-window-settings");
             globalThis.__dialogWindows = windows;
             if (sources) Object.defineProperty(av, "getAudioSources", sources);
             else delete av.getAudioSources;

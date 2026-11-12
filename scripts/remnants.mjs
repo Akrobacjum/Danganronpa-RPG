@@ -256,10 +256,10 @@ export async function dropRemnant(actor, {
             actor: actor?.name ?? "?"
         }));
         const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Remnant.noTokenGm", {
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Remnant.noTokenGm", {
             actor: foundry.utils.escapeHTML(actor?.name ?? "?"),
             action: foundry.utils.escapeHTML(action)
-        })}</p>`);
+        })}</p>` });
         return null;
     }
 
@@ -1251,7 +1251,7 @@ export async function setRemnantSecret(tokenDoc, patch = {}, opts = {}) {
  * (handover.mjs), and no GM's road could write them: New trace, a Key Remnant and the Final Truth named nobody, and
  * the GM's card printed the name without a way to change it. Both fields go together, as one patch (`authorPatch`),
  * so a name never stands beside another student's id; `null` is nobody ("- unknown -", Q6), which is what every
- * trace placed before 1.2.106 already holds, so nothing is migrated. On the row only (`ifLive`: it amends a trace
+ * trace placed before 1.2.107 already holds, so nothing is migrated. On the row only (`ifLive`: it amends a trace
  * this GM holds, never starts one), and never on a token, an item, a chat card or a player's copy: Q1, "Nigdy i bez
  * opcji analyze. To tylko info dla gma". An author a GM sets acts as a player's (Q2): Observe's preference
  * (observe.mjs), an incident's tie (`placeRemnant`) and Tamper (cleanup.mjs) read the same field. The row's `label`,

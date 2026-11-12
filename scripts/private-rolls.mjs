@@ -204,6 +204,13 @@ function paintChatCard(message, element) {
             html.classList.add("drpg-chat-card");
             markReplaced(message, html);
 
+            /* A CARD OF THE KIT (E49 B5a, chat-card.mjs `chatCard`) says its tone on the message too, so the log's edge
+             * is the card's: `data-drpg-tone` on the message, read by components.css's chat section. A private card's
+             * words land after the stub (secret.mjs); this hook runs again then, and reads them. */
+            const kit = html.querySelector?.(".drpg-chat-kit[data-drpg-tone]");
+            if (kit) html.dataset.drpgTone = kit.dataset.drpgTone;
+            else delete html.dataset.drpgTone;
+
             /* AND WHICH WAY ITS ROLL WENT.
              *
              * The module's own result card knew its outcome - `popupTone` has

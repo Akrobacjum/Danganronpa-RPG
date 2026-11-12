@@ -17,6 +17,7 @@
  */
 
 import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
+import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
@@ -688,8 +689,8 @@ export async function ruleOnParkedMurder(killerId, allow, trait = null) {
 
     if (killer && !allow) {
         await whisperToOwner(killer,
-            `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p><span class="drpg-warning">${
-                game.i18n.localize("DRPG.Action.murderRefused")}</span></p>`, { veiled: true });
+            `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
+                cardWarn(game.i18n.localize("DRPG.Action.murderRefused"), "span")}</p>`, { veiled: true });
     }
 
     log(`Direct murder by ${killer?.name ?? killerId} ${allow ? "allowed" : "refused"}.`);
@@ -835,10 +836,10 @@ async function judgePendingMurders(id, taken = new Map()) {
 
         // Veiled, as the ruling is (E05, S11-02): the document would name the killer's
         // actor and their player at the moment the lights judged them.
-        const say = async (line, cls = "") => {
+        const say = async (line, warned = false) => {
             await whisperToOwner(killer,
                 `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
-                    cls ? `<span class="${cls}">${line}</span>` : line}</p>`, { veiled: true });
+                    warned ? cardWarn(line, "span") : line}</p>`, { veiled: true });
         };
 
         /*
@@ -855,7 +856,7 @@ async function judgePendingMurders(id, taken = new Map()) {
         if (parked.betrayal) {
             const { openParkedBetrayal } = await import("./murder.mjs");
             if (!await openParkedBetrayal(killerId, parked.betrayal.killerId, taken.get(killerId) ?? null, parked.note ?? "", parked.proposed ?? null)) {
-                await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
+                await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
             }
             continue;
         }
@@ -864,7 +865,7 @@ async function judgePendingMurders(id, taken = new Map()) {
             const reason = present.length === 0
                 ? game.i18n.localize("DRPG.Action.murderNobody")
                 : plural("DRPG.Action.murderWitness", { n: present.length - 1 });
-            await say(reason, "drpg-warning");
+            await say(reason, true);
             await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderCancelled", {
                 killer: foundry.utils.escapeHTML(killer.name),
                 room: foundry.utils.escapeHTML(room ?? "-"),
@@ -874,7 +875,7 @@ async function judgePendingMurders(id, taken = new Map()) {
         }
 
         if (murderState()) {
-            await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
+            await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
             await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
                 killer: foundry.utils.escapeHTML(killer.name)
             })}</p>`);
@@ -888,7 +889,7 @@ async function judgePendingMurders(id, taken = new Map()) {
         // on its own. Either answer names the opening's statistic (E68 C9): the card's, or the window's.
         const ruled = parked.approved === true ? (parked.trait ?? null) : await askAtTheLights(killer, victim, room, parked);
         if (ruled === false) {
-            await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
+            await say(game.i18n.localize("DRPG.Action.murderRefused"), true);
             continue;
         }
 

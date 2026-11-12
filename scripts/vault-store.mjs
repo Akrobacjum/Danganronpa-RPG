@@ -1517,9 +1517,9 @@ export function clearSplitPiece(region, changes, userId) {
         + `it no longer carries ${keys.join(", ") || "anything"}.`);
     const labels = [...new Set(carried.map(([, label]) => game.i18n.localize(label)))].join(", ")
         || game.i18n.localize("DRPG.Rooms.carriedNothing");
-    whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format(joins ? "DRPG.Rooms.renameJoined" : "DRPG.Rooms.pieceSplit", {
+    whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format(joins ? "DRPG.Rooms.renameJoined" : "DRPG.Rooms.pieceSplit", {
         name: now, room: was, scene: scene?.name ?? "", carried: labels
-    }))}</p>`).catch(err => error(`Could not tell the GMs what "${now}" no longer carries`, err));
+    }))}</p>` }).catch(err => error(`Could not tell the GMs what "${now}" no longer carries`, err));
     return keys;
 }
 

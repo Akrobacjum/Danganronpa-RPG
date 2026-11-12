@@ -217,13 +217,12 @@ function incidentCard() {
     const killer = game.actors.get(state.killerId);
     if (!victim) return null;
 
-    const killers = [state.killerId, state.thirdSide === "killer" ? state.thirdId : null].filter(Boolean);
-    const killerActing = killers.length > 1 ? (state.killerTurnId ?? killers[0]) : state.killerId;
+    const killerActing = killerActingId(state);
     const myTurn = involved && (
         (state.turnSide === "victim" && mine === state.victimId)
         || (state.turnSide === "killer" && mine === killerActing));
 
-    const acting = game.actors.get(state.turnSide === "victim" ? state.victimId : killerActing) ?? null;
+    const acting = actingActor(state);
     const { turn, left } = incidentLines({ state, mine, myTurn, victim, acting });
 
     let room = null;
@@ -250,9 +249,20 @@ function incidentCard() {
  * (`incidentWitness`), `acting` the actor whose turn it is. Exported for R1446 and E24-T1, which read it by seat.
  */
 export function incidentLines({ state, mine, myTurn, victim, acting, user = game.user }) {
+    const turn = incidentTurnText({ state, mine, myTurn, acting });
+    const seat = user?.isGM ? "gm" : (mine && mine === state.victimId ? "you" : "other");
+    return { turn, left: reserveLine(victim, seat, user) };
+}
+
+/**
+ * WHOSE TURN, AS ONE SEAT READS IT: the incident card's first line, and since E49 (B2's turn line, S03-30's "in an
+ * incident, the turn's banner in the sheet itself") the sheet's budget row in a fight - one sentence, so the card and
+ * the sheet cannot come to word the same turn two ways. `mine` is the seat's actor id (none: the tracker's state line).
+ */
+export function incidentTurnText({ state, mine, myTurn, acting }) {
     const killerSide = Boolean(mine) && mine !== state.victimId
         && [state.killerId, state.thirdSide === "killer" ? state.thirdId : null].includes(mine);
-    const turn = !mine
+    return !mine
         ? game.i18n.format("DRPG.Murder.trackerState", {
             stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
             turn: state.turn ?? 1,
@@ -261,8 +271,17 @@ export function incidentLines({ state, mine, myTurn, victim, acting, user = game
         : myTurn ? game.i18n.localize("DRPG.Murder.yourTurn")
         : killerSide ? game.i18n.format("DRPG.Events.waitingFor", { name: acting?.name ?? "?" })
         : game.i18n.localize("DRPG.Murder.theirTurn");
-    const seat = user?.isGM ? "gm" : (mine && mine === state.victimId ? "you" : "other");
-    return { turn, left: reserveLine(victim, seat, user) };
+}
+
+/** The killers' side's actor this turn: the one `killerTurnId` names when two share it (murder-rules.mjs `passTurn`). */
+export function killerActingId(state) {
+    const killers = [state.killerId, state.thirdSide === "killer" ? state.thirdId : null].filter(Boolean);
+    return killers.length > 1 ? (state.killerTurnId ?? killers[0]) : state.killerId;
+}
+
+/** The actor whose turn it is, or null: the victim, or the killers' side's acting one. */
+export function actingActor(state) {
+    return game.actors.get(state.turnSide === "victim" ? state.victimId : killerActingId(state)) ?? null;
 }
 
 /**

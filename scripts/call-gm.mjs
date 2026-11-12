@@ -28,6 +28,7 @@
  */
 
 import { MODULE_ID, TRAITS, HOPE_CALLS, TIMING } from "./config.mjs";
+import { cardWarn } from "./chat-card.mjs";
 import {
     whisperToGms, ownerOf, isPrimaryGm, debug, warn, error, esc, serverNow, localeFormat
 } from "./utils.mjs";
@@ -759,9 +760,9 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
         // The guide owes the player a substantial hint on a critical Observe or
         // Analyze. Say so loudly rather than leaving the GM to remember it.
         if (roll.isCritical) {
-            parts.push(`<div class="drpg-gm-only"><p class="drpg-warning"><strong>${
+            parts.push(`<div class="drpg-gm-only">${cardWarn(`<strong>${
                 game.i18n.localize("DRPG.Bridge.criticalHint")
-            }</strong></p></div>`);
+            }</strong>`)}</div>`);
         }
     }
 

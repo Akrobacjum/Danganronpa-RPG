@@ -213,6 +213,8 @@ belongs to.
 | 88 | scenarios/88-flow-length.mjs | ci | exists | E51 | how long the main flows are (E51 C8; E51-49): Search, Observe, Analyze, a Hope Call, a Dynamic action, the Refund, the trial console's mode bar a mode at a time, the verdict and the Level Up driven on the clients that do each part, every DialogV2 window drawn and pressed by the scenario's own person, the clicks and the windows counted on every browser and held, by the GM's side and the players', to `flow-length.json` (above it a step was added, below it the baseline is lowered in the same commit; `DRPG_FLOW_LENGTH_WRITE=1` writes it); the CI's layer alone, as it needs `__dialogWindows`, `__dialogAnswers` and `__forceRoll`, and the counts at a table are LIVE-E51-06 |
 | 89 | scenarios/89-proposal-card.mjs | ci | exists | E68 | the statistic's proposal card with two GMs and two players (E68; DA18, DA41, DA46): p1's real ask through the bridge, the card in p1's thread veiled with Approve first, a Change to for each other listed statistic and Refuse, p1's words on it (A); Approve on gm (A), Change to on gm2 rolled from p1's window (B), Change to withdrawn by p1's pass, its line in the thread (C), Refuse on gm2 (D), gm and gm2 pressing one card at once: one answer, one ruling (E); in an incident, a pass after a Change to opening the crisis menu again on p1, the card veiled from the bystander p2 (F); both GMs gone from p1's page: no card, no answer, "No GM is connected." (G); `autoApproveTraits` on in Daily Life: approved with nobody's press, "Approved automatically.", the ruling's `auto` (H); gm2 a second GM, so not in the local gate |
 | 90 | - | - | retired | E30 | results/90-a11ycost.json came from a scratch scenario outside the repository; not reused |
+| 91 | scenarios/91-old-keys-ignored.mjs | ci | exists | E76 | the old keys `-=` and `==` in the "ignored" reading (E76 C4; DY7; lib/old-keys.mjs, lib/operators.mjs): a GM's `-=gone` and `==bookmark` on a world flag change nothing on any client, each reported once with the reading (A); `_del`, a ForcedDeletion and `unsetFlag` remove (B); p1's `-=` on a GM-only module flag of the student p1 owns changes nothing and leaves the GMs no row (C). Which reading v14 has is LIVE-E76-03 |
+| 92 | scenarios/92-old-keys-honoured.mjs | ci | exists | E76 | the same in the "honoured" reading (Foundry issue 14806 as read for 14.369+): the GM's old keys delete and replace on every client (A); the module's deletes still remove (B); p1's `-=` deletes the GM-only flag, and the primary GM puts it back and keeps one `putBack` row naming p1 (C) |
 <!-- scenarios:end -->
 
 ## Checks
@@ -528,6 +530,14 @@ roll at a table.
   source, and the wire form they travel in is the harness's own
   (`lib/operators.mjs`). Not confirmed on v14: LIVE-E30-01 (what `-=` does),
   LIVE-E30-02 (the operator API), LIVE-E30-03 (what a hook's `changes` holds).
+  Since E76 C4 that is the "ignored" reading, the default; the "honoured" one
+  (Foundry issue 14806, closed in 14.369, read from its title) turns `-=key` into
+  a ForcedDeletion and `==key` into a ForcedReplacement on the cluster before the
+  write is judged, applied and sent on (`futil.mjs` `honourLegacy`), each still
+  reported. `DRPG_LEGACY_KEYS=honoured` runs a whole run in it; a scenario that
+  exports `legacyReading` names its own (91 and 92 run the same parts, one each);
+  every results file says which ran (`legacyReading`). LIVE-E76-03 is the table's
+  answer for 14.370.
 - **Users.** Four are seeded (a GM and three players), and a scenario adds more
   with `accounts` (E30). Each is connected until a scenario calls
   `disconnect(who)`, which ends that client and tells the others through
