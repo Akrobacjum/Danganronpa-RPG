@@ -144,8 +144,12 @@ changed (the owner's note is about the animation); the at-rest cut is not.
   mood has its row (docs/dev/e94/STATUS.md).
 - The setting's hint names everything the switch stops (docs/dev/e62/STATUS.md).
 - AUDIT 9.2: LIVE-E61-01 updated for round 5 (1920x1080's proportions); LIVE-E61-06 added (the floors' table check).
-- Not built: C6, the four-client scenario (a new layered part of scenario 63 with gm2, three players, reloads during the
-  entry and the cut-in): it did not fit this round's time. C7 (the floors): waits on LIVE-E61-06.
+- C6, in part (1.2.109): scenario 63 holds, on its own clients, the trial's entry played once on each of the GM, p1, p2
+  and p3 from the one Start (A3), none on p4, loaded after it (C2), and the verdict's cut-in once on each of gm2 and the
+  four players (G4), read from the engine's new per-kind counter (`sequence.<kind>`, sequence.mjs). Red at 8675f81 (no
+  counter), 74/74 now. Not held yet, from the plan's C6: a reload during the entry or the cut-in, End the trial during a
+  cut-in, and the trial with one E70 mode; nothing of them waits on the owner, only on time. C7 (the floors): waits on
+  LIVE-E61-06 (proposed default: keep the floor switcher, as the plan's own default says, until the check is made).
 
 ## Defaults taken, owner to confirm
 

@@ -129,6 +129,8 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     started.add(id);
     endSequence("cut");
     count("sequence.started");
+    // and by kind, so a reading can tell the trial's entry from the cut-in (E61 C6: scenario 63 counts each per browser)
+    count(`sequence.${kind}`);
     if (!on) {
         count("sequence.off");
         sound?.();

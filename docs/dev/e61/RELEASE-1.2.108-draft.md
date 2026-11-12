@@ -86,7 +86,8 @@ At the Night-to-Morning roll-over every connected browser shows two boards, one 
 - E61 C7: the floors' cross-section (needs LIVE-E61-06 at a table first).
 - E62 C3 (the death fade and the Monocub's return: the owner's amend asks for a storyboard and a mockup first), C6 and C7 (the interface following a recut, the texture through a turn); the HUD's phase label slide (R3728) and C5's centre cards (R3729, R3730) are on the branch for 1.2.109.
 - E94 C5's Spectator case: no Spectator role on main yet (E92); the merge note is in docs/dev/e94/STATUS.md.
-- E61 C6, the four-client scenario (two GMs, reloads during a sequence, two fast events): not built in this round.
+- E61 C6, the multi-client scenario: in part on the branch for 1.2.109 (scenario 63's A3, C2, G4); reloads during a
+  sequence and End the trial during a cut-in not yet held.
 
 ## Known gaps
 
