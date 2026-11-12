@@ -6206,6 +6206,76 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await settle(300);
 
     /*
+     * FORGERIES OF A BRIBE (E72 C15 and its end review, 12.11.2026). `bribe.offer` is judged on the payer's owner (`owns`
+     * actorId) and `bribe.answer` on the Monocub's (`owns` cubId), the offer read from the GMs' row (`cubStore`'s
+     * `bribes`), never the packet. The GM makes Botan (p2's), dead, a Monocub and gives Chie (p3's) 2 Hope, with p2's
+     * windows held shut so p2 answers nothing. From consoles: p1 offers Botan a Bribe in Chie's name (refused for
+     * ownership, told; no offer open, Chie's Hope as it was); the GM opens an offer of Chie's itself, and p1 accepts it
+     * for Botan (refused for ownership, told; the offer still open, nothing paid); p2 accepts for its own Botan an offer
+     * not open (refused, told `refused`; nothing paid). The control - p1's offer and p2's yes in the window - is
+     * 33-bridge-paths A21.
+     */
+    phase("forgeries of a Bribe", { flow: "monocub-bribe" });
+    const p2BribeAuto = await p2.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readBribe = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        return { open: Object.keys(S.cubStore.get(b.id)?.bribes ?? {}).length, purse: Mc.purseOf(b), hope: c.system.resources.hope.value };`;
+    const bribeSetup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        globalThis.__s30bribe = { row: foundry.utils.deepClone(S.cubStore.get(b.id) ?? null), hope: c.system.resources.hope.value, bHope: b.system.resources.hope.value };
+        await C.markDeceased(b);
+        await Mc.setMonocub(b, true);
+        await RG.trustedWrite(c, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+        return { cub: Mc.isMonocub(b) };`, { timeout: 60000 });
+    await settle(800);
+    const offerForged = await forge("bribe.offer", { actorId: ids.chie, cubId: ids.botan }, readBribe);
+    check("SECURITY: p1 offering p2's Monocub Botan a Bribe in p3's Chie's name is refused for ownership and told - no offer open, Chie's Hope as it was",
+        bribeSetup.cub === true && offerForged.unchanged && offerForged.forOwnership && offerForged.after.open === 0
+            && offerForged.told.some(r => r.what === "bribe.offer"),
+        JSON.stringify({ bribeSetup, offerForged }), { flow: "monocub-bribe" });
+    const bribeId = await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        return (await Mc.offerBribeOnGm({ actorId: "${ids.chie}", cubId: "${ids.botan}" }))?.bribeId ?? null;`, { timeout: 60000 });
+    await settle(800);
+    const answerForged = await forge("bribe.answer", { cubId: ids.botan, bribeId, accept: true }, readBribe);
+    check("SECURITY: p1 accepting for p2's Monocub Botan a Bribe open to him is refused for ownership and told - the offer still open, nothing paid",
+        Boolean(bribeId) && answerForged.unchanged && answerForged.forOwnership && answerForged.after.open === 1 && answerForged.after.purse === 0
+            && answerForged.after.hope === 2 && answerForged.told.some(r => r.what === "bribe.answer"),
+        JSON.stringify({ bribeId, answerForged }), { flow: "monocub-bribe" });
+    const bribeBefore = await gm.eval(readBribe);
+    await p2.eval(`
+        if (!globalThis.__bribeToldHook) {
+            globalThis.__bribeToldHook = true; globalThis.__bribeTold = [];
+            game.socket.on("${SOCKET}", payload => {
+                if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__bribeTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+            });
+        }
+        globalThis.__bribeTold.length = 0;
+        game.socket.emit("${SOCKET}", { action: "bribe.answer", userId: game.user.id, requestId: "SECBRIBENONE", cubId: "${ids.botan}", bribeId: "SECBRIBENONE0000", accept: true },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(900);
+    const bribeNone = { before: bribeBefore, after: await gm.eval(readBribe),
+        told: await p2.eval(`return globalThis.__bribeTold.filter(t => t[0] === "SECBRIBENONE");`) };
+    check("SECURITY: p2 accepting for its own Monocub Botan a Bribe that is not open is refused and told - nothing paid",
+        JSON.stringify(bribeNone.before) === JSON.stringify(bribeNone.after)
+            && JSON.stringify(bribeNone.told) === JSON.stringify([["SECBRIBENONE", "bridge.refused", "refused"]]),
+        JSON.stringify(bribeNone), { flow: "monocub-bribe" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        const was = globalThis.__s30bribe; delete globalThis.__s30bribe;
+        if (Mc.isMonocub(b)) await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        if (was?.row) await S.cubStore.patch(b.id, was.row);
+        await RG.trustedWrite(c, { "system.resources.hope.value": was?.hope ?? 0 }, { reason: "gmRuling" });
+        await RG.trustedWrite(b, { "system.resources.hope.value": was?.bHope ?? 0 }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await p2.eval(`const was = ${JSON.stringify(p2BribeAuto)}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(300);
+
+    /*
      * FORGERIES OF AN OBJECTION (E79 C16, 1.2.79; the owner, 17.10.2026). OBJECTION! is aimed at whoever the primary
      * GM's LiveKit Room counts as speaking (trial.mjs `objectOnPrimary`), its Truth Bullet is chosen after it on the
      * objector's own pending Objection inside its 30 s (`evidenceOnPrimary`), and the card is the primary's. The

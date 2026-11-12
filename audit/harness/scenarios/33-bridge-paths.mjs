@@ -23,7 +23,8 @@
  *      Since E37 C3 also the readiness round before the clock moves: opened and ended by the Assistant GM on the primary,
  *      and a player's own Done (A18). Since E37 C7 also every road of the Despair pools and the Overflow from the
  *      Assistant GM, written on the primary (A19). Since E72 C6 also a dead student's player's yes to the GMs'
- *      invitation to become a Monocub, from the window with the Rule (A20).
+ *      invitation to become a Monocub, from the window with the Rule (A20), and a Bribe offered from one player's browser
+ *      and accepted in its window on the other's (A21).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -1607,6 +1608,52 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const was = globalThis.__a20Row; delete globalThis.__a20Row;
         if (was) await S.cubStore.patch(b.id, was);
         else if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* A21. A BRIBE OFFERED AND ACCEPTED, EACH FROM ITS PLAYER'S OWN BROWSER (E72 C15 and its end review, 12.11.2026). The
+       GMs make Botan (p2's), dead, a Monocub; Aiko (p1's) holds 2 Hope. p1's browser offers the Bribe as the Call does
+       (monocub.mjs `offerBribe`, `bribe.offer`); the offer reaches p2's copy, which opens the Bribe's window, and p2 - a
+       client that presses a window's first button - accepts (`bribe.answer`). On the primary: Aiko 1 Hope, Botan's purse 1,
+       no offer left open, nothing refused or logged. 30-security sends both packets from consoles. */
+    phase("a Bribe offered and accepted by the players", { flow: "monocub-bribe" });
+    await clearFailures(gm);
+    const a21Refused = [(await refusedSince(p1)).length, (await refusedSince(p2)).length];
+    const a21Log = await p2.eval(`return globalThis.__dialogLog.length;`);
+    const a21Setup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+        globalThis.__a21Was = { row: foundry.utils.deepClone(S.cubStore.get(b.id) ?? null), hope: a.system.resources.hope.value, bHope: b.system.resources.hope.value };
+        await C.markDeceased(b);
+        await Mc.setMonocub(b, true);
+        await RG.trustedWrite(a, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+        return { cub: Mc.isMonocub(b), purse: Mc.purseOf(b), total: Mc.cubHopeTotal(b) };`, { timeout: 60000 });
+    await settle(1000);
+    const a21Offer = await p1.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        return await Mc.offerBribe(game.actors.get("${IDS.aiko}"), game.actors.get("${IDS.botan}"));`, { timeout: 60000 });
+    await settle(2500);
+    const a21 = { setup: a21Setup, offer: a21Offer,
+        after: await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+            return { hope: a.system.resources.hope.value, purse: Mc.purseOf(b), open: Object.keys(S.cubStore.get(b.id)?.bribes ?? {}).length };`),
+        windows: await p2.eval(`return globalThis.__dialogLog.slice(${a21Log}).map(d => d.title);`),
+        refused: [(await refusedSince(p1)).length - a21Refused[0], (await refusedSince(p2)).length - a21Refused[1]],
+        logged: [...await refusalsLogged(gm, "bribe.offer"), ...await refusalsLogged(gm, "bribe.answer")] };
+    check("A21: p1 offers Botan, a Monocub, a Bribe from its own browser and p2 accepts it in the Bribe's window - on the primary Aiko 1 Hope, Botan's purse 1, no offer open, nothing refused or logged (E72 C15)",
+        a21.setup.cub === true && Boolean(a21.offer?.bribeId) && a21.windows.includes("A Bribe")
+            && a21.after.hope === 1 && a21.after.purse === 1 && a21.after.open === 0
+            && a21.refused.every(n => n === 0) && a21.logged.length === 0,
+        JSON.stringify(a21), { flow: "monocub-bribe" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+        const was = globalThis.__a21Was; delete globalThis.__a21Was;
+        await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        if (was?.row) await S.cubStore.patch(b.id, was.row);
+        await RG.trustedWrite(a, { "system.resources.hope.value": was?.hope ?? 0 }, { reason: "gmRuling" });
+        await RG.trustedWrite(b, { "system.resources.hope.value": was?.bHope ?? 0 }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     await settle(500);
 
