@@ -1195,6 +1195,22 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                 ? `<p><strong>${game.i18n.localize("DRPG.Observe.critPrompt")}</strong></p>`
                 : ""}
             ${/*
+                * THE CRITICAL'S HINT IS THE FINDER'S (E64 C2, 12.11.2026; audit S05-59). Until 1.2.105 the hint went in
+                * the description box below, which is the trace's own (`setRemnantPublicById`): every later finder's copy
+                * read it, a hint they had not earned. Its own box, on a critical only, and `findTexts` hands it to this
+                * copy alone. ASKED FIRST, AND FOCUSED (Q-E64-11; the owner, 12.11.2026: "Zgoda, przesun"): it stood last,
+                * under the lab's reading, and the description held the focus - measured in Chromium at 1366x768 (R3960's
+                * note) the body opened scrolled to the description, the window's top out of view, and on an undescribed
+                * trace under Stained Glass the box sat below the fold. Right under the critical's line now, which says
+                * what it is for.
+                */ ""}
+            ${isCritical
+                ? `<label>${game.i18n.localize("DRPG.Observe.critHint")}
+                    <textarea name="critHint" rows="3" autofocus
+                        placeholder="${game.i18n.localize("DRPG.Observe.critHintPlaceholder")}"></textarea></label>
+                   <p class="notes">${game.i18n.localize("DRPG.Observe.critHintNote")}</p>`
+                : ""}
+            ${/*
                 * THE NAME IS NOT ASKED TWICE (Dawid, 28.08: "finding a remnant
                 * by a second player prompts the DM to name it again, though
                 * there is no need").
@@ -1212,10 +1228,10 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     <input type="text" name="name" readonly
                            value="${foundry.utils.escapeHTML(stored.name ?? fallbackName)}" /></label>`
                 : `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                    <input type="text" name="name" autofocus
+                    <input type="text" name="name"${isCritical ? "" : " autofocus"}
                            value="${foundry.utils.escapeHTML(fallbackName)}" /></label>`}
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
-                <textarea name="playerText" rows="3"${stored ? " autofocus" : ""}
+                <textarea name="playerText" rows="3"${stored && !isCritical ? " autofocus" : ""}
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
             ${/*
@@ -1239,18 +1255,6 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.analyzedText ?? "")}</textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.analyzedTextNote")}</p>
-            ${/*
-                * THE CRITICAL'S HINT IS THE FINDER'S (E64 C2, 12.11.2026; audit S05-59; default taken, owner to
-                * confirm). Until 1.2.105 the hint went in the description box above, which is the trace's own
-                * (`setRemnantPublicById`): every later finder's copy read it, a hint they had not earned. Its own
-                * box now, on a critical only, and `findTexts` hands it to this copy alone.
-                */ ""}
-            ${isCritical
-                ? `<label>${game.i18n.localize("DRPG.Observe.critHint")}
-                    <textarea name="critHint" rows="3"
-                        placeholder="${game.i18n.localize("DRPG.Observe.critHintPlaceholder")}"></textarea></label>
-                   <p class="notes">${game.i18n.localize("DRPG.Observe.critHintNote")}</p>`
-                : ""}
         </form>`,
         footer: {
             primary: {

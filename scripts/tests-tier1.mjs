@@ -49654,6 +49654,26 @@ const INVARIANTS = [
         }), stableJson({ skip: ["stress"], valid: true, unclaimed: [true, true, true], calls: [[true, false], [true, false]], langs: [false, false] }),
             "{skip: an ordinary student's skipped steps; valid: validPrice refuses Sanity on the tile's road; unclaimed: [asks the road, Sanity on the killer's, an action on the tile's]; calls: per resolver [charges through chargeUnclaimed, still charges Sanity itself]; langs: [en, pl] refusal names Sanity}");
     }],
+    ["R3960 - on a critical Observe the finder's hint is asked first: observe.mjs `describeFind` draws the hint's box right under the critical's line, above the name, the description and the lab's reading, and gives it the focus, where the description took it (E64; Q-E64-11, the owner's answer of 12.11.2026: \"Zgoda, przesun\")", async () => {
+        /*
+         * E64, 12.11.2026. Measured in Chromium at 1366x768 on probe 08's capture through audit/style-harness.html (R3955's
+         * window, a described trace): the body is taller than the window and opened scrolled to the focused description,
+         * so the window's top - who found what, the trace's kind - was out of view, and on an undescribed trace under
+         * Stained Glass the box sat at 664-713 px of 768, below the window's fold. Red at f657e7d: the box came after the
+         * lab's reading and the description held the focus.
+         */
+        const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
+        must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
+        const body = fnSource(src, "describeFind");
+        const at = needle => body.indexOf(needle);
+        const [crit, hint, name, text, lab] = ['"DRPG.Observe.critPrompt"', 'name="critHint"', '"DRPG.TruthBullet.name"', 'name="playerText"', 'name="analyzedText"'].map(at);
+        must([crit, hint, name, text, lab].every(i => i >= 0), `describeFind lost one of its fields - this would measure nothing: ${stableJson([crit, hint, name, text, lab])}`);
+        equal(stableJson({
+            order: [crit < hint, hint < name, hint < text, hint < lab],
+            focus: [/name="critHint"[^>]*autofocus/.test(body), /rows="3"\$\{stored && !isCritical \? " autofocus" : ""\}/.test(body)]
+        }), stableJson({ order: [true, true, true, true], focus: [true, true] }),
+            "{order: [the box under the critical's line, above the name, the description, the lab's reading]; focus: [the box takes it, the description only off a critical]}");
+    }],
 ];
 
 /**
