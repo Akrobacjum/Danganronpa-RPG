@@ -1145,20 +1145,11 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // `listed`), as vote.mjs `trialParticipants` seats it: the lowest id alone muted a living voter as dead.
     const speaker = inTrial ? accountRow(user, { actors, trial: true, silenced: () => false, listed: mutedDeadIds(trial) })?.actor ?? null : null;
     if (speaker && isMutedDead(speaker, trial)) return { reason: "deadMuted", held: true };
-    // Outside the trial: every character of the account dead as the table knows it, none a Monocub (E72 C8).
-    if (!inTrial && !user.isGM && deadKnownAccount(user, actors)) return { reason: "deadKnown", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
     if (!user.isGM && room === DEAD_ROOM) return { reason: "deadAlone", held: false };
     return null;
-}
-
-/** Whether every character an account plays is dead as the table knows it and none a Monocub (E72 C8): its block. */
-function deadKnownAccount(user, actors) {
-    const mine = (actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id))
-        .filter(actor => !isMonokuma(actor));
-    return mine.length > 0 && mine.every(actor => isDeceased(actor) && !actor.getFlag?.(MODULE_ID, FLAGS.monocub));
 }
 
 /**
@@ -1182,8 +1173,6 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
     const actor = row?.actor;
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
-    // Outside the trial (E72 C8): the ordinary dead the table knows are the module's to hold.
-    if (!trial && !eclipse && deadKnownAccount(user, actors)) return { reason: "deadKnown", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
 }
@@ -1317,24 +1306,6 @@ export function trialVoiceActorOf(user, actors = game.actors, listed = []) {
  * student and took away their OBJECTION!. A victim who has died is dead in the GMs' records (`isDeadForGm` reads the
  * held death, `pendingDeath`), so amend 2's victim is listed by the rule every death is; a living one is not.
  */
-/**
- * THE ORDINARY DEAD THE TABLE KNOWS, OUTSIDE THE TRIAL (E72 C8, 12.11.2026; audit S18-53, S18-88; the owner's DC19, DC30,
- * TR30 = 2, DC38: "muted non stop"). Every student whose death is the table's (`isDeceased`, the flag the publication
- * writes - the body's discovery, a public death, the Students window), not a Monocub, read through `held` as
- * `deadForTrial` reads them. A death the GMs keep is not here: blocking its player outside the trial would write the
- * death into the user document every browser holds (the risk the plan names), so it waits for the publication or for
- * the trial's list, which takes it (TR30 = 2, recorded as a known leak). No living student, no Monokuma, sorted.
- */
-export function deadKnownToTable(held = actor => actor) {
-    const ids = new Set();
-    for (const actor of studentActors({ held })) {
-        const flags = held(actor);
-        if (flags.getFlag(MODULE_ID, FLAGS.monocub)) continue;
-        if (isDeceased(flags)) ids.add(actor.id);
-    }
-    return [...ids].sort();
-}
-
 function deadForTrial(held = actor => actor) {
     const ids = new Set();
     // "Not in the class" and the Monokuma flag through `held` too (E24 fix G1; the end review's S-1): a dead player who
@@ -1438,8 +1409,6 @@ export async function settleTrialVoices({ release = false } = {}) {
         const inTrial = clock.phase === "classTrial" && !release;
         const stored = getSetting(SETTINGS.trialProgress) ?? {};
         const list = inTrial ? deadForTrial(flagsHeldNow) : null;
-        // Outside the trial the ordinary dead the table knows stay blocked (E72 C8): `mutePolicy`'s second half.
-        const outside = !inTrial && !release ? deadKnownToTable(flagsHeldNow) : [];
         if (inTrial) {
             /* THE STORED RECORD'S OWN CHAPTER (E70 fix p1-G1; the review's E70P1-R06). A clock moved to another chapter
                inside the trial (Edit campaign, or the chapter's end, whose "clock" step runs before its "trial") left a
@@ -1456,12 +1425,11 @@ export async function settleTrialVoices({ release = false } = {}) {
         } else if (Object.hasOwn(stored, "mutedDead")) {
             await vote.writeTrialProgressInStep({ mutedDead: undefined }, { chapter: stored.chapter ?? null });
         }
-        const blockList = list ?? outside;
-        const listed = new Set(blockList);
-        const out = { list, outside, blocked: [], restored: [] };
+        const listed = new Set(list ?? []);
+        const out = { list, blocked: [], restored: [] };
         for (const user of game.users) {
             if (user.isGM) continue;
-            const voice = listed.size ? trialVoiceActorOf(user, game.actors, blockList) : null;
+            const voice = listed.size ? trialVoiceActorOf(user, game.actors, list) : null;
             const row = trialMuteStore.get(user.id);
             if (voice && listed.has(voice.id)) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
@@ -1492,8 +1460,7 @@ export async function askTrialVoices() {
 let settleTimer = null;
 function trialVoicesPending() {
     const stored = getSetting(SETTINGS.trialProgress) ?? {};
-    // Or a death the table knows (E72 C8): its player is blocked outside the trial too.
-    return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0 || deadKnownToTable().length > 0;
+    return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0;
 }
 function scheduleTrialVoices() {
     if (!isPrimaryGm() || !trialVoicesPending()) return;

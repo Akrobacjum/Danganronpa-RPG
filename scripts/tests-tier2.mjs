@@ -41597,66 +41597,6 @@ const SCENARIOS = [
         }), "the trial's dead are not muted as the owner asked (entry: list, U's, K's and A's players' block [had, value], the store's rows, who may speak, who holds a ballot; then a new Monocub, a death in the trial, the exit)");
     }],
 
-    ["an ordinary dead student the table knows has their microphone off outside the trial too, and has it back when revived or made a Monocub; a death the GMs keep writes nothing (E72 C8)", async () => {
-        /*
-         * E72 C8, 12.11.2026; audit S18-53, S18-88; the owner's DC19, DC30, TR30 = 2, DC38 ("muted non stop"). Until E72 the
-         * module held a dead student's microphone only in the Class Trial (E70 C5); outside it a dead player whose death the
-         * table knew spoke in the main room. `settleTrialVoices` (voice.mjs) keeps the block outside the trial now for every
-         * ordinary dead student the table knows (`deadKnownToTable`), and gives it back on a revive or a Monocub. A living
-         * student who is their player's only voice: a death the GMs keep (a), made public (b), revived (c), killed in
-         * public again and made a Monocub (d). Read: the player's own BROADCAST_AUDIO [had, value] after each settle. Red at
-         * f22a7e8's runtime: (b) left the microphone on.
-         */
-        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a dead student's player to block");
-        needs(env.primaryGm(), "the block is the primary GM's (`settleTrialVoices`)");
-        const voice = await import("./voice.mjs");
-        const { killCharacter, reviveCharacter, isDeadForGm, publishDeath } = await import("./chapter.mjs");
-        const { setMonocub, isMonocub } = await import("./monocub.mjs");
-        const { studentActors, isMonokuma } = await import("./monokuma.mjs");
-        const { trialMuteStore } = await import("./gm-stores.mjs");
-        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
-        const voiceOf = u => game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.testUserPermission(u, "OWNER"))
-            .sort((x, y) => (x.id < y.id ? -1 : 1));
-        const pick = studentActors().find(a => !isDeadForGm(a) && ownerOf(a) && voiceOf(ownerOf(a)).length === 1);
-        must(pick, "no living student who is their player's only character - this would measure nothing");
-        const user = ownerOf(pick);
-        const perm = () => { const own = (user._source ?? user).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
-        const before = perm();
-        const resources = foundry.utils.deepClone(pick.system.resources);
-        const settleNow = async () => { await voice.settleTrialVoices(); await settle(); };
-        const read = {};
-        try {
-            if (getClock().phase === "classTrial") await setClock({ phase: "dailyLife" });
-            if (before[0]) await user.update({ "permissions.BROADCAST_AUDIO": forcedDeletion() });
-            await settle();
-            await killCharacter(pick, { secret: true, keepBullets: true });
-            await settleNow();
-            read.kept = perm();
-            await publishDeath(pick);
-            await settleNow();
-            read.known = perm();
-            await reviveCharacter(pick, { quiet: true });
-            await settleNow();
-            read.revived = perm();
-            await killCharacter(pick, { secret: false, keepBullets: true });
-            await settleNow();
-            read.again = perm();
-            await setMonocub(pick, true);
-            await settleNow();
-            read.monocub = perm();
-        } finally {
-            if (isMonocub(pick)) await setMonocub(pick, false);
-            if (isDeadForGm(pick)) await reviveCharacter(pick, { quiet: true });
-            await pick.update({ "system.resources": resources });
-            if (JSON.stringify(perm()) !== JSON.stringify(before)) await user.update({ "permissions.BROADCAST_AUDIO": before[0] ? before[1] : forcedDeletion() });
-            if (trialMuteStore.has(user.id)) await trialMuteStore.drop(user.id);
-            await gmStoresIdle();
-            await settle();
-        }
-        equal(stableJson(read), stableJson({ kept: [false, null], known: [true, false], revived: [false, null], again: [true, false], monocub: [false, null] }),
-            "an ordinary dead student the table knows was not muted outside the trial, or not given back ([had, value] of the player's own grant after: a kept death, its publication, a revive, a public death, a Monocub)");
-    }],
-
     ["the trial lists no living victim of an open incident, a listed death presents nothing, and a list written after the clock moved chapters keeps the trial's record (E70 fix p1-G1)", async () => {
         /*
          * E70 fix p1-G1, 28.10.2026; the review's SEC-1, BEH-1, E70P1-R06. Read on this primary, the clock written raw

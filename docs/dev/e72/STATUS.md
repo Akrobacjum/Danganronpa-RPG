@@ -19,11 +19,9 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C7 | The wrong verdict's card (S18-58, DC16): a step "remind" of the wrong verdict (`remindOnWrongVerdict`, after the card) sends each Monocub of this case's death and each of this chapter's crime witnesses one veiled card ("don't use your moves for or against that person, their projects, Bribes or Ghost Bets"), naming nobody; the GMs' summary lists who was told | tier 2 "a wrong verdict tells the case's dead and the chapter's crime witnesses ..." (new; red at base); R1252 changed on purpose |
 
-| C8 (part) | The ordinary dead the table knows stay muted outside the trial (S18-53, S18-88; DC19, DC30, DC38): `settleTrialVoices` blocks every player whose every character is a published ordinary death (`deadKnownToTable`, as the GMs hold the flags) outside the trial as in it, and gives the microphone back on a revive or a Monocub; a death the GMs keep writes nothing until it is made known; the player's tile and the GM's list name the reason (`deadKnown`, EN/PL) | tier 2 "an ordinary dead student the table knows has their microphone off outside the trial too ..." (new; red at base: no block after the publication); R537 changed on purpose |
-
 ## In progress
 
-- Push of C1-C8 after tiers 0-1 and the scenarios at the head; then the rest of C8, C9.
+- Push of C1-C7 after tiers 0-1 and the scenarios at the head; then C8 (the voice of the ordinary dead).
 
 ## Next
 
@@ -64,19 +62,6 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
 - C6 not yet done: `openMonocubDialog` removed and `game.drpg.monocubDialog` pointed at the Students window; the
   revoke function that also hands back a bet, asks, the purse and the mute (those parts come with C8, C14, C18);
   33-bridge-paths' legal control and 30-security's forgery of `monocub.answer`.
-
-- C8 is partial. Built: the block outside the trial on the trial's own store (`trialMuteStore`, its rows unchanged),
-  so no migration of rows was needed. Not built yet: "Silence now" (the GM's button and its bridge action), the
-  per-account dead channel at `deathVoiceGone`, `silencedDead` in the cast's fields, the tier-0 guard naming the two
-  writers of BROADCAST_AUDIO, the handbooks' section 13.
-- C8 needs the owner/coordinator: known-leaks.json's TR30 row says `"closes": "E72"`; the plan moves it to
-  `foundryLimit`, which tools/registry.mjs accepts only with a paragraph in the root README.md marked
-  `<!-- leak:TR30 -->` - a file this line may not edit. Proposed paragraph: "In a Class Trial every ordinary dead
-  student's microphone is off, a death nobody has found among them, and the trial's list of them is world data every
-  browser holds while the trial runs (the owner's TR30 = 2). <!-- leak:TR30 -->" and the row's field: "Foundry v14
-  keeps a user's permissions, BROADCAST_AUDIO among them, in the user document every connected client holds; the owner
-  chose that the trial mutes every ordinary dead student, a death nobody has found among them (TR30 = 2)." Until then
-  the row's check fails once E72 is registered as shipped.
 
 ## Blockers
 
