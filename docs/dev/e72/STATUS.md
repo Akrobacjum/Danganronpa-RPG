@@ -25,18 +25,18 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C9 (rest) | Events' "Redeem is waiting" / "Redeem czeka" (default, owner may revise): events.mjs `redeemCard(user)` for the Monocubs the player owns whose Redeem no block shuts; redrawn on `drpgCubsChanged` and the own student's Hope or Monocub flag (hud.mjs); the Redeem glyph and Hope's gold (kind `redeemHope`, so the CSS meaning check reads it as Hope's); the glyph put on :root with a legacy row `same: glass:redeem` after the first shot showed a gold square under Legacy | R3805 (new; red at f837c2f), tier 2 "the Event panel says Redeem is waiting to a Monocub's own player alone ..." (new; red at f837c2f) |
 
+| C8 | The ordinary dead's voice (S18-53; the coordinator's decision of 12.11: the mic block stays in the trial, the ordinary dead outside it get their own voice channel, no write to the user record): a silenced death outside the trial, public or secret, goes to its account's own room (voice-client.mjs `deadRoomFor`, `drpg-dead-<userId>`), which nobody else is sent - not the main room (public, until now: the living heard it) and not one shared dead channel (`DEAD_ROOM`, gone: a victim heard a second death nobody had found). No document written; the trial unchanged (E70's block). "deadAlone" read off the account's own room. Default, owner may revise: per account (the plan's A9) rather than one room for the dead. Not done of the plan's C8, by the decision: `mutePolicy`, `deadMuteStore`, the BROADCAST_AUDIO block outside the trial; also not done: "Silence now" in the Students row and the tracker (deathVoiceGone already reads `silencedDead`; nothing writes it yet) | R3806 (new; red at 377a476); R815, R816, R832, R835, R117 changed on purpose (a public death: "main" -> its own dead room), R831 reads the own room; 75-voice-tile E reads `drpg-dead-<p2>`; handbooks GM 557, player 754, EN/PL |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
 - C8 is open, with a question for the owner (below, "C8 needs a decision").
-- C6 and C9 done. Next: C8 (the decided design: the ordinary dead's own voice channel outside the trial, no user
-  record written), then C11-C12.
+- C6, C8 (the decided part) and C9 done. Next: C11-C12, then part B.
 
 ## Next, in order
 
-1. C8 (the coordinator's decision of 12.11: the mic block stays in the trial; the ordinary dead outside it get their own
-   voice channel, no write to the user record).
+1. C8's "Silence now" (a GM's button writing `silencedDead`), if time allows after part B.
 2. C11 (D101, D102, D114 - the audit text only, Q-E72-7), C12 (part A's texts: both handbooks, the brochure, the Rule).
 3. Part B: C13-C21 (Tinker, the purse, Bribe, Bounty, a move to order, Ghost Bet, the panel, texts, end review).
 4. E91.

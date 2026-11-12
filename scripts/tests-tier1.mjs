@@ -9234,7 +9234,8 @@ const INVARIANTS = [
             /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
             JSON.stringify([
                 [null, null, null, null, null, null], 1, false, true, 0,
-                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), null,
+                // The dead student outside the trial: the main room (null) until E72 C8, its account's own dead room since (R3806).
+                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), "drpg-dead-R117PLAYERC00000",
                     V.liveKitRoomFor(school.id, "Dorm B"), V.liveKitRoomFor(school.id, "Hall"), null],
                 true, true, true]),
             "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
@@ -21216,6 +21217,45 @@ const INVARIANTS = [
             "[on: the first line of the diagnosis, the same with avclient-livekit off, the plan], [off: whether those lines name it]");
     }],
 
+    ["R3806 - the ordinary dead talk in a room of their own account outside the trial: a silenced death, public or kept secret, is placed in `deadRoomFor(userId)`, one room per account that nobody else is sent, never the main room; the trial keeps everybody in the main room; the room is the dead's own to speak in (E72 C8; S18-53, the owner's A9, the coordinator's decision of 12.11.2026)", async () => {
+        /*
+         * E72 C8, 12.11.2026; audit S18-53, the plan's A9, the coordinator's decision of 12.11 (the mic block stays in the
+         * trial; the ordinary dead outside it get their own voice channel, with no write to the user record). Until C8 a
+         * public death, once silenced, went to the main room (`voiceClaim`'s "the main room"), where every living player
+         * heard it, and a secret one to the one dead channel every secret death shared (`DEAD_ROOM`), where two dead
+         * players heard each other - a second death the first was not told of. Read here on plain objects, nothing
+         * written: `voiceClaim` for a silenced death of two accounts, public and secret, and for the same in the trial;
+         * the room's name (voice-client.mjs `deadRoomFor`) beside the Eclipse's (`silentRoomFor`); `micHold` in one's
+         * own dead room and in the main room. Red at 377a476: no `deadRoomFor`, the public death the main room.
+         */
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        ok(typeof VC.deadRoomFor === "function", "voice-client.mjs has no deadRoomFor - the dead have no room of their own (E72 C8)");
+        if (typeof VC.deadRoomFor !== "function") return;
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const a = account("R3806PA000000000"), b = account("R3806PB000000000");
+        const claim = (user, secret, trial = false) => {
+            const row = V.voiceClaim({ user, trial, silenced: () => true, secret: () => secret });
+            return [row.target ?? "main", row.claim];
+        };
+        const own = id => VC.deadRoomFor(id);
+        const read = {
+            public: claim(a, false), secret: claim(a, true), other: claim(b, false),
+            trial: claim(a, false, true),
+            names: [own(a.id).startsWith(VC.ROOM_PREFIX), own(a.id) !== own(b.id), own(a.id) !== VC.silentRoomFor(a.id)],
+            hold: [V.micHold({ user: a, room: own(a.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+                V.micHold({ user: a, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [] })]
+        };
+        const dead = V.voiceClaim({ user: a, silenced: () => true }).claim;
+        equal(stableJson(read), stableJson({
+            public: [own(a.id), dead], secret: [own(a.id), dead], other: [own(b.id), dead],
+            trial: ["main", V.voiceClaim({ user: a, trial: true }).claim],
+            names: [true, true, true],
+            hold: [{ reason: "deadAlone", held: false }, null]
+        }), "[the room of a silenced public death, a secret one, another account's public one, a death in the trial; the names: ours, "
+            + "one per account, not the Eclipse's; micHold in one's own dead room and in the main room]");
+    }],
+
     ["R815 - the dead channel: a dead student keeps the voice of the room they lie in until the incident ends, the body is found, a GM silences them or a living witness from outside the cast is there; then a secret death talks in the dead channel and a public one in the main room, each room to its account alone, a witness's after the victim's (E19-12 to E19-16)", async () => {
         /*
          * E19 C3, 19.10.2026; S11-26, D8, the owner's A9 of 11.10. Until C3 a death the GMs held sent its account to
@@ -21238,13 +21278,13 @@ const INVARIANTS = [
         const school = { id: "R815SCHOOL000000", name: "R815 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const silencedNow = V.voiceClaim({ user: account("R815ANYONE000000"), silenced: () => true, secret: () => true });
-        ok(silencedNow.target === `${VC.ROOM_PREFIX}dead`,
-            `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, where every player hears it (A9-K3)`);
+        // E72 C8 (12.11.2026): the dead room is the account's own (`deadRoomFor`), for a public death as for a secret one (R3806).
+        ok(silencedNow.target === VC.deadRoomFor("R815ANYONE000000"),
+            `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, not its account's own dead room (A9-K3)`);
         const NAMES = ["placeVoices", "deathVoiceGone", "sendInPasses", "onVoiceSocket", "createVoiceLedger"];
         ok(NAMES.every(name => typeof V[name] === "function"),
             `voice.mjs has no ${NAMES.filter(name => typeof V[name] !== "function").join(", ")}: nothing keeps a victim in the room until the trigger, or holds a witness's room for the victim's`);
         if (!NAMES.every(name => typeof V[name] === "function")) return;
-        const DEAD = VC.DEAD_ROOM;
 
         const [one, two] = game.users.filter(u => !u.isGM);
         const gm = account("R815GM0000000000", true);
@@ -21259,8 +21299,9 @@ const INVARIANTS = [
         };
         const owner = { victim: "victim", killer: "killer", witness: "witness", bystander: "bystander", third: "third", spare: "victim", late: "victim", cub: "cub" };
         const userOf = a => (a === A.monokuma ? gm : users[owner[Object.keys(A).find(k => A[k] === a)]] ?? null);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         let asked = 0;
         /* One case: who is dead (`dead`), whose death is public (`deceased`), where each stands, the incident, its cast held
@@ -21282,7 +21323,7 @@ const INVARIANTS = [
             const { rows, byUser, waits } = placed;
             const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
             return {
-                rooms: Object.fromEntries([...byUser].map(([id, row]) => [who(id), row.keep ? "kept" : label(row.target ?? null)])),
+                rooms: Object.fromEntries([...byUser].map(([id, row]) => [who(id), row.keep ? "kept" : label(row.target ?? null, id)])),
                 waits: Object.fromEntries([...waits].map(([id, list]) => [who(id), list.map(who)])),
                 byUser, rows, waitMap: waits, held: placed.held
             };
@@ -21327,7 +21368,7 @@ const INVARIANTS = [
             });
             const { byUser, waitMap: waits } = await place({ cast: ["victim", "killer", "witness", "bystander", "monokuma"], where: { witness: "Kitchen" } });
             const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-            const log = () => sent.map(s => `${who(s.target)}:${label(s.room)}`);
+            const log = () => sent.map(s => `${who(s.target)}:${label(s.room, s.target)}`);
             const tick = () => new Promise(resolve => setTimeout(resolve, 0));
             const out = {};
             const pass = V.sendInPasses(V.applyOrder(byUser, gm.id), waits, {
@@ -21338,11 +21379,11 @@ const INVARIANTS = [
             out.waiting = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
             if (forged) {
-                V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
+                V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
                 await tick();
                 out.forged = log().length;
             }
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -21366,7 +21407,7 @@ const INVARIANTS = [
         seen.push(["kept, sent", keptSent.includes(users.victim.id), keptSent.includes(users.killer.id), keptSent.length]);
 
         const hold = room => V.micHold({ user: account(one.id), room, external: false, connected: true, canBroadcastAudio: true, actors: [] });
-        seen.push(["micHold", hold(DEAD), hold(null), V.micHold({ user: gm, room: DEAD, external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+        seen.push(["micHold", hold(VC.deadRoomFor(one.id)), hold(null), V.micHold({ user: gm, room: VC.deadRoomFor(gm.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
             game.i18n.has("DRPG.Voice.held.deadAlone")]);
 
         const key = name => ({ key: `${MODULE_ID}.${name}` });
@@ -21387,9 +21428,9 @@ const INVARIANTS = [
             ["cast not here", { ...kitchen, victim: "kept" }],
             ["cast arrived", kitchen],
             ["killer dead in public, in the incident", kitchen],
-            ["killer dead in public, after", { ...kitchen, killer: "main" }],
+            ["killer dead in public, after", { ...kitchen, killer: "dead" }], // the main room until E72 C8
             ["outside the cast, secret", { ...kitchen, bystander: "dead" }],
-            ["outside the cast, public", { ...kitchen, bystander: "main" }],
+            ["outside the cast, public", { ...kitchen, bystander: "dead" }], // the main room until E72 C8
             ["no incident, secret", { ...kitchen, bystander: "dead" }],
             ["the body found", out],
             ["silenced by a GM", out],
@@ -21432,7 +21473,7 @@ const INVARIANTS = [
         const T = await import("./voice-tile.mjs");
         const VC = await import("./voice-client.mjs");
         const me = { id: game.user.id, name: "R831", active: true, isGM: false };
-        const hold = (extra = {}) => V.micHold({ user: me, room: VC.DEAD_ROOM, external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
+        const hold = (extra = {}) => V.micHold({ user: me, room: VC.deadRoomFor(me.id), external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
         const writes = [], told = [];
         const settings = muted => ({
             get: (scope, key) => (scope === "client" && key === `users.${game.user.id}.muted` ? muted : undefined),
@@ -21483,7 +21524,6 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const VC = await import("./voice-client.mjs");
         const { participantIds } = await import("./incident-store.mjs");
-        const DEAD = VC.DEAD_ROOM;
         const school = { id: "R832SCHOOL000000", name: "R832 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const [one, two] = game.users.filter(u => !u.isGM);
@@ -21496,8 +21536,9 @@ const INVARIANTS = [
             monokuma: actor("R832AMONOKUMA000", { [FLAGS.monokuma]: true }) };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id, thirdId: A.pub.id };
         const place = ({ hydrated, where = {} }) => V.placeVoices({
             actors: Object.values(A), eclipse: false, trial: false,
@@ -21515,7 +21556,7 @@ const INVARIANTS = [
                 cancel: id => timers.delete(id)
             });
             const io = { assign: (id, room, force) => L.assignUser(id, room, { force }), waitFor: (id, room) => L.waitApplied(id, room) };
-            return { L, sent, timers, io, log: () => sent.map(s => `${who(s.target)}:${label(s.room)}`), alone: () => sent.every(s => s.to?.length === 1 && s.to[0] === s.target) };
+            return { L, sent, timers, io, log: () => sent.map(s => `${who(s.target)}:${label(s.room, s.target)}`), alone: () => sent.every(s => s.to?.length === 1 && s.to[0] === s.target) };
         };
         const tick = () => new Promise(resolve => setTimeout(resolve, 0));
         const seen = [];
@@ -21543,7 +21584,7 @@ const INVARIANTS = [
             out.first = log();
             out.timers = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -21558,7 +21599,7 @@ const INVARIANTS = [
         seen.push(["asked inside the wait, no answer", await waited(false)]);
         // The victim already settled in the dead channel: the witness is answered at once.
         const settledLedger = ledger();
-        settledLedger.L.answer(users.victim.id, { room: DEAD, state: "applied" });
+        settledLedger.L.answer(users.victim.id, { room: VC.deadRoomFor(users.victim.id), state: "applied" });
         seen.push(["asked, the victim settled", await V.answerWhoAmI(users.witness.id, warm, settledLedger.io), settledLedger.log()]);
 
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
@@ -21570,7 +21611,7 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson([
             ["the pass, the cast not here", ["bystander", "gm"]],
             ["asked, the cast not here", { victim: "kept", pub: "kept", witness: "held", killer: "held", bystander: "sent" },
-                ["victim:dead", "pub:main", "bystander:Dorm"], true],
+                ["victim:dead", "pub:dead", "bystander:Dorm"], true], // pub: the main room until E72 C8
             ["the waits", { witness: ["victim"] }],
             ["asked inside the wait, the victim answers", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
                 all: ["victim:dead", "witness:Kitchen"], alone: true }],
@@ -21680,7 +21721,6 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const VC = await import("./voice-client.mjs");
         const { participantIds } = await import("./incident-store.mjs");
-        const DEAD = VC.DEAD_ROOM;
         const school = { id: "R835SCHOOL000000", name: "R835 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const gm = account("R835GM0000000000", true);
@@ -21693,8 +21733,9 @@ const INVARIANTS = [
         const owner = { bob: "p", alice: "p", carol: "carol", killer: "killer", victim: "victim" };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         const records = { alice: { chapter: 1, day: 3 }, victim: { chapter: 2, day: 1 } };
         /* Chapter 2. Alice died in chapter 1 (public: the flag; secret: the GMs' row alone), her token in the Gym; Bob
@@ -21708,10 +21749,10 @@ const INVARIANTS = [
             userOf: a => users[owner[nameOf(a)]], dead: a => ["alice", "victim"].includes(nameOf(a)), monokumaOf: () => false
         });
         const rooms = placed => Object.fromEntries([...placed.byUser].map(([id, row]) => [who(id),
-            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null)]));
+            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null, id)]));
         const asked = async placed => {
             const sent = [];
-            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room)}`); return true; }, waitFor: async () => "applied" };
+            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room, id)}`); return true; }, waitFor: async () => "applied" };
             const said = {};
             for (const name of ["p", "carol", "victim", "killer"]) said[name] = await V.answerWhoAmI(users[name].id, placed, io);
             return [said, sent];
@@ -21719,7 +21760,7 @@ const INVARIANTS = [
         const pass = async placed => {
             const sent = [];
             await V.sendInPasses(V.applyOrder(placed.byUser, gm.id), placed.waits, { ownId: gm.id, held: placed.held,
-                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null)}`); return true; }, waitFor: async () => "applied" });
+                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null, userId)}`); return true; }, waitFor: async () => "applied" });
             return sent;
         };
         const seen = [];
@@ -21766,7 +21807,7 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         ok(typeof V.placeVoices === "function", "voice.mjs has no `placeVoices`: the trial's room is not asked of the decision the dead channel changes");
         if (typeof V.placeVoices !== "function") return;
-        const { DEAD_ROOM } = await import("./voice-client.mjs");
+        const { isDeadRoom } = await import("./voice-client.mjs");
         const school = { id: "R816SCHOOL000000", name: "R816 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
@@ -21789,7 +21830,7 @@ const INVARIANTS = [
         const targets = [...byUser.values()].map(row => row.target ?? null);
         const claim = V.voiceClaim({ user: account("R816P20000000000"), trial: true, silenced: () => true, secret: () => true });
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
-        equal(stableJson([targets, new Set(targets).size, rows.some(r => r.target === DEAD_ROOM), waits.size, asked,
+        equal(stableJson([targets, new Set(targets).size, rows.some(r => isDeadRoom(r.target)), waits.size, asked,
             claim.target ?? null, claim.why === game.i18n.localize("DRPG.Voice.claimTrial"),
             /death: eclipse \|\| trial \? null : await deathFacts\(\)/.test(fnSource(voice, "voiceTargets"))]),
         stableJson([[null, null, null, null, null], 1, false, 0, 0, null, true, true]),

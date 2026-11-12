@@ -50,7 +50,7 @@ import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs
 import { isMonokuma, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore } from "./gm-stores.mjs";
-import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, deadRoomFor, isDeadRoom, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
@@ -885,9 +885,10 @@ export async function voiceTargets() {
  *
  * THE DEAD CHANNEL. A student dead in the GMs' records, and not back as a Monocub, keeps the voice of the room they
  * lie in until the first of A9's triggers (`deathVoiceGone`): until then they play the scene out with the killer.
- * After it a death kept secret (`!isDeceased`) talks in the dead channel (`DEAD_ROOM`), where the living hear nothing
- * of it, and a public one in the main room, as before C3 every death did at once - which put a secret victim beside
- * every player in the main room (known-leaks A9-K3, closed here). While the cast is unknown on this browser (null),
+ * After it a death kept secret (`!isDeceased`) talks in the dead channel, where the living hear nothing of it, and
+ * until E72 C8 a public one in the main room, as before C3 every death did at once - which put a secret victim beside
+ * every player in the main room (known-leaks A9-K3, closed here). Since E72 C8 (12.11.2026) the dead channel is a room
+ * of the account's own (voice-client.mjs `deadRoomFor`), for a public death as for a secret one. While the cast is unknown on this browser (null),
  * the row is `keep`: the reconcile sends that account nothing, and the cast's arrival runs the pass again.
  *
  * THE WITNESS IS THE SECOND PASS. "A living student from outside the cast in the same room" can only be read once
@@ -926,7 +927,7 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
             })
         };
         // A kept row's answer to its own browser's question (`answerWhoAmI`, E19 fix r1-G1): the room after A9's
-        // trigger - the dead channel for a death kept secret, the main room for a public one - which no living
+        // trigger - the account's own dead room, for a public death as for a secret one since E72 C8 - which no living
         // player in a room hears. Never the room it keeps, which the cast may already have closed to it.
         if (row.keep) row.standIn = voiceClaim({ user, silenced: () => true, secret: () => !isDeceased(actor) }).target ?? null;
         return row;
@@ -1105,10 +1106,10 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  *     held; the module's own reason is named first when both stand;
  *   - "eclipseHeard": a Monocub in an Eclipse - out of voice like every player (E19 C4), so the tile must not pretend
  *     somebody hears it, but a Monocub is never held (the design's P6), so this is a line of information.
- *   - "deadAlone": the primary GM put this account in the dead channel (E19 C3; A9): its voice character's death is
- *     not public, and the living neither hear it nor are heard there - a line of information, not held (E19 fix
- *     r1-G1; the review's E19-C3-1). The dead channel is one room for every secret death until the channel per
- *     account of E72 (part A, formerly E67), so with two victims each hears the other: the module silences nobody there, and the microphone stays
+ *   - "deadAlone": the primary GM put this account in its own dead room (E19 C3; A9; since E72 C8 one room per account,
+ *     voice-client.mjs `deadRoomFor`, for a public death as for a secret one): the living neither hear it nor are heard
+ *     there - a line of information, not held (E19 fix r1-G1; the review's E19-C3-1). Until E72 C8 the dead channel was
+ *     one room for every secret death, so two victims heard each other: the module silences nobody there, and the microphone stays
  *     its owner's to open and mute, as a Monocub's in an Eclipse. Until the fix it was held, which froze it as it
  *     was - a muted victim could not speak to the other, an open one could not mute. A GM's block is named over it.
  *     Until A9's first trigger a dead student talks in the room they died in, and nothing is said (Q2);
@@ -1148,7 +1149,7 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
-    if (!user.isGM && room === DEAD_ROOM) return { reason: "deadAlone", held: false };
+    if (!user.isGM && room === deadRoomFor(user.id)) return { reason: "deadAlone", held: false };
     return null;
 }
 
@@ -1509,8 +1510,8 @@ function broadcastAllowed(user) {
  * no character - without a world to write. `silenced` and `locate` are asked only
  * by the branch that needs them: nothing here asks where anybody stands, or who
  * is dead, during an Eclipse or the trial. `secret` (E19 C3) is asked of the
- * silenced alone: a death the table has not been told of talks in the dead
- * channel, a public one in the main room (D8).
+ * silenced alone, for the reason's words only since E72 C8: every silenced
+ * death talks in its account's own dead room (`deadRoomFor`), public or not.
  */
 export function voiceClaim({ user, monokuma = false, eclipse = false, trial = false,
     silenced = () => false, secret = () => false, locate = () => null }) {
@@ -1578,13 +1579,18 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // Silenced is the dead channel's trigger since E19 C3 (`placeVoices`).
         // Not the main room for a death kept secret (D8, S11-26): every player
         // there would hear the victim, and the tile would name them (A9-K3).
+        // Nor for a public one since E72 C8 (12.11.2026; S18-53, the
+        // coordinator's decision of 12.11): the living heard the dead there.
+        // Every silenced death goes to the account's own room
+        // (`deadRoomFor`), which nobody else is sent - not one room for the
+        // dead, where a victim heard a second death nobody had found. No
+        // document is written: the trial's block (E70) stays the trial's.
+        // `secret` is said in the reason only, for the GM's plan.
         row.claim = CLAIM.dead;
-        if (secret()) {
-            row.target = DEAD_ROOM;
-            row.why = "dead, the death not public - the dead channel";
-        } else {
-            row.why = "dead, and not back as a Monocub - the main room";
-        }
+        row.target = deadRoomFor(user.id);
+        row.why = secret()
+            ? "dead, the death not public - the account's own dead room"
+            : "dead, and not back as a Monocub - the account's own dead room";
     } else {
         // Located without the canvas, per actor. Reading `canvas.scene`
         // instead only ever sees the scene the GM is LOOKING AT, so a GM
@@ -1886,7 +1892,7 @@ export function contestedWarning(userId, list, chosen) {
  * @returns {string}
  */
 export function placeName(row, { main, dead }) {
-    if (row?.target === DEAD_ROOM) return dead;
+    if (isDeadRoom(row?.target)) return dead;
     return row?.room ?? main;
 }
 
