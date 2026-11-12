@@ -3267,7 +3267,8 @@ export const MONOCUB = {
         redeem: {
             label: "Redeem",
             icon: "fa-ticket",
-            cost: 1,
+            // Free (the owner on DRPG-D1, 12.11.2026: "Redeem tez za darmo"); once a game day, shut at full Hope and darkened.
+            cost: 0,
             hopeCost: 0,
             target: "self",
             choices: ["redeem"],

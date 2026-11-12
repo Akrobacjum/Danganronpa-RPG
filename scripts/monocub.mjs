@@ -730,8 +730,9 @@ export function refundCubHope(actor, paid) {
 async function refundCubHopeNow(actor, paid) {
     const purse = Math.max(0, Math.trunc(Number(paid?.purse) || 0)), sheet = Math.max(0, Math.trunc(Number(paid?.sheet) || 0));
     if (purse) await patchCubRow(actor.id, { purse: purseOf(actor) + purse });
+    // Held to the limit less the purse (the second review's #4): a purse that filled since the price leaves no room past it.
     if (sheet) {
-        await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope"), resourceValue(actor, "hope") + sheet) },
+        await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") - purseOf(actor), resourceValue(actor, "hope") + sheet) },
             { reason: "refund" });
     }
 }
@@ -1596,20 +1597,24 @@ export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = 
         // The payer's check and payment in one lock a payer (E72 fix round, review #3): two Monocubs answering one
         // payer's offers in step each read the same Hope and each wrote it less one. A student no longer a Monocub is
         // paid nothing (review #6).
-        const unpaid = await serialWrite(`drpg-bribe-payer:${offer.from}`, async () => {
+        // The room read and the purse written under the Monocub's purse lock too (the second review's #3): bribe, payer, purse,
+        // the one order every road takes them in.
+        const unpaid = await serialWrite(`drpg-bribe-payer:${offer.from}`, () => purseWrite(cub.id, async () => {
             const room = resourceMax(cub, "hope") - cubHopeTotal(cub);
             const why = !isMonocub(cub) ? "the Monocub is not one now" : !payer || isDeadForGm(payer) ? "the payer is gone"
                 : resourceValue(payer, "hope") < offer.cost ? "the payer has not the Hope for it"
                     : overflowBlocksHope() ? "the darkening blocks Hope" : room < offer.cost ? "the Monocub's Hope is full" : null;
             if (why) return why;
             await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") - offer.cost }, { reason: "call" });
-            const took = await addToPurse(cub, offer.cost);
-            // What the purse could not hold goes back to the payer (the limit read again under the purse's lock).
+            const took = await addToPurseNow(cub, offer.cost);
+            // Paid whole or not at all: a purse that took less (the darkening fell meanwhile) gives it back, the payer is paid back.
             if (took < offer.cost) {
-                await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") + offer.cost - took }, { reason: "refund" });
+                if (took > 0) await patchCubRow(cub.id, { purse: Math.max(0, purseOf(cub) - took) });
+                await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") + offer.cost }, { reason: "refund" });
+                return "the Monocub's Hope is full";
             }
-            return took > 0 ? null : "the Monocub's Hope is full";
-        });
+            return null;
+        }));
         if (unpaid) {
             warn(`A Bribe of ${offer.fromName} to ${cub.name} was closed unpaid: ${unpaid}.`);
             await tell("bribeUnpaid");

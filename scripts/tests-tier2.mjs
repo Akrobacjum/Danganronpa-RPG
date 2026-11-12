@@ -17324,7 +17324,7 @@ const SCENARIOS = [
             "a student's share of Monocub moves is not held: [codes told, a roll answered, actions taken, Hope taken] for a first move, a second this time of day and a third today; the rule later today and tomorrow");
     }],
 
-    ["Redeem gives a Monocub +1 Hope once a game day for one action, and is refused the second time and at full Hope with nothing paid (E72 C5)", async () => {
+    ["Redeem gives a Monocub +1 Hope once a game day at no price, and is refused the second time and at full Hope with nothing paid (E72 C5)", async () => {
         /*
          * E72 C5, 12.11.2026; audit S18-60, the owner's DC22. A Monocub had no road to Hope but a GM's conversion. Redeem
          * is a row of the Monocub's table now (`MONOCUB.abilities.redeem`): one action, +1 Hope, once a game day, shut at
@@ -17369,8 +17369,9 @@ const SCENARIOS = [
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
         }
         const full = resourceMax(cub, "hope");
-        equal(stableJson(read), stableJson({ a: [true, 2, 3], b: [false, 2, 3], c: [false, 2, full] }),
-            "Redeem did not give +1 Hope for one action once a game day, or was carried out again or at full Hope ([done, actions, Hope] after each)");
+        // CHANGED ON PURPOSE (12.11.2026; the owner on DRPG-D1, "Redeem tez za darmo"): Redeem costs no action. Was [2, 3].
+        equal(stableJson(read), stableJson({ a: [true, 3, 3], b: [false, 3, 3], c: [false, 3, full] }),
+            "Redeem did not give +1 Hope at no price once a game day, or was carried out again or at full Hope ([done, actions, Hope] after each)");
     }],
 
     ["Ask for Hope posts one card in the Monocub's thread, keeps one ask open at a time, and a GM's Give 1 pays from that GM's Despair and closes it (E72 C5)", async () => {
@@ -18053,7 +18054,7 @@ const SCENARIOS = [
             "two Confusions at once on one student both took its share ({the answers; the actions left})");
     }],
 
-    ["two Bribes one payer cannot pay from one Hope, a purse's writes in step take nothing from each other, and a Bribe answered once the role is gone pays nothing (E72 fix round)", async () => {
+    ["two Bribes one payer cannot pay from one Hope, a purse's writes in step take nothing from each other, a Bribe answered once the role is gone pays nothing, and a refund holds the limit (E72 fix round)", async () => {
         /*
          * E72 fix round, 12.11.2026; the end review's #3 and #6. A Bribe's yes was serialised per Monocub only: two
          * Monocubs answering one payer's offers together each read the payer's 1 Hope and each wrote 0, so 2 Hope went
@@ -18094,6 +18095,17 @@ const SCENARIOS = [
             await settle();
             const answer = await M.answerBribeOnGm({ cubId: b.id, bribeId: late?.bribeId, accept: true });
             read.gone = [Boolean(answer?.accepted), payer.system.resources.hope.value, M.purseOf(b)];
+            // A refund to the sheet is held to the limit less the purse (the second review's #4): a purse of 2 and a sheet at
+            // the limit less 2, given 1 back, stay at the limit.
+            if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+            await trustedWrite(a, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await M.addToPurse(a, 2);
+            const { resourceMax } = await import("./character.mjs");
+            const max = resourceMax(a, "hope");
+            await trustedWrite(a, { "system.resources.hope.value": max - 2 }, { reason: "gmRuling" });
+            await M.refundCubHope(a, { purse: 0, sheet: 1 });
+            await settle();
+            read.refund = [M.cubHopeTotal(a) - max, M.purseOf(a)];
         } finally {
             for (const [i, x] of [a, b].entries()) {
                 await x.unsetFlag(MODULE_ID, FLAGS.monocub);
@@ -18106,6 +18118,7 @@ const SCENARIOS = [
 ok(read.both?.[0] === 0 && read.both[1] + read.both[2] === 1, `two Bribes paid from one Hope put more than it into the purses: ${stableJson(read.both)}`);
 equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read.gone), stableJson([false, 1, 0]), "a Bribe answered after the role was gone was paid ([accepted, payer's Hope, purse])");
+        equal(stableJson(read.refund), stableJson([0, 2]), "a refund to the sheet took a Monocub past its limit with the purse beside it ([total less the limit, purse])");
     }],
 
     ["a Bribe is offered to a Monocub and paid only on its yes, from the payer's Hope into the Monocub's purse, one open offer a pair, refused offers and lapsed ones costing nothing (E72 C15)", async () => {

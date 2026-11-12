@@ -1608,7 +1608,7 @@
     },
     "Events": {
       "redeemTitle": "Redeem czeka",
-      "redeemMeta": "1 akcja za +1 Hope, raz dziennie.",
+      "redeemMeta": "+1 Hope za darmo, raz dziennie.",
       "overflowMetaGm": "{count} z {max} w kapeluszu",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",

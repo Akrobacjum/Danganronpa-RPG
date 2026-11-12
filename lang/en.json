@@ -1538,7 +1538,7 @@
     },
     "Events": {
       "redeemTitle": "Redeem is waiting",
-      "redeemMeta": "1 action for +1 Hope, once a day.",
+      "redeemMeta": "+1 Hope, free, once a day.",
       "overflowMetaGm": "{count} of {max} in the hat",
       "bodyTitle": "A body is discovered",
       "bodySubRoom": "{victim}, in the {room}",
