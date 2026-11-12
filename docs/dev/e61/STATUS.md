@@ -17,8 +17,24 @@ mockups MK-R1 and MK-R2 of 05.11 (both read with the Artifact tool, with `mock/s
 
 ## Tests
 
-R3700-R3707 (tier 1), and R3420's frozen expectation moved by one key (`sequences` is the first key born in the DRPG
-Settings window; effects 5 -> 6). Results: see "Test results" below.
+R3700-R3707 (tier 1); three existing tests' counts moved by what this stage adds, each with a comment beside it:
+R3420 (`sequences` is the first key born in the DRPG Settings window; effects 5 -> 6), R1256 (the table's lifetimes 36 ->
+37), R60 (sizes in a clamp() for a viewport container 2 -> 6: the sequences' four).
+
+## Test results (12.11.2026)
+
+- Tiers 0-1 whole, headless (`node run-tests.mjs --tier 1`, at d380f7d + CSS): 1182 ran, 1164 passed, 2 failed, 16
+  skipped, 1 red (expected). The two failures were R60 and R1256, counts this stage moved; fixed in d03c509 and both
+  re-run green by name (3 passed with the runner's own line). R3700-R3707 and R3420 green by name after the last change.
+- Mutant: R3703 with the closed plan's growth capped at 0.9 fails (gaps over 0), as it should.
+- `node tools/check.mjs` 17/17 green; `npm run lint` green.
+- Scenarios: see below (running at the time of writing).
+
+## Review shots
+
+Round 1: https://claude.ai/artifact/Xu74bXxVyKqNrr2jQnCHR6 - the entry's and the cut-in's still frames in both themes,
+EN and PL, GM and player, 1600x900 and 1366x768 at deviceScaleFactor 2; four recordings (both sequences, both themes)
+with frame strips. The glass harness in headless Chromium, not Foundry (the page says what the pictures are not).
 
 ## Defaults taken, owner to confirm
 
