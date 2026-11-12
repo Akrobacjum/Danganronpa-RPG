@@ -23,7 +23,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | X12 colons (PL) | 0 | 101 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
 | caps and please | 8 | 2 | 0 | X16, X8 (to confirm in E71) |
 | Remnant in sentences | 85 | 119 | 4 (GM section 1's quote of `Vault.descriptionNote`, player section 11's tables note; EN and PL) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
-| overexplains (T29) | 28 | 26 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
+| overexplains (T29) | 28 | 26 | 38 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL; and 10 lines' version notes \"(since 1.2.x)\" / \"(od 1.2.x)\", a \"not yet checked at a table\" note kept) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
 | settings | 5 | 5 | 0 | EN14/PL-o (DB10): "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; T29 on two of them |
 | glossary | 23 | 2 | 0 | EN7/DB17 "Search Token" capitalized (glossary search-token); glossary refuse: "Odmów" on two GM buttons |
 | X1 refusals | 7 | 5 | 0 | X1 (confirmed in the pilot) and O8: "You keep your action/Hope" instead of "Nothing was spent"; pairs N28-N30 the model |
@@ -103,6 +103,7 @@ edited unless the row says so.
 | 12.11, run q | c62d325c and three handbook genders | 1230 passed, 0 failed, 16 skipped, 0 red; scenario 50-lang (Polish on four clients) 44/44 on c62d325c |
 | 12.11, run r | 47cf5aed and the handbooks' American spelling | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run s | 6c6745d2 and Search Token in the handbooks | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run t | d5c17f9d and the player handbook's version notes | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
