@@ -100,6 +100,12 @@ for the reason named in the commit; green on the commit.
 
 Tokens so far: not measured by this line.
 
+- Q-E99-1 (the coordinator's addition, 12.11): the case schema (`trialSchemaHtml`) belongs in the console's middle
+  once the console is rebuilt, with the frame's button opening it larger, redrawn only on its own watches (the
+  86-frame-work risk of an SVG redrawn every second). The rebuild is not in E73 (Q-E73-2 above), so the schema stays
+  E99's window of its own from the footer for now; the move goes with the rebuild. Default as the coordinator worded it
+  ("schema in the console's middle") recorded for that stage, owner to confirm.
+
 ## Waits for other lines
 
 - **E72** (Monocub, inactive Confusions, bribes, rewards): in a zone mode they are not wired; the zone modes count no
