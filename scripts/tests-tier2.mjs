@@ -26871,11 +26871,14 @@ const SCENARIOS = [
          * ON THE KIT (E47-C4, 09.11.2026): WHO HAS WHAT is a `dataTable`, its count cells and heads the kit's `num`
          * (`drpg-num` until then) and its Breakdown cell the `case-breakdown` column's (a `notes` cell until then); the
          * builders' rows are the tables' body rows, read the same way.
+         * BY NAME (E64-inv, 12.11.2026): the Breakdown cell lists each Truth Bullet by name with its real kind (R3968), so
+         * the kinds' "(2)" is read as a bullet's name and its kind's label in brackets, still with no "×".
          */
         needs(env.dialogs(), "the Who has what heading is read off the drawn dashboard");
         const I = await import("./investigation.mjs");
         const students = typeof I.caseStudentRows === "function"
-            ? I.caseStudentRows([{ actor: { name: "SUITE C16 student" }, total: 3, keys: 1, unidentified: 2, types: { neutral: 2, key: 1 } }])
+            ? I.caseStudentRows([{ actor: { name: "SUITE C16 student" }, total: 3, keys: 1, unidentified: 2, types: { neutral: 2, key: 1 },
+                named: [{ name: "SUITE C16 a ticket", real: "key" }, { name: "SUITE C16 a scarf", real: "neutral" }, { name: "SUITE C16 a note", real: null }] }])
             : "";
         const traces = typeof I.caseTraceRows === "function"
             ? I.caseTraceRows([{ token: { id: "TOKC16TRACE00001" }, scene: { id: "SCN0000000000001" }, data: { type: "neutral", public: {} } }], new Map())
@@ -26896,7 +26899,8 @@ const SCENARIOS = [
             await win.close();
         }
         const breakdown = host.querySelector("td.drpg-data-col-case-breakdown")?.textContent ?? "";
-        equal(stableJson([host.querySelectorAll("td.num").length, /\(2\)/.test(breakdown) && !/×/.test(breakdown),
+        const { TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        equal(stableJson([host.querySelectorAll("td.num").length, breakdown.includes(`SUITE C16 a ticket (${TRUTH_BULLET_TYPES.key.label})`) && !/×/.test(breakdown),
             hint("text").length > 0, hint("analysis").length > 0 && hint("analysis").length <= 30, heads]),
         stableJson([3, true, true, true, [3, true]]),
         "Who has what or the Traces tab still draws wide counts, a ×count, no description hint or a long analysis one, or a Really heading with no word on it (count cells, breakdown, description hint, analysis hint, [count headings, Really tooltip])");
@@ -79101,109 +79105,8 @@ const SCENARIOS = [
         }
     }],
 
-    ["E51-T15 - Clear Faint and Sweep say what they cleared in the Investigation Dashboard: each button's run answers its count (\"N Faint Remnants cleared.\", \"N Truth Bullets swept.\") and the dashboard it reopens shows the line above its live region, outside what a redraw rebuilds (E51 C5; E51-34, audit S05-55; E51 fix FG9)", async () => {
-        /*
-         * E51 C5, 31.10.2026; audit S05-55. After Clear Faint Remnants the dashboard came back looking as it did before:
-         * the count was a toast, gone in seconds. The button's run (investigation.mjs `runDashboardButton`, exported for
-         * the suite) answers what it did, and the dashboard the button reopens says it above `.drpg-case-live`, outside
-         * what a redraw rebuilds. Clear Faint deletes every Faint trace nobody tied in the world, so the run is handed
-         * this test's one Faint trace (`tokens`, the suite's own fixtures, as `neutralTraceNames` takes them) and the
-         * world's others are counted before and after. The confirm is answered yes; the dashboard is opened as the
-         * button's road reopens it, and its line read with where it stands. Red at C5's parent: no exported
-         * `runDashboardButton`, and no line.
-         *
-         * AND SWEEP (E51 fix round FG9, 31.10.2026; review goal G9: Sweep's answer was read by no test). Sweep deletes
-         * every Truth Bullet the sweep does not spare, every student's, so the run is handed this test's student
-         * (`actors`, as chapter.mjs `sweepTruthBullets` takes them): one of the cast with nothing to sweep is given one
-         * Neutral bullet, the confirm answered yes, and the run's answer, the bullet and the reopened dashboard's line
-         * read as Clear Faint's. Red at the fix round's parent: the run did not hand `actors` on and swept the world's.
-         */
-        needs(env.dialogs(), "the dashboard is read off its drawn window");
-        needs(world.atLeast("sceneOnScreen"), "the Faint trace is placed on the scene on screen");
-        const I = await import("./investigation.mjs");
-        const R = await import("./remnants.mjs");
-        const { plural } = await import("./utils.mjs");
-        const scene = canvas?.scene;
-        const faintElsewhere = () => Array.from(game.scenes).flatMap(s => R.remnantsOn(s)).filter(t => R.remnantData(t)?.faint).map(t => t.id).sort();
-        // Sweep's student, asked of the world before anything is written: one of the cast with nothing the sweep would take.
-        const C = await import("./chapter.mjs");
-        const T = await import("./truth-bullets.mjs");
-        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
-        const free = [];
-        for (const a of cast(3)) if (!(await C.sweepPlan({ actors: [a] })).remove.length) free.push(a);
-        must(free.length, "every student of the cast holds a bullet the sweep would take - this would measure nothing");
-        const before = faintElsewhere();
-        const trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: true, tiedToCrime: false, scene, x: 50, y: 50, note: "SUITE E51-T15 a Faint trace" });
-        must(trace, "the Faint trace was not placed - this would measure nothing");
-        const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
-        const said = plural("DRPG.Panel.faintCleared", { n: 1 });
-        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
-        const read = {};
-        let answer = null;
-        try {
-            D.wait = kitQuestions(D.wait);
-            D.confirm = () => Promise.resolve(true);
-            const ran = typeof I.runDashboardButton === "function" ? await I.runDashboardButton("clearFaint", { tokens: [trace] }) : null;
-            read.ran = ran?.said ?? null;
-            read.gone = !scene.tokens.has(trace.id);
-            read.others = stableJson(faintElsewhere()) === stableJson(before);
-            if (ran) {
-                const seen = new Set(open());
-                answer = Promise.resolve().then(() => I.openInvestigationDashboard({ said: ran.said })).catch(() => null);
-                await until(() => open().some(a => !seen.has(a) && a.element), 6000);
-                const app = open().find(a => !seen.has(a)) ?? null;
-                const line = () => app?.element?.querySelector(".drpg-case-result") ?? null;
-                read.shown = [line()?.textContent.trim() ?? null, Boolean(line() && !line().closest(".drpg-case-live"))];
-            }
-            const source = fnSource(stripComments((await moduleSources()).get("investigation.mjs") ?? ""), "openInvestigationDashboard");
-            read.road = /runDashboardButton\(action\)/.test(source) && /said:\s*ran\.said/.test(source);
-        } finally {
-            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
-            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
-            for (const a of open()) await a.close();
-            await answer;
-            if (scene.tokens.has(trace.id)) {
-                await R.dropRemnantSecret(trace);
-                await scene.deleteEmbeddedDocuments("Token", [trace.id]);
-            } else await R.dropRemnantSecret(trace);
-        }
-        // Sweep, on one student with one Neutral bullet and nothing else to sweep.
-        const [student] = free;
-        const swept = plural("DRPG.Panel.sweptBullets", { n: 1 });
-        let bullet = null, again = null;
-        try {
-            D.wait = kitQuestions(D.wait);
-            D.confirm = () => Promise.resolve(true);
-            bullet = await T.createTruthBullet(student, { name: "SUITE E51-T15 a bus ticket", playerText: "SUITE E51-T15" });
-            must(bullet, "the fixture's bullet was not made - this would measure nothing");
-            await sheetAuditIdle();
-            const ran = await I.runDashboardButton("sweepBullets", { actors: [student] });
-            read.sweep = [ran?.said ?? null, !student.items.has(bullet.id)];
-            if (ran?.said) {
-                const seen = new Set(open());
-                again = Promise.resolve().then(() => I.openInvestigationDashboard({ said: ran.said })).catch(() => null);
-                await until(() => open().some(a => !seen.has(a) && a.element), 6000);
-                const app = open().find(a => !seen.has(a)) ?? null;
-                const line = app?.element?.querySelector(".drpg-case-result") ?? null;
-                read.sweep.push(line?.textContent.trim() ?? null, Boolean(line && !line.closest(".drpg-case-live")));
-            }
-        } finally {
-            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
-            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
-            for (const a of open()) await a.close();
-            await again;
-            if (bullet) {
-                if (student.items.has(bullet.id)) await student.items.get(bullet.id).delete();
-                await T.dropSecret(bullet.uuid);
-            }
-            await sheetAuditIdle();
-        }
-        equal(stableJson(read), stableJson({ ran: said, gone: true, others: true, shown: [said, true], road: true, sweep: [swept, true, swept, true] }),
-            "[what the button's run answers; this test's Faint trace gone; the world's other Faint traces as they were; the reopened dashboard's line and whether "
-                + "it stands outside the live region; the dashboard's road hands the run's answer to the window it reopens]; [Sweep: what its run answers, the "
-                + "bullet gone, the reopened dashboard's line and whether it stands outside the live region]");
-    }],
+    /* E51-T15 (Clear Faint and Sweep said their count in the Investigation Dashboard) left with the two buttons: E64-inv,
+       12.11.2026, the owner's pick of the Investigation review - End the chapter runs both clean-ups (R3967). */
 
     ["E51-T16 - a debate opened with -60 runs 30 s and remembers 30, one opened again from a record of 10 s runs 30, and the API's 5 s runs 30 (E51 C6; E51-36, audit S06-45)", async () => {
         /*

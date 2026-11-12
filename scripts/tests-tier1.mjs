@@ -8442,7 +8442,7 @@ const INVARIANTS = [
             [...actor.items].filter(i => !isTruthBullet(i)).map(i => i.name)] }));
         equal(JSON.stringify(drawn), JSON.stringify(want), "[each student listed: the name, the Truth Bullets' names, the other items' names]");
     }],
-    ["R3658 - Who has what is a tab of its own in the Table view (E98 C4; the owner's comparison 2, E47-21; Q-E98-5's default): the Table's tabs are Remnants, Key Remnants, Final Truth Remnants and Who has what; nothing stands above the tabs; the Who has what pane holds the counts table and, under it, each living student by name with their Truth Bullets and items by name", async () => {
+    ["R3658 - Who has what is a tab of its own in the Table view (E98 C4; the owner's comparison 2, E47-21; Q-E98-5's default): the Table's tabs are Remnants, Key Remnants, Final Truth Remnants and Who has what; nothing stands above the tabs; the Who has what pane holds the counts table, a row for each living student by name (their Truth Bullets and items by name in it since E64-inv, R3968)", async () => {
         /*
          * E98 C4, 12.11.2026. Read off the drawn window on the Table view. Red at ae538b7: the counts above the tabs, no
          * fourth tab.
@@ -8462,7 +8462,8 @@ const INVARIANTS = [
             read = {
                 tabs: [...(form?.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]") ?? [])].map(b => b.dataset.drpgTabKey),
                 first: form?.firstElementChild?.tagName?.toLowerCase() ?? null,
-                pane: pane ? [Boolean(pane.querySelector("table.drpg-data-table")), [...pane.querySelectorAll(".drpg-case-student strong")].map(el => el.textContent)] : null
+                // E64-inv: the students by name are the table's rows (R3968), no list under it.
+                pane: pane ? [Boolean(pane.querySelector("table.drpg-data-table")), [...pane.querySelectorAll("table.drpg-data-table tbody tr")].map(tr => tr.children[0]?.textContent.trim())] : null
             };
         } finally {
             for (const a of open()) await a.close().catch(() => {});
@@ -37723,8 +37724,9 @@ const INVARIANTS = [
             ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", close: "cancel" },
-                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "close"]],
+                // E64-inv (the owner's pick of the Investigation review, 12.11.2026): no evidence log, no destructive row (R3967).
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", close: "cancel" },
+                ["save", "newTrace", "autopsy", "bodyFound", "realize", "close"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */
@@ -46685,9 +46687,10 @@ const INVARIANTS = [
             await Promise.race([answer, wait(3000)]);
         }
         equal(stableJson({ who, traces: shape(traces), traceNames: names(traces), keys: shape(keys), keyNames: names(keys) }), stableJson({
-            who: { kit: true, cols: ["student", "bullets", "keys", "unidentified", "breakdown"],
-                heads: ["DRPG.Investigation.student", "DRPG.Investigation.bullets", "DRPG.Investigation.keysHeld", "DRPG.Investigation.unidentified", "DRPG.Investigation.breakdown"].map(L),
-                num: [false, true, true, true, false], tooltip: L("DRPG.Investigation.breakdownTooltip") },
+            // E64-inv: the other items by name, a column of their own (R3968).
+            who: { kit: true, cols: ["student", "bullets", "keys", "unidentified", "breakdown", "items"],
+                heads: ["DRPG.Investigation.student", "DRPG.Investigation.bullets", "DRPG.Investigation.keysHeld", "DRPG.Investigation.unidentified", "DRPG.Investigation.breakdown", "DRPG.CaseMap.studentItems"].map(L),
+                num: [false, true, true, true, false, false], tooltip: L("DRPG.Investigation.breakdownTooltip") },
             traces: { kit: true, cols: ["name", "text", "analysis", "type", "vis", "faint", "crime", "reinf", "found", "delete"],
                 heads: ["DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.traceType", "DRPG.Investigation.visibility",
                     "DRPG.Remnant.faintColumn", "DRPG.Remnant.crimeColumn", "DRPG.Remnant.reinforcedColumn", "DRPG.Investigation.foundBy", "DRPG.Investigation.deleteTrace"].map(L) },
@@ -46724,7 +46727,7 @@ const INVARIANTS = [
             traces: has("caseTraceTable") ? I.caseTraceTable(trace, finders) : `<table class="drpg-vault-table"><tbody>${I.caseTraceRows(trace, finders)}</tbody></table>`,
             keys: has("caseKeyTable") ? I.caseKeyTable({ plan, status, placed: [], limit: null }) : `<table class="drpg-vault-table"><tbody>${I.caseKeyRows({ plan, status, placed: [], limit: null })}</tbody></table>`
         };
-        const CLAMPED = { who: "breakdown", traces: "found" };
+        const CLAMPED = { traces: "found" };
         const read = {};
         for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
             const html = document.createElement("html"), body = document.createElement("body");
@@ -46760,7 +46763,8 @@ const INVARIANTS = [
             }));
         }
         const each = {
-            who: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: "none", shares: 100, clamped: [true, true], heads: true },
+            // E64-inv: Who has what's names are read whole, not cut at two lines (investigation.mjs `caseStudentTable`).
+            who: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: "none", shares: 100, heads: true },
             traces: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, clamped: [true, true], heads: true },
             keys: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, heads: true }
         };

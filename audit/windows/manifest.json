@@ -827,10 +827,12 @@
         "application",
         "dialog",
         "drpg-panel",
-        "drpg-ui"
+        "drpg-window-chapter-end",
+        "drpg-ui",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 900,
       "buttons": [
         {
           "action": "cancel",

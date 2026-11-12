@@ -2358,7 +2358,7 @@
       "filterChapter": "Rozdział",
       "filterEveryChapter": "Każdy rozdział",
       "chapterN": "Rozdział {n}",
-      "neverOnePerson": "Trop zawęża krąg, nigdy nie wskazuje nazwiska: Key Remnant wskazuje najwyżej połowę obsady, zwykły ślad 2-4 osoby. Ostatni krok od kręgu do nazwiska należy do Class Trial.",
+      "neverOnePerson": "Ślad nigdy nie wskazuje nazwiska: Key Remnant zawęża krąg najwyżej do połowy obsady, inny do 2-4 osób.",
       "filterCount": "Pokazano {shown} z {total}.",
       "noneMatch": "Żaden Remnant nie pasuje do tego filtra.",
       "plannerIntro": {
@@ -2399,7 +2399,7 @@
       "keysHeld": "Key",
       "unidentified": "Bez analizy",
       "breakdown": "Naprawdę",
-      "breakdownTooltip": "Czym naprawdę są Truth Bullets każdego ucznia, rodzaj po rodzaju, według klucza GM-ów - nie to, co pokazano ich posiadaczom.",
+      "breakdownTooltip": "Czym naprawdę jest każdy Truth Bullet według klucza GM-ów - nie to, co pokazano jego posiadaczowi.",
       "createHere": "Utwórz na mapie",
       "createNote": "Postaw od razu stawia Key Remnant wiersza na mapie, w wybranym pokoju: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju, ze słowami wpisanymi w wierszu. Wiersz, który jest już na mapie, nie ma przycisku Postaw.",
       "tabTraces": "Remnanty",
@@ -2462,7 +2462,7 @@
         "other": "Jeszcze {n} znalezionych Key Remnants jest spoza planu i wlicza się do progu {bar} znalezionych: {names}."
       },
       "newTraceTitle": "Nowy Remnant",
-      "newTraceIntro": "Ślad, o którym po prostu stwierdzasz, że istnieje. Trafia w losowe miejsce wewnątrz pokoju, dokładnie jak zaplanowany trop - przesuń potem token, jeśli miejsce ma znaczenie.",
+      "newTraceIntro": "Trafia w losowe miejsce pokoju; przesuń token, jeśli miejsce ma znaczenie.",
       "newTraceTied": "Powiązany z tym morderstwem (przetrwa czyszczenie na koniec rozdziału)",
       "newTraceReinforced": "Reinforced (nie do sprzątnięcia)",
       "newTraceNote": "Nazwę i opis uczeń przeczyta, gdy go znajdzie; to, co ujawnia analiza - dopiero po Analyze. Twoja notatka zostaje twoja.",
@@ -2692,8 +2692,7 @@
       "endTitle": "Zakończ rozdział",
       "endIntro": "Rozdział {chapter} dobiega końca. Zaznacz, co ma się stać.",
       "optReveal": "Ujawnij, czym naprawdę są Truth Bullets, razem z ich odczytami ({n} do ujawnienia)",
-      "revealKeeps": "Truth Bullets Faint nie są ujawniane, z tym wyjątkiem, że każdy Final, Faint czy nie, pokazuje swój rodzaj bez odczytu: oba zostają u graczy, wciąż do przeanalizowania, także w następnym rozdziale.",
-      "endNote": "Ujawnienie typów jest trwałe, tak samo jak trzy porządki powyżej. Nic innego tutaj niczego nie usuwa.",
+      "revealKeeps": "Truth Bullets Faint zostają nieujawnione, ale każdy Final, Faint czy nie, pokazuje swój rodzaj; oba zostają u graczy do analizy.",
       "endButton": "Zakończ rozdział {n}",
       "doneReveal": {
         "one": "Ujawniono typ {n} Truth Bulleta.",
