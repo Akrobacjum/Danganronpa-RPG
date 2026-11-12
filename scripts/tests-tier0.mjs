@@ -4225,9 +4225,11 @@ const REGRESSIONS = [
         ok(/handOff\(dialog, \(\) => reopen\(\{ draft(, [^}]*)? \}\)\)/.test(rows)
             && /wireSetupSteps\(dialog, trip => \{ roundTrip = trip; \}, openSeasonChecklist\)/.test(season),
             "the row still closes and reopens on its own, so the close answers the caller");
+        // E101 F4 (changed on purpose): a tile of Season setup opens its window and leaves Season setup as it stands - no
+        // close and no reopen at all, so there is no round trip to answer the caller with (tier 2 E101-T4).
         const tiles = bodyOf(season, "function wireSeasonTiles(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(tiles) && !/await dialog\.close\(\)/.test(tiles),
-            "a tile of Season setup's row closes and reopens on its own, so the close answers the caller");
+        ok(tiles.length > 0 && !/handOff\(/.test(tiles) && !/dialog\.close\(\)/.test(tiles),
+            "a tile of Season setup's row closes Season setup, which the owner saw as the window refreshing");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
@@ -4237,7 +4239,7 @@ const REGRESSIONS = [
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        for (const name of ["openSeasonSetup", "openSeasonChecklist"]) {
+        for (const name of ["openSeasonChecklist"]) {
             const opener = bodyOf(season, `export async function ${name}(`);
             const tail = bodyOf(opener, "rejectClose: false");
             ok(/if \(roundTrip\) return roundTrip;/.test(tail),

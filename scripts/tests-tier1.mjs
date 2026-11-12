@@ -18715,6 +18715,40 @@ const INVARIANTS = [
         equal(JSON.stringify([read("tiers"), read("rooms"), /editTiers:\s*\["install"\]/.test(open)]), JSON.stringify([[0, 0, 1], [1, 1, 1], true]),
             "[tiers: the new pool's field, Rename, Delete; rooms: the same; the Tier pools tab's footer Install alone]");
     }],
+    ["R4058 - the GM panel's top block is centred whatever a button's display is (E101 F1; the owner at a 1.2.108 table, 12.11.2026: the clock's line left of the middle and Next time of day not under it): gm-panel.mjs `buildPanelContent` draws the clock with its phase (`.drpg-gmp-clockline`) and Next time of day (`.drpg-gmp-advance-row`) as two rows, and components.css lays each out as a flex row centred on the window (`justify-content: center`), so a block-level button - Foundry's core draws `button` as a flex box, which `text-align: center` does not move - stands in the middle", async () => {
+        /*
+         * E101 F1, 12.11.2026. Measured in Chromium on main's capture (probe 08's gm-panel, the style harness, 1366x768): with
+         * `.application button { display: flex }` planted as Foundry's core has it, Next time of day stood at 17 px of a
+         * 704 px window (its middle at 128) and the clock's text started at 95 px - the owner's ~98 px. Read here in source
+         * and in the served sheet; the measurement after the change is the review page's (Chromium). Red at 251b0136.
+         */
+        const panel = fnSource(stripComments(new Map(await moduleSources()).get("gm-panel.mjs") ?? ""), "buildPanelContent");
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        const rule = cls => [...css.matchAll(new RegExp(`[^{}]*\\.${cls}\\b[^{}]*\\{([^}]*)\\}`, "g"))].map(m => m[1]).join(";");
+        const flexCentre = cls => /display:\s*flex/.test(rule(cls)) && /justify-content:\s*center/.test(rule(cls));
+        equal(JSON.stringify([/class="drpg-gmp-clockline"/.test(panel), /class="drpg-gmp-advance-row"[^>]*>\s*\$\{advance\}/.test(panel),
+            flexCentre("drpg-gmp-clockline"), flexCentre("drpg-gmp-advance-row")]), JSON.stringify([true, true, true, true]),
+            "[the clock's row, Next time of day's own row, each a centred flex row in components.css]");
+    }],
+    ["R4059 - the settings windows keep one size whichever section is shown (E101 F3; the owner at a 1.2.108 table: the window changed size between sections, against the rule that a window keeps its size): settings-window.mjs `holdSectionHeight` sets the main column's min-height to the tallest section's, measured with each shown in turn and the shown one put back; both `openSettingsWindow` and `openGameSettingsWindow` call it on render, and `showSection` changes no size of its own", async () => {
+        /*
+         * E101 F3, 12.11.2026. Read on a detached box with stand-in heights (jsdom lays nothing out: each pane's
+         * `scrollHeight` defined by hand), and the two openers in source. The size a table sees is the review page's
+         * (Chromium: the window's height read at each section, one number). Red at 251b0136: no `holdSectionHeight`.
+         */
+        const W = await import("./settings-window.mjs");
+        must(typeof W.holdSectionHeight === "function", "settings-window.mjs exports no holdSectionHeight");
+        const box = document.createElement("div");
+        box.innerHTML = `<div class="drpg-settings-main"><section data-drpg-settings-pane="a"></section><section data-drpg-settings-pane="b" hidden></section><section data-drpg-settings-pane="c" hidden></section></div>`;
+        const heights = { a: 300, b: 520, c: 180 };
+        const main = box.querySelector(".drpg-settings-main");
+        Object.defineProperty(main, "scrollHeight", { get: () => heights[[...box.querySelectorAll("[data-drpg-settings-pane]")].find(p => !p.hidden)?.dataset.drpgSettingsPane] ?? 0 });
+        const held = W.holdSectionHeight(box);
+        const shown = [...box.querySelectorAll("[data-drpg-settings-pane]")].filter(p => !p.hidden).map(p => p.dataset.drpgSettingsPane);
+        const src = stripComments(new Map(await moduleSources()).get("settings-window.mjs") ?? "");
+        equal(JSON.stringify([held, main.style.minHeight, shown, ["openSettingsWindow", "openGameSettingsWindow"].map(f => /holdSectionHeight\(root\)/.test(fnSource(src, f)))]),
+            JSON.stringify([520, "520px", ["a"], [true, true]]), "[the height held, the main column's min-height, the section shown after, each opener holds it]");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
@@ -18842,7 +18876,7 @@ const INVARIANTS = [
             + "and the safeword stand in the window; end: [End the chapter's role, after every field]; tiles: the pinned tiles [key, icon, label]; group: "
             + "the row's name; footer: [action, role] sorted}");
     }],
-    ["R3581 - each tile of Season setup's row opens its window (E49 A1e): Despair Flow gm-team-dialog.mjs `openGmTeamDialog`, The Mastermind mastermind.mjs `openMastermindDialog`, Killing game rules rules.mjs `openRulesManager`, the Season checklist season-setup.mjs `openSeasonChecklist`, each pressed on the drawn window through its own wiring; then Season setup closes and comes back, its fields as typed and the focus on the tile pressed", async () => {
+    ["R3581 - each tile of Season setup's row opens its window (E49 A1e): Despair Flow gm-team-dialog.mjs `openGmTeamDialog`, The Mastermind mastermind.mjs `openMastermindDialog`, Killing game rules rules.mjs `openRulesManager`, the Season checklist season-setup.mjs `openSeasonChecklist`, each pressed on the drawn window through its own wiring; and Season setup stays as it is (since E101 F4; until then it closed and came back, its fields as typed)", async () => {
         /*
          * E49 A1e. The tiles stand where three of these windows' tiles stood (the GM panel's Between sessions, 11.11.2026)
          * and where the checklist stood (Season setup's lower half, until 12.11.2026). Read on this GM with DialogV2's
@@ -18880,27 +18914,18 @@ const INVARIANTS = [
                 const before = openAlready(CLASSES[key]);
                 seen.length = 0;
                 root.querySelector(`.drpg-season-tiles button[data-drpg-run="${key}"]`)?.click();
-                const back = await until(() => closed > 0 && seen.some(c => (c.classes ?? []).includes("drpg-window-season")), 8000);
-                const again = seen.find(c => (c.classes ?? []).includes("drpg-window-season")) ?? null;
-                let name = null, focus = null;
-                if (again) {
-                    const copy = document.createElement("div");
-                    copy.className = "application dialog drpg-window-season";
-                    copy.append(drawn(again));
-                    document.body.append(copy);
-                    roots.push(copy);
-                    again.render(null, { element: copy, close: async () => copy.remove(), addEventListener: () => {} });
-                    name = copy.querySelector('[name="campaignName"]')?.value ?? null;
-                    focus = document.activeElement?.dataset?.drpgRun ?? null;
-                }
-                read[key] = [before || seen.some(c => (c.classes ?? []).includes(CLASSES[key])), Boolean(back), closed, name, focus];
+                /* E101 F4 (changed on purpose): Season setup stays as it is while the tile's window comes and goes - not
+                   closed, not asked for again (E101-T4 reads it on a drawn window). */
+                const asked = Boolean(await until(() => before || seen.some(c => (c.classes ?? []).includes(CLASSES[key])), 8000));
+                await settle();
+                read[key] = [asked, seen.some(c => (c.classes ?? []).includes("drpg-window-season")), closed, root.querySelector('[name="campaignName"]')?.value ?? null];
             }
         } finally {
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
             for (const root of roots) root.remove();
         }
-        equal(stableJson(read), stableJson(Object.fromEntries(Object.keys(CLASSES).map(key => [key, [true, true, 1, `R3581 ${key}`, key]]))),
-            "{per tile: [its window asked for (or already open), Season setup back, the copy that closed closed once, the name typed carried back, the tile focused on the copy back]}");
+        equal(stableJson(read), stableJson(Object.fromEntries(Object.keys(CLASSES).map(key => [key, [true, false, 0, `R3581 ${key}`]]))),
+            "{per tile: [its window asked for (or already open), Season setup asked for again, Season setup closed, the name as typed in the same window]}");
     }],
     ["R3582 - the GM panel's Between sessions keeps Room Setup, Item tables, Season setup and Settings, in that order, and no tile for Edit campaign, Despair Flow, Killing game rules or The Mastermind anywhere (E49 A1e; the owner, 11.11.2026); every other door to the four stays: game.drpg's `editClock`, `gmTeamPanel`, `mastermindDialog` and `rulesManager` are the windows' own openers, and Season setup's row opens the three, beside the Season checklist (gm-panel.mjs `SEASON_TILES`: each the tile it was, by its key, its icon and its call)", async () => {
         /*
@@ -31446,6 +31471,8 @@ const INVARIANTS = [
         const src = stripComments(sources.get("season-setup.mjs") ?? "");
         must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const wired = [/readDraft\(dialog\.element, \{ step: step\.key \}\)/.test(fnSource(src, "wireSetupSteps")),
+            // E101 F4 (changed on purpose): a tile of Season setup opens its window and leaves Season setup as it stands, so
+            // it hands on no place - true here would mean the round trip came back.
             /readDraft\(dialog\.element, \{ action: entry\.key \}\)/.test(fnSource(src, "wireSeasonTiles")),
             // No Pre-season checks button since E101 item 2 (changed on purpose): its round trip is gone with it.
             !/action: "checks"/.test(fnSource(src, "openSeasonChecklist")),
@@ -31457,7 +31484,7 @@ const INVARIANTS = [
             checks: ["checks", true, 420, false],
             tile: ["mastermind", true, 420, false],
             fresh: ["campaignName", true, 0, false],
-            wired: [true, true, true, true, true]
+            wired: [true, false, true, true, true]
         }), "a round trip of Set the season up comes back at its top [what the copy that closed carries: a row's press, Pre-season checks | the fields | "
             + "a copy back after the row: focused, the page's focus, its scroll, an autofocus left in the footer | after Pre-season checks | a fresh open | "
             + "after a tile of Season setup's row | the row hands its place, a tile does, Pre-season checks does, each opener reads it]");
@@ -46083,7 +46110,8 @@ const INVARIANTS = [
             drawn = { heading: align("h3"), clock: align(".r-clock"), students: align(".drpg-gmp-students"), nextCentred: align(".drpg-gmp-next") === "center" };
         } finally { host.remove(); }
         equal(stableJson({ rule: rule?.sel ?? null, body: rule?.body.trim().replace(/\s+/g, " ") ?? null, rules: mine.length, drawn, legacy }),
-            stableJson({ rule: "body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p)", body: "text-align: center;", rules: 1,
+            // E101 F1 (changed on purpose): a second rule lays the clock's row and Next time of day's out as centred flex rows (R4058).
+            stableJson({ rule: "body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p)", body: "text-align: center;", rules: 2,
                 drawn: { heading: "center", clock: "center", students: "center", nextCentred: false },
                 legacy: { nextLine: "1.3", phaseGap: "8px", phaseEdge: "1px solid var(--drpg-kit-line-strong)", dim: "0.75", caseLabel: "none", caseNotes: "0 1 auto", glassTile: "10px 12px" } }),
             "{the centring rule's selector; its declarations; rules in components.css naming the standing block; drawn: the heading's, the clock line's, the students line's text-align, and whether the Next line is centred; legacy: the Next line's line-height, the phase's gap and edge, the Diagnostics words' opacity, the case label's and line's flex, and the glass tile's padding} - the panel's top part must be centred, its Next line left alone");

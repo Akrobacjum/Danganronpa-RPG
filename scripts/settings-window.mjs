@@ -274,6 +274,30 @@ export function showSection(root, key) {
     return true;
 }
 
+/**
+ * ONE SIZE, WHICHEVER SECTION IS SHOWN (E101 F3, 12.11.2026; the owner at a 1.2.108 table on Foundry 14.365: the settings
+ * window changed size between sections, against the house rule that a window keeps its size). The window opens at
+ * Foundry's auto height, so a short section shrank it and a long one grew it. Each section is shown in turn, the main
+ * column's content height read (`scrollHeight`), the one shown before put back, and the column held at the tallest
+ * (`min-height`); the frame still stops at the screen's height and the body scrolls inside it (components.css). Answers
+ * the height held, in pixels. Run on render and again once the fonts are in (a line's height is the font's). R4059.
+ */
+export function holdSectionHeight(root) {
+    const main = root?.querySelector?.(".drpg-settings-main");
+    const panes = [...(root?.querySelectorAll?.("[data-drpg-settings-pane]") ?? [])];
+    if (!main || !panes.length) return 0;
+    const shown = panes.find(p => !p.hidden) ?? panes[0];
+    main.style.minHeight = "";
+    let tallest = 0;
+    for (const pane of panes) {
+        for (const p of panes) p.hidden = p !== pane;
+        tallest = Math.max(tallest, Math.ceil(main.scrollHeight || 0));
+    }
+    for (const p of panes) p.hidden = p !== shown;
+    if (tallest > 0) main.style.minHeight = `${tallest}px`;
+    return tallest;
+}
+
 /* The section list's buttons and Give back, wired on `root` (either window). */
 function wireSections(root) {
     for (const b of root.querySelectorAll("[data-drpg-section]")) {
@@ -408,6 +432,9 @@ export async function openSettingsWindow() {
             scale?.addEventListener("change", follow);
             wireVolumeSliders(root);
             if (voice) placeVoice(root, voice);
+            // After the voice is placed, a section's content: now and once the fonts are in (E101 F3).
+            holdSectionHeight(root);
+            globalThis.document?.fonts?.ready?.then(() => holdSectionHeight(root)).catch(() => {});
         },
         rejectClose: false
     });
@@ -443,7 +470,13 @@ export async function openGameSettingsWindow() {
             },
             close: { role: "cancel", action: "cancel" }
         },
-        render: (event, dialog) => wireSections(dialog.element),
+        render: (event, dialog) => {
+            const root = dialog.element;
+            wireSections(root);
+            // One size whichever section is shown (E101 F3): now and once the fonts are in.
+            holdSectionHeight(root);
+            globalThis.document?.fonts?.ready?.then(() => holdSectionHeight(root)).catch(() => {});
+        },
         rejectClose: false
     });
 }

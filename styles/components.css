@@ -3716,6 +3716,19 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-advance:disabled {
    region. Read in Chromium on the glass harness's GM page at 1366x768 and 1920x1080, both themes, before and after
    (S/stages/E49/pan-shots); R3540 holds the rule and that it names no other child. */
 body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p) { text-align: center; }
+/* CENTRED AS ROWS, NOT AS TEXT (E101 F1, 12.11.2026; the owner at a 1.2.108 table on Foundry 14.365: the clock's line
+   left of the middle, Next time of day and the Students door at the window's left edge). `text-align` centres inline
+   boxes only, and Foundry's core sheet draws a `button` as a flex box - block-level - so the advance stood at 17 px of a
+   704 px window (Chromium, main's probe 08 capture with `.application button { display: flex }` planted). The clock with
+   its phase and Next time of day are two rows now (gm-panel.mjs `buildPanelContent`), each a flex row centred on the
+   block, whatever display a button is given; the students line has no button since E101 (R4054). R4058. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(.drpg-gmp-clockline, .drpg-gmp-advance-row) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25em 0.6em;
+}
 
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
    section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass

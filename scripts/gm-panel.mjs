@@ -1127,9 +1127,11 @@ function buildPanelContent() {
     return `<div class="drpg-gmp-standing">
                 ${caseLine}
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
-                <p><strong>${clockSummary(clock)}</strong>
-                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
-                   ${advance}</p>
+                <p class="drpg-gmp-clockline"><strong>${clockSummary(clock)}</strong>
+                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span></p>
+                ${/* Its own centred row since E101 F1 (the owner at a 1.2.108 table): beside the clock, Foundry's block-level
+                     button stood at the window's left edge under it (R4058). */ ""}
+                <p class="drpg-gmp-advance-row">${advance}</p>
                 ${suggestion}
                 ${incidentAsksHtml(clock.chapter)}
                 ${studentsLeftHtml()}

@@ -78730,6 +78730,56 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ rows: pair.map(a => a.id).sort(), others: 0, boxes: 0, warning: [true, true, true, true] }),
             "{the two Monokumas' rows; rows of a character that is no Monokuma; checkboxes on the tab; the warning [a warning box, shown, above the table, both names]}");
     }],
+    ["E101-T4 - Season setup stays as it is while a window opened from its row comes and goes: Despair Flow pressed from the row opens in front, and closed, Season setup is the same window, not drawn again, with a field as typed and its scroll kept (E101 F4; the owner at a 1.2.108 table)", async () => {
+        /*
+         * E101 F4, 12.11.2026. Until E101 a tile of Season setup's row closed Season setup and brought it back built from
+         * the world once the tile's window answered (`handOff`, SEASON-02), which a GM saw as the window refreshing. The
+         * fields it holds are Edit campaign's and the safeword, which no tile's window writes. Here, as the GM: Season
+         * setup opened, the campaign name typed (not saved), the body scrolled, Despair Flow pressed from the row and
+         * closed with Cancel; read: Season setup's element before and after, the field, the scroll. Season setup is closed
+         * with Cancel; nothing is written. Red at 251b0136: a new element after the round trip, the field as the world has it.
+         */
+        needs(env.dialogs(), "Season setup is drawn and its row pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const SS = await import("./season-setup.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length && !of("drpg-window-gmteam").length, "Season setup or Despair Flow stands open already");
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector(".drpg-season-tiles"), 6000);
+            const first = of("drpg-window-season")[0];
+            must(first, "Season setup did not open - this would measure nothing");
+            const el = first.element;
+            const name = el.querySelector('[name="campaignName"]');
+            name.value = "E101-T4 typed, not saved";
+            const body = el.querySelector(".drpg-kit-body");
+            if (body) body.scrollTop = 40;
+            const scrolled = body?.scrollTop ?? 0;
+            el.querySelector('.drpg-season-tiles button[data-drpg-run="gmTeam"]')?.click();
+            must(await until(() => of("drpg-window-gmteam")[0]?.element, 6000), "Despair Flow did not open from the row");
+            of("drpg-window-gmteam")[0].element.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await until(() => !of("drpg-window-gmteam").length, 4000);
+            await settle();
+            await wait(300);
+            const now = of("drpg-window-season")[0] ?? null;
+            read.same = now === first && now?.element === el;
+            read.field = now?.element?.querySelector('[name="campaignName"]')?.value ?? null;
+            read.scroll = (now?.element?.querySelector(".drpg-kit-body")?.scrollTop ?? -1) === scrolled;
+            read.count = of("drpg-window-season").length;
+        } finally {
+            for (const app of of("drpg-window-gmteam")) await app.close().catch(() => {});
+            for (const app of of("drpg-window-season")) {
+                const cancel = app.element?.querySelector('footer.form-footer button[data-action="close"]');
+                if (cancel) cancel.click(); else await app.close().catch(() => {});
+            }
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ same: true, field: "E101-T4 typed, not saved", scroll: true, count: 1 }),
+            "{the same Season setup window after Despair Flow came and went; the name as typed; the body's scroll; Season setup windows open}");
+    }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-34. `registerMusic`'s `updateSetting` listener answered a `musicMap` write with

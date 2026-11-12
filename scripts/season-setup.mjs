@@ -1087,27 +1087,21 @@ function wireSetupSteps(dialog, onHandOff, reopen) {
 }
 
 /**
- * The tiles pinned under Edit campaign (`SEASON_TILES`, E49 A1e): a press opens its window as a row's Open does - in
- * front of this one, which stays until that window answers, then closes and comes back built from the world (what the
- * window changed may change a row: Despair Flow the pools' rows, The Mastermind its own) with the fields as typed and the
- * focus on the button pressed (`readDraft`'s `action`), and what was opened raised in front of it (S06-30). The same
- * `handOff` as a row's (SEASON-02): the tile that opened this window waits for the real end of the round trip.
+ * The tiles pinned under Edit campaign (`SEASON_TILES`, E49 A1e): a press opens its window in front of this one, and this
+ * one stays as it is - not closed, not drawn again - while that window comes and goes (E101 F4; the owner at a 1.2.108
+ * table: closing Despair Flow refreshed Season setup). Until E101 it was a round trip (`handOff`, SEASON-02): this window
+ * closed once the tile's window answered and came back built from the world, because a tile's window could change a
+ * row here; since E49 A1e the rows are the Season checklist's (which keeps its round trip), and what this window holds -
+ * Edit campaign's fields and the safeword - no tile's window writes. E101-T4.
  */
-function wireSeasonTiles(dialog, tiles, onHandOff) {
+function wireSeasonTiles(dialog, tiles) {
     const row = dialog.element.querySelector(".drpg-season-tiles");
-    row?.addEventListener("click", async ev => {
+    row?.addEventListener("click", ev => {
         const button = ev.target?.closest?.("button[data-drpg-run]");
         const entry = tiles.find(t => t.key === button?.dataset.drpgRun);
         if (!entry || !row.contains(button) || button.disabled) return;
         ev.preventDefault();
-        const before = windowStack();
-        try {
-            await entry.run();
-        } catch (err) {
-            error(`Could not open "${entry.key}" from Season setup`, err);
-        }
-        const draft = readDraft(dialog.element, { action: entry.key });
-        onHandOff(handOff(dialog, () => openSeasonSetup({ draft, opened: before })));
+        Promise.resolve().then(() => entry.run()).catch(err => error(`Could not open "${entry.key}" from Season setup`, err));
     });
 }
 
@@ -1128,10 +1122,6 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     // The panel's tiles, by `import()`: gm-panel.mjs imports this file (E49 A1e).
     const { SEASON_TILES, tileHtml } = await import("./gm-panel.mjs");
 
-    // A tile's round trip, if one is running: this window did not answer, it
-    // handed over (SEASON-02). Set by `wireSeasonTiles` (a row's Open's, `wireSetupSteps`, until E49 A1e, when the
-    // rows went to the Season checklist) through the callback the render below gives it, and read after the wait.
-    let roundTrip = null;
     // End the chapter, pressed at the foot of Edit campaign's block: this window closes unsaved, as Edit campaign does.
     let endAsked = false;
     // Reset the season, pressed in its frame at the body's foot (E101): the same - closed unsaved, then the reset.
@@ -1178,7 +1168,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
         render: (event, dialog) => {
             // A draft carried over from the copy that closed for a tile's window (SEASON-02).
             paintDraft(dialog.element, draft);
-            wireSeasonTiles(dialog, SEASON_TILES, trip => { roundTrip = trip; });
+            wireSeasonTiles(dialog, SEASON_TILES);
             // End the chapter (Edit campaign's part): the window closes without its Save, then the question.
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
@@ -1200,7 +1190,6 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     });
 
     if (endAsked) return endTheChapter(() => import("./chapter.mjs").then(m => m.openChapterEndDialog()));
-    if (roundTrip) return roundTrip;
     if (!result || result === "close") return null;
     if (resetAsked) return (await import("./season-wipe.mjs")).resetSeason();
 
