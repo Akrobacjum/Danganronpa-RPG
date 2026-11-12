@@ -1,6 +1,6 @@
 # E92 - status (work line claude/e92)
 
-Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix of 12.11 in; round 3 (the talk switch on the voice tile, the line under the clock and `spectator.move` gone) in. Ships as 1.2.110 (the coordinator). The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
+Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix of 12.11 in; round 3 (the talk switch on the voice tile, the line under the clock and `spectator.move` gone) in. Ships as 1.2.109, in one train with E61, E62 and E94 (the coordinator, 12.11; it stood at 1.2.110 until then). The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
 (E61, E62 and E94). The census of what a Spectator would be counted in: `docs/dev/e92/CENSUS.md`.
 
 ## Done
@@ -21,7 +21,9 @@ New files: scripts/spectator.mjs, scripts/spectator-ui.mjs, audit/harness/scenar
 the code rules file's "Where the code lives" table are not written (that file is not this line's to touch): for the coordinator.
 
 Tests: R3850-R3861 (tier 1, 12 numbers of 50 reserved); tier 2 "a Spectator's microphone is blocked outside the trial
-and in it ..."; flow `spectator-move` (partial until its release); scenario checks in 30, 33 and 92.
+and in it ..."; flow `spectator-move` (removed in round 3 with the bridge action); scenario checks in 30 (two phases: the Spectator's flag a
+student's console writes, and a Spectator's student actions) and in 93-spectator (92 until 63d3c9c renumbered it); 33's were
+removed in round 3.
 
 ## Commit ids
 
@@ -194,7 +196,7 @@ repo's own GM screenshot, not a Foundry render.
 
 ## For the coordinator
 
-- `touches` for E92 in tools/stages.json (yours to write): ["sockets", "scenes"] - the bridge's guard and the chat's
+- `touches` for E92 in tools/stages.json (yours to write; written): ["sockets", "scenes"] - the bridge's guard and the chat's
   removal answer sockets; the token's drawing, its moves and the map answer scenes.
 - A known-leaks row, proposed (audit/harness/known-leaks.json is not this line's): "a Spectator's chat message is
   broadcast by Foundry's server to every browser before the primary GM removes it (spectator-ui.mjs `dropSpectatorMessage`);
@@ -236,8 +238,10 @@ the picker cut short under Legacy (b50184f). Open: under the glass the picker's 
   player puts on a resource's value or a module flag is put back, as one on a statistic is". It passes alone and in shard
   5/8 run locally at babd4f3 (192 passed, 0 failed), and CI run 43198264490 at 44b1777 is green. Possibly order-dependent.
 
-- LIVE-E92-01..04 (AUDIT 9.2): one LiveKit connection in two rooms, a drag through a wall on v14, the real BROADCAST_AUDIO, the grey token on a real map.
+- LIVE-E92-01..04 (AUDIT 9.2): one LiveKit connection in two rooms, a drag through a wall on v14, the real BROADCAST_AUDIO, the faint token on a real map (0.3 of its alpha, no tint and no outline since ce1ffadb, R3866).
 - `forgetSpectatorMap` writes unticks for the character: a GM's Fog tab shows them as unticked cells (as before, not found).
-- No `stages.json` row change (the coordinator's); `touches` should be ["sockets", "scenes"] (a bridge action, token moves).
+- No `stages.json` row change on this line; the coordinator wrote `touches` ["sockets", "scenes"]: the bridge's Spectator guard and
+  the chat's removal answer sockets, the token's drawing, its moves by drag and the map answer scenes (no bridge action is
+  left: `spectator.move` went in round 3).
 
 Tokens so far: not measured on this line.

@@ -2053,8 +2053,8 @@ export const SABOTAGE_CONCEAL = {
 /* THE SCHOOL'S MOOD'S TWO BARS (E94 C4; the owner's word of 12.11.2026 on the E94 review page). The students' share of
    the whole - the living students' Hope over that Hope plus the Monocubs' Hope, the Monokumas' Despair and the Overflow
    count (sequence.mjs `moodBand`) - is calm from `calm`, uneasy from `uneasy`, close to spilling below. Worked out on a
-   GM's browser and published as the word alone; the numbers are the GMs'. 0.6 and 0.4 are the work line's default,
-   for the owner to confirm. */
+   GM's browser and published as the word alone; the numbers are the GMs'. 0.6 and 0.4 were the work line's default;
+   the owner confirmed them ("Tak", 12.11.2026; docs/dev/e94/STATUS.md). */
 export const MOOD_SHARES = Object.freeze({ calm: 0.6, uneasy: 0.4 });
 
 /**

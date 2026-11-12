@@ -1102,9 +1102,11 @@ Katalog według kategorii:
 | **Interfejs** | otwieranie i zamykanie okien, przyciski, otwarcie czatu |
 | **Czat** | wiadomość wysłana, odebrana, gracz woła GMa, Hope Call, Despair Call, nowa zasada, Motive, zgromadzenie |
 | **Świat** | odkryty pokój, wejście do pokoju, odrzucone przejście, poznane tajne przejście, wydana akcja, ukończony projekt, krytyk, Search bez wyniku, nieudane Observe, zauważony tajny projekt, nieudany albo zauważony sabotaż, złamane narzędzie, kradzież, początek i koniec Eclipse, odpalenie overflow |
-| **Incydent** | śmierć, znalezione ciało, nieudane sprzątanie, Breakdown, Wounded, zmiana Monocuba, Confusion, twoja tura w incydencie albo w rundzie rozprawy, znaleziony Truth Bullet, rozpoznany dowód, nieudana analiza, otwarcie debaty, Objection, rebuttal, start Panic Round, otwarcie Closing Argument, Ujawnienie Monokumy, otwarcie głosowania, werdykt, Level Up |
+| **Incydent** | śmierć, znalezione ciało, nieudane sprzątanie, Breakdown, Wounded, zmiana Monocuba, Confusion, twoja tura w incydencie albo w rundzie rozprawy, znaleziony Truth Bullet, rozpoznany dowód, nieudana analiza, plansza początku dnia, plansza końca dnia, błysk szyb na początku Investigation, tytuł Class Trial, otwarcie debaty, Objection, rebuttal, start Panic Round, otwarcie Closing Argument, Ujawnienie Monokumy, otwarcie głosowania, wynik głosowania, cut-in werdyktu (jego stempel), Level Up |
 
 Odbiorcy każdego zdarzenia są ustalone w katalogu - śmierć słyszą tylko GMowie i uczestnicy; znalezione ciało wszyscy; rebuttal cały stół, raz, gdy się zaczyna, niezależnie od tego, czy minęła minuta Objection, czy otworzyłeś go ty.
+
+**Dźwięki sekwencji** (od 1.2.109; rozdział 15.3 i plansze dnia w rozdziale 4) to pięć wierszy *Incydentu*, każdy słyszy cały stół: **Początek dnia** i **Koniec dnia**, gdy wznosi się plansza, **Błysk szyby** przy każdym błysku na początku Investigation (oznaczony *zmienny*), **Start rozprawy**, gdy pojawia się tytuł rozprawy, i **Cut-in werdyktu**, gdy spada stempel werdyktu. Przy wyłączonych **Sekwencjach na cały ekran** obie plansze i błysk milczą, a błysk milczy też przy ograniczonym ruchu; tytuł rozprawy i stempel werdyktu grają dalej. **Wynik głosowania** (do 1.2.109 *Werdykt*) to karta liczenia głosów, nie cut-in.
 
 **Krytyk**: gra przy krytyku, gdy powiadomienie wjeżdża cięciem. Od 1.2.105 powiadomienie o krytycznym wyniku akcji jest jedyną kartą, która wjeżdża cięciem, i zaczyna się od wyniku słowami, glifu krytyka oraz tego, kto rzucał i jaką akcją; karty rzutów na czacie wchodzą zwyczajnie.
 

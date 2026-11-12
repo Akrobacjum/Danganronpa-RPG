@@ -251,8 +251,6 @@
       "dayTally": "Actions: {actions} · Found: {found}",
       "quietDay": "A quiet day.",
       "publicEvents": "WHAT THE SCHOOL SAW",
-      "hope": "HOPE",
-      "despair": "DESPAIR",
       "moodLabel": "THE SCHOOL'S MOOD",
       "mood": {
         "calm": "Calm",
