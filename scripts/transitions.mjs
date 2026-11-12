@@ -73,7 +73,7 @@ export function transitionFor(before, after) {
     /* THE MORNING ECLIPSE'S END IS A NEW DAY TOO (12.11.2026; the owner's report at a real table on 1.2.109). The curtain
        clock's right chevron and the panel's Eclipse button end it with the advance (eclipse.mjs `endEclipse`): one write
        of the Eclipse's end, the morning and the day + 1. Answered here before the day was read, it never named the new
-       day, and the boards never played on that road (R3989). The turn stays the Eclipse's; `newDay` says the day moved. */
+       day, and the boards never played on that road (R4400). The turn stays the Eclipse's; `newDay` says the day moved. */
     if (ecl(before) && !ecl(after)) return { kind: "eclipseOut", how: "inward", dur: 1400, newDay: day(after) > day(before) };
     if (before.phase !== after.phase) {
         if (after.phase === "classTrial") return { kind: "trialEntry", owner: "E61" };
