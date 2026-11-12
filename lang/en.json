@@ -2740,7 +2740,7 @@
       "receivedBulletFrom": "{who} showed you {name}, and you have written down a copy.",
       "receivedItem": "You have been handed something",
       "receivedItemFrom": "{who} handed you {name}.",
-      "answerKeyMissing": "{name} cannot be handed over now: what it really is is not on the GM's browser. The GM can bring it back from a backup (GM panel, Diagnostics, The case: Restore from a file)."
+      "answerKeyMissing": "{name} cannot be handed over now: the GM's record of what it really is is missing. The GM can bring it back from a backup (GM panel, Diagnostics, The case: Restore from a file)."
     },
     "Observe": {
       "projectFoundDone": "The secret project you found is finished: {name}.",

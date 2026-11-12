@@ -2972,11 +2972,11 @@
       "theirHandsFull": "{who} nosi już najwięcej, ile może ({category}: {limit}).",
       "failed": "To przekazanie nie doszło do skutku. Powiedz GM-owi.",
       "stuckFor": {
-        "give": "Przekazanie „{name}” (daje: {from}, dostaje: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}.",
-        "loot": "Zabranie „{name}” z ciała (zabiera: {to}, ciało: {from}) się udało, ale nie dało się tego zdjąć z ciała. Jest teraz o jedną sztukę za dużo - usuń ją z karty ciała.",
-        "rifle": "Zabranie „{name}” ze skrytki (zabiera: {to}, skrytka: {from}) się udało, ale nie dało się tego wyjąć ze skrytki. Jest teraz o jedną sztukę za dużo - usuń ją ze skrytki na karcie: {from}.",
-        "steal": "Kradzież „{name}” (kradnie: {to}, okradziony: {from}) się udała, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}.",
-        "plant": "Podrzucenie „{name}” (podrzuca: {from}, komu: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}."
+        "give": "{from} przekazuje „{name}” postaci {to}, ale przedmiotu nie dało się zdjąć z arkusza postaci {from}. Jest teraz o jedną sztukę za dużo - usuń ją z arkusza postaci {from}.",
+        "loot": "{to} zabiera „{name}” z ciała postaci {from}, ale przedmiotu nie dało się z niego zdjąć. Jest teraz o jedną sztukę za dużo - usuń ją z arkusza postaci {from}.",
+        "rifle": "{to} zabiera „{name}” ze skrytki postaci {from}, ale przedmiotu nie dało się z niej wyjąć. Jest teraz o jedną sztukę za dużo - usuń ją ze skrytki na arkuszu postaci {from}.",
+        "steal": "{to} kradnie „{name}” postaci {from}, ale przedmiotu nie dało się zdjąć z arkusza postaci {from}. Jest teraz o jedną sztukę za dużo - usuń ją z arkusza postaci {from}.",
+        "plant": "{from} podrzuca „{name}” postaci {to}, ale przedmiotu nie dało się zdjąć z arkusza postaci {from}. Jest teraz o jedną sztukę za dużo - usuń ją z arkusza postaci {from}."
       },
       "keyAlreadyHeld": "Masz już klucz do pokoju {room}. Nadal masz tylko jeden.",
       "changedMidway": "Przedmiot „{name}” zmienił się na arkuszu postaci {from} w drodze do postaci {to} - został zużyty, zepsuty albo zniknął. Nic nie zmieniło właściciela.",
@@ -2994,7 +2994,7 @@
       "receivedBulletFrom": "{who} pokazuje ci {name}, a ty zapisujesz kopię.",
       "receivedItem": "Ktoś ci coś przekazał",
       "receivedItemFrom": "{who} przekazuje ci {name}.",
-      "answerKeyMissing": "Nie można teraz przekazać: {name}. Tego, czym jest naprawdę, nie ma w przeglądarce GM-a. GM może to przywrócić z kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku)."
+      "answerKeyMissing": "Nie można teraz przekazać „{name}”: GM nie ma zapisu, czym to naprawdę jest. GM może go przywrócić z kopii (panel GM-a, Diagnostyka, Sprawa: Przywróć z pliku)."
     },
     "Observe": {
       "projectFoundDone": "Tajny projekt, który odkryto, jest ukończony: {name}.",
@@ -3212,7 +3212,7 @@
       "alreadyThisSessionShort": "już wykorzystany w tej sesji",
       "allowedHere": "Dozwolony tutaj ({room}).",
       "allowedIn": "Nie tutaj. Dozwolony w pokojach: {rooms}",
-      "wrongRoom": "{kind} nie w: {room}. Pokoje, które na to pozwalają: {rooms}",
+      "wrongRoom": "{kind} nie jest dozwolony w pokoju {room}. Pokoje, które na to pozwalają: {rooms}",
       "noRooms": "Żaden pokój na tej mapie nie jest jeszcze oznaczony pod {kind}. GM ustawia to per scena.",
       "noKnownRooms": "Żaden znany ci pokój na to nie pozwala.",
       "manageIntro": "Zaznacz, które pokoje pozwalają na Short Rest, a które na Long Rest. Per scena, więc mapa każdego sezonu może się różnić.",
@@ -4726,16 +4726,16 @@
       "nothingToPlant": "Nie nosisz niczego, co dałoby się komuś podrzucić.",
       "whatToPlant": "Co zostawić",
       "whoPrompt": "Czyje kieszenie?",
-      "plantSent": "Ocierasz się o: {name}. Czy weszło - i czy poczuli - rozstrzygnie się za chwilę.",
-      "cardPlanted": "Zostawiasz {item} w kieszeni: {who}.",
-      "cardPlantMissed": "Nie da się włożyć {item} do kieszeni ({who}) tak, by nie poczuli.",
+      "plantSent": "Ocierasz się o postać {name}. Czy się udało i czy ta osoba to poczuła, okaże się za chwilę.",
+      "cardPlanted": "Zostawiasz „{item}” w kieszeni postaci {who}.",
+      "cardPlantMissed": "Nie da się włożyć „{item}” do kieszeni postaci {who} tak, by tego nie poczuła.",
       "cardTheirHandsFull": "{who} nie ma miejsca na {item}. Zostaje przy tobie.",
       "caughtPlanting": "Widzisz to: {who} wkłada ci {item} do kieszeni.",
-      "caughtTryingPlant": "Łapiesz {who} na próbie wsunięcia ci czegoś do kieszeni. Nic ich nie masz przy sobie.",
+      "caughtTryingPlant": "Przyłapujesz postać {who} na próbie wsunięcia ci czegoś do kieszeni. Nie masz przy sobie niczego, co należy do tej osoby.",
       "emptyPockets": "{name} nie nosi niczego, co dałoby się wziąć.",
       "chooseTitle": "Wybieraj",
       "chooseIntro": "Poszło idealnie. Wybierz, co zabierasz postaci {name}.",
-      "sent": "Robisz swój ruch wobec: {name}. Z czym odchodzisz - i czy poczuli - rozstrzygnie się za chwilę.",
+      "sent": "Sięgasz do kieszeni postaci {name}. Z czym odejdziesz i czy ta osoba to poczuje, okaże się za chwilę.",
       "cardTook": "Wyciągasz przedmiot „{item}” z kieszeni postaci {who}.",
       "cardMissed": "Twoja ręka wraca od {who} pusta.",
       "cardEmpty": "{who} nie ma przy sobie nic wartego wzięcia.",
@@ -4744,7 +4744,7 @@
       "cardUnseen": "Nikt nie widział.",
       "cardUnfelt": "Niczego nie poczuli.",
       "caughtTaking": "Widzisz to: {who} zabiera ci {item}.",
-      "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
+      "caughtTrying": "Przyłapujesz postać {who} na grzebaniu w twoich kieszeniach. Ta osoba odchodzi z niczym."
     },
     "Frisk": {
       "rowLabel": "Zobacz, co nosi",

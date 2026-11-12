@@ -20,10 +20,10 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | spelling | 42 | 11 | 2 (GM section 2, a copy of `Season.roomGuide`) | EN1/DB9 (American spelling), glossary `window-room-setup`, PL-i/D33c (`gm-a`, and three "MG"), PL-f/DB30 (`safeword`) |
 | naturalness pairs | 0 | 54 | 0 | the 60 pairs of docs/text-style.md section 12, approved by the owner on E65-PILOT-R2 (01.11.2026): 48 that still stood in their key and were not frozen, and 6 plural siblings written in the same shape (PL7) |
 | pilot afters | 28 | 33 | 0 | the 40 strings of docs/dev/text-pilot.json, approved by the owner (verdict "ok", 01.11.2026): every after that had not landed and whose key is neither frozen nor config prose |
-| X12 colons (PL) | 0 | 88 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
+| X12 colons (PL) | 0 | 101 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
 | caps and please | 8 | 2 | 0 | X16, X8 (to confirm in E71) |
 | Remnant in sentences | 85 | 119 | 4 (GM section 1's quote of `Vault.descriptionNote`, player section 11's tables note; EN and PL) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
-| overexplains (T29) | 27 | 25 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
+| overexplains (T29) | 28 | 26 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
 | settings | 5 | 5 | 0 | EN14/PL-o (DB10): "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; T29 on two of them |
 | glossary | 22 | 2 | 0 | EN7/DB17 "Search Token" capitalized (glossary search-token); glossary refuse: "Odmów" on two GM buttons |
 | X1 refusals | 7 | 5 | 0 | X1 (confirmed in the pilot) and O8: "You keep your action/Hope" instead of "Nothing was spent"; pairs N28-N30 the model |
@@ -48,6 +48,7 @@ rule's shape was found, and no applied text needed an exception.
 | O8 (a refusal says what the reader keeps) | through the pilot's approved afters: `DRPG.Action.noRoom` ("you keep your action" / "akcji nie tracisz"), `DRPG.SearchTokens.exhausted` | Applied as the owner approved them. The pilot's EN reviewer note (O8 reads wrong on a dimmed tile's reason, `SearchTokens.exhausted`, and before any price, `Actions.notEnough`) is still the owner's: the owner approved both afters with "ok", so they landed as written. |
 | M5 / O5 (no digit typed into prose) | the pilot's approved Polish after of `DRPG.Settings.searchTokensPerRoom.hint` says "od 0 do 10" | Landed as approved; still a digit the code knows (settings.mjs:1300-1308 `range: { min: 0, max: 10 }`), as the pilot recorded. Stays to confirm. |
 | X6 (telegraph style) | `DRPG.Cleanup.bareHands` "Nothing readied. Bare hands, then." -> a whole sentence with the facts of N49 | Applied once. T18's other finds are short labels, world-voice flavor ("No Hope Calls. Not one, by anybody.") or config prose, left. |
+| X7 (label-colon chains) | `DRPG.Handover.stuckFor.*` (five Polish values, four or five colons each, "(daje: {from}, dostaje: {to})") written as sentences | Holds; T24's other finds are a legend (`Actions.moveLegend`), a ladder (`Action.dcAnalyze`), a summary and two GM diagnostics, left for E71's batches. |
 | N1, N2 (keys and placeholders stay) | every change | Holds: the edit script refuses a change to the placeholder set; no key was renamed. |
 | T29 (new, the owner's) | 21 lang values and 10 handbook fragments: browsers, clients and "the primary GM's browser" cut from player texts; the reason behind a GM's limit cut, the limit kept | Applied; the examples are in docs/text-style.md. A first pass only: about 270 English values still name a browser, a client, the console or a store, most of them GM diagnostics (Case, Season, DiceLook, Contract, GmStore), where some of it is what a GM needs. |
 | X13 (singular "they" as a Polish plural) | read T5's 6 finds | All six are real plurals (`ich` for two students, for Remnants, for Truth Bullets, for tokens): the detector's candidates, not faults. Nothing changed. |
@@ -96,6 +97,7 @@ edited unless the row says so.
 | 12.11, run l | 7f2a51eb and the Vote, Calls and MG edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run n | 3883b5ce and the Oxford commas | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run o | 6fcaa102 and Remnant in the handbooks | 1229 passed, 1 failed (R310: two player handbook regexes read "no trace"/"żaden ślad"; fixed, R310 green alone), 16 skipped |
+| 12.11, run p | 7a216634 and the Steal, Handover and Rest edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
