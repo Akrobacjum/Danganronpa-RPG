@@ -32895,6 +32895,10 @@ const INVARIANTS = [
             "the old rest stamps are not migrated as D068's default says ([of the window now, of another, with a chapter, none, no flag])");
         const src = stripComments(new Map(await otherSources()).get("migrate.mjs") ?? "");
         ok(/key:\s*"chapterRestStamps"/.test(src) && /migrateRestStamps\(/.test(src), "migrate.mjs has no chapterRestStamps step calling rest.mjs migrateRestStamps");
+        /* Its `since` is the version it ships in, 1.2.110 (12.11.2026, the coordinator's; red at 1ff4bc77, which held the
+           line's planned 1.2.117): a later one runs it again at every update below it. */
+        equal(bodyOf(src, 'key: "chapterRestStamps"', { until: "run:" }).match(/since:\s*"([^"]+)"/)?.[1] ?? null, "1.2.110",
+            "chapterRestStamps's since, the version it ships in");
     }],
 
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {

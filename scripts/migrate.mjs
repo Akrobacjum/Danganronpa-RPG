@@ -1057,8 +1057,9 @@ const CLAUSES = [
     },
     {
         key: "liftCubWitness",
-        // E72's release (the coordinator sets it to the version E72 ships in: every version before it wrote the flag).
-        since: "1.2.117",
+        // E72's release, 1.2.110 (the coordinator's, 12.11.2026; the line planned 1.2.117): every version before it wrote
+        // the flag. Tier 0's R178 pins it.
+        since: "1.2.110",
         /*
          * THE CRIME WITNESS'S MARK, OFF THE ACTOR (E72 C2, 12.11.2026; audit S18-51). Until E72 the mark was the actor flag
          * `silencedChapter`, which every browser holds: every console read which Monocub had seen the crime. It is the
@@ -1072,8 +1073,9 @@ const CLAUSES = [
     },
     {
         key: "chapterRestStamps",
-        // This line's release, as liftCubWitness's (the coordinator sets it; every version before it read the old stamps).
-        since: "1.2.117",
+        // This line's release, 1.2.110, as liftCubWitness's (the coordinator's, 12.11.2026; the line planned 1.2.117):
+        // every version before it read the old stamps. R3814 pins it.
+        since: "1.2.110",
         /*
          * THE REST STAMPS WRITTEN BEFORE E17 C9, ONCE (E91 C8, 12.11.2026; the owner's deferred item D068). A stamp with
          * no chapter was read on every check as the current chapter's (rest.mjs `legacyRestStamp`); once, on the primary,
