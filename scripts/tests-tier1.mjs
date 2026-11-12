@@ -32722,6 +32722,38 @@ const INVARIANTS = [
             "a Call window hides an unpicked row's description line ([theme, side] where `display: none` wins)");
     }],
 
+    ["R3824 - a Monocub's player gets one Event card whatever its states (E72 C19 fix; the owner, 12.11: the cards were cut off at the bottom): events.mjs `cubCardOf` makes the states (Redeem waits, a Bribe waits, its Ghost Bet stands) one card - the first state's kind, title and Monocub, its line and every other state's own line under it - and renderEvents' list draws `cubCard()` in place of the three", async () => {
+        /*
+         * 12.11.2026, the owner via the coordinator: the two part B cards were cut off at the bottom. Measured in Chromium
+         * (audit/events-fit.mjs, the layout this suite cannot read): each card held its text, but the panel's box is
+         * capped (192 px under Legacy at 1366x768) and one Legacy card is 101 px, so a second and a third card fell below
+         * it. So a Monocub's states are one card. Read here: the builder on three planted states and on none, and the
+         * panel's list in the source. audit/events-fit.mjs measures the box. Red at 879224a: no `cubCardOf`, three cards
+         * in the list.
+         */
+        const EV = await import("./events.mjs");
+        const events = stripComments(new Map(await otherSources()).get("events.mjs") ?? "");
+        const render = bodyOf(events, "export function renderEvents(", { until: "\n}\n" });
+        must(render.length > 500, "events.mjs renderEvents was not read - this would measure nothing");
+        const states = [
+            { kind: "redeemHope", title: "R3824 R", sub: "R3824 Cub", meta: "R3824 r meta", line: "R3824 r line" },
+            { kind: "bribeHope", title: "R3824 B", sub: "R3824 Cub", meta: "R3824 b meta", line: "R3824 b line" },
+            { kind: "betHope", title: "R3824 G", sub: "R3824 Cub", meta: "R3824 g meta", line: "R3824 g line" }];
+        const one = typeof EV.cubCardOf === "function" ? EV.cubCardOf(states) : "no cubCardOf";
+        const second = typeof EV.cubCardOf === "function" ? EV.cubCardOf(states.slice(1)) : "no cubCardOf";
+        equal(stableJson({
+            one: one && typeof one === "object" ? [one.kind, one.title, one.sub, one.meta] : one,
+            second: second && typeof second === "object" ? [second.kind, second.meta] : second,
+            none: typeof EV.cubCardOf === "function" ? EV.cubCardOf([]) : "no cubCardOf",
+            list: [/\bcubCard\(\)/.test(render), /\b(?:redeemCard|bribeWaitCard|betCard)\(\)/.test(render)]
+        }), stableJson({
+            one: ["redeemHope", "R3824 R", "R3824 Cub", ["R3824 r meta", "R3824 b line", "R3824 g line"]],
+            second: ["bribeHope", ["R3824 b meta", "R3824 g line"]],
+            none: null,
+            list: [true, false]
+        }), "a Monocub's states are not one card ([kind, title, Monocub, lines] of three states, of the last two, none; the list draws cubCard() and none of the three)");
+    }],
+
     ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
         /*
          * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load

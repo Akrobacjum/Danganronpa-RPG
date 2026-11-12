@@ -687,7 +687,9 @@ export function redeemCard(user = game.user) {
         kind: "redeemHope",
         title: game.i18n.localize("DRPG.Events.redeemTitle"),
         sub: cub.name,
-        meta: game.i18n.localize("DRPG.Events.redeemMeta")
+        meta: game.i18n.localize("DRPG.Events.redeemMeta"),
+        // Its line when another state leads the Monocub's card (`cubCardOf`).
+        line: game.i18n.localize("DRPG.Events.redeemLine")
     };
 }
 
@@ -715,7 +717,8 @@ export function bribeWaitCard(user = game.user) {
         kind: "bribeHope",
         title: game.i18n.localize("DRPG.Events.bribeWaitTitle"),
         sub: found.cub.name,
-        meta: game.i18n.format("DRPG.Events.bribeWaitMeta", { name: found.line.name || "?" })
+        meta: game.i18n.format("DRPG.Events.bribeWaitMeta", { name: found.line.name || "?" }),
+        line: game.i18n.format("DRPG.Events.bribeWaitLine", { name: found.line.name || "?" })
     };
 }
 
@@ -727,8 +730,28 @@ export function betCard(user = game.user) {
         kind: "betHope",
         title: game.i18n.localize("DRPG.Events.betTitle"),
         sub: found.cub.name,
-        meta: game.i18n.format("DRPG.Events.betMeta", { name: found.line.name || "?" })
+        meta: game.i18n.format("DRPG.Events.betMeta", { name: found.line.name || "?" }),
+        line: game.i18n.format("DRPG.Events.betLine", { name: found.line.name || "?" })
     };
+}
+
+/**
+ * ONE CARD FOR A MONOCUB (E72 C19 fix, 12.11.2026; the owner: the cards were cut off at the bottom). The panel's box is
+ * capped (`--drpg-events-h`: 192 px under Monokuma Legacy at 1366x768, measured in Chromium on the glass harness, where
+ * one card is 101 px), so Redeem, a Bribe and a Ghost Bet as three cards put the second and third below its fold. The
+ * states are one card: the first state's kind (its glyph), title and Monocub, its own line, and each other state's line
+ * under it. audit/events-fit.mjs measures it whole at three sizes in both themes; R3824 holds the shape. Pure.
+ */
+export function cubCardOf(states = []) {
+    const [first, ...rest] = (states ?? []).filter(Boolean);
+    if (!first) return null;
+    const { line, ...card } = first;
+    return { ...card, meta: [first.meta, ...rest.map(s => s.line)] };
+}
+
+/** The Monocub's one card for `user` (`cubCardOf` over `redeemCard`, `bribeWaitCard` and `betCard`), or null. */
+export function cubCard(user = game.user) {
+    return cubCardOf([redeemCard(user), bribeWaitCard(user), betCard(user)]);
 }
 
 /* ---- the panel ------------------------------------------------------------ */
@@ -928,7 +951,7 @@ export function renderEvents() {
         /* The safeword is first because it outranks everything: while the scene
            is stopped, nothing else on this panel is happening. */
         const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
-            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), redeemCard(), bribeWaitCard(), betCard()].filter(Boolean);
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), cubCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

@@ -182,6 +182,22 @@ where that line leaves the rule open the default is written here (default, owner
   109 passed, 0 failed; 33 77/78 (foundry-cub-purse), 72 132/136 (its 4). Shots: round 12,
   https://claude.ai/artifact/RWYASS6An8CDWiiQh5d2jf
 
+## C19 fix: the Monocub's cards cut off at the bottom (12.11.2026; the owner, accepted after this fix, no review page)
+
+- Measured in Chromium on the glass harness at 1366x768: each card held its own text; the panel's box is capped
+  (`--drpg-events-h`: 192 px under Legacy, 268.6 px under Stained Glass) and one Legacy card is 101 px, so Redeem, a
+  Bribe and a Ghost Bet as three cards put the second and third below the fold. Now one card: events.mjs `cubCardOf`
+  (the first state's kind, title and Monocub, its line, each other state's own line under it) and `cubCard`, drawn in
+  place of the three; each state's line in EN/PL (Events.redeemLine, bribeWaitLine, betLine).
+- audit/events-fit.mjs (new, Chromium, not in CI): the panel with all three states at 1366x768, 1280x720, 1920x1080, both
+  themes, EN and PL - fails when the panel scrolls, a card ends below it or cuts its own lines. 12/12 failed at 879224a,
+  12/12 hold now. One later run reported one size failing on a loaded machine (its line not kept); seven runs around it
+  held; the script now waits for the fonts before it measures.
+- R3824 (tier 1) new, red at 879224a; R3805 and R3823 changed on purpose (drawn through `cubCard`). Checks: quick gate
+  green; tiers 0-1 1277 passed, 0 failed, 16 skipped, 0 red; tier 2 `--only` Event panel, Monocub, Bribe, Ghost Bet (106
+  ran) 110 passed, 0 failed; 33 77/78 (foundry-cub-purse), 72 132/136 (its 4). `git merge-tree` with origin/main
+  4dfac3a: no conflict.
+
 ## The owner's standing rule of 12.11: no fold in an action window (checked on the Call windows)
 
 - "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji NIGDY". The Call windows hold no <details>, no Details
