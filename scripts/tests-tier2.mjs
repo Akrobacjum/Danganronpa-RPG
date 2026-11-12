@@ -1055,12 +1055,14 @@ async function drawnMurderWindow(open) {
  * (E24 C6; until then it reopened, and this waited for that copy and closed it); `close()` closes
  * whatever copy stands. Each settles `answer`.
  */
-async function drawnCaseWindow() {
+/** The dashboard drawn, on the Table unless `view` says (the Map is the default since E97 C9; most of these read the
+ *  Table's rows). */
+async function drawnCaseWindow({ view = "table" } = {}) {
     const investigation = await import("./investigation.mjs");
     const open = () => [...foundry.applications.instances.values()]
         .filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
     const before = new Set(open());
-    const answer = Promise.resolve().then(() => investigation.openInvestigationDashboard()).catch(() => null);
+    const answer = Promise.resolve().then(() => investigation.openInvestigationDashboard({ view })).catch(() => null);
     await until(() => open().some(a => !before.has(a) && a.element), 6000);
     const app = open().find(a => !before.has(a)) ?? null;
     const close = async () => {
@@ -26885,7 +26887,8 @@ const SCENARIOS = [
         let heads = null;
         try {
             must(win.app?.element, "the dashboard did not open");
-            const table = win.app.element.querySelector(".drpg-case-live table") ?? null;
+            // Who has what is a tab of its own since E98 C4
+            const table = win.app.element.querySelector('.drpg-case-live [data-drpg-pane="who"] table') ?? null;
             const ths = [...(table?.querySelectorAll("thead th") ?? [])];
             const really = ths.find(th => th.textContent.trim() === game.i18n.localize("DRPG.Investigation.breakdown"));
             heads = [ths.filter(th => th.classList.contains("num")).length, Boolean(really?.dataset.tooltip)];
@@ -27077,8 +27080,7 @@ const SCENARIOS = [
             must(token, "could not place the fixture Remnant");
             await remnants.setRemnantPublic(token, { name: "SUITE E97C6 as drawn" });
             await gmStoresIdle();
-            game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : realGet.call(this, scope, key); };
-            win = await drawnCaseWindow();
+            win = await drawnCaseWindow({ view: "map" });
             const root = win.app?.element;
             const node = `${scene.id}.${token.id}`, key = `${scene.id}__${token.id}`;
             root?.querySelector(`[data-drpg-node="${CSS.escape(node)}"]`)?.click();
@@ -27125,9 +27127,8 @@ const SCENARIOS = [
         try {
             await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE C6 as drawn" });
             await gmStoresIdle();
-            game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : realGet.call(this, scope, key); };
             ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
-            win = await drawnCaseWindow();
+            win = await drawnCaseWindow({ view: "map" });
             win.app?.element?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await wait(400);
             const base = `case:${chapter}:${id}`;
@@ -27142,7 +27143,7 @@ const SCENARIOS = [
             win = null;
             await gmStoresIdle();
             const saved = S.caseNodeOf(S.caseRows(chapter).rows[id]);
-            second = await drawnCaseWindow();
+            second = await drawnCaseWindow({ view: "map" });
             second.app?.element?.querySelector(`[data-drpg-node="${id}"]`)?.click();
             await wait(400);
             second.field(`${base}:label`).value = "SUITE C6 mine";
@@ -28129,7 +28130,7 @@ const SCENARIOS = [
             needs(env.dialogs(), "the dashboard has no element to read");
             const before = new Set(foundry.applications.instances.keys());
             // Not awaited: it settles when the GM closes it. See R12.
-            Promise.resolve(investigation.openInvestigationDashboard()).catch(() => {});
+            Promise.resolve(investigation.openInvestigationDashboard({ view: "table" })).catch(() => {});
             await wait(900);
             for (const [id, app] of foundry.applications.instances.entries()) {
                 if (!before.has(id)) dialog = app;
@@ -60122,7 +60123,7 @@ const SCENARIOS = [
                     const pick = options.find(o => o.value === ROOM && (o.dataset.scene ?? annex.id) === annex.id);
                     if (pick) pick.selected = true;
                     return Boolean(pick);
-                }, () => openInvestigationDashboard());
+                }, () => openInvestigationDashboard({ view: "table" }));
                 await settle();
                 placed = MM.finalRemnants().filter(f => !before.has(f.token.id));
                 reading = [placed.map(f => f.token.parent?.id ?? null), R.roomNames(school).every(r => offered.includes(r))];
@@ -84344,7 +84345,7 @@ const SCENARIOS = [
         const opened = [];
         const read = {};
         try {
-            opened.push(Promise.resolve().then(() => openInvestigationDashboard()).catch(() => null));
+            opened.push(Promise.resolve().then(() => openInvestigationDashboard({ view: "table" })).catch(() => null));
             must(await until(() => drawn("drpg-window-case").length, 6000), "the case dashboard did not open - this would measure nothing");
             opened.push(Promise.resolve().then(() => openGmPanel()).catch(() => null));
             const tile = () => drawn("drpg-window-panel")[0]?.element?.querySelector('[data-drpg-run="investigation"]') ?? null;
@@ -84584,7 +84585,7 @@ const SCENARIOS = [
             D.wait = kitQuestions(D.wait);
             D.confirm = options => { asked.push([options?.window?.title ?? null, (typeof options?.content === "string" ? options.content : options?.content?.textContent ?? "").includes("SUITE E44-T10 a ")]); return Promise.resolve(answer); };
             ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return ownWarn?.value?.call(ui.notifications, message, ...rest); };
-            dashboard = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(() => null);
+            dashboard = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(() => null);
             /* Every chapter: the tab opens on the chapter running when it holds a trace (`readTracesAs`), and these two,
                placed by hand with no chapter, are then filtered out (the harness world's own trace is the chapter's). */
             await until(() => Boolean(open()[0]?.element?.querySelector('[data-drpg-filter="chapter"]')), 6000);

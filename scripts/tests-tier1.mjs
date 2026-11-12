@@ -8037,7 +8037,7 @@ const INVARIANTS = [
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
         must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
         const drawn = async said => {
-            const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ said })).catch(e => `threw: ${e?.message ?? e}`);
+            const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ said, view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
             try {
                 await until(() => open().some(a => a.element?.querySelector(".drpg-kit-body")), 6000);
                 const app = open()[0], root = app.element, body = root.querySelector(".drpg-kit-body");
@@ -8094,7 +8094,7 @@ const INVARIANTS = [
             }
         }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box; the footer the kit's two rows (\`footer.rows: 2\`)]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
     }],
-    ["R3652 - the Map / Table switch (E97 C5; the owner's Q-B and Q-D, 11.11.2026): a GM with no view flag opens on the Table; the toolbar's Map button draws the Map in the same live region and its Table button the Table again, each remembered on this GM's own User (`setFlag` on game.user, nothing else), with no GM store written, and the window's body, toolbar and footer the same nodes throughout (the harness draws no header); the Map draws every node of the chapter's graph - each Remnant of the chapter the Table's filter names, each Key slot, each schema node", async () => {
+    ["R3652 - the Map / Table switch (E97 C5, C9; the owner's Q-B, Q-D and E): a GM with no view flag opens on the Map (C9; on the Table until then); the toolbar's Map button draws the Map in the same live region and its Table button the Table again, each remembered on this GM's own User (`setFlag` on game.user, nothing else), with no GM store written, and the window's body, toolbar and footer the same nodes throughout (the harness draws no header); the Map draws every node of the chapter's graph - each Remnant of the chapter the Table's filter names, each Key slot, each schema node", async () => {
         /*
          * E97 C5, 12.11.2026; STAGE C5 "tier 1 switching writes nothing and keeps the frame's box equal; every trace of
          * the world is a node". jsdom lays nothing out, so "the frame's box equal" is read as the frame's own nodes kept
@@ -8123,6 +8123,9 @@ const INVARIANTS = [
             const first = frame();
             const view = () => root.querySelector(".drpg-case-live")?.dataset.drpgView ?? null;
             const opened = view();
+            // Opened on the Map since C9: to the Table first for its chapter filter, then the Map again
+            root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
+            await until(() => view() === "table", 3000).catch(() => {});
             const chapterPicked = root.querySelector('[name="traceChapter"]')?.value ?? null;
             root.querySelector('.drpg-case-switch [data-drpg-mode="map"]')?.click();
             await until(() => view() === "map", 3000).catch(() => {});
@@ -8145,8 +8148,8 @@ const INVARIANTS = [
             game.user.setFlag = realSet;
         }
         equal(JSON.stringify({ ...seen, flagged, stores: stores() === before }), JSON.stringify({
-            opened: "table", onMap: "map", back: "table", kept: [[true, true, true], [true, true, true]], nodes: true, traces: true,
-            flagged: [[game.user.id, MODULE_ID, "investigationView", "map"], [game.user.id, MODULE_ID, "investigationView", "table"]], stores: true
+            opened: "map", onMap: "map", back: "table", kept: [[true, true, true], [true, true, true]], nodes: true, traces: true,
+            flagged: [[game.user.id, MODULE_ID, "investigationView", "table"], [game.user.id, MODULE_ID, "investigationView", "map"], [game.user.id, MODULE_ID, "investigationView", "table"]], stores: true
         }), "[the view it opened on; after Map; after Table; body, toolbar and footer the same nodes, after Map and after Table; the Map's nodes are the chapter graph's, and it holds Remnants; the flag written on this user, each switch; no GM store changed]");
     }],
     ["R3653 - the parity test (E97 C5-C9; STAGE C5, the owner's 09.11 \"remnants editable from the map (same write path as the table)\" and Q-E): every form field and every action button the Table draws - each Remnant row's, each Key slot's, the Final Truth form's - has its place in the Map, by the same name, so the Table's one Save reads the Map's edits unchanged", async () => {
@@ -8162,7 +8165,7 @@ const INVARIANTS = [
         must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
         const realSet = game.user.setFlag;
         game.user.setFlag = async () => game.user;
-        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
         let table = null, map = null;
         const controls = root => {
             const region = root.querySelector(".drpg-case-live");
@@ -8191,7 +8194,7 @@ const INVARIANTS = [
     }],
     ["R3656 - who has what, by name, on the Map (E97 C7; the owner's Q-A of 11.11 and E47-21): with no node picked the side panel lists each living student by name, under each their Truth Bullets by name and what each really is, then their other items by name; a dead student is not listed", async () => {
         /*
-         * E97 C7, 12.11.2026. Read off the drawn window (this GM's view read as "map", not written) against the world:
+         * E97 C7, 12.11.2026. Read off the drawn window (opened on the Map) against the world:
          * `livingStudentsForGm`, each one's bullets (truth-bullets.mjs `bulletsOf`) and the rest of their items. Red at
          * 5b124a4: no students list on the Map.
          */
@@ -8201,9 +8204,7 @@ const INVARIANTS = [
         const { bulletsOf, isTruthBullet } = await import("./truth-bullets.mjs");
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
         must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
-        const realGet = game.user.getFlag;
-        game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : realGet.call(this, scope, key); };
-        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "map" })).catch(e => `threw: ${e?.message ?? e}`);
         let drawn = null;
         try {
             await until(() => open().some(a => a.element?.querySelector(".drpg-case-students")), 6000).catch(() => {});
@@ -8215,7 +8216,6 @@ const INVARIANTS = [
         } finally {
             for (const a of open()) await a.close().catch(() => {});
             await Promise.race([answer, wait(3000)]);
-            game.user.getFlag = realGet;
         }
         const want = livingStudentsForGm().map(actor => ({ name: actor.name, parts: [bulletsOf(actor).map(i => i.name),
             [...actor.items].filter(i => !isTruthBullet(i)).map(i => i.name)] }));
@@ -8231,7 +8231,7 @@ const INVARIANTS = [
         const { livingStudentsForGm } = await import("./chapter.mjs");
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
         must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
-        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
         let read = null;
         try {
             await until(() => open().some(a => a.element?.querySelector(".drpg-case-live nav")), 6000).catch(() => {});
@@ -42879,7 +42879,7 @@ const INVARIANTS = [
         const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
         const cases = () => of("drpg-window-case");
         must(cases().length === 0 && of("drpg-window-newtrace").length === 0, "a dashboard or a New trace window stands open already - nothing here would be read cleanly");
-        const opened = () => Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const opened = () => Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
         const answered = (answer, ms) => Promise.race([answer, wait(ms).then(() => "still waiting")]);
         const pending = [];
         const got = {};
@@ -44986,7 +44986,7 @@ const INVARIANTS = [
         const names = root => [...(root?.querySelectorAll("[name]") ?? [])].map(el => el.getAttribute("name").replace(KEY, "K"));
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
         must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
-        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
         let who = null;
         try {
             await until(() => open().some(a => a.element), 6000);

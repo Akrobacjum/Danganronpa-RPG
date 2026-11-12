@@ -2281,14 +2281,14 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
 
 /**
  * THE VIEW THIS GM OPENS ON (E97 C5; the owner's Q-B, 11.11.2026: "the Map/Table switch is remembered per GM account, a
- * flag on their own user"). "map" or "table", read off the GM's own User; anything else - no flag yet - reads "table"
- * until C9 makes the Map the default (Q-E: only once the parity test is green and the owner has seen both). Not a
- * secret: world-secrets.mjs forbids one User flag only (`preSessionNote.text`).
+ * flag on their own user"). "map" or "table", read off the GM's own User; anything else - no flag yet - reads "map"
+ * since C9 (the owner's E: "Map by default"; Q-E: the parity test green, R3653, and the owner shown both views, round
+ * 1 of 12.11.2026). Not a secret: world-secrets.mjs forbids one User flag only (`preSessionNote.text`).
  */
 export const INVESTIGATION_VIEWS = Object.freeze(["map", "table"]);
 export function investigationView(user = game.user) {
     const v = user?.getFlag?.(MODULE_ID, "investigationView");
-    return INVESTIGATION_VIEWS.includes(v) ? v : "table";
+    return INVESTIGATION_VIEWS.includes(v) ? v : "map";
 }
 
 /** The view switch's markup, in the toolbar's switch slot (outside the live region: a redraw never replaces it). */
@@ -2902,7 +2902,7 @@ async function placeFinalFromDashboard(action) {
     }
 }
 
-export async function openInvestigationDashboard({ said = null, node = null } = {}) {
+export async function openInvestigationDashboard({ said = null, node = null, view = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -2962,7 +2962,7 @@ export async function openInvestigationDashboard({ said = null, node = null } = 
     // below. "" is a real value here - it means every chapter.
     /* THE MAP'S OWN (E97 C5): which view, the node the GM picked, whether the unrelated evidence is folded, and the node
        to hand the focus back to after a redraw (keepLive carries a field's focus, not a button's). */
-    const reading = { order: "room", player: "", room: "", chapter: null, view: node ? "map" : investigationView(), node, fold: false, focus: null };
+    const reading = { order: "room", player: "", room: "", chapter: null, view: node ? "map" : INVESTIGATION_VIEWS.includes(view) ? view : investigationView(), node, fold: false, focus: null };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 
