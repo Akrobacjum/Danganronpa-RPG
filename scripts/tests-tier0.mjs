@@ -20135,7 +20135,8 @@ const REGRESSIONS = [
          * the end review's C-m1): the Final Trial's execution and Mastermind's step need its sentence (`VERDICT_NEEDS`).
          */
         const sources = new Map(await otherSources());
-        const FINAL = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "mastermind"];
+        // CHANGED ON PURPOSE (E72, 12.11.2026; the coordinator's bug): the Final's Ghost Bets settled, "finalBets" (R3815).
+        const FINAL = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "finalBets", "mastermind"];
         const parse = text => { try { return JSON.parse(text.replace(/([{,]\s*)(\w+):/g, '$1"$2":')); } catch { return null; } };
         const lang = {};
         for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
@@ -20169,7 +20170,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(readOf(vote)), JSON.stringify({
             // E72 C7 (changed on purpose): the wrong verdict's "remind", after its card, before the overflow. E72 C18: "bets" last on both.
             ordinary: { correct: ["sentence", "card", "levelUps", "overflow", "bets"], wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"] },
-            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card", finalExecution: "finalSentence", mastermind: "finalSentence" },
+            needs: { card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card", finalExecution: "finalSentence", mastermind: "finalSentence", finalBets: "finalCard" },
             final: FINAL, finalForbidden: [], unrun: [], unlabelled: [], finalTable: true, runners: []
         }), "the verdicts' step tables are not as E70 left the ordinary one and E42 wrote the Final Trial's, or a loop is not the one runner "
             + "(ordinary, needs, final: the tables; finalForbidden: a Final key that is card, sentence, executions or an ordinary key; unrun: a key with no "

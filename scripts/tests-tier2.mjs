@@ -83561,7 +83561,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await S.verdictStore.patch(RECORD, { giving: kept.giving ?? null, finalGiven: kept.finalGiven ?? null });
             }
         }
-        const done = ["finalSentence", "finalCard", "finalClose", "finalExecution", "mastermind"];
+        const done = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalBets", "mastermind"];
+        // CHANGED ON PURPOSE (E72, 12.11.2026): the Final's Ghost Bets settle in "finalBets", done beside the stopped Level Ups (R3815).
         equal(stableJson(reading), stableJson({
             stopped: ["applying", ["finalLevelUps"], done, label, 0, true, [true, true]],
             finished: ["done", [], 1, LEVEL_UP.reinforced.picks, false, true, null],

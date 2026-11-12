@@ -489,7 +489,7 @@ const VERDICT_STEPS = {
  */
 const VERDICT_NEEDS = {
     card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card",
-    finalExecution: "finalSentence", mastermind: "finalSentence"
+    finalExecution: "finalSentence", mastermind: "finalSentence", finalBets: "finalCard"
 };
 
 /*
@@ -503,7 +503,9 @@ const VERDICT_NEEDS = {
  * "sentence" as an ordinary sentence (R1252). The record holds the keys and nothing else of the Final Trial: no
  * name, no id (the Mastermind's identity is the GMs'; mastermind.mjs's header).
  */
-const FINAL_VERDICT_STEPS = Object.freeze(["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "mastermind"]);
+// "finalBets" (E72, 12.11.2026; the coordinator's bug): the Ghost Bets settled as at an ordinary verdict, before "mastermind"
+// clears the pick the outcome is read from.
+const FINAL_VERDICT_STEPS = Object.freeze(["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "finalBets", "mastermind"]);
 
 // "executions" stays named for a record from before 1.2.90 whose stopped steps still list it (`verdictStopped`).
 const VERDICT_STEP_LABELS = {
@@ -514,7 +516,7 @@ const VERDICT_STEP_LABELS = {
     bets: "DRPG.Vote.verdictSteps.bets",
     finalSentence: "DRPG.Vote.verdictSteps.finalSentence", finalCard: "DRPG.Vote.verdictSteps.finalCard",
     finalClose: "DRPG.Vote.verdictSteps.finalClose", finalExecution: "DRPG.Vote.verdictSteps.finalExecution",
-    finalLevelUps: "DRPG.Vote.verdictSteps.finalLevelUps", mastermind: "DRPG.Vote.verdictSteps.mastermind"
+    finalLevelUps: "DRPG.Vote.verdictSteps.finalLevelUps", finalBets: "DRPG.Vote.verdictSteps.finalBets", mastermind: "DRPG.Vote.verdictSteps.mastermind"
 };
 
 /** The steps of a verdict record (`trialProgress().verdict`), in order: the Final Trial's for a `final` record. */
@@ -915,12 +917,28 @@ async function settleBetsStep(context) {
     await settleBets(context);
 }
 
+/**
+ * THE FINAL TRIAL'S BETS (E72, 12.11.2026; the coordinator's bug: a Ghost Bet placed before the Final stayed unpaid). Pure:
+ * the record `settleBets` reads, built from the GMs' side, since the Final's record names nobody - right, with the
+ * Mastermind the one sentenced, when the verdict executed them; otherwise nobody sentenced, so every bet is lost.
+ */
+export function finalBetsRecord(final) {
+    const id = final?.executed === true ? final?.mastermind?.id ?? null : null;
+    return id ? { correct: true, executedIds: [id] } : { correct: false, executedIds: [] };
+}
+
+/** The Final verdict's step "finalBets": `settleBets` on `finalBetsRecord`. */
+async function finalVerdictBets(context) {
+    const { settleBets } = await import("./monocub.mjs");
+    await settleBets({ ...context, record: finalBetsRecord(context.final) });
+}
+
 const VERDICT_STEP = {
     sentence: readSentence, card: verdictCard,
     levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, remind: remindOnWrongVerdict,
     overflow: verdictOverflow, bets: settleBetsStep,
     finalSentence: finalVerdictSentence, finalCard: finalVerdictCard, finalClose: finalVerdictClose,
-    finalExecution: finalVerdictExecution, finalLevelUps: finalVerdictLevelUps, mastermind: finalVerdictMastermind
+    finalExecution: finalVerdictExecution, finalLevelUps: finalVerdictLevelUps, finalBets: finalVerdictBets, mastermind: finalVerdictMastermind
 };
 
 /**

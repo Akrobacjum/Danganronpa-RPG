@@ -30032,6 +30032,31 @@ const INVARIANTS = [
         ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
     }],
 
+    ["R3815 - the Final Trial's verdict settles the Ghost Bets: a step finalBets after the card and before the pick is cleared, the bet won only on the executed Mastermind (E72, the coordinator's bug of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the coordinator's note of 12.11 ("the Final Trial runs no 'bets' step, so a Ghost Bet there stays
+         * unpaid. That is a bug"). verdict.mjs `FINAL_VERDICT_STEPS` had no step that called monocub.mjs `settleBets`: a bet
+         * placed before the Final stayed in the Monocub's row until a reset. Now the step `finalBets` runs after
+         * `finalLevelUps` and before `mastermind` (which clears the pick the outcome is read from), needs `finalCard`, and
+         * settles with `finalBetsRecord(final)` (pure): a right verdict on the Mastermind when the Final executed them, the
+         * one sentenced; none else. The record of the Final Trial names nobody, so the record is built from the GMs' side.
+         * Red before: no finalBets.
+         */
+        const V = await import("./verdict.mjs");
+        const src = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
+        const steps = /const FINAL_VERDICT_STEPS = Object\.freeze\(\[([^\]]*)\]\)/.exec(src)?.[1]?.match(/"(\w+)"/g)?.map(x => x.slice(1, -1)) ?? [];
+        const at = name => steps.indexOf(name);
+        equal(JSON.stringify([at("finalBets") > at("finalLevelUps") && at("finalLevelUps") >= 0, at("finalBets") < at("mastermind"),
+            /finalBets:\s*"finalCard"/.test(src)]), JSON.stringify([true, true, true]),
+            "the Final Trial's steps have no finalBets after its Level Ups and before the pick is cleared, needing its card");
+        ok(typeof V.finalBetsRecord === "function", "verdict.mjs has no finalBetsRecord");
+        if (typeof V.finalBetsRecord !== "function") return;
+        equal(JSON.stringify([V.finalBetsRecord({ executed: true, mastermind: { id: "R3815MM" } }), V.finalBetsRecord({ executed: false, mastermind: { id: "R3815MM" } }),
+            V.finalBetsRecord({ executed: true, mastermind: null })]),
+            JSON.stringify([{ correct: true, executedIds: ["R3815MM"] }, { correct: false, executedIds: [] }, { correct: false, executedIds: [] }]),
+            "the Final's bets are not settled on the executed Mastermind alone ([executed, escaped, no Mastermind known])");
+    }],
+
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
         /*
          * E52 C2, 30.10.2026; audit S17-50, E52-05. A failed row's fallback is the one its file has always had
