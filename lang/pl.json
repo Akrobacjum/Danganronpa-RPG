@@ -1164,7 +1164,6 @@
     },
     "Monocub": {
       "meddleRefused": "Confusion ich nie dosięga. Nie tracisz akcji ani Hope.",
-      "free": "Za darmo",
       "wrongVerdictTitle": "Werdykt był błędny",
       "wrongVerdictCard": "Sprawca chodzi wolno. Do następnej rozprawy nie używaj swoich ruchów na korzyść ani na szkodę tej osoby, jej projektów, Bribe ani Ghost Bet.",
       "wrongVerdictTold": "Wiedzą, że werdykt puścił sprawcę: {names}.",

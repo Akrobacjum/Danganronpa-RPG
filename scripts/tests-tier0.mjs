@@ -7923,13 +7923,13 @@ const REGRESSIONS = [
         /*
          * E72 C9, 12.11.2026; audit S18-62. sheet.mjs `abilityButton` dimmed a Monocub's tile on its price alone and said
          * "0 Hope, 0 actions" for a free one. Read off the source: the tile asks monocub.mjs `cubBlockSaid(actor, def)`,
-         * dims on it as on the price, puts its sentence in the tooltip, and says `DRPG.Monocub.free` for a row that costs
-         * nothing. Red at f22a7e8: none of it.
+         * dims on it as on the price, puts its sentence in the tooltip, and says the grid's own `DRPG.Action.costFree` for a
+         * row that costs nothing and `DRPG.Action.costActions` for one with no Hope. Red at f22a7e8: none of it.
          */
         const src = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
         const fn = bodyOf(src, "function abilityButton(", { until: "\n}\n" });
         must(fn.length > 300, "sheet.mjs has no abilityButton - this would measure nothing");
-        const read = [/cubBlockSaid\(actor, def\)/.test(fn), /affordable && !shut/.test(fn), /game\.i18n\.localize\(shut\)/.test(fn), /"DRPG\.Monocub\.free"/.test(fn)];
+        const read = [/cubBlockSaid\(actor, def\)/.test(fn), /affordable && !shut/.test(fn), /game\.i18n\.localize\(shut\)/.test(fn), /"DRPG\.Action\.costFree"/.test(fn) && /"DRPG\.Action\.costActions"/.test(fn)];
         equal(JSON.stringify(read), JSON.stringify([true, true, true, true]), "the Monocub's tile does not read its blocks, dim on them, say them, or say Free ([asks, dims, says, free])");
     }],
 

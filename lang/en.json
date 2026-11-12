@@ -1174,7 +1174,6 @@
       "critHinderNothing": "The player had no action left to waste.",
       "critHinderNothingTarget": "A moment's confusion, but you had no action left to lose.",
       "meddleRefused": "Confusion doesn't reach them. You keep your action and Hope.",
-      "free": "Free",
       "wrongVerdictTitle": "The verdict was wrong",
       "wrongVerdictCard": "The one who did it walks free. Until the next trial, don't use your moves for or against that person, their projects, Bribes or Ghost Bets.",
       "wrongVerdictTold": "Told the verdict let the killer go: {names}.",

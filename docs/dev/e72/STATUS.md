@@ -19,7 +19,7 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C7 | The wrong verdict's card (S18-58, DC16): a step "remind" of the wrong verdict (`remindOnWrongVerdict`, after the card) sends each Monocub of this case's death and each of this chapter's crime witnesses one veiled card ("don't use your moves for or against that person, their projects, Bribes or Ghost Bets"), naming nobody; the GMs' summary lists who was told | tier 2 "a wrong verdict tells the case's dead and the chapter's crime witnesses ..." (new; red at base); R1252 changed on purpose |
 
-| C9 (part) | The Monocub's tiles say why they are shut (S18-62, DC22): `cubBlockSaid` (the row's blocks from the owner's copy) dims a tile and says its sentence; a free row says Free; `onlyTwoActions` names the three moves | R3803 (new), tier 2 "the Monocub's tiles say why they are shut ..." (new); both red at base |
+| C9 (part) | The Monocub's tiles say why they are shut (S18-62, DC22): `cubBlockSaid` (the row's blocks from the owner's copy) dims a tile and says its sentence; a row with no Hope says its price in the grid's own words (`DRPG.Action.costActions`, `costFree`); `onlyTwoActions` names the three moves | R3803 (new), tier 2 "the Monocub's tiles say why they are shut ..." (new); both red at base |
 
 ## In progress
 
@@ -87,6 +87,10 @@ None.
   deviceScaleFactor 2, drawn by audit/style-harness.html's kit mode (no Foundry CSS). Looked at: the Withdraw button
   was cut off at "Withdraw the invitation", shortened to "Withdraw" / "Wycofaj". Not shot: C5's Ask for Hope card in
   the messenger (the harness's kit mode cannot draw the messenger).
+- Round 2 (12.11.2026): https://claude.ai/artifact/QVjnHYbQa3wUu4zEHUW63n - C9's Monocub panel (Move, Confusion,
+  Redeem shut, Ask for Hope free), both themes, EN and PL; the tiles written by the shot's script on sheet.mjs's
+  markup, not by the module's code; Legacy shows no Font Awesome glyph in the harness. Looked at: Redeem read
+  "0 Hope, 1 action" - now the grid's own "1 action", and "free" for Ask for Hope.
 
 ## Test results
 

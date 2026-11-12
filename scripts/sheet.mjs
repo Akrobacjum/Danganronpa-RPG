@@ -4735,9 +4735,9 @@ function abilityButton(actor, key, def) {
     button.type = "button";
     button.className = `drpg-action-button${affordable && !shut ? "" : " unaffordable"}`;
     // Counted on the actions (E66 C2; S18-36): Hope agrees with nothing in either language.
-    const price = free ? game.i18n.localize("DRPG.Monocub.free") : plural("DRPG.Monocub.meddleCost", {
-        actions: def.cost, hope: def.hopeCost
-    }, "actions");
+    // The grid's own words for a price with no Hope (`costLabelFor`): "free", "1 action".
+    const price = free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0 ? plural("DRPG.Action.costActions", { n: def.cost })
+        : plural("DRPG.Monocub.meddleCost", { actions: def.cost, hope: def.hopeCost }, "actions");
     const why = shut ? game.i18n.localize(shut) : affordable ? "" : game.i18n.localize("DRPG.Monocub.cannotMeddle");
     button.dataset.tooltip = `${foundry.utils.escapeHTML(price)}${why ? `<br><em>${foundry.utils.escapeHTML(why)}</em>` : ""}`;
     // "1 · 1◆" was unreadable without already knowing which number was which.
@@ -4746,9 +4746,9 @@ function abilityButton(actor, key, def) {
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${free ? game.i18n.localize("DRPG.Monocub.free") : plural("DRPG.Monocub.meddleCostShort", {
-            actions: def.cost, hope: def.hopeCost
-        }, "actions")}</span>`;
+        <span class="drpg-action-cost">${free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0
+            ? plural("DRPG.Action.costActions", { n: def.cost })
+            : plural("DRPG.Monocub.meddleCostShort", { actions: def.cost, hope: def.hopeCost }, "actions")}</span>`;
 
     button.addEventListener("click", async () => {
         const { cubAbilityDialog } = await import("./monocub.mjs");
