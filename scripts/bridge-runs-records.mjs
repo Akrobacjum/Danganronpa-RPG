@@ -819,7 +819,8 @@ export async function handleTrialGm(payload) {
     const { floorOnPrimary } = await import("./trial-floor.mjs");
     const out = await floorOnPrimary(payload.op, {
         seconds: payload.seconds, actorId: payload.actorId, targetId: payload.targetId, messageId: payload.messageId, text: payload.text,
-        order: payload.order, slot: payload.slot, beyondPaid: payload.beyondPaid
+        order: payload.order, slot: payload.slot, beyondPaid: payload.beyondPaid,
+        a: payload.a, b: payload.b, thesis: payload.thesis, set: payload.set, from: payload.from
     });
     if (out === null) return { refused: "nothing was carried out: the trial's floor did not take that change" };
     return { reply: out };
@@ -837,6 +838,22 @@ export async function handleTrialTurn(payload, sender) {
 export async function handleTrialClaim(payload) {
     const { volunteerOnPrimary } = await import("./trial-modes.mjs");
     const out = await volunteerOnPrimary({ actorId: payload.actorId });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `trial.side` (E73 C2): a participant's side picked, judged on this primary (trial-zones.mjs `sideOnPrimary`). */
+export async function handleTrialSide(payload) {
+    const { sideOnPrimary } = await import("./trial-zones.mjs");
+    const out = await sideOnPrimary({ actorId: payload.actorId, side: payload.side });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `trial.keyword` (E73 C5): a Scrum speaker's thesis, judged on this primary (trial-zones.mjs `thesisOnPrimary`). */
+export async function handleTrialKeyword(payload) {
+    const { thesisOnPrimary } = await import("./trial-zones.mjs");
+    const out = await thesisOnPrimary({ actorId: payload.actorId, text: payload.text });
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.reply ?? null };
 }

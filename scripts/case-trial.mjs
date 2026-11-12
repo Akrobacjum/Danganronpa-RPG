@@ -146,7 +146,7 @@ function liveSchema(dialog, chapter, { inConsole = false } = {}) {
         for (const button of region.querySelectorAll("[data-drpg-case-start]")) {
             button.addEventListener("click", async () => {
                 const { startTrialMode } = await import("./trial-floor-ui.mjs");
-                await startTrialMode(button.dataset.drpgCaseStart).catch(err => error("The trial mode did not start", err));
+                await startTrialMode(button.dataset.drpgCaseStart, button.dataset.drpgMode ?? null).catch(err => error("The trial mode did not start", err));
             });
         }
     };

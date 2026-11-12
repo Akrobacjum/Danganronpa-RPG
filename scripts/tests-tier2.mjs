@@ -27349,6 +27349,210 @@ const SCENARIOS = [
         }
     }],
 
+    ["E73 C3, C4: a Straw Poll and a Logic Dive in the trial hall on the primary - the sides counted off the tokens, a Finding at two thirds, the stands given back, a right answer going on, a tie ending the set unrevealed, and no truth in the world's floor", async () => {
+        /*
+         * E73 C3, C4; 12.11.2026. On this primary in a Class Trial with a hall of the suite's own, linked with its two
+         * zones (Zone A the left half, Zone B the right), and two participants' hall tokens on stands, one in each zone.
+         * (1) A Straw Poll: the sides read off the tokens; the second participant's token moved into Zone A; Count now: a
+         * Finding (2:0) in the record, its card, the floor closed and the moved token back on its stand. (2) A Logic Dive
+         * set of two questions in the GMs' store (truth: A, then B, with a marker in the second question's truth-side
+         * answer): the first question's floor holds no `truth`; both in Zone A, Count now, Skip the pause: right, the
+         * second question on the floor; one token back to Zone B, Count now, Skip: a tie - the set ended, its outcome in
+         * the store, no Finding, and no card or world setting naming the second question's true answer. Red at 4077664:
+         * no zone modes. The clock, the floor, the record, the roles, the store row, the hall and the cards are put back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "two participants, one in each zone");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which writes the floor - this would measure nothing");
+        const Z = await import("./trial-zones.mjs").catch(() => null);
+        must(Z && typeof Z.startStrawPoll === "function", "there is no trial-zones.mjs - the zone modes do not start");
+        const F = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const R = await import("./rooms.mjs");
+        const { diveSetStore } = await import("./gm-stores.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const SET = `suiteE73${foundry.utils.randomID(6)}`, MARK = "E73-T2-TRUE-ANSWER";
+        const read = {};
+        let hall = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...progress, findings: [], strawPoll: null });
+            await settle();
+            const parts = V.trialParticipants();
+            must(parts.length >= 2, `${parts.length} participant(s) - one in each zone needs two`);
+            const [one, two] = parts;
+            hall = await Scene.create({ name: "SUITE E73 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+                { name: "SUITE Zone A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+                { name: "SUITE Zone B", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+            const [t1, t2] = await hall.createEmbeddedDocuments("Token", [
+                { actorId: one.actor.id, actorLink: true, name: one.actor.name, x: 100, y: 100, width: 1, height: 1 },
+                { actorId: two.actor.id, actorLink: true, name: two.actor.name, x: 1100, y: 100, width: 1, height: 1 }]);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+            R.forgetSceneRoles();
+            await settle();
+            // (1) The Straw Poll.
+            await Z.startStrawPoll({ question: "SUITE locked from where?", a: "Inside", b: "Outside" });
+            await settle();
+            const straw = F.trialFloor();
+            read.strawStart = [straw?.mode ?? null, straw?.seconds ?? null, stableJson(Z.sidesNow({ floor: straw })) === stableJson({ a: [one.actor.id], b: [two.actor.id], none: parts.slice(2).map(p => p.actor.id), line: [], picked: [] }), straw?.zone?.stands?.[t2.id]?.x ?? null];
+            await t2.update({ x: 200, y: 200 });
+            await settle();
+            await Z.countNow();
+            await settle();
+            const rec = V.trialProgress();
+            read.strawEnd = [F.trialFloor(), (rec.findings ?? []).map(f => f.text), rec.strawPoll?.split ?? null, hall.tokens.get(t2.id)?.x ?? null,
+                game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content).includes(game.i18n.format("DRPG.Zones.straw.finding", { answer: "Inside", a: 2, b: 0 })))];
+            // (2) The Logic Dive.
+            await diveSetStore.patch(SET, { name: "SUITE set", made: Date.now(), questions: [
+                { question: "SUITE Q1", a: "One", b: "Two", truth: "a" }, { question: "SUITE Q2", a: "Night", b: MARK, truth: "b" }] });
+            await Z.startLogicDive(SET);
+            await settle();
+            const raw1 = JSON.stringify(game.settings.get(MODULE_ID, SETTINGS.trialQueue));
+            read.diveStart = [F.trialFloor()?.mode ?? null, F.trialFloor()?.zone?.question ?? null, /"truth"/.test(raw1)];
+            await t2.update({ x: 200, y: 200 });
+            await settle();
+            await Z.countNow();
+            await settle();
+            const paused = F.trialFloor();
+            await F.advanceFloorNow();
+            await settle();
+            read.right = [paused?.zone?.phase ?? null, stableJson(paused?.zone?.counts ?? null), F.trialFloor()?.zone?.question ?? null];
+            await t2.update({ x: 1100, y: 100 });
+            await settle();
+            await Z.countNow();
+            await settle();
+            await F.advanceFloorNow();
+            await settle();
+            const row = diveSetStore.get(SET);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => String(m.content)).join(" ");
+            read.tie = [F.trialFloor(), row?.outcome ?? null, Boolean(row?.endedAt), (V.trialProgress().findings ?? []).length,
+                JSON.stringify(game.settings.get(MODULE_ID, SETTINGS.trialQueue)).includes(MARK), JSON.stringify(V.trialProgress()).includes(MARK),
+                fresh.split(MARK).length - 1];
+        } finally {
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles);
+            R.forgetSceneRoles();
+            await diveSetStore.drop(SET);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            F.renderTrialFloor();
+            await hall?.delete();
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            strawStart: ["straw", 45, true, 1100],
+            strawEnd: [null, ["Inside"], false, 1100, true],
+            diveStart: ["dive", "SUITE Q1", false],
+            right: ["pause", stableJson({ a: 2, b: 0 }), "SUITE Q2"],
+            // The tie's card and the cards before it name the second question's answers on its opening card alone (once).
+            tie: [null, "tie", true, 1, false, false, 1]
+        }), "{strawStart: [mode, seconds, Zone A's side, the stand kept]; strawEnd: [floor, Findings, split, the token back, the Finding's card]; diveStart: [mode, question, a truth field]; right: [phase, count, next question]; tie: [floor, outcome, ended, Findings, the true answer in the floor, in the record, cards naming it]}");
+    }],
+    ["E73 C6: the GM's Findings - added, edited, confirmed and deleted, each on a public card, the record holding the list", async () => {
+        /*
+         * E73 C6, 12.11.2026; TR21, TR28 = 1. On this primary in a Class Trial: `addFinding`, `editFinding`,
+         * `confirmFinding`, `deleteFinding` through game.drpg, each read back off the record (`trialProgress().findings`)
+         * and the public card it posts. Red at 4077664: no such functions. The clock, the record and the cards are put back.
+         */
+        const api = game.drpg ?? {};
+        must(typeof api.addFinding === "function", "game.drpg has no addFinding - the GM cannot write a Finding");
+        const V = await import("./vote.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const cards = () => game.messages.filter(m => !seen.has(m.id) && !m.whisper?.length).map(m => String(m.content));
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...progress, findings: [] });
+            await settle();
+            const id = await api.addFinding("SUITE the door was locked");
+            await settle();
+            read.added = [(V.trialProgress().findings ?? []).map(f => [f.text, f.confirmed]), cards().length];
+            await api.editFinding(id, "SUITE the door was locked from inside");
+            await api.confirmFinding(id);
+            await settle();
+            read.edited = [(V.trialProgress().findings ?? []).map(f => [f.text, f.confirmed]), cards().length,
+                cards().some(c => c.includes(game.i18n.format("DRPG.Zones.findings.confirmed", { text: "SUITE the door was locked from inside" })))];
+            await api.deleteFinding(id);
+            await settle();
+            read.deleted = [(V.trialProgress().findings ?? []).length, cards().length, await api.confirmFinding(id)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            added: [[["SUITE the door was locked", false]], 1],
+            edited: [[["SUITE the door was locked from inside", true]], 3, true],
+            deleted: [0, 4, false]
+        }), "{added: [the list, public cards]; edited: [the list after an edit and a confirm, cards, the confirm's card]; deleted: [the list, cards, a confirm of a gone Finding]}");
+    }],
+    ["E73 C1: Zone A and Zone B picked in Room Setup's Scenes tab are stored in sceneRoles, read back after a reload, and the tab warns of a gap", async () => {
+        /*
+         * E73 C1, 12.11.2026; plan E73 C1's red ("saved and read after F5; warnings for none, duplicate, gap, overlap").
+         * A hall of the suite's own with three regions - two zones that leave a strip uncovered, and a room - is linked
+         * (the setting written here and put back). The Scenes tab is drawn in a form, its zone selects set, read and
+         * applied as Room Setup applies it (`applyScenesTab`); the roles are then read as a reload reads them
+         * (`forgetSceneRoles`, then `sceneRoles`), and the tab's report is drawn again with the zones stored. Red at
+         * 4077664: the tab had no zone selects and the roles kept no zones.
+         */
+        const R = await import("./rooms.mjs");
+        const T = await import("./trial-scene.mjs");
+        must(typeof T.scenesZoneRows === "function", "trial-scene.mjs has no scenesZoneRows - the Scenes tab has no zones");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the scene roles are not registered - nothing could be stored");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY) ?? {};
+        const rect = (name, x, w, flags = {}) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: w, height: 1000 }], flags, behaviors: [] });
+        let hall = null, read = null;
+        try {
+            hall = await Scene.create({ name: "SUITE E73 C1 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [a, b] = await hall.createEmbeddedDocuments("Region", [rect("SUITE left", 0, 800), rect("SUITE right", 1200, 800),
+                rect("SUITE stand", 900, 100, { [MODULE_ID]: { [R.ROOM_FLAG]: true } })]);
+            await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, trial: hall.id });
+            R.forgetSceneRoles();
+            await settle();
+            const root = document.createElement("div");
+            root.innerHTML = `<form>${T.scenesTabHtml()}</form>`;
+            T.wireScenesTab(root, () => {});
+            const listed = [...root.querySelectorAll('[name="scenes:zoneA"] option')].map(o => o.textContent.trim());
+            for (const [name, id] of [["zoneA", a.id], ["zoneB", b.id]]) {
+                const select = root.querySelector(`[name="scenes:${name}"]`);
+                select.value = id;
+                select.dispatchEvent(new Event("change"));
+            }
+            const live = [...root.querySelectorAll("[data-drpg-scene-warning]")].map(p => p.dataset.drpgSceneWarning).filter(k => k.startsWith("zone"));
+            const done = await T.applyScenesTab(T.readScenesTab(root));
+            R.forgetSceneRoles();
+            const back = R.sceneRoles().zones ?? null;
+            const again = document.createElement("div");
+            again.innerHTML = `<form>${T.scenesTabHtml()}</form>`;
+            read = { listed, live, roles: done?.roles ?? null, back, stored: game.settings.get(MODULE_ID, KEY)?.trial === hall.id,
+                selected: [again.querySelector('[name="scenes:zoneA"]')?.value, again.querySelector('[name="scenes:zoneB"]')?.value],
+                warned: [...again.querySelectorAll("[data-drpg-scene-warning]")].map(p => p.dataset.drpgSceneWarning).filter(k => k.startsWith("zone")),
+                ids: [a.id, b.id] };
+        } finally {
+            await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            R.forgetSceneRoles();
+            await hall?.delete();
+            await settle();
+        }
+        equal(stableJson({ ...read, ids: undefined }), stableJson({
+            listed: [game.i18n.localize("DRPG.TrialScene.noZone"), "SUITE left", "SUITE right"], live: ["zonesGap"], roles: true,
+            back: { a: read.ids[0], b: read.ids[1] }, stored: true, selected: read.ids, warned: ["zonesGap"], ids: undefined
+        }), "{listed: Zone A's options (no room); live: the warning as the selects change; roles: written; back: the zones after a reload; stored: the hall kept; selected: drawn again; warned: the gap again}");
+    }],
     ["E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place on the map, and one on the map with Show", async () => {
         /*
          * E97 C12, 12.11.2026. Two planned Incident Remnants in the GMs' store, one of them pointed at a Remnant on the
@@ -48944,6 +49148,19 @@ const SCENARIOS = [
                 gone: (report, key) => !S.traceDigestStore.has(key),
                 back: key => stableJson([S.traceDigestStore.get(key)?.note, S.traceDigestStore.get(key)?.chapter]) === stableJson(["SUITE backed-up digest row", 99])
             },
+            // A Logic Dive set, through its store (E73 C4; backed up with the case, `backup: true`). Backed up with no
+            // fixture here from 5101742, and this test failed naming it (CI 12.11, run 43164772167, shard 7). A set no
+            // floor plays: no card is posted and nobody is sent it.
+            diveSets: {
+                seed: async () => {
+                    await S.diveSetStore.patch("SUITEE73DIVESET0", { name: "SUITE backed-up set", conclusion: null, chapter: 99,
+                        questions: [{ question: "SUITE question", a: "one", b: "two", truth: "b" }],
+                        usedAt: null, endedAt: null, stoppedAt: null, outcome: null, made: 1, by: game.user.id });
+                    return "SUITEE73DIVESET0";
+                },
+                gone: (report, key) => !S.diveSetStore.has(key),
+                back: key => stableJson([S.diveSetStore.get(key)?.name, S.diveSetStore.get(key)?.questions?.[0]?.truth]) === stableJson(["SUITE backed-up set", "b"])
+            },
             bullets: {
                 seed: async () => {
                     const item = await bullets.createTruthBullet(holder, { name: "Suite fixture: a backed-up answer", realType: "final",
@@ -62916,7 +63133,8 @@ const SCENARIOS = [
                     token("first again", first.id, 300, true), token("Monokuma", monokuma.id, 400, false), token("nobody", nobody.id, 500, false, false),
                     token("prop", null, 600, false)]);
                 absent = typeof T.handPlacedActors === "function" ? T.handPlacedActors(hall).length > 0 : null;
-                await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, zones: [ZONE] });
+                // A field the tab does not show (E73 C1 put the zones on the tab, so the planted field is `later` since).
+                await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, later: [ZONE] });
                 await school.view();
                 await settle();
                 must(canvas?.scene === school, "the camera did not move to the suite's school - Room Setup would open on another");
@@ -62957,7 +63175,7 @@ const SCENARIOS = [
                 await V.openRoomSetupDialog();
                 await settle();
                 const shown = hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
-                const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().zones ?? null), writes];
+                const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().later ?? null), writes];
                 const stored = [trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null, trialCastStore.has(T.castKey(hall.id, first.id))];
                 const prepared = [prepareBefore, Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })),
                     hall.flags?.["isometric-perspective"]?.isometricEnabled ?? null];
@@ -62981,7 +63199,8 @@ const SCENARIOS = [
                 const onHall = rows();
                 read = [opened, drawn, linked, stored, shown, prepared, clash, untouched,
                     onSchool.filter(([key]) => key !== "roomCount").map(([key, done]) => [key, done]), stableJson(onHall) === stableJson(onSchool),
-                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["handPlaced"] : []), "unlinkedToken"]];
+                    // E73 C1: a hall with no Zone A and Zone B is warned of too.
+                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["handPlaced"] : []), "unlinkedToken", "zonesNone"]];
             } finally {
                 game.settings.set = set;
                 ui.notifications.warn = warn;
