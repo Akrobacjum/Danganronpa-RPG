@@ -857,7 +857,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const castsNow = client => client.eval(`return globalThis.__casts.length;`);
     const castsSince = (client, n) => client.eval(`return globalThis.__casts.slice(${n});`);
     // Every field but the swing memo, as a copy is sent them - the method among them since E05 C8.
-    const castStampsOn = client => client.eval(`${CAST} return Object.fromEntries(S.CAST_FIELDS.filter(f => f !== "swung")
+    // The swing memo and a GM's Silence now (`silencedDead`, E72 C8) are the GMs' alone: no copy carries their stamps.
+    const castStampsOn = client => client.eval(`${CAST} return Object.fromEntries(S.CAST_FIELDS.filter(f => f !== "swung" && f !== "silencedDead")
         .map(f => [f, S.castStore.stampOf("record", f)]));`);
     /* The killer's opening roll is thrown on p3's client with the harness's dice: forced to a
        critical, which always opens the incident. Left random, it failed once in six runs

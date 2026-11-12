@@ -350,6 +350,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         indirect,
         selfInflicted,
         killerId, victimId, thirdId: null, thirdSide: null, lastCrisis: null, swung: null,
+        // Nobody's voice moved by a GM's Silence now yet (E72 C8; gm-stores.mjs CAST_FIELDS).
+        silencedDead: null,
         // Who walked in and walked out again (`thirdLeaves`): nobody yet.
         departed: [],
         // The statistic a GM picked for the opening (E32+E07 C11c): the opener's, or none

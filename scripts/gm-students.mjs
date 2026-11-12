@@ -62,7 +62,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * so this can be called again in place while the window stays open.
  */
 function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers,
-    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope") }) {
+    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope"), deadSilenced = () => false }) {
     /*
      * THE THREE MONOCUB COLUMNS ARE ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of
      * 10.11: a state changes look, never layout). From D-F4 to E49 they appeared the moment somebody accepted the
@@ -139,7 +139,14 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
                     ? (invited(a)
                         ? `<span class="notes">${L("DRPG.Monocub.inviteSent")}</span> <button type="button" class="drpg-mini-button" data-drpg-cub-cancel="${a.id}">${L("DRPG.Monocub.cancelInvite")}</button>`
                         : `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${L("DRPG.Monocub.invite")}</button>`)
-                    : ""}${refundButton(a)}`
+                    /* A DEATH THE GMS KEEP (E72 C8; the plan's A9): its voice stays in the room it died in until the body is
+                       found or the incident ends, and a GM may move it now (incident-store.mjs `silenceDeadNow`); once
+                       moved, the row says so. */
+                    : state === "unfound"
+                        ? (deadSilenced(a)
+                            ? `<span class="notes">${L("DRPG.Voice.silenced")}</span>`
+                            : `<button type="button" class="drpg-mini-button" data-drpg-silence="${a.id}" data-tooltip="${esc(L("DRPG.Voice.silenceNowTip"))}">${L("DRPG.Voice.silenceNow")}</button>`)
+                        : ""}${refundButton(a)}`
         };
     };
 
@@ -369,6 +376,9 @@ function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOf
         { keepOpen: true, reopen });
     wireAliveRow(dialog, "data-drpg-cub-cancel", actor => cancelMonocubOffer(actor),
         { keepOpen: true, reopen });
+    // Silence now (E72 C8): nothing of its own to open; the cast's change redraws the row (`drpgCastChanged`).
+    wireAliveRow(dialog, "data-drpg-silence", actor => import("./incident-store.mjs").then(m => m.silenceDeadNow(actor)),
+        { keepOpen: true, reopen });
     // Nothing of its own to open either (E17 C3): the store's change redraws the row.
     wireAliveRow(dialog, "data-drpg-refund", actor => import("./gm-bridge.mjs").then(m => m.requestRefundCrossing(actor.id)),
         { keepOpen: true });
@@ -417,6 +427,7 @@ export async function openWhoIsAliveDialog(options = {}) {
     const { isMonocub, offerMonocub, cancelMonocubOffer, invitationOpen, isCrimeSilenced, purseOf, cubHopeTotal } = await import("./monocub.mjs");
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
+    const { isDeadSilenced } = await import("./incident-store.mjs");
     // The sheet's own gate for its Level Up and the GMs' store of offers (E47-C8): read, never copied.
     const { sheetMode } = await import("./sheet.mjs");
     const { standingOffers, openAdvancementFor } = await import("./level-up.mjs");
@@ -471,7 +482,7 @@ export async function openWhoIsAliveDialog(options = {}) {
 
     const table = () => {
         const donors = buildDonors();
-        return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax, purseOf, cubHopeTotal,
+        return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax, purseOf, cubHopeTotal, deadSilenced: isDeadSilenced,
             levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length });
     };
 
@@ -518,7 +529,7 @@ export async function openWhoIsAliveDialog(options = {}) {
                 region: ".drpg-alive-live",
                 build: table,
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign; so is a Monocub's row (E72 C2).
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged"] },
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged", "drpgCastChanged"] },
                 after: wireAll
             });
         },

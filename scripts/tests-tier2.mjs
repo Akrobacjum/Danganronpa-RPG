@@ -87995,6 +87995,41 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the English reason or a raw key}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
+    ["E72 C8 Silence now - a GM's Silence now moves a kept death's voice out of its room: the cast's `silencedDead` written, read through the incident's state by `deathVoiceGone` (false before, true after), kept out of the victim's player's copy, and a second press writes nothing (E72 C8, the plan's A9)", async () => {
+        /*
+         * E72 C8, 12.11.2026. In a GM-store world of its own: a student standing as a kept death (the suite's `deadForGm`
+         * and `published`, so no death is written to the world) in the running incident's cast. `deathVoiceGone` asked
+         * with the cast holding it, before and after incident-store.mjs `silenceDeadNow`; the state read through
+         * `readCast()`, the half of `murderState()` the primary reads it from. Red at f05fe96: no `silenceDeadNow`.
+         */
+        const [student] = cast(1);
+        const I = await import("./incident-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const V = await import("./voice.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const read = await G.withGmStoreWorld(`suite-e72-c8-${foundry.utils.randomID(8)}`, async () => {
+            // While an incident runs, `murderState()` is the world half and `readCast()` (no incident runs here, so the
+            // world half is a stand-in: the cast's fields are what is measured).
+            const facts = () => ({ state: { active: true, ...I.readCast() }, hydrated: true, cast: new Set([student.id]), witnessed: false, announced: async () => false });
+            const before = await V.deathVoiceGone(student, facts());
+            const silence = typeof I.silenceDeadNow === "function" ? I.silenceDeadNow : async () => "no silenceDeadNow";
+            const kept = { deadForGm: () => true, published: () => false };
+            const first = await silence(student, kept);
+            await settle();
+            const after = await V.deathVoiceGone(student, facts());
+            const again = await silence(student, kept);
+            const living = await silence(student, { deadForGm: () => false, published: () => false });
+            const player = ownerOf(student);
+            const copy = I.castFor(player?.id ?? "", { ...S.castStore.record(), victimId: student.id });
+            return { before, first, written: Boolean(S.castStore.record()?.silencedDead?.[student.id]), after, again, living,
+                inCopy: Object.hasOwn(copy ?? {}, "silencedDead") };
+        });
+        equal(stableJson(read), stableJson({ before: false, first: true, written: true, after: true, again: false, living: false, inCopy: false }),
+            "Silence now does not move a kept death's voice ([deathVoiceGone before, the write, the cast's field, deathVoiceGone after, a second press, "
+            + "a living student, the field in the player's copy])");
+    }],
+
     ["D038 lair lock - the Mastermind's player locks and opens their room with the GM's own lock: the same flag Room Setup's writer puts on another room, the same card when it opens, nothing for another player's ask (E91 C4, D038)", async () => {
         /*
          * E91 C4, 12.11.2026; the owner's "Budujemy" for D038, the coordinator's default: the lock must not be a tell. On a

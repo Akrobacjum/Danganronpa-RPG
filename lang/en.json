@@ -4839,6 +4839,9 @@
       "tabChat": "Chat"
     },
     "Voice": {
+      "silenceNow": "Silence now",
+      "silenceNowTip": "Moves this player's voice out of the room now, before the body is found.",
+      "silenced": "Silenced",
       "contested": "Voice: {name} owns characters in more than one place ({places}). A voice client can only be in one room, so {name} is being sent to \"{room}\" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.",
       "mainRoom": "the main room",
       "deadRoom": "the dead channel",

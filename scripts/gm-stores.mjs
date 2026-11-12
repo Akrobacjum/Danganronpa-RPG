@@ -389,7 +389,11 @@ export const INCIDENT_FIGHT = Object.freeze([
  */
 export const CAST_FIELDS = Object.freeze([
     "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
-    ...INCIDENT_FIGHT
+    ...INCIDENT_FIGHT,
+    /* A GM's "Silence now" (E72 C8; the plan's A9 of 11.10): `{ [actorId]: true }` for a dead student whose voice leaves
+       the room before the body is found (voice.mjs `deathVoiceGone`). Split, so two GMs silencing two students both stay;
+       the GMs' alone - in no player's copy (incident-store.mjs `castCopyFor`). */
+    "silencedDead"
 ]);
 
 /**
@@ -416,7 +420,7 @@ export const CAST_FIELDS = Object.freeze([
  */
 export const castStore = defineGmStore({
     name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
-    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent", "openingNotices"], resetGroup: "incident", backup: true, sync: true,
+    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent", "openingNotices", "silencedDead"], resetGroup: "incident", backup: true, sync: true,
     afterRestore: () => import("./murder.mjs").then(m => m.retellCast()),
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {

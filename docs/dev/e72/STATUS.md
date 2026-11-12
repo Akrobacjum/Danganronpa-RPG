@@ -167,6 +167,27 @@ where that line leaves the rule open the default is written here (default, owner
 | C8 (dedc76d) | D064, D068, D090 | D064: already one road since E37 C2 (R1194), no code. D068: migration step `chapterRestStamps` (1.2.117): a chapterless stamp of the window now gets the clock's chapter, any other is dropped (R3814, new; default, owner may revise). D090: under quiet the planted Gear stays stowed and the victim's other working stowed piece is readied without a word or redraw (default, owner may revise: which piece is readied); E35-T7 changed on purpose |
 | C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | built (the owner's "Budujemy", 12.11; see "D038" below). R3819, R3820 new; tier 2 "D038 lair lock", "D038 lair seal"; 33 A22, 30 "forged asks at the Mastermind's door". Shots: round 8 |
 
+## C8's "Silence now" (12.11.2026; the plan's A9 of 11.10, left from C8)
+
+- gm-stores.mjs CAST_FIELDS gains `silencedDead` (`{ [actorId]: true }`), split per student; a new incident starts it
+  null (murder-rules.mjs `fresh`, R206); incident-store.mjs `castCopyFor` and `castStamps` leave it out of every player's
+  copy (the GMs' alone, as the swing memo). incident-store.mjs `silenceDeadNow` (a GM's browser; a death the GMs keep,
+  not yet silenced; else false and nothing written) and `isDeadSilenced`. voice.mjs `deathVoiceGone` read it already.
+- The button: the Students row of a death the GMs keep ("Silence now", tooltip; "Silenced" once written) and the
+  incident tracker's footer for its victim (a secondary, as Pass). Words EN/PL (DRPG.Voice.silenceNow, silenceNowTip,
+  silenced). GM handbook EN/PL section 13 lists it among the dead channel's triggers.
+- DEVIATION from the plan, default (owner may revise): no bridge action. The cast is a GM store that syncs among GMs, so
+  any GM writes it and the primary's `drpgCastChanged` moves the voice; the plan's "GM bridge action to the primary"
+  adds nothing here. LIVE-E72-03 (a GM who is not the primary) still to try at a table. Not done of the plan's C8, by
+  the coordinator's decision of 12.11: `mutePolicy`, `deadMuteStore`, the BROADCAST_AUDIO block outside the trial.
+- Tests: R3821 (tier 1) and tier 2 "E72 C8 Silence now" new, both red at f05fe96. Changed on purpose: the grid's FRESH
+  (tests-grid.mjs, I3), 61-gmstore-case's cast stamps reader (F3), R206 by the incident's fresh values. Also fixed here:
+  R321 had failed since f05fe96 (its patterns pinned the handbook's old verdict row) - now on the new rows.
+- Checks: quick gate green; tiers 0-1 1274 passed, 0 failed, 16 skipped, 0 red; tier 2 `--only` Silence, cast,
+  incident, voice, Students, tracker (258 ran) 256 passed and the 4 grid tests failing I3, fixed and green after; every
+  grid test (96 ran) 99 passed, 0 failed, 1 skipped; 61 113/113, 75 41/41, 72 132/136 (4 expected), 63 75/75, 67 45/46
+  (TR30), 17 46/46. Shots: round 10, https://claude.ai/artifact/Hoyz9roZAAzzhuUDupFeET
+
 ## The Mastermind window loses its Final Trial verdict (12.11.2026; the GM screen review, owner-approved, relayed)
 
 - The body's "Give the final verdict" / "Wydaj werdykt Final Trial" and its two notes are gone from mastermind.mjs

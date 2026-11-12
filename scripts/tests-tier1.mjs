@@ -32218,6 +32218,44 @@ const INVARIANTS = [
             + "Seal drawn with and without the row's mark, the rows' rooms])");
     }],
 
+    ["R3821 - a GM's \"Silence now\" (E72 C8, the plan's A9): the cast holds `silencedDead`, stamped per student and in no player's copy; incident-store.mjs `silenceDeadNow` writes it for a death the GMs keep and refuses anything else with nothing written; the Students row of such a death draws Silence now, or Silenced once written, and the incident tracker's footer offers it for its victim; the words EN and PL", async () => {
+        /*
+         * E72 C8, 12.11.2026 (the part left from C8; the plan's amendment A9 of 11.10: the per-account channel starts at
+         * `deathVoiceGone`, "the end of the incident, the body's announcement, or a GM's new Silence now"). voice.mjs
+         * `deathVoiceGone` read `silencedDead` since E19 C3 and nothing wrote it. Now: gm-stores.mjs CAST_FIELDS and the
+         * cast's split carry it (two GMs silencing two students both stay), incident-store.mjs `castCopyFor` leaves it out
+         * of every player's copy, `silenceDeadNow` writes it on a GM's browser (the GMs' store syncs it to the primary,
+         * whose `drpgCastChanged` moves the voice). Read here: the lists, a copy built for a player, the refusal for a
+         * living student (tier 1 writes nothing), the two windows' sources, the words. Tier 2 "E72 C8 Silence now" writes
+         * it. Red at f05fe96: none of it.
+         */
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./incident-store.mjs");
+        const sources = new Map(await otherSources());
+        const clean = name => stripComments(sources.get(name) ?? "");
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const player = game.users.find(u => !u.isGM);
+        const copy = I.castFor(player?.id ?? "R3821NOBODY", { victimId: student.id, killerId: null, silencedDead: { [student.id]: true } });
+        const refused = typeof I.silenceDeadNow === "function" ? await I.silenceDeadNow(student) : "no silenceDeadNow";
+        const students = fnSource(clean("gm-students.mjs"), "aliveTableHtml") ?? clean("gm-students.mjs");
+        const tracker = bodyOf(clean("murder-ui.mjs"), "function incidentButtons(", { until: "\nfunction emptyButtons" });
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        const said = key => [game.i18n.localize(key) !== key, typeof key.split(".").slice(1).reduce((o, k) => o?.[k], pl.DRPG) === "string"];
+        equal(stableJson({
+            field: S.CAST_FIELDS.includes("silencedDead"),
+            split: /split:\s*\[[^\]]*"silencedDead"/.test(clean("gm-stores.mjs")),
+            copy: Object.hasOwn(copy ?? {}, "silencedDead"),
+            refused: refused === false,
+            students: [/data-drpg-silence=/.test(students), /DRPG\.Voice\.silenceNow\b/.test(students), /DRPG\.Voice\.silenced\b/.test(students)],
+            tracker: /action:\s*"silence"/.test(tracker),
+            words: ["DRPG.Voice.silenceNow", "DRPG.Voice.silenceNowTip", "DRPG.Voice.silenced"].map(said)
+        }), stableJson({ field: true, split: true, copy: false, refused: true, students: [true, true, true], tracker: true,
+            words: [[true, true], [true, true], [true, true]] }),
+            "Silence now is not built ([the cast's field, its split, in a player's copy, a living student refused, the Students row's button and words, "
+            + "the tracker's action, the words EN/PL])");
+    }],
+
     ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
         /*
          * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load

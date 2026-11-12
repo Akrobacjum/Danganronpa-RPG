@@ -5249,6 +5249,9 @@
       "tabChat": "Czat"
     },
     "Voice": {
+      "silenceNow": "Wycisz teraz",
+      "silenceNowTip": "Przenosi głos tego gracza z pokoju już teraz, zanim ktoś znajdzie ciało.",
+      "silenced": "Wyciszony",
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
       "deadRoom": "kanał zmarłych",
