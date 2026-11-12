@@ -16,11 +16,21 @@
  * WHEN IT COMES DOWN. Its author's settled crossing out of the room (crossing-settle.mjs `CROSSING_SETTLED`), the time of
  * day's end and an Eclipse's start (`drpgTimeOfDayChanged`, `drpgEclipseChanged`): the row dropped and the flag taken off.
  *
- * NOT BUILT IN THIS ROUND (docs/dev/e74/STATUS.md): Force the Door's contest with the strength, the "Someone tries to get
- * in" card to the author, the neutral Remnant, Pick the Lock, Repair the Lock, Keep Watch.
+ * FORCE THE DOOR (E74 C3; DA9, DA29, DA31 = 2, DA43 = 1, DA52). From the room the character stands in, at a door to a
+ * neighbouring room: one Body roll against everything that holds that door at once - a barricade by its strength (the
+ * roll must pass it; a tie holds), a GM's lock or a bedroom shut to the character and a seal at `INFILTRATE.force.lockDc`
+ * (18; a critical passes all). Passed: the barricade comes down, a lock is broken until repaired (movement.mjs
+ * `setRoomBroken`, the flag a breach writes), a seal is lifted for the rest of its time of day (call-world.mjs
+ * `liftSeal`, no Despair back). Never in a Class Trial, never into the trial hall, never by a Chained character. On a
+ * pass and on a miss with Despair (DA30), the students in the rooms next to either room hear "A banging from: {room}", no name
+ * (DA43 = 1), and those in the two rooms are told who forced which door; a bedroom's owner is told their door was
+ * forced, wherever they are.
+ *
+ * NOT BUILT IN THIS ROUND (docs/dev/e74/STATUS.md): the "Someone tries to get in" card to a barricade's author, the
+ * Remnants (a barricade's neutral one, Force's Evident one), Pick the Lock, Repair the Lock, Keep Watch.
  */
 
-import { INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
+import { MODULE_ID, FLAGS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { isDeceased, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, error } from "./utils.mjs";
 import { barricadeStore } from "./gm-stores.mjs";
@@ -82,6 +92,72 @@ export async function shutDoor({ actor, total = 0, user = null }) {
     await setRoomBarricaded(place.scene, place.room, true);
     log(`${actor.name} barricaded ${place.room} (strength ${strength}).`);
     return { room: place.room, strength };
+}
+
+/** What holds the door from the character's room into `room` on `scene`, as the GMs read it: `{ barricade, lock, seal }`. */
+async function whatHolds(actor, scene, room) {
+    const M = await import("./movement.mjs");
+    const { isSealed } = await import("./call-world.mjs");
+    const row = barricadeStore.get(barricadeKey(scene.id, room));
+    return { barricade: row ? Number(row.strength) || 0 : null, lock: M.isLocked(scene, room) || M.bedroomShut(actor, scene, room),
+        seal: isSealed(room) };
+}
+
+/** Whisper `text` to the owners of every living student standing in one of `rooms` on `scene` but `skip`'s. */
+async function tellRooms(scene, rooms, text, skip = new Set()) {
+    const { roomOfToken } = await import("./movement.mjs");
+    const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
+    const told = new Set();
+    for (const token of scene?.tokens ?? []) {
+        const student = token.actor;
+        if (!student || student.type !== "character" || token.hidden || skip.has(student.id) || told.has(student.id)) continue;
+        if (student.getFlag(MODULE_ID, FLAGS.monokuma) || isDeadForGm(student) || !rooms.includes(roomOfToken(token))) continue;
+        told.add(student.id);
+        await whisperToOwnerOnly(student, `<p>${esc(text)}</p>`);
+    }
+    return told.size;
+}
+
+/**
+ * Force a door on the primary GM (the run of `door.force`): `room` the room beyond, `total`, `isCritical` and `withHope`
+ * the Body roll's off the GMs' record. Answers `{ refused }` or `{ forced, held: [what held it], heard }`.
+ */
+export async function forceDoor({ actor, room, total = 0, isCritical = false, withHope = true }) {
+    const M = await import("./movement.mjs");
+    const { getClock } = await import("./settings.mjs");
+    const { isChained } = await import("./call-world.mjs");
+    const place = M.gmPlaceOf(actor);
+    if (!place?.room) return { refused: "the character is not standing in any room" };
+    if (isDeadForGm(actor)) return { refused: "that cannot be done now" };
+    if (getClock()?.phase === "classTrial") return { refused: "that waits until the Class Trial is over" };
+    if (isChained(actor)) return { refused: "that cannot be done now" };
+    if (!room || room === place.room || !M.neighbouringRooms(place.scene, place.room).includes(room)) return { refused: "the character is not in that room" };
+    await barricadeStore.whenHydrated();
+    const holds = await whatHolds(actor, place.scene, room);
+    const held = Object.entries(holds).filter(([, v]) => v !== null && v !== false).map(([k]) => k);
+    const sum = Number(total) || 0;
+    const passes = what => isCritical || (what === "barricade" ? sum > holds.barricade : sum >= INFILTRATE.force.lockDc);
+    const forced = held.length > 0 && held.every(passes);
+    if (forced) {
+        if (holds.barricade !== null) await endBarricade(barricadeKey(place.scene.id, room));
+        if (holds.lock) await M.setRoomBroken(place.scene, room, true);
+        if (holds.seal) await (await import("./call-world.mjs")).liftSeal(room);
+    }
+    let heard = 0;
+    if (forced || !withHope) {
+        const near = [...new Set([...M.neighbouringRooms(place.scene, place.room), ...M.neighbouringRooms(place.scene, room)])]
+            .filter(r => r !== place.room && r !== room);
+        heard = await tellRooms(place.scene, near, game.i18n.format("DRPG.Infiltrate.force.banging", { room }), new Set([actor.id]));
+        await tellRooms(place.scene, [place.room, room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
+            { name: actor.name, room }), new Set([actor.id]));
+    }
+    const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
+    if (forced && holds.lock && owner && owner !== actor.id && game.actors.get(owner)) {
+        const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
+        await whisperToOwnerOnly(game.actors.get(owner), `<p>${esc(game.i18n.format("DRPG.Infiltrate.force.yourDoor", { room }))}</p>`);
+    }
+    log(`${actor.name} ${forced ? "forced" : "failed to force"} the door to ${room} (${sum}; held by ${held.join(", ") || "nothing"}).`);
+    return { forced, held, heard };
 }
 
 /** Take a barricade down: the row dropped and the public flag taken off. Answers whether there was one. */

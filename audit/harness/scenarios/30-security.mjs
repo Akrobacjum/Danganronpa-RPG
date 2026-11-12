@@ -6631,6 +6631,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && shut.theirs.forOwnership && shut.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(shut).slice(0, 2000), { flow: "door-shut" });
 
+    /* FORGERIES OF FORCE THE DOOR (E74 C3, 12.11.2026). `door.force` from p1's console at Dorm B: for Botan's character, and
+       for Aiko with no roll named - each refused, nothing broken. The legal road is tier 2's E74-T2. */
+    phase("forgeries of Force the Door", { flow: "door-force" });
+    const readBroken = `const M = await import("${repoUrl}/scripts/movement.mjs"); return M.allRooms(game.scenes.get("${ids.scene}")).filter(r => M.roomBroken(game.scenes.get("${ids.scene}"), r));`;
+    const force = {
+        theirs: await forge("door.force", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true }, readBroken),
+        noRoll: await forge("door.force", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true }, readBroken)
+    };
+    check("SECURITY: a console's Force the Door is refused for another's character and with no roll named - nothing broken - and each refusal is logged on the GM and told to p1",
+        Object.values(force).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && force.theirs.forOwnership && force.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(force).slice(0, 2000), { flow: "door-force" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

@@ -179,6 +179,19 @@ export async function handleDoorShut(payload, sender) {
     return { reply: { room: out.room } };
 }
 
+/**
+ * FORCE THE DOOR (E74 C3, 12.11.2026; doors-gm.mjs). What holds the door is read on this GM, the roll off the GMs' record of
+ * it. Answers `{ reply: { forced, held } }`.
+ */
+export async function handleDoorForce(payload) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { forceDoor } = await import("./doors-gm.mjs");
+    const out = await forceDoor({ actor, room: payload.room, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope });
+    if (out.refused) return { refused: out.refused };
+    return { reply: { forced: out.forced, held: out.held } };
+}
+
 /** The two rolls of a tail, as `rolled` names them (E69 C3): the effect's and the Shadow the target's noticing is read from. */
 export function tailRolls(actor) {
     return [

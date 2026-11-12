@@ -2016,7 +2016,7 @@ export function isLocked(scene, room) {
  * the mover's browser, and on the primary the student `judgeArrival` hands in, its items as the GMs' mark holds them
  * (`itemsHeldNow`), so a key's room or place a player's browser wrote and the audit has not let stand opens nothing there.
  */
-function bedroomShut(actor, scene, to) {
+export function bedroomShut(actor, scene, to) {
     // A bedroom a breach forced (E15 part 2 C4; E14's Q1 of 18.10: "bez klucza tunelem i breach") opens to everyone.
     if (roomBroken(scene, to)) return false;
     const owner = to ? roomFlag(scene, to, ROOM_OWNER_FLAG) : null;

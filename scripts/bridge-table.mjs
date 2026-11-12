@@ -47,7 +47,7 @@ import {
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH,
-    ACTION_TAIL_START, ACTION_DOOR_SHUT
+    ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -57,7 +57,7 @@ import {
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
-    handleTailStart, tailRolls, handleDoorShut
+    handleTailStart, tailRolls, handleDoorShut, handleDoorForce
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -180,6 +180,20 @@ export const BRIDGE_ACTIONS = table({
         // Always a roll: the barricade's strength is the GMs' record of the Body roll `rollId` names (rollRefusal).
         rolled: { field: "rollId", actor: "actorId", kind: "shut" },
         claims: { rollId: "the roll the barricade's strength is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Shut the Door roll of that character" }
+    },
+    [ACTION_DOOR_FORCE]: {
+        label: "DRPG.Bridge.what.door.force",
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, room: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
+        run: handleDoorForce,
+        // The asker's card says whether the door gave (`performForce`).
+        answer: "reply",
+        // Always a roll: the total, the critical and the Hope are the GMs' record of the Body roll `rollId` names.
+        rolled: { field: "rollId", actor: "actorId", kind: "force" },
+        claims: {
+            room: "judged by forceDoor (doors-gm.mjs): a neighbour of the room the GMs read the character standing in; what holds its door is read on the GM",
+            rollId: "the roll the door is forced with (bridge-guards.mjs rollRefusal): the sender's own drawn Force the Door roll of that character"
+        }
     },
     [ACTION_TAIL_START]: {
         label: "DRPG.Bridge.what.tail.start",

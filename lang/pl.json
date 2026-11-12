@@ -3177,6 +3177,17 @@
       "cardUnread": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę."
     },
     "Infiltrate": {
+      "force": {
+        "which": "Które drzwi",
+        "prompt": "Wyważ drzwi z: {room}. Barykada ustępuje rzutowi powyżej swojej siły, zamek albo pieczęć wynikowi {n} lub więcej; wszystko na drzwiach naraz. Pokoje dookoła to słyszą.",
+        "forced": "Drzwi do: {room} ustępują.",
+        "held": "Drzwi do: {room} trzymają.",
+        "open": "Nic nie trzyma drzwi do: {room}.",
+        "banging": "Łomot z: {room}.",
+        "forcedBy": "{name} wyważa drzwi do: {room}.",
+        "triedBy": "{name} próbuje wyważyć drzwi do: {room}.",
+        "yourDoor": "Ktoś wyważył drzwi: {room}. Zamek zostaje zepsuty, póki ktoś go nie naprawi."
+      },
       "shut": {
         "done": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia."
       },
@@ -3211,6 +3222,10 @@
         "shut": {
           "label": "Shut the Door",
           "hint": "Body: zabarykaduj od środka pokój, w którym stoisz."
+        },
+        "force": {
+          "label": "Force the Door",
+          "hint": "Body przy drzwiach obok: barykada, zamek albo pieczęć ustępuje. Głośno."
         },
         "dash": {
           "label": "Dash",
@@ -4073,6 +4088,7 @@
         "dash.settle": "Dash",
         "tail.start": "Tail Someone",
         "door.shut": "Shut the Door",
+        "door.force": "Force the Door",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",

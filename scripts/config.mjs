@@ -1689,7 +1689,7 @@ export const ACTIONS = {
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        variants: ["listen", "tail", "dash", "shut"],
+        variants: ["listen", "tail", "dash", "shut", "force"],
         hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
             + "Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
@@ -2120,7 +2120,10 @@ export const INFILTRATE = Object.freeze({
         bands: Object.freeze([Object.freeze({ min: 12, moves: 1 }), Object.freeze({ min: 18, moves: 2 })]),
         critical: Object.freeze({ moves: 3 }) }),
     // Shut the Door (E74 C2; DA25 = 1): Body, its total the barricade's strength; a room with at most `maxExits` open doors.
-    shut: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, maxExits: 2 })
+    shut: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, maxExits: 2 }),
+    // Force the Door (E74 C3; DA9, DA31 = 2, DA43 = 1, DA52): Body against what holds the door - a barricade by its strength,
+    // a lock (a GM's or a bedroom's) and a seal at `lockDc`, all at once; the banging is heard in the rooms next to either.
+    force: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, lockDc: 18, noise: "adjacent" })
 });
 
 /* ==========================================================================

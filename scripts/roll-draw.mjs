@@ -1802,6 +1802,7 @@ async function listedFor(actor, key, context) {
     if (key === "tail") return [...INFILTRATE.tail.traits];
     // Shut the Door (E74 C2): Body, from this GM's config.
     if (key === "shut") return [...INFILTRATE.shut.traits];
+    if (key === "force") return [...INFILTRATE.force.traits];
     // A GM's room action (E93 C3): the statistic the GM set on it, read on this GM's copy of the room the character
     // stands in (`facilityOfDraw`), never the packet's; none where the room holds no such action (the draw is refused).
     if (key === "facility") {

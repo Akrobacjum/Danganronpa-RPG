@@ -78,6 +78,9 @@ export const FLOWS = Object.freeze([
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // E74 C3 (12.11.2026): 30 forges the packet; the tier-2 test E74-T2 forces a barricade, a lock and a seal.
+    { id: "door-force", what: "Force the Door: the Body roll drawn on the GM against everything that holds the door, read on the GM",
+        entry: { bridge: ["door.force"] }, scenarios: ["30-security"], status: "partial", stage: "E74" },
     // E74 C2 (12.11.2026): 33 shuts a door from p1's page (E74-A); 30 forges the packet.
     { id: "door-shut", what: "Shut the Door: the Body roll drawn on the GM, the barricade kept by the GM and its public flag set",
         entry: { bridge: ["door.shut"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E74" },

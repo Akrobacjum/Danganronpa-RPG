@@ -116,6 +116,8 @@ export const ACTION_DASH = "dash.settle";
 export const ACTION_TAIL_START = "tail.start";
 /** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
 export const ACTION_DOOR_SHUT = "door.shut";
+/** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */
+export const ACTION_DOOR_FORCE = "door.force";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw

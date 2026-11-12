@@ -337,7 +337,11 @@ The tail ends with a card when you are neither in the room they left nor in the 
 
 ### Shut the Door - Body, 1 action
 
-Barricade the room you stand in, from inside. It works in a room with at most two doors that open, in your own bedroom but not in another's. While you stay inside, nobody walks in through a door: the door does not give. A secret passage, a breach or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends and when an Eclipse begins. The room shows that it is barricaded, never by whom. (Forcing a barricaded door comes later.)
+Barricade the room you stand in, from inside. It works in a room with at most two doors that open, in your own bedroom but not in another's. While you stay inside, nobody walks in through a door: the door does not give. A secret passage, a breach or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends and when an Eclipse begins. The room shows that it is barricaded, never by whom. Somebody outside can force it (below).
+
+### Force the Door - Body, 1 action
+
+At a door from your room to the next: one Body roll against everything that holds it at once. A barricade gives to a roll above its strength; a lock (a GM's or a bedroom's) and a seal give to 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it, a forced seal is gone for the rest of its time of day. It is loud: the rooms next to either room hear "A banging from: {room}" without a name, and the people in the two rooms see who it was - on a success, and on a miss with Despair. A bedroom's owner is told their door was forced. Not during a Class Trial, not when you are Chained.
 
 ### Dash - Leg, 1 action
 

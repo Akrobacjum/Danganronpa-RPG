@@ -6296,6 +6296,8 @@ const REGRESSIONS = [
             startTail: "refused", tailRefusal: "returns",
             // E74 C2: a barricade put up on the primary (doors-gm.mjs), its refusals by `shutRefusal`.
             shutDoor: "refused", shutRefusal: "why",
+            // E74 C3: a door forced on the primary (doors-gm.mjs), whose run passes its `{ refused }` on.
+            forceDoor: "refused",
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
             // `{ refused }` on, and a force's roll held to its ask (bridge-runs-acts.mjs `friskForceRoll`, a `derive`).
             askToFrisk: "refused", answerFrisk: "refused", followFrisk: "refused", friskForceRoll: "why",
@@ -7469,7 +7471,8 @@ const REGRESSIONS = [
             // E69 C5: a Dash rolls Dash's one statistic (config.mjs INFILTRATE.dash, Leg); the GM's draw reads the same list.
             "action-listen.mjs performDash": INFILTRATE.dash,
             // E74 C2: Shut the Door rolls its one statistic (INFILTRATE.shut, Body).
-            "action-doors.mjs performShut": INFILTRATE.shut
+            "action-doors.mjs performShut": INFILTRATE.shut,
+            "action-doors.mjs performForce": INFILTRATE.force
         };
         const sites = [];
         for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
@@ -7702,7 +7705,7 @@ const REGRESSIONS = [
         const WAITING = [];
         // A Facilities roll (E93 C3) is thrown from the tile whose key is still `rest` (the Facilities tile).
         // A Dash (E69 C5) and a tail's two rolls (E69 C3) are thrown from the Infiltrate tile, whose key is still `listen`.
-        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm", facility: "rest", dash: "listen", tail: "listen", tailUnseen: "listen", shut: "listen" };
+        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm", facility: "rest", dash: "listen", tail: "listen", tailUnseen: "listen", shut: "listen", force: "listen" };
         // A Take from the Body's two rolls (E68 C10): its Hand and its cover, both of config.mjs `LOOT`.
         const { LOOT } = await import("./config.mjs");
         const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING, loot: LOOT, lootCover: LOOT?.cover };
@@ -9767,6 +9770,7 @@ const REGRESSIONS = [
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action one of `ANALYZE_ROW_REQUEST`'s literals, the reason checked against `REASONS`; a row the Class Trial filter shuts, E16 part 2 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-analyze.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-doors.mjs#performForce", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.force`, the reason the literal noGm); Force the Door with no GM connected, before its price (E74 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-doors.mjs#performShut", "composed on this client from closed lists (`sayNotDone`: the action the literal `door.shut`, the reason the literal noGm); Shut the Door with no GM connected, before its price (E74 C2); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-tail.mjs#performTail", "composed on this client from closed lists (`sayNotDone`: the action the literal `tail.start`, the reason the literal noGm); a tail with no GM connected, before its window and its price (E69 C3); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-listen.mjs#performDash", "composed on this client from closed lists (`sayNotDone`: the action the literal `dash.settle`, the reason the literal noGm); a Dash with no GM connected, before its price (E69 C5); kept as a notDone entry: read, these words and no others (R297)"],

@@ -88205,6 +88205,103 @@ const SCENARIOS = [
             many: "cannotNow", theirs: "notYours", noRoll: "rollUnknown" }),
             "{shut: [answer, the public flag, the strength kept]; walk: [a student's walk in, a GM's refused barricaded, one through a passage refused barricaded]; left: [taken down, the flag, the row]; many; theirs; noRoll} - a barricade on the GMs' record of its roll");
     }],
+    ["E74-T2 - Force the Door passes everything that holds the door at once, on the GMs' record of its Body roll (scripts/doors-gm.mjs `forceDoor`, bridge-table.mjs `door.force`, config.mjs INFILTRATE.force; E74 C3; DA9, DA31 = 2, DA43 = 1, DA52): a barricade holds a roll of its strength and gives to one above it, and comes down; a GM's lock holds 17 and breaks at 18, and stays broken; a seal holds 17 and is lifted at 18; a barricade of 20 on a locked door holds 19 and gives with the lock to 21; a pass is heard as a banging in the room next to the door, by name in neither; a door to a room not next to the character's is refused notThere; another player's character notYours; a packet naming no roll rollUnknown", async () => {
+        /*
+         * E74 C3, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the
+         * character's with the GMs' record of it (`recordFor`). The harness's scene draws no doors, so the rooms' doors are
+         * Room Setup's word (`ROOM_FLAGS.neighbours`): the character's room A - the door's room B - a room C beyond B, where
+         * another student stands to hear. Put back: the records, the messages, the flags, the seal, the barricades, the tokens.
+         * Red at f7d9fb2: no `door.force` in the table.
+         */
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const W = await import("./call-world.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(other, "no student the player does not own with a token on the scene on screen - this would measure nothing");
+        const scene = canvas.scene;
+        const tokens = [actor, other].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 4, `the scene on screen has ${rooms.length} rooms - too few for A, B, C and one apart`);
+        const [A, B, C, far] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B], [far]: [] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "door.force", requestId: `E74T2${foundry.utils.randomID(8)}`, actorId: actor.id, room: B, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null;
+        };
+        const rollOf = async total => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, "force", { total });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const barricade = async strength => {
+            await S.barricadeStore.patch(D.barricadeKey(scene.id, B), { sceneId: scene.id, room: B, authorId: other.id, strength, at: Date.now() });
+            await M.setRoomBarricaded(scene, B, true);
+        };
+        const lock = async on => { for (const piece of roomRegions(scene, B)) { if (on) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true); else await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.locked); } };
+        const unbreak = () => M.setRoomBroken(scene, B, false);
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const heardBy = who => game.messages.filter(m => !seenIds.has(m.id) && m.speaker?.actor === who.id && m.whisper?.length).length;
+        const shape = out => (typeof out === "string" ? out : [out?.forced ?? null, [...(out?.held ?? [])].sort().join("+")]);
+        const read = {};
+        try {
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) keep(piece, M.ROOM_FLAGS.locked);
+            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
+            await tokens[1].update(M.positionIn(C, tokens[1]), PLACE);
+            await settle();
+            await barricade(14);
+            read.barricade = [shape(await ask({ rollId: await rollOf(14) })), shape(await ask({ rollId: await rollOf(15) })), M.roomBarricaded(scene, B)];
+            read.heard = heardBy(other);
+            await lock(true);
+            read.lock = [shape(await ask({ rollId: await rollOf(17) })), shape(await ask({ rollId: await rollOf(18) })), M.roomBroken(scene, B), M.isLocked(scene, B)];
+            await unbreak(); await lock(false);
+            await W.sealRoom(B);
+            read.seal = [shape(await ask({ rollId: await rollOf(17) })), shape(await ask({ rollId: await rollOf(18) })), W.isSealed(B)];
+            await barricade(20); await lock(true);
+            read.both = [shape(await ask({ rollId: await rollOf(19) })), shape(await ask({ rollId: await rollOf(21) })), M.roomBarricaded(scene, B), M.roomBroken(scene, B)];
+            read.far = await ask({ room: far, rollId: await rollOf(25) });
+            read.theirs = await ask({ actorId: other.id, rollId: await rollOf(25) });
+            read.noRoll = await ask({ total: 30 });
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            await D.endBarricade(D.barricadeKey(scene.id, B));
+            await W.liftSeal(B);
+            await unbreak();
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, other.id].includes(m.speaker?.actor))) await m.delete();
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ barricade: [[false, "barricade"], [true, "barricade"], false], heard: 1,
+            lock: [[false, "lock"], [true, "lock"], true, false], seal: [[false, "seal"], [true, "seal"], false],
+            both: [[false, "barricade+lock"], [true, "barricade+lock"], false, true], far: "notThere", theirs: "notYours", noRoll: "rollUnknown" }),
+            "{barricade: [at its strength, above it, still up]; heard: the banging next door; lock: [17, 18, broken, still locked]; seal: [17, 18, still sealed]; both: [19, 21, barricade up, broken]; far; theirs; noRoll} - a door forced on the GMs' record of its roll");
+    }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*
          * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the

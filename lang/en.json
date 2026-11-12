@@ -2915,6 +2915,17 @@
       "discardNote": "{actor} threw away {item} in {room} (rolled {total})."
     },
     "Infiltrate": {
+      "force": {
+        "which": "Which door",
+        "prompt": "Force a door out of {room}. A barricade gives to a roll above its strength, a lock or a seal to {n} or more; everything on the door at once. The rooms around hear it.",
+        "forced": "The door to {room} gives way.",
+        "held": "The door to {room} holds.",
+        "open": "Nothing holds the door to {room}.",
+        "banging": "A banging from: {room}.",
+        "forcedBy": "{name} forces the door to {room}.",
+        "triedBy": "{name} tries to force the door to {room}.",
+        "yourDoor": "Somebody forced the door of {room}. Its lock stays broken until it is repaired."
+      },
       "shut": {
         "done": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends."
       },
@@ -2949,6 +2960,10 @@
         "shut": {
           "label": "Shut the Door",
           "hint": "Body: barricade the room you stand in from inside."
+        },
+        "force": {
+          "label": "Force the Door",
+          "hint": "Body at a door next to you: a barricade, a lock or a seal gives way. Loud."
         },
         "dash": {
           "label": "Dash",
@@ -3744,6 +3759,7 @@
         "dash.settle": "Dash",
         "tail.start": "Tail Someone",
         "door.shut": "Shut the Door",
+        "door.force": "Force the Door",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",

@@ -337,7 +337,11 @@ Póki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i po
 
 ### Shut the Door - Body, 1 akcja
 
-Zabarykaduj od środka pokój, w którym stoisz. Działa w pokoju, z którego otwiera się najwyżej dwoje drzwi, we własnej sypialni, ale nie w cudzej. Póki zostajesz w środku, nikt nie wejdzie drzwiami: drzwi nie ustępują. Tajne przejście, wyłom albo tunel wciąż przepuszczają. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, nigdy przez kogo. (Wyważenie zabarykadowanych drzwi dojdzie później.)
+Zabarykaduj od środka pokój, w którym stoisz. Działa w pokoju, z którego otwiera się najwyżej dwoje drzwi, we własnej sypialni, ale nie w cudzej. Póki zostajesz w środku, nikt nie wejdzie drzwiami: drzwi nie ustępują. Tajne przejście, wyłom albo tunel wciąż przepuszczają. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, nigdy przez kogo. Ktoś z zewnątrz może je wyważyć (niżej).
+
+### Force the Door - Body, 1 akcja
+
+Przy drzwiach z twojego pokoju do sąsiedniego: jeden rzut na Body przeciw wszystkiemu, co je trzyma, naraz. Barykada ustępuje rzutowi powyżej swojej siły; zamek (MG albo sypialni) i pieczęć ustępują wynikowi 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, póki ktoś go nie naprawi, a wyważona pieczęć znika do końca swojej pory dnia. To głośne: pokoje obok jednego i drugiego pokoju słyszą "Łomot z: {room}" bez imienia, a osoby w obu pokojach widzą, kto to był - przy sukcesie i przy pudle z Despair. Właściciel sypialni dostaje wiadomość, że drzwi wyważono. Nie w trakcie Class Trial, nie gdy jesteś Chained.
 
 ### Dash - Leg, 1 akcja
 

@@ -47033,9 +47033,9 @@ const INVARIANTS = [
             dash: I.dash ? [I.dash.traits, I.dash.bands?.map(b => [b.min, b.moves]), I.dash.critical?.moves] : null,
             inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
         };
-        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "tail", "dash", "shut"],
-            // E74 C2 adds Shut the Door (an intended change of this expectation).
-            rows: ["listen", "tail", "dash", "shut"], tail: ["shadow", 15], dash: [["leg"], [[12, 1], [18, 2]], 3], inAggregate: true }),
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "tail", "dash", "shut", "force"],
+            // E74 C2 adds Shut the Door, C3 Force the Door (intended changes of this expectation).
+            rows: ["listen", "tail", "dash", "shut", "force"], tail: ["shadow", 15], dash: [["leg"], [[12, 1], [18, 2]], 3], inAggregate: true }),
             "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
     }],
     ["R3756 - the Infiltrate window is one list of rows, Listen first and shut with its reason where the room has no neighbour (scripts/action-listen.mjs `infiltrateRows`, `performListen`; E69 C1, DA28): one row a key of `ACTIONS.listen.variants` in its order, each with its price; Listen open where the character's room has a neighbour and greyed with the no-neighbour line where it has none; a row not built greyed with its line; and `performListen` asks the rows before Listen's own room", async () => {
@@ -47060,8 +47060,8 @@ const INVARIANTS = [
         equal(stableJson({ rows: [...new Set(rows.map(stableJson))].map(JSON.parse), variants: C.ACTIONS.listen.variants,
             asksFirst: src.indexOf("infiltrateRows(actor)") > 0 && src.indexOf("infiltrateRows(actor)") < src.indexOf("neighbouringRooms(scene, here)") }),
             stableJson({ rows: [...new Set(rows.map(r => stableJson([C.ACTIONS.listen.variants.join(), true, true, true])))].map(JSON.parse),
-                // E74 C2 adds Shut the Door (an intended change of this expectation).
-                variants: ["listen", "tail", "dash", "shut"], asksFirst: true }),
+                // E74 C2 adds Shut the Door, C3 Force the Door (intended changes of this expectation).
+                variants: ["listen", "tail", "dash", "shut", "force"], asksFirst: true }),
             "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
     }],
 ];
