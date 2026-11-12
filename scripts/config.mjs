@@ -170,6 +170,13 @@ export const FLAGS = {
      * player's write of it is put back (sheet-audit.mjs `GM_FLAGS`).
      */
     levelUpExperiences: "levelUpExperiences",
+    /**
+     * Character: the Health and Sanity maxima DA39's rule has given this character, `{ hitPoints, stress }` (E64; the
+     * owner's DRPG-D1 of 12.11.2026). Added to by `applyAdvancement` with each statistic point's rise and by the DA39
+     * migration (level-up.mjs `applyDa39Migration`) with the rises it owes; read by `da39Row`, so a maximum the rule
+     * gave is never taken for an old +1 Health or +1 Sanity pick. A GM's flag (sheet-audit.mjs `GM_FLAGS`).
+     */
+    da39Rises: "da39Rises",
     /** Character: has this character already taken their free Move this time of day? */
     freeMoveUsed: "freeMoveUsed",
     /**
@@ -1754,8 +1761,12 @@ export const ACTIONS = {
          * The unseen axis does not move. Whether anybody watched you is a
          * different question from whether your fingers found it, and it was
          * balanced well.
+         *
+         * 12 SINCE E64, AS A SEARCH'S TIER 1 (S02-75; the owner's DRPG-D1 of 12.11.2026, "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). At 10 a steal took 77.8 / 83.3 / 87.5% at 0 / +1 / +2, surer
+         * than a Search's Tier 1 (65.3 / 72.2 / 77.8%); now the two are one. The Plant and the cover are unchanged.
          */
-        threshold: 10,
+        threshold: 12,
         /** Whether they noticed. Its own axis, rolled separately. */
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
         /** Leaving something is easier than taking it - both axes (D10a). */
@@ -1801,8 +1812,7 @@ export const ACTIONS = {
         // list is the traces the player has found (`cleanableTracesForPlayer`), not the ones
         // they left, and its critical can reshape one instead of wiping it.
         hint: "Erase a Remnant you have found here, unless it is Reinforced; on a critical, you can reshape it "
-            + "instead. You can also plant a false Remnant that points at somebody else. It costs an action, or Sanity "
-            + "once you have no action left.",
+            + "instead. You can also plant a false Remnant that points at somebody else. It costs an action.",
         // No thresholds here on purpose: the erase branch reads its number off
         // how visible the trace is (`CLEANUP.dc`) and the frame-up reads its
         // flat `threshold` off `CLEANUP.actions.misleadingTrail`. One number
@@ -1869,6 +1879,13 @@ export const ACTIONS = {
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
         ],
         critical: { result: "Success. The target needs a hidden-difficulty repair project.", remnant: "obvious" },
+        /*
+         * THE SIMPLE REPAIR IS 2 PROGRESS (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). A hit below the complex band made a Trivial repair, 3: one
+         * Sabotage forced 3.11 Work actions per attempt (saboteur and repairer at 0, misses counted; STATUS). With 2 it is
+         * 2.68. The complex band (Complex, 6) and the critical (Desperate, 8) are unchanged. One number to flip back.
+         */
+        simpleRepair: 2,
         failure: "Nothing happens.",
         failureRemnant: "hidden",
         leavesRemnant: { type: "prep", faint: true }
@@ -3110,7 +3127,15 @@ export const STATES = {
         id: "drpgWounded",
         label: "Wounded",
         resource: "hitPoints",
-        img: `modules/${MODULE_ID}/icons/state-wounded.svg`
+        img: `modules/${MODULE_ID}/icons/state-wounded.svg`,
+        /**
+         * WHERE WOUNDED TAKES ITS ACTION (E64 C1c, 12.11.2026; audit S03-49): in Daily Life and in the Investigation,
+         * not in the Class Trial (actions.mjs `actionBudget`). The guide's "Losing all Health during Daily Life costs
+         * the character -1 action per time of day"; C1c read it as Daily Life alone, and the owner's review of
+         * 12.11.2026 put the Investigation back ("wolalbym by wounded dzialalo tez w investigation"). Until 1.2.105 the
+         * action was taken in every phase. The state itself, its badge and its icon stay in every phase.
+         */
+        actionsLostIn: ["dailyLife", "investigation"]
     }
 };
 
@@ -3134,8 +3159,6 @@ export const DEAD_ICON = {
  * ========================================================================== */
 
 export const LEVEL_UP_OPTIONS = {
-    hp: { label: "Increase Health by +1" },
-    stress: { label: "Increase Sanity by +1" },
     trait: { label: "Increase one statistic by +1" },
     experienceUp: { label: "Increase one experience by +1" },
     experienceNew: { label: "Add a new experience worth +{worth}" }
@@ -3145,6 +3168,20 @@ export const LEVEL_UP = {
     standard: { picks: 1 },
     reinforced: { picks: 3 }
 };
+
+/**
+ * WHAT A STATISTIC'S POINT RAISES WITH IT (E64 C6, 12.11.2026; the owner's DA39 of 05.10, audit S18-27; approved
+ * 12.11 with the migration of past picks). The options lost "+1 Health" and "+1 Sanity": a point in Head raises the Sanity maximum
+ * by 1, a point in Body or in Leg the Health maximum by 1, in the same write (level-up.mjs `applyAdvancement`). Keyed
+ * by Daggerheart's statistic (`TRAITS.*.dh`): Head is `knowledge`, Body `strength`, Leg `agility`. A world whose
+ * students took +1 Health or +1 Sanity before is brought under this rule once, on the GM's word (level-up.mjs
+ * `offerDa39Migration`; the owner's DRPG-D1 of 12.11.2026, Q-E64-4): the old picks back, a statistic point for each.
+ */
+export const LEVEL_UP_TRAIT_RESOURCES = Object.freeze({
+    knowledge: Object.freeze({ stress: 1 }),
+    strength: Object.freeze({ hitPoints: 1 }),
+    agility: Object.freeze({ hitPoints: 1 })
+});
 
 /* ==========================================================================
  * MONOCUB
@@ -3224,8 +3261,11 @@ export const MONOCUB = {
             // `help`/`hinder` are the Monocub's receipt; `helpTarget`/`hinderTarget`
             // are what the student it happened to reads (DESP-06) - anonymous, in
             // their own second person, never "the player".
+            // FIRST TIER 11 (E64 C5a, 12.11.2026; the owner's DC5 of 05.10; default taken, owner to confirm): it was
+            // 12. With a double as a critical, a hit of either kind comes up 104 of the 144 throws of 2d12 (72.2%),
+            // where it was 94 (65.3%).
                 thresholds: [
-                { min: 12, grants: "bonus",
+                { min: 11, grants: "bonus",
                   help: "You grant the player +1 on their next roll.",
                   hinder: "You inflict −1 on the player's next roll.",
                   helpTarget: "Something steadies your hand: +1 on your next roll.",
@@ -3347,8 +3387,13 @@ export const MURDER_OPENING = {
         label: "Opening roll - victim",
         threshold: 20,
         traits: ["eye", "head"],
-        /** Night works against the victim. */
-        nightDisadvantage: true,
+        /*
+         * NO NIGHT DISADVANTAGE ANY MORE (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). With it the victim noticed a trap at Night 10.0 / 11.3 / 13.4% of
+         * the time at 0 / +1 / +2 (STATUS); without it as by day, 16.7 / 20.8 / 25.0%. The readers (murder-rules.mjs,
+         * roll-draw.mjs) still ask the flag: one value to flip back.
+         */
+        nightDisadvantage: false,
         hope: "Something is wrong with this room, and you have no idea why. Spend your "
             + "Free Move, if you still have it, and you live.",
         despair: "You work out what has been set up here, and you can tell the others. "
@@ -3400,6 +3445,17 @@ export const INCIDENT = {
  * victim takes something of the killer's and makes evidence of it" is a
  * sentence a human has to finish.
  */
+/**
+ * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
+ * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
+ * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
+ * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
+ * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
+ * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
+ * whose threshold falls to free as the victim runs out of Health.
+ */
+export const DEFENSE = Object.freeze({ cap: 1 });
+
 export const CRISIS_ACTIONS = {
     /**
      * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
@@ -3526,6 +3582,7 @@ export const CRISIS_ACTIONS = {
      */
     selfDefence: {
         side: "victim", label: "Self-Defense", icon: "fa-shield-halved",
+        defense: { side: "killer", trait: "body" },
         threshold: 18, traits: ["hand", "leg", "body"],
         hint: "A hit with Hope unlocks Survive and Role Reversal; with Despair, only Role Reversal, unless the "
             + "incident denies it. A critical unlocks both, stops your Health and Sanity loss, and lets you take one "
@@ -3582,6 +3639,7 @@ export const CRISIS_ACTIONS = {
     },
     survive: {
         side: "victim", label: "Survive", icon: "fa-person-running",
+        defense: { side: "killer", trait: "leg" },
         threshold: 18, traits: ["leg"], kind: "resolution",
         // Closed until Self-defence lands - see `selfDefence.unlocks`.
         lockedUntil: "selfDefence",
@@ -3600,6 +3658,7 @@ export const CRISIS_ACTIONS = {
     },
     roleReversal: {
         side: "victim", label: "Role Reversal", icon: "fa-arrows-rotate",
+        defense: { side: "killer", trait: "body" },
         threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
         lockedUntil: "selfDefence",
         hint: "Turn the tables. On a hit, you become the killer and your attacker loses Health and Sanity instead; "
@@ -3640,6 +3699,7 @@ export const CRISIS_ACTIONS = {
     /* ---- the killer ---------------------------------------------------- */
     strike: {
         side: "killer", label: "Strike", icon: "fa-hand-fist",
+        defense: { side: "victim", trait: "body" },
         threshold: 15, traits: ["hand", "leg", "body"],
         hint: "A hit takes {hp} Health and {stress} Sanity off the victim and leaves a Remnant, Hidden with Hope and "
             + "Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you "
@@ -3663,6 +3723,7 @@ export const CRISIS_ACTIONS = {
     },
     pin: {
         side: "killer", label: "Pin Them Down", icon: "fa-down-long",
+        defense: { side: "victim", trait: "body" },
         threshold: 12, traits: ["body"],
         hint: "Put the victim's Leave a Clue and Survive at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
@@ -3674,6 +3735,7 @@ export const CRISIS_ACTIONS = {
     },
     keepDistance: {
         side: "killer", label: "Keep Your Distance", icon: "fa-arrows-left-right",
+        defense: { side: "victim", trait: "leg" },
         threshold: 12, traits: ["leg"],
         hint: "Put the victim's Secure a Trace and Role Reversal at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
@@ -3685,6 +3747,7 @@ export const CRISIS_ACTIONS = {
     },
     weaponAttack: {
         side: "killer", label: "Attack with a Weapon", icon: "fa-khanda",
+        defense: { side: "victim", trait: "body" },
         threshold: 15, traits: ["body", "hand", "leg"],
         hint: "A hit takes Health off the victim, more with a higher-tier weapon and on a critical. Without a readied "
             + "weapon you roll at disadvantage, and if you carry none, a hit gives you an improvised one. The weapon's "
@@ -3767,6 +3830,7 @@ export const CRISIS_ACTIONS = {
      */
     sharedEscape: {
         side: "third", label: "Escape Together", icon: "fa-door-open",
+        defense: { side: "killer", trait: "leg" },
         threshold: 15, traits: ["leg"], kind: "resolution",
         hint: "Get the victim out with you. A hit ends the incident, and with Hope or on a critical it also restores "
             + "their Health and Sanity; a critical gives you and the victim immunity for this chapter and the next.",
@@ -4065,6 +4129,13 @@ export const CLEANUP = {
     dc: { hidden: 9, subtle: 12, evident: 15, obvious: 18 },
 
     /**
+     * THE FLOOR AFTER EVERY RELIEF (E64 C1b, 12.11.2026; the owner's DA12 of 05.10, audit S18-06; default taken,
+     * owner to confirm). The tool's tier, the fresh scene and a reshape's 3 come off the number above; what is left
+     * is never below this (cleanup.mjs `atLeastFloor`, on the GM where the attempt is scored). Before: 0.
+     */
+    minDc: 8,
+
+    /**
      * THE SCENE IS STILL WARM (Z5): −3 while nobody has found the body.
      *
      * The season run measured Stage 6 erasing about ONE trace in six chapters.
@@ -4081,8 +4152,13 @@ export const CLEANUP = {
      * killer: `discoverBody` writes `SETTINGS.bodyFound`, and that IS the moment
      * the room stops being theirs. The phase in `until` below carries the rest
      * of it, for the stretch after the GM has started Stage 7.
+     *
+     * ONLY WITH A KILLING TO BE FRESH (E64 C1a, 12.11.2026; audit S05-60; default taken, owner to confirm).
+     * `onlyWith`: the discount holds while an incident runs or a body of this chapter lies unfound
+     * (cleanup.mjs `freshSceneBonus`). Before, it held on every day with no body found - a Tamper on a
+     * quiet afternoon read 6/9/12/15 instead of 9/12/15/18.
      */
-    freshScene: { bonus: 3, until: ["investigation", "classTrial"] },
+    freshScene: { bonus: 3, until: ["investigation", "classTrial"], onlyWith: ["incident", "unfoundBody"] },
 
     /**
      * Covering your tracks is a Shadow job.
@@ -4356,10 +4432,13 @@ export const CLEANUP = {
          * carrying a body is exactly the physical problem it looks like.
          *
          * `rooms` is the guide's reach - an adjacent room on Hope, a connected
-         * one on Despair, two rooms away on a critical; the game offers the
-         * connected rooms (cleanup.mjs `bodyDestinations`), and E64 makes the
-         * critical's two rooms work (the amend of 26.09). All three leave an
-         * Evident Resolution Remnant - you cannot drag a body quietly.
+         * one on Despair, two rooms away on a critical. The picker offers the
+         * connected rooms and, under their own heading, the rooms two away
+         * (cleanup.mjs `bodyReach`); a critical carries the body to a far room,
+         * any other hit to the room between (`bodyLanding`; E64 C4, 12.11.2026,
+         * the amend of 26.09; default taken, owner to confirm). Until 1.2.105 the
+         * critical's 2 was read by nothing. All three leave an Evident
+         * Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
             label: "Move the Body", icon: "fa-person-falling",
@@ -5140,6 +5219,8 @@ export const DRPG = {
     DEAD_ICON,
     LEVEL_UP_OPTIONS,
     LEVEL_UP,
+    LEVEL_UP_TRAIT_RESOURCES,
+    DEFENSE,
     MONOCUB,
     MURDER_OPENING,
     INCIDENT,

@@ -1667,7 +1667,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(800);
     const answeredOnJoin = await offersSince(askedH2), litH2 = await litOn(p1);
     const apply = () => p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        const res = await B.requestAdvancement({ actorId: "${IDS.aiko}", picks: [{ option: "hp" }], kind: "standard" });
+        const res = await B.requestAdvancement({ actorId: "${IDS.aiko}", picks: [{ option: "trait", trait: "strength" }], kind: "standard" });
         return { ok: Boolean(res?.ok), reason: res?.reason ?? null };`, { timeout: 60000 });
     const spent = await apply();
     await settle(800);

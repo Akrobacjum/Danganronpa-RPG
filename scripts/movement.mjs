@@ -1342,7 +1342,10 @@ export async function refundLastCrossing(actorId) {
         await crossingStore.patch(actor.id, { refunded: true });
         awaitingPrice.delete(actor.id);
         // An Eclipse's count only in the Eclipse it was counted in: another's count is not this crossing's.
-        const kind = row.kind === "eclipse" && (!row.eclipse || row.eclipse !== eclipseId()) ? null : row.kind ?? null;
+        // And the free Move only in the time of day it was taken (E64, D059; the owner's default, confirmed 12.11.2026): it is
+        // a time of day's, refilled at each boundary, so one taken before a boundary given back after it was a second one.
+        const kind = row.kind === "eclipse" && (!row.eclipse || row.eclipse !== eclipseId()) ? null
+            : row.kind === "free" && row.mark !== timeOfDayMark() ? null : row.kind ?? null;
         const given = kind ? await refundCrossingOnGm(actor, kind) !== false : false;
         const token = game.scenes?.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null;
         let back = false;

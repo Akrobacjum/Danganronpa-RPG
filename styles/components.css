@@ -339,6 +339,9 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows .drpg-role-primary { order: 3; }
 .application.drpg-window-case-realize table.drpg-case-realize { width: 100%; }
+/* New Remnant's selects keep their widest option (E64-inv round 2): beside a label of two or three lines the tie's select
+   shrank and cut "- nie rozstrzygnięto -" under Stained Glass (Chromium, 1366x768); the label wraps instead. */
+body .application.drpg-window-newtrace .drpg-wide-col label > :is(select, .drpg-select) { flex-shrink: 0; }
 /* The case's summary card (E99 C7): one column per role, then the links; in the chat and in the GM's preview. */
 .drpg-case-summary-cols { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .drpg-case-summary-col { flex: 1 1 8rem; min-width: 0; }
@@ -3170,12 +3173,26 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-tab
    two description columns 40 px each and the selects the rest, Legacy at 1366x768, Chromium, 09.11.2026). The counts
    are narrow and centred (E09 C16, audit S05-29: columns of 150-420 px with one digit each). */
 .application.drpg-window-case .drpg-data-table-box > table.drpg-data-table { table-layout: fixed; }
-.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-student { width: 34%; }
-.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-count { width: 11%; text-align: center; }
-.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-breakdown { width: 33%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-student { width: 19%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-count { width: 9%; text-align: center; }
+/* E64-inv: the bullets and the items by name, one row a student (investigation.mjs `caseStudentTable`). */
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-breakdown { width: 31%; }
+.application.drpg-window-case table.drpg-data-table .drpg-data-col-case-items { width: 23%; }
+/* A long name wraps in its own cell (under Legacy a cell kept to one line ran into the Items column, Chromium 1366x768). */
+body .application.drpg-window-case table.drpg-data-table td:is(.drpg-data-col-case-breakdown, .drpg-data-col-case-items) { white-space: normal; overflow-wrap: anywhere; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-trace-name { width: 12%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-text { width: 13%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-pick { width: 9%; }
+/* A picker's chosen words wrap inside it (E64-inv, 12.11.2026): "Prep Remnant" and "- nie rozstrzygnięto -" were wider than
+   their columns - cut under Stained Glass, drawn over the next cell under Monokuma Legacy (Chromium, both languages,
+   1366x768 and 1920x1080). The cells say shorter words now (investigation.mjs `caseTraceCells`) and the shares below give
+   the longest word room; a phrase that is still wider wraps and the row grows. */
+body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-pick select {
+    white-space: normal;
+    height: auto;
+    text-overflow: clip;
+    overflow: hidden;
+}
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-check { width: 7%; text-align: center; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-found { width: 8%; }
 /* Visibility, the one select whose head is one long word, a share of its own (under Legacy "Visibility" broke in two at
@@ -3269,11 +3286,28 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-k
    Faint 78, crime 78 / Powiązany 130, Reinforced 143, Found 78 / Znalazł 104, Delete 91 / Usuń 65: 1157 px at the
    least, more than the 1086 px view holds. So under Legacy the Traces table keeps its shares at 130 % of its box
    (1412 px; at 122 %, 1325 px, Visibility, Reinforced, Widoczność, Powiązany and naprawdę still stood 2-4 px over
-   their heads' room) and scrolls sideways in its own box (Q-D), the view and the window never; the Key planner's Difficulty (130 / Trudność 117) takes 13 % from the name's
+   their heads' room) and scrolls sideways in the view (Q-D), the window never; the Key planner's Difficulty (130 / Trudność 117) takes 13 % from the name's
    17 %, and fits. A head breaks between its words only. The glass keeps its shares, all of whose words fit at 1120 px
-   (the same reading). */
-.application.drpg-window-case .drpg-case-view .drpg-data-table-box { overflow-x: auto; }
-body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] .drpg-data-table-box > table.drpg-data-table { min-width: 130%; }
+   (the same reading).
+   ONE SCROLLER A TAB (E64-inv, 12.11.2026). The table's box scrolled sideways on its own until E64-inv, inside the view
+   that scrolls up and down: two scrollers on every tab under Legacy (audit/style-sweep.mjs `--fit`, 16 of 16 Legacy
+   readings, 44732a2). The box lets its table out now, and the view, the frame's one box that scrolls, scrolls both ways. */
+.application.drpg-window-case .drpg-case-view .drpg-data-table-box { overflow-x: visible; }
+/* What stands over the table stays where it is while the view scrolls sideways, so only the table moves: the tabs and the
+   Remnants pane's other parts (the filters, the count, the note) are held at the view's left edge at the view's width.
+   A sticky box moves only inside its own block, so under Legacy that pane is as wide as its table, 130 % of the view as
+   before (`cqw`, the view a size container), and the table fills it. */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view[data-drpg-view="table"] { container-type: inline-size; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] { width: 130cqw; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] .drpg-data-table-box > table.drpg-data-table { min-width: 100%; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view :is(nav.drpg-tabs, [data-drpg-pane="traces"] > :not(.drpg-data-table-box)) {
+    position: sticky;
+    left: 0;
+    box-sizing: border-box;
+    width: 100cqw;
+    max-width: none;
+    margin-inline: 0;
+}
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-scale { width: 13%; }
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-key-name { width: 15%; }
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view table.drpg-data-table > thead th { overflow-wrap: normal; word-break: normal; hyphens: manual; }
@@ -3829,14 +3863,19 @@ body .application.drpg-ui .drpg-box > :last-child { margin-bottom: 0; }
 /* the shares are the columns' (`col`): a head or cell that states its class's share too is read beside its column's by
    Chromium's fixed layout (the wider wins: the name's column stood 141 px, its 12 % and not its 8 %) */
 body .application.drpg-window-case table.drpg-data-table :is(th, td) { width: auto; }
+/* E64-inv (12.11.2026): the kind's and the band's pickers at their longest word ("Incident" 22 px past 10 % under Glass,
+   "Oczywisty" 12 px past 12 %; Chromium, both languages, 1366x768 and 1920x1080): the kind 10 -> 12.5 %, the band 12 ->
+   13.5 %, paid by the tie (11 -> 9.5 %: its words are "?",
+   "Yes", "No" now; "Powiązany" still fits its head under Legacy), Reinforced 12 -> 10.5 %, Found 9 -> 8.5 % and each
+   description 12 -> 11.75 %, each head word still whole under Legacy at 130 % of the view. */
 .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-trace-name { width: 7.5%; }
-.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-text { width: 12%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="type"] { width: 10%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 12%; }
+.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-text { width: 11.75%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="type"] { width: 12.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 13.5%; }
 .application.drpg-window-case table.drpg-data-table col[data-drpg-col="faint"] { width: 7.5%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="crime"] { width: 11%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="reinf"] { width: 12%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="found"] { width: 9%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="crime"] { width: 9.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="reinf"] { width: 10.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="found"] { width: 8.5%; }
 .application.drpg-window-case table.drpg-data-table col[data-drpg-col="delete"] { width: 7%; }
 /* the Key planner's status picker on one line: the cell wraps its words (`white-space: normal`, above), and a select
    took that inside itself under Legacy - "- no Remnant" over a lone "-" (ac069) */

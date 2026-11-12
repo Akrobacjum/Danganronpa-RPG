@@ -49,7 +49,7 @@ Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty pr
 | Stan | Kiedy | Efekt |
 |---|---|---|
 | **Breakdown** | Sanity się skończyło | utrudnienie na każdym rzucie, dopóki nie wróci trochę Sanity |
-| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia, dopóki ktoś cię nie poskłada |
+| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia w Daily Life i w Investigation, dopóki ktoś cię nie poskłada; w Class Trialu żadnej |
 
 > [!NOTE]
 > Oba włączają się same w chwili, gdy zapas się skończy; Vulnerable i Death Move z Daggerheart są wyłączone. Nic w tym module nie zabija cię za zejście do zera Health. Śmierć to coś, co robi ci człowiek, i jest ogłaszana.
@@ -191,7 +191,7 @@ Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **
 
 ## 4. Akcje
 
-Masz **2 akcje** na porę dnia (1, gdy jesteś Wounded). Siatka akcji na arkuszu ma dziesięć kafelków.
+Masz **2 akcje** na porę dnia (1, gdy jesteś Wounded, w Daily Life i w Investigation). Siatka akcji na arkuszu ma dziesięć kafelków.
 
 Opis każdej akcji pokazuje jej koszt, statystyki, którymi rzuca, pokój, w którym jesteś, liczby, z którymi zmierzy się rzut (wyliczone dla ciebie, tu i teraz), i wszystko, co będzie kosztować Sanity. Każda akcja otwiera jedno okno o tym samym układzie: opis po lewej, wybory po prawej, a pod wyborami, gdy rzut wymienia kilka statystyk, statystyka, którą proponujesz, i linia, w której mówisz, jak to robisz; przyciski są na dole. Pod opisem akcji przycisk **Szczegóły** rozwija i zwija linie opisu - koszt, statystyki, pokój, liczby (w Observe pod nagłówkiem *Progi*) - mniejszym tekstem; okno ma ten sam rozmiar w obu stanach, a następne okno akcji otwiera się tak, jak je zostawiłeś. Ostrzeżenie Tamper, że ktoś patrzy, zostaje nad nim, zawsze widoczne.
 
@@ -233,7 +233,7 @@ Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe;
 
 ### Observe - Eye, 1 akcja
 
-Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa. Jeden ślad masz najwyżej w jednej kopii: na ślad, który już masz albo którego znalezisko z innego twojego Observe GM jeszcze opisuje, twój wzrok nie pada, a druga kopia śladu nigdy nie powstaje.
+Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa, zapisaną tylko na twojej kopii - kto znajdzie ślad po tobie, jej nie przeczyta. Jeden ślad masz najwyżej w jednej kopii: na ślad, który już masz albo którego znalezisko z innego twojego Observe GM jeszcze opisuje, twój wzrok nie pada, a druga kopia śladu nigdy nie powstaje.
 
 Wybierasz, jak patrzysz:
 
@@ -284,12 +284,12 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
   - **Breach the Wall** (Body, Complex 6): wyłom w tej ścianie, który wszyscy widzą i przez który każdy przejdzie. Dopóki ściana nie zostanie naprawiona, zamek i drzwi sypialni pokoju za nią nikogo nie zatrzymują, a pieczęć na nim jest zerwana do końca tej pory dnia; skucie dalej cię trzyma, a sala rozpraw zostaje zamknięta. Ci w obu pokojach dowiadują się o tym, a twoje imię poznają tylko wtedy, gdy stoisz przy dziurze; pokoje obok słyszą łomot.
   - **Seal the passage** (Hand, Complex 6): zasypuje przejście, które znasz i które ma bok w twoim pokoju, dla wszystkich, którzy je znają. GM może je otworzyć ponownie.
   - **Close the breach** (Body, Complex 6): ściana znów jest cała.
-  - **Repair an item** (Hand; Trivial 3 dla Tier 0 lub 1, Complex 6 dla Tier 2 lub 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały.
+  - **Repair an item** (Hand; Trivial 3 dla Tier 0 lub 1, Complex 6 dla Tier 2 lub 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały. Jeśli tier przedmiotu wzrośnie przed końcem naprawy, naprawa może musieć być większa: GM dostaje o tym wiadomość.
 
   GM zatwierdza go jak każdą propozycję i sprawdza jeszcze raz, gdy jest ukończony: jeśli ściana, przejście albo przedmiot nie są już tym, czym były, nic się nie dzieje, a GM dowiaduje się dlaczego. Reroll rzutu, który ukończył Secret Passage, wyłom albo zasypanie, cofa je.
 - Niektóre projekty są tajne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.
 - Projekt przypisany do pokoju stoi też na mapie, jako token z młotkiem, który nigdy nie mówi, który to projekt. Jawny pojawia się, gdy twoja postać już stała w jego pokoju albo stoi w nim teraz, a proponującemu od chwili, gdy GM go zatwierdzi (mówi ci o tym prywatna karta; o projekcie zatwierdzonym przed 1.2.88 - przy najbliższym wczytaniu u GMa); reszta stołu widzi go dopiero, gdy ich własna postać tam była. Tajny tylko dla wtajemniczonych. Kliknij go dwukrotnie, by zobaczyć jego kartę.
-- **Sabotage** (ten sam kafelek, statystyka projektu): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa, 18+ złożona, krytyk - naprawa o ukrytej trudności. Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
+- **Sabotage** (ten sam kafelek, statystyka projektu): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa (2 postępu), 18+ złożona (6), krytyk - naprawa o ukrytej trudności (8). Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
 
 > [!WARNING]
 > Sabotage **zawsze zostawia ślad**, nawet przy porażce, a rzut z Despair pokazuje cię pokojowi.
@@ -344,7 +344,7 @@ Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie
 
 | | Weź coś | Zostaw coś | Frisk (ukradkiem) |
 |---|---|---|---|
-| Udaje się (Hand) | 10+ | 8+ | 10+ |
+| Udaje się (Hand) | 12+ | 8+ | 10+ |
 | Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
 Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Limity noszenia wciąż obowiązują, a jedna akcja przenosi jedną sztukę ze stosu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie - dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, mając pełne ręce, trafia do twojej skrytki, a gdy jej nie masz, zostaje u nich. Palm nigdy nie sięga do wnętrza skrytki. Palm odrzucony, zanim kości zostaną odczytane - cel wyszedł, zaczął się Class Trial - oddaje ci akcję; zostawienie czegoś w pełnych kieszeniach było próbą i akcja przepada.
@@ -353,7 +353,7 @@ Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradzi
 
 ### Tamper - Shadow, 1 akcja
 
-Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**.
+Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję** i nigdy Sanity: gdy nie masz już akcji, nie ma Tamper, dopóki akcje nie wrócą. Liczba prób w porze dnia nie ma limitu: każda po prostu kosztuje swoją cenę.
 
 **Erase a Trace.** Wymaż jeden ślad w tym pokoju, o którym wiesz: taki, którego kopię masz jako Truth Bullet, albo ślad walki, w której bierzesz udział. Im łatwiej go zobaczyć, tym trudniej usunąć:
 
@@ -364,7 +364,7 @@ Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji,
 | Evident | 15 |
 | Obvious | 18 |
 
-Każdy o 3 niżej, dopóki nie znaleziono ciała. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu.
+Każdy o 3 niżej, gdy zabójstwo jest świeże: trwa incydent albo ciało z tego rozdziału leży tam, gdzie nikt go jeszcze nie znalazł - dopóki ciało nie zostanie znalezione albo nie ruszy Investigation. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu. Po wszystkich ulgach - narzędziu, świeżej scenie, 3 za przerobienie - żadna próba nie wymaga mniej niż **8**.
 
 | Wynik | Co się dzieje |
 |---|---|
@@ -407,7 +407,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Resolve** | 2 | Na jeden rzut sam wybierz dowolną statystykę: nikt nie jest pytany, także gdy akcja wymienia kilka. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
-| **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. |
+| **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. Jeśli kość nie zadziała - ustawienie kości przy stole, które ją pomija - Call wraca do ciebie na następny rzut, a szept to mówi. |
 
 Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane (odczytane z kodu, niezmierzone dla Calla). Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
@@ -493,7 +493,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 ### Sypialnie, klucze, skrytki
 
-- Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany. Drzwi otwiera tylko klucz w twoim ręku: ten w skrytce nie otwiera niczego. Gdy GM daje sypialnię komuś innemu, klucze jej starego właściciela przepadają; kopia, którą dostał ktoś inny, zostaje i otwiera drzwi nowego właściciela. W Investigation sypialnia kogoś, o czyjej śmierci wiadomo, stoi otworem.
+- Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany. Drzwi otwiera tylko klucz w twoim ręku: ten w skrytce nie otwiera niczego. Gdy GM daje sypialnię komuś innemu, klucze jej starego właściciela przepadają, a razem z nimi każda kopia, którą dostał ktoś inny; dostajesz wiadomość, jeśli tracisz swoją. W Investigation sypialnia kogoś, o czyjej śmierci wiadomo, stoi otworem.
 - Twoja sypialnia ma **skrytkę**. Skrytka mieści **3** rzeczy, a żeby coś włożyć albo wyjąć, musisz stać w pokoju. Truth Bulletów nie da się schować.
 - **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć z niej jedną rzecz, raz na porę dnia. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
 - **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z jednym stopniem utrudnienia więcej (karta powie ci o tym po rzucie), albo Analyze *Find Stash* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
@@ -599,7 +599,7 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 
 Ofiara nie widzi niczego, gdy zabójca rzuca - żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął, i kto na nią rusza: Direct Murder to zabójstwo twarzą w twarz. Porażka nie zostawia jej niczego.
 
-**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
+**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**, nocą tak samo jak za dnia; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
 | Rzut ofiary | Co się dzieje |
 |---|---|
@@ -626,7 +626,7 @@ Incydent toczy się na tury. **Zaczynasz ty**. Sam z pułapką masz przewagę na
 | **Self-Defense** | Hand / Leg / Body, 18 | Walczysz. Jedna próba. Hope otwiera Survive i Role Reversal, Despair tylko Role Reversal, krytyk zatrzymuje drenaż i pozwala wziąć jedno z nich w tej turze bez rzutu. Przedmiot nadający się na broń daje przewagę. Porażka z Despair kosztuje 1 dodatkowo. Jeśli otworzyłoby tylko Role Reversal, którego nie możesz wziąć, nie zostaje zużyte i możesz spróbować znowu. |
 | **Survive** | Leg, 18 | Wycofujesz się. Incydent się kończy i drenaż ustaje. Despair dodaje podpowiedź, kto to był; krytyk daje też nietykalność na ten i następny rozdział. Porażka kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. |
 | **Role Reversal** | Hand / Leg / Body, 15 | Przechylasz szalę i zostajesz zabójcą. Hope albo krytyk przywraca też całe Health i Sanity; krytyk zabija ich od razu. Porażka z Despair kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. Niedostępne wobec pułapki ani wtedy, gdy ktoś już dołączył do zabójcy. |
-| **Use an Item** | Hand, 15 | Wciśnij *użyj* przy przedmiocie. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej. Porażka z Despair kosztuje 1 dodatkowo. |
+| **Use an Item** | Hand, 15 | Wciśnij *użyj* przy przedmiocie. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej. Porażka z Despair kosztuje 1 dodatkowo. Przedmiot Tier 0 czeka na decyzję GMa i nie jest zużyty, dopóki GM nie zdecyduje. |
 
 Survive i Role Reversal to akcje rozstrzygnięcia: kosztują **1 Sanity** zamiast akcji, a gdy Sanity się skończy - **1 Health**. Nic, co zrobi zabójca, nie zdejmie z mapy Reinforced śladów.
 
@@ -648,6 +648,8 @@ Twoja strona tego samego stołu, za kafelkiem **Akcje kryzysowe**:
 
 Finishing Blow to też akcja rozstrzygnięcia: 1 Sanity, a gdy Sanity się skończy - 1 Health.
 
+Akcja wymierzona w drugą stronę jest o 1 trudniejsza, gdy ta strona jest silna: Strike, Attack with a Weapon i Pin Them Down wymagają o 1 więcej, gdy Body ofiary to +1 lub więcej, Keep Your Distance - gdy Leg ofiary; Self-Defense i Role Reversal - gdy Body zabójcy, Survive i Escape Together - gdy Leg zabójcy. Kafelek to mówi ("Pobij 16 (+1 za Body ofiary)"). Rzuty otwarcia nigdy się tak nie zmieniają.
+
 Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju, w którym stoisz - nie tylko twoje - i możesz wydać **1 Sanity** na próbę:
 
 | Opcja | Rzut i co robi |
@@ -655,7 +657,7 @@ Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju
 | **Erase a Trace** | tabela Tamper, rozdział 4 |
 | **Reshape a Trace** | o trzy niżej niż usuwanie - nazwij go inaczej i opisz jako coś niewinnego; GM zatwierdza twoje słowa, zanim trafią na ślad; przerobiony zawsze kończy jako Tamper Remnant, a krytyk go wycisza i oddaje Sanity |
 | **Misleading Trail** | 15 |
-| **Move the Body** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię; sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
+| **Move the Body** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię, albo pokój dwa dalej, do którego dociera tylko krytyk (każdy inny sukces zostawia ciało w pokoju pomiędzy); sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
 
 Udany fałszywy trop albo przeniesione ciało od razu kładzie na twój arkusz Truth Bullet śladu, który zostawiło, jakbyś go znalazł (*Znasz ten ślad: jest na twojej karcie.*); porażka, usunięty i przerobiony ślad nie dają żadnego, a Reroll tego rzutu zabiera Truth Bullet.
 
@@ -749,13 +751,11 @@ GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a p
 
 | Opcja |
 |---|
-| Zwiększ Health o +1 |
-| Zwiększ Sanity o +1 |
-| Zwiększ jedną statystykę o +1 |
+| Zwiększ jedną statystykę o +1 - punkt w Head podnosi też twoje maksimum Sanity o 1, punkt w Body albo Leg twoje maksimum Health o 1 |
 | Zwiększ jedno doświadczenie o +1 |
 | Dodaj nowe doświadczenie warte +2 |
 
-Przy Reinforced Level Up to samo można wziąć więcej niż raz.
+Przy Reinforced Level Up to samo można wziąć więcej niż raz. Jeśli przed tą zasadą wziąłeś +1 Health albo +1 Sanity, GM może wyrównać twoją kartę: te wybory zostają cofnięte, a ty dostajesz tyle samo punktów statystyki do rozdania, razem z tym, co one dają.
 
 ### Strefy sali
 
@@ -788,7 +788,7 @@ Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako *
 
 | Rzut Confusion | Pomóż | Przeszkódź |
 |---|---|---|
-| 12+ | +1 | -1 |
+| 11+ | +1 | -1 |
 | 16+ | przewaga | utrudnienie |
 | krytyk | oddaje mu akcję | marnuje mu akcję |
 

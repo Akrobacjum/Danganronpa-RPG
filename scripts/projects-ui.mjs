@@ -1187,7 +1187,13 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             ui.notifications.warn(game.i18n.format("DRPG.Project.presetRefused", { why: (await import("./passages-gm.mjs")).whyText(again.refused) }));
             return null;
         }
-        passageFields = { presetTarget: again.target, passage: null };
+        /* THE SIZE THE GM PICKED IS RECORDED (E64, D039; the owner's word of 12.11.2026). The window opens a Repair an item on
+           the size its item's tier asks (`presetApproval`'s `scale`), and the completion holds the project to that tier
+           (inventory.mjs `repairItem`, D034) - unless the GM chose another size here, which the GMs' half keeps
+           (`sizedByGm`, projects.mjs `presetTargetOf`) so the completion holds the GM's choice instead. */
+        const tierSize = again.preset === "repairItem" ? PROJECT_SCALE[again.scale]?.progress ?? null : null;
+        const sizedByGm = tierSize !== null && Number(result.target) !== tierSize ? Number(result.target) : null;
+        passageFields = { presetTarget: sizedByGm ? { ...again.target, sizedByGm } : again.target, passage: null };
     }
 
     const created = await createProject({

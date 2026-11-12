@@ -530,6 +530,8 @@ export const SETTINGS = {
     gmDiceLooks: "gmDiceLooks",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
+    /** Whether this world's past +1 Health and +1 Sanity Level Up picks were brought under DA39 (E64; level-up.mjs `offerDa39Migration`). */
+    levelUpsMigrated: "levelUpsMigrated",
     /** Whether this browser's GM was told where to start on a world with no season yet (E20 C4, S01-61; season-setup.mjs `offerStartHere`). */
     startHereShown: "startHereShown",
     /** The handbook this browser last had open, read again after an F5 (E51 C8, E51-46; handbooks.mjs `openingBook`). */
@@ -1038,7 +1040,7 @@ const TABLE_SETTINGS = [
     SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
     SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
-    SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
+    SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
     SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
@@ -2154,6 +2156,15 @@ export function registerSettings() {
     /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
        by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
        the relay warning above. */
+    /* THE DA39 MIGRATION, ONCE PER WORLD (E64; the owner's DRPG-D1 of 12.11.2026, "Rekompensujemy by lvl upy byly
+       spojne"). Set by the primary GM when the pass is applied, or when it finds nothing to do (level-up.mjs
+       `offerDa39Migration`); a world flag, not a GM's own, so a second GM's load asks nothing again. */
+    game.settings.register(MODULE_ID, SETTINGS.levelUpsMigrated, {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false
+    });
     game.settings.register(MODULE_ID, SETTINGS.rollDrawWarned, {
         scope: "client",
         config: false,
@@ -2214,7 +2225,8 @@ export function registerSettings() {
     /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
        "log" until a table has shown that "sendBack" puts nobody back wrongly. E17 kept "log" (session 0's "tylko log"
        for the table of 26.10.2026), and since E17 C1 the rules' refusals are put back in either mode; the
-       default after a table's session is E82's. */
+       default after a table's session is the owner's to choose: no stage holds it (E82, named here until E64 C8, is
+       not a row of tools/stages.json; the orphan D193, 12.11.2026). */
     game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
         name: "DRPG.Settings.moveAudit.name",
         hint: "DRPG.Settings.moveAudit.hint",

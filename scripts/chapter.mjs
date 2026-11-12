@@ -45,6 +45,7 @@ import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, 
     serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
 import { drpgWindow, drpgConfirm, emptyOption, box } from "./ui-kit.mjs";
+import { columnsHtml } from "./ui-columns.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -2007,8 +2008,12 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
         : `<label class="drpg-checkbox" data-drpg-off>
                 ${tick(name, n)}
                 <span class="notes">${words} - ${game.i18n.localize(why)}</span></label>`;
-    return `<form>
-            <p>${game.i18n.format("DRPG.Chapter.endIntro", { chapter })}</p>
+    /* TWO COLUMNS, ONE SCREEN (E64-inv, 12.11.2026; the owner's pick of the Investigation review: the window fits at
+       1366x768). In one column of the kit's default width the clock's options and the backup were under the fold at
+       1366x768 in both themes (audit/style-sweep.mjs `--fit`, STILL). The evidence on the left - the reveal and the three
+       clean-ups - the clock and the case's backup on the right, as the action windows stand their columns
+       (ui-columns.mjs `columnsHtml`); they stack where the window is narrower than both. */
+    const evidence = `
             ${option("reveal", hidden, game.i18n.format("DRPG.Chapter.optReveal", { n: hidden }), { permanent: true })}
             <p class="notes">${game.i18n.localize("DRPG.Chapter.revealKeeps")}</p>
             ${typeless ? box("warning", `<p data-drpg-typeless>${
@@ -2016,8 +2021,8 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
             <hr />
             ${option("sweep", sweepable, game.i18n.format("DRPG.Chapter.optSweep", { n: sweepable }), { permanent: true })}
             ${option("faint", faintable, game.i18n.format("DRPG.Chapter.optFaint", { n: faintable }), { permanent: true })}
-            ${option("keys", keyable, game.i18n.format("DRPG.Chapter.optKeys", { n: keyable }), { permanent: true })}
-            <hr />
+            ${option("keys", keyable, game.i18n.format("DRPG.Chapter.optKeys", { n: keyable }), { permanent: true })}`;
+    const clock = `
             ${option("endTrial", trialSitting, game.i18n.localize("DRPG.Chapter.optEndTrial"), { why: "DRPG.Chapter.optNoTrial" })}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
@@ -2030,14 +2035,16 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextMorning" checked />
                 ${game.i18n.format("DRPG.Chapter.optNextMorning", { day: day + 1 })}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
             ${/* The Final Truth Remnant points at the Mastermind (E22 C3b; audit S06-47): a season with none set is told
                  nothing about it, and the warning was red at every chapter's end of such a season. */ ""}
             ${!mastermind ? "" : finalTruthPlaced
                 ? `<p class="notes" data-drpg-final-truth>${game.i18n.localize("DRPG.Mastermind.finalTruthPlaced")}</p>`
                 : box("warning", `<p data-drpg-final-truth>${game.i18n.localize("DRPG.Chapter.finalTruthMissing")}</p>`)}
             <p class="notes">${esc(backup)}
-                <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupNow"))}</button></p>
+                <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupNow"))}</button></p>`;
+    return `<form>
+            <p>${game.i18n.format("DRPG.Chapter.endIntro", { chapter })}</p>
+            ${columnsHtml([evidence, clock])}
         </form>`;
 }
 
@@ -2125,7 +2132,9 @@ export async function openChapterEndDialog() {
 
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Chapter.endTitle"),
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-chapter-end"],
+        // Two columns (`chapterEndForm`, E64-inv): a stated width, held under the screen by the kit (`kitWidth`).
+        width: CHAPTER_END_WIDTH,
         body: chapterEndForm({
             chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1,
             hidden, typeless, holders: typelessHolders, sweepable, faintable, keyable, trialSitting, lastChapter,
@@ -2169,6 +2178,10 @@ export async function openChapterEndDialog() {
 
     return applyChapterEnd({ ...result, opened });
 }
+
+/* End the chapter's width (E64-inv): wide enough for its two columns at 1366x768, measured in Chromium (the commit's fit
+   pass); narrower than the action windows' 1120 px, whose columns hold more. */
+const CHAPTER_END_WIDTH = 900;
 
 /** The part of the clock an End of chapter is chosen against: `openChapterEndDialog` reads it, `applyChapterEnd` compares. */
 function endMark(clock) {

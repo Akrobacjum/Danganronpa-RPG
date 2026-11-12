@@ -3028,11 +3028,15 @@ const REGRESSIONS = [
 
         // Every GM-side charge is the no-claim fallback, and the only other writer
         // of the Sanity track in a refund path is `handBack`.
+        // Since E64 (f657e7d) the fallback's Sanity is `chargeUnclaimed`'s, and each call of it stands after a missing claim.
         for (const spent of [...cleanup.matchAll(/await spendStress\(actor\)/g)].map(m => m.index)) {
             const before = cleanup.slice(Math.max(0, spent - 260), spent);
-            ok(/validPrice\(|!paidStep|for \(let i = 0/.test(before),
+            ok(/validPrice\(|!paidStep|for \(let i = 0|function chargeUnclaimed\(/.test(before),
                 "a GM-side Sanity charge is back that no missing price claim explains");
         }
+        const unclaimed = [...cleanup.matchAll(/(?<!function )chargeUnclaimed\(/g)].map(m => m.index);
+        ok(unclaimed.length > 0 && unclaimed.every(at => /validPrice\(|!paidStep/.test(cleanup.slice(Math.max(0, at - 160), at))),
+            "chargeUnclaimed is called where no missing price claim explains it");
         ok(/function validPrice\(/.test(cleanup),
             "nothing bounds the step a Tamper packet claims to have paid");
         ok(/async function handBack\(/.test(cleanup),
@@ -5792,9 +5796,11 @@ const REGRESSIONS = [
         ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
-        ok(six.indexOf("framingCandidates(actor)") > 0 && six.indexOf("framingCandidates(actor)") < six.indexOf("spendStress("),
+        // The price is `chargeUnclaimed`'s since E64 (f657e7d), `spendStress` before: whichever comes first.
+        const paidAt = Math.min(...["spendStress(", "chargeUnclaimed("].map(k => six.indexOf(k)).filter(at => at >= 0));
+        ok(Number.isFinite(paidAt) && six.indexOf("framingCandidates(actor)") > 0 && six.indexOf("framingCandidates(actor)") < paidAt,
             "a misleading trail is not checked against who may be framed before it is paid for");
-        ok(six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < six.indexOf("spendStress("),
+        ok(Number.isFinite(paidAt) && six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < paidAt,
             "moving the body does not ask where the body is before it is paid for");
         ok(/receipt\.stressAfter - receipt\.stressBefore/.test(cleanup), "a clean-up's undo does not take back what it moved");
         // E09 fix r2-G10: and only what the attempt's own writes moved, never a write that landed while it ran.
@@ -8767,6 +8773,8 @@ const REGRESSIONS = [
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#givenCounts", "held (E42 fix FG4; the end review's S-M3): a Level Up row's `advances` before its write and at a Finish (`rowGrew`), read as the GMs hold them (`flagsHeldNow` after `judgedFor`) - a player's own raised value, standing until its put-back lands, no longer reads as the row given; the offers are the GMs' store's (`standingOffers`) [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
+            ["SHEET level-up.mjs#da39RowOf", "judged (E64, the DA39 migration): reads a student's maxima, statistics and flags as the GMs hold them (`numberHeld`, `flagsHeldNow`), on the primary GM; a dead student is read as any other, its row only the GM's to confirm (`offerDa39Migration`)"],
+            ["SHEET level-up.mjs#applyDa39Migration", "judged (E64): the primary only (`isPrimaryGm`), each row read again in one `meansWrite` from `numberHeld` and written by a GM's ruling; nothing of a trial reads it"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
             ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); since E79 C16 an Objection only on a GM's browser, judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
@@ -18878,7 +18886,9 @@ const REGRESSIONS = [
                 "Reroll.interruptedGivingBack", "Reroll.interruptedPaying", "Reroll.sabotageRedone", "Rolls.awayHope",
                 // E66 C4: a number put where a digit stood, before Health or Sanity (`{n}`, `{drain}`, `{hp}`, `{stress}`).
                 "Cleanup.freeTonight", "Config.CRISIS_ACTIONS.roleReversal.failure", "Config.CRISIS_ACTIONS.selfDefence.failure",
-                "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure"
+                "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure",
+                // E64: the DA39 migration's change of a maximum, a signed number before Health or Sanity ("+1 Health max").
+                "Advance.da39.health", "Advance.da39.sanity"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -18925,7 +18935,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 37, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 54, S: 37, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -19313,7 +19323,7 @@ const REGRESSIONS = [
         const sources = await moduleSources();
         const src = file => stripComments(sources.get(file) ?? "");
         read.roads = [/export function eclipseExplanation\(crossings = overflowCrossings\(ECLIPSE_MOVES\) \?\? ECLIPSE_MOVES\)/.test(src("explain.mjs")),
-            /baseActions\(\{ wounded \}\) - dark/.test(src("actions.mjs")),
+            /baseActions\(\{ wounded: costsAction \}\) - dark/.test(src("actions.mjs")), // E64 C1c: Wounded's action is Daily Life's alone
             /game\.i18n\.format\(card\.key, \{[^}]*\bseconds\b[^}]*\}\)/.test(fnSource(src("trial-floor.mjs"), "postFloorCard") ?? ""),
             /"DRPG\.Floor\.holdingDebateOver", \{ seconds: Math\.abs\(left\), step: adjustStep\(floor\) \}/.test(src("trial-floor-ui.mjs")),
             /barLabel\(op, adjustStep\(floor\)\)/.test(fnSource(src("trial-floor-ui.mjs"), "trialBar") ?? "")];
@@ -19321,13 +19331,13 @@ const REGRESSIONS = [
             en: {
                 now: ["up to 1 connected room", "up to 5 connected rooms",
                     "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
-                    "With no Health left you get 1 action instead of 2 actions, until somebody patches you up.",
+                    "With no Health left you get 1 action instead of 2 actions in Daily Life and the Investigation, until somebody patches you up.",
                     "You have 2 actions", "A trap is built as projects. Plan about 7-10 progress in total, roughly 4 to 5 actions.",
                     "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
                     "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
-                    "With no Health left you get 2 actions instead of 3 actions, until somebody patches you up.",
+                    "With no Health left you get 2 actions instead of 3 actions in Daily Life and the Investigation, until somebody patches you up.",
                     "You have 3 actions", "A trap is built as projects. Plan about 9-14 progress in total, roughly 5 to 7 actions.",
                     "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
@@ -19336,13 +19346,13 @@ const REGRESSIONS = [
             pl: {
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
-                    "Gdy nie zostało ci już Health, dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
-                    "Gdy nie zostało ci już Health, dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
+                    "Gdy nie zostało ci już Health, w Daily Life i w Investigation dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
                     "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
@@ -20274,9 +20284,10 @@ const REGRESSIONS = [
                 "trialProgress", "trialQueue"],
             // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
             // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
-            // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences.
-            counts: [19, 11, 37], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 37, the clock's entry does not "
+            // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
+            // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
+            counts: [19, 11, 38], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 38, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -22273,7 +22284,7 @@ const REGRESSIONS = [
             "action-report.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
             "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
-            "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
+            "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
             // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
             "case-summary.mjs": {"message": 1},
@@ -22285,7 +22296,7 @@ const REGRESSIONS = [
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
             "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},
-            "level-up.mjs": {"heading": 1, "line": 2}, "mastermind.mjs": {"message": 1},
+            "level-up.mjs": {"heading": 1, "line": 4}, "mastermind.mjs": {"message": 1},
             "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
             "monocub.mjs": {"line": 5, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
             "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
@@ -22304,7 +22315,7 @@ const REGRESSIONS = [
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
             "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"message": 1}, "trial.mjs": {"line": 9, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
-            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 2},
+            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 3},
             "verdict.mjs": {"built": 3, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
         };
         const card = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/chat-card.mjs`).then(r => r.ok ? lfText(r) : ""));
@@ -22621,7 +22632,7 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             gateReads: ["gmPlaceOf", "bodyPlaceOf", "gmPlaceOf"], bodyBranch: true, hiddenFromPlace: true, friskImports: true,
-            lootBody: [], lootAsks: true, transferLoot: true, transferReads: ["sameRoom"], greyReads: [], greyAsks: true
+            lootBody: [], lootAsks: true, transferLoot: true, transferReads: [], greyReads: [], greyAsks: true
         }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
     }],
 
