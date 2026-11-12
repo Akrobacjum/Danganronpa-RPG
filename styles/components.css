@@ -3329,4 +3329,6 @@ body.drpg-spectator #chat-notifications,
 body.drpg-spectator #chat-message { display: none; }
 #drpg-hud > .drpg-spectator-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; font-size: 0.85em; }
 #drpg-hud > .drpg-spectator-line > .drpg-spectator-where { flex: 1 1 auto; min-width: 0; }
-#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms { flex: 1 1 8rem; min-width: 0; max-width: 100%; }
+#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms { flex: 1 1 12rem; min-width: 10rem; max-width: 100%; height: auto; padding: 1px 4px;
+    appearance: auto; background: transparent; color: inherit; border: 1px solid currentColor; font: inherit; }
+#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms > option { color: initial; background: initial; }
