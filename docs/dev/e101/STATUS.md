@@ -27,11 +27,18 @@ Registry Since: E101.
 
 Items 3-5 wait for e93 on main and merged here (the coordinator, 12.11):  e93 rewrites the same lines of room-setup.mjs (the Doors tab's columns, ROOM_SETUP_TABS, the Rest tab) and the texts line (claude/texts-e71) rewrites the room tabs' texts (searchIntro, scenesIntro, notSharedNote, fogIntro, stashesNote, setupIntro ...). Any version of items 3-5 conflicts with both at merge.
 
+## The review page
+
+https://claude.ai/artifact/YKCBjKepPEWvZcubdp46Y3 (private, the owner's): each changed window before (the review's own
+shots, main 1.2.108) and after (this branch), PL first then EN, Stained Glass and Legacy, 1366x768; harness captures
+(probe 08, `DRPG_CAPTURE_ONLY`, `DRPG_CAPTURE_LANG`) drawn in audit/style-harness.html in Chromium, not Foundry.
+
 ## Runs (this branch, 12.11.2026)
 
 - `npm run quick`: lint 0 problems, check 17 parts green, gate self-test 37/37 (after the names fix).
 - Tiers 0-1 (`node run-tests.mjs --tier 1`): 1255 passed, 0 failed, 16 skipped, 0 red (1270 ran, 397 s).
 - Tier 2 by name (E101, E15-T8, E46-T4, E50-T1, E20-T2, the Mastermind's no-pool warning, Season setup's undecided region, the game's settings window saves, every test named Season checklist or Despair Flow): 36 passed, 0 failed.
+- After the smaller proposals (23e59845): scenarios 00-boot 33/33, 50-lang 44/44, 63-class-trial 75/75, 65-season 57/59 (2 expected red), 71-sheet 41/41, 88-flow-length 26/26, 41-trial-scene 51/51, 33-bridge-paths 74/74, 61-gmstore-case 113/113, 83-roll-integrity 110/110, 30-security 273/274 (1 expected red); 0 failed. After 560b94d4 (lang keys moved clear of texts-e71 d640019e): tiers 0-1 1260 passed, 0 failed, 16 skipped; 50-lang 44/44.
 - Scenarios on items 7, 6 and 2 together (`node cluster.mjs`): 11-killer-secrecy 14/14; 30-security 273/274 with 1 expected red (foundry-secret-door-type); 33-bridge-paths 74/74; 41-trial-scene 51/51; 61-gmstore-case 113/113; 65-season 57/59 with 2 expected red (Foundry limits); 66-rooms 76/76; 72-canary 132/136 with 4 expected red; 87-messenger-sound 35/35; 0 failed in each. 84-viewports edited, not run (local gate only).
 
 ## Follow-ups after the texts line lands (left out to avoid a conflict)
