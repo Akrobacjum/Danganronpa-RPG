@@ -39897,6 +39897,39 @@ const INVARIANTS = [
             "{first: the first mark (rows 100 px in a list of 120); watched: what the live ResizeObservers watch after two marks of the same list; "
             + "grown / shrunk: the attribute after the observer fires with the rows 200 px in 120, then 110 in 120}");
     }],
+    ["R3984 - no line at the screen's edges while paused (gaps, the owner's table on 1.2.108): `#pause` is the whole viewport (danganronpa.css, \"The band, and the box it lived in\"), so no rule of the module's sheets gives `#pause.paused` a top or bottom border, under either theme", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: a thin light line flashes along the top and the bottom of the whole screen
+         * every two or three seconds, and only while the game is paused. stained-glass.css's pause band kept a 1 px
+         * accent `border-top` and `border-bottom` from when `#pause` was Foundry's 180 px band mid-screen; since
+         * danganronpa.css made the element the full viewport (`top: 0; height: 100vh`) those two seams lie on the
+         * screen's first and last rows. Read here by the sheets' cascade (`styleCascade`), every property that can draw
+         * either seam, on a body of its own per theme. Whether core's own `pulse` or the veil is what makes the seam
+         * flash at a table is not read here (no layout, no paint): the shots and a table say that. Red on 4dfac3a9:
+         * stained-glass draws both, 1px solid.
+         */
+        const C = await styleCascade();
+        const sides = {
+            top: ["border", "border-width", "border-style", "border-block", "border-block-start", "border-top", "border-top-width", "border-top-style"],
+            bottom: ["border", "border-width", "border-style", "border-block", "border-block-end", "border-bottom", "border-bottom-width", "border-bottom-style"]
+        };
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<figure id="pause" class="paused"><img alt=""><figcaption>Game Paused</figcaption></figure>`;
+            const pause = body.querySelector("#pause");
+            for (const [side, names] of Object.entries(sides)) {
+                const w = C.winner(pause, names);
+                const drawn = !!w && !/^\s*(none|0(px)?)\b/.test(w.value) && !/\b(none|hidden|transparent)\s*$/.test(w.value.trim());
+                read[`${theme.replace("drpg-theme-", "")} ${side}`] = drawn ? `${w.file}: ${w.value.trim()}` : "none";
+            }
+        }
+        equal(stableJson(read), stableJson({
+            "stained-glass top": "none", "stained-glass bottom": "none", "monokuma-legacy top": "none", "monokuma-legacy bottom": "none"
+        }), "{theme side: the border the paused full-screen #pause draws there, or none}");
+    }],
     ["R3983 - one project never fades as if more stood below it (gaps, the owner's table on 1.2.108): projects-tray.mjs `markTrayMore` marks `data-drpg-more` only when what overflows the list is at least half a row (the first row's own height), so a list of one row that overflows by a few pixels of something that is no row is not marked, and a list with a row standing below still is", async () => {
         /*
          * Gaps, 12.11.2026 (the owner, at a table on 1.2.108 with Daggerheart 2.12.8: "with one project the name looks
