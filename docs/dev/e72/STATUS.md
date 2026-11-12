@@ -113,8 +113,8 @@ where that line leaves the rule open the default is written here (default, owner
 - `liftCubWitness`'s `since`: 1.2.117 kept (stages.json plans E72 there); the coordinator re-checks at merge.
 - Defaults of part A, owner confirmed 12.11 ("E72 tak", relayed by the coordinator): the Polish refusal wording
   (Q-E72-8), the per-target caps (C4), Redeem's and Ask for Hope's prices (C5), the Monocub Rule's wording (C6), Q-E72-3
-  (C3), Q-E72-5 (C10), C8's own voice room. Part B's defaults (C13 on) and the fix round's came after: still "default,
-  owner may revise".
+  (C3), Q-E72-5 (C10), C8's own voice room. Part B's defaults (C13 on) and the fix round's: approved by the owner on DRPG-D1 (12.11),
+  but C5's Redeem price, which is now free.
 
 ## For the coordinator
 
@@ -146,6 +146,19 @@ where that line leaves the rule open the default is written here (default, owner
   every store back" had no fixture for the two new stores (cubs, cubTargets). Fixed in a4cd1ed (green alone).
 
 ## Pushed
+
+- 12.11.2026, 14:xx: Redeem free (the owner, DRPG-D1), the second review's E72 findings (#3 the Bribe whole or not at
+  all, #4 the refund's limit). At that code: quick green; tiers 0-1 1173 passed, 0 failed, 16 skipped, 1 red; tier 2 by
+  name 12 passed (Redeem, Bribe, Tinker, order, tiles, Events); scenarios 30 (278/279, 1 expected red), 33 (75/75),
+  40 (88/88), 71 (41/41), 83 (110/110). "[skip ci]" on every commit (the coordinator's rule of 12.11).
+- The second review (read-only, 8367f80..f991974) found no deadlock, mint or leak. Its #1 is E91's (inventory.mjs
+  keepGearShape under quiet readies the other stowed piece with toggleEquipped, which puts down whatever is in the hand:
+  a knife held, a Gear planted unseen, and the knife goes down with no word) - not fixed here, E91 being on hold; told to
+  the coordinator. #2 (playerOwns counts OWNER by default) and #4b (creditHopeFromDespair reads the purse outside its
+  lock) noted, not changed.
+- Waiting on the owner (the coordinator relays): the purse's weak signal for known-leaks.json needs its paragraph in the
+  root README.md (canary.mjs validateKnownLeaks: a row that stays must be marked there), which this line's brief forbids
+  touching; the proposed wording is under "For the coordinator".
 
 - 12.11.2026, afternoon: 3b04cac..7263f18 (E91 C1-C8 and the follow-up, the E72 fix round, 30/33 for the Bribe). Before
   it, at 7263f18: tiers 0-1 1173 passed, 0 failed, 16 skipped, 1 red; tier 2 by name (the fix round's, E91's and the
