@@ -30,7 +30,7 @@
 import { getClock } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
-import { sequencesOn, holdEscape, playDayStart } from "./sequence.mjs";
+import { sequencesOn, holdEscape, playDayStart, playDayEnd } from "./sequence.mjs";
 
 const HOURS = ["morning", "noon", "afternoon", "evening", "night"];
 
@@ -110,15 +110,17 @@ function playFlashSound() {
  * The clock this page sees moved from `seen` to `clock` (E62 C1): hand the curtain its direction, schedule the flashes
  * and their sounds, hold Escape for the length. Answers the transition or null. `on` is the table's switch as read now.
  */
-export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion() } = {}) {
+export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(), keep = true } = {}) {
     const before = seen;
     seen = clock ? { ...clock } : seen;
     const t = transitionFor(before, clock);
     if (!t || t.owner) return t;
     clearFlashes();
     count("transition.heard");
-    // a new day is a session (E94): its start-of-day board plays over the curtain's turn, still under reduced motion
-    if (t.kind === "newDay" && on) playDayStart(clock, { on }).catch(() => null);
+    // a new day is a session (E94): the end-of-day board of the day that ended, then the start-of-day board of the new
+    // one, over the curtain's turn, still under reduced motion (C2, C3)
+    if (t.kind === "newDay" && on && before) playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) }).catch(() => null);
+    else if (t.kind === "newDay" && on) playDayStart(clock, { on }).catch(() => null);
     if (!on || still) return t;
     seed = (seed * 1103515245 + 12345) >>> 0;
     import("./glass.mjs").then(g => g.hintTurn?.({ how: t.how, seed, groups: t.groups, delays: t.delays, dur: t.dur })).catch(() => null);

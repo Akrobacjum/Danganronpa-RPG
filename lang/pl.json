@@ -242,7 +242,23 @@
       "daySub": "Rozdział {chapter} · {time} · Ocaleli: {alive}/{total}",
       "daySubNoChapter": "{time} · Ocaleli: {alive}/{total}",
       "weRemember": "pamiętamy",
-      "morningLine": "OGŁOSZENIE PORANNE"
+      "morningLine": "OGŁOSZENIE PORANNE",
+      "dayEndTitle": "Koniec dnia {day}",
+      "dayEndSub": "Rozdział {chapter}",
+      "yourDay": "TWÓJ DZIEŃ",
+      "tableDay": "DZIEŃ STOŁU",
+      "foundSomething": "znalezione",
+      "dayTally": "Akcje: {actions} · Znaleziska: {found}",
+      "quietDay": "Spokojny dzień: nic nie zrobiono.",
+      "publicEvents": "CO WIDZIAŁA SZKOŁA",
+      "hope": "NADZIEJA",
+      "despair": "ROZPACZ",
+      "moodLabel": "NASTRÓJ SZKOŁY",
+      "mood": {
+        "calm": "Spokój",
+        "uneasy": "Niepokój",
+        "spilling": "Na krawędzi"
+      }
     },
     "DhSettings": {
       "title": "Ustawienia postaci",
@@ -370,7 +386,7 @@
       },
       "sequences": {
         "name": "Sekwencje na cały ekran",
-        "hint": "Wejście do Class Trial i cut-in werdyktu na każdym ekranie przy tym stole. Wyłączone: ich dźwięki grają dalej. Każdy gracz pominie sekwencję klawiszem Esc."
+        "hint": "Chwile na cały ekran na każdym ekranie przy tym stole: wejście do Class Trial, cut-in werdyktu, obroty i błyski zegara, migotanie przy ciele, plansze dnia. Wyłączone: grają tylko dźwięki wejścia i werdyktu. Esc pomija jedną."
       },
       "reducedMotion": {
         "name": "Ograniczone animacje",
@@ -4275,6 +4291,8 @@
       "phase": "Faza",
       "session": "Sesja",
       "timeOfDay": "Pora dnia",
+      "morningLine": "Zdanie na następny poranek",
+      "morningLineHint": "Pokaże się pod OGŁOSZENIE PORANNE na planszy początku dnia, gdy zacznie się następny dzień. Do tego czasu zostaje w tej przeglądarce, a puste nic nie pokazuje.",
       "chapterCorrectTitle": "Popraw numer rozdziału",
       "endChapterNote": "Zakończ rozdział ujawnia, sprząta i wskazuje Blackened - wszystko, czego nie robi pole rozdziału wyżej. Najpierw pyta, a nic wpisanego wyżej nie zostaje zapisane.",
       "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
@@ -6995,7 +7013,11 @@
         },
         "dayStart": {
           "label": "Początek dnia",
-          "hint": "Plansza początku dnia wznosi się, gdy zaczyna się nowy dzień. Słyszy cały stół."
+          "hint": "Plansza początku dnia wznosi się, gdy zaczyna się nowy dzień. Słyszy cały stół, ale nie przy wyłączonych sekwencjach."
+        },
+        "dayEnd": {
+          "label": "Koniec dnia",
+          "hint": "Plansza końca dnia wznosi się, gdy dzień się kończy, przed planszą nowego dnia. Słyszy cały stół, ale nie przy wyłączonych sekwencjach."
         },
         "paneFlash": {
           "label": "Błysk szyby",

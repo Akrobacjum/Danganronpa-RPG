@@ -56,6 +56,9 @@ export const SEQUENCE_TIMES = Object.freeze({
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
        from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
     dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
+    /* E94 C3, the end-of-day board: the board rises at 200 ms over 500, the rows one by one 120 ms apart from 700, Hope and
+       Despair counted up from 1600 over 900, the school's mood at 2600, held to 6000, gone in 420; still, 6 s. */
+    dayEnd: Object.freeze({ board: 200, rise: 500, rows: 700, rowStep: 120, count: 1600, countIn: 900, mood: 2600, hold: 6000, fade: 420, end: 6450, still: 6000, sound: 0 }),
     verdictCut: Object.freeze({ band: 250, portrait: 250, portraitIn: 420, votes: 900, rowIn: 320, rowStep: 90, bars: 980, barsIn: 600, stamp: 1700, stampIn: 200, sentence: 1950, sentenceIn: 380, hold: 3500, fade: 180, end: 3700, still: 3000, sound: 1700 })
 });
 
@@ -103,6 +106,10 @@ export function endSequence(why = "cut") {
     document.body.removeAttribute(SEQUENCE_ATTR);
     document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`);
     count(`sequence.${why}`);
+    /* WHAT FOLLOWS (E94 C3): the end-of-day board hands on to the start-of-day board. Only when the sequence ended on its
+       own or was skipped: one cut by another sequence or a phase change hands on nothing, so a trial's entry is never
+       followed by a board it cut. */
+    if (run.then && (why === "ended" || why === "skipped")) queueMicrotask(() => { try { run.then(why); } catch { /* never let what follows break this */ } });
     return true;
 }
 
@@ -111,9 +118,10 @@ export function endSequence(why = "cut") {
  * sequence's frames, `sound` the event's sound (played once, at `SEQUENCE_TIMES[kind].sound` in motion, at once when
  * still or when the table's switch is off). Synchronous; answers what it did - "off", "still", "motion", or null when
  * the event started nothing (before ready, or heard again). Never throws to its caller. `on` is the table's switch as
- * read now (`sequencesOn`); the suite hands in false, since tiers 0-1 write no setting.
+ * read now (`sequencesOn`); the suite hands in false, since tiers 0-1 write no setting. `then` is called once the sequence
+ * has ended on its own or been skipped (or at once with the switch off), never when another one cut it (E94 C3).
  */
-export function playSequence(kind, key, draw, { sound = null, on = sequencesOn() } = {}) {
+export function playSequence(kind, key, draw, { sound = null, on = sequencesOn(), then = null } = {}) {
     const times = SEQUENCE_TIMES[kind];
     if (!ready || !times || key == null) return null;
     const id = `${kind}\u0000${key}`;
@@ -124,6 +132,7 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     if (!on) {
         count("sequence.off");
         sound?.();
+        if (then) queueMicrotask(() => { try { then("off"); } catch { /* never let what follows break this */ } });
         return "off";
     }
     const still = reducedMotion();
@@ -134,7 +143,7 @@ export function playSequence(kind, key, draw, { sound = null, on = sequencesOn()
     host.dataset.drpgSequenceMode = still ? "still" : "motion";
     // the event is told to a screen reader by its own card and the HUD (a11y.mjs hears the phase); this is a picture
     host.setAttribute("aria-hidden", "true");
-    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [] };
+    const run = { kind, key, host, mode: still ? "still" : "motion", timers: [], anims: [], undo: [], then };
     running = run;
     document.body.setAttribute(SEQUENCE_ATTR, kind);
     document.body.append(host);
@@ -465,7 +474,8 @@ export function playVerdictCut(message) {
  * What the start-of-day board shows (E94 C2; MK-R2 #4, #8, #9, #10): the day, the chapter, the time of day, and the
  * cast as the table knows it - the dead by the table's own fact (`isDeceased`, the published flag; never a death the
  * GMs keep, E05), greyed in their place with their name and "we remember", never crossed out - and the GM's morning
- * line when there is one (an empty line is not shown; the GM's field is E94 C1, not built yet). Pure but for the names
+ * line when there is one (an empty line is not shown; the GM writes it in Edit campaign, and it reaches the clock at
+ * the day's start, E94 C1). Pure but for the names
  * and pictures; `students` is the cast in its order.
  */
 export function dayStartBoard(clock, students = [], announcement = "") {
@@ -510,9 +520,167 @@ function drawDayStart(ctx, board) {
 export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn() } = {}) {
     if (!clock || !ready) return null;
     const cast = students ?? (await import("./monokuma.mjs")).studentActors();
-    const board = dayStartBoard(clock, cast, "");
+    const board = dayStartBoard(clock, cast, clock.morningLine ?? "");
     return playSequence("dayStart", `day:${clock.season ?? ""}:${board.day}:${clock.session ?? ""}`, ctx => drawDayStart(ctx, board),
         { sound: () => playSound("dayStart"), on });
+}
+
+/* ========================================================================== *
+ *  E94 C1, C3, C4: THE MORNING LINE, THE END-OF-DAY BOARD, THE SCHOOL'S MOOD
+ * ========================================================================== */
+
+/** The GM's morning line as the clock takes it: at most 200 characters, trimmed; null when there is none. */
+export function morningLineOf(text) {
+    const line = String(text ?? "").replace(/\s+/g, " ").trim().slice(0, MORNING_LINE_MAX);
+    return line || null;
+}
+export const MORNING_LINE_MAX = 200;
+
+/**
+ * What a move of the clock folds into its one write for the morning line and the mood (E94 C1, C4; clock.mjs
+ * `advanceTimeOfDay`): at the day's roll-over the GM's line (`draft`, kept on that GM's browser until then, so it is in
+ * no world data before the day starts) and the mood's word; at any other move both cleared, so neither outlives the
+ * morning they were written for. Pure.
+ */
+export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {} } = {}) {
+    if (rolledOver) return { morningLine: morningLineOf(draft), mood: MOOD_BANDS.includes(mood) ? mood : null };
+    const patch = {};
+    if (before?.morningLine != null) patch.morningLine = null;
+    return patch;
+}
+
+/* THE SCHOOL'S MOOD (E94 C4; the plan's Q-E94-3 default): three words from the Overflow count's share of its threshold X,
+   computed on a GM (a player's `overflowCount` is 0, E05 C12) and published as the word alone - the count is the GMs'. */
+export const MOOD_BANDS = Object.freeze(["calm", "uneasy", "spilling"]);
+export function moodBand(count, threshold) {
+    const c = Number(count), x = Number(threshold);
+    if (!Number.isFinite(c) || !Number.isFinite(x) || x <= 0 || c <= 0) return "calm";
+    const share = c / x;
+    return share < 1 / 3 ? "calm" : share < 2 / 3 ? "uneasy" : "spilling";
+}
+
+/**
+ * What the end-of-day board shows this browser (E94 C3; the plan's C3, MK-R2 #5): the day and the chapter; this browser's
+ * own rows of the day (its private-card store, secret.mjs `secretSummaries` - a player's own actor's, a GM's the table's),
+ * counted and the last few named; the day's public cards (no whisper, no blind roll: the chat's own audience test);
+ * Hope - the viewer's own student's, a player's only - and Despair as the HUD shows it to everybody; the school's mood as
+ * the GM published it. Nothing else: no other player's row, no secret event, no Overflow count. Pure but for the reads
+ * it is handed.
+ */
+export function dayEndBoard({ clock = {}, rows = [], publicCards = [], hope = null, despair = null, mood = null } = {}) {
+    const day = Number(clock?.day) || 0;
+    return {
+        day, chapter: clock?.chapter ?? null,
+        rows: rows.slice(-6).map(r => ({ action: String(r.action ?? ""), room: r.room ? String(r.room) : "", found: Boolean(r.item) })),
+        count: rows.length, found: rows.filter(r => r.item).length,
+        events: publicCards.slice(-4).map(c => String(c ?? "")).filter(Boolean),
+        hope: Number.isFinite(hope?.value) ? { value: hope.value, max: Number.isFinite(hope.max) ? hope.max : null } : null,
+        despair: Number.isFinite(despair?.value) ? { value: despair.value, max: Number.isFinite(despair.max) ? despair.max : null } : null,
+        mood: MOOD_BANDS.includes(mood) ? mood : null
+    };
+}
+
+/** The end-of-day board as an element, still: its whole last frame, and what its notice card keeps. */
+export function dayEndElement(board) {
+    const L = key => game.i18n.localize(key);
+    const el = document.createElement("div");
+    el.className = "drpg-seq-day drpg-seq-dayend";
+    const sub = board.chapter != null ? game.i18n.format("DRPG.Sequence.dayEndSub", { chapter: board.chapter }) : "";
+    const num = (key, v) => v ? `<div class="drpg-seq-num" data-drpg-num="${v.value}"><small>${esc(L(key))}</small><b>${v.value}${v.max != null ? `<span>/${v.max}</span>` : ""}</b></div>` : "";
+    el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))}</h2>
+        ${sub ? `<div class="drpg-seq-day-sub">${esc(sub)}</div>` : ""}
+        <div class="drpg-seq-dayend-cols">
+            <section class="drpg-seq-yours"><h3>${esc(L(game.user?.isGM ? "DRPG.Sequence.tableDay" : "DRPG.Sequence.yourDay"))}</h3>
+                ${board.count ? `<ol>${board.rows.map(r => `<li class="drpg-seq-row">${esc(r.action)}${r.room ? ` <span>${esc(r.room)}</span>` : ""}${r.found ? ` <em>${esc(L("DRPG.Sequence.foundSomething"))}</em>` : ""}</li>`).join("")}</ol>
+                <p class="drpg-seq-tally">${esc(game.i18n.format("DRPG.Sequence.dayTally", { actions: board.count, found: board.found }))}</p>`
+                : `<p class="drpg-seq-tally">${esc(L("DRPG.Sequence.quietDay"))}</p>`}</section>
+            ${board.events.length ? `<section class="drpg-seq-events"><h3>${esc(L("DRPG.Sequence.publicEvents"))}</h3><ol>${board.events.map(e => `<li class="drpg-seq-row">${esc(e)}</li>`).join("")}</ol></section>` : ""}
+        </div>
+        <div class="drpg-seq-nums">${num("DRPG.Sequence.hope", board.hope)}${num("DRPG.Sequence.despair", board.despair)}</div>
+        ${board.mood ? `<div class="drpg-seq-mood" data-drpg-mood="${board.mood}"><small>${esc(L("DRPG.Sequence.moodLabel"))}</small>${esc(L(`DRPG.Sequence.mood.${board.mood}`))}</div>` : ""}`;
+    return el;
+}
+
+function drawDayEnd(ctx, board) {
+    const { host, times: T, anim, at } = ctx;
+    const el = dayEndElement(board);
+    host.append(el);
+    anim(el, [{ opacity: 0, transform: "translate(-50%, -50%) translateY(40px)" }, { opacity: 1, transform: "translate(-50%, -50%)" }], { duration: T.rise, delay: T.board });
+    el.querySelectorAll(".drpg-seq-row").forEach((r, i) => anim(r, [{ opacity: 0, transform: "translateX(-24px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 360, delay: T.rows + i * T.rowStep }));
+    el.querySelectorAll(".drpg-seq-num").forEach(n => {
+        anim(n, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: T.count });
+        // counted up: the number climbs from 0 to its value over `countIn`, in eight steps
+        const b = n.querySelector("b"), to = Number(n.dataset.drpgNum) || 0, tail = b?.querySelector("span")?.outerHTML ?? "";
+        if (!b || ctx.still) return;
+        for (let k = 0; k <= 8; k++) at(T.count + (T.countIn * k) / 8, () => { b.innerHTML = `${Math.round((to * k) / 8)}${tail}`; });
+    });
+    anim(el.querySelector(".drpg-seq-mood"), [{ opacity: 0, transform: "scale(1.08)" }, { opacity: 1, transform: "scale(1)" }], { duration: 420, delay: T.mood });
+    anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
+}
+
+/** The rows of the day a browser may show (E94 C3): a GM's, all of them; a player's, those of a student it owns or of no student. Pure but for `owns`. */
+export function dayRowsFor(entries, { gm = false, owns = id => Boolean(game.actors.get(id)?.isOwner) } = {}) {
+    return gm ? entries.slice() : entries.filter(e => !e.actorId || owns(e.actorId));
+}
+
+/** The day's public cards (E94 C3): the module's own messages over [since, until) that nobody is whispered and no roll is blind - what every browser at the table was shown. Their words, cut to 80 characters. Pure. */
+export function publicCardsOf(messages, since, until = null) {
+    const words = m => {
+        const flavor = String(m.flavor || "").trim();
+        if (flavor) return flavor;
+        const d = document.createElement("div");
+        d.innerHTML = String(m.content ?? "");
+        return (d.querySelector("h1, h2, h3, h4, strong, b")?.textContent ?? d.textContent ?? "").trim();
+    };
+    return (messages ?? []).filter(m => {
+        const at = Number(m.timestamp);
+        return Number.isFinite(at) && at >= since && (until === null || !Number.isFinite(until) || at < until)
+            && m.flags?.[MODULE_ID] && !(m.whisper?.length) && !m.blind;
+    }).map(m => words(m).replace(/\s+/g, " ").slice(0, 80)).filter(Boolean);
+}
+
+/* What this browser knows of the day that ended: its own rows from its private-card store over [the day's start, the
+   new day's start), the public cards of the chat over the same span, Hope and Despair as this browser shows them. */
+async function dayEndReads(before, clock) {
+    const since = Number(before?.dayStartedAt), until = Number(clock?.timeOfDayStartedAt);
+    const known = Number.isFinite(since) && since > 0;
+    let rows = [];
+    if (known) {
+        const { entriesSince } = await import("./day-summary.mjs");
+        rows = dayRowsFor(entriesSince(since, Number.isFinite(until) ? until : null), { gm: game.user.isGM });
+    }
+    const publicCards = known ? publicCardsOf(game.messages?.contents ?? [], since, Number.isFinite(until) ? until : null) : [];
+    const actor = game.user.isGM ? null : game.user.character ?? null;
+    const hopeOf = a => { const h = a?.system?.resources?.hope; return h && Number.isFinite(Number(h.value)) ? { value: Number(h.value), max: Number(h.max) } : null; };
+    let despair = null;
+    try {
+        const d = await import("./despair.mjs");
+        const ids = d.monokumas().map(u => u.id);
+        if (ids.length) despair = { value: ids.reduce((t, id) => t + d.getDespair(id), 0), max: d.despairMax() * ids.length };
+    } catch { despair = null; }
+    return { rows, publicCards, hope: hopeOf(actor), despair };
+}
+
+/**
+ * The end-of-day board on this browser, at the day's roll-over (transitions.mjs, E62's `newDay`), before the start-of-day
+ * board, which it hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off, nothing
+ * plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays until
+ * closed (the plan's C3), and stands in for the Night's own summary (Q-E94-5's default; day-summary.mjs). `before` is the
+ * clock of the day that ended, `clock` the new one. `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and
+ * the notice history is a setting). Answers what `playSequence` answered.
+ */
+export async function playDayEnd(before, clock = getClock(), { on = sequencesOn(), then = null, reads = null, keep = true } = {}) {
+    if (!before || !clock || !ready) { then?.("none"); return null; }
+    const got = reads ?? await dayEndReads(before, clock);
+    const board = dayEndBoard({ clock: before, rows: got.rows, publicCards: got.publicCards, hope: got.hope, despair: got.despair, mood: clock.mood ?? null });
+    const played = playSequence("dayEnd", `dayEnd:${before.season ?? ""}:${board.day}:${before.session ?? ""}`, ctx => drawDayEnd(ctx, board),
+        { sound: () => playSound("dayEnd"), on, then });
+    if (played === null) then?.("none");
+    if (played && on && keep) {
+        // the card is day-summary.mjs's, beside the summary it stands in for: this file puts up no notice (A7, the header)
+        import("./day-summary.mjs").then(m => m.keepDayEndCard(dayEndElement(board).outerHTML, game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))).catch(() => null);
+    }
+    return played;
 }
 
 /* ========================================================================== *

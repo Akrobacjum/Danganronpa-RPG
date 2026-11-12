@@ -17,18 +17,39 @@ uneven onsets, and Chromium refused a negative duration (no turn drawn). `turnPl
 
 ## Tests
 
-R3708-R3713 (tier 1).
+R3708-R3713 (tier 1); R3727 (tier 1, 12.11.2026, the coordinator's list): two changes of the clock 120 ms apart end on
+the second - the first's flashes still to come dropped (1 flicker lit, not 3), the second's direction handed, Escape held
+for the second. Not red first: it guards C8's `clearFlashes`; green at 7bbbd3c and at e1154c1, and red (3 flickers) with
+that line taken out on a scratch run.
 
 Results (12.11.2026, at 5dce8f1): tiers 0-1 whole 1188 ran, 1172 passed, 0 failed, 16 skipped, 1 red (expected);
 R3708-R3713 green by name. Scenarios that read the files E62 changes (glass.mjs, module.mjs, config.mjs, lang/pl.json;
 84 left out), each `--only NN`: 10, 13, 14, 20, 30, 33, 40, 50, 61 (alone), 62, 66, 71, 72, 74, 75, 81, 83, 86, 87, 88
 all green. `node tools/check.mjs` 17/17, lint green.
 
+## Added 12.11.2026 (the coordinator's list for 1.2.108)
+
+- Handbooks: the GM handbook's section 4 (the clock's turns and the day's boards) and the player handbook's "Full-screen
+  moments", EN and PL.
+- The `sequences` setting's hint (EN, PL) names everything the switch stops - the entry, the cut-in, the clock's turns and
+  flashes, the body's flicker, the day's boards - and says only the entry's and the verdict's sounds still play. Read in
+  the code: the pane flash's sound is scheduled inside the switch's branch (`onClockHeard`), so it does not play with the
+  switch off; the day chimes do not either (`playDayEnd` is not called).
+- AUDIT 9.2: LIVE-E62-01 (the turns, flashes, flicker and two close changes at a real table).
+- The `--turn` baseline: `docs/dev/e62/turn-baseline.json`, the glass sweep's `--turn --json` at b07dec9 (the code of
+  e1154c1), 12.11.2026, headless Chromium with software rendering on this machine (4 cores, nothing else running): the
+  default four turns (phase-recut, phase, hour, layout) at 1600x900 and 1366x768, GM and player, Stained Glass - 16
+  readings; the three planted controls each read. It is the reference for C6 and C7 (`--against` it), a shape and not a
+  table's number. It reads RED on one turn: **layout** at 1600x900, both roles, the texture inside the turn down to 39 %
+  of rest in the square at 256,256 (the E23-04 bar is 80 %). The same reading at E62's base d03c509 (`--kinds layout
+  --sizes 1600x900 --root` a checkout of it): 39 % at the same square, both roles - so it predates E62 and is not this
+  line's to fix here; it is the texture question C7 is about. The other 14 readings pass.
+
 ## Not done, and why
 
 - C3 (death fade, Monocub return): the owner's 05.11 amend says these "get a storyboard and a mockup before E62 is built"; no such mockup exists in what I could read. Not started; owner's step.
 - C5 (centre cards with rows sliding in): not started on this line yet.
-- C6 (the interface following a recut per frame) and C7 (texture constant through a turn): the plan's two riskiest parts; not started. C7 needs the glass sweep's `--turn` reading first.
+- C6 (the interface following a recut per frame) and C7 (texture constant through a turn): the plan's two riskiest parts; not started. C7's first reading is now taken (`turn-baseline.json`, above).
 - The HUD's phase label slide (Q6): not built.
 
 ## Defaults taken, owner to confirm

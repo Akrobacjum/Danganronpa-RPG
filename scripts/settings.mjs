@@ -167,6 +167,8 @@ export const SETTINGS = {
     reducedMotion: "reducedMotion",
     /** The table's switch for the full-screen sequences (E61 C1, sequence.mjs): the trial's entry, the verdict's cut-in, and the later stages' boards. */
     sequences: "sequences",
+    /** A GM's morning line for the next day, on that GM's browser until the day starts (E94 C1; clock.mjs `advanceTimeOfDay`). */
+    morningLineDraft: "morningLineDraft",
     /** This client's own high contrast, on top of whatever `prefers-contrast` says. */
     highContrast: "highContrast",
     /** The state's name running as an outline behind the clock. */
@@ -1572,6 +1574,16 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: true
+    });
+
+    /* A GM's morning line for the next day (E94 C1; the plan's default: written in Edit campaign). Per browser and out of
+       the settings window: it stays on the GM's machine, in no world data, until the Night's advance folds it into the
+       clock's one write at the day's start (clock.mjs `advanceTimeOfDay`), and is emptied there. */
+    game.settings.register(MODULE_ID, SETTINGS.morningLineDraft, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     game.settings.register(MODULE_ID, SETTINGS.reducedMotion, {

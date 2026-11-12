@@ -156,6 +156,11 @@ export async function setClock(patch = {}) {
             if (patch.pausedTotalMs === undefined) next.pausedTotalMs = 0;
             if (next.pausedAt && patch.pausedAt === undefined) next.pausedAt = next.timeOfDayStartedAt;
         }
+        /* WHEN THE DAY BEGAN (E94 C3): the end-of-day board reads its own rows from it, so the stamp moves with the day -
+           the time of day's own stamp when that moved too, the server's clock otherwise. Public, as the clock is. */
+        if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayStartedAt === undefined) {
+            next.dayStartedAt = next.timeOfDayStartedAt ?? serverNow();
+        }
         /* WHEN THE CLOCK WAS LAST WRITTEN (E17 fix p2-G1, 26.10.2026): a moment a GM was at the table, which every GM's
            `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud-elapsed.mjs `readyPatch`); `patch` wins, so a restored
            clock keeps its own. */
@@ -334,10 +339,22 @@ export async function advanceTimeOfDay({
     // of day flashing up between the Eclipse and the new one.
     //
     // Where it goes is `clockAfter`'s, below.
-    const next = await setClock({ ...also, timeOfDay, session, day,
+    /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GM's line - kept on this GM's browser
+       until now (`morningLineDraft`), so it is in no world data before the day starts - and the mood's word, read from
+       the Overflow count only a GM holds, go into this one write; any other move clears them (sequence.mjs
+       `dayStartPatch`). The line is taken from the draft once it is in. */
+    const seq = await import("./sequence.mjs");
+    let draft = "", mood = null;
+    if (rolledOver) {
+        try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
+        try { const o = await import("./overflow.mjs"); mood = seq.moodBand(o.overflowCount(), o.overflowThreshold()); } catch { mood = null; }
+    }
+    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before });
+    const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });
     if (next && endGrants) await clearGrants();
+    if (next && rolledOver && draft) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;

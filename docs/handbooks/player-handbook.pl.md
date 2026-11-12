@@ -108,6 +108,18 @@ Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 
 Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabrać dowolne ustawianie.
 
+### Chwile na cały ekran
+
+Kilka chwil wypełnia na kilka sekund każdy ekran przy stole (od 1.2.108). Esc pomija tę, która gra na twoim ekranie; przy ograniczonym ruchu widzisz zamiast niej nieruchomą klatkę; GM może wyłączyć je wszystkie dla całego stołu.
+
+- **Wejście do Class Trial.** Ekran się zamyka, stoi na nim **CLASS TRIAL** z linią rozdziału, potem otwiera się na rozprawę. W Stained Glass nowe kafle wysuwają się zza szkła, aż zakryją ekran; w Monokuma Legacy zamykają się dwie czarne klapy.
+- **Werdykt.** Gdy GM opublikuje werdykt: portret skazanego, głosy tak, jak je policzono, pieczątka - **WINNY**, gdy klasa trafiła, **NIEWINNY**, gdy nie - i zdanie wyroku.
+- **Obroty zegara.** Gdy zmienia się pora dnia, kurtyna obraca się w swoim kierunku: godzina naprzód od góry, nowy dzień albo cofnięcie od dołu, Eclipse od środka. Na początku Investigation grupy kafli błyskają z dźwiękiem; gdy ogłoszono ciało, kurtyna migocze.
+- **Koniec dnia.** Na końcu nocy twoja **plansza końca dnia**: co zrobiłeś tego dnia (tylko akcje twojego ucznia), co widziała cała szkoła, twoja Nadzieja i Rozpacz stołu oraz **nastrój szkoły** - Spokój, Niepokój albo Na krawędzi, słowo z liczb GM-a, nigdy liczba. Zostaje potem w twojej historii powiadomień i zastępuje osobne podsumowanie nocy.
+- **Początek dnia.** Potem **plansza początku dnia**: dzień, rozdział, pora dnia, wszyscy na swoich miejscach - zmarli wyszarzeni, z imieniem i „pamiętamy” - oraz **zdanie na poranek** GM-a, gdy jest.
+
+Przeglądarka, która wczyta się po takiej chwili, jej nie odtwarza.
+
 ---
 
 ## 3. Ruch i widzenie

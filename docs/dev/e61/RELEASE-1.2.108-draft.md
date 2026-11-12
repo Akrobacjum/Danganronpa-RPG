@@ -1,6 +1,6 @@
-# 1.2.108 - The Class Trial's entry and the verdict's cut-in, the clock's turns with a direction, the Investigation's flashes and the body's flicker, the start-of-day board
+# 1.2.108 - The Class Trial's entry and the verdict's cut-in, the clock's turns with a direction, the Investigation's flashes and the body's flicker, the day's boards
 
-A draft for the release line (E61, E62 and E94 C2 on the E61/E62 work line's branch, 12.11.2026), written on the work line; the
+A draft for the release line (E61, E62 and E94 on the E61/E62 work line's branch, 12.11.2026), written on the work line; the
 release line writes the file under `.github/release-notes/` from it. Commits are named by their short hash.
 
 ## What changed
@@ -28,7 +28,9 @@ opening from 2500 ms, 3.4 s in all (`scripts/sequence.mjs`).
 - **Esc** skips the one playing on that screen; **reduced motion** shows a still frame (the closed curtain and the
   title for 1.5 s); the room and voice tiles are covered for its span and come back with it.
 - **The table's switch**: the game's settings have **Full-screen sequences** / **Sekwencje na cały ekran**, on by
-  default; off, nothing plays and the sounds still do.
+  default; off, none of the moments below plays - the entry, the cut-in, the clock's turns and flashes, the body's
+  flicker, the day's boards - and only the entry's and the verdict's sounds still play (the setting's hint says so
+  since e1154c1).
 - **Sounds**: new rows **trialStart** and **verdictCut** in the Sound window (incident); the vote's count's row is now
   labelled "The vote's result" / "Wynik głosowania" (its key is kept).
 
@@ -57,18 +59,35 @@ for 3 s).
   Legacy the clock, status, Despair bar and notice tile light instead. Rehearsals play nothing.
 - Esc ends a running turn at its end state; reduced motion and the switch off turn nothing new.
 
-### The start-of-day board (E94 C2)
+### The day's boards (E94 C1-C4)
 
-At the Night-to-Morning roll-over every connected browser shows the day's board for about 5 s: the day, the chapter,
-the hour, and the cast in its order with the dead by the published flag alone; Esc earlier.
+At the Night-to-Morning roll-over every connected browser shows two boards, one after the other (e1154c1 for C1, C3, C4):
+
+- **The end-of-day board** (about 6 s): this browser's own actions of the day (a player's own student's; a GM's the
+  table's), the module's public cards of the day (no whisper, no blind roll), the viewer's own student's Hope, Despair
+  as the HUD shows it, and **the school's mood** - Calm / Spokój, Uneasy / Niepokój, Close to spilling / Na krawędzi -
+  read on the GM who advances the clock from the Overflow's count against its threshold (below a third, below two
+  thirds, from there) and published as the word alone; the world-secrets rule keeps the numbers out of the clock. It
+  stays as one card in the notice history and stands in for the Night's own summary.
+- **The start-of-day board** (about 5 s): the day, the chapter, the hour, the cast in its order with the dead by the
+  published flag alone, and the GM's **morning line**, typed in Edit campaign's new field **Next morning's line** /
+  **Zdanie na następny poranek**: it stays in that GM's browser until the advance puts it in the clock, and an empty
+  one shows nothing.
+- Esc skips each; reduced motion shows each still; new sound rows **End of the day** and **Start of the day**, which
+  do not play with the switch off.
+
+### Fixed
+
+- The stylesheet held a stray merge marker from this line's own merge (6049386), which swallowed the Monokuma Legacy
+  rule for Foundry's notifications after it; removed, and R3726 holds the served files free of markers (e1154c1).
 
 ## Not in this release
 
-- E61 C6-C8: the floors' cross-section (needs LIVE-E61-06 at a table first) and the rest of the plan's later parts.
+- E61 C7: the floors' cross-section (needs LIVE-E61-06 at a table first).
 - E62 C3 (the death fade and the Monocub's return: the owner's amend asks for a storyboard and a mockup first), C5
   (centre cards), C6 and C7 (the interface following a recut, the texture through a turn), the HUD's phase label slide.
-- E94 C1 (the GM's morning line), C3 (the end-of-day board), C4 (the school's mood band), C5's Spectator case and
-  handbook text.
+- E94 C5's Spectator case: no Spectator role on main yet (E92); the merge note is in docs/dev/e94/STATUS.md.
+- E61 C6, the four-client scenario (two GMs, reloads during a sequence, two fast events): not built in this round.
 
 ## Known gaps
 
@@ -88,6 +107,9 @@ the hour, and the cast in its order with the dead by the published flag alone; E
 - **R3703 is loosened for one case**: on its 1600x900 cut it allows one new pane outside the standing panes' range, a
   630 px² chip in a notch between two standing and two new panes that no cut through its neighbours' corners or edges
   splits into two panes in range; the 1366x768 and 1440x900 cuts still hold none (round 5, 98e004c).
+- **The layout turn's texture** (the room tile hidden, not a clock change) falls to 39 % of rest in one square at
+  1600x900 in the glass sweep's `--turn` reading, against E23-04's 80 %; the same at E62's base d03c509, so older than
+  this release (docs/dev/e62/turn-baseline.json, the reference for E62 C7).
 - The microphone's keybinding while a sequence covers the voice tile: LIVE-E61-08.
 - A client that loads after the event plays nothing (Q-E61-1 and Q-E94-4 defaults, owner to confirm); the lead line's
   widths are read from the code (`paintGlass`'s 1.2, 0.5 and 0.7 px), not measured in pixels.

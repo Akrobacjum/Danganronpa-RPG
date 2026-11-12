@@ -1486,6 +1486,66 @@
         "source": ["E97 plan"],
         "open": true,
         "note": "Placing what the case plans (the Key Remnant slots) on the map, with its preview and its undo (E97 C10; Q-E97-2). American spelling (text-style EN1). Open: forbids nothing."
+      },
+      {
+        "id": "setting-sequences",
+        "en": "Full-screen sequences",
+        "pl": "Sekwencje na cały ekran",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E61",
+        "source": ["E61 plan"],
+        "open": true,
+        "note": "The table's switch (DRPG.Settings.sequences.name), added in E61 C1; the handbooks call the moments it governs \"Full-screen moments\" / \"Chwile na cały ekran\", a description. Added 12.11.2026 with no variant read in the interface or the handbooks, so open: forbids nothing."
+      },
+      {
+        "id": "board-day-end",
+        "en": "end-of-day board",
+        "pl": "plansza końca dnia",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E94",
+        "source": ["E94 plan"],
+        "open": true,
+        "note": "The board at the night's end (E94 C3; its title DRPG.Sequence.dayEndTitle, \"End of day {day}\" / \"Koniec dnia {day}\"). Added 12.11.2026 as the handbooks name it; no variant read, so open: forbids nothing."
+      },
+      {
+        "id": "board-day-start",
+        "en": "start-of-day board",
+        "pl": "plansza początku dnia",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E94",
+        "source": ["E94 plan"],
+        "open": true,
+        "note": "The board at a new day's start (E94 C2; its title DRPG.Sequence.dayTitle, \"Day {day}\" / \"Dzień {day}\"). Added 12.11.2026 as the handbooks name it; no variant read, so open: forbids nothing."
+      },
+      {
+        "id": "school-mood",
+        "en": "the school's mood",
+        "pl": "nastrój szkoły",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E94",
+        "source": ["E94 plan"],
+        "open": true,
+        "note": "The end-of-day board's word (E94 C4; DRPG.Sequence.moodLabel), one of Calm / Spokój, Uneasy / Niepokój, Close to spilling / Na krawędzi (DRPG.Sequence.mood.*). Added 12.11.2026; open: forbids nothing."
+      },
+      {
+        "id": "morning-line",
+        "en": "morning line",
+        "pl": "zdanie na poranek",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E94",
+        "source": ["E94 plan"],
+        "open": true,
+        "note": "The GM's sentence on the start-of-day board (E94 C1), typed in Edit campaign's field DRPG.Clock.morningLine, \"Next morning's line\" / \"Zdanie na następny poranek\". Added 12.11.2026; the player handbook's \"morning announcement\" / \"ogłoszenie poranne\" of the same round was renamed to this before it shipped, so no variant stands; open: forbids nothing."
       }
     ],
     "retired": [
