@@ -49582,6 +49582,42 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ first: "investigation", second: "hour", hint: "top", lit: 1, escTaken: true, writes: [] }),
             "[the first heard; the second heard; the direction handed last; flickers lit; Escape taken while the second is held; the world written]");
     }],
+    ["R3728 - the HUD's phase label slides in when the phase changes, as the time label does (scripts/hud.mjs `slidePhase`, `renderHud`; E62 C1's HUD part, the plan's Q6 default): a new phase's label arrives over the turn's length from the side with the turn's easing; a redraw during it winds the new animation on to where it had got; a page load, the same phase, or a turn of 0 (reduced motion) slides nothing; renderHud reads the old label before it rebuilds and hands it on", async () => {
+        /*
+         * E62 (1.2.109), 12.11.2026. Red at 6b98f6c: hud.mjs has no slidePhase. The phase line stands in no clipping slot
+         * (the time label's does), so only the new label moves - in from the right, fading in - and the old one goes with
+         * the rebuild. Stand-in lines with a recording `animate`; the clock's own render is read in its source.
+         */
+        const H = await import("./hud.mjs");
+        if (typeof H.slidePhase !== "function") { ok(false, "hud.mjs has no slidePhase"); return; }
+        const calls = [];
+        const hudWith = text => {
+            const hud = document.createElement("div"), line = document.createElement("div");
+            line.className = "drpg-hud-phase"; line.textContent = text;
+            line.animate = (frames, opts) => { const a = { frames, opts, currentTime: 0 }; calls.push(a); return a; };
+            hud.append(line);
+            return hud;
+        };
+        const first = H.slidePhase(hudWith("Investigation"), "Daily Life", { ms: 600, now: 1000 });
+        const anim = calls.at(-1);
+        const again = H.slidePhase(hudWith("Investigation"), "Investigation", { ms: 600, now: 1300 });
+        const wound = calls.at(-1)?.currentTime ?? null;
+        const n = calls.length;
+        const over = H.slidePhase(hudWith("Investigation"), "Investigation", { ms: 600, now: 2000 });
+        const load = H.slidePhase(hudWith("Class Trial"), null, { ms: 600, now: 3000 });
+        const still = H.slidePhase(hudWith("Class Trial"), "Investigation", { ms: 0, now: 4000 });
+        const src = stripComments((await moduleSources()).get("hud.mjs") ?? "");
+        const render = bodyOf(src, "export function renderHud(", { until: "\nexport function " });
+        must(render.length > 500, "renderHud was not read - this reads nothing");
+        equal(stableJson({
+            first, frames: anim ? [anim.frames[0].opacity, /translateX\(\d+px\)/.test(anim.frames[0].transform), anim.frames.at(-1).opacity, anim.opts.duration] : null,
+            again, wound, after: [over, load, still, calls.length - n],
+            render: /previousPhase/.test(render) && /slidePhase\(hud, previousPhase\)/.test(render)
+        }), stableJson({
+            first: { from: "Daily Life", to: "Investigation", elapsed: 0 }, frames: [0, true, 1, 600],
+            again: { from: "Daily Life", to: "Investigation", elapsed: 300 }, wound: 300, after: [null, null, null, 0], render: true
+        }), "[a new phase; its keyframes and length; a redraw during it; wound on; after the turn, a page load, reduced motion - nothing slid; renderHud hands the old label on]");
+    }],
     ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
         /*
          * E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no dayStartBoard. The students are stand-ins with
