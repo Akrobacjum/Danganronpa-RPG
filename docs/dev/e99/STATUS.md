@@ -417,3 +417,23 @@ its runner on the primary; `TRIAL_ACTIONS.chapterEnd`, the chapter-end window): 
 - Probe 08: three new captures - the count, the verdict given, the summary sent - each a patch of the trial's record.
 - The sweep over the console's five captures (40 pages, 0 failing): glass at 1366x768 during a trial 12.6 px after
   Fit, Legacy as it was; at 1920x1080 the slot grew 664 -> 707 px (the footer holds fewer buttons).
+
+## The open node is its editor (12.11.2026; the owner at a real table, 1.2.108, through the coordinator)
+
+The owner: clicking a Truth Bullet or Key Remnant slot in the planner showed the node's read-only view on top in a dashed
+outline (its kind and state, title, description, State, Left by) and the editing part under it; the editing part is to
+replace the node entirely.
+
+- case-map.mjs: the open node's face is marked `is-editing` and hidden (components.css, at the node rule's weight), its
+  fieldset stands at the face's own place (`relayoutCaseMap` places it there), and the fieldset drops the read-only rows
+  (`nodeInfoHtml({ rows: false })`) when the node has fields of its own; its warnings stay. A node with no field of its
+  own (another chapter's Remnant) still shows its facts. A **Close** button beside Move up / Move down, since the face
+  that closed it on a second click is hidden; Escape and a click on empty space still close it.
+- Red first: R3919 (tier 1) - the face editing and hidden by the sheets, the fields at its place, no read-only rows, a
+  warning kept, a bare node's facts kept, Close calling `onClose` - red at f0b4f9b. R3661 (E97's) now reads the fields at
+  the face's top, not under it.
+- The sweep: the open node's box is its fields; its face must not be drawn and the fields must stand at its place; the
+  camera's reveal reads the fields. Probe 08 adds `investigation--map-slot` (a planned Key Remnant slot open). Before
+  (f0b4f9b) and after: 24 pages each, 0 failing.
+- GM handbook (EN, PL): the fields open in the node's place, and Close.
+- Shots, before and after, 1366x768, both themes, PL then EN: https://claude.ai/artifact/2hGySDAeJ8vJTxCW5USYbd.
