@@ -30148,6 +30148,34 @@ const INVARIANTS = [
             "a breach's forced room is read by the old name after a full rename ([rooms, forced.room, forced.from, its pieces kept, the breach kept])");
     }],
 
+    ["R3814 - rest stamps written before E17 C9 (no chapter) are migrated once: one of the window now gets the current chapter, any other goes; stamps with a chapter are left; a migration step runs it on the primary (E91 C8, D068)", async () => {
+        /*
+         * E91 C8, 12.11.2026; the owner's deferred item D068 ("migrate rest markers written before the update with no
+         * chapter"). Since E17 fix p2-G3 a stamp of the old shape (`d${day}:${timeOfDay}`, `s${session}`) was read on every
+         * check as the current chapter's (rest.mjs `legacyRestStamp`), so one from an earlier chapter at the same day and
+         * time of day refused a rest. Now rest.mjs `migratedRests(rests, clock)` (pure) answers what a migration writes:
+         * an old-shape stamp of the window now (the current day and time of day, or session) is given the clock's
+         * chapter, any other old-shape stamp is dropped (`drop`), a stamp with a chapter is kept; and migrate.mjs has the
+         * step `chapterRestStamps`. Default, owner may revise. Red before C8: no migratedRests.
+         */
+        const R = await import("./rest.mjs");
+        ok(typeof R.migratedRests === "function", "rest.mjs has no migratedRests - the old rest stamps are not migrated");
+        if (typeof R.migratedRests !== "function") return;
+        const clock = { chapter: 3, day: 2, timeOfDay: "afternoon", session: 5 };
+        const cases = [
+            [{ short: "d2:afternoon", long: "s5" }, { set: { short: "c3d2:afternoon", long: "c3s5" }, drop: [] }],
+            [{ short: "d1:morning", long: "s4" }, { set: {}, drop: ["long", "short"] }],
+            [{ short: "c3d2:afternoon", long: "c2s5" }, { set: {}, drop: [] }],
+            [{}, { set: {}, drop: [] }],
+            [null, { set: {}, drop: [] }]
+        ];
+        const got = cases.map(([rests]) => { const out = R.migratedRests(rests, clock); return { set: out.set, drop: [...out.drop].sort() }; });
+        equal(JSON.stringify(got), JSON.stringify(cases.map(([, want]) => want)),
+            "the old rest stamps are not migrated as D068's default says ([of the window now, of another, with a chapter, none, no flag])");
+        const src = stripComments(new Map(await otherSources()).get("migrate.mjs") ?? "");
+        ok(/key:\s*"chapterRestStamps"/.test(src) && /migrateRestStamps\(/.test(src), "migrate.mjs has no chapterRestStamps step calling rest.mjs migrateRestStamps");
+    }],
+
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
         /*
          * E52 C2, 30.10.2026; audit S17-50, E52-05. A failed row's fallback is the one its file has always had

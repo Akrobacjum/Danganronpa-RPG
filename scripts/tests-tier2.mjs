@@ -70060,8 +70060,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await settle();
             });
             const landed = victim.items.find(i => i.name === KNIFE) ?? null;
+            // CHANGED ON PURPOSE BY E91 C8 (12.11.2026; D090, the owner's answer to E35 Q5): one stowed, not two - the
+            // victim's own Tool goes into the hand without a word, the knife stays stowed. Was: two stowed, no hand.
             read.plant = [out?.done ?? null, out?.seen ?? null, landed ? INV.isStashed(landed) : null, landed ? isEquipped(landed) : null,
-                stowedInGroup(victim, group).length, await reachedPlayersOf(victim, sent)];
+                stowedInGroup(victim, group).length, isEquipped(victim.items.get(one.id)), await reachedPlayersOf(victim, sent)];
             must(!INV.canCarry(victim, "tool").ok, "the victim's slots are not full after the Plant - the quiet grant would measure nothing");
             read.grant = await withStashIn(fixture.room, victim, async () => {
                 let given = null;
@@ -70077,7 +70079,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ plant: [true, false, false, false, 2, [0, 0, 0]], grant: [true, [0, 0, 0]] }),
+        equal(stableJson(read), stableJson({ plant: [true, false, false, false, 1, true, [0, 0, 0]], grant: [true, [0, 0, 0]] }),
             "an unseen Plant or a quiet grant reached the victim, or the planted knife went into their hand ([done, seen, the knife stashed, in a hand, the victim's stowed Gear, [packets, cards, redraws] at the victim's player]; [the grant stashed, what reached them])");
     }],
 
