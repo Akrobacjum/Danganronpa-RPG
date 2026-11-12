@@ -76398,6 +76398,12 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
             await step("an action, then a time of day", { actions: 2 }, { [ACTIONS]: 1 }, { between: async () => { await nextTime(); } });
             await step("a Sprint, then a time of day", { sprint: 1 }, { [F(FLAGS.freeMoveGrants)]: 0 }, { between: async () => { await nextTime(); } });
+            // E64, D059 (the owner's default, confirmed 12.11.2026): the free Move is a time of day's, so one taken before a
+            // boundary is not given back into the next, whose own free Move was spent already. Red before E64: given back.
+            await step("the free Move, then a time of day whose own was spent", { free: true }, { [F(FLAGS.freeMoveUsed)]: true }, { between: async () => {
+                await nextTime();
+                await student.update({ [F(FLAGS.freeMoveUsed)]: true });
+            } });
 
             // Through the bridge's row: the player's ask refused, nothing given; this GM's (a second GM's arrives so) given.
             const judged = async (senderId, requestId) => {
@@ -76460,6 +76466,7 @@ const SCENARIOS = [
             ["crossing rooms costs nothing", "none", "given", "300,300", 1, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
             ["an action, then a time of day", "action", "given", "300,300", 2, true, 0, 0, "alreadyDone", ["back", "price"]],
             ["a Sprint, then a time of day", "sprint", "given", "300,300", 2, true, 1, 0, "alreadyDone", ["back", "price"]],
+            ["the free Move, then a time of day whose own was spent", "free", "given", "300,300", 2, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
             ["an Eclipse's crossing", "eclipse", "given", "300,300", 0, "alreadyDone", ["back", "price"]],
             ["an Eclipse's crossing, given back in the next Eclipse", "eclipse", "given", "300,300", 1, "alreadyDone", ["back", "noPrice"]],
             ["a tunnel's action", "action", "given", "200,200", 2, false, 0, 0, "alreadyDone", ["back", "price"]]],
