@@ -277,3 +277,8 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
   sending: nothing over a node, no cut text in a node or the fold, the footer in view. At rest (100%) the right-hand
   column runs past the viewport's edge: the camera's view, not a cut.
 - **The zoom readout** reads at the small size (13 px; at 11 px of VT323 under glass it read as a smudge).
+- **Local checks on 18bc6a1** (CI runs once per release; "[skip ci]" on every commit): the quick gate green (lint,
+  check 17/17, gate 37/37); tiers 0-1 1250 passed, 0 failed, 16 skipped, 0 red; tier 2 by name ("E99", "E97", "E73")
+  55 tests, 59 passed, 0 failed; scenarios 41 51/51, 50 44/44, 62 51/51, 63 74/74, 67 45/46 with 1 expected red
+  (TR30 until E72), 68 20/20, 72 132/136 with 4 expected red (S17-31 until E43, three Foundry limits), 86 104/104,
+  88 26/26 - 0 failed in each; the sweep 48 pages, 0 failing (the trial's console and the Map, EN and PL).
