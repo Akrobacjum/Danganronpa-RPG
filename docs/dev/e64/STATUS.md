@@ -186,14 +186,34 @@ Nothing.
 
 ## Test results
 
-RESULTS_PLACEHOLDER
+Before the push of 585bc09 (12.11.2026, this container, 4 cores; the code as pushed, the commit messages reworded after):
+
+- lint (302 files, 0 problems), `node tools/check.mjs` 17 parts green, the gate's self-test 37/37.
+- tiers 0-1 whole: first run 1238 passed, **2 failed** (R47 and R145 read f657e7d's Tamper fallback by its old
+  spelling); fixed in "R47 and R145 read the Tamper fallback through chargeUnclaimed", then **1240 passed, 0 failed,
+  16 skipped, 0 red** (1255 ran, 315 s).
+- tier 2 by name, 18 pieces (every "E64" test, E16-T35, Refund last crossing, the bedroom given away, one gate in
+  transferItem, A11-9, Use an item, E15-T15, E15-T17, the clean-up and Reroll tests, Free Critical, the give across two
+  scenes): 48 tests, 52 passed, 0 failed, 0 skipped. Earlier by commit: 50 clean-up tests (f657e7d), 88 crisis tests
+  (f058147), 60 "crisis"/"Use an item" tests (95a15b0), 183 give/handover tests (867ea77).
+- scenarios, each `node run-all.mjs scenarios --only NN`, found by `git grep` of the changed rules: 00, 10, 12, 13, 14, 17,
+  30, 33, 40, 61, 62, 63, 65, 66, 71, 72, 73, 74, 75, 76, 83, 86, 87, 88 - all 24 green. 84-viewports not run (the
+  brief).
+
+CI: the coordinator's rule of 12.11 (owner's decision) - every pushed commit carries "[skip ci]", and CI runs once per
+release on the train's PR head. The last runs on this branch before that rule: 43198744691 at 41e7d1e **success**;
+43198336325 at b42cc23 failure (the Level Up baseline test 41e7d1e fixes). No run of this branch is queued.
 
 ## Screenshots
 
 Round 1, one private review page: https://claude.ai/artifact/NjBANZCciMx8kvotSAni7R (the critical Observe window
 and the Level Up picker; both themes, EN and PL, deviceScaleFactor 2, Polish captions saying what the shots are not).
 
-SHOTS2_PLACEHOLDER
+Round 2, one private review page: https://claude.ai/artifact/CF2rf6nPrwyzRMh9ZDyAde - the critical Observe window as it
+opens at 1366x768 (the hint box in view, with the measurements) and the killer's crisis menu with the victim's
+defence ("Beat 16 (+1 for the victim's Body)"), both themes, EN and PL, deviceScaleFactor 2; Polish captions say what
+the shots are not (not a real Foundry; the harness's seeded world; a scratch export and a scratch probe step, never
+committed, open the two windows). Files: /tmp/claude-0/e64/shots3 (outside the repository).
 
 ## Tokens so far
 
