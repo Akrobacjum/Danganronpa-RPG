@@ -47294,6 +47294,192 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
             "[a new day's board; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
     }],
+    /* ==========================================================================
+     * E92 - THE SPECTATOR (plan docs/dev/plans/E92.md on claude/plan-130; docs/dev/e92/CENSUS.md)
+     * A new kind of player: a character flagged `spectator`, owned by its account, which is no student. Each test hands
+     * its Spectator in memory (`e24HeldFlagged`, `e92Char`): nothing is written.
+     * ========================================================================== */
+    ["R3850 - a Spectator is no student (E92 C1; the owner's E92 goal (5)): a student flagged `spectator` leaves monokuma.mjs `studentActors`, `actingStudents`, `studentCensus` (the world's and a handed list), `ownedStudents`, chapter.mjs `livingStudentsForGm` (the murder window's cast, the body's witnesses), assignments.mjs `students` (Despair's pools), the vote's `trialParticipants` (the ballots), trial-scene.mjs `castActors` (the trial's cast) and `classCandidates`; `isSpectator` names it", async () => {
+        /*
+         * E92 C0, 12.11.2026. The roster is read once (monokuma.mjs `studentActors`), so the flag leaves every list that
+         * reads it; the lists that walk `game.actors` themselves are named here one by one (CENSUS.md). Red on C0's tree:
+         * no `isSpectator`, and the flagged student on every list.
+         */
+        const M = await import("./monokuma.mjs");
+        const [{ livingStudentsForGm }, { students }, { trialParticipants }, { castActors }] = await Promise.all([
+            import("./chapter.mjs"), import("./assignments.mjs"), import("./vote.mjs"), import("./trial-scene.mjs")]);
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const watcher = studentActors().find(a => owned(a) && livingStudentsForGm().some(b => b.id === a.id));
+        must(watcher, "no living student a player owns - this would measure nothing");
+        const has = list => [...list].some(a => (a?.actor ?? a)?.id === watcher.id);
+        const read = () => ({
+            spectator: e92Export(M, "isSpectator")?.(watcher) ?? null, studentActors: has(M.studentActors()), acting: has(M.actingStudents()),
+            census: has(M.studentCensus().all), handed: has(M.studentCensus([watcher]).all), owned: has(M.ownedStudents()),
+            murderCast: has(livingStudentsForGm()), assignments: has(students()), ballots: has(trialParticipants({ connected: false })),
+            trialCast: has(castActors())
+        });
+        const before = read();
+        const after = await e24HeldFlagged(watcher, { [FLAGS.spectator ?? "spectator"]: true }, read);
+        const candidates = M.classCandidates({ users: [{ id: "R3850gm", isGM: true }], actors: [e92Char("R3850free"), e92Char("R3850watch", { spectator: true })] }).map(a => a.id);
+        equal(stableJson({ before, after, candidates }), stableJson({
+            before: { spectator: false, studentActors: true, acting: true, census: true, handed: true, owned: true, murderCast: true, assignments: true, ballots: true, trialCast: true },
+            after: { spectator: true, studentActors: false, acting: false, census: false, handed: false, owned: false, murderCast: false, assignments: false, ballots: false, trialCast: false },
+            candidates: ["R3850free"] }),
+            "[each reader of the roster with the student in the class, then flagged a Spectator; Pre-season's candidates]");
+    }, expectedRed("E92", "C1 writes the flag and isSpectator")],
+    ["R3851 - the Spectator is a GM's role, set in the Students window (E92 C1; the owner's 04.11 amend \"the GM assigns it in the Students window\"): config.mjs `FLAGS.spectator`; sheet-audit.mjs `kindOf` answers \"flag\" for a write of it, so a player's own write is put back; gm-students.mjs `changeRole` moves a character to and from \"spectator\" through monokuma.mjs `setSpectator`, unmarking the role it held first", async () => {
+        /*
+         * E92 C0, 12.11.2026. Stand-in roads record their calls and answer the actor (R2081's pattern); the characters
+         * are stand-ins with their flags, so nothing is written. Red on C0's tree: no flag, null from kindOf, no road.
+         */
+        const SA = await import("./sheet-audit.mjs");
+        const GS = await import("./gm-students.mjs");
+        const calls = [];
+        const record = name => async (actor, ...args) => { calls.push([name, actor.id, ...args].join(" ")); return actor; };
+        const roads = { markFromSheet: record("markFromSheet"), setMonokuma: record("setMonokuma"), setNotInClass: record("setNotInClass"), setSpectator: record("setSpectator") };
+        const step = async (actor, to) => { calls.length = 0; const moved = await GS.changeRole(actor, to, roads); return [moved, [...calls]]; };
+        const student = e92Char("R3851-student"), watcher = e92Char("R3851-watch", { spectator: true });
+        const kuma = e92Char("R3851-kuma", { [FLAGS.monokuma]: true }), npc = e92Char("R3851-npc", { [FLAGS.notInClass]: true });
+        const got = {
+            flag: FLAGS.spectator ?? null, kind: SA.kindOf(`flags.${MODULE_ID}.spectator`),
+            toWatch: await step(student, "spectator"), back: await step(watcher, "student"), watchOut: await step(watcher, "npc"),
+            npcToWatch: await step(npc, "spectator"), kumaToWatch: await step(kuma, "spectator"), watchToKuma: await step(watcher, "monokuma"),
+            same: await step(watcher, "spectator")
+        };
+        equal(stableJson(got), stableJson({
+            flag: "spectator", kind: "flag",
+            toWatch: [true, ["setSpectator R3851-student true"]], back: [true, ["setSpectator R3851-watch false"]],
+            watchOut: [true, ["setSpectator R3851-watch false", "setNotInClass R3851-watch true"]],
+            npcToWatch: [true, ["setNotInClass R3851-npc false", "setSpectator R3851-npc true"]],
+            kumaToWatch: [true, ["setMonokuma R3851-kuma false", "setSpectator R3851-kuma true"]],
+            watchToKuma: [true, ["markFromSheet R3851-watch", "setSpectator R3851-watch false"]],
+            same: [false, []] }),
+            "[FLAGS.spectator; kindOf of its write; changeRole's roads for each move to and from the Spectator]");
+    }, expectedRed("E92", "C1 writes the flag, its road and the fourth role")],
+    ["R3852 - a Spectator is nobody in the room (E92 C1; the owner's E92 goal (3), (5)): movement.mjs `othersInNamedRoom` - Listen's names, the witnesses, a Palm's targets, a trap's \"alone\" - leaves its token out as it leaves a Monokuma's, and murder-rules.mjs `maybeThirdParty` passes it over", async () => {
+        /*
+         * E92 C0, 12.11.2026. A scene stand-in with three tokens in one room (a student, a Spectator, a Monokuma); the
+         * room each stands in is handed (`roomOf`), so no canvas is read. Red on C0's tree: the Spectator counted.
+         */
+        const { othersInNamedRoom } = await import("./movement.mjs");
+        const token = actor => ({ id: `${actor.id}-t`, actorId: actor.id, actor, hidden: false });
+        const scene = { id: "R3852scene", tokens: [token(e92Char("R3852-student")), token(e92Char("R3852-watch", { spectator: true })),
+            token(e92Char("R3852-kuma", { [FLAGS.monokuma]: true }))] };
+        const present = othersInNamedRoom("Hall", null, scene, () => "Hall").map(a => a.id);
+        const src = new Map(await otherSources());
+        const third = stripComments(fnSource(stripComments(src.get("murder-rules.mjs") ?? ""), "maybeThirdParty"));
+        equal(stableJson({ present, third: /\bisSpectator\(actor\)\)\s*return/.test(third) }),
+            stableJson({ present: ["R3852-student"], third: true }), "[who counts in the room; maybeThirdParty passes a Spectator over]");
+    }, expectedRed("E92", "C1 leaves the Spectator out of the room's people")],
+    ["R3853 - a Spectator's microphone is held in every phase (E92 C2; the owner's E92 goal (2)): voice.mjs `micHold` answers `{ reason: \"spectator\", held: true }` for an account whose characters are Spectators, in Daily Life and in the Class Trial alike, and nothing for a student's account", async () => {
+        /*
+         * E92 C0, 12.11.2026. The facts are handed (`micHold` takes them all), so no LiveKit and no world is read.
+         * Red on C0's tree: null for the Spectator.
+         */
+        const { micHold } = await import("./voice.mjs");
+        const user = { id: "R3853user", isGM: false, name: "R3853" };
+        const watcher = e92Char("R3853-watch", { spectator: true }, user.id), student = e92Char("R3853-student", {}, user.id);
+        const at = (actors, trial = null) => micHold({ user, room: "drpg-room-hall", external: false, connected: true, canBroadcastAudio: true, actors, trial });
+        const trial = { clock: { phase: "classTrial", chapter: 1 }, floor: null, record: {}, epoch: 0 };
+        equal(stableJson({ daily: at([watcher]), trial: at([watcher], trial), student: at([student]) }),
+            stableJson({ daily: { reason: "spectator", held: true }, trial: { reason: "spectator", held: true }, student: null }),
+            "[micHold for the Spectator's account in Daily Life and the trial; a student's account]");
+    }, expectedRed("E92", "C2 holds the Spectator's microphone")],
+    ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it; the bridge has `spectator.move`, guarded by `knownSender` and `owns`", async () => {
+        /*
+         * E92 C0, 12.11.2026. The clock is answered in the Class Trial while the verdicts are read (`game.settings.get`
+         * stood in, the setting untouched); the rest is read in the source. Red on C0's tree: the trial's lock.
+         */
+        const { crossingVerdict } = await import("./movement.mjs");
+        const real = game.settings.get;
+        game.settings.get = function (scope, key, ...rest) {
+            const value = real.call(this, scope, key, ...rest);
+            return scope === MODULE_ID && key === SETTINGS.clock ? { ...(value ?? {}), phase: "classTrial", eclipse: false } : value;
+        };
+        let verdicts;
+        try {
+            verdicts = { watcher: crossingVerdict(e92Char("R3854-watch", { spectator: true }), "R3854 A", "R3854 B", null) === true,
+                student: crossingVerdict(e92Char("R3854-student"), "R3854 A", "R3854 B", null) === true };
+        } finally { game.settings.get = real; }
+        const src = new Map(await otherSources());
+        const cut = (file, fn) => stripComments(fnSource(stripComments(src.get(file) ?? ""), fn));
+        const names = cut("fog.mjs", "recordDiscovery").includes("isSpectator(") && cut("movement.mjs", "judgeMove").includes("isSpectator(")
+            && cut("movement-audit.mjs", "auditMove").includes("isSpectator(");
+        const wire = /ACTION_SPECTATOR_MOVE\s*=\s*"spectator\.move"/.test(src.get("bridge-wire.mjs") ?? "");
+        const row = /\[ACTION_SPECTATOR_MOVE\]:\s*\{[^}]*guards:\s*\[knownSender,\s*owns\(/s.test(stripComments(src.get("bridge-table.mjs") ?? ""));
+        equal(stableJson({ verdicts, names, wire, row }), stableJson({ verdicts: { watcher: true, student: false }, names: true, wire: true, row: true }),
+            "[a crossing in the Class Trial for a Spectator and a student; the ledger, the charge and the audit pass it over; the bridge's road]");
+    }, expectedRed("E92", "C3 writes the ghost's movement")],
+    ["R3855 - who sees a Spectator's token, and what a Spectator sees (E92 C4; the owner's E92 goal (1), (4)): visibility.mjs `tokenShownTo` hides a Spectator's token from every other player whatever the room, the Eclipse or the setting, shows it to its owner, and leaves the GM's to Foundry; to a Spectator's browser every character's token is left to Foundry (seen whatever the room), its own as well", async () => {
+        /*
+         * E92 C0, 12.11.2026. `tokenShownTo` takes its viewer whole (`viewerHere`'s shape, `spectator` added); the token
+         * documents are stand-ins whose room is none (`roomOfToken` finds no region for them). Red on C0's tree.
+         */
+        const { tokenShownTo } = await import("./visibility.mjs");
+        const doc = actor => ({ id: `${actor.id}-t`, actorId: actor.id, actor, x: -99999, y: -99999, parent: null });
+        const watcherDoc = doc(e92Char("R3855-watch", { spectator: true })), studentDoc = doc(e92Char("R3855-student"));
+        const viewer = (over = {}) => ({ gm: false, eclipse: false, enforcing: true, rooms: new Set(["R3855 Hall"]), lair: null, owns: () => false, spectator: false, ...over });
+        const got = {
+            player: tokenShownTo(watcherDoc, viewer()), playerOff: tokenShownTo(watcherDoc, viewer({ enforcing: false })),
+            playerEclipse: tokenShownTo(watcherDoc, viewer({ eclipse: true })), owner: tokenShownTo(watcherDoc, viewer({ owns: d => d === watcherDoc, spectator: true })),
+            gm: tokenShownTo(watcherDoc, viewer({ gm: true })),
+            watching: tokenShownTo(studentDoc, viewer({ spectator: true })), watchingEclipse: tokenShownTo(studentDoc, viewer({ spectator: true, eclipse: true })),
+            student: tokenShownTo(studentDoc, viewer())
+        };
+        equal(stableJson(got), stableJson({ player: "hide", playerOff: "hide", playerEclipse: "hide", owner: "show", gm: null, watching: null, watchingEclipse: null, student: "hide" }),
+            "[a Spectator's token to a player, with the setting off, in an Eclipse, to its owner, to a GM; a student's token to a Spectator, in an Eclipse; to a player in another room]");
+    }, expectedRed("E92", "C4 writes what a Spectator sees and who sees it")],
+    ["R3856 - a Spectator's map is the class's, without the Mastermind's walks (E92 C4; the owner's E92 goal (4), the plan's risk R2): gm-stores.mjs `spectatorFogSection` folds every row of the discovery store but the Mastermind's into one row under the Spectator's own id, scene by scene - a room any of them found is found, newest stamp of the finds; a room none holds found keeps its newest untick - and names no other actor", async () => {
+        /*
+         * E92 C0, 12.11.2026. A section built by hand (gm-store.mjs's shape: entries, stamps, tombstones, watermark); the
+         * fold is pure. Red on C0's tree: no `spectatorFogSection`.
+         */
+        const GS = await import("./gm-stores.mjs");
+        const section = {
+            e: { "S1/amy": { Hall: true, Gym: false }, "S1/ben": { Gym: true, Lab: false }, "S1/mm": { Lair: true, Hall: true }, "S2/amy": { Roof: true } },
+            t: { "S1/amy": { "": 10, Gym: 30 }, "S1/ben": { "": 20, Lab: 40 }, "S1/mm": 50, "S2/amy": 5 },
+            d: { "S1/old": 60 }, cleared: 3
+        };
+        const out = e92Export(GS, "spectatorFogSection")?.(section, "watch", { mastermindId: "mm" }) ?? null;
+        equal(stableJson(out), stableJson({
+            e: { "S1/watch": { Gym: true, Hall: true, Lab: false }, "S2/watch": { Roof: true } },
+            t: { "S1/watch": { "": 0, Gym: 20, Hall: 10, Lab: 40 }, "S2/watch": { "": 0, Roof: 5 } },
+            d: {}, cleared: 3 }), "[the fold of three students' rows, one the Mastermind's, on two scenes]");
+    }, expectedRed("E92", "C4 writes the Spectator's map")],
+    ["R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM", async () => {
+        /*
+         * E92 C0, 12.11.2026. A stand-in Spectator; `editable` is handed. Red on C0's tree: mode "student".
+         */
+        const { sheetMode } = await import("./sheet.mjs");
+        const owner = { id: "R3857owner", isGM: false }, gm = { id: "R3857gm", isGM: true };
+        const watcher = e92Char("R3857-watch", { spectator: true }, owner.id);
+        const read = user => {
+            const m = sheetMode(watcher, user, { editable: true });
+            return { mode: m.mode, actions: m.actions, calls: m.calls, use: m.rows.use, levelUp: m.levelUp, strip: m.strip, objection: m.objection,
+                tile: m.tile, safeword: m.safeword, acts: m.header.acts, spectator: m.spectator };
+        };
+        const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: false, acts: false, spectator: true };
+        equal(stableJson({ owner: read(owner), gm: read(gm) }), stableJson({ owner: want, gm: want }), "[sheetMode of a Spectator for its owner and a GM]");
+    }, expectedRed("E92", "C5 writes the Spectator's sheet")],
+    ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
+        /*
+         * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two
+         * comments that spell it are counted as they stand). Green from C0: the count is the census's own.
+         */
+        const CENSUS = { "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1,
+            "fog.mjs": 5, "gm-stores.mjs": 2, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 3, "monokuma.mjs": 8,
+            "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
+            "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
+            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "states.mjs": 1, "trial-scene.mjs": 4,
+            "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
+        const counted = {};
+        for (const [file, text] of await otherSources()) {
+            const n = (text.match(/type === "character"/g) ?? []).length;
+            if (n) counted[file.replace(/^.*\//, "")] = n;
+        }
+        must(Object.keys(counted).length > 10, "the sources read hold almost no character reads - this would measure nothing");
+        equal(stableJson(counted), stableJson(CENSUS), "[each file's count of `type === \"character\"`, against docs/dev/e92/CENSUS.md]");
+    }],
 ];
 
 /**
@@ -47877,6 +48063,21 @@ async function e24HeldFlagged(actor, flags, run) {
     } finally {
         for (const [key, own] of Object.entries(was)) if (own) Object.defineProperty(mark.flags, key, own); else delete mark.flags[key];
     }
+}
+
+/**
+ * E92's fixture (R3850-R3857): a character stand-in with `flags` as its module flags (a key of `FLAGS` or the flag's
+ * own name), owned by the user `ownerId` names (and by every GM), on no scene. Nothing in the world is touched.
+ */
+function e92Char(id, flags = {}, ownerId = null) {
+    return { id, name: id, type: "character", items: [], system: {}, ownership: ownerId ? { [ownerId]: 3 } : {},
+        getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+        testUserPermission: user => Boolean(user?.isGM) || (ownerId !== null && user?.id === ownerId) };
+}
+
+/** A function `ns` exports under `name`, or null: E92's red tests ask for a name its commits add (C0, before C1). */
+function e92Export(ns, name) {
+    return typeof ns?.[name] === "function" ? ns[name] : null;
 }
 
 async function e24AsRole(role, run) {
