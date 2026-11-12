@@ -67,7 +67,11 @@ None.
 
 ## Shots
 
-None yet (C1 changes one sentence of a whisper; no window changes).
+- Round 1 (12.11.2026): https://claude.ai/artifact/BZqYRZA6foPGz62DRg85vD - C6's invitation window (player) and the
+  Students window's rows with an open invitation (GM), Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at
+  deviceScaleFactor 2, drawn by audit/style-harness.html's kit mode (no Foundry CSS). Looked at: the Withdraw button
+  was cut off at "Withdraw the invitation", shortened to "Withdraw" / "Wycofaj". Not shot: C5's Ask for Hope card in
+  the messenger (the harness's kit mode cannot draw the messenger).
 
 ## Test results
 

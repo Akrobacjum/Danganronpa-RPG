@@ -1177,7 +1177,7 @@
       "invited": "{name}: zaproszenie wysłane. Postać zostaje Monocubem, gdy gracz przyjmie Zasadę Monocuba.",
       "inviteDeclined": "Gracz postaci {name} odrzucił zaproszenie Monocuba.",
       "inviteSent": "Zaproszenie wysłane",
-      "cancelInvite": "Wycofaj zaproszenie",
+      "cancelInvite": "Wycofaj",
       "redeem": "Redeem",
       "ask": "Ask for Hope",
       "redeemUsed": "Redeem wykorzystany dziś. Wraca jutro.",

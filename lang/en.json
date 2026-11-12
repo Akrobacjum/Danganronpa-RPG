@@ -1187,7 +1187,7 @@
       "invited": "{name} is invited. They become a Monocub once their player accepts the Monocub Rule.",
       "inviteDeclined": "{name}'s player declined the Monocub invitation.",
       "inviteSent": "Invitation sent",
-      "cancelInvite": "Withdraw the invitation",
+      "cancelInvite": "Withdraw",
       "redeem": "Redeem",
       "ask": "Ask for Hope",
       "redeemUsed": "You've used Redeem today. It comes back tomorrow.",
