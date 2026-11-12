@@ -2068,6 +2068,9 @@ body.drpg-theme-stained-glass .drpg-launch-mini {
     box-shadow: none;
     color: var(--drpg-sg-bone);
     filter: drop-shadow(0 0 6px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent));
+    /* the chrome face, not Chromium's Arial (E105 FT-21, R3572; written in stained-glass.css by FT batch 2 and moved
+       here in the merge into 1.2.105, 12.11.2026: an A8 surface's rule wins from this sheet, R1333's `left`) */
+    font-family: var(--drpg-font-chrome);
 }
 
 body.drpg-theme-stained-glass .drpg-launch-mini::before {

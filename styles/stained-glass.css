@@ -5183,15 +5183,14 @@ body.drpg-theme-stained-glass #drpg-notices-corner::before {
      ground and edge are `none` and `0` (components.css) and its hexagon is its ::before, so a core `button:hover` ground
      would fill the square box behind the hexagon. The hover now keeps the box bare and lights the hexagon's edge in the
      accent, as the corner's launchers light theirs; a held or speaking mic keeps its own edge (components.css's state
-     rules come later and weigh the same).
+     rules come later and weigh the same). The face is components.css's (the rule that draws the button under the glass):
+     the voice tile is an A8 surface, whose rules R1333 holds to that sheet, so only the two hover rules stand here (the
+     merge into 1.2.105, 12.11.2026).
    - the notices' corner and the Projects gear, both themes: their edge is `border: none !important` at rest
      (danganronpa.css), so no hover edge of Foundry's can draw (the style stays none), but no rule said so for the hover.
      The colour is stated here, transparent; it changes no pixel (the crops before and after are alike) and closes the
      reading. Both themes' rules stand in this sheet, which is batch 2's of the fix.
    Before -> after (the survey's open properties on these buttons, both pages): glass 12 -> 0, Legacy 4 -> 0. */
-body.drpg-theme-stained-glass .drpg-launch-mini {
-    font-family: var(--drpg-font-chrome);
-}
 body.drpg-theme-stained-glass .drpg-launch-mini:is(:hover, :focus-visible) {
     background: none;
     border-color: transparent;
