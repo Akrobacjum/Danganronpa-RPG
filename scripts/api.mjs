@@ -154,8 +154,7 @@ import { sheetWrites } from "./sheet-audit.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isCrimeSilenced,
-    cubTargets, performCubAbility, cubAbilityOnGm, cubAbilityDialog,
-    openMonocubDialog
+    cubTargets, performCubAbility, cubAbilityOnGm, cubAbilityDialog
 } from "./monocub.mjs";
 import { isCallSilenced } from "./call-effects.mjs";
 import {
@@ -1006,7 +1005,8 @@ export const DrpgApi = {
     performCubAbility,
     cubAbilityOnGm,
 
-    monocubDialog: openMonocubDialog,
+    // The old Monocubs window is retired (E72 C6): its rows are the Students window's, which invites where it ticked.
+    monocubDialog: () => import("./gm-panel.mjs").then(m => m.openWhoIsAliveDialog()),
 
     /* ---- the Mastermind -----------------------------------------------------
      * The one secret this module treats as more sensitive than a Truth

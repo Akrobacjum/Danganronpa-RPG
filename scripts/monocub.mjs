@@ -53,8 +53,7 @@ import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm
 import { cubStore, cubCopy, cubTargetStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
-import { stepper, drpgWindow } from "./ui-kit.mjs";
-import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
 
@@ -1230,164 +1229,10 @@ async function refundedAction(actor) {
 }
 
 /* ==========================================================================
- * GM DIALOGS
+ * THE OLD MONOCUBS WINDOW, RETIRED (E72 C6, 12.11.2026; audit S18-61, DC17)
+ * --------------------------------------------------------------------------
+ * `openMonocubDialog` ticked a student into a Monocub with `setMonocub`, beside the Students window's Invite button and
+ * State list: a third road around the invitation, with no word from the player. It is gone; `game.drpg.monocubDialog`
+ * opens the Students window (gm-students.mjs `openWhoIsAliveDialog`), which holds the same rows - the Monocub's Hope,
+ * a Monokuma's donation, the crime witness's box - and sends an invitation where the window ticked a flag.
  * ========================================================================== */
-
-/** Opt students in or out, hand out Despair-as-Hope, and mark the crime silence. */
-export async function openMonocubDialog() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-monocubs")) return RAISED;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const rosterOfDead = () =>
-        game.actors.filter(a => a.type === "character" && !isMonokuma(a) && isDeceased(a));
-    const dead = rosterOfDead();
-    if (!dead.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyDead"));
-        return null;
-    }
-
-    const { monokumas, donorLabel } = await import("./despair.mjs");
-    const gms = monokumas();
-
-    /*
-     * A FUNCTION, NOT A STRING (E6).
-     *
-     * This table used to be built once and then thrown away and rebuilt by
-     * closing and reopening the window after every donation - which took the
-     * GM's scroll position and every checkbox they had ticked but not yet
-     * applied with it. `keepLive` redraws the rows in place instead, so the
-     * roster has to be re-read on each pass: a student who died while this was
-     * open belongs in it.
-     */
-    const buildRows = () => rosterOfDead().map(a => {
-        const cub = isMonocub(a);
-        const hope = cub ? resourceValue(a, "hope") : null;
-        const silenced = cub && isCrimeSilenced(a);
-        // What each pool can spend, and what it owes (E05 C12; despair.mjs `donorLabel`).
-        const donors = gms.map(u =>
-            `<option value="${u.id}">${foundry.utils.escapeHTML(donorLabel(u))}</option>`
-        ).join("");
-
-        return `<tr>
-            <td>${foundry.utils.escapeHTML(a.name)}</td>
-            <td style="text-align:center">
-                <input type="checkbox" name="cub:${a.id}" ${cub ? "checked" : ""}
-                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.isOne")}: ${a.name}`)}" /></td>
-            <td>${cub ? `${hope} / ${resourceMax(a, "hope")}` : "-"}</td>
-            <td>${cub ? `
-                <select name="donor:${a.id}">${donors}</select>
-                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, attrs: { style: "width:3.5em" } })}
-                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
-                    ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
-            <td style="text-align:center">${cub ? `
-                <input type="checkbox" name="silenced:${a.id}" ${silenced ? "checked" : ""}
-                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.silenced")}: ${a.name}`)}" />` : `
-                <input type="checkbox" name="silenced:${a.id}" disabled data-drpg-tick-first
-                       data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Monocub.tickFirst"))}"
-                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.silenced")}: ${a.name} - ${game.i18n.localize("DRPG.Monocub.tickFirst")}`)}" />`}</td>
-        </tr>`;
-    }).join("");
-
-    const result = await drpgWindow({
-        title: game.i18n.localize("DRPG.Monocub.manageTitle"),
-        classes: ["drpg-panel", "drpg-window-monocubs"],
-        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
-        fit: true,
-        body: `<div>
-            <p class="notes">${game.i18n.localize("DRPG.Monocub.dialogIntro")}</p>
-            <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Monocub.student")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.isOne")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
-                <th data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Monocub.silencedNote"))}">${
-                    game.i18n.localize("DRPG.Monocub.silenced")}</th>
-            </tr></thead><tbody class="drpg-cub-live">${buildRows()}</tbody></table>
-        </div>`,
-        footer: {
-            primary: {
-                action: "save", label: game.i18n.localize("DRPG.Panel.apply"),
-                callback: (event, button, dialog) => rosterOfDead().map(actor => ({
-                    id: actor.id,
-                    cub: Boolean(dialog.element.querySelector(`[name="cub:${actor.id}"]`)?.checked),
-                    silenced: Boolean(
-                        dialog.element.querySelector(`[name="silenced:${actor.id}"]`)?.checked)
-                }))
-            },
-            close: { role: "cancel", action: "cancel" }
-        },
-        // The per-row "give hope" buttons act immediately rather than waiting
-        // for Apply: they spend a real Despair pool, and a GM who then cancels
-        // the rest of the form should not find that donation undone with it.
-        render: (event, dialog) => {
-            /*
-             * WIRED IN A FUNCTION, because `keepLive` replaces the tbody and
-             * every listener on it goes with the nodes. A live table whose
-             * buttons stopped working would be worse than a stale one.
-             */
-            /* SHORT HEADERS AND A LOCKED BOX (E15 C6, 25.10.2026; audit S13-10). The headers were
-               sentences ("Who died?", "Turn a Monokuma's Despair into Hope") and the note under the
-               table pointed at a box that was a "-" until the student was a Monocub. Now the Silenced
-               box is drawn locked with "Tick Monocub first" on it, unlocked while the row's Monocub box
-               is ticked (Apply makes the Monocub, then the silence), and the note is the column's tooltip. */
-            const wireTickFirst = () => {
-                for (const box of dialog.element.querySelectorAll("[data-drpg-tick-first]")) {
-                    const id = box.name.slice("silenced:".length);
-                    const cub = dialog.element.querySelector(`[name="cub:${CSS.escape(id)}"]`);
-                    cub?.addEventListener("change", () => {
-                        box.disabled = !cub.checked;
-                        if (!cub.checked) box.checked = false;
-                    });
-                }
-            };
-            const wireGive = () => {
-                for (const btn of dialog.element.querySelectorAll("[data-drpg-give]")) {
-                    btn.addEventListener("click", async () => {
-                        const id = btn.dataset.drpgGive;
-                        const actor = game.actors.get(id);
-                        const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
-                        const amount = wholeNumber(dialog.element.querySelector(`[name="amount:${id}"]`)?.value, { min: 0, fallback: 0 });
-                        if (!actor || !donorId || amount <= 0) return;
-
-                        const { convertDespairToHope } = await import("./despair.mjs");
-                        await convertDespairToHope(donorId, actor, amount);
-                        // No close and reopen: the donation writes two actors,
-                        // `watch.actors` catches it, and the row redraws with
-                        // the new numbers under the GM's cursor (E6).
-                    });
-                }
-            };
-            wireGive();
-            wireTickFirst();
-
-            keepLive(dialog, {
-                region: ".drpg-cub-live",
-                build: buildRows,
-                // A pool's debt changes with no actor's write (E05 C12): its store's hook.
-                watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
-                after: () => { wireGive(); wireTickFirst(); }
-            });
-        },
-        rejectClose: false
-    });
-
-    if (!Array.isArray(result)) return null;
-
-    for (const row of result) {
-        const actor = game.actors.get(row.id);
-        if (!actor) continue;
-        if (row.cub !== isMonocub(actor)) await setMonocub(actor, row.cub);
-        if (row.cub && row.silenced !== isCrimeSilenced(actor)) await setSilenced(actor, row.silenced);
-    }
-
-    return result;
-}

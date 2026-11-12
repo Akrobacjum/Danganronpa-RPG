@@ -74158,67 +74158,6 @@ const SCENARIOS = [
             + "the never-assigned student's pool picked: the option shown is its plain name, still dim, the pool counted; saved: their row names the pool]");
     }],
 
-    ["the Monocubs window and the silence say the rule the GM ticks (E15-T8): short headers, the note on the Silenced column, a locked box until the row is a Monocub; the badge says what the tick posts", async () => {
-        /*
-         * E15 C6, 25.10.2026; E15-31, E15-32, audit S13-10, S13-17. A student killed in public
-         * (`killCharacter`) so the window has a row, then the Monocubs window opened (`openMonocubDialog`,
-         * drawn). Read: the headers' words; the Silenced header's tooltip; whether the note still stands
-         * under the table; the dead student's Silenced box (locked, its tooltip) before and after its
-         * Monocub box is ticked; then Cancel. And the words, EN as this browser reads them: the sheet's
-         * badge against the title of the card the tick posts, and whether its tooltip says Confusion still
-         * works. The student is revived and its tracks put back. At the C5 commit the headers were
-         * sentences, the box a "-" and the badge "Cannot speak". The pool sentences (S13-12) are words a
-         * test would read in one language only: parity holds their Polish twins, the review their sense.
-         */
-        const M = await import("./monocub.mjs");
-        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
-        const [who] = cast(1);
-        const R = "system.resources";
-        const keys = ["hope", "hitPoints", "stress", "actions"];
-        const tracksWas = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
-        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-monocubs"));
-        const t = key => game.i18n.localize(key);
-        const read = {};
-        let dead = false, answer = null;
-        try {
-            dead = Boolean(await killCharacter(who, { secret: false, keepBullets: true }));
-            must(dead, `${who.name}'s death could not be published - this would measure nothing`);
-            await settle();
-            answer = Promise.resolve().then(() => M.openMonocubDialog()).catch(() => null);
-            await until(() => open()[0]?.element, 6000);
-            const root = open()[0]?.element;
-            must(root, "the Monocubs window did not open - this would measure nothing");
-            const heads = [...root.querySelectorAll("thead th")];
-            read.headers = heads.map(th => th.textContent.trim());
-            read.tooltip = heads[4]?.dataset?.tooltip ?? null;
-            read.noteBelow = [...root.querySelectorAll("p.notes")].some(p => p.textContent.includes(t("DRPG.Monocub.silencedNote")));
-            const box = root.querySelector(`[name="silenced:${CSS.escape(who.id)}"]`);
-            read.locked = [box?.disabled ?? null, box?.dataset?.tooltip ?? null];
-            const cub = root.querySelector(`[name="cub:${CSS.escape(who.id)}"]`);
-            cub.checked = true;
-            cub.dispatchEvent(new Event("change", { bubbles: true }));
-            read.unlocked = box?.disabled ?? null;
-            root.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
-            await answer;
-        } finally {
-            for (const app of open()) await app.close();
-            await answer;
-            if (dead) await reviveCharacter(who, { quiet: true });
-            await who.update(Object.fromEntries(keys.filter(k => tracksWas[k] !== null).map(k => [`${R}.${k}`, tracksWas[k]])));
-            await settle();
-        }
-        read.badge = [t("DRPG.Monocub.silencedBadge") === t("DRPG.Monocub.silenceTitle"), t("DRPG.Monocub.silencedTooltip").includes("Confusion")];
-        equal(stableJson(read), stableJson({
-            headers: ["DRPG.Monocub.student", "DRPG.Monocub.isOne", "DRPG.Monocub.hope", "DRPG.Monocub.giveHopeColumn", "DRPG.Monocub.silenced"].map(t),
-            tooltip: t("DRPG.Monocub.silencedNote"),
-            noteBelow: false,
-            locked: [true, t("DRPG.Monocub.tickFirst")],
-            unlocked: false,
-            badge: [true, true]
-        }), "the Monocubs window or the silence does not say the rule [the headers; the Silenced header's tooltip; the note under the table; "
-            + "a dead student's Silenced box: locked, its tooltip; once Monocub is ticked: locked; the badge: the tick's title, Confusion named]");
-    }],
-
     ["E16-T21 - Dynamic says 'beat N' where a band's number is shown, and passes from that number (audit S13-30, the owner's D16)", async () => {
         /*
          * E16 part 2 C0, 26.10.2026. A Dynamic action's GM window offered "8-12 · Trivial" and its roll

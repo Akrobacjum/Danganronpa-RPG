@@ -36229,7 +36229,7 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const SOURCE = [["boundary.mjs", "placementTable"], ["enforced.mjs", "openGiveBackFoundry"], ["enforced.mjs", "askHoldAgain"],
             ["gm-students.mjs", "openWhoIsAliveDialog"], ["gm-team-dialog.mjs", "openGmTeamDialog"], ["investigation.mjs", "openInvestigationDashboard"],
-            ["look.mjs", "openLookDialog"], ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
+            ["look.mjs", "openLookDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
             ["room-setup.mjs", "openRoomSetupDialog"], ["rules.mjs", "openRulesManager"], ["sound-panel.mjs", "openPlayerSoundDialog"],
             ["sound-panel.mjs", "openSoundDialog"], ["trial.mjs", "openObjectionLog"]];
         const source = {};

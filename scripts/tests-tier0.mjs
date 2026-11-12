@@ -1736,11 +1736,9 @@ const REGRESSIONS = [
             openWhoIsAliveDialog: "gm-students",
             openInvestigationDashboard: "investigation",
             manageClassTrial: "trial-floor-ui",
-            // Added in E6, and for the reason the list exists: both used to
-            // close and reopen themselves after every Hope donation, which took
-            // the GM's scroll position and any unapplied ticks with it. They
-            // are live now, and this is what stops that quietly coming back.
-            openMonocubDialog: "monocub",
+            // Added in E6, and for the reason the list exists: it and the Monocubs window (retired by E72 C6, its rows
+            // the Students window's) used to close and reopen themselves after every Hope donation, which took the GM's
+            // scroll position and any unapplied ticks with it. Live now, and this is what stops that quietly coming back.
             openMastermindDialog: "mastermind"
         };
 
@@ -7931,6 +7929,35 @@ const REGRESSIONS = [
         must(fn.length > 300, "sheet.mjs has no abilityButton - this would measure nothing");
         const read = [/cubBlockSaid\(actor, def\)/.test(fn), /affordable && !shut/.test(fn), /game\.i18n\.localize\(shut\)/.test(fn), /"DRPG\.Action\.costFree"/.test(fn) && /"DRPG\.Action\.costActions"/.test(fn)];
         equal(JSON.stringify(read), JSON.stringify([true, true, true, true]), "the Monocub's tile does not read its blocks, dim on them, say them, or say Free ([asks, dims, says, free])");
+    }],
+
+    ["R3804 - one road makes a Monocub: the player's acceptance of the invitation; the old Monocubs window is gone and game.drpg.monocubDialog opens the Students window (E72 C6; S18-61, DC17)", async () => {
+        /*
+         * E72 C6, 12.11.2026; audit S18-61, the owner's DC17. Three roads made a Monocub with no word from its player: the
+         * Students window's Invite button, its State list, and the old Monocubs window (monocub.mjs `openMonocubDialog`,
+         * `setMonocub(actor, row.cub)`). The first two invite since C6; the third is retired. Read off the source of every
+         * module file but the suite's: every call that sets the flag on (`setMonocub(` with anything but false) stands in
+         * monocub.mjs `answerMonocubOffer`; monocub.mjs defines no `openMonocubDialog`; api.mjs's `monocubDialog` opens the
+         * Students window. Red at f22a7e8: the old window and its call, the Invite button's and the State list's.
+         */
+        const sources = new Map(await otherSources());
+        must(sources.size > 100, `the suite read ${sources.size} module files - this would measure nothing`);
+        const on = [];
+        for (const [file, text] of sources) {
+            const src = stripComments(text);
+            const tops = [...src.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            for (const m of src.matchAll(/\bsetMonocub\(\s*[\w.]+\s*(?:,\s*([^,)]+))?/g)) {
+                if (/^false\b/.test((m[1] ?? "").trim())) continue;
+                const fn = tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)";
+                if (fn === "setMonocub") continue;
+                on.push(`${file}#${fn}`);
+            }
+        }
+        const monocub = stripComments(sources.get("monocub.mjs") ?? "");
+        const api = stripComments(sources.get("api.mjs") ?? "");
+        equal(JSON.stringify([on.sort(), /function openMonocubDialog\(/.test(monocub), /monocubDialog:\s*\(\)\s*=>\s*import\("\.\/gm-panel\.mjs"\)\.then\(m => m\.openWhoIsAliveDialog\(\)\)/.test(api)]),
+            JSON.stringify([["monocub.mjs#answerMonocubOffer"], false, true]),
+            "a Monocub is made somewhere but the invitation's acceptance, the old window stands, or monocubDialog opens something else ([the calls that set the flag on, the old window, the API's door])");
     }],
 
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
@@ -19486,7 +19513,6 @@ const REGRESSIONS = [
         const ANOTHER = {
             "gm-students.mjs#openWhoIsAliveDialog": "the Students window: every student with their state, the dead included, for the GM to change it",
             "monocub.mjs#eligibleForMonocub": "the dead who are not a Monocub yet: who may become one",
-            "monocub.mjs#openMonocubDialog": "the Monocubs' window, drawn over the dead",
             "season-wipe.mjs#placeCast": "the season reset's placement of the tokens, by the GMs' record of who is dead",
             "trial-scene.mjs#leftBehind": "whom the trial's return carries, by the gather's rule as the GMs hold it",
             "voice.mjs#deadForTrial": "the trial's dead, whose microphones are off: the other side of the cast",
