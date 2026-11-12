@@ -33897,7 +33897,7 @@ const INVARIANTS = [
                 lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
                 skipped: "No action is needed here. This costs 1 Sanity.",
                 analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
-                tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and no Sanity to give instead."],
+                tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and Tamper takes nothing else."],
                 raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
                     `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
             },
@@ -33907,7 +33907,7 @@ const INVARIANTS = [
                 lines: ["Kosztuje 2 akcje. Masz 5 akcji.", "Nie masz już akcji, więc to kosztuje 1 Hope. Masz 2 Hope.", "Zapłacono 2 akcjami.", "2 akcje", "1 Hope, 2 akcje."],
                 skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
                 analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
-                tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji ani Sanity, które można by dać w zamian."],
+                tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji, a Tamper nie przyjmuje niczego innego."],
                 raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
                     `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
             },
