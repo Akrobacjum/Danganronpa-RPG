@@ -2586,11 +2586,13 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
      *
      * So the destination is chosen up front, before the roll, and travels as
      * `targetId`. The roll still decides WHETHER it moves; it no longer decides
-     * where. `def.rooms` stays in the table as the reach - the picker offers the
-     * rooms connected to this one - and the random walk is gone.
+     * where. `def.rooms` is the reach - a critical's 2, any other hit's 1 (E64 C4,
+     * `bodyLanding`) - and the random walk is gone.
      */
-    const reachable = await bodyDestinations(here.scene, here.room);
-    let room = reachable.includes(chosenRoom) ? chosenRoom : reachable[0];
+    // The reach is the band's (E64 C4): a critical's two rooms, one on any other hit (`bodyLanding`).
+    const reach = await bodyReach(here.scene, here.room);
+    const landing = bodyLanding(reach, chosenRoom, Number(def.rooms?.[band]) || 1);
+    const room = landing.room;
 
     if (!room) {
         // Nowhere to take it. Said out loud rather than silently leaving the
@@ -2627,6 +2629,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
         return;
     }
     done.push(game.i18n.format("DRPG.Cleanup.bodyMoved", { room }));
+    if (landing.short) done.push(game.i18n.format("DRPG.Cleanup.bodyShort", { room, far: chosenRoom }));
 
     const visibility = def.remnant?.[band] ?? "evident";
     const left = await dropRemnant(actor, {
@@ -3438,14 +3441,43 @@ export async function openCleanupDialog(actor) {
  * already read as "there is nowhere to take it" - the honest answer.
  */
 async function bodyDestinations(scene, room) {
-    if (!room) return [];
+    return (await bodyReach(scene, room)).near;
+}
+
+/**
+ * HOW FAR A BODY CAN BE CARRIED (E64 C4, 12.11.2026; U06-config-rules-07, the amend of 26.09; default taken, owner to
+ * confirm). `near`: the rooms connected to `room` (movement.mjs `neighbouringRooms`, the same road a step takes, so the
+ * map's lists, its walls and its floors decide as they do for a Move); `far`: the rooms two away - connected to a near
+ * room, not to `room` itself - with `via`, the near room each is reached through (the first in the near list's order).
+ * Nobody's bedroom on either list, and none carried through: a body behind somebody's door names a suspect. Until
+ * 1.2.105 only `near` existed and `ACTIONS`' `moveBody.rooms.critical: 2` was read by nothing. The killer's scene, for
+ * the neighbours and for whose bedroom each is (E12 C2a).
+ */
+export async function bodyReach(scene, room) {
+    if (!room) return { near: [], far: [], via: {} };
     const { neighbouringRooms } = await import("./movement.mjs");
     const { vaultOwnerOf } = await import("./vault.mjs");
-    // The killer's scene, for the neighbours and for whose bedroom each is (E12 C2a): both
-    // read the camera's scene until 1.2.74.
-    return neighbouringRooms(scene, room)
-        .filter(r => r !== room)
-        .filter(r => !vaultOwnerOf(r, scene));
+    const open = r => r !== room && !vaultOwnerOf(r, scene);
+    const first = neighbouringRooms(scene, room).filter(r => r !== room);
+    const near = first.filter(open);
+    const via = {};
+    for (const step of near) {
+        for (const r of neighbouringRooms(scene, step)) {
+            if (open(r) && !first.includes(r) && !Object.hasOwn(via, r)) via[r] = step;
+        }
+    }
+    return { near, far: Object.keys(via), via };
+}
+
+/**
+ * Where a body carried towards `chosen` ends up on this band (E64 C4): a near room on any hit; a far room on a band
+ * whose reach (`def.rooms`) is 2 - a critical - and on any other hit the near room it is reached through, as far as
+ * the killer got; anything else the first near room, as before. Pure, for tier 1 R3957.
+ */
+export function bodyLanding({ near = [], far = [], via = {} } = {}, chosen, reach = 1) {
+    if (near.includes(chosen)) return { room: chosen, short: false };
+    if (far.includes(chosen)) return reach >= 2 ? { room: chosen, short: false } : { room: via[chosen] ?? near[0] ?? null, short: true };
+    return { room: near[0] ?? null, short: false };
 }
 
 /**
@@ -3464,7 +3496,8 @@ export async function openMoveBodyDialog(actor) {
     }
 
     const here = locateActor(actor);
-    const rooms = await bodyDestinations(here?.scene, here?.room ?? "");
+    // Both reaches, before the roll (E64 C4): the far rooms under their own heading, a critical's alone.
+    const { near: rooms, far } = await bodyReach(here?.scene, here?.room ?? "");
 
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNowhere"));
@@ -3484,7 +3517,9 @@ export async function openMoveBodyDialog(actor) {
             <label>${game.i18n.localize("DRPG.Cleanup.moveWhere")}
                 <select name="room">${rooms.map(r =>
                     `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`
-                ).join("")}</select></label>
+                ).join("")}${far.length ? `<optgroup label="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Cleanup.moveFar"))}">${far.map(r =>
+                    `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`).join("")}</optgroup>` : ""}</select></label>
+            ${far.length ? `<p class="notes">${game.i18n.localize("DRPG.Cleanup.moveFarNote")}</p>` : ""}
         </form>`,
         footer: {
             primary: {

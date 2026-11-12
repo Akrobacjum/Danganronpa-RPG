@@ -4357,10 +4357,13 @@ export const CLEANUP = {
          * carrying a body is exactly the physical problem it looks like.
          *
          * `rooms` is the guide's reach - an adjacent room on Hope, a connected
-         * one on Despair, two rooms away on a critical; the game offers the
-         * connected rooms (cleanup.mjs `bodyDestinations`), and E64 makes the
-         * critical's two rooms work (the amend of 26.09). All three leave an
-         * Evident Resolution Remnant - you cannot drag a body quietly.
+         * one on Despair, two rooms away on a critical. The picker offers the
+         * connected rooms and, under their own heading, the rooms two away
+         * (cleanup.mjs `bodyReach`); a critical carries the body to a far room,
+         * any other hit to the room between (`bodyLanding`; E64 C4, 12.11.2026,
+         * the amend of 26.09; default taken, owner to confirm). Until 1.2.105 the
+         * critical's 2 was read by nothing. All three leave an Evident
+         * Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
             label: "Move the Body", icon: "fa-person-falling",

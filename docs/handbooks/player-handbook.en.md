@@ -640,7 +640,7 @@ Then the **clean-up**. Your Tamper tile now lists every trace in the room you ar
 | **Erase a Trace** | the Tamper table, chapter 4 |
 | **Reshape a Trace** | three lower than erasing - rename it and describe it as something innocent; the GM approves your words before they land, it always ends up a Tamper Remnant, and a critical makes it quieter and hands the Sanity back |
 | **Misleading Trail** | 15 |
-| **Move the Body** | Body, 16 - you pick a room connected to the body's before the roll, never a bedroom; a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is |
+| **Move the Body** | Body, 16 - you pick a room connected to the body's before the roll, never a bedroom, or a room two away, which only a critical reaches (any other hit leaves it in the room between); a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is |
 
 A Misleading Trail or a moved body that succeeds puts the Truth Bullet of the trace it left on your sheet at once, as if you had found it (*You know this trace: it is on your sheet.*); a failure, an erased trace and a reshaped one give you none, and a Reroll of that roll takes the Truth Bullet back.
 

@@ -640,7 +640,7 @@ Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju
 | **Erase a Trace** | tabela Tamper, rozdział 4 |
 | **Reshape a Trace** | o trzy niżej niż usuwanie - nazwij go inaczej i opisz jako coś niewinnego; GM zatwierdza twoje słowa, zanim trafią na ślad; przerobiony zawsze kończy jako Tamper Remnant, a krytyk go wycisza i oddaje Sanity |
 | **Misleading Trail** | 15 |
-| **Move the Body** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię; sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
+| **Move the Body** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię, albo pokój dwa dalej, do którego dociera tylko krytyk (każdy inny sukces zostawia ciało w pokoju pomiędzy); sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
 
 Udany fałszywy trop albo przeniesione ciało od razu kładzie na twój arkusz Truth Bullet śladu, który zostawiło, jakbyś go znalazł (*Znasz ten ślad: jest na twojej karcie.*); porażka, usunięty i przerobiony ślad nie dają żadnego, a Reroll tego rzutu zabiera Truth Bullet.
 

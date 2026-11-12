@@ -833,15 +833,17 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
-        const body = bodyOf(src, "async function bodyDestinations", { length: 500 });
-        ok(/neighbouringRooms/.test(body),
-            "a body can be dragged to a room that does not connect to this one");
+        // E64 C4 (12.11.2026): the list is `bodyReach`'s - the connected rooms and, for a critical, those two away
+        // through them (R3957) - and `bodyDestinations` answers its near half.
+        const body = bodyOf(src, "export async function bodyReach", { length: 1200 });
+        ok(/neighbouringRooms\(scene, room\)/.test(body) && /neighbouringRooms\(scene, step\)/.test(body),
+            "a body can be dragged to a room that does not connect to this one, or to one it reaches through");
         ok(/vaultOwnerOf/.test(body),
             "a body can be dragged into somebody's bedroom");
 
         // Definition plus both callers.
-        ok((src.match(/bodyDestinations\(/g) ?? []).length >= 3,
-            "one of the two Move the body roads no longer asks bodyDestinations");
+        ok((src.match(/bodyReach\(/g) ?? []).length >= 3,
+            "one of the two Move the body roads no longer asks bodyReach");
         ok(!/neighbouringRooms\(here/.test(src),
             "a Stage 6 road still builds its own room list, so the two can disagree");
     }],
@@ -48975,6 +48977,36 @@ const INVARIANTS = [
             apply: [false, true, true],
             langs: { en: [true, true, true], pl: [true, true, true] }
         }), "the options; each statistic's rise; the picker's note for Body, Leg, Head and Eye; applyAdvancement [an old case left, a non-option refused, the table read]; each language [the two notes, no old option's label]");
+    }],
+    ["R3957 - a critical carries the body two rooms (E64 C4; U06-config-rules-07, the amend of 26.09; default taken, owner to confirm): cleanup.mjs `bodyLanding` lands a near room on any hit, a far room on a reach of 2 and the room between on a reach of 1, and the first near room for a room on neither list; `applyMoveBody` reads its reach off `def.rooms[band]` (Hope 1, Despair 1, critical 2 in `CLEANUP.actions.moveBody`) through `bodyReach`, and the destination window lists the far rooms under their own heading", async () => {
+        /*
+         * E64 C4, 12.11.2026. Red at e451f49: no `bodyReach` or `bodyLanding`; `applyMoveBody` took `reachable[0]` for
+         * any room off the connected list, and `rooms.critical: 2` was read by nothing (R1231 kept the field for this).
+         * The landing is asked of the pure helper on a stand-in reach (the Kitchen next door, the Library two away
+         * through it); the map's reach itself is movement.mjs `neighbouringRooms`, read here by name. A body moved two
+         * rooms on a real map with Levels is LIVE-E64-01.
+         */
+        const Cl = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must(typeof Cl.bodyLanding === "function" && typeof Cl.bodyReach === "function", "cleanup.mjs exports no bodyLanding or bodyReach - a critical still carries the body one room");
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        must(src.length > 5000, "cleanup.mjs was not read - this would measure nothing");
+        const reach = { near: ["Kitchen", "Hall"], far: ["Library"], via: { Library: "Kitchen" } };
+        const at = (room, n) => { const l = Cl.bodyLanding(reach, room, n); return [l.room, l.short]; };
+        const apply = fnSource(src, "applyMoveBody"), dialog = fnSource(src, "openMoveBodyDialog"), reachSrc = fnSource(src, "bodyReach");
+        equal(stableJson({
+            rooms: CLEANUP.actions?.moveBody?.rooms ?? null,
+            landing: [at("Hall", 1), at("Library", 2), at("Library", 1), at("Nowhere", 2), at("Nowhere", 1)],
+            empty: Cl.bodyLanding({ near: [], far: [], via: {} }, "Library", 2).room,
+            reads: [/bodyLanding\(reach, chosenRoom, Number\(def\.rooms\?\.\[band\]\) \|\| 1\)/.test(apply), /await bodyReach\(here\.scene, here\.room\)/.test(apply),
+                /neighbouringRooms\(scene, step\)/.test(reachSrc) && /vaultOwnerOf\(r, scene\)/.test(reachSrc),
+                /<optgroup label=/.test(dialog) && /DRPG\.Cleanup\.moveFar"/.test(dialog)]
+        }), stableJson({
+            rooms: { hope: 1, despair: 1, critical: 2 },
+            landing: [["Hall", false], ["Library", false], ["Kitchen", true], ["Kitchen", false], ["Kitchen", false]],
+            empty: null,
+            reads: [true, true, true, true]
+        }), "the reach per band; landings [Hall on 1, Library on 2, Library on 1, a room on neither list on 2 and 1] as [room, short]; none with no room near; the reads");
     }],
 ];
 
