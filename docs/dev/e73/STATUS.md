@@ -185,13 +185,26 @@ The owner accepted the console's layout at ce05852 (12.11, "Konsola rozprawy wyg
 - R3911 holds the slot: one, empty as drawn here, outside the console and right after it, never hidden by a rule; keepLive's
   region `.drpg-trial-console`; the body built by `trialBodyHtml`; `consoleWidth` 1280.
 
+## CI and the release (the owner's decision of 12.11, via the coordinator)
+
+- From 12.11 ~13:00 every push of this line carries "[skip ci]"; CI runs once per release, on the train's PR head,
+  after the coordinator's merge, and that run is authoritative. Local checks before each push replace the per-push CI.
+- This line's runs that were still queued were cancelled on 12.11: 43199560711 (781b4b9), 43201475841 (fc05a9d),
+  43206644170 (c6e723d), 43208976196 (ce05852), 43211040449 (7771539). The runs that finished: 43164287414 (ec0775f),
+  43164772167 (38654b1), 43198838813 (5fc377d), each red on one test only, the backup test's missing `diveSets`
+  fixture, fixed in 781b4b9 and green by name here since.
+- Local state at 7771539 (the last code at ce05852): tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; tier 2 by name
+  (E73, E70-T, E99, Testimony, Closing Argument, Objection) 86 green; scenarios 41, 63, 68, 72, 86, 88 green;
+  quick gate (lint, check 17/17, gate self-test) green.
+- The owner bundles E73 with E72 into one release.
+
 ## Waits for other lines
 
 - **E72** (Monocub, inactive Confusions, bribes, rewards): in a zone mode they are not wired; the zone modes count no
   Monocub (vote.mjs `trialParticipants` leaves them out already).
 - **E61** (trial entry, cut-in): no cut-in in a zone mode yet.
 - **E74**: nothing of E74 is read here.
-- **The case schema in the console's middle**: E99 (1.2.109) fills the slot. E73 ships as 1.2.116.
+- **The case schema in the console's middle**: E99 (1.2.109) fills the slot. E73 ships with E72 in one release (the owner, 12.11).
 
 ## Not done (named for the next round)
 
