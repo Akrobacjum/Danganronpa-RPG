@@ -111,3 +111,5 @@ Summary: of the 16 register rows owned by Daggerheart, 14 read **same**; **criti
 - Not read: Daggerheart's built bundle (the module reads source text with `Function.prototype.toString`; the probes
   assume the shipped files are the unminified source, as `reviewBuild`'s comment says), the character data model
   field by field, Daggerheart's CSS.
+
+Part 2, every wait between a player's click and the dice on both roads with the harness's timings, is `WAITS.md` beside this file.
