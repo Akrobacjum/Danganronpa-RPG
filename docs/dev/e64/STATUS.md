@@ -126,6 +126,11 @@ At 7469197, before the push (12.11.2026, this container, 4 cores):
   72-canary 124/128 (4 expected red), 83-roll-integrity 110/110, 88-flow-length 26/26 - all green.
 - lint 295 files 0 problems; `node tools/check.mjs` 17 parts green.
 
+CI (GitHub Actions, run 43171433174 at 7469197): lint/check/gate, all 8 scenario buckets and 7 of 8 suite shards
+green; shard 3 red on one test only, E36-T4 (the project manager's portrait), the test known red on the base
+3ccfde3e and left to the coordinator; `verdict` red because of it. Run 43177945125 at 4f3882f was still running when
+this file was written.
+
 ## Screenshots
 
 Round 1, one private review page: https://claude.ai/artifact/NjBANZCciMx8kvotSAni7R - the critical Observe window
