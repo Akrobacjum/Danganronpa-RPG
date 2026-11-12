@@ -10,8 +10,8 @@
  * action back on the next reset instead of being stuck at one.
  */
 
-import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
-import { isDeceased } from "./settings.mjs";
+import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING, STATES } from "./config.mjs";
+import { isDeceased, getClock } from "./settings.mjs";
 import { isWounded } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
@@ -36,7 +36,7 @@ export function baseActions({ wounded = false } = {}) {
  * `wounded` is the sheet's unless the caller read it as the GMs hold it (`resetActionsFor`).
  * @returns {{total: number, wounded: boolean}}
  */
-export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
+export function actionBudget(actor, { wounded: hurt = isWounded(actor), phase } = {}) {
 
     /*
      * A MONOCUB LOSES NO ACTION TO A WOUND (E15 C4, 25.10.2026; audit S03-10, S10-18). The guide gives
@@ -49,6 +49,16 @@ export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
     const wounded = hurt && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub);
 
     /*
+     * ONLY DAILY LIFE'S (E64 C1c, 12.11.2026; audit S03-49; default taken, owner to confirm): the lost action is
+     * the guide's "during Daily Life" (`STATES.wounded.actionsLostIn`), read off the phase the budget is for - the
+     * clock's, or `phase` where a caller names it. `wounded` is still answered as the state is, so the sheet's badge
+     * says Wounded in the Investigation; `costsAction` says whether it took an action. No clock is Daily Life's.
+     */
+    const lostIn = STATES.wounded?.actionsLostIn;
+    const now = phase ?? (() => { try { return getClock()?.phase ?? "dailyLife"; } catch { return "dailyLife"; } })();
+    const costsAction = wounded && (!Array.isArray(lostIn) || lostIn.includes(now));
+
+    /*
      * A DARKENED TIME OF DAY COSTS AN ACTION (Z10), and it stacks with Wounded
      * on purpose - a hurt student in a darkened hour is exactly the situation
      * the rule is for. The floor is what stops the two of them reaching zero
@@ -57,9 +67,9 @@ export function actionBudget(actor, { wounded: hurt = isWounded(actor) } = {}) {
      */
     const dark = overflowActionPenalty();
     const floor = dark ? overflowFloor("panic") : 0;
-    const total = Math.max(floor, baseActions({ wounded }) - dark);
+    const total = Math.max(floor, baseActions({ wounded: costsAction }) - dark);
 
-    return { total, wounded, darkened: dark > 0 };
+    return { total, wounded, costsAction, darkened: dark > 0 };
 }
 
 /** Actions still available right now. */
@@ -432,7 +442,7 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
     // maximum, not put back yet, refilled a wounded student's whole budget on the GM.
     const { meansWrite } = await import("./sheet-audit.mjs");
     return meansWrite(actor, async ({ hitPoints }, maxOf) => {
-        const { total, wounded } = actionBudget(actor, { wounded: (maxOf("hitPoints") ?? 0) - hitPoints <= 0 });
+        const { total, wounded, costsAction } = actionBudget(actor, { wounded: (maxOf("hitPoints") ?? 0) - hitPoints <= 0 });
         await trustedWrite(actor, {
             [`system.resources.${ACTIONS_RESOURCE}.value`]: total,
             [`system.resources.${ACTIONS_RESOURCE}.max`]: total,
@@ -448,7 +458,7 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
                 [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
             })
         }, { reason: "setup" });
-        return { actor, total, wounded };
+        return { actor, total, wounded, costsAction };
     });
 }
 

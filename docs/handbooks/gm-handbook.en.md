@@ -233,7 +233,7 @@ Three **phases**. A canonical chapter is five sessions, as below - but the phase
 
 ## 5. Actions and budgets
 
-`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Every student gets **2 actions** per time of day and **1 Free Move**. **Wounded** (no Health left) costs 1 action per time of day; a *Panic* darkening costs 1 more; the two stack but never below **1**. The budget is derived, never stored, so a character who heals mid-day gets the action back at the next refill. **Breakdown** (no Sanity left) gives disadvantage on every roll; a roll's card names the extra die **Disadvantage** and never Breakdown (section 5, "Who reads what").
+`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Every student gets **2 actions** per time of day and **1 Free Move**. **Wounded** (no Health left) costs 1 action per time of day of Daily Life - in the Investigation and the Class Trial it costs none (`STATES.wounded.actionsLostIn`), though the state and its badge stay; a *Panic* darkening costs 1 more; the two stack but never below **1**. The budget is derived, never stored, so a character who heals mid-day gets the action back at the next refill. **Breakdown** (no Sanity left) gives disadvantage on every roll; a roll's card names the extra die **Disadvantage** and never Breakdown (section 5, "Who reads what").
 
 The ten tiles on the sheet, in the order they are drawn:
 

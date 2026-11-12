@@ -48888,6 +48888,31 @@ const INVARIANTS = [
         }), stableJson({ fair: true, old: true, copy: [true, "abcde", "abcde"], steps: [true, true], sorts: 0 }),
             `{fair: chi-square ${fair.toFixed(2)} < 49.7; old: ${old.toFixed(2)} > 49.7; copy: a new list, the old as it was, the same elements; steps: each shuffle on the draw's rng; sorts: random-comparison sorts left}`);
     }],
+    ["R3954 - Wounded takes its action in Daily Life alone (E64 C1c; audit S03-49; default taken, owner to confirm): `STATES.wounded.actionsLostIn` is [\"dailyLife\"], actions.mjs `actionBudget` answers a Wounded student one action fewer in Daily Life and the whole budget in the Investigation and the Class Trial, still answering `wounded` in all three, with `costsAction` saying where the action went; the clock's GM note and the sheet's mark read `costsAction`", async () => {
+        /*
+         * E64 C1c, 12.11.2026. Red at 3c6383a: no `actionsLostIn`, `phase` not read, no `costsAction` - a Wounded
+         * student was one action down in every phase. Asked of a stand-in actor (only `getFlag`), the phase named, so
+         * nothing in the world is read but the Overflow's penalty, held to none first.
+         */
+        const A = await import("./actions.mjs");
+        const { STATES } = await import("./config.mjs");
+        const actor = { id: "zR3954", getFlag: () => undefined };
+        const whole = A.actionBudget(actor, { wounded: false, phase: "dailyLife" });
+        must(!whole.darkened, "a darkened hour stands in this world - its floor would hide the lost action; this would measure nothing");
+        const at = phase => { const b = A.actionBudget(actor, { wounded: true, phase }); return [b.total, b.wounded, b.costsAction ?? null]; };
+        const src = await moduleSources();
+        const clock = stripComments(src.get("clock.mjs") ?? ""), sheet = stripComments(src.get("sheet.mjs") ?? "");
+        must(clock.length > 1000 && sheet.length > 1000, "clock.mjs or sheet.mjs was not read - this would measure nothing");
+        equal(stableJson({
+            lostIn: STATES.wounded?.actionsLostIn ?? null,
+            dailyLife: at("dailyLife"), investigation: at("investigation"), classTrial: at("classTrial"),
+            readers: [/summary\.actions\.filter\(r => r\.costsAction\)/.test(clock), /\{ costsAction: wounded \} = actionBudget\(actor\)/.test(sheet)]
+        }), stableJson({
+            lostIn: ["dailyLife"],
+            dailyLife: [whole.total - 1, true, true], investigation: [whole.total, true, false], classTrial: [whole.total, true, false],
+            readers: [true, true]
+        }), `per phase [actions, wounded, costsAction] against a whole budget of ${whole.total}; the clock's note and the sheet's mark read costsAction`);
+    }],
 ];
 
 /**

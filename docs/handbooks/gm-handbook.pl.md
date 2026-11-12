@@ -233,7 +233,7 @@ Trzy **fazy**. Kanoniczny rozdział to pięć sesji, jak niżej - ale fazę usta
 
 ## 5. Akcje i budżety
 
-`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Każdy uczeń ma **2 akcje** na porę dnia i **1 Free Move**. **Wounded** (Health się skończyło) kosztuje 1 akcję na porę dnia; zaciemnienie *Panic* kosztuje 1 więcej; oba się sumują, ale nigdy poniżej **1**. Budżet jest wyliczany, nie przechowywany, więc postać, która wyleczy się w ciągu dnia, dostaje akcję z powrotem przy następnym odnowieniu. **Breakdown** (Sanity się skończyło) daje utrudnienie na każdym rzucie; karta rzutu nazywa dodatkową kość **Disadvantage** i nigdy nie mówi Breakdown (sekcja 5, "Kto co czyta").
+`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Każdy uczeń ma **2 akcje** na porę dnia i **1 Free Move**. **Wounded** (Health się skończyło) kosztuje 1 akcję na porę dnia w Daily Life - w Investigation i w Class Trialu nie kosztuje żadnej (`STATES.wounded.actionsLostIn`), choć stan i jego plakietka zostają; zaciemnienie *Panic* kosztuje 1 więcej; oba się sumują, ale nigdy poniżej **1**. Budżet jest wyliczany, nie przechowywany, więc postać, która wyleczy się w ciągu dnia, dostaje akcję z powrotem przy następnym odnowieniu. **Breakdown** (Sanity się skończyło) daje utrudnienie na każdym rzucie; karta rzutu nazywa dodatkową kość **Disadvantage** i nigdy nie mówi Breakdown (sekcja 5, "Kto co czyta").
 
 Dziesięć kafelków na arkuszu, w kolejności rysowania:
 

@@ -3093,7 +3093,14 @@ export const STATES = {
         id: "drpgWounded",
         label: "Wounded",
         resource: "hitPoints",
-        img: `modules/${MODULE_ID}/icons/state-wounded.svg`
+        img: `modules/${MODULE_ID}/icons/state-wounded.svg`,
+        /**
+         * WHERE WOUNDED TAKES ITS ACTION (E64 C1c, 12.11.2026; audit S03-49; default taken, owner to confirm): the
+         * guide's "Losing all Health during Daily Life costs the character -1 action per time of day". Until 1.2.105
+         * the action was taken in every phase - the Investigation too (actions.mjs `actionBudget`). The state itself,
+         * its badge and its icon stay in every phase; only the lost action is Daily Life's.
+         */
+        actionsLostIn: ["dailyLife"]
     }
 };
 

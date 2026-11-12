@@ -5690,7 +5690,7 @@
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
         "actionsWhat": "{actions} na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje {short}, Long Rest {long}.",
-        "actionsWounded": "Gdy nie zostało ci już Health, dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
+        "actionsWounded": "Gdy nie zostało ci już Health, w Daily Life dostajesz {wounded} zamiast {actions}, dopóki ktoś cię nie poskłada.",
         "actionsNow": "Masz {left} z {max} o tej porze dnia.",
         "moveTitle": "Free Move",
         "moveWhat": "Jedno przejście między pokojami na porę dnia, które nic nie kosztuje. Potem zmiana pokoju kosztuje akcję jak wszystko inne.",
