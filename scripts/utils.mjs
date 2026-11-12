@@ -824,6 +824,21 @@ export function resolveThreshold(total, tiers) {
     return hit;
 }
 
+/**
+ * A fair shuffle (Fisher-Yates), as a new list; `list` is left as it was (E64 C3, 12.11.2026; audit S17-29, D21).
+ * `rng` answers in [0, 1), as `Math.random` does. Every order is equally likely - which `sort(() => rng() - 0.5)`,
+ * the draw's shuffle until 1.2.105, is not: over 24,000 shuffles of four on one fixed sequence its chi-square against
+ * the 24 orders read 27967, this one's 28.1 (23 degrees of freedom; tier 1 R3953 holds it under 49.7).
+ */
+export function shuffle(list, rng = Math.random) {
+    const out = [...(list ?? [])];
+    for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+}
+
 /** Clamp helper. */
 export function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);

@@ -34032,7 +34032,8 @@ const INVARIANTS = [
          * inline on five roads, `Math.random` reached directly (two `sort(() => Math.random() - 0.5)` and `randomItem`),
          * so no test read the order without a world's tables. Now `DRAW_STEPS` (frozen) runs in order, each step
          * answering through `resultFrom`, and the draw hands `rng` (both shuffles and `randomItem`) and `tables` (what
-         * every step reads). The shuffle is today's (D21: Fisher-Yates waits for E64).
+         * every step reads). The shuffle was a `sort` on a random comparison until E64 C3 (12.11.2026) made it
+         * utils.mjs `shuffle` (Fisher-Yates, R3953); two roads' answers below moved with it, read at that tree.
          *
          * Read on a shim, nothing written and nothing of this browser's replaced: each road's own tables (a stand-in
          * collection with `getName`, `contents` and an iterator; tables whose `draw` answers a fixed result, or throws),
@@ -34082,11 +34083,12 @@ const INVARIANTS = [
             mathRandom: false,
             roads: [
                 ["room's table by name (a broken one asked first)", upTo(1), ["R1234 knife", "crimeTool", 1, null, ["crimeTool", "tool"], null, true]],
-                ["room's other tables, shuffled", upTo(2), ["R1234 book", "crimeTool", 0, null, [], true, true]],
+                // E64 C3: the fair shuffle on the same sequence takes another table first - read at E64 C3's tree, not the parent's.
+                ["room's other tables, shuffled", upTo(2), ["R1234 lamp", "crimeTool", 1, null, ["tool"], true, true]],
                 ["a tier pool by its flags", upTo(3), ["R1234 wrench", "tool", 1, null, ["tool"], null, true]],
                 ["a tier pool by its name", upTo(3), ["R1234 mop", "cleaningTool", 1, null, [], null, true]],
                 ["the built-in pool", upTo(4), ["Sports drink", "usable", 1, "healing", [], null, false]],
-                ["a spare category", upTo(5), ["Cold tea", "usable", 1, null, [], true, false]]
+                ["a spare category", upTo(5), ["Screwdriver", "tool", 1, null, [], true, false]]
             ]
         };
         const steps = Array.isArray(T.DRAW_STEPS) ? T.DRAW_STEPS : null;
@@ -34110,11 +34112,11 @@ const INVARIANTS = [
             frozen: steps ? Object.isFrozen(steps) : null,
             steps: stepShape,
             resultFrom: [/\broomEntryAs\(/, /\bpoolEntryAs\(/].map(re => re.test(built)),
-            shuffles: (tablesSrc.match(/\.sort\(\(\) => ctx\.rng\(\) - 0\.5\)/g) ?? []).length,
+            shuffles: (tablesSrc.match(/\bshuffle\((?:owned|Object\.keys\(ITEM_CATEGORIES\)), ctx\.rng\)/g) ?? []).length,
             mathRandom: /\bMath\.random\(\)/.test(fnSource(tablesSrc, "randomItem")),
             roads
         }), JSON.stringify(EXPECTED), "{frozen: DRAW_STEPS is frozen; steps: each [name, frozen, answers through resultFrom alone, reaches Math.random]; "
-            + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `sort(() => ctx.rng() - 0.5)`; mathRandom: randomItem "
+            + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `shuffle(..., ctx.rng)` (E64 C3); mathRandom: randomItem "
             + "calls Math.random itself; roads: each [road, the steps run, the answer's name, category, tier, goal, roles, substitute, fromTable]}");
     }],
     ["R1240 - an action key ACTIONS holds only by inheritance is refused as unknown (E41 fix FG2; the end review's C-m2 = S-n1, STATUS E41 Open 6): `performAction` over \"constructor\", \"toString\" and \"__proto__\", and over a key no object holds, answers null and tells the GM `DRPG.Action.unknown` once each, and nothing else", async () => {
@@ -48856,6 +48858,35 @@ const INVARIANTS = [
             books
         }), stableJson({ mins: [[11, "bonus"], [16, "advantage"]], at11: "bonus", at10: null, books: { en: [true, false], pl: [true, false] } }),
             "the tiers, what 11 and 10 grant, and each book's table row [11+, 12+]");
+    }],
+    ["R3953 - the draw's shuffles are fair (E64 C3; audit S17-29, D21): utils.mjs `shuffle` is Fisher-Yates - a new list, the old one untouched, every element kept - and over 24,000 shuffles of four on one fixed sequence its chi-square against the 24 orders stays under 49.7 (23 degrees of freedom, p = 0.001) while the old `sort(() => rng() - 0.5)` on the same sequence reads far above it; tables-pools.mjs's two shuffles (`drawRoomAny`, `drawSpare`) call it on the draw's `rng`, and no `sort` on a random comparison is left", async () => {
+        /*
+         * E64 C3, 12.11.2026. Red at ce58136: utils.mjs had no `shuffle`, and both steps sorted on `ctx.rng() - 0.5`.
+         * Measured in node on the same seed (mulberry32, seed 64) before the code: Fisher-Yates 28.10, the old sort
+         * 27967.36 - the control says the count can see an unfair shuffle.
+         */
+        const U = await import("./utils.mjs");
+        must(typeof U.shuffle === "function", "utils.mjs exports no shuffle - the draw's shuffles are not fair");
+        const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+        const chi = fn => {
+            const rng = seeded(64), seen = new Map(), n = 24000;
+            for (let k = 0; k < n; k++) { const p = fn([0, 1, 2, 3], rng).join(""); seen.set(p, (seen.get(p) ?? 0) + 1); }
+            const e = n / 24;
+            let x = (24 - seen.size) * e;
+            for (const v of seen.values()) x += (v - e) ** 2 / e;
+            return x;
+        };
+        const fair = chi(U.shuffle), old = chi((list, rng) => [...list].sort(() => rng() - 0.5));
+        const list = ["a", "b", "c", "d", "e"], out = U.shuffle(list, seeded(1));
+        const src = stripComments((await otherSources()).find(([file]) => file === "tables-pools.mjs")?.[1] ?? "");
+        must(src.length > 5000, "tables-pools.mjs was not read - this test measured nothing");
+        equal(stableJson({
+            fair: fair < 49.7, old: old > 49.7,
+            copy: [out !== list, list.join(""), [...out].sort().join("")],
+            steps: [/\bshuffle\(owned, ctx\.rng\)/.test(fnSource(src, "drawRoomAny")), /\bshuffle\(Object\.keys\(ITEM_CATEGORIES\), ctx\.rng\)/.test(fnSource(src, "drawSpare"))],
+            sorts: (src.match(/\.sort\(\(\) =>[^)]*rng\(\)/g) ?? []).length
+        }), stableJson({ fair: true, old: true, copy: [true, "abcde", "abcde"], steps: [true, true], sorts: 0 }),
+            `{fair: chi-square ${fair.toFixed(2)} < 49.7; old: ${old.toFixed(2)} > 49.7; copy: a new list, the old as it was, the same elements; steps: each shuffle on the draw's rng; sorts: random-comparison sorts left}`);
     }],
 ];
 
