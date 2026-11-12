@@ -23,7 +23,18 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 ## In progress
 
-- Push of C1-C7 and C9 after tiers 0-1 and the scenarios at the head.
+- C8 is open, with a question for the owner (below, "C8 needs a decision"). Next: C10 (movement and sight) while it waits.
+
+## Pushed
+
+- 12.11.2026: c595854 (C1-C7, C9) to claude/e72. Before it: tiers 0-1 at cf4b885 (C9 head but its last wording fix)
+  1162 passed, 0 failed, 16 skipped, 1 red; the commit's own tests at c595854 7 passed. Scenarios, each from a worktree
+  of the named commit: 40-flow (0819ec1) 88/88, 83-roll-integrity (d005dc4) 110/110, 33-bridge-paths (0819ec1) 73/73,
+  87-messenger-sound (d005dc4) 35/35, 61-gmstore-case (d005dc4) 113/113, 10-murder (d005dc4) 38/38, 63-class-trial
+  (0819ec1) 71/71, 71-sheet (cf4b885) 41/41, 11-killer-secrecy and 66-rooms and 41-trial-scene (82f26c1) green;
+  30-security 273/274, 65-season 57/59, 72-canary 124/128 and 67-trial-modes 45/46 fail the same checks at f22a7e8 in
+  this container (measured: the door, X2/X2b, three known leaks and the unfound trace, D2 - each a known leak or a
+  check this line does not touch).
 
 ## C8 - built, measured, reverted (12.11.2026)
 
@@ -75,6 +86,19 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
 - C6 not yet done: `openMonocubDialog` removed and `game.drpg.monocubDialog` pointed at the Students window; the
   revoke function that also hands back a bet, asks, the purse and the mute (those parts come with C8, C14, C18);
   33-bridge-paths' legal control and 30-security's forgery of `monocub.answer`.
+
+- C8 NEEDS A DECISION (owner/coordinator). Second attempt (12.11.2026, not committed; its diff kept outside the repo):
+  the block outside the trial asked, awaited, by the death's own roads (chapter.mjs `markDeceased`, `reviveCharacter`,
+  monocub.mjs `setMonocub`). Its own tests and the E63 test that raced were green (130 passed, 2 skipped), but the
+  tier-2 tests that kill or revive (353 run) gave 3 failures: two tests that put a death back without
+  `reviveCharacter` left `permissions.BROADCAST_AUDIO` false on a user ("restore left: User ... permissions.BROADCAST_AUDIO
+  (none) -> false"), and "a death made public while its student's queue is busy ..." measured the mark no longer
+  lagging, because the settle waits for every student's queue (`judgedFor`) inside the publication. Measured: writing
+  the Foundry permission at every public death is a user-document write on the death's road, which tier 2's fixtures
+  do not put back and which slows the discovery. Proposed default: keep BROADCAST_AUDIO for the trial (E70) and the
+  sentenced, and hold the ordinary dead outside the trial by the per-account channel the plan's A9 names
+  (`dead-{userId}`, a voice room nobody living is in), which writes no document; the permission outside the trial
+  only if the owner wants it at the cost above.
 
 ## Blockers
 
