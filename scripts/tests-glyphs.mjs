@@ -410,7 +410,7 @@ export const ELEMENTS = {
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
     "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale",
     "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.settings": "gear",
+    "gm.seasonSetup": "wand", "gm.settings": "game-settings",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup",
     "gm.rules": "rules", "gm.gmTeam": "team", "gm.mastermind": "mask", "gm.seasonChecklist": "season-checklist"
     /* E49 A1e: gm.jump left with its tile on 11.11.2026 (Edit campaign is Season setup's top block now). gm.gmTeam,
@@ -418,7 +418,9 @@ export const ELEMENTS = {
        (gm-panel.mjs SEASON_TILES; the owner: "the same shape as the GM panel's tiles", the glyphs they wore), each the
        drawing it wore before. gm.seasonChecklist is the row's fourth, the Season checklist: a drawing of its own, the glass
        row season-checklist (a calendar page with a check; the owner's free hand, 12.11.2026), not the Projects tile's
-       checklist, which it wore for a day as the closest the rounds drew and which R3338 named as a shared pair. */
+       checklist, which it wore for a day as the closest the rounds drew and which R3338 named as a shared pair. gm.settings
+       (the game's settings, E49 A1d) wore the corner launcher's gear (F8: this browser's settings, another window),
+       a pair R3338 named from A1d on; it wears game-settings since 12.11.2026, three sliders, as its icon fa-sliders. */
 };
 
 /** What later stages build, by the inventory (S/stages/E48/GLYPH-INVENTORY.md, 10.11.2026): [row, stage, element,
