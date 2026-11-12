@@ -937,3 +937,17 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.en.md | `line 214 (### Search - Eye, 1 action)` | favours | favors | EN1/DB9 and D33e: American spelling (glossary neighbor, behavior, color, analyze, canceled ...; scope handbooks); the window's name "Room setup" (glossary window-room-setup, D31, scope handbooks). |
 | player-handbook.en.md | `line 497 (### Remnants)` | analysed,, colour | analyzed,, color | EN1/DB9 and D33e: American spelling (glossary neighbor, behavior, color, analyze, canceled ...; scope handbooks); the window's name "Room setup" (glossary window-room-setup, D31, scope handbooks). |
 | player-handbook.en.md | `line 505 (### Remnants)` | analysed. | analyzed. | EN1/DB9 and D33e: American spelling (glossary neighbor, behavior, color, analyze, canceled ...; scope handbooks); the window's name "Room setup" (glossary window-room-setup, D31, scope handbooks). |
+
+## glossary (handbooks) (9)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| gm-handbook.en.md | `line 79 (## 1. Installation and dependencies)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| gm-handbook.en.md | `line 103 (## 2. The season setup checklist)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| gm-handbook.en.md | `line 380 (### 6.3 Rulings, cards and the messenger)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| player-handbook.en.md | `line 85 (### A day, a session, a chapter)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| player-handbook.en.md | `line 156 (### What you can see)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| player-handbook.en.md | `line 171 (### Search tokens)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| player-handbook.en.md | `line 173 (### Search Tokens)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| player-handbook.en.md | `line 191 (### Search - Eye, 1 action)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+| player-brochure.en.md | `line 12 (## Each time of day (Morning, Noon, Afternoon, Evening, Night))` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |

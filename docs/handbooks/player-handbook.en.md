@@ -82,7 +82,7 @@ The roll window is locked for players: dice, statistic, advantage, experiences a
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move and each room's search tokens. When Night ends, the day turns over.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move and each room's Search Tokens. When Night ends, the day turns over.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season runs a single one.
 
@@ -153,7 +153,7 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 - On a map of several floors you see one floor at a time. The **Floors** buttons beside the HUD offer the floors your character stands on and every floor holding a room you have found, lowest first. A room you have found looks the same on any floor - under the veil, with nobody you can see in it - and a room you have never been in stays fogged on every floor.
 - You see the door controls of the rooms you can see - the one you stand in and the ones you have been in - not every door on the map.
 - You only see the people standing in your room. Nobody else is on the map for you.
-- **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its search tokens with how many Searches are left (**2/3 searches**), **You can work a project here** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows the trial hall: the name, picture and description the GM gave it, or "Class Trial". On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move of several waypoints about a second and a half late.
+- **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its Search Tokens with how many Searches are left (**2/3 searches**), **You can work a project here** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows the trial hall: the name, picture and description the GM gave it, or "Class Trial". On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move of several waypoints about a second and a half late.
 - The clock in the left column can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
 - Another player's sheet opens redacted: name, portrait, Ultimate, Health (and a ? where Sanity would be), what they hold ready and how many Experiences they have. Nothing else. Another student's Hope and Sanity read '?', with no maximum.
 
@@ -168,9 +168,9 @@ With regional voice on, every room is its own voice channel: you hear whoever st
 > [!TIP]
 > To find out who is next door without walking in, use **Listen** (chapter 4).
 
-### Search tokens
+### Search Tokens
 
-Every room has a number of **search tokens** per time of day (the default is **3**; the GM sets it anywhere from **0 to 10**). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand. When the GM's answer to your Search comes too late, the search is not counted, you keep the action, and the room gets its token back; a room the GM has sealed tells you it cannot be searched, and you keep the action.
+Every room has a number of **Search Tokens** per time of day (the default is **3**; the GM sets it anywhere from **0 to 10**). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand. When the GM's answer to your Search comes too late, the search is not counted, you keep the action, and the room gets its token back; a room the GM has sealed tells you it cannot be searched, and you keep the action.
 
 ---
 
@@ -188,7 +188,7 @@ The caption under each choice of Search, Analyze, Tamper, Rest, Project, Palm, F
 
 ### Search - Eye, 1 action
 
-Loot the room for something you name. Spends one of the room's search tokens. Eye is its statistic and asks nobody. Any other - Head, Body, Hand, Leg or Shadow, whichever fits how you search - is your proposal: you pick it in the window, say in a line how you search (optional), and the GM approves it, changes it to another statistic or refuses on a card in your thread. Nothing is spent until they answer.
+Loot the room for something you name. Spends one of the room's Search Tokens. Eye is its statistic and asks nobody. Any other - Head, Body, Hand, Leg or Shadow, whichever fits how you search - is your proposal: you pick it in the window, say in a line how you search (optional), and the GM approves it, changes it to another statistic or refuses on a card in your thread. Nothing is spent until they answer.
 
 | Roll | Result |
 |---|---|

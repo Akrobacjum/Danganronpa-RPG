@@ -32,6 +32,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | Remnant in sentences (handbooks) | 0 | 0 | 49 lines (unfrozen sections of all six handbooks) | EN15/PL-r, DB15 (glossary remnant, scope handbooks), Polish in DB4's cases; code spans and the five Trace names kept |
 | X6 telegraph | 1 | 0 | 0 | X6 (to confirm in E71): `Cleanup.bareHands` as a whole sentence, the facts of the owner's pair N49 |
 | spelling (handbooks) | 0 | 0 | 23 lines (English handbooks, unfrozen sections) | EN1/DB9, D33e (glossary scope handbooks), "Room setup" (D31); code spans kept; 31 lines in frozen sections left |
+| glossary (handbooks) | 0 | 0 | 9 lines (unfrozen sections, EN and PL) | EN7/DB17: "Search Token" capitalized; 13 lines in frozen sections left |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 10 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial", three neuter Eclipse/Overflow) | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -101,6 +102,7 @@ edited unless the row says so.
 | 12.11, run p | 7a216634 and the Steal, Handover and Rest edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run q | c62d325c and three handbook genders | 1230 passed, 0 failed, 16 skipped, 0 red; scenario 50-lang (Polish on four clients) 44/44 on c62d325c |
 | 12.11, run r | 47cf5aed and the handbooks' American spelling | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run s | 6c6745d2 and Search Token in the handbooks | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
