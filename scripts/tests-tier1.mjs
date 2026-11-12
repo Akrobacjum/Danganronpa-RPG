@@ -18634,6 +18634,38 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ on: true, offListed: false, offCounted: true }),
             `{on: listed while on the page; offListed: still listed as on screen after removal; offCounted: counted among the closed} - the reports: ${JSON.stringify({ on, off })}`);
     }],
+    ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
+        /*
+         * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground
+         * rgb(11,10,19), no Foundry chat stylesheet): an info card's glyph took the colour the page gave it, #000000, 1.07:1
+         * under the glass and 1.18:1 under Legacy against its card; a warning's (glass #e0182f, 4.07; Legacy 3.04) and a
+         * secret's (9.18; 3.86) are their tone's. The info glyph had no colour of its own: under the glass it is painted in
+         * `currentColor` through its mask (pixel-icons.css), under Legacy Font Awesome draws in `color`, and both took what
+         * Foundry or Daggerheart leave on a message's header. The commit's message has the table. Headless there is no
+         * paint, so this reads the cause: which rule decides the glyph's colour. Red at 7c0d1af9: info null in both themes.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            read[theme] = {};
+            for (const tone of ["info", "warning", "secret"]) {
+                const body = document.createElement("body");
+                body.className = theme;
+                const kit = body.appendChild(document.createElement("div"));
+                kit.className = "drpg-chat-kit";
+                kit.dataset.drpgTone = tone;
+                const head = kit.appendChild(document.createElement("header"));
+                head.className = "drpg-chat-kit-head";
+                const glyph = head.appendChild(document.createElement("i"));
+                glyph.className = "fa-solid fa-ear-listen drpg-chat-kit-glyph";
+                const w = C.winner(glyph, ["color"]);
+                read[theme][tone] = w ? `${w.value}${/components\.css/.test(w.file ?? w.sheet ?? "") ? "" : ` (${w.file ?? w.sheet ?? "?"})`}` : null;
+            }
+        }
+        const want = { info: "var(--drpg-kit-ink)", warning: "var(--drpg-kit-warn-edge)", secret: "var(--drpg-kit-secret-edge)" };
+        equal(stableJson(read), stableJson({ "drpg-theme-stained-glass": want, "drpg-theme-monokuma-legacy": want }),
+            "per theme and tone, the `color` the glyph's winning rule declares (and its sheet when not components.css); null when no rule of the module states it");
+    }],
     ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
