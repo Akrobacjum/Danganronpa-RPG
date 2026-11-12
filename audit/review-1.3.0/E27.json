@@ -1,0 +1,243 @@
+{
+ "id": "E27",
+ "version": "1.2.58",
+ "checkedOn": [
+  "1.2.58",
+  "1.2.104"
+ ],
+ "date": "12.11.2026",
+ "verdict": "zatwierdzone z uwagami",
+ "short": "Obie poprawki działają w harnessie i w benchu, na 1.2.58 i na 1.2.104: okno powitalne Isometric Perspective jest trzymane zamknięte, zanim Isometric je sprawdzi, jego przełącznik znika z ustawień graczy, a spis treści podręcznika nie otwiera już drugiej karty z grą. Nikt nie sprawdził tego przy stole i nikt tego nie pilnuje na liście LIVE, a pętli cofania, przełącznika GM-a i drogi bez Isometric nie pilnuje żaden test. Zatwierdzone z uwagami.",
+ "summary": "E27 wyszedł sam jako 1.2.58 (24.09.2026) i zrobił to, co obiecał plan. Nowy liść enforced.mjs ma tabelę ENFORCED z wierszem isoWelcome i przełącznikiem świata, zapisuje showWelcome = false w setup, czyli przed ready Isometric Perspective, chowa pole w Configure Settings przez config = false na wpisie rejestru i cofa ręczną zmianę przez clientSettingChanged. Wpis spisu treści nie ma już href, ma role=link, tabindex i własną obsługę Enter. Zmierzyliśmy to w harnessie na 1.2.104 (15-held 39/39, w tym 9/9 checków E27 u dwóch graczy; testy E27 po nazwie 7 passed, 0 failed, 1 skipped), w benchu z kodem 1.2.58 i zastępczym rejestrem ustawień (wartość false już w ready, cofnięcie jednym zapisem, przy wyłączonym przełączniku nic nie zapisane) oraz w benchu spisu treści w jsdom z nasłuchem w kształcie Game#_onClickHyperlink: na 1.2.57 klik otwiera /game#, na 1.2.58 i 1.2.104 nic. Oba problemy z audytu (S12-01, S16-03) są naprawione i trzymają się na 1.2.104, choć ścieżkę ustawień przebudowały później E79, E19, E20 i E52. Z 12 mutacji testy zabijają 9 (jedną dopiero R1546 z E52), a przeżywają 3: zdjęcie ochrony przed pętlą cofania (każdy klient dostaje RangeError przy starcie, wszystko zielone), ukrycie przełącznika GM-a (tiery 0-1: 1093/0/16) i zdjęcie stopPropagation (bez skutku, bo nie ma href). R131, jedyny test drogi bez modułu, nie może paść na własnej osłonie. Uwagi: obiecane sprawdzenie na żywo (1 GM i 2 graczy) nie zostało zrobione ani wpisane na listę LIVE, R111 z licznikiem window.open nigdy nie biegł w przeglądarce, siatka zamykająca okno z odpowiedzi właściciela w projekcie N2 nie powstała, a polityka linków w tekście podręcznika z projektu A3 też nie. Sześć uwag niskich i trzy informacyjne, żadnej wysokiej.",
+ "versionChoice": "E27 oceniamy na 1.2.58, bo to wydanie, w którym etap wyszedł sam (24.09.2026, pięć commitów od ceb6dd19 do bacfc8b5 = v1.2.58; poprzedni tag v1.2.57 = f671f3f2 to E01), i tylko tam widać jego własną pracę. Harnessu z 1.2.58 nie uruchomiliśmy, bo jego package-lock.json różni się od tego z 1.2.104 (wtedy sam jsdom), a zasada tej weryfikacji każe wtedy nie podpinać node_modules. Kod 1.2.58 sprawdziliśmy więc benchem: dosłowne enforced.mjs z taga z zastępczym rejestrem ustawień i hookami oraz dosłowna funkcja fillContents z taga w jsdom. Mutacje robiliśmy na 1.2.104, bo testy E27 są tam te same: R127 i R131 identyczne znak w znak, test tieru 2 różni się tylko sondami needs(), a część E27 w 15-held jest identyczna. Na 1.2.104 sprawdzaliśmy, czy poprawki przetrwały: fillContents ma tę samą treść, a enforced.mjs, bez zmian do 1.2.70 (182 linie), urósł do 1024 linii (E79 flagi kont i uprawnienia, E19 wiersze głosu, E20 oddawanie ustawień, E52 kontrakt), a wiersz isoWelcome nadal działa tak samo.",
+ "conclusion": "Zatwierdzone z uwagami. Cel etapu jest osiągnięty w kodzie i zmierzony w harnessie oraz w benchu na obu wersjach, a oba problemy z audytu są zamknięte. Warunki doneWhen mówią jednak o tym, co gracze widzą przy stole, a tego nikt nie zmierzył: ani programista (notatki 1.2.58: 'Not checked at a real table yet'), ani lokalna bramka (local-gate.json na 1.2.104: 7 z 7 części not-run), ani R111, który headless jest pomijany i w przeglądarce nie biegł.\n\nPrzed kolejnym wydaniem: wpisać sprawdzenie E27 na listę LIVE w audit/AUDIT-1.2.42.md 9.2 (1 GM i 2 graczy z czystą przeglądarką, pierwszy i drugi start, brak wiersza Show Welcome Screen u gracza, klik i Enter w spisie treści w Foundry) i zrobić je przy najbliższym stole (E27-D04). Potem, z etapami, które i tak dotykają tych plików: test na pętlę cofania (E27-D01), R131, który może paść (E27-D02), test przełącznika GM-a (E27-D03), polityka linków w tekście podręcznika (E27-D06) i stare komentarze (E27-D07), odczyt showWelcome w Isometric 14.0.x przy stole (E27-D08). Do decyzji właściciela: czy siatka zamykająca okno powitalne, o którą prosił w odpowiedziach do N2, ma jeszcze powstać (E27-D05).",
+ "criteria": [
+  {
+   "text": "goal: Liść enforced.mjs z tabelą ENFORCED (wiersz z przełącznikiem świata) narzuca ustawienie klienta innego modułu u każdego gracza: config = false chowa je w Configure Settings, clientSettingChanged przywraca wartość; pierwszy wiersz wyłącza okno powitalne Isometric Perspective; wpis spisu treści tylko przewija tekst i nie otwiera drugiego klienta Foundry.",
+   "status": "met",
+   "evidence": "enforced.mjs:52-57, :134-182 @1.2.58 i :89-121, :208-282 @1.2.104; module.mjs:231-241 @1.2.58 (:297-307 @1.2.104); handbooks.mjs:311-330 @1.2.58 (:333-352 @1.2.104). Harness 1.2.104: 15-held 39/39, testy E27 7/0/1. Bench 1.2.58: wartość false w ready, config false, cofnięcie. Bench spisu: 1.2.57 otwiera /game#, 1.2.58 i 1.2.104 0 wywołań window.open. Przy stole niezmierzone (granice)."
+  },
+  {
+   "text": "risk: wartość trzeba zapisać przed hookiem ready Isometric Perspective, czyli w naszym setup, inaczej okno pokaże się przy pierwszym starcie po aktualizacji.",
+   "status": "met",
+   "evidence": "registerEnforced w Hooks.once('setup') (module.mjs:241 @1.2.58, :307 @1.2.104), zapis przed pierwszym await w applyEnforced (:145-146 @1.2.58, :246-248 @1.2.104). 15-held: atReady=false u p1 i p2; mutant m1 (zapis w ready) daje 2 FAIL. Bench 1.2.58: atReady=false; przy zapisie odłożonym o mikrozadanie atReady=false tylko wtedy, gdy między setup a ready jest await, czego w v14 nie zmierzono."
+  },
+  {
+   "text": "risk: config to pole obiektu z game.settings.settings, nie API; przy braku wpisu albo innym kształcie wiersz tylko pilnuje wartości i pisze ostrzeżenie w konsoli, bez błędu.",
+   "status": "met",
+   "evidence": "hide() z try i odczytem zwrotnym, zapis wartości przed hide (enforced.mjs:107-117, :144-149 @1.2.58; :181-191, :246-251 @1.2.104). Bench 1.2.58: config tylko z getterem daje wartość false i jedno warn; brak klucza daje jedno warn i 0 zapisów. Mutant m10 (hide przed wartością, wyjątek przerywa wiersz) zabity testem tieru 2; R1546 (E52) pilnuje jednego warn przy brakującym kluczu."
+  },
+  {
+   "text": "risk: pilnowanie przez clientSettingChanged nie może wejść w pętlę.",
+   "status": "met",
+   "evidence": "onClientSettingChanged czyta wartość przez get i wychodzi, gdy jest już narzucona (enforced.mjs:164-176 @1.2.58, :266-282 @1.2.104). Bench 1.2.58: ręczna zmiana daje dokładnie 2 zapisy (zmiana i cofnięcie); logi bazowe 1.2.104 bez RangeError. Żaden test tego nie pilnuje: mutant m12 bez tej osłony daje RangeError na 4 klientach i zielone testy (E27-D01)."
+  },
+  {
+   "text": "risk: moduł pisze tylko ustawienie zarejestrowane (moduł włączony, klucz istnieje), a przy wyłączonym wierszu nie chowa pola.",
+   "status": "met",
+   "evidence": "entryOf sprawdza active i rejestr, wanted czyta przełącznik (enforced.mjs:76-93 @1.2.58, :148-167 @1.2.104). Bench 1.2.58: przełącznik wyłączony przy starcie, Isometric wyłączony i brak klucza: 0 zapisów, config bez zmian; wyłączenie w trakcie oddaje config=true i nic nie pisze. Mutant m4 (przełącznik pominięty) zabity testem tieru 2; m5 przeżywa R131 (E27-D02)."
+  },
+  {
+   "text": "risk: wpis spisu bez href traci obsługę klawiatury, więc potrzebny keydown Enter i role='link'.",
+   "status": "met",
+   "evidence": "handbooks.mjs:313-327 @1.2.58 (:335-349 @1.2.104): role=link, tabIndex=0, keydown Enter woła ten sam handler; :focus-visible zostaje (danganronpa.css:12728 @1.2.58, :13690 @1.2.104). Bench: Enter z defaultPrevented na 1.2.58 i 1.2.104, nie na 1.2.57. R127 łapie usunięcie Enter (m8) i role. Czytnik ekranu niezmierzony."
+  },
+  {
+   "text": "doneWhen: gracze nie widzą powitania Isometric Perspective przy żadnym starcie.",
+   "status": "partial",
+   "evidence": "Headless pierwszy start: p1 i p2 mają false już w ready stand-ina Isometric (15-held), bench 1.2.58 także dla przeglądarki z zapisanym true. Kolejny start to ta sama droga w setup, ale harness startuje raz. Przy stole niezmierzone, a showWelcome odczytano z Isometric 1.9.x, podczas gdy stół ma 14.0.2 (E27-D08)."
+  },
+  {
+   "text": "doneWhen: gracze nie widzą przełącznika powitania w swoich ustawieniach.",
+   "status": "partial",
+   "evidence": "Wpis rejestru ma config=false u p1 i p2 (15-held) i u GM-a (test tieru 2); mutant m2 zabity. Prawdziwego okna Configure Settings v14 nie wyrenderowano, więc to, że v14 czyta config przy rysowaniu, nie jest zmierzone (notatki 1.2.58: 'the real Configure Settings row gone for a player' niesprawdzone)."
+  },
+  {
+   "text": "doneWhen: GM ma przełącznik w ustawieniach świata.",
+   "status": "met",
+   "evidence": "enforceIsoWelcome: scope world, config true, default true, onChange ponawia applyEnforced (settings.mjs:562-573 @1.2.58, :1305-1316 @1.2.104), nazwa i opis w en i pl (lang :279-282 @1.2.58). renderSettingsConfig na 1.2.104 chowa tylko wiersze motywu. Żaden test tego nie pilnuje: mutant m14 (config false) daje tiery 0-1 1093/0/16 (E27-D03)."
+  },
+  {
+   "text": "doneWhen: klik i Enter we wpis spisu tylko przewijają tekst.",
+   "status": "partial",
+   "evidence": "Część 'nie otwiera karty' zmierzona: bench z nasłuchem w kształcie _onClickHyperlink (faza bąbelkowa i przechwytująca) 0 wywołań window.open na 1.2.58 i 1.2.104; R127 przechodzi na 1.2.104 i zabija m7 oraz m8. Przewijania nie zmierzono nigdzie: R111 jest pomijany headless (env.layout) na obu wersjach i według LIVE-E81-02 nie biegł w przeglądarce."
+  },
+  {
+   "text": "verify: test: przy włączonym wierszu klient gracza ma showWelcome = false, config = false i cofniętą ręczną zmianę; przy wyłączonym przełączniku albo wyłączonym Isometric Perspective moduł nic nie pisze i nie zmienia config.",
+   "status": "partial",
+   "evidence": "Testy są i przechodzą: 15-held u p1 i p2 (9/9), test tieru 2 'the table's held settings ...' na GM-ie z wyłączeniem przełącznika, R131 dla nieobecnego modułu. Wyłączenie przełącznika sprawdza tylko GM, nie gracz. Drogę bez Isometric mierzy tylko R131, który nie może paść na własnej osłonie (m5 przeżywa R131; zabija go dopiero R1546 z E52, którego na 1.2.58 nie było)."
+  },
+  {
+   "text": "verify: na żywo: 1 GM i 2 graczy z czystą przeglądarką, nikt nie widzi powitania przy pierwszym ani kolejnym starcie, a gracz nie widzi wiersza 'Show Welcome Screen'.",
+   "status": "not_met",
+   "evidence": "Notatki 1.2.58: 'Not checked at a real table yet: one GM and two players with fresh browsers, first start and a second start; the real Configure Settings row gone for a player; and the handbook's contents list clicked in Foundry.' W audit/AUDIT-1.2.42.md 9.2 nie ma wpisu LIVE-E27; local-gate.json @1.2.104: 7/7 not-run (no-server). E27-D04."
+  },
+  {
+   "text": "verify: R111 rozszerzony o licznik window.open (0), brak a[href] w spisie i Enter na wpisie.",
+   "status": "partial",
+   "evidence": "R111 ma licznik i Enter (tests.mjs:6726-6739 @1.2.58, tests-tier1.mjs:1740-1753 @1.2.104), a brak a[href] sprawdza nowy R127. R111 jest jednak pomijany headless na obu wersjach (needs layoutAvailable; skip-baseline env.layout) i nie biegł w przeglądarce, a harness nie ma zastępcy handlera Foundry, więc jego licznik headless byłby 0 z założenia."
+  }
+ ],
+ "issues": [
+  {
+   "key": "S12-01",
+   "verdict": "fixed",
+   "at1267": "holds",
+   "notePl": "Wpis spisu to <a> bez href, z role=link, tabIndex 0, obsługą Enter, preventDefault i stopPropagation (handbooks.mjs:311-330 @1.2.58; ta sama treść :333-352 @1.2.104), z cursor: pointer w danganronpa.css:12716-12725. Bench w jsdom z nasłuchem w kształcie Game#_onClickHyperlink (closest('a[href]'), window.open): 1.2.57 otwiera http://.../game# w obu fazach, 1.2.58 i 1.2.104 zero wywołań; poza spisem moduł nie ma żadnego innego <a> z href (grep @1.2.58 i @1.2.104). R127 łapie przywrócenie href (m7) i usunięcie Enter (m8). Audyt wolał <button>; projekt A3 odrzucił go przez pędzel Stained Glass i wybrał wzorzec spisu dziennika Foundry, co jest uzasadnione. Zostały: R111 z licznikiem nigdy nie biegł, przewijanie niezmierzone, polityka linków w tekście z projektu A3 nie powstała (E27-D06), a stopPropagation ukrywa klik przed nasłuchami dokumentu (E27-D09)."
+  },
+  {
+   "key": "S16-03",
+   "verdict": "fixed",
+   "at1267": "changed_ok",
+   "notePl": "Projekt N2 wdrożony: ENFORCED z wierszem isoWelcome i przełącznikiem świata enforceIsoWelcome (enforced.mjs:52-57, settings.mjs:562-573 @1.2.58), zapis w setup (module.mjs:241), config = false z odczytem zwrotnym, cofanie przez clientSettingChanged z odczytem get. Bench 1.2.58: false w ready, pole ukryte, jedna zmiana ręczna daje 2 zapisy, wyłączony przełącznik nic nie pisze i oddaje config, config z getterem nadal trzyma wartość. Na 1.2.104 ścieżkę przebudowano (E79: flagi kont przed pierwszym await; E20: keepClientOriginal i oddawanie; E52: R1546), a wiersz działa tak samo: 15-held 39/39, mutanty m1, m2, m3, m4, m10 i m13 zabite. Niezmierzone przy stole; showWelcome odczytany z Isometric 1.9.x, nie z 14.0.2 stołu (E27-D08); siatki zamykającej okno z odpowiedzi właściciela w N2 nie ma (E27-D05)."
+  }
+ ],
+ "defects": [
+  {
+   "id": "E27-D01",
+   "title": "Ochrony przed pętlą cofania nie pilnuje żaden test",
+   "severity": "low",
+   "kind": "weak_test",
+   "where": "scripts/enforced.mjs:173 @1.2.58 (:279 @1.2.104); audit/harness/scenarios/15-held.mjs:29-33 @1.2.58 (:90-94 @1.2.104); scripts/tests-tier2.mjs:43194-43196 @1.2.104",
+   "problem": "Ryzyko planu mówi, że pilnowanie przez clientSettingChanged nie może wejść w pętlę, a projekt N2 kazał zmierzyć licznik clientSettingChanged dla klucza: dokładnie 2 (zmiana i cofnięcie). Takiego testu nie ma. Mutant m12 (usunięte 'if (now === row.value) return;') daje przy starcie na GM-ie i trzech graczach 'Could not put isometric-perspective.showWelcome back for the table RangeError: Maximum call stack size exceeded' i nieobsłużone odrzucenia, a mimo to 15-held (część E27) 9/9 i testy E27 7/0/1. Kod dziś jest poprawny (bench: 2 zapisy na zmianę).",
+   "fix": "W 15-held policzyć u p1 zapisy i zdarzenia clientSettingChanged dla isometric-perspective.showWelcome przy ręcznej zmianie (oczekiwane 2) i sprawdzić, że klient nie zapisał błędu 'Could not put'; to samo dla wiersza z odczytem get w teście tieru 2.",
+   "owner": "poprawka E27 (test do ryzyka pętli), przy najbliższym etapie dotykającym enforced.mjs albo 15-held",
+   "group": "etap",
+   "issueKey": "S16-03"
+  },
+  {
+   "id": "E27-D02",
+   "title": "R131 nie może paść na drodze, której pilnuje",
+   "severity": "low",
+   "kind": "weak_test",
+   "where": "scripts/tests.mjs:6837-6850 @1.2.58 (tests-tier1.mjs:1851-1864 @1.2.104); enforced.mjs:136-153 @1.2.58",
+   "problem": "R131 podaje wiersz dla modułu, którego nie ma, i sprawdza tylko, że held jest puste. Dla niezarejestrowanego ustawienia game.settings.get rzuca, a wyjątek łapie try w applyEnforced, więc held jest puste także bez osłony 'if (!entry) continue;': mutant m5 przechodzi R131 na 1.2.104 (zabija go dopiero R1546 z E52, przez drugi wpis w logu). Na 1.2.58 R1546 nie istniał (rejestr: Since E52), więc droga 'wyłączony Isometric Perspective nic nie pisze' z verify miała test, który nie mógł jej obalić. Komentarz R131 o kontroli czystości po tierze 1 też nic tu nie mierzy, bo niezarejestrowanego ustawienia nie da się zapisać.",
+   "fix": "W R131 zarejestrować na chwilę ustawienie próbne pod modułem z active=false (albo podstawić game.modules) i sprawdzić 0 wywołań game.settings.set, niezmienione config i brak wpisu błędu w logu.",
+   "owner": "poprawka E27 (R131)",
+   "group": "etap",
+   "issueKey": "S16-03"
+  },
+  {
+   "id": "E27-D03",
+   "title": "Przełącznika GM-a w ustawieniach świata nie pilnuje żaden test",
+   "severity": "low",
+   "kind": "weak_test",
+   "where": "scripts/settings.mjs:562-573 @1.2.58 (:1305-1316 @1.2.104)",
+   "problem": "doneWhen wymaga, żeby GM miał przełącznik w ustawieniach świata. Mutant m14 (config: false na enforceIsoWelcome) przechodzi całe tiery 0-1 na 1.2.104 (1108 testów, 1093 passed, 0 failed, 16 skipped, 293 s) oraz 15-held i test tieru 2. Gdyby przełącznik zniknął, stół straciłby jedyny sposób wyłączenia wiersza, a suite by tego nie zauważył.",
+   "fix": "Test tieru 0 albo 1: każdy przełącznik wiersza ENFORCED (toggle) jest zarejestrowany jako scope world z config true i ma klucze name i hint w en i pl.",
+   "owner": "poprawka E27 (test przełącznika), przy najbliższym etapie dotykającym settings.mjs",
+   "group": "etap",
+   "issueKey": "S16-03"
+  },
+  {
+   "id": "E27-D04",
+   "title": "Obiecane sprawdzenie przy stole nie zostało zrobione ani wpisane na listę LIVE",
+   "severity": "low",
+   "kind": "process",
+   "where": ".github/release-notes/v1.2.58.md:35-37; audit/AUDIT-1.2.42.md 9.2 @1.2.104 (brak LIVE-E27); audit/gate/local-gate.json @1.2.104",
+   "problem": "Verify planu wymagało sprawdzenia na żywo (1 GM i 2 graczy z czystą przeglądarką, pierwszy i kolejny start, brak wiersza Show Welcome Screen u gracza), a doneWhen mówi o tym, co widzą gracze. Notatki 1.2.58 uczciwie piszą, że nie sprawdzono tego przy stole, ale od 24.09 do 1.2.104 nikt tego nie dopisał do listy 9.2, która według instrukcji repozytorium jest uczciwym spisem tego, czego moduł jeszcze nie udowodnił. Lokalna bramka na 1.2.104 ma 7 z 7 części not-run, a R111 (spis treści w prawdziwym oknie) według LIVE-E81-02 nigdy nie biegł w przeglądarce. Jedyny ślad to LIVE-E20-06, które mówi o oddawaniu ustawień, nie o E27.",
+   "fix": "Dopisać LIVE-E27-01 (powitanie i wiersz ustawień u 1 GM-a i 2 graczy, pierwszy i drugi start, przełącznik wyłączony i włączony) i LIVE-E27-02 (klik, środkowy klik i Enter we wpis spisu w Foundry v14, bez nowej karty, tekst się przewija; przy okazji game.drpg.runTests z R111 w przeglądarce) i zrobić je przy najbliższym stole.",
+   "owner": "poprawka E27 (wpis LIVE w audit/AUDIT-1.2.42.md 9.2; sprawdzenie przy stole: właściciel)",
+   "group": "pilne"
+  },
+  {
+   "id": "E27-D05",
+   "title": "Siatka zamykająca okno powitalne, o którą prosił właściciel w N2, nie powstała",
+   "severity": "low",
+   "kind": "omission",
+   "where": "projekt N2 (designs, resolved: 'showWelcome = false u każdego klienta w setup, zanim ready Isometric je sprawdzi, plus siatka zamykająca okno'; proposal 5); scripts/enforced.mjs @1.2.58 i @1.2.104 (brak)",
+   "problem": "Odpowiedź właściciela przy projekcie N2 łączy zapis w setup z siatką, która zamyka okno Isometric, gdy mimo to się otworzy (np. zmieniony typ ustawienia w nowej wersji Isometric albo ręczne addWelcomeScreen). Plan E27 przeniósł zapis, ale siatki nie wymienił i jej nie ma: grep po 'welcome' w scripts/ @1.2.58 i @1.2.104 znajduje tylko wiersz ENFORCED i komentarze, bez hooka renderApplicationV2 dla okna Isometric. Dziś to bez skutku, bo zapis działa w harnessie, ale przy zmianie Isometric (stół ma 14.0.2, kod czytano z 1.9.x, E27-D08) zostałoby tylko ostrzeżenie w konsoli.",
+   "fix": "Właściciel decyduje, czy siatka ma powstać. Jeśli tak: hook renderApplicationV2, który przy włączonym wierszu zamyka okno rozpoznane po szablonie modules/isometric-perspective/templates/welcome (nie po samej klasie), z testem na stand-inie okna.",
+   "owner": "decyzja właściciela",
+   "group": "decyzja",
+   "issueKey": "S16-03"
+  },
+  {
+   "id": "E27-D06",
+   "title": "Link w tekście podręcznika nadal otworzyłby drugą kartę z grą",
+   "severity": "low",
+   "kind": "omission",
+   "where": "scripts/handbooks.mjs:143-173 (openLinksInNewWindow :151) @1.2.58; :176-206 (:184) @1.2.104",
+   "problem": "Projekt A3 (punkty 5 i 8) prosił, żeby toHtml odwijał linki '#' i względne do tekstu, zostawiał zewnętrzne z rel=noopener, usunął martwą opcję openLinksInNewWindow, a R111 sprawdzał brak wewnętrznych a[href] w .drpg-handbook-text. Nic z tego nie powstało i żaden test nie szuka a[href] w tekście (grep testów @1.2.104). Dziś bez skutku, bo sześć plików docs/handbooks ma 0 linków Markdown na 1.2.58 i 1.2.104, ale pierwszy odsyłacz '[sekcja](#...)' trafi w ten sam handler Foundry co S12-01 (bench: każde a[href] pod nasłuchem otwiera /game#...).",
+   "fix": "Po calloutsIn w toHtml: linki '#' i względne odwinąć do tekstu, zewnętrzne zostawić z target=_blank i rel=noopener noreferrer, usunąć openLinksInNewWindow; w R127 albo R111 dodać brak a[href] spoza http(s) w wyniku markdownToHtml dla wszystkich sześciu podręczników.",
+   "owner": "najbliższy etap dotykający handbooks.mjs",
+   "group": "etap",
+   "issueKey": "S12-01"
+  },
+  {
+   "id": "E27-D07",
+   "title": "Dwa stare komentarze przy spisie treści, o które prosił projekt A3",
+   "severity": "info",
+   "kind": "doc",
+   "where": "styles/danganronpa.css:12746-12748 @1.2.58 (:13708-13710 @1.2.104); scripts/handbooks.mjs:56 @1.2.58 (:89 @1.2.104)",
+   "problem": "Komentarz w CSS twierdzi, że position: relative robi z tekstu offset parent, po którym przewija fillContents, a fillContents liczy z getBoundingClientRect (jego własny komentarz mówi, że właśnie nie z offsetTop). JSDoc 'One handbook as HTML' stoi nad niewłaściwą funkcją; na 1.2.104 stoi nawet nad drugim JSDoc markdownToHtml. E27 zmienił regułę tuż obok w CSS i ten komentarz zostawił, choć projekt A3 (punkt 7) prosił o obie poprawki.",
+   "fix": "Przepisać komentarz CSS (przewijanie po prostokątach, nie po offset parent) i przenieść JSDoc nad handbookHtml.",
+   "owner": "najbliższy etap dotykający handbooks.mjs albo tej reguły CSS",
+   "group": "etap",
+   "issueKey": "S12-01"
+  },
+  {
+   "id": "E27-D08",
+   "title": "Kształt showWelcome czytany z Isometric 1.9.x, a stół ma 14.0.2",
+   "severity": "info",
+   "kind": "doc",
+   "where": "scripts/enforced.mjs:53-54 @1.2.58 (:90-91 @1.2.104); audit/harness/client-entry.mjs:250-268 @1.2.58 (:432-450 @1.2.104); audit/harness/versions.json @1.2.104",
+   "problem": "Komentarz wiersza mówi 'main.js, welcome.js in 1.9.x', harness rejestruje showWelcome sam (scope client, config true, default true), a versions.json zapisuje Isometric 14.0.2 (LIVE-E30-08, niesprawdzone ponownie). Źródła Isometric w żadnej wersji nie ma w repozytorium ani w tym kontenerze, więc to, że 14.0.x nadal ma showWelcome tego kształtu i czyta go w ready, jest założeniem. Przy zmianie klucza wiersz tylko ostrzeże raz (R1546), a okno wróci.",
+   "fix": "Przy stole odczytać game.settings.settings.get('isometric-perspective.showWelcome') i wiersz isoWelcome w game.drpg.diagnose() (LIVE-E52-01), zapisać wersję Isometric i poprawić komentarz.",
+   "owner": "odczyt przy stole w LIVE-E52-01 i LIVE-E30-08",
+   "group": "etap",
+   "issueKey": "S16-03"
+  },
+  {
+   "id": "E27-D09",
+   "title": "stopPropagation na wpisie spisu ukrywa klik przed nasłuchami dokumentu",
+   "severity": "info",
+   "kind": "bug",
+   "where": "scripts/handbooks.mjs:320 @1.2.58 (:342 @1.2.104); np. messenger-app.mjs:1586-1590 @1.2.104",
+   "problem": "Bez href nasłuch Foundry i tak nie łapie wpisu, a stopPropagation dodatkowo zatrzymuje każdy zwykły nasłuch click na dokumencie. Bench: nasłuch na document słyszy klik we wpis na 1.2.57 (1), nie słyszy na 1.2.58 i 1.2.104 (0). Przykład skutku: lista rozmów komunikatora zamyka się kliknięciem poza nią przez taki nasłuch, więc klik w spis jej nie zamknie. Projekt A3 odrzucił stopPropagation właśnie z tego powodu. Mutant m9 (bez stopPropagation) przechodzi wszystkie testy, więc to wywołanie nic nie wnosi do S12-01.",
+   "fix": "Usunąć stopPropagation z handlera wpisu (zostawić preventDefault), bo za drugą kartę odpowiadał href.",
+   "owner": "najbliższy etap dotykający handbooks.mjs",
+   "group": "etap",
+   "issueKey": "S12-01"
+  }
+ ],
+ "measurements": [
+  {
+   "what": "Testy E27 po nazwie na 1.2.104 (kopia HEAD w scratch, hrun node run-tests.mjs --tier 2 --only R111 --only R127 --only R131 --only \"the table's held settings keep Isometric\")",
+   "result": "7 passed, 0 failed, 1 skipped (R111: env.layout), 4 testy, 7.7 s. R127 6 asercji, R131 1, test tieru 2 8 asercji na GM-ie (results/run-tests.json tej kopii)."
+  },
+  {
+   "what": "Scenariusz 15-held na 1.2.104 (hrun node cluster.mjs scenarios/15-held.mjs) i jego część E27 skopiowana dosłownie do scratch/x27-held.mjs",
+   "result": "15-held 39/39 w 61.8 s (66 s wall); część E27 9/9: p1 i p2 atReady=false, value=false, config=false, ręczne true cofnięte do false. x27-held na niezmienionej kopii 9/9, 0 RangeError w logach."
+  },
+  {
+   "what": "Mutacje na 1.2.104 (12; każda z testami po nazwie i x27-held, m5 także z R1546, m14 z całymi tierami 0-1)",
+   "result": "Zabite 9: m1 zapis w ready (x27 2 FAIL), m2 bez config=false (x27 2 FAIL, tier 2 FAIL), m3 bez cofania (x27 1 FAIL, tier 2 FAIL), m4 przełącznik pominięty (tier 2 FAIL), m5 bez 'if (!entry) continue' (R131 przechodzi, FAIL dopiero R1546 z E52: wpis w logu 2 zamiast 1), m7 href='#' z powrotem (R127 FAIL), m8 bez Enter (R127 FAIL), m10 hide przed wartością z wyjątkiem (tier 2 FAIL), m13 przełącznik domyślnie wyłączony (x27 7 FAIL). Przeżyły 3: m9 bez stopPropagation (wszystko zielone, bez skutku bez href), m12 bez osłony pętli (RangeError na 4 klientach, x27 9/9, testy 7/0/1), m14 config false przełącznika GM-a (tiery 0-1: 1108 testów, 1093/0/16, 293 s)."
+  },
+  {
+   "what": "Bench enforced.mjs z taga v1.2.58 (scratchpad/run/E27/bench-enforced.mjs): zastępczy rejestr ustawień z zapisem klienta jak ClientSettings#setClient w odczycie projektu N2 (zapis, onChange, clientSettingChanged), stand-in Isometric czytający w ready",
+   "result": "Świeża przeglądarka: atReady=false, value=false, config=false, 1 zapis. Zapisane wcześniej true: atReady=false. Ręczna zmiana: 2 zapisy, wartość false. Wyłączenie przełącznika w trakcie: config wraca do true, ręczne true zostaje, 0 zapisów modułu; ponowne włączenie: false i config=false. Przełącznik wyłączony przy starcie i Isometric wyłączony: 0 zapisów, config=true. Brak klucza: jedno warn. config tylko z getterem: wartość false i jedno warn."
+  },
+  {
+   "what": "Ten sam bench z zapisem odłożonym o jedno mikrozadanie (założenie pesymistyczne o v14)",
+   "result": "Bez await między setup a ready: atReady=true (okno by się pokazało). Z jednym await między nimi, jak w Game#setupGame według odczytu projektu N2 (game.mjs:740-779): atReady=false. Rzeczywistego czasu zapisu w v14 nie zmierzono."
+  },
+  {
+   "what": "Bench spisu treści (scratchpad/run/E27/bench-toc.mjs): dosłowna fillContents z v1.2.57, v1.2.58 i v1.2.104 w jsdom, nasłuch w kształcie _onClickHyperlink w fazie bąbelkowej i przechwytującej, licznik window.open",
+   "result": "1.2.57: 3 wpisy z href, klik otwiera http://localhost:30000/game# w obu fazach, Enter bez obsługi. 1.2.58 i 1.2.104: 0 wpisów z href, role=link, tabIndex 0, klik i Enter z defaultPrevented, 0 wywołań window.open w obu fazach."
+  },
+  {
+   "what": "Bench nasłuchu dokumentu (scratchpad/run/E27/bench-toc-outside.mjs)",
+   "result": "Zwykły nasłuch click na document słyszy klik we wpis: 1.2.57 1 raz, 1.2.58 0, 1.2.104 0 (stopPropagation)."
+  },
+  {
+   "what": "Porównanie testów E27 między 1.2.58 i 1.2.104 oraz plik blokady harnessu",
+   "result": "R127 (3138 znaków) i R131 (894) identyczne; test tieru 2 różni się tylko sondami needs(world.moduleActive, world.settingRegistered); blok E27 w 15-held identyczny. audit/harness/package-lock.json różni się między v1.2.58 i v1.2.104, więc harness 1.2.58 nie był uruchamiany."
+  },
+  {
+   "what": "Przeszukanie źródeł i rejestrów (grep, git show) na 1.2.58 i 1.2.104",
+   "result": "Poza spisem moduł nie tworzy żadnego <a> z href; docs/handbooks: 0 linków Markdown w sześciu plikach na obu wersjach; brak hooka zamykającego okno Isometric; R-REGISTRY: R127 i R131 (tier 1, 1.2.58), test tieru 2 bez numeru R; skip-baseline: R111 env.layout; audit/AUDIT-1.2.42.md 9.2 bez LIVE-E27; local-gate.json @1.2.104 7/7 not-run (no-server); tools/stages.json E27: touches [], drills [] (zgodne: etap nie dotyka socketów, rzutów ani scen)."
+  }
+ ],
+ "limits": "Nic nie było uruchomione w prawdziwym Foundry ani przy stole w tym kontenerze: ani okno powitalne Isometric Perspective, ani prawdziwe okno Configure Settings v14, ani klik, środkowy klik i Enter we wpis spisu z prawdziwym Game#_onClickHyperlink, ani przewijanie tekstu, ani czytnik ekranu. W kontenerze nie ma źródeł Foundry v14 ani Isometric Perspective w żadnej wersji: czas zapisu ustawienia klienta, to, że SettingsConfig czyta config przy rysowaniu, i kształt handlera linków przyjęto z odczytów audytu i projektów A3 i N2, a showWelcome z rejestracji harnessu. Harness 1.2.58 nie był uruchomiony (inny package-lock.json); kod 1.2.58 sprawdzono benchami z dosłownym kodem z taga i zastępczym rejestrem, a mutacje tylko na 1.2.104, gdzie testy E27 są te same. Liczby suite z pliku instrukcji repozytorium na 1.2.58 (271/0/16) nie zostały powtórzone. Drugiego startu przeglądarki harness nie modeluje, a wyłączenia przełącznika u gracza nie mierzono w harnessie (tylko na GM-ie i w benchu). Z tierów 0-1 całość uruchomiono tylko dla mutanta m14."
+}

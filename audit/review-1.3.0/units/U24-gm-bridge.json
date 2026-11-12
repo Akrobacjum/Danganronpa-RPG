@@ -1,0 +1,228 @@
+{
+ "key": "U24-gm-bridge",
+ "name": "Most do GM-a (gm-bridge.mjs i pliki po podziale E41)",
+ "old": 5,
+ "now": 8,
+ "why": "Z 5 na 8. Wszystkie trzy wysokie zgłoszenia z 1.2.56 są zamknięte w kodzie: deklaracje Direct Murder leżą w magazynie GM-ów (eclipse.mjs:518, settings.mjs:754-762 i 2383-2388, scope client), koszt Hope Call idzie z HOPE_CALLS i nie ma go na liście pól (call-gm.mjs:237-242, bridge-table.mjs:433), call.approve i dynamic.difficulty mają owns(actorId) (bridge-table.mjs:429, 461), a project.unsabotage jest tylko GM-a i bierze wyłącznie parę zapisaną przez sabotaż (bridge-table.mjs:663, projects.mjs:1772-1780). Średnie handlery dostały strażników z tabeli (canSeeProject, owns, guardProjectFrozen, guardProjectRoom, guardArmPlayerCall, guardTieTraceHolder), a wynik rzutu pochodzi z rekordu GM-a (rolled, bridge-guards.mjs:1562-1618). Protokół jest jednym waiterem z jednym wynikiem (bridge-guards.mjs:1839-2025), runner łapie wyjątki i zamienia je na odmowę (1755-1758), a pytania z karty mają pełny cykl E18. R1b czyta deklaracje pole po polu. Zmierzone tutaj: 33-bridge-paths 73/73, 14 testów tier 2 o kartach i mostach zielonych. Nie 9, bo zostało jedno nowe zgłoszenie średnie (card.post poza incydentem pisze kartę z autorem GM-em do dowolnego gracza), kilka niskich w polach tekstowych, których R1b nie sprawdza, i warstwa nieaktualnych odwołań po podziale E41 w 11 529 liniach tej jednostki.",
+ "verdict": "Most w 1.2.104 to już nie jeden plik z ręcznie powtarzanymi parami żądanie/handler, tylko tabela 80 deklaracji (bridge-table.mjs) wykonywana przez jeden runner (bridge-guards.mjs judge) i jeden waiter po stronie gracza (createWaiter, bridgeRequest). Każda deklaracja nazywa strażników w kolejności, białą listę pól, sposób odpowiedzi i, gdzie trzeba, rekord rzutu, z którego GM czyta wynik. To jest dokładnie refaktor, o który prosił audyt (bridgeRequest i { guard, sanitize, run }), i został zrobiony porządnie: odmowa rozstrzyga obietnicę, wyjątek w handlerze jest odmową 'failed', ack wychodzi dopiero po strażnikach, ponowienie ma licznik i odpowiada pierwszym wynikiem (sabotageAgain). Karty pytań (Hope Call, Dynamic, statystyka, Observe) mają znak rid, czas wygaśnięcia, receipt i claim na primary, więc spóźnione 'Approved' i druga karta po przeładowaniu GM-a zniknęły. Wszystkie 19 zgłoszeń z 1.2.56 są zamknięte, poza dwoma częściowymi (cicha odmowa otwarcia Stage 4 na drodze 'ack' i wcięte komentarze handlerów). Obcy GM odczuje most jako przewidywalny: każda odmowa mówi graczowi jedno zdanie z zamkniętej listy w jego języku. Słabością jest teraz to, czego reguła R1b nie widzi: pola tekstowe. Konsola gracza może poprosić primary o kartę prywatną poza incydentem i dostać kartę, której autorem jest GM, do dowolnego gracza (zmierzone sondą), może dopisać pokój i imię do karty Dynamic, wystawić kartę zgody na klucz, którego żadna tabela nie zna, i wkleić 200 000 znaków w notę. Do tego dochodzi objętość: 11,5 tys. linii, komentarze często dłuższe od kodu i kilkanaście odwołań do gm-bridge.mjs, które po E41 wskazują zły plik. Przepisywanie nie jest potrzebne; potrzebny jest strażnik incydentu na card.post, limity i strażnicy dla pól tekstowych z regułą w R1b oraz sprzątanie odwołań.",
+ "strengths": [
+  "Jedna tabela BRIDGE_ACTIONS (80 deklaracji, bridge-table.mjs:102-1345): label, guards w kolejności, sanitize przez pick, run, answer, rolled, claims; tabela zamrożona (bridge-guards.mjs:1299-1306).",
+  "Jeden runner judge (bridge-guards.mjs:1714-1761): prepare, senderOf, again, strażnicy, biała lista, rekord rzutu, ack dopiero po strażnikach (poza kolejką), try/catch zamienia wyjątek na odmowę 'failed', run nie wysyła pakietów sam.",
+  "Wynik z rekordu GM-a, nie z pakietu (rolled, rollRefusal, rollsFor, onRecord; bridge-guards.mjs:1531-1637): akcja, postać, nadawca, projekt (named), wiek, zużycie raz na akcję w pamięci i na rekordzie.",
+  "Jeden waiter po stronie gracza (createWaiter, bridge-guards.mjs:1839-2025): jeden wynik { ok, pending, value, refused, reason }, jeden komunikat sayNotDone, brak broadcastu, ponowienie do 3 razy (RESENDS), primaryGone, late i lateRefused.",
+  "Cykl życia pytań z karty (call-gm.mjs:77-735): znak rid na karcie GM-a, askAgain i sameAsk przeciw drugiej karcie i podmianie, endAtExpiry i sweepAskCards, ruling.expired i ruling.received, yes trzymany na primary dla jednego zakupu (guardArmGmYes), claimOnPrimary z wierszem w ruledCardStore.",
+  "Zamknięta lista 76 kodów odmów z tłumaczeniem en i pl dla każdego (sprawdzone skryptem), kod zamiast tekstu w pakiecie, a 80 etykiet DRPG.Bridge.what.* istnieje w obu językach.",
+  "R1b czyta deklaracje pole po polu i najpierw trafia sześć błędów w fiksturze (tests-tier0.mjs:256-345, tests-kit.mjs:1625-1720).",
+  "Podział E41 C5/C5a/C5b jako czyste przeniesienia z fasadą gm-bridge.mjs (243 linie, nagłówek 1-28 zgodny z kodem) i bez cyklu importów.",
+  "relay-guard.mjs: odcisk palca listenera Daggerheart (fingerprintOf, REVIEWED_CASES), REVIEWED_NAMES na kliencie gracza, backstop rozbrajający pakiet, textOf i numberOf, które nie rzucają."
+ ],
+ "weaknesses": [
+  "card.post przyjmowany poza incydentem: karta prywatna z autorem GM-em do dowolnego gracza, alias GM-a, GM nie trzyma słów (N01).",
+  "Pola tekstowe pakietu trafiają na kartę GM-a bez strażnika i bez limitu: pokój i imię Dynamic z pakietu, tytuł karty zgody z callLabel, nota 200 871 znaków (N02, N03, N04).",
+  "R1b sprawdza tylko pola id i raw, a claim słowny od 20 znaków liczy jak sprawdzenie; 46 pól tekstowych w 26 deklaracjach jest poza regułą (N05).",
+  "Cicha odmowa na drodze 'ack': resolveOpening zwraca null z ostrzeżeniem u GM-a, a gracz ma { pending: true } (bridge-runs-acts.mjs:555-564, murder-rules.mjs:4562-4576).",
+  "Objętość i komentarze: 11 529 linii w 12 plikach, kilkanaście odwołań do gm-bridge.mjs, które po E41 wskazują zły plik, 16 wciętych komentarzy handlerów (N07).",
+  "pickText porównuje wpisany tekst z akcją 'cancel', ten sam wzór, który S10-52 usunął z callGm (N06).",
+  "enforced.mjs trzyma core.permissions na primary, którym może być Assistant GM, a sam moduł pisze, że Foundry odmawia mu tego zapisu (N08)."
+ ],
+ "oldIssues": [
+  {
+   "key": "S10-01",
+   "state": "fixed",
+   "note": "Deklaracje w pendingMurderStore (eclipse.mjs:505-523), klucz gmPendingMurders z scope client (settings.mjs:754-762, 2383-2388), stary klucz świata tylko do migracji liftPendingMurders (eclipse.mjs:720-760). handleParkMurder tylko w Eclipse (bridge-runs-acts.mjs:643-652)."
+  },
+  {
+   "key": "S10-02",
+   "state": "fixed",
+   "note": "owns(actorId) na call.approve i dynamic.difficulty (bridge-table.mjs:429, 461); cost i actorName poza białą listą Hope Call (433); koszt z HOPE_CALLS, inaczej '?' (call-gm.mjs:237-242); callCardHtml escapuje tytuł, pokój, cytat i atrybuty przycisków (746-797); słowa gracza przez cleanCardHtml (secret.mjs:517-525)."
+  },
+  {
+   "key": "S10-03",
+   "state": "fixed",
+   "note": "project.unsabotage tylko GM-a (bridge-table.mjs:663) plus canSeeProject; undoSabotage pyta unsabotageRefusal: repairId wymagany, frozenBy === repairId, repairs === targetId, saboteur (projects.mjs:1772-1780, 1797-1810)."
+  },
+  {
+   "key": "S10-08",
+   "state": "fixed",
+   "note": "canSeeProject, owns(actorId), guardProjectFrozen, guardProjectRoom, guardCallProgress, ilość z rekordu rzutu (progressOf) (bridge-table.mjs:520-559, bridge-runs-records.mjs:294-298); 'by' to ctx.asker od Foundry (bridge-runs-records.mjs:45). Zewnętrzny limit nadal STARTING.despairMax (bridge-table.mjs:543), ale ilość i tak pochodzi z rekordu."
+  },
+  {
+   "key": "S10-09",
+   "state": "fixed",
+   "note": "Gracz: tylko Hope Call z target player (playerArmRefusal) albo none na własnej postaci (ownArmRefusal) (call-effects.mjs:202-223, bridge-guards.mjs:932-949); kind z tabeli (bridge-runs-records.mjs:500-501); zawężony wpis armedEntry (514-520); Hope pobiera GM w gmMeansWrite, ze zwrotem przy błędzie (555-595)."
+  },
+  {
+   "key": "S10-11",
+   "state": "fixed",
+   "note": "guardTieTraceHolder: etap incident, uczestnik, którego nadawca posiada, i przedmiot w jego rękach tak, jak trzymają go GM-owie (bridge-guards.mjs:803-814). Świadomie przyjmuje też ofiarę (Self-defence), co komentarz uzasadnia."
+  },
+  {
+   "key": "S10-17",
+   "state": "fixed",
+   "note": "worksOwnMurder ustawia tiedToCrime po stronie GM-a dla Work (projectId pakietu sprawdzony przez buildsOwnMurder) i Sabotage (cel z faktu rzutu) (bridge-runs-records.mjs:142, 193-204)."
+  },
+  {
+   "key": "S10-24",
+   "state": "fixed",
+   "note": "askAgain szuka karty GM-a po znaku rid (call-gm.mjs:124-162); test tier 2 'a resent ask finds the card a GM posted for it' zielony w tym przeglądzie."
+  },
+  {
+   "key": "S10-25",
+   "state": "fixed",
+   "note": "ruling.expired i ruling.received, unreceivedOnPrimary, endAtExpiry, sweepAskCards (call-gm.mjs:172-217, 559-735); testy tier 2 E18 C1 zielone w tym przeglądzie."
+  },
+  {
+   "key": "S10-26",
+   "state": "fixed",
+   "note": "callGm zwraca false i mówi noGm bez GM-a (call-gm.mjs:924-927); promptForRequest pyta przed oknem (1237-1243); słowa dla wracającego czytelnika (secret.mjs:798-818, E18 C4); test 'E18 C0' zielony."
+  },
+  {
+   "key": "S10-27",
+   "state": "partial",
+   "note": "Runner: odmowa rozstrzyga obietnicę (bridge-guards.mjs:1969-1972), wyjątek to odmowa 'failed' (1755-1758), lootBody i kradzieże zwracają { refused } (bridge-runs-records.mjs:480-483). Zostało: murder.openingResult na 'ack' (bridge-table.mjs:344-354), a handleOpeningResult wyrzuca wynik resolveOpening, który przy złej stronie lub etapie zwraca null tylko z warn (bridge-runs-acts.mjs:555-564, murder-rules.mjs:4562-4576)."
+  },
+  {
+   "key": "S10-39",
+   "state": "fixed",
+   "note": "Przejścia Eclipse w eclipseMoveStore z kopią właściciela (settings.mjs:66-79); emitToGms z gałęzią broadcast zniknął, waiter wysyła tylko do activeGmIds i bez GM-a nic nie wysyła (bridge-guards.mjs:1895-1896, 2050-2059)."
+  },
+  {
+   "key": "S10-40",
+   "state": "fixed",
+   "note": "despair.adjust tylko GM-a (bridge-table.mjs:774); sendBack: pola po nazwie i guardSendbackPlace z piętrem (bridge-runs-records.mjs:439-450, movement.mjs:766-789); share tylko tajnego projektu (guardShareSecret, bridge-guards.mjs:703-706); typy gracza prep i resolution (remnants.mjs:870, 897); observe.resolve porównuje entry.actorId (observe.mjs:668-675)."
+  },
+  {
+   "key": "S10-43",
+   "state": "fixed",
+   "note": "Ponowienie po odejściu primary przez userConnected i primaryLeft (bridge-guards.mjs:2043-2048, 2083-2092), licznik RESENDS 3 (2036), sabotageAgain odpowiada pierwszym wynikiem (bridge-runs-records.mjs:355-360, bridge-guards.mjs:1736-1741)."
+  },
+  {
+   "key": "S10-51",
+   "state": "fixed",
+   "note": "Hope Call i Dynamic nie są patient, więc mają zegar ack (bridge-table.mjs:435-437, 464-465); calls.mjs nie dokłada drugiego toastu (calls.mjs:221-232)."
+  },
+  {
+   "key": "S10-52",
+   "state": "fixed",
+   "note": "askForRequest zwraca { text }, required blokuje pusty tekst, body w div.drpg-call-body (call-gm.mjs:776-778, 1193-1229); test 'E18 C0' zielony. Ten sam wzór 'cancel' został w call-pickers.mjs pickText (N06)."
+  },
+  {
+   "key": "S10-68",
+   "state": "fixed",
+   "note": "Każda z 80 deklaracji ma etykietę DRPG.Bridge.what.<akcja> zgodną z nazwą w bridge-wire.mjs, w en i pl (skrypt po lang/en.json i lang/pl.json); R1b reguła 1 to pilnuje."
+  },
+  {
+   "key": "S10-70",
+   "state": "fixed",
+   "note": "R1b czyta tabele, a każde pole id i raw musi mieć strażnika albo claim (tests-kit.mjs:1625-1720), z fiksturą sześciu błędów (tests-tier0.mjs:294-321). Luka na polach tekstowych to N05."
+  },
+  {
+   "key": "S10-74",
+   "state": "partial",
+   "note": "Nagłówek gm-bridge.mjs przepisany (1-28), en dash zniknął (brak U+2013/2014/2212 w 12 plikach, sprawdzone skryptem), osierocone docblocki rozeszły się z funkcjami. Zostało 16 wciętych komentarzy handlerów na poziomie pliku (bridge-runs-acts.mjs:44, 61, 97, 286, 302, 381, 404, 427, 506, 552, 566, 631, 654, 679, 749; bridge-runs-records.mjs:672) i nowe nieaktualne odwołania po podziale (N07)."
+  }
+ ],
+ "findings": [
+  {
+   "id": "U24-gm-bridge-N01",
+   "title": "card.post poza incydentem: primary pisze kartę prywatną z autorem GM-em do dowolnego gracza, a GM-owie nie mają jej słów",
+   "severity": "medium",
+   "category": "security",
+   "where": "scripts/bridge-table.mjs:1315-1327; scripts/bridge-guards.mjs:1286-1296; scripts/bridge-runs-records.mjs:897-904; scripts/secret.mjs:1116, 1221-1236, 1092-1122",
+   "problem": "Deklaracja card.post jest opisana jako 'A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS', a uczciwa droga pyta o nią tylko w incydencie (secret.mjs:1116, jedyny wołający requestCardPost to askGm). Strażnicy sprawdzają jednak tylko nadawcę, mówcę i to, że czytelnicy są użytkownikami świata (bridge-guards.mjs:1286-1296); nikt nie pyta, czy incydent trwa. Poza incydentem postAsked woła post z veiled z pakietu, incidentVeils zwraca false, więc karta nie dostaje neutralnego aliasu (secret.mjs:1119) i jej autorem jest GM. Konsola gracza może więc wysłać innemu graczowi prywatną kartę o dowolnej (oczyszczonej) treści, którą nagłówek czatu Foundry podpisze imieniem GM-a, a GM-owie, jeśli nie są na liście czytelników, nie mają jej słów i nie zobaczą, co 'napisali'. Tylko meta czytelnika (ASKED_BY, cardWriter) wie, kto prosił. W grze, w której gracze ufają głosowi Monokumy, to podszywanie się pod prowadzącego.",
+   "fix": "W deklaracji dodać strażnika guardCardIncident: poza incydentem (secret.mjs incidentRuns na primary) odmowa 'that cannot be done now'. W postAsked zawsze ustawiać neutralny alias (DRPG.Secret.speaker), bo autor to GM, a słowa są gracza. Trzymać słowa na primary (remember z recipients, jak dla kart GM-a), żeby GM-owie mogli przeczytać to, czego są autorami. Test tier 2 obok 'a private card a player asks the GM to post in an incident...' dla drogi bez incydentu (dziś test ustawia murderState active, tests-tier2.mjs:10846).",
+   "evidence": "Sonda u24-probe2.mjs (plik w scratch poza repo, uruchomiona przez hrun z /home/user/main/audit/harness, wynik results/probes/u24-probe2.json, 12.11.2026): murderState {} (brak incydentu); p1 wysłał card.post z whisper [p2] i bez mówcy; p1 dostał bridge.ack i bridge.done z id karty; na p2: authorName 'GM', authorIsGm true, alias 'GM', speakerAlias null, veiled false, cardWriter 'PlayerOne', słowa obecne; na GM-ie contentOf nie zawiera tekstu (null). Alias to getter shimu harnessu; rysowanie nagłówka w czacie v14 niezmierzone.",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N02",
+   "title": "dynamic.difficulty: pokój i imię z pakietu na karcie GM-a i w edytorze trudności",
+   "severity": "low",
+   "category": "security",
+   "where": "scripts/bridge-table.mjs:459-466; scripts/call-gm.mjs:258-287; scripts/messenger-app.mjs:864-872; scripts/action-dynamic.mjs:318-331",
+   "problem": "Biała lista dynamic.difficulty przepuszcza room i actorName jako tekst (bridge-table.mjs:462), a askDynamicByCard kładzie room w nagłówku karty obok prawdziwego imienia postaci i w data-room, a actorName w data-name (call-gm.mjs:268-276). GM, który klika 'Set difficulty', widzi w edytorze 'akcja od {actorName} w {room}' z pakietu (messenger-app.mjs:866-867, action-dynamic.mjs:327-330). Komentarz przy Hope Call mówi, że imię idzie z postaci, a nie z pakietu (bridge-table.mjs:430-431), ale Dynamic tego nie robi. GM ustala trudność dla miejsca, w którym postaci nie ma; ślad potem i tak ląduje tam, gdzie postać stoi (narrowPlayerRemnant). Escapowanie jest poprawne, to nie XSS.",
+   "fix": "Pokój i imię brać po stronie GM-a: locateActor(actor)?.room i actor.name w askDynamicByCard; room i actorName usunąć z białej listy albo tylko logować różnicę, jak onRecord loguje liczby.",
+   "evidence": "Sonda u24-probe.mjs (results/probes/u24-probe.json): GM czyta Aiko w 'Dorm A'; p1 wysłał dynamic.difficulty z room 'Forged Room U24' i actorName 'Daichi Sato'; karta U24DYNFORGED0001 zawiera 'Forged Room U24' (forgedRoom true) i data-name=\"Daichi Sato\" (forgedName true), z przyciskami setDifficulty i refuseDynamic, gmAsk true.",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N03",
+   "title": "call.approve przyjmuje dowolny klucz: karta zgody z tytułem z pakietu i karta dla Calla, który nie czeka na GM-a",
+   "severity": "low",
+   "category": "security",
+   "where": "scripts/bridge-table.mjs:427-438; scripts/call-gm.mjs:219-256",
+   "problem": "Strażnicy call.approve to knownSender i owns(actorId); nikt nie sprawdza, że key to Hope Call z needsGm (dziś tylko experience i ultimate). Dla klucza spoza tabel tytuł karty to callLabel z pakietu (call-gm.mjs:239), a koszt '?'. Każda taka karta jest pytaniem z gmAsk, więc dzwoni GM-om dźwiękiem i popupem. GM może kliknąć 'Approve' na karcie, którą nic legalnego nie wystawia; arm potem odmówi, ale karta zostaje 'Approved'. Uzbrojenia to nie daje, ale pozwala zasypywać GM-ów kartami o dowolnym tytule we własnym wątku.",
+   "fix": "Strażnik guardHopeCallAsk: HOPE_CALLS[key]?.needsGm, inaczej 'badRequest'; tytuł zawsze z tabeli, callLabel usunąć z białej listy.",
+   "evidence": "Sonda u24-probe.mjs: karta U24UNKNOWNKEY001 z tytułem 'Override by Monokuma - does it apply?' (klucz noSuchCall) i karta U24SUPPORTKEY001 'Support - does it apply?', obie z approveCall i refuseCall i gmAsk true; GM nie zalogował żadnej odmowy (sessionFailures pusty dla tych akcji); needsGm w HOPE_CALLS: experience, ultimate.",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N04",
+   "title": "Pola tekstowe pytań z karty bez limitu długości: karta GM-a 200 871 znaków",
+   "severity": "low",
+   "category": "robustness",
+   "where": "scripts/bridge-table.mjs:433, 462, 382, 389, 106; scripts/bridge-guards.mjs:1443; scripts/call-gm.mjs:238-252, 272-285, 395-418; scripts/eclipse.mjs:605-609",
+   "problem": "as.text nie ma limitu z założenia (bridge-guards.mjs:1427-1437: 'E43's fuzz stage owns it', E43 niewydany, planned 1.2.131 w tools/stages.json:97). Część dróg ma jednak limit: card.post (cardTooLong, MAX_PLAYER_BYTES 32 KB), note.save, komentarze procesu, nota trait.ruling (PROPOSAL_NOTE_MAX 280). Pytania, które GM zamienia w kartę z autorem GM-em, limitu nie mają: note, effect i callLabel Hope Call, description Dynamic, request Observe, note deklaracji morderstwa i zdrady. Karta trafia do wątku i do magazynu słów każdego czytelnika.",
+   "fix": "Ten sam limit co dla słów gracza (MAX_PLAYER_BYTES albo PROPOSAL_NOTE_MAX) w strażniku tych deklaracji, z odmową 'badRequest', zanim E43 doda ogólny limit; reguła w R1b (N05).",
+   "evidence": "Sonda u24-probe.mjs: call.approve z kluczem experience i note 200 000 znaków dał kartę U24BIGNOTE000001 o długości contentOf 200 871 znaków, autor GM. Limit gniazda na prawdziwym serwerze Foundry niezmierzony (harness to shim).",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N05",
+   "title": "R1b nie sprawdza pól tekstowych: 46 pól w 26 deklaracjach poza regułą, a claim słowny liczy się jak sprawdzenie",
+   "severity": "low",
+   "category": "test",
+   "where": "scripts/tests-kit.mjs:1702-1716; scripts/tests-tier0.mjs:256-345",
+   "problem": "Reguła 6 bridgeTableProblems bierze tylko pola sanitizowane jako id lub raw (tests-kit.mjs:1707). Pola as.text i as.maybeText nie muszą mieć ani strażnika, ani claimu, a to w nich siedzą N02, N03 i N04 (room, actorName, description, callLabel, effect, note, request). Do tego claim zapisany słowami liczy się, gdy ma co najmniej 20 znaków (1713), bez sprawdzenia, że funkcja, którą nazywa, istnieje i robi to, co opisuje.",
+   "fix": "Rozszerzyć regułę na pola tekstowe: każde ma strażnika, limit albo claim; claim słowny ma wskazywać funkcję, którą test znajduje w źródle (jak bridgeCut dla runGuards).",
+   "evidence": "Skrypt po bridge-table.mjs (parsowanie pick({...})): 46 pól as.text/as.maybeText w 26 deklaracjach, m.in. call.approve [key, callLabel, effect, note, nonce], dynamic.difficulty [description, actorName, room, proposed], murder.park [room, note, proposed]. Odczyt tests-kit.mjs:1707 i 1713.",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N06",
+   "title": "pickText porzuca nową regułę o treści 'cancel', ten sam wzór co S10-52",
+   "severity": "low",
+   "category": "bug",
+   "where": "scripts/call-pickers.mjs:232-261",
+   "problem": "Przycisk Next zwraca wpisany tekst (255), a zamknięcie okna zwraca akcję 'cancel' (callWindow, 92). Warunek 'if (!text || text === \"cancel\") return null' (259) nie odróżnia jednego od drugiego, więc reguła o treści 'cancel' jest po cichu porzucona. S10-52 naprawił to w askForRequest przez { text } (call-gm.mjs:1217-1224), ale pickers nie przejęły tej poprawki.",
+   "fix": "Callback zwraca { text }, a warunek to 'if (typeof answer?.text !== \"string\" || !answer.text) return null', jak w askForRequest.",
+   "evidence": "Odczyt call-pickers.mjs:92, 253-259 i call-gm.mjs:1217-1224; niezmierzone w harnessie (okno Calla Monokumy).",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N07",
+   "title": "Nieaktualne odwołania po podziale E41 i wcięte komentarze handlerów",
+   "severity": "low",
+   "category": "stale-comment",
+   "where": "scripts/bridge-guards.mjs:218, 251, 387, 390, 396, 400, 417, 1280, 1354-1355, 1557, 1645, 1791, 1992; scripts/relay-guard.mjs:302; scripts/call-gm.mjs:54-56; scripts/bridge-runs-acts.mjs:44-749; scripts/bridge-runs-records.mjs:672",
+   "problem": "Od 1.2.97 deklaracje, prepare i ask są w bridge-table.mjs, a komentarze w bridge-guards.mjs nadal każą ich szukać w gm-bridge.mjs ('see `prepare` in gm-bridge.mjs' 1645, '`ask` in gm-bridge.mjs' 1791, 'gm-bridge.mjs `card.post`' 218 i podobne). Nagłówek bloku fabryk mówi o 'three tables (gm-bridge.mjs, traps.mjs, search-tokens.mjs)' (1354-1355), a R1b czyta cztery, z ROLL_ACTIONS (tests-tier0.mjs:262-265). relay-guard.mjs:302 przypisuje zakaz zmiany pakietu gm-bridge.mjs, a reguła stoi w bridge-guards.mjs:1672-1681. call-gm.mjs:54-56 nazywa askedByCard deduplikacją ponowień po przeładowaniu, a tę robi dziś znak karty (88-109). 16 komentarzy handlerów zostało wciętych jak w dawnym switchu (część S10-74). W tym repo komentarz, który przestał pasować, jest defektem.",
+   "fix": "Zamienić odwołania na bridge-table.mjs (i nazwę wiersza), poprawić 'three tables' na cztery z ROLL_ACTIONS, przenieść regułę o pakiecie we wskazaniu relay-guard, skrócić komentarz askedByCard, zdjąć wcięcia komentarzy (zmiana bez kodu; moved-only i tak jej nie dotyczy).",
+   "evidence": "grep -n 'gm-bridge.mjs' po bridge-guards.mjs, relay-guard.mjs, call-gm.mjs; awk po pustej linii i '    //' w bridge-runs-acts.mjs i bridge-runs-records.mjs (16 trafień na poziomie pliku).",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N08",
+   "title": "enforced.mjs trzyma core.permissions na primary, którym może być Assistant GM",
+   "severity": "low",
+   "category": "bug",
+   "where": "scripts/enforced.mjs:557-577, 1019-1024; scripts/utils.mjs:432-443",
+   "problem": "holdPermissions pyta tylko isPrimaryGm (559), a primaryGmId wybiera Assistant GM-a, gdy nie ma pełnego GM-a (utils.mjs:441). Ten sam plik zapisuje, że Foundry pozwala pisać core.permissions tylko pełnemu Gamemasterowi i że Give back Assistant GM-a na tym rzucał (enforced.mjs:813-820, canGiveBack). Przy stole z samym Assistant GM-em każde ready kończy się błędem 'Could not hold the file permissions', po wcześniejszym zapisie keepOriginal, a wiersz nie jest trzymany i nikt nie dostaje o tym zdania.",
+   "fix": "W holdPermissions wymagać canGiveBack(game.user) (pełny GM) zamiast samego isPrimaryGm; bez pełnego GM-a nic nie pisać i powiedzieć o tym raz w Pre-season checks.",
+   "evidence": "Odczyt enforced.mjs:557-577, 813-820 i utils.mjs:432-443; niezmierzone: harness modeluje role, ale nie odmowę zapisu core.permissions dla Assistant GM-a.",
+   "verified": null
+  },
+  {
+   "id": "U24-gm-bridge-N09",
+   "title": "askedByCard rośnie bez przycinania, a callAsks trzyma pytanie, którego karta się nie wystawiła",
+   "severity": "info",
+   "category": "robustness",
+   "where": "scripts/call-gm.mjs:57, 149-162, 219-256",
+   "problem": "askedByCard to Set, do którego cztery drogi dodają id i nic nie usuwa, a callAsks i dynamicAsks są przycinane do 100. Gdy callGm zwróci false, askHopeCallByCard i askDynamicByCard odpowiadają odmową, ale held ask zostaje w mapie, a id w askedByCard, więc ponowienie tym samym id dostałoby { later: true } bez karty (askObserveByCard usuwa swoje, 420). Uczciwy klient po odmowie nie ponawia, więc to tylko higiena pamięci.",
+   "fix": "Przy posted === false usuwać id z askedByCard i z mapy; askedByCard przycinać jak callAsks.",
+   "evidence": "grep -n askedByCard scripts/*.mjs: add w 159, 223, 262, 315, 401, brak delete; odczyt call-gm.mjs:253-256, 286, 419-421.",
+   "verified": null
+  }
+ ],
+ "covered": "Przeczytane w całości @1.2.104 (b97028e1): scripts/gm-bridge.mjs (243), bridge-wire.mjs (164), bridge-table.mjs (1403), bridge-guards.mjs (2097), bridge-runs-acts.mjs (806), bridge-runs-records.mjs (904), bridge-asks.mjs (1159), call-gm.mjs (1286), call-pickers.mjs (495), call-world.mjs (731), relay-guard.mjs (1215), enforced.mjs (1026): 11 529 linii. Fragmenty, do których kod prowadzi: secret.mjs (cleanCardHtml, post, askGm, postAsked, cardWriter, słowa po powrocie), messenger-app.mjs (ruleApproveCallOrRefuseCall, ruleSetDifficulty), action-dynamic.mjs askDynamicDifficulty, eclipse.mjs writeParkedMurder i migracje, settings.mjs (pendingMurders, eclipseMoves), projects.mjs unsabotageRefusal i undoSabotage, call-effects.mjs playerArmRefusal, ownArmRefusal, appendArmedCall, remnants.mjs narrowPlayerRemnant, observe.mjs observeResolveRefusal, movement.mjs sendBackRefusal, murder-rules.mjs resolveOpening, calls.mjs (zgoda na Hope Call), utils.mjs primaryGmId, tests-tier0.mjs R1b, tests-kit.mjs bridgeTableProblems, tools/stages.json. Uruchomione (każde przez hrun z /home/user/main/audit/harness, jedno po drugim): sonda u24-probe.mjs (7,9 s); node run-tests.mjs --tier 2 z 14 --only o kartach E18, E17-T6, E37-T8, card.post w incydencie: 18 passed, 1 failed, 0 skipped, 0 red w 115,9 s, a jedyny FAIL to mój selektor 'E29 fix r2-H4', który nie nazywa żadnego testu (stoi tylko w komentarzu tests-tier2.mjs:9972); node cluster.mjs scenarios/33-bridge-paths.mjs: 73/73 w 130,0 s; sonda u24-probe2.mjs (4,2 s). Skrypty python po bridge-table.mjs, bridge-wire.mjs i lang/*.json: 80 etykiet i 76 kodów odmów w obu językach, 46 pól tekstowych w 26 deklaracjach, brak U+2013/2014/2212 w 12 plikach.",
+ "limits": "Bez Foundry v14 i bez sandboksu: nic nie sprawdzone na żywo. Nagłówek karty w czacie v14 (N01) zmierzony tylko jako getter alias shimu harnessu, nie jako narysowany element. Limit wielkości pakietu gniazda prawdziwego serwera (N04) niezmierzony. Odmowa zapisu core.permissions dla Assistant GM-a (N08) przeczytana w notatce modułu, nie uruchomiona. Wyścigi dwóch GM-ów i przeładowania w środku pytania zmierzone tylko testami tier 2 i scenariuszem 33 (jeden harness, jeden serwer-shim). Nie uruchamiałem 30-security (pakiety z konsoli, ok. 375 s) ani całego tier 2; pozostałe deklaracje (proces, głosowanie, Frisk, przejścia) czytane w tabeli, ich resolvery w innych jednostkach tylko w miejscach, do których prowadzą claims. Ścieżka D1 (rollDrawState inny niż 'ok', liczby pakietu stoją, bridge-guards.mjs:1491-1495) przeczytana, niezmierzona."
+}

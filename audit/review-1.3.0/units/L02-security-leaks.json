@@ -1,0 +1,231 @@
+{
+ "key": "L02-security-leaks",
+ "name": "Przekrój: bezpieczeństwo i wycieki",
+ "old": 4,
+ "now": 7,
+ "why": "Z 4 na 7. Zamknięte są oba wektory skryptu w przeglądarce GM-a (S11-01, S10-02), cztery sekrety z ustawień świata (plan Key Remnantów, pendingMurders, notatka przedsesyjna, zabójca i warunek pułapki w projectMeta), metadane rzutów (S02-02), autor karty safewordu (S03-02), zgon przed odkryciem ciała (S06-11) i wszystkie zgłoszone dziury autoryzacji mostu (S10-03, S10-08, S10-09, S10-10, S10-11, S10-40, S05-04, S07-03) oraz relay pułapek (S08-07). Doszły mechanizmy, których w 1.2.56 nie było: deklaratywna tabela mostu z guards/sanitize/claims (bridge-table.mjs), druga warstwa zaufania (rzuty losowane na primary GM, audyt arkusza), magazyny GM z kopiami adresowanymi do właścicieli (gm-store.mjs), jedna reguła tego, czego dane świata nie mogą zawierać (world-secrets.mjs), sprawdzana przez R9, R190 i 72-canary. Nie wyżej: tożsamość gracza budującego morderstwo pośrednie nadal jest w danych świata (projectMeta.indirectMurder + Countdowns.ownership, S17-31 zamyka dopiero niewydany E43, a reguła world-secrets tego nie widzi), droga card.post pozwala wystawić kartę z autorem-GM-em (w incydencie jako 'Monokuma') do wybranego gracza bez GM-ów wśród czytelników, a pola tekstowe pakietów nie mają limitu - dwa pakiety zapełniły pamięć przeglądarki GM-a (zmierzone).",
+ "verdict": "Na 1.2.104 bezpieczeństwo przestało być najsłabszym przekrojem. Model zaufania jest spisany (plik reguł trust-model.md) i odpowiada kodowi: każda prośba gracza do primary GM-a przechodzi przez jeden runner (judge) i jedną tabelę deklaracji, w której każde id ma strażnika albo wpis claims, pola są zawężane przez pick(), a wynik rzutu czytany z rekordu GM-a, nie z pakietu. Wszystkie 30 nasłuchiwaczy socketu poza tabelą, które przejrzałem, sprawdzają nadawcę (GM, primary, adresat) i nie ufają polom pakietu. Sekrety gry wyszły z danych świata do magazynów GM synchronizowanych tylko GM-GM, a moduł ma narzędzie, które to mierzy w przeglądarce gracza po każdej fazie rozdziału, i jawną listę znanych wycieków z etapem zamknięcia. Słowa kart prywatnych gracza są czyszczone przy odbiorze i przy odczycie. Granice Foundry (pozycje tokenów, ukryte tokeny, dane aktorów, przedmioty) są opisane w podręczniku GM-a, a nie przemilczane. Zostają trzy rzeczy do domknięcia przed wydaniem dla obcych stołów: plan morderstwa pośredniego z graczem budującym czytelny z konsoli każdego gracza (znany, zaplanowany na E43, ale bez pomiaru flagi indirectMurder), droga card.post, która pozwala graczowi mówić głosem GM-a do innego gracza poza wzrokiem GM-ów, oraz brak limitów długości i częstotliwości na polach tekstowych próśb, przez który konsola gracza zapycha pamięć przeglądarki GM-a, w której leżą klucze odpowiedzi. Do tego jedna drobna: autor karty prywatnej może po fakcie przepisać jej słowa i fakty w przeglądarkach GM-ów. Żadna z nich nie wymaga przebudowy; każda to kilka linii w jednym miejscu i test.",
+ "strengths": [
+  "Jedna tabela mostu (bridge-table.mjs:102ff, 80 wierszy): knownSender albo gmOnly jako pierwszy strażnik, strażnik dla każdego id, pick() z dokładną listą pól, `rolled` dla wyniku z rekordu rzutu GM-a, `claims` dla pól sądzonych w run; R1b i R162-R166 czytają tabelę.",
+  "Druga warstwa zaufania (E28, E29): kości akcji i statystyk losuje primary GM (roll-draw.mjs), modyfikatory liczy z tego, co trzyma (LEGAL_ROLL_MODIFIERS), zapisy gracza na własnym uczniu są sądzone przez sheet-audit.mjs; cofnięcie to wyłącznie Reroll GM-a (guardUndoIsTheGms, as.gmFlag).",
+  "Magazyny GM (gm-store.mjs) z pakietami tylko GM-GM (gmsRefusal, gm-store.mjs:630-655) i kopiami graczy wysyłanymi adresowanie do właściciela, z odmową pakietu od nie-GM-a po stronie gracza (replyForMe, senderId GM) - obsada incydentu, zgony przed odkryciem, drzwi Mastermind, mgła, przejścia, odniesienia Truth Bulletów, notatka, Confusions, przejścia w Eclipse.",
+  "world-secrets.mjs: jedna, czysta (bez importów) deklaracja tego, czego ustawienia świata i flagi Actor/User/Token/ChatMessage/Item nie mogą zawierać, z regułami dla wiadomości (supersededRoll, secret, veiled); R9, R190 (uruchomione, zielone) i 72-canary w przeglądarce gracza; known-leaks.json jako jawna lista z klasą, wagą i etapem zamknięcia.",
+  "Karty prywatne (secret.mjs): słowa gracza czyszczone cleanHTML przy odbiorze i ponownie przy odczycie, limit 32 KB, GM_META odcinający flagi, których gracz nie może dać, playerWords zdejmujące prozę GM-a z kopii gracza, karty veiled w incydencie, doganianie słów po powrocie z kontrolą czytelników (answerWordsRequest).",
+  "Uczciwa dokumentacja granic: podręcznik GM-a, sekcja 1 'What every browser holds anyway' i sekcja 11 'What stays in Daggerheart's Countdowns'; podręcznik gracza opisuje, kiedy karta safewordu nosi autora; relay-guard.mjs mówi, co przepuszcza bez sędziowania.",
+  "relay-guard.mjs zakłada strażnika na relay Daggerheart z odciskiem przejrzanych przypadków (REVIEWED_CASES) i odmową nieznanych nazw na GM-ie; kopia relay w harnessie jest kopiowana dosłownie z tagu."
+ ],
+ "weaknesses": [
+  "Tożsamość gracza budującego morderstwo pośrednie i pokój pułapki są nadal w danych świata (projectMeta.room/secret/indirectMurder + daggerheart.Countdowns z nazwą i ownership); S17-31 (high) zamyka dopiero E43, niewydany na 1.2.104, a reguła world-secrets i wpis known-leaks mierzą tylko nazwę (N03).",
+  "card.post przyjmuje prośbę o kartę w każdej chwili i do dowolnych czytelników, więc gracz może wystawić kartę z autorem-GM-em (w incydencie z aliasem 'Monokuma') do innego gracza, a GM-owie nie trzymają jej słów (N01).",
+  "Pola tekstowe pakietów (as.text) bez limitu długości i bez limitu częstotliwości próśb; Dynamic i Observe powielają tekst trzykrotnie w karcie GM-a; dwa pakiety przepełniły localStorage GM-a w harnessie (N02). Moduł odsyła to do E43, ale inne drogi gracza mają limity.",
+  "Słowa i fakty własnej karty prywatnej gracz może przepisać w przeglądarkach GM-ów dowolnie później (N04).",
+  "Część obrony stoi na założeniach o v14 i Daggerheart niezmierzonych na żywo: działanie foundry.utils.cleanHTML, nagłówek karty Daggerheart dla karty bez aktora, adresowanie recipients przez serwer, rozmiar pakietu, jaki serwer przenosi (LIVE-E04-02); harness ma zastępniki.",
+  "Granice Foundry są fundamentalne dla gry o ukrywaniu i zostają: pozycje wszystkich tokenów w czasie rzeczywistym (także w Eclipse), ukryte ślady, HP ofiary, przedmioty każdego ucznia, ślady incydentu pojawiające się w pokoju zbrodni (fromIncident, decyzja D11); mgła pokoi jest decyzją przeglądarki gracza.",
+  "Przejście tokenu przez ścianę z konsoli jest domyślnie tylko zapisywane w logu (movement-audit.mjs:21-23, decyzja z sesji 0); cofają je tylko reguły drzwi, zamków, pieczęci, incydentu i Eclipse."
+ ],
+ "oldIssues": [
+  {
+   "key": "S01-01",
+   "state": "fixed",
+   "note": "keyRemnantPlan w świecie trzymany pusty regułą (world-secrets.mjs:85-88), plan w keyPlanStore (gm-stores.mjs:1313-1316), keyPlan() zwraca puste sloty dla nie-GM-a (investigation.mjs:138-160), liftKeyPlan opróżnia klucz świata i sprawdza odczyt (investigation.mjs:251-285). R9 zielony (uruchomione)."
+  },
+  {
+   "key": "S01-08",
+   "state": "fixed",
+   "note": "Tekst w GM store noteStore, flaga User tylko { updatedAt, written } (pre-session-note.mjs:50-51, 176-178), reguła User preSessionNote.text (world-secrets.mjs:166), limit 32 KB w run (bridge-runs-records.mjs:691-697)."
+  },
+  {
+   "key": "S01-54",
+   "state": "fixed",
+   "note": "Komentarze przy planie i murderState opisują stan obecny z historią i datą (settings.mjs:575-596, 706-713); zdania z dawnego gm-bridge są w czasie przeszłym (bridge-table.mjs:704, 740); liczb handlerów w komentarzach nie ma (grep)."
+  },
+  {
+   "key": "S02-02",
+   "state": "fixed",
+   "note": "neutralRollSource/neutralRollOf czyszczą speaker, system.title, tytuły i dane opcji rzutu (private-rolls.mjs:775-785, 834ff), reguła messages supersededRoll (world-secrets.mjs:193-202), przejęty rzut szeptem do GM-ów (private-rolls.mjs:967-1013). Kości i wartości modyfikatorów zostają (odczyt)."
+  },
+  {
+   "key": "S03-02",
+   "state": "fixed",
+   "note": "Kartę stawia primary GM z aliasem banera (safeword.mjs:27-45); bez GM-a albo bez odpowiedzi w 3 s stawia ją gracz z ukrytym nagłówkiem, a autor zostaje w danych - opisane w player-handbook.en.md:811."
+  },
+  {
+   "key": "S04-01",
+   "state": "fixed",
+   "note": "Jedna funkcja odbiorców incidentAudienceIds (incident-store.mjs:390-405) i jedna tabela w murder-rules.mjs:4129; odbiorcy obsady liczeni na stanie docelowym (incident-store.mjs:488ff, odczyt, nie mierzone)."
+  },
+  {
+   "key": "S04-08",
+   "state": "fixed",
+   "note": "murderState w świecie tylko { active, stage } (reguła only, world-secrets.mjs:131-135); metoda i przebieg w obsadzie."
+  },
+  {
+   "key": "S05-04",
+   "state": "fixed",
+   "note": "Lista bez filtra tylko gdy isCleaner(actor) po stronie GM-a; mine z pakietu może tylko zawęzić (cleanup.mjs:290-299)."
+  },
+  {
+   "key": "S05-39",
+   "state": "fixed",
+   "note": "Nazwa tokenu śladu neutralna (remnants.mjs:469, 491), remnantRef zdjęty z flag Item (world-secrets.mjs:179-183), lootTrace w lootTraceStore (handover.mjs:724-736), granice Foundry spisane (gm-handbook.en.md:88); pozycje ukrytych śladów jako foundryLimit S17-64 (known-leaks.json)."
+  },
+  {
+   "key": "S06-11",
+   "state": "fixed",
+   "note": "Dwie fazy śmierci: zgon w incydencie tylko w GM store deaths i w kopiach uprawnionych, publikacja przy odkryciu (chapter.mjs:186-224, 504ff); setMonocub wymaga publicznego zgonu (monocub.mjs:110-113), więc kafel ciała E95 nie wyprzedza odkrycia; HP ofiary opisane jako granica Foundry (gm-handbook.en.md:88)."
+  },
+  {
+   "key": "S07-02",
+   "state": "fixed",
+   "note": "Audyt ruchu na primary (movement-audit.mjs:1-23): reguły cannotLeave, doorLocked, roomSealed, chained, eclipseSpent cofają token w obu trybach (movement-audit.mjs:46), REVERT honorowany tylko przez sendBackRefusal (movement.mjs:815), token.sendBack z guardSendbackPlace (bridge-guards.mjs:867). Ściany domyślnie tylko w logu (decyzja z sesji 0)."
+  },
+  {
+   "key": "S07-03",
+   "state": "fixed",
+   "note": "Szukający musi stać w pokoju, w którym wydaje żeton (search-tokens.mjs:560ff)."
+  },
+  {
+   "key": "S07-17",
+   "state": "fixed",
+   "note": "FOG_SHARE_ASK tylko od primary (fog.mjs:1344), FOG_SHARED tylko w oknie po pytaniu i raz na gracza (fog.mjs:1295-1301, 1348-1366), tylko wiersze własnych postaci, słabo i bez nadpisywania."
+  },
+  {
+   "key": "S07-18",
+   "state": "fixed",
+   "note": "plantForFinder oddaje pięć pól bez projectId (search-tokens.mjs:763-774)."
+  },
+  {
+   "key": "S08-07",
+   "state": "fixed",
+   "note": "Relay pułapek idzie askTraps do GM-ów i jest sądzony w TRAP_ACTIONS (traps.mjs:797-803, 836)."
+  },
+  {
+   "key": "S09-05",
+   "state": "partial",
+   "note": "killerId, by, condition, trigger, saboteur, sabotageAsk, passage, target, foundBy, proposerTold w projectSecretStore (projects-secrecy.mjs:109-110), opis tajnego projektu też (world-secrets.mjs:69-72). Zostają projectMeta.room/secret/indirectMurder (projects.mjs:1567-1568) i Countdowns z nazwą i ownership: sonda P3 na 1.2.104 - konsola widza p2 wskazała gracza p1 i pokój Gym. known-leaks S17-31 (high) closes E43, niewydany. Patrz N03."
+  },
+  {
+   "key": "S10-01",
+   "state": "fixed",
+   "note": "pendingMurders w świecie pusty (reguła empty, world-secrets.mjs:75-78), deklaracje w pendingMurderStore (eclipse.mjs:505-523)."
+  },
+  {
+   "key": "S10-02",
+   "state": "fixed",
+   "note": "Koszt z HOPE_CALLS, effect escapowany, cost poza whitelistą, owns(actorId) w call.approve i dynamic.difficulty (call-gm.mjs:219-254; bridge-table.mjs:427-465); 30-security wysyła cost z onerror (30-security.mjs:940)."
+  },
+  {
+   "key": "S10-03",
+   "state": "fixed",
+   "note": "project.unsabotage tylko GM (gmOnly, bridge-table.mjs:657-672); cofnięcie sabotażu robi Reroll GM-a."
+  },
+  {
+   "key": "S10-06",
+   "state": "fixed",
+   "note": "Rzuty akcji i statystyk losowane na primary (roll-draw.mjs), wiersze z total czytają rekord (`rolled`, rollRefusal), undo tylko GM. Otwarte i spisane: rzut bez GM-a, rzuty przedmiotów i obrażeń Daggerheart, czytanie Search/Shadow/Listen na przeglądarce gracza (trust-model.md, 'What stays open')."
+  },
+  {
+   "key": "S10-08",
+   "state": "fixed",
+   "note": "project.progress: canSeeProject, owns(actorId), guardProjectFrozen, guardProjectRoom, guardCallProgress, kwota z rekordu rzutu (bridge-table.mjs:520-558); uznanie dla nadawcy Foundry."
+  },
+  {
+   "key": "S10-09",
+   "state": "fixed",
+   "note": "call.arm: guardArmPlayerCall/ownArmRefusal dla nie-GM-a, kupno i płatność Hope na primary, guardArmBuyerHope, guardArmGmYes (bridge-table.mjs:731-768; bridge-guards.mjs:932-949)."
+  },
+  {
+   "key": "S10-10",
+   "state": "fixed",
+   "note": "Ślad gracza budowany z whitelisty (narrowPlayerRemnant), typy gracza tylko prep/resolution (remnants.mjs:870, 897), pasmo z rekordu rzutu (bridge-table.mjs:583-596)."
+  },
+  {
+   "key": "S10-11",
+   "state": "fixed",
+   "note": "remnant.tieForItem: guardTieTraceHolder - trwa incydent, nadawca gra uczestnika, który trzyma przedmiot (bridge-guards.mjs:803-814)."
+  },
+  {
+   "key": "S10-20",
+   "state": "fixed",
+   "note": "Rekord ciała czytany przez Investigation ze znacznika odkrycia (events.mjs:540-556, E11); odczyt kodu, testu nie uruchamiałem."
+  },
+  {
+   "key": "S10-40",
+   "state": "fixed",
+   "note": "despair.adjust gmOnly (bridge-table.mjs:770-779), sendBack guardSendbackPlace (bridge-guards.mjs:867ff), share guardShareSecret i guardShareGuest (bridge-guards.mjs:703-711), typy gracza prep/resolution (remnants.mjs:870), observe.resolve sprawdza entry.actorId (observe.mjs:670)."
+  },
+  {
+   "key": "S11-01",
+   "state": "fixed",
+   "note": "remember() z trusted=false czyści słowa gracza cleanCardHtml, secretHtml czyści ponownie wpisy niezaufane (secret.mjs:516-525, 599-610); 30-security sprawdza onerror (30-security.mjs:738-764). Działanie cleanHTML na v14 niezmierzone (harness ma zastępnik, lib/futil.mjs:25-48)."
+  },
+  {
+   "key": "S11-05",
+   "state": "fixed",
+   "note": "playerWords zdejmuje .drpg-gm-only i .drpg-call-actions z kopii gracza (secret.mjs:350-372), drawPrivateCard zdejmuje je też przy rysowaniu (secret.mjs:1003-1030)."
+  },
+  {
+   "key": "S11-27",
+   "state": "fixed",
+   "note": "Dźwięk z karty gracza bez ignoresVolume i bez forGm (sfx-play.mjs:716-731), popupForce tylko od GM-a (popup.mjs:1179-1183), GM_META w meta gracza (secret.mjs:243)."
+  },
+  {
+   "key": "S11-28",
+   "state": "partial",
+   "note": "KEEP_PINNED 2000 (secret.mjs:501), pakiet gracza do 32 KB (secret.mjs:166, 1389-1396), powiadomienie GM-a przy pełnym magazynie (secret.mjs:576-584), pruneOrphans. Karty, które GM wystawia z tekstem gracza, nie mają limitu: przepełnienie po dwóch pakietach zmierzone (N02)."
+  },
+  {
+   "key": "S14-03",
+   "state": "superseded",
+   "note": "Reguła regex zastąpiona deklaratywną tabelą BRIDGE_ACTIONS (bridge-table.mjs:102ff), w której każdy wiersz deklaruje strażników i claims; poprawki z opisu zrobione (owns w call.approve i dynamic.difficulty, canSee w project.progress, guardTieTraceHolder)."
+  }
+ ],
+ "findings": [
+  {
+   "id": "L02-security-leaks-N01",
+   "title": "card.post: gracz każe primary GM-owi wystawić jako autor (w incydencie z aliasem 'Monokuma') kartę o własnej treści do wybranego gracza, bez GM-ów wśród czytelników",
+   "severity": "medium",
+   "category": "spoofing",
+   "where": "scripts/bridge-table.mjs:1315-1329 (wiersz ACTION_CARD: knownSender, guardCardSpeaker, guardCardReaders); scripts/bridge-guards.mjs:1286-1296; scripts/bridge-runs-records.mjs:897-904; scripts/secret.mjs:1116, 1183-1213, 1221-1236",
+   "problem": "card.post powstał (E08+E28 fix r2-H5), żeby w czasie incydentu autorem karty gracza był GM, a nie gracz. Wiersz nie sprawdza jednak, czy incydent trwa, ani kto czyta: guardCardReaders wymaga tylko, by każdy czytelnik był użytkownikiem świata, a guardCardSpeaker przepuszcza kartę bez mówcy. Z konsoli gracza requestCardPost({ content, whisper: [inny gracz] }) daje dokument, którego autorem jest GM; GM-owie nie są czytelnikami, więc nie trzymają słów i nie wiedzą, co wyszło w ich imieniu. U odbiorcy alias karty to imię GM-a poza incydentem, a w incydencie karta jest veiled z aliasem DRPG.Secret.speaker, czyli 'Monokuma'. Moduł wie, że to gracz (meta askedBy, cardWriter), ale log czatu i nagłówek karty Daggerheart (wg odczytu modułu w safeword.mjs:27-35 drukuje autora karty bez aktora) tego nie mówią. W grze o ukrytym zabójcy to mówienie głosem prowadzącego do innego gracza poza wzrokiem GM-ów. Treść jest czyszczona (bez skryptu), limit 32 KB działa.",
+   "fix": "W wierszu ACTION_CARD odmowa poza incydentem (incidentRuns() po stronie primary) i wymóg, by czytelnicy zawierali nadawcę albo GM-ów; w postAsked dopisać gmIds() do czytelników słów, żeby GM-owie trzymali każdą kartę wystawioną w ich imieniu. Kartę z askedBy rysować z imieniem pytającego (albo neutralnym aliasem) w nagłówku na przeglądarkach, które trzymają meta, i zapisać wiersz w dzienniku primary (kto poprosił, do kogo). Test tier 2: card.post poza incydentem i z czytelnikami bez GM-a - odmowa, nic nie wystawione.",
+   "evidence": "Sonda harnessu (probe, uruchomiona przez hrun z /home/user/main/audit/harness, 12.11.2026, 1.2.104 b97028e1). P1, poza incydentem (murderState.active false): p1 wywołał requestCardPost({ content: '<p>L02N01 probe words</p>', whisper: [p2], speaker: null }) -> ok true, id uN4ViiK600AKRQg0; na p2: author USERGM0000000000 (isGM true), whisper [p2], speaker.actor null, alias 'GM', słowa trzymane, cardWriter = p1 (askedBy); na GM: secretHtml null (stub), cardWriter = GM. Q1, w incydencie (murderState { active: true, stage: 'incident' }): ok true, na p2 author GM, whisper 4 użytkowników, veiled true, alias 'Monokuma', słowa trzymane; na GM słowa null. Test tier 2 'a private card a player asks the GM to post in an incident is the GM's...' przechodzi (run-tests --tier 2 --only, 7 passed), ale jego czytelnicy to zawsze [gracz, ...gmIds()] (tests-tier2.mjs:10849-10853), więc tego przypadku nie mierzy.",
+   "verified": null
+  },
+  {
+   "id": "L02-security-leaks-N02",
+   "title": "Pola tekstowe pakietów bez limitu długości i częstotliwości: karty Dynamic i Observe powielają tekst gracza trzykrotnie w magazynie GM-a; dwa pakiety przepełniły pamięć przeglądarki GM-a",
+   "severity": "medium",
+   "category": "dos",
+   "where": "scripts/bridge-guards.mjs:1433-1443 (as.text bez limitu, z odesłaniem do E43); scripts/bridge-table.mjs:103-110, 379-385, 427-437, 459-465; scripts/call-gm.mjs:240, 262-290, 404-409, 775, 790; scripts/eclipse.mjs:505-523; scripts/secret.mjs:552-585",
+   "problem": "description (dynamic.difficulty), request (observe.target), note, effect i callLabel (call.approve), note i room (murder.park, murder.betrayal) trafiają do run bez limitu; komentarz w bridge-guards.mjs:1435-1436 mówi to wprost i odsyła do etapu E43, który nie jest wydany. askDynamicByCard wkłada opis do blockquote i do data-desc obu przycisków, askObserveByCard tak samo z request, więc przypięta karta GM-a (trusted) waży ok. trzy razy tyle co tekst i trafia do secretCards każdego GM-a; note z murder.park ląduje też w magazynie GM pendingMurders. Liczby próśb nic nie ogranicza (każda ma nowy requestId), a prośba Dynamic nie wymaga po stronie GM-a żadnej zapłaty. secretCards i magazyny GM dzielą ten sam localStorage, więc pełny magazyn kart to także ryzyko dla zapisu kluczy odpowiedzi (moduł sam tak ostrzega). Inne drogi gracza mają limity (secret.card i card.post 32 KB, notatka przedsesyjna, komentarz w rozprawie, pokój safewordu 120 znaków, notatka propozycji cechy PROPOSAL_NOTE_MAX), więc to luka w regule, nie decyzja.",
+   "fix": "Limit w samym sanitizerze (as.text(max)) z wartością per pole: opis i prośba np. do 2000 znaków, room do 120 jak w safewordzie, note do MAX_PLAYER_BYTES; przekroczenie jako badRequest bez zapisu. W askDynamicByCard i askObserveByCard nie kopiować tekstu do data-* (przycisk niesie rid, primary bierze tekst z dynamicAsks/observeAsks). Limit częstotliwości próśb kartowych na nadawcę, jak safewordRepeatMs. Test: pakiet ponad limit odrzucony, magazyn GM-a bez zmian.",
+   "evidence": "Sonda P2 (jak wyżej): jeden requestDynamicDifficulty z opisem 300 000 znaków -> wpis karty w secretCards GM-a 900 759 znaków, 3 kopie opisu (blockquote + 2 data-desc), localStorage GM-a z 18 017 do 920 252 znaków. P2b: cztery kolejne prośby po 720 000 znaków - po pierwszej localStorage 3 082 318; przy drugiej, trzeciej i czwartej '[gm:err] Could not keep a private card [QuotaExceededError: The 5000000-code unit storage quota has been exceeded.]' i powiadomienie DRPG.Secret.storeFull ('From now on private cards arrive blank here, and the Truth Bullet and Remnant answer keys stop saving'); tych kart GM nie zachował. Mały zapis do keyPlanStore potem się zapisał (persisted), bo zostało ok. 1,9 mln jednostek; pełnego zablokowania magazynów GM nie mierzyłem. Limit 5 000 000 to jsdom, nie przeglądarka; ile serwer Foundry przenosi w jednym pakiecie, niezmierzone (LIVE-E04-02).",
+   "verified": null
+  },
+  {
+   "id": "L02-security-leaks-N03",
+   "title": "Plan morderstwa pośredniego z graczem budującym czytelny z konsoli widza, a reguła world-secrets i wpis known-leaks tego nie mierzą",
+   "severity": "medium",
+   "category": "test",
+   "where": "scripts/projects.mjs:1567-1568 (meta: room, indirectMurder, secret); scripts/projects-secrecy.mjs:70, 109-110; scripts/world-secrets.mjs:66-73; audit/harness/known-leaks.json:6-17 (S17-31, closes E43, match tylko countdowns.*.name)",
+   "problem": "Po E05 zabójca i warunek wyszły z projectMeta, ale wiersz tajnego projektu w świecie nadal mówi room, secret: true i indirectMurder: true, a daggerheart.Countdowns trzyma nazwę i mapę ownership z graczem budującym. Konsola niewtajemniczonego gracza jednym filtrem dostaje pokój pułapki i gracza, który ją buduje, przed zbrodnią. Podręcznik GM-a mówi to otwarcie (gm-handbook.en.md:712), a known-leaks wpisuje S17-31 jako high do zamknięcia w E43. Instrument jest jednak ślepy na połowę tego: reguła world-secrets dla projectMeta nie zna pól indirectMurder ani room tajnego wiersza (findWorldSecrets na tym projectMeta zwraca pustą listę), a wpis known-leaks mierzy tylko nazwę. Jeśli E43 przeniesie samą nazwę, R9 i 72-canary będą zielone przy świecie, który mówi każdej konsoli 'w Gym jest tajna pułapka morderstwa'. Decyzja D27 (known-leaks.json, 'about') zabrania odkładania tożsamości zabójcy.",
+   "fix": "W E43: indirectMurder i room tajnego projektu do projectSecretStore albo do whileSecret reguły projectMeta (world-secrets.mjs:69-72), ownership tajnego projektu poza Countdowns; wpis S17-31 rozszerzyć o seed na ownership i na flagę indirectMurder, R190 o fixture tych pól. Do tego czasu sam wyciek jest high i otwarty na 1.2.104.",
+   "evidence": "Sonda P3 (jak wyżej): na GM createProject({ name: 'L02 probe plan', room: 'Gym', indirectMurder: true, killerId: Aiko, by: Aiko }) -> id tVFHaCn7uj4CP2xz; na p2 (bez wglądu): projectMeta[id] = { room: 'Gym', secret: true, indirectMurder: true }, Countdowns.countdowns[id] = { name: 'L02 probe plan', ownership: { default: 0, USERP10000000000: 2, USERP20000000000: 0, USERP30000000000: 0 } }, czyli gracz p1; findWorldSecrets({ settings: { projectMeta } }) -> []. R9 i R190 zielone (run-tests --tier 2 --only R9 --only R190 --only ..., 7 passed, 0 failed, 12.11.2026).",
+   "verified": null
+  },
+  {
+   "id": "L02-security-leaks-N04",
+   "title": "Autor karty prywatnej może później przepisać jej słowa i fakty w przeglądarkach GM-ów",
+   "severity": "low",
+   "category": "integrity",
+   "where": "scripts/secret.mjs:1372-1404 (onSecretPacket, gałąź nadawcy nie-GM); scripts/secret.mjs:1579-1595 (secretSummaries); scripts/action-report.mjs:357-378; scripts/day-summary.mjs:149",
+   "problem": "secret.card od nie-GM-a jest przyjmowany zawsze, gdy nadawca jest autorem dokumentu: remember() nadpisuje słowa, a podany summary nadpisuje fakty karty. Karta wyniku akcji (report, whisperToOwner) poza incydentem ma autora-gracza, więc konsola gracza może po fakcie zmienić w przeglądarce GM-a, co karta mówi, i fakty, z których GM składa podsumowanie pory dnia (leftTrace, item, total). Rozstrzygnięcia czytają rekord rzutu GM-a i rejestr śladów, więc liczby gry są bezpieczne; zmienia się zapis, z którego GM odtwarza przebieg. Wywołania updateSecret, które znalazłem (call-gm.mjs:546, 1173; reroll.mjs:746; murder-rules.mjs:3562; sheet-audit.mjs:2862-2863; migrate.mjs:1324), są po stronie GM-a, więc nic legalnego nie potrzebuje drugiego pakietu od gracza (nie sprawdzałem każdej bramki).",
+   "fix": "Na GM-ie przyjmować słowa i fakty nie-GM-a dla danej karty raz, przy pierwszym pakiecie, a następne odrzucać z wpisem w logu (albo trzymać pierwszą wersję obok). Test: drugi secret.card autora nie zmienia słów ani faktów u GM-a.",
+   "evidence": "Sonda Q2 (jak wyżej): p1 postSecret({ content: 'L02Q2 first words: a trace was left', whisper: [p1, GM], summary: { actorId: Aiko, item: 'L02Q2 knife', leftTrace: true, total: 9 } }); na GM słowa i fakt jak wysłane. Potem p1 z konsoli wysłał pakiet secret.card z tym samym id, html 'L02Q2 second words: nothing was left' i summary { item: 'L02Q2 nothing', leftTrace: false, total: 19 } do GM-a -> na GM secretHtml zwraca nowe słowa, a secretSummaries: item 'L02Q2 nothing', leftTrace false, total 19.",
+   "verified": null
+  }
+ ],
+ "covered": "Przekrój po całym module @1.2.104 (b97028e1). Przeczytane w całości: world-secrets.mjs, gm-bridge.mjs, secret.mjs (1637 linii), plik reguł trust-model.md, audit/harness/known-leaks.json. Przeczytane w częściach, które dotyczą bezpieczeństwa: bridge-table.mjs (wszystkie 80 wierszy - strażnicy i pola wyciągnięte skryptem, 16 wierszy przeczytanych całych), bridge-guards.mjs (as/pick, strażnicy card.post, call.arm, tieForItem, share, sendBack), bridge-runs-acts.mjs i bridge-runs-records.mjs (handleParkMurder, handleDifficulty, handleHopeCall, handleFriskAnswer, handleCardPost, handleNoteSave), call-gm.mjs (callCardHtml, cztery nadawcy kart po stronie primary, callGm), gm-store.mjs (nagłówek, gmsRefusal, obsługa pełnego magazynu), sync.mjs, vote.mjs, frisk.mjs, incident-store.mjs, mastermind.mjs, fog.mjs (droga księgi), passages.mjs i passages-gm.mjs (nasłuchiwacze, wyłom), voice.mjs i voice-client.mjs (nasłuchiwacze), movement-audit.mjs, call-effects.mjs, eclipse.mjs, truth-bullets.mjs, pre-session-note.mjs, safeword.mjs, sfx.mjs, sfx-play.mjs, popup.mjs (bramki autora), projects-secrecy.mjs, projects.mjs (createProject), projects-map.mjs, remnants.mjs (tworzenie tokenu, D11), body-tile.mjs, monocub.mjs, chapter.mjs (dwie fazy), investigation.mjs (plan), relay-guard.mjs (nagłówek), trial.mjs (karta dowodu), action-dynamic.mjs, action-report.mjs, day-summary.mjs, cleanup.mjs, search-tokens.mjs, traps.mjs, observe.mjs, remnants.mjs; podręcznik GM-a sekcje 1 i 11, podręcznik gracza sekcja 15. Spis: wszystkie 30 wywołań game.socket.on i wszystkie game.socket.emit (grep, broadcasty bez recipients sprawdzone: bridge.gmReady, fog.shareAsk z primary, sync tylko od GM, DhRefresh). Uruchomione: dwie sondy harnessu (P1-P3, Q1-Q2) i run-tests --tier 2 --only R9 --only R190 --only 'a private card a player asks the GM to post in an incident' (7 passed, 0 failed, 0 skipped, 6,5 s). Próbkowane, nie czytane całe: 115 miejsc innerHTML/insertAdjacentHTML (czytane: secret.mjs, call-gm.mjs, trial.mjs, action-dynamic.mjs, safeword.mjs, popup.mjs), relay-guard.mjs poza nagłówkiem, sheet-audit.mjs, roll-draw.mjs, resource-guard.mjs, notice-history.mjs, sheet.mjs.",
+ "limits": "Brak Foundry v14 i Daggerheart na żywo: nagłówek karty Daggerheart dla karty bez aktora znam tylko z komentarza w safeword.mjs:27-35 (alias zmierzony w shimie harnessu), działanie foundry.utils.cleanHTML na v14 i adresowanie recipients przez serwer niezmierzone (harness ma zastępniki, lib/futil.mjs). Limit localStorage w sondzie to 5 000 000 jednostek jsdom; prawdziwa przeglądarka i rozmiar pakietu, jaki przenosi serwer Foundry, niezmierzone, więc liczba pakietów potrzebnych do przepełnienia na stole jest nieznana. Nie badałem, czy konsola gracza może dołączyć do innego pokoju głosowego LiveKit (to zależy od avclient-livekit). Nie przeczytałem wszystkich 115 miejsc innerHTML ani całego relay-guard.mjs, sheet-audit.mjs i roll-draw.mjs, więc druga warstwa (kości, arkusz) jest oceniona z modelu, testów i nagłówków, nie z pełnego odczytu. Bez mutacji: nie sprawdzałem, czy testy 30-security i 83-roll-integrity czerwienieją po wyłączeniu strażników. Weryfikator kontradyktoryjny nie przeszedł jeszcze po tych zgłoszeniach (verified: null)."
+}
