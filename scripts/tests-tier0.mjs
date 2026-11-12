@@ -3621,7 +3621,9 @@ const REGRESSIONS = [
         ok(!bad.length, `these sizes do not follow the Interface scale: ${bad.join(", ")}`);
         // Counted as well, so nobody satisfies the sweep by deleting the token.
         ok(factored >= 22, `only ${factored} stated sizes carry the factor`);
-        equal(clamped, 2, "the pause caption is no longer the only size with a viewport container");
+        // 2 the pause caption's; 4 since E61 C4-C5 (12.11.2026): the sequences' stamp, name and vote sizes, whose host is
+        // the whole screen (danganronpa.css THE SEQUENCES)
+        equal(clamped, 6, "the pause caption and the sequences are no longer the only sizes with a viewport container");
         ok(rungs >= 140, `only ${rungs} declarations read a rung - 164 of them did, so some have been unwired`);
     }],
 
@@ -20119,9 +20121,10 @@ const REGRESSIONS = [
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
             // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
-            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches.
-            counts: [19, 11, 36], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 36, the clock's entry does not "
+            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
+            // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences.
+            counts: [19, 11, 37], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 37, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 

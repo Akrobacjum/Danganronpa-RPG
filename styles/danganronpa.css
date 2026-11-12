@@ -17342,7 +17342,8 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
    stays on top, MK-R1) and over every window; Foundry tools and Map tools hidden for the span and back as they stood.
    The mockups are drawn on a 1600 x 900 table screen; `--drpg-seq-u` is one of its pixels on this screen, so every
    length below is the mockup's number times it. The Legacy look is the rule; Stained Glass sets its own tokens
-   (stained-glass.css, THE SEQUENCES).
+   (stained-glass.css, THE SEQUENCES). A size alone is written in a clamp(): its container is the viewport, as the
+   pause caption's is (R60), with an 11 px floor for a small screen.
    ========================================================================== */
 #drpg-sequence {
     --drpg-seq-u: min(calc(100vw / 1600), calc(100vh / 900));
@@ -17464,8 +17465,8 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     padding: calc(40 * var(--drpg-seq-u)) 0;
     white-space: nowrap;
 }
-#drpg-sequence .drpg-seq-verdict.is-innocent .drpg-seq-stamp { font-size: calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)); }
-#drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-stamp { font-size: calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-verdict.is-innocent .drpg-seq-stamp { font-size: clamp(11px, calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)), 999px); }
+#drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-stamp { font-size: clamp(11px, calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)), 999px); }
 #drpg-sequence .drpg-seq-name {
     position: relative;
     margin: calc(-30 * var(--drpg-seq-u)) 0 0 calc(-100 * var(--drpg-seq-u));
@@ -17479,11 +17480,11 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     text-transform: uppercase;
     overflow-wrap: anywhere;
 }
-#drpg-sequence .drpg-seq-name.is-long { font-size: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-name.is-long { font-size: clamp(11px, calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)), 999px); }
 #drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-name {
     margin-left: 0;
     max-width: 100%;
-    font-size: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u));
+    font-size: clamp(11px, calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)), 999px);
 }
 #drpg-sequence .drpg-seq-votes {
     position: absolute;
