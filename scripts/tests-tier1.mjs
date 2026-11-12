@@ -38258,6 +38258,8 @@ const INVARIANTS = [
          * element (the same weight and property: none in the glass harness's page in Chromium, 04.11.2026), so their
          * order inside the section draws nothing; the `@media` overrides do tie with the rules they override, and their
          * order is read from the sheet's text (mutant c6-m1b, the reduced-motion block above the word's run).
+         * The six gm-launcher prints moved on gaps-108 (R3986, 12.11.2026): the eye's sprite lost its lower-left tail, so its
+         * mask's value is another; nothing else of the hexagon's winners changed (the rest of the prints as they were).
          */
         const C = await styleCascade();
         const { PROPS } = await import("./style-snapshot.mjs");
@@ -38509,21 +38511,21 @@ const INVARIANTS = [
            headless; the pressed switch's rules match nothing this test draws. Every other print, `left` and the @media
            rules as they were. */
         const C5 = {
-            "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
+            "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
-            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
+            "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
-            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
+            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:19e941be",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
-            "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
+            "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
+            "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
@@ -40891,6 +40893,67 @@ const INVARIANTS = [
             "{first: the first mark (rows 100 px in a list of 120); watched: what the live ResizeObservers watch after two marks of the same list; "
             + "grown / shrunk: the attribute after the observer fires with the rows 200 px in 120, then 110 in 120}");
     }],
+    ["R3984 - no line at the screen's edges while paused (gaps, the owner's table on 1.2.108): `#pause` is the whole viewport (danganronpa.css, \"The band, and the box it lived in\"), so no rule of the module's sheets gives `#pause.paused` a top or bottom border, under either theme", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: a thin light line flashes along the top and the bottom of the whole screen
+         * every two or three seconds, and only while the game is paused. stained-glass.css's pause band kept a 1 px
+         * accent `border-top` and `border-bottom` from when `#pause` was Foundry's 180 px band mid-screen; since
+         * danganronpa.css made the element the full viewport (`top: 0; height: 100vh`) those two seams lie on the
+         * screen's first and last rows. Read here by the sheets' cascade (`styleCascade`), every property that can draw
+         * either seam, on a body of its own per theme. Whether core's own `pulse` or the veil is what makes the seam
+         * flash at a table is not read here (no layout, no paint): the shots and a table say that. Red on 4dfac3a9:
+         * stained-glass draws both, 1px solid.
+         */
+        const C = await styleCascade();
+        const sides = {
+            top: ["border", "border-width", "border-style", "border-block", "border-block-start", "border-top", "border-top-width", "border-top-style"],
+            bottom: ["border", "border-width", "border-style", "border-block", "border-block-end", "border-bottom", "border-bottom-width", "border-bottom-style"]
+        };
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<figure id="pause" class="paused"><img alt=""><figcaption>Game Paused</figcaption></figure>`;
+            const pause = body.querySelector("#pause");
+            for (const [side, names] of Object.entries(sides)) {
+                const w = C.winner(pause, names);
+                const drawn = !!w && !/^\s*(none|0(px)?)\b/.test(w.value) && !/\b(none|hidden|transparent)\s*$/.test(w.value.trim());
+                read[`${theme.replace("drpg-theme-", "")} ${side}`] = drawn ? `${w.file}: ${w.value.trim()}` : "none";
+            }
+        }
+        equal(stableJson(read), stableJson({
+            "stained-glass top": "none", "stained-glass bottom": "none", "monokuma-legacy top": "none", "monokuma-legacy bottom": "none"
+        }), "{theme side: the border the paused full-screen #pause draws there, or none}");
+    }],
+    ["R3983 - one project never fades as if more stood below it (gaps, the owner's table on 1.2.108): projects-tray.mjs `markTrayMore` marks `data-drpg-more` only when what overflows the list is at least half a row (the first row's own height), so a list of one row that overflows by a few pixels of something that is no row is not marked, and a list with a row standing below still is", async () => {
+        /*
+         * Gaps, 12.11.2026 (the owner, at a table on 1.2.108 with Daggerheart 2.12.8: "with one project the name looks
+         * darker and fades out"). The fade is the list's foot (`data-drpg-more`, both themes), and it fades the last row -
+         * with one project, the only one. The mark read `scrollHeight - clientHeight - scrollTop > 1`: any overflow past 1 px.
+         * MEASURED on the glass harness (Daggerheart 2.10.11's rows, the harness's): one project's list overflows by 1 px
+         * under the glass on a GM's page (scroll 27, client 26) and by 0 elsewhere, at 1280x720 to 2560x1440 and device
+         * scales 1-1.5 - never marked; with 4 px planted under the row, marked, and the row faded (the commit's shots). What
+         * overflows at the owner's table under 2.12.8 is not read here: its rows are not in this harness. Here, as R1431
+         * stands in, the heights are the test's own (jsdom lays nothing out): one row 27 px in a list 26 px tall that
+         * scrolls 30 px (3 px past, no row) - and a control, a list whose second row stands wholly below (scroll 57). Red at
+         * 7c0d1af9: the one row marked.
+         */
+        const PT = await import("./projects-tray.mjs");
+        must(typeof PT.markTrayMore === "function", "projects-tray.mjs has no markTrayMore - nothing marks the list's foot");
+        const stand = (rows, scroll, client) => {
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="countdowns-container"><div class="countdown-category-container">${Array.from({ length: rows }, (_, i) => `<div class="countdown-container" data-countdown="r3983-${i}"></div>`).join("")}</div></div>`;
+            const list = root.querySelector(".countdowns-container");
+            Object.defineProperty(list, "scrollHeight", { value: scroll, configurable: true });
+            Object.defineProperty(list, "clientHeight", { value: client, configurable: true });
+            for (const row of root.querySelectorAll(".countdown-container")) Object.defineProperty(row, "offsetHeight", { value: 27, configurable: true });
+            return root;
+        };
+        const read = { one: PT.markTrayMore(stand(1, 30, 26)), below: PT.markTrayMore(stand(2, 57, 26)) };
+        equal(stableJson(read), stableJson({ one: false, below: true }),
+            "{one: one row of 27 px, the list 26 tall scrolling 30 - marked?; below: two rows, the second wholly below (scroll 57 of 26) - marked?}");
+    }],
     ["R1433 - the Projects tray reads in rows under Monokuma Legacy too (E23 fix G3, E23-16; the end review's screens M1): a row's name and count stand on one line - the content a row, its items on the baseline - the name taking the row's room and giving way with its ellipsis, the count and the controls after it at their own width; the tray no wider than 360 px a scale, as the glass's, so the longer row does not drag the column", async () => {
         /*
          * E23 fix G3, 08.11.2026; the end review's screens M1. E23-16's "each row's name and count on one baseline" and
@@ -42458,6 +42521,134 @@ const INVARIANTS = [
         } finally { body.classList.remove(cls); h?.cancel(); rig.done(); }
         equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
             "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
+    }],
+    ["R3986 - the GM button's eye has no line under it, and the Remnant card's eye keeps its tail (gaps, the owner's table on 1.2.108; the owner's yes on the review page, 12.11.2026): danganronpa.css's launcher mask draws nothing below row 16 and not the hanging pixel at 8,17, while pixel-icons.css's `--drpg-pix-monokuma-eye` and `--drpg-pix-gm` still draw both", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: "na przycisku pod okiem Monokumy jest kreska". The harness drew no element
+         * under the eye; the stroke was the drawing's own lower-left tail (rows 17 and 18) and the pixel hanging at 8,17
+         * (tools/glyphs.json chrome:monokuma-eye, then `same` as legacy:monokuma-eye). The owner chose the cut on the review
+         * page for the launcher alone: the Remnant card's GM-placed trace keeps the old eye, so the chrome row no longer
+         * shares the legacy row's drawing. Read off the served sheets' path data. Red at 02d20f9a: the launcher has both.
+         */
+        const dcss = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const cells = d => { const set = new Set(), ys = []; for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) { set.add(`${+x + k},${+y}`); ys.push(+y); } return { set, ys }; };
+        const pathOf = (text, re, what) => {
+            const m = re.exec(text);
+            must(m, `${what} carries no path in its sheet - this reads nothing`);
+            return cells(m[1]);
+        };
+        const launcher = pathOf(dcss, /#drpg-gm-launcher i::before \{\s*-webkit-mask-image:[^;]*?d='([^']+)'/, "the launcher's eye");
+        const remnant = pathOf(pcss, /--drpg-pix-monokuma-eye:[^;]*?d='([^']+)'/, "--drpg-pix-monokuma-eye");
+        const glassGm = pathOf(pcss, /--drpg-pix-gm:[^;]*?d='([^']+)'/, "--drpg-pix-gm");
+        must(launcher.set.size > 20 && remnant.set.size > 20, "an eye of fewer than 20 pixels - this reads nothing");
+        const lowest = c => Math.max(...c.ys);
+        equal(JSON.stringify([launcher.set.has("8,17"), lowest(launcher), remnant.set.has("8,17"), lowest(remnant), glassGm.set.has("8,17")]), JSON.stringify([false, 16, true, 18, true]),
+            "[the launcher's eye draws 8,17, its lowest row, the Remnant card's eye draws 8,17, its lowest row, the glass gm eye draws 8,17]");
+    }],
+    ["R3987 - the Projects action wears the hammer the owner approved, in both themes (gaps, the owner's yes on the review page, 12.11.2026): the action's icon reads `--drpg-pix-hammer` under Stained Glass (`--drpg-glyph`) and under Monokuma Legacy (`mask-image`), both of pixel-icons.css's declarations of it draw the approved rows, and the Remnant card's project glyph is left as it was", async () => {
+        /*
+         * The owner asked for a hammer on the character sheet's Projects action (12.11.2026): Stained Glass wore the
+         * hourglass, Legacy a plain T. The approved drawing is the review page's claw hammer, below, one drawing for both
+         * themes (glass:hammer and legacy:hammer, `same`). Read by the sheets' cascade (`styleCascade`) on a body of its own
+         * per theme, and off pixel-icons.css's path data. Red at 02d20f9a: hourglass and project, no hammer token.
+         */
+        const HAMMER = ["........................", "........................", "........................", ".................###....", "........############....", "....################....", "...#################....", "...##.##############....", "..###...############....", "..##.......###...###....", "..##.......###..........", "..#........###..........", "...........###..........", "...........###..........", "...........###..........", "..........#####.........", "..........#####.........", "...........###..........", "..........#####.........", "...........###..........", "..........#####.........", "..........#####.........", "........................", "........................"];
+        const C = await styleCascade();
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const read = {};
+        for (const [theme, prop] of [["drpg-theme-stained-glass", "--drpg-glyph"], ["drpg-theme-monokuma-legacy", "mask-image"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-action-grid"><button type="button" class="drpg-action-button" data-drpg-action="project"><i class="fa-solid fa-hammer drpg-action-icon"></i></button></div><span class="drpg-remnant-glyph" data-drpg-act="project"></span>`;
+            const w = C.winner(body.querySelector(".drpg-action-icon"), [prop]);
+            const r = C.winner(body.querySelector(".drpg-remnant-glyph"), ["mask-image", "-webkit-mask-image"]);
+            read[theme.replace("drpg-theme-", "")] = [w?.value.trim() ?? null, r?.value.trim() ?? null];
+        }
+        const drawn = [];
+        for (const [, d] of pcss.matchAll(/--drpg-pix-hammer:[^;]*?d='([^']+)'/g)) {
+            const grid = Array.from({ length: 24 }, () => Array(24).fill("."));
+            for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) grid[+y][+x + k] = "#";
+            drawn.push(grid.map(r => r.join("")).join("\n") === HAMMER.join("\n"));
+        }
+        equal(JSON.stringify([read, drawn]), JSON.stringify([{
+            "stained-glass": ["var(--drpg-pix-hammer)", "var(--drpg-pix-hourglass)"],
+            "monokuma-legacy": ["var(--drpg-pix-hammer)", "var(--drpg-pix-project)"]
+        }, [true, true]]), "[{theme: [the action icon's glyph, the Remnant card's project glyph]}, [each declaration of --drpg-pix-hammer draws the approved rows]]");
+    }],
+    ["R3988 - Hold this ready and Hand this over wear the pair the owner picked, in both themes (gaps-108; the owner's pick of round 2 on the review page, 12.11.2026: C's hand raising a star, A's arrow from one figure to another): an inventory row's equip and handover glyphs read `--drpg-pix-hold-ready` and `--drpg-pix-hand-over` under Stained Glass (`--drpg-glyph`) and Monokuma Legacy (`mask-image`), every declaration of each draws the picked rows, and the same Font Awesome classes outside the row keep what they wore", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: "Hold this ready" and "Hand this over" were too alike (a fist and an open palm
+         * under Stained Glass, a small fist and a cupped hand under Legacy). Round 1's pair still read as two blobs; round 2
+         * drew three pairs, every Hold one tall upright object and every Give a wide shape with a motion, and the owner took
+         * C's Hold and A's Give. The row buttons' classes are shared (fa-hand-fist: Strike, Resolve, Determination;
+         * fa-hand-holding: Secure a Trace, Plant), so the drawing is keyed on the row button, and the classes outside it are
+         * read too. Read by the sheets' cascade (`styleCascade`) on a body of its own per theme, and off pixel-icons.css's
+         * path data. Red at e4fa790f: fist and palm (glass), fist and give (legacy), no token of either name.
+         */
+        const HOLD = ["........................", "...........##...........", "...........##...........", "..........####..........", ".......##########.......", "........########........", ".........######.........", ".........##..##.........", "........##....##........", "........................", ".........##..##.........", ".........##..##.........", "........########........", "......##########........", "......##########........", "......##########........", "........########........", "........########........", ".........######.........", ".........######.........", ".........######.........", ".........######.........", "........................", "........................"];
+        const GIVE = ["........................", "........................", "........................", "........................", "........................", "........................", "..###..............###..", "..###..............###..", "..###..............###..", ".............#..........", ".#####.......##...#####.", ".#####.......###..#####.", ".#####.##########.#####.", ".#####.##########.#####.", ".#####.##########.#####.", ".#####.......###..#####.", ".#####.......##...#####.", ".#####.......#....#####.", "........................", "........................", "........................", "........................", "........................", "........................"];
+        const C = await styleCascade();
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const read = {};
+        for (const [theme, prop] of [["drpg-theme-stained-glass", "--drpg-glyph"], ["drpg-theme-monokuma-legacy", "mask-image"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-sheet-x"><ul class="drpg-inventory-list"><li><button type="button" class="drpg-row-button drpg-row-equip"><i class="fa-solid fa-hand-fist"></i></button>`
+                + `<button type="button" class="drpg-row-button drpg-row-handover"><i class="fa-solid fa-hand-holding"></i></button></li></ul>`
+                + `<span class="drpg-elsewhere"><i class="fa-solid fa-hand-fist"></i><i class="fa-solid fa-hand-holding"></i></span></div>`;
+            const [equip, give, fist, holding] = body.querySelectorAll("i");
+            const glyph = el => [prop, "-webkit-mask-image"].map(p => C.winner(el, [p])?.value.trim()).find(Boolean) ?? null;
+            read[theme.replace("drpg-theme-", "")] = [glyph(equip), glyph(give), glyph(fist), glyph(holding)];
+        }
+        const drawsOf = name => [...pcss.matchAll(new RegExp(`--drpg-pix-${name}:[^;]*?d='([^']+)'`, "g"))].map(([, d]) => {
+            const grid = Array.from({ length: 24 }, () => Array(24).fill("."));
+            for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) grid[+y][+x + k] = "#";
+            return grid.map(r => r.join("")).join("\n");
+        });
+        const drawn = [drawsOf("hold-ready").map(g => g === HOLD.join("\n")), drawsOf("hand-over").map(g => g === GIVE.join("\n"))];
+        equal(JSON.stringify([read, drawn]), JSON.stringify([{
+            "stained-glass": ["var(--drpg-pix-hold-ready)", "var(--drpg-pix-hand-over)", "var(--drpg-pix-fist)", "var(--drpg-pix-palm)"],
+            "monokuma-legacy": ["var(--drpg-pix-hold-ready)", "var(--drpg-pix-hand-over)", null, null]
+        }, [[true, true], [true, true]]]), "[{theme: [the equip glyph, the handover glyph, fa-hand-fist outside the row, fa-hand-holding outside the row]}, [each declaration of --drpg-pix-hold-ready, of --drpg-pix-hand-over, draws the picked rows]]");
+    }],
+    ["R3985 - the panes that stand keep their frost through a turn (glass.mjs `glassTurn`, `turnPlan`; gaps, the owner's table on 1.2.108): on a stand-in curtain a recut that moves two panes and leaves two standing lays no animation that takes the frost to 0, clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`convexOverlap`), and to the new cut once they end", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: folding or unfolding the Projects tray takes the blur off the notices tile
+         * beside it for a moment, and it comes back. The blur under Stained Glass is one element, `#drpg-curtain-frost`,
+         * clipped to the cut; E23 C1b's turn faded the whole of it out over 120 ms whenever a recut moved glass, and back
+         * in over 180 ms once the moves were over - so every pane, the ones the fold never touched included, stood
+         * unfrosted for the turn's 700 ms. Measured on the glass harness at 1366x768 (4dfac3a9, the tray's class
+         * toggled): the frost's opacity 1.00 at 9 ms, 0.00 from 401 to 959 ms, 1.00 again at 1230 ms. Read here on a
+         * stand-in curtain (`turnRig`: panes 0 and 2 move, 1 and 3 stand), the colour kept, so it is the fold's kind of
+         * turn. Red at 4dfac3a9: the frost faded to 0 and was clipped to nothing of its own for the moves.
+         * Pane 0 moves from (0,0 200,0 0,150) to (0,0 260,0 0,190): its overlap is the old place whole, and 260 stands only
+         * in the new.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const rig = turnRig(G);
+        let read = null;
+        try {
+            rig.job.pathD = "M0 0H400V300H0Z";
+            const h = rig.turn({ force: true, flash: false });
+            must(h, "the stand-in recut planned no turn - this reads nothing");
+            must(h.plan.moves.length === 2 && !h.plan.recolour, `the stand-in recut does not move two panes in its colour (${h.plan.moves.length} moves) - this reads nothing`);
+            rig.frames();
+            const frost = document.getElementById("drpg-curtain-frost");
+            must(frost, "the turn laid no frost - this reads nothing");
+            const faded = rig.animations().some(a => a.el === frost && a.frames.some(f => Number(f.opacity) === 0));
+            const during = frost.style.clipPath;
+            for (const a of rig.animations()) if (a.el !== frost) a.finish();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise(resolve => setTimeout(resolve, 0));
+            read = [faded, during.includes("M200 0L400 0L400 150Z"), during.includes("M400 150L400 300L200 300Z"), during.includes("M0 0L200 0L0 150Z"), during.includes("260"), frost.style.clipPath === "path('M0 0H400V300H0Z')"];
+            h.cancel();
+        } finally { rig.done(); }
+        equal(JSON.stringify(read), JSON.stringify([false, true, true, true, false, true]),
+            "[a frost animation reaches 0, the moves' frost holds pane 1, holds pane 3, holds pane 0's old and new overlap, holds a corner only pane 0's new place has, the frost on the new cut after the moves]");
     }],
     ["R3120 - a recolour is a crossfade (glass.mjs `glassTurn`, E96 C2; the owner at the table on 1.2.101, H102 DIAGNOSIS 6): on a stand-in curtain a turn under a new accent bakes the new look per batch beside the old, rising 0 to 1 on the old one's delay while the old falls 1 to 0, each batch's two layers a group of their own with the new one added on; a moving pane's new place rises the same way under it; and the curtain is held at 0 under them until every rising layer ends, at one time", async () => {
         /*

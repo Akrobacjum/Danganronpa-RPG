@@ -393,7 +393,7 @@ export const THEMES = {
  *  where it has none, the name the drawing rounds draw (10, gaps). */
 export const ELEMENTS = {
     "ACTIONS.search": "search", "ACTIONS.observe": "observe", "ACTIONS.analyze": "brain",
-    "ACTIONS.project": "hourglass", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
+    "ACTIONS.project": "hammer", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
     "ACTIONS.tamper": "broom", "ACTIONS.directMurder": "direct-murder", "ACTIONS.move": "move", "ACTIONS.sabotage": "tamper",
     "HOPE_CALLS.support": "support", "HOPE_CALLS.experience": "cap", "HOPE_CALLS.ultimate": "star", "HOPE_CALLS.talent": "star",
     "HOPE_CALLS.contribution": "contribution", "HOPE_CALLS.reroll": "reroll", "HOPE_CALLS.sprint": "sprint",
@@ -666,6 +666,12 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 
 /** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
 export const FACE_RULES = [
+    /* gaps-108 (the owner's pick of round 2, 12.11.2026; R3988): an inventory row's Hold this ready and Hand this over
+       wore FACES's fist and palm, two hands an inch apart; each takes a drawing of its own, keyed on the row button,
+       since Strike, Resolve and Determination keep fa-hand-fist's fist and Secure a Trace and Plant fa-hand-holding's palm.
+       A row's handover that copies (a bedroom key, a Truth Bullet) wears fa-share-nodes and is left as it was. */
+    ["an inventory row's Hold this ready (its fa-hand-fist is Strike's)", ".drpg-row-equip > i.fa-hand-fist", "hold-ready"],
+    ["an inventory row's Hand this over (its fa-hand-holding is Secure a Trace's)", ".drpg-row-handover > i.fa-hand-holding", "hand-over"],
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
     ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
     /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
@@ -1220,12 +1226,14 @@ export function chromeThemeProblems(glyphs, css) {
  *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind); on 12.11.2026 three
  *  came back as tiles of Season setup's row, each its reading of before, and the row's Season checklist keeps its Font
  *  Awesome icon under Legacy (`fa:fa-list-check`; the owner: Legacy keeps an FA icon - the Projects tile beside it
- *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. */
+ *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. gaps-108 (12.11.2026, R3987):
+  the owner approved the claw hammer on the Projects action in both themes, so `ACTIONS.project` reads `--drpg-pix-hammer`
+  (legacy:hammer) where it read `--drpg-pix-project`; that one reading, on purpose. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
     "ACTIONS.analyze": "--drpg-pix-analyze",
-    "ACTIONS.project": "--drpg-pix-project",
+    "ACTIONS.project": "--drpg-pix-hammer",
     "ACTIONS.rest": "--drpg-pix-rest",
     "ACTIONS.listen": "--drpg-pix-listen",
     "ACTIONS.palm": "--drpg-pix-palm-action",

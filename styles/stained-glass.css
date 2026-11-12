@@ -793,14 +793,17 @@ body.drpg-theme-stained-glass.drpg-reduced-motion .drpg-event.due .drpg-event-me
 
 /* ---- the pause band: a pane of the curtain, breathing slowly ------------------------------- */
 /* Foundry positions #pause itself (fixed, full width); the theme only paints it. `position` is left
-   alone on purpose: setting it made the band fall out of place on a tablet (v1.2.15). */
+   alone on purpose: setting it made the band fall out of place on a tablet (v1.2.15).
+   NO SEAM ABOVE OR BELOW (gaps, R3984). This rule drew a 1 px accent `border-top` and `border-bottom`, the
+   seams of Foundry's 180 px band mid-screen; danganronpa.css has made `#pause` the whole viewport since
+   ("The band, and the box it lived in"), so they lay on the screen's first and last rows, and the owner saw
+   a light line flash at both edges every two or three seconds while paused (12.11.2026, on 1.2.108). The
+   word's own plate keeps its seam (section 7 below). */
 body.drpg-theme-stained-glass #pause.paused {
     --acc: var(--drpg-glass-accent);
     overflow: hidden;
     isolation: isolate;
     background: rgba(5, 4, 9, 0.6);
-    border-top: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
 }
 body.drpg-theme-stained-glass #pause.paused figcaption {
     font-family: var(--drpg-font-title);
