@@ -293,10 +293,10 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     Object.assign(built, { linked: tab.linked, chose: tab.linked && J(tab.stored) === J({ Chie: false, Ghost: true }) });
     await settle(400);
     /* Since E13 fix r1-F3 the tab also names a hall nobody prepared (token vision, global light or exploration fog as
-       Foundry leaves them; "Prepare the hall" is not ticked here): "hallDark". The hall is that one since E13 fix l2-L2:
+       Foundry leaves them; "Prepare the hall" is not ticked here): "hallDark"; and since E73 C1 "zonesNone" (no Zone A and Zone B picked). The hall is that one since E13 fix l2-L2:
        the room fog lit it when its rooms were drawn, and the scenario put it back (a00). */
     check("a0: Room Setup's last tab, Scenes, links the Academy and the hall, names the hall's two rooms and that it is unprepared, draws the cast by actor as `defaultReveal` has it - the three the GMs placed a token of noted so, no Monokuma line (his token is there) - and stores Chie unticked and the dead student ticked (E13 C5; E81 DZ6)",
-        tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms", "hallDark"]) && tab.read.rooms === true && tab.read.held === false
+        tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms", "hallDark", "zonesNone"]) && tab.read.rooms === true && tab.read.held === false
             && J(tab.read.placedByGm) === J(["Botan", "Monokuma", "Test"]) && tab.read.handPlaced === false
             && J(tab.read.ticks) === J({ Aiko: true, Botan: true, Chie: true, Ghost: false, Monokuma: true, Test: false }) && built.chose === true,
         J(tab), { flow: "trial-scene" });
@@ -943,7 +943,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        the room fog leaves it (E13 fix l2-L2). */
     check("k3: a player's showCourtroom changes nothing; the GM's takes every browser back to the hall with the GM's choice shown, the phase kept, and trialSceneReport names the school, the hall, the table, the four tokens and the two the module made again (E13 C6; E81 DZ6)",
         playerDoor === null && views(kPlayer).every(v => v === "school") && J(apiK.door) === J({ hall: true, activated: true }) && apiK.phase === "classTrial"
-            && J(apiK.report) === J({ school: true, hall: true, table: true, shown: [...CHOICE].sort(), made: MADE, warnings: ["hallHasRooms", "hallDark"] })
+            && J(apiK.report) === J({ school: true, hall: true, table: true, shown: [...CHOICE].sort(), made: MADE, warnings: ["hallHasRooms", "hallDark", "zonesNone"] })
             && views(kHall).every(v => v === "hall") && Object.values(kHall).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort()) && withMade(r)),
         J({ playerDoor, kPlayer: views(kPlayer), apiK, kHall }), { flow: "trial-scene" });
     await gm.eval(`const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); await UI.closeTrial(); await new Promise(r => setTimeout(r, 800)); return true;`, { timeout: 60000 });

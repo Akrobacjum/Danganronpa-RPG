@@ -161,6 +161,85 @@ const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
         if (c.long) { const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`); await R.dropRemnantSecret(c.long).catch(() => {}); await c.long.delete().catch(() => {}); }
     }
     delete globalThis.__probe08case;`;
+/* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
+   the ticks and the modes taken back after. */
+const SEED_TRIAL = SEED_CASE + `
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-d2", { mode: "testimony" });
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-s1", { mode: "closing" });
+    await CS.setCaseTick(globalThis.__probe08case.ch, "probe08-d1", true);`;
+const DROP_TRIAL = `await (await import(\`\${repoUrl}/scripts/case-schema.mjs\`)).setCaseTick(globalThis.__probe08case.ch, "probe08-d1", false);
+    ` + DROP_CASE;
+/* E99 C5 placed, round 3b: the console in a running Class Trial - a debate's floor (the bar), then an Objection on it -
+   over the same case; the clock, the floor and the record put back after. */
+const RUN_TRIAL = `globalThis.__probe08trial = { clock: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "clock")),
+        queue: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialQueue") ?? {}),
+        progress: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {}) };
+    await game.drpg.setClock({ phase: "classTrial" });
+    await game.drpg.startFloor();`;
+const OBJECT = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    const two = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).slice(0, 2);
+    if (two.length === 2) await F.openObjection(two[0].id, two[1].id);`;
+const STOP_TRIAL = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    await F.endFloor().catch(() => {});
+    const t = globalThis.__probe08trial;
+    if (t) { await game.settings.set("danganronpa-rpg", "trialQueue", t.queue); await game.settings.set("danganronpa-rpg", "trialProgress", t.progress);
+        await game.settings.set("danganronpa-rpg", "clock", t.clock); }
+    delete globalThis.__probe08trial;
+    `;
+/* E73 C7: a hall of the probe's own linked with Zone A and Zone B, three students' tokens on stands, the phase the trial's
+   (`SEED_HALL`); a Straw Poll running on it (`SEED_STRAW`); a Logic Dive set in the GMs' store (`SEED_DIVE`); two Findings
+   in the record (`SEED_FINDINGS`). Each taken back by its DROP: the floor closed, the roles, the clock and the record as
+   they were, the hall and the set gone. */
+const SEED_HALL = `const { getClock, setClock } = await import(\`\${repoUrl}/scripts/clock.mjs\`);
+    const keepRoles = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "sceneRoles") ?? {});
+    const keepProgress = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {});
+    const keepClock = foundry.utils.deepClone(getClock());
+    const hall = await Scene.create({ name: "Probe trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+    const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+        { name: "Left stands", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+        { name: "Right stands", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+    const students = game.actors.filter(a => a.type === "character" && !a.getFlag("danganronpa-rpg", "monokuma")).slice(0, 3);
+    await hall.createEmbeddedDocuments("Token", students.map((a, i) => ({ actorId: a.id, actorLink: true, name: a.name, x: i ? 1100 + i * 200 : 100, y: 100, width: 1, height: 1 })));
+    await game.settings.set("danganronpa-rpg", "sceneRoles", { ...keepRoles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+    (await import(\`\${repoUrl}/scripts/rooms.mjs\`)).forgetSceneRoles();
+    await setClock({ ...keepClock, phase: "classTrial" });
+    await game.settings.set("danganronpa-rpg", "trialQueue", {});
+    globalThis.__probe08hall = { hall: hall.id, keepRoles, keepProgress, keepClock };`;
+const DROP_HALL = `const h = globalThis.__probe08hall;
+    if (h) {
+        const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+        if (F.trialFloor()) await F.endFloor();
+        await game.settings.set("danganronpa-rpg", "trialQueue", {});
+        await game.settings.set("danganronpa-rpg", "sceneRoles", h.keepRoles);
+        (await import(\`\${repoUrl}/scripts/rooms.mjs\`)).forgetSceneRoles();
+        await game.settings.set("danganronpa-rpg", "trialProgress", h.keepProgress);
+        await (await import(\`\${repoUrl}/scripts/clock.mjs\`)).setClock(h.keepClock);
+        await game.scenes.get(h.hall)?.delete();
+        const fresh = game.messages.filter(m => m.timestamp >= (h.at ?? Date.now())).map(m => m.id);
+        if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+    }
+    delete globalThis.__probe08hall;`;
+const SEED_STRAW = SEED_HALL + `
+    globalThis.__probe08hall.at = Date.now();
+    await game.drpg.startStrawPoll({ question: "Was the library locked from inside?", a: "Inside", b: "Outside" });`;
+/* E73 round 4 (the coordinator, 12.11: shots of mockup B "in a running debate and with an Objection up"): a Nonstop Debate
+   on the probe's hall (`SEED_DEBATE`), and one of its students objecting to another (`SEED_OBJECTION`); DROP_HALL closes
+   the floor and puts the record back. */
+const SEED_DEBATE = SEED_HALL + `
+    globalThis.__probe08hall.at = Date.now();
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).startFloor({ topic: "Who locked the library?" });`;
+const SEED_OBJECTION = SEED_DEBATE + `
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).openObjection(students[0].id, students[1].id);`;
+const SEED_DIVE = `const { diveSetStore } = await import(\`\${repoUrl}/scripts/gm-stores.mjs\`);
+    await diveSetStore.patch("probe08set", { name: "The library door", conclusion: "The door was locked from inside", made: Date.now(), questions: [
+        { question: "Was the window shut?", a: "Shut", b: "Open", truth: "a" }, { question: "When was the door locked?", a: "At night", b: "In the morning", truth: "a" }] });`;
+const DROP_DIVE = `await (await import(\`\${repoUrl}/scripts/gm-stores.mjs\`)).diveSetStore.drop("probe08set");`;
+const SEED_FINDINGS = `globalThis.__probe08findings = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {});
+    await game.settings.set("danganronpa-rpg", "trialProgress", { ...globalThis.__probe08findings, findings: [
+        { id: "probe08f1", text: "Inside", question: "Was the library locked from inside?", mode: "straw", confirmed: true, at: 1 },
+        { id: "probe08f2", text: "The door was locked from inside", mode: "dive", confirmed: false, at: 2 }] });`;
+const DROP_FINDINGS = `if (globalThis.__probe08findings) await game.settings.set("danganronpa-rpg", "trialProgress", globalThis.__probe08findings);
+    delete globalThis.__probe08findings;`;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -181,6 +260,19 @@ export const WINDOWS = [
     { id: "chapter-end", module: "chapter.mjs", call: "m.openChapterEndDialog()" },
     { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
+    // E99 C5 placed: the console with the case schema in its middle (the same seeded case as case-trial's).
+    { id: "class-trial--case", module: "trial-floor-ui.mjs", before: SEED_TRIAL, after: DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-debate", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-objection", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL + "\n    " + OBJECT, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    // E73 C7: the zone modes' windows - the console while a Straw Poll runs, the picker, a Logic Dive set's editor, the
+    // Findings, and Room setup's Scenes tab with the zones picked.
+    { id: "class-trial--straw", module: "trial-floor-ui.mjs", before: SEED_STRAW, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--debate", module: "trial-floor-ui.mjs", before: SEED_DEBATE, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--objection", module: "trial-floor-ui.mjs", before: SEED_OBJECTION, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "zone-picker", module: "trial-zones-ui.mjs", before: SEED_HALL + SEED_DIVE, after: DROP_DIVE + DROP_HALL, call: "m.openZonePicker({ mode: \"dive\" })" },
+    { id: "dive-editor", module: "trial-zones-ui.mjs", before: SEED_DIVE, after: DROP_DIVE, call: "m.editDiveSet(\"probe08set\")" },
+    { id: "findings", module: "trial-zones-ui.mjs", before: SEED_FINDINGS, after: DROP_FINDINGS, call: "m.openFindings()" },
+    { id: "rooms-scenes--zones", module: "room-setup.mjs", before: SEED_HALL, after: DROP_HALL, perTab: false, call: "m.openRoomSetupDialog({ tab: \"scenes\" })" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
     { id: "reveal-confirm", module: "trial-floor-ui.mjs", call: "m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })" },

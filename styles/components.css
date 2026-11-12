@@ -339,6 +339,13 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows .drpg-role-primary { order: 3; }
 .application.drpg-window-case-realize table.drpg-case-realize { width: 100%; }
+/* The case's summary card (E99 C7): one column per role, then the links; in the chat and in the GM's preview. */
+.drpg-case-summary-cols { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.drpg-case-summary-col { flex: 1 1 8rem; min-width: 0; }
+.drpg-case-summary-col h4 { margin: 0 0 0.25rem; font-size: var(--drpg-kit-help-size); }
+.drpg-case-summary ul { margin: 0; padding-left: 1rem; }
+.drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-kit-help-size); }
+.drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-kit-help-size); color: var(--drpg-kit-help-ink); }
 /* The GM panel's line of the case's Incident Remnants to place (E97 C12): one row each, its button at the end. */
 .drpg-case-asks ul { margin: 0.25rem 0 0; padding: 0; list-style: none; }
 .drpg-case-asks .drpg-case-ask { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 2px 0; }
@@ -3277,7 +3284,7 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
 .application.drpg-ui.drpg-window-case .drpg-case-view[data-drpg-view="map"] { overflow: hidden; }
 .application.drpg-window-case .drpg-case-form { height: 100%; margin: 0; }
 .application.drpg-window-case .drpg-case-map { display: flex; flex-direction: column; gap: var(--drpg-kit-gap); height: 100%; min-height: 0; }
-.application.drpg-window-case .drpg-case-graph {
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-graph {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
@@ -3288,14 +3295,14 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
     cursor: grab;
     border: 1px solid var(--drpg-kit-line);
 }
-.application.drpg-window-case .drpg-case-graph.is-panning { cursor: grabbing; }
-.application.drpg-window-case .drpg-case-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.application.drpg-window-case .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
-body.drpg-reduced-motion .application.drpg-window-case .drpg-case-canvas { transition: none; }
-.application.drpg-window-case .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-.application.drpg-window-case .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
-.application.drpg-window-case .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
-.application.drpg-window-case .drpg-case-col-head {
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-graph.is-panning { cursor: grabbing; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
+body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas { transition: none; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-col-head {
     position: absolute;
     top: 0.25rem;
     font-size: var(--drpg-text-xs);
@@ -3307,7 +3314,7 @@ body.drpg-reduced-motion .application.drpg-window-case .drpg-case-canvas { trans
 /* THE NODE RULE OUTRANKS THE GLASS'S BUTTON RULE (stained-glass.css section 7: `.drpg-panel button:not(...)` x4, 7 classes,
    `white-space: nowrap` and 14 px sides): at C5's weight (5 classes) a node under the glass kept its name on one line,
    cut at the node's edge (Chromium, 1366x768, the E97 fix's sweep: "The culprit came in wi"). Eight classes here. */
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node] {
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] {
     position: absolute;
     box-sizing: border-box;
     width: 240px;
@@ -3332,47 +3339,47 @@ body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-
     border-radius: var(--drpg-kit-btn-radius);
     cursor: pointer;
 }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-selected {
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-selected {
     width: 352px;
     background: var(--drpg-kit-row-highlight);
     border: 2px solid var(--drpg-kit-btn-on-edge);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-held { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-info-edge); }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-planned,
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-loose { border-style: dashed; }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--counter { border-color: var(--drpg-kit-warn-edge); }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--solution { border-color: var(--drpg-kit-primary-edge); border-width: 2px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-held { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-info-edge); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-planned,
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-loose { border-style: dashed; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--counter { border-color: var(--drpg-kit-warn-edge); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--solution { border-color: var(--drpg-kit-primary-edge); border-width: 2px; }
 /* The states above take the node rule's own selector: at C5 they were written lighter than it (four classes against five)
    and none of hover, held, planned, unrelated, counter or solution reached a node (the E97 fix's reading of the cascade). */
 /* the head's parts wrap to a second line rather than cut the kind (a node's trial-mode pill hid its kind until the fix) */
-.application.drpg-window-case .drpg-case-node-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.375rem; min-width: 0; font-size: var(--drpg-text-xs); }
-.application.drpg-window-case .drpg-case-node-kind {
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.375rem; min-width: 0; font-size: var(--drpg-text-xs); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-kind {
     flex: 1 1 auto;
     min-width: 0;
     overflow-wrap: anywhere;
     font-weight: 700;
     color: var(--drpg-kit-help-ink);
 }
-.application.drpg-window-case .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
-.application.drpg-window-case .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
-.application.drpg-window-case .drpg-case-node-reach { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .drpg-case-node-warn { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-ink); padding: 0 0.25rem; border: 1px solid var(--drpg-kit-warn-edge); border-radius: 999px; }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].has-warn { border-color: var(--drpg-kit-warn-edge); }
-.application.drpg-window-case .drpg-case-node-reach.is-reachable { color: var(--drpg-kit-check-done); }
-.application.drpg-window-case .drpg-case-node-name { min-width: 0; overflow-wrap: anywhere; font-size: var(--drpg-text-sm); }
-.application.drpg-window-case .drpg-case-node-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-line; font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .drpg-case-gap {
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-trial) .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-reach { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-warn { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-ink); padding: 0 0.25rem; border: 1px solid var(--drpg-kit-warn-edge); border-radius: 999px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].has-warn { border-color: var(--drpg-kit-warn-edge); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-reach.is-reachable { color: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-name { min-width: 0; overflow-wrap: anywhere; font-size: var(--drpg-text-sm); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-node-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-line; font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-gap {
     position: absolute;
     display: flex;
     align-items: center;
     border-top: 1px dashed var(--drpg-kit-line-strong);
 }
-body .application.drpg-window-case button.drpg-case-fold {
+body .application:is(.drpg-window-case, .drpg-window-trial) button.drpg-case-fold {
     min-width: 0;
     width: 100%;
     margin: 0.25rem 0 0;
@@ -3382,6 +3389,19 @@ body .application.drpg-window-case button.drpg-case-fold {
     color: var(--drpg-kit-help-ink);
     background: none;
     border: none;
+}
+/* THE FOLD'S WORDS WHOLE (E99 round 5, 12.11.2026): under glass a panel's button takes capitals and wide letter-spacing,
+   and "NIE ZWIĄZANE Z MORDERSTWEM (n)" ran out of the column's 240 px, cut at its edge (pl, 1366x768, in the trial's
+   shot; audit/case-map-sweep.mjs reads the fold since). The fold is a quiet toggle in help ink, so it keeps the words as
+   written, and wraps rather than cuts where a language's are longer still. At the panel's weight, over the theme's. */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) .drpg-case-canvas .drpg-case-gap > button.drpg-case-fold {
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-height: 0;
+    height: auto;
+    line-height: 1.25;
 }
 /* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box under its face, at its width, joined to it -
    what the node says, then the Table's own cells one under another. A node not open keeps its fields in the form,
@@ -3430,23 +3450,24 @@ body .application.drpg-window-case button.drpg-case-fold {
 .application.drpg-window-case .drpg-case-tools-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
 body .application.drpg-window-case .drpg-case-tools button { flex: 0 0 auto; min-width: 0; margin: 0; padding: 2px 6px; font-size: var(--drpg-text-xs); }
 .application.drpg-window-case select.drpg-case-sort { flex: 0 1 auto; min-width: 0; font-size: var(--drpg-text-xs); }
-/* THE CAMERA'S BUTTONS over the graph's bottom right corner (above the canvas, which the camera moves under them) */
-.application.drpg-window-case .drpg-case-camera {
-    position: absolute;
-    right: 0.5rem;
-    bottom: 0.5rem;
-    z-index: 1;
+/* THE CAMERA'S BUTTONS in a strip of their own under the graph, at its right (E99 round 5, 12.11.2026): over the graph's
+   corner they lay over a node, and after Fit to view the nodes reach every edge of the viewport (case-map.mjs
+   `wireCaseMap`; audit/case-map-sweep.mjs reads the bar against every node, at rest and fitted). */
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-camera {
+    flex: 0 0 auto;
+    align-self: flex-end;
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.25rem;
+    padding: 0;
     cursor: auto;
-    background: var(--drpg-kit-btn-bg);
-    border: 1px solid var(--drpg-kit-line);
-    border-radius: var(--drpg-kit-btn-radius);
 }
-body .application.drpg-window-case .drpg-case-camera > button.drpg-case-cam { flex: 0 0 auto; min-width: 1.75rem; margin: 0; padding: 2px 6px; font-size: var(--drpg-text-xs); font-weight: 700; }
-.application.drpg-window-case .drpg-case-zoom { min-width: 3rem; text-align: center; font-size: var(--drpg-text-xs); font-variant-numeric: tabular-nums; color: var(--drpg-kit-help-ink); }
+/* The strip kept low (round 5): it is height the graph's viewport gives up, which binds the fit at 1366x768 - under glass
+   its buttons at the panel's own size stood 45 px. At the panel's weight, so the theme's button size does not win. */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) .drpg-case-camera > button.drpg-case-cam {
+    flex: 0 0 auto; min-width: 1.75rem; min-height: 0; margin: 0; padding: 1px 6px; line-height: 1.2; font-size: var(--drpg-text-xs); font-weight: 700; }
+/* the readout at the small size (round 5: at the extra-small, 11 px of VT323 under glass, "100%" read as a smudge) */
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-zoom { min-width: 3rem; text-align: center; font-size: var(--drpg-text-sm); font-variant-numeric: tabular-nums; color: var(--drpg-kit-help-ink); }
 /* THE CHAPTER'S OVERVIEW, one line folded: the chapter, its counts, its problems; open, the check, the list, the
    chapter's own fields, scrolling in their own box so the graph keeps the most of the view. */
 .application.drpg-window-case .drpg-case-overview { flex: 0 0 auto; min-width: 0; border: 1px solid var(--drpg-kit-line); color: var(--drpg-kit-ink); }
@@ -3474,7 +3495,42 @@ body .application.drpg-window-case .drpg-case-check-head > button { flex: 0 0 au
 .application.drpg-window-case .drpg-case-edit-summary label :is(input[type="text"], select) { display: block; width: 100%; min-width: 0; box-sizing: border-box; }
 .application.drpg-window-case .drpg-case-switch-bar { display: flex; gap: 0; }
 .application.drpg-window-case .drpg-case-switch-bar > button { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0; }
-.application.drpg-window-case .drpg-case-glyph:empty { display: none; }
+.application:is(.drpg-window-case, .drpg-window-trial) .drpg-case-glyph:empty { display: none; }
+/* THE TRIAL'S CASE SCHEMA (E99 C5), in the console's slot since the owner's 13:15 (12.11.2026; no window of its own):
+   the presented evidence a solid info edge, a hint the reachable colour, a ticked node the done colour. */
+body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-case-trial .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-presented { border-color: var(--drpg-kit-info-edge); border-style: solid; }
+body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-case-trial .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-hinted { outline: 2px dashed var(--drpg-kit-check-done); outline-offset: 1px; }
+body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-case-trial .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-ticked { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-check-done); }
+/* IN THE TRIAL CONSOLE (E99 C5 placed; round 4 put the ticks on the tiles, so no list follows the graph). */
+/* THE SCHEMA FILLS THE SLOT'S BOX AND NEVER GROWS IT (round 4; E73's mockup B gives the slot its size, its display,
+   its place and its order - a grid item with `min-height: 0` and `overflow: auto`, components.css's E73 block): the live
+   region stands absolutely inside the slot, the graph takes what the unknown line leaves, and the camera moves the case
+   inside it. The slot gets only a containing block from here - no display, placement, order or height of any kind
+   (E73's merge note, 12.11; R3912 holds its computed min-height to 0). */
+.application.drpg-window-trial .drpg-trial-schema { position: relative; }
+.application.drpg-window-trial .drpg-trial-schema > .drpg-case-trial-live { position: absolute; inset: 0; }
+.application.drpg-window-trial .drpg-case-trial.is-console { display: flex; flex-direction: column; gap: 4px; height: 100%; min-height: 0; }
+.application.drpg-window-trial .drpg-case-trial.is-console > .drpg-case-graph { flex: 1 1 auto; min-height: 0; height: auto; }
+.application.drpg-window-trial .drpg-case-trial.is-console > [data-drpg-case-unknown] { flex: 0 0 auto; margin: 0 0 0.25rem; }
+/* THE TICK ON THE TILE (round 4; the owner's "przycisk na kaflu"): the tile keeps a right-hand gutter (case-map.mjs
+   TILE_GUTTER, 30 px) so no word runs under its controls; the tick, pressed or not, and the start stand in it. */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].has-controls { padding-right: 34px; }
+body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-case-trial .drpg-case-canvas > button:is(.drpg-case-node-tick, .drpg-case-node-start) {
+    position: absolute;
+    box-sizing: border-box;
+    width: 24px;
+    min-width: 0;
+    min-height: 22px;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    font-size: var(--drpg-text-sm);
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: normal;
+}
+body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-case-trial .drpg-case-canvas > button.drpg-case-node-tick[aria-pressed="false"] { color: transparent; }
+body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-case-trial .drpg-case-canvas > button.drpg-case-node-tick[aria-pressed="true"] { color: var(--drpg-kit-btn-on-ink); background: var(--drpg-kit-btn-on-bg); border-color: var(--drpg-kit-btn-on-edge); }
 
 /* ---- The project windows (E47-C6, 09.11.2026; cards M16-M19 of E47-M, approved by the owner on 09.11 with O1a, O2b, O3b
    and O4 as a setting; D31): the manager's `dataTable` and the create, edit and propose forms on `formGrid`. The rules
@@ -4389,3 +4445,208 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
     color: var(--drpg-bone);
     font-size: 0.85em;
 }
+
+/* ---- the Class Trial console on mockup B (E73, 12.11.2026; the owner's "wybieram wersje B") ----
+   While a trial runs: the status at the top, the bar pinned at the bottom, and between them the read-out (the mode and
+   the management, `[data-drpg-trial-read]`, scrolling by itself) beside the case schema's slot (`[data-drpg-trial-schema]`,
+   E99's), which fills the rest of the height; the footer's buttons under it all. The owner (via the coordinator, 12.11):
+   the schema visible in the running console without scrolling, where the modes, Overrule and Objection are run. With no
+   trial (the owner, 12.11 ~12:00: "nie chcemy zaznaczania wnioskow, tylko sam schemat") the same window: the console's
+   lines at the top and the slot - the read-only schema E99 draws there - filling the rest, the footer's Start the Class
+   Trial under it. The slot is the console's sibling, outside the region redrawn every second, so the running console is
+   `display: contents` and its regions and the slot are items of one grid.
+   The window stands the screen's height and 1280 px wide (trial-floor-ui.mjs `consoleWidth`): the body asks for the
+   screen's height (`flex-basis: 100dvh`), so the window grows to the kit frame's own ceiling (the screen less 8 px a
+   side) and the body shrinks into what the header and the footer leave - no rule of the window's own frame (R1357), so a
+   `height` Foundry writes inline undoes nothing. The body is a flex column the grid fills (`flex: 1 1 0`), so the grid
+   is exactly its height. Measured in Chromium, 12.11: the frame at `100cqh` under a size container read 0 px, at `100%`
+   the content's 1007 px (the body's height is not definite for a percentage); the flex item is definite. The body is
+   `overflow: hidden`: the grid fills it to a fraction of a pixel (524.09 of 524.09 at 1366x768), which `scrollHeight`
+   rounds up to a 1 px scroll. Under 44rem of body (a narrow screen) the columns stack and the frame scrolls instead of
+   the body. Round 4's measurements: docs/dev/e73/STATUS.md; at a table: LIVE-E73-05. The picker's starts wrap as the
+   bar's ops do; a greyed start keeps its title (its reason). */
+.drpg-trial-frame {
+    display: grid;
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "status" "schema";
+    gap: 8px 16px;
+}
+
+.drpg-trial-frame > .drpg-trial-console:not([data-drpg-trial-running]) {
+    grid-area: status;
+}
+
+.application.drpg-ui.drpg-panel.drpg-window-trial .drpg-kit-body:has(> .drpg-trial-frame) {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    flex-basis: 100dvh;
+    overflow: hidden;
+}
+
+.drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "status status" "read schema" "bar bar";
+}
+
+.drpg-trial-frame > .drpg-trial-console[data-drpg-trial-running] {
+    display: contents;
+}
+
+.drpg-trial-frame .drpg-trial-top {
+    grid-area: status;
+    padding-bottom: 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
+}
+
+/* The status kept short (round 4, 12.11: under Stained Glass its five lines stood 312 px of a 752 px window at 1366x768,
+   the schema's slot 146): the lead, then the trial's time, the table and the register on one wrapping row, the picker
+   under them, the theme's paragraph margins taken in. */
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 1.5em;
+}
+
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > :is(p, div, h4) {
+    margin: 0;
+}
+
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > :is(h4, .drpg-trial-lead, .drpg-box, .drpg-trial-picker) {
+    flex: 1 0 100%;
+}
+
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > .drpg-trial-picker {
+    margin-top: 4px;
+}
+
+.drpg-trial-frame .drpg-trial-read {
+    grid-area: read;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+}
+
+.drpg-trial-frame .drpg-trial-read > .drpg-trial-bottom {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
+}
+
+.drpg-trial-frame > .drpg-trial-schema {
+    grid-area: schema;
+    min-height: 0;
+    overflow: auto;
+    border: 1px dashed color-mix(in srgb, var(--drpg-bone) 35%, transparent);
+}
+
+.drpg-trial-frame .drpg-trial-controls {
+    grid-area: bar;
+    padding-top: 6px;
+    border-top: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
+}
+
+/* THE CONSOLE'S FRAME COMPACT ON A LOW SCREEN (E99 round 6, 12.11.2026; the owner's "Zgadzam sie na zmiany w oknach class
+   trial", through the coordinator: under glass, while a trial runs, the case's smallest words after Fit to view at
+   least 11 px at 1366x768 and at any height up to ~800). Under BREAKPOINTS.low (settings.mjs, the body's `drpg-low`) the
+   window's title and its footer's buttons are drawn low - the small text, tight padding, no theme letter-spacing; the
+   frame's own height, padding and margins stay the kit's (R1357) - and the height they give back goes to the grid, so
+   to the schema's slot. Every button stays
+   in the footer, named and in view; above 800 px (1920x1080) nothing here applies. Measured: audit/case-map-sweep.mjs
+   (STATUS round 6). */
+body.drpg-low .application.drpg-ui.drpg-panel.drpg-window-trial > .window-header .window-title {
+    font-size: var(--drpg-text-sm);
+    line-height: 1.2;
+    margin: 0;
+}
+
+body.drpg-low .application.dialog.drpg-ui.drpg-panel.drpg-window-trial footer.form-footer.drpg-kit-footer {
+    gap: 4px;
+}
+
+body.drpg-low .application.dialog.drpg-ui.drpg-panel.drpg-window-trial footer.form-footer.drpg-kit-footer > :is(.drpg-kit-left, .drpg-kit-right) {
+    gap: 4px;
+}
+
+body.drpg-low .application.dialog.drpg-ui.drpg-panel.drpg-window-trial footer.form-footer.drpg-kit-footer button {
+    min-height: 0;
+    height: auto;
+    min-width: 0;
+    padding: 2px 10px;
+    line-height: 1.3;
+    letter-spacing: normal;
+    font-size: var(--drpg-text-xs);
+}
+
+@container (max-width: 44rem) {
+    .drpg-trial-frame {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        grid-template-rows: auto clamp(12rem, 30vh, 24rem);
+    }
+
+    .drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto clamp(12rem, 30vh, 24rem) auto;
+        grid-template-areas: "status" "read" "schema" "bar";
+    }
+
+    /* Stacked, the frame scrolls and the read-out is as tall as it reads: its `min-height: 0` and its own scroll gave
+       its `auto` row 0 px in a grid with no free space (700x700, 12.11, measured: the row 0 px, the read-out under the
+       slot). */
+    .drpg-trial-frame .drpg-trial-read {
+        min-height: auto;
+        overflow-y: visible;
+    }
+}
+
+.drpg-trial-console .drpg-trial-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 2px;
+}
+
+.drpg-trial-console .drpg-trial-pick {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    font-size: var(--drpg-text-sm);
+}
+
+/* THE PICKER ON ONE COMPACT ROW (E99 round 5, 12.11.2026; the coordinator's step 5, the default chosen of three): at
+   1366x768 while a trial runs the schema's fit was bound by the slot's height (glass 296 px of viewport for a 641 px case,
+   the case's smallest words 9.7 px), so a wider schema - a narrower read-out, or the window at the screen's width - gained
+   nothing there; the picker's second row (glass 75 px for the two) was the height to take back. One row, the starts at
+   the theme's small text, never wrapped and never cut: a row that does not fit scrolls sideways. Measured in
+   audit/case-map-sweep.mjs (docs/dev/e99/STATUS.md, round 5). */
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > .drpg-trial-picker {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    margin-top: 2px;
+}
+
+body .application.drpg-ui.drpg-panel.drpg-window-trial .drpg-trial-console .drpg-trial-picker > button.drpg-trial-pick {
+    flex: 1 0 auto;
+    min-height: 0;
+    margin: 0;
+    padding: 2px 8px;
+    line-height: 1.3;
+    white-space: nowrap;
+    font-size: var(--drpg-text-xs);
+}
+
+/* Over Stained Glass's `opacity: 1` for a panel's buttons (`body.drpg-theme-stained-glass .drpg-panel button:not(...)`,
+   0-5-2), which left a greyed start looking pressable under the glass (round 4's shots, 12.11; read in Chromium). */
+.application.drpg-ui.drpg-window-trial .drpg-trial-console .drpg-trial-pick[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
