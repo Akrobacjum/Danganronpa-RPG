@@ -82,7 +82,18 @@ Open, default taken (owner may revise): the Final Trial's verdict has no "bets" 
 Final stays unpaid in its Monocub's row until a season reset that clears the deaths (the `cubs` store's group; read
 in the code). Not built.
 
-## E91 (leftovers from stage notes), on this branch after E72 (the coordinator's order)
+## E91 (leftovers from stage notes) - REVERTED on this branch (the coordinator's choice (b), 12.11)
+
+E91's eight commits (3b04cac, 3ab0a52, c6e1aa1, 521b8d7, 7523428, 89cbdac, dedc76d, e2baf99) are reverted in one
+commit (`git revert --no-commit`, newest first; no history rewritten). When E91's turn comes (after E54-E59 land), it
+starts by reverting that revert. The check after it: `git diff --stat 8367f80 -- <every file E91 touched>` reads
+
+    lang/en.json            |   2 +-      (E72: DRPG.Events.redeemMeta, Redeem free)
+    lang/pl.json            |   2 +-      (the same)
+    scripts/tests-tier0.mjs |   4 +-      (E72 fix round: R3808's two inner functions)
+    scripts/tests-tier2.mjs | 215 ++++-   (E72: the fix round's tests and the Redeem test; no "E91" left)
+
+and nothing else: every other file E91 touched equals 8367f80. The table below is the record of what was built.
 
 **Built against the coordinator's later word.** The coordinator's message of 12.11 ~11:00 ("after E72, do NOT start E91;
 it waits until E72 and every line before it are on main") was read here only at 13:28, after C1-C8 were built and

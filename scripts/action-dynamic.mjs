@@ -315,10 +315,7 @@ export function dynamicBar(band) {
  *
  * @returns {Promise<{tier: number, trait: string}|null>}
  */
-export async function askDynamicDifficulty({ description, actorName, actorId = null, room, proposed = null } = {}) {
-    // The character as its sheet names it (E91 C7; the owner's deferred item D076): the GMs' actor by id, the name the
-    // asker's packet carried only when no actor is found.
-    const named = (actorId ? game.actors.get(actorId)?.name : null) ?? actorName;
+export async function askDynamicDifficulty({ description, actorName, room, proposed = null } = {}) {
     const rows = DYNAMIC_THRESHOLDS.map((t, i) =>
         `<option value="${i}">${game.i18n.format("DRPG.Action.beat", { n: dynamicBar(t) })} · ${t.difficulty}</option>`).join("");
 
@@ -328,7 +325,7 @@ export async function askDynamicDifficulty({ description, actorName, actorId = n
         classes: ["drpg-panel"],
         body: `<form>
                     <p>${game.i18n.format("DRPG.Action.dynamicFrom", {
-                        actor: foundry.utils.escapeHTML(named ?? "?"),
+                        actor: foundry.utils.escapeHTML(actorName ?? "?"),
                         room: foundry.utils.escapeHTML(room ?? "-")
                     })}</p>
                     <blockquote>${foundry.utils.escapeHTML(description ?? "")}</blockquote>

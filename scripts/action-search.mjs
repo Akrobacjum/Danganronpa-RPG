@@ -366,13 +366,7 @@ async function searchSpecific(actor, def, roll, { room, scene, category, request
      * player's client. Reroll is offered nothing to re-ask (`claimed: false`, as
      * `searchUnclaimed` notes it).
      */
-    /* AND THE TOKEN WITH IT, WHERE IT CAN BE (E91 C7; the owner's deferred item D072). The room's token was taken after
-       the dice and kept when the card was not posted. On the primary GM's own browser it is given back below
-       (`SearchTokens.giveBack`, the primary's alone). A player's browser whose last GM left holds no road back (the
-       spend's request id stays in the bridge, and no GM is there to ask), nor does another GM's: those keep it taken,
-       as before. Above the branch: R837 reads the branch's first 400 characters for its `abort`. */
     if (!sent) {
-        if (game.user.isGM) await SearchTokens.giveBack(room, scene?.id ?? null);
         await noteRollContext(actor, { actionKey: "search", room, category, goal: "specific", tier: null, claimed: false });
         return abort(actor, paid);
     }

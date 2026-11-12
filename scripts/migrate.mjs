@@ -1069,21 +1069,6 @@ const CLAUSES = [
             const { liftCubWitness } = await import("./monocub.mjs");
             return liftCubWitness();
         }
-    },
-    {
-        key: "chapterRestStamps",
-        // This line's release, as liftCubWitness's (the coordinator sets it; every version before it read the old stamps).
-        since: "1.2.117",
-        /*
-         * THE REST STAMPS WRITTEN BEFORE E17 C9, ONCE (E91 C8, 12.11.2026; the owner's deferred item D068). A stamp with
-         * no chapter was read on every check as the current chapter's (rest.mjs `legacyRestStamp`); once, on the primary,
-         * one of the window now is given the clock's chapter and any other is dropped (`migratedRests`). A second run,
-         * forced, finds none.
-         */
-        run: async () => {
-            const { migrateRestStamps } = await import("./rest.mjs");
-            return migrateRestStamps();
-        }
     }
 ];
 

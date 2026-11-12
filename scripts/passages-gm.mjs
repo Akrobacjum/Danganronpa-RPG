@@ -1896,8 +1896,7 @@ export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, sc
 /**
  * On the primary, once a GM's rename of the room `from` on the scene `sceneId` to `to` is carried
  * (fog.mjs `carryRename`): each passage of that scene shows the new name (`rooms`), and a student who
- * keeps a passage until leaving the room (`leave`) keeps it until leaving the renamed room; a breach's forced room and
- * the room it was cut from are carried too (E91 C7). Until review
+ * keeps a passage until leaving the room (`leave`) keeps it until leaving the renamed room. Until review
  * round 1 (cor F1; the goal reviewer's note on 'Revoke when they leave', 15.10.2026) neither was carried,
  * and `revokeLeavers`, which compares names, revoked the passage at the student's next route inside the
  * room. Answers how many rows and cells it carried.
@@ -1910,15 +1909,6 @@ export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_ST
         if (row?.sceneId !== sceneId) continue;
         here.add(id);
         if (Array.isArray(row.rooms) && row.rooms.includes(from)) rows[id] = { rooms: row.rooms.map(room => (room === from ? to : room)) };
-        /* A breach's forced room and the room it was cut from (E91 C7; the owner's deferred item D037): `forcingRows` and
-           the undo read `forced.room` by name, so after a full rename a standing breach of the room was not found - a
-           second breach read the room as broken by hand, the first's undo took the break off under it, and its reseal
-           named a room no longer drawn. Carried with the row's rooms, the rest of `breach` as it stands. */
-        const forced = row.breach?.forced;
-        if (forced && (forced.room === from || forced.from === from)) {
-            rows[id] = { ...(rows[id] ?? {}), breach: { ...row.breach, forced: { ...forced,
-                ...(forced.room === from ? { room: to } : {}), ...(forced.from === from ? { from: to } : {}) } } };
-        }
     }
     for (const [key, cell] of Object.entries(stores.access.entries())) {
         if (!key.startsWith("touch/") && cell?.leave === from && here.has(key.slice(0, key.lastIndexOf("/")))) cells[key] = { leave: to };

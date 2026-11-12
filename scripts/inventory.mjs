@@ -888,15 +888,15 @@ export async function grantItem(actor, {
  * owner is told which - it changes what the incident engine reads as "the
  * weapon in hand" (`equippedFor`), and that is not a thing to change quietly.
  *
- * AND NOT THE ARRIVAL WHEN IT ARRIVED UNSEEN (`quiet`, E35 C3; audit S08-02). An unseen Plant of a knife into pockets
+ * AND SO NOT AT ALL WHEN IT ARRIVED UNSEEN (`quiet`, E35 C3; audit S08-02). An unseen Plant of a knife into pockets
  * holding one stowed Gear and an empty hand put the knife in the victim's hand, redrew their sheet and whispered its
- * name - the Plant told on itself, and the incident read the knife as the weapon they hold. Until E91 the piece stayed
- * stowed, the victim carrying two stowed (the shape D4 forbids; E35 Q5 left open).
- * ONE STOWED, NOT TWO (E91 C8, 12.11.2026; the owner's deferred item D090, the answer to E35 Q5: "under quiet a planted
- * Gear leaves one hidden, not two"). The planted piece stays stowed, unseen; the victim's OTHER working stowed piece of
- * the group goes into the hand, with no whisper and no redraw (`toggleEquipped`'s `render` false) - so the planted one
- * is the one hidden, and the incident reads the victim's own tool in their hand. Default, owner may revise: which piece
- * is readied. With no other piece that can be held ready, two stay stowed and the GM's log says so, as before.
+ * name - the Plant told on itself, and the incident read the knife as the weapon they hold. Readying it without the
+ * whisper would still be a hand the victim never moved, and what the incident reads; so the piece stays stowed, the
+ * victim carrying two stowed until they ready one (read in use-items.mjs: `toggleEquipped` readies one and puts the
+ * rest down, `mayStow` stops only a readied one being put away), and the GM's log says so.
+ * NOT SETTLED (E35 fix e1-G3; the review's E35-R2): that shape is the one D4 forbids, and S08-02 left two options
+ * open - ready it without a word, or leave it stowed. This is the second, chosen by the implementer, not the owner;
+ * it is the owner's question E35 Q5 (STAGE.md), and E35-T7 holds this answer until it is given.
  */
 /**
  * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
@@ -920,16 +920,8 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
         if (isEquipped(item)) return false;
         if (stowedInGroup(actor, group).length <= max) return false;
         if (quiet) {
-            // `readyForShape`'s second choice, never the arrival: the first working piece of the group stowed beside it.
-            const other = (actor.items ?? []).find(piece => piece.id !== item.id && !isBroken(piece) && !isStashed(piece)
-                && ITEM_CATEGORIES[piece.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group && !piece.getFlag(MODULE_ID, "equipped")) ?? null;
-            if (!other) {
-                log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen, and nothing else of it can be held ready.`);
-                return false;
-            }
-            if (!await toggleEquipped(actor, other, { shape: true, render: false })) return false;
-            log(`${actor.name} now carries "${item.name}" stowed, unseen; their "${other.name}" was readied without a word to keep one stowed.`);
-            return true;
+            log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen: not put in a hand.`);
+            return false;
         }
         // A BROKEN ARRIVAL CANNOT BE HELD READY (E14 part 1 C5, 24.10.2026; audit S08-36, D4): `toggleEquipped`
         // refuses it, and two Gear stood stowed - a broken knife taken out of the stash beside one stowed tool and an
