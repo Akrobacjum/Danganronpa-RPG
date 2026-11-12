@@ -40312,12 +40312,15 @@ const SCENARIOS = [
             readings.ballotsOut = await read();
             await record({ vote: vote(false), voteClosed: true });
             readings.counted = await read();
-            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            // E99 next (12.11.2026): after the verdict the case summary is the next step until it is out, then the chapter's end.
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: null });
+            readings.summaryNext = await read();
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: 1700000000000 });
             readings.verdictIn = await read();
             readings.endAfterVerdict = await endAsks();
             readings.hallAfterVerdict = await endAsks(true);
             await phase("dailyLife");
-            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: 1700000000000 });
             readings.ended = await read();
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
@@ -40339,6 +40342,7 @@ const SCENARIOS = [
             debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
             ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
             counted: [["verdict"], "open", lead("verdict"), 3, 0],
+            summaryNext: [["caseSummary"], "open", lead("caseSummary"), 3, 0],
             verdictIn: [["close"], "open", lead("chapterEnd"), 3, 0],
             endAfterVerdict: ["wait", true],
             hallAfterVerdict: ["wait", true],
