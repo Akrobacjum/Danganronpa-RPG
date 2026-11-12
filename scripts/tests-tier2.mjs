@@ -88195,6 +88195,11 @@ const SCENARIOS = [
             read.theirs = await ask({ actorId: other.id, rollId: await rollOf(14) });
             read.noRoll = await ask({ total: 20 });
         } finally {
+            // The doors' Remnants (E74 C2-C4, DA30) placed by the runs above.
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of canvas.scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
             for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
             for (const room of [few, many]) await D.endBarricade(key(room));
             for (const [piece, value] of flagsWere) {
@@ -88288,6 +88293,11 @@ const SCENARIOS = [
             read.theirs = await ask({ actorId: other.id, rollId: await rollOf(25) });
             read.noRoll = await ask({ total: 30 });
         } finally {
+            // The doors' Remnants (E74 C2-C4, DA30) placed by the runs above.
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of canvas.scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
             for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
             await D.endBarricade(D.barricadeKey(scene.id, B));
             await W.liftSeal(B);
@@ -88393,6 +88403,11 @@ const SCENARIOS = [
             read.theirs = await ask({ actorId: other.id, ...(await rolls(25, 25)) });
             read.noRoll = await ask({ total: 30 });
         } finally {
+            // The doors' Remnants (E74 C2-C4, DA30) placed by the runs above.
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of canvas.scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
             for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
             await D.endBarricade(D.barricadeKey(scene.id, B));
             await W.liftSeal(B);
@@ -88571,6 +88586,11 @@ const SCENARIOS = [
                 const lines = (out?.lines ?? []).map(l => (typeof l === "string" ? l : JSON.stringify(l)));
                 return { stood: Array.isArray(out?.lines), noReplay: lines.includes(noReplay) };
             } finally {
+            // The doors' Remnants (E74 C2-C4, DA30) placed by the runs above.
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of canvas.scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
                 stand.putBack();
                 await B2.putBack();
             }
@@ -88739,6 +88759,98 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ whole: "that lock is not broken.", far: "that lock is on no door of the builder's room.",
             first: [null, B, true], second: "a project repairs that lock already.", done: false, byHand: [1, false] }),
             "{whole, far: refusals; first: [refusal, the lock's room kept, its scene]; second: a second project; done: broken after the completion; byHand: [removed, still there]} - Repair the Lock");
+    }],
+    ["E74-T9 - the doors' Remnants, the knock and the watch's two rules (scripts/doors-gm.mjs `knockDoor`, `pickTrace`, `leaveDoorTrace`; movement.mjs `watchHolds`; watch-gm.mjs `declareWatch`; E74 C2, C4, C6; DA30, DA34): Shut the Door leaves a subtle Remnant where the character stands; a pick's Remnant is evident on a miss with Despair, subtle on a miss with Hope and an open below 18, hidden at 18 and on a critical; a walk refused at a barricade tells its author once a quarter minute, never the walker's own, never from a room not next to it; a watcher is held to the post and nowhere else; a watch missed with Despair marks a Sanity, one missed with Hope none", async () => {
+        /*
+         * E74, 12.11.2026 (the coordinator's item 3). The barricade is put up through its road (`G.judge`, a roll of the
+         * character's with the GMs' record), the knock asked as the walker's veto asks it (`door.knock`), the rest called on
+         * this GM. Rooms: A the character's, B next to it (Room setup's neighbours, written and put back), C apart; another
+         * student stands in B. Put back: everything. Red at e337ac9: no Remnant, no `door.knock`, no `watchHolds`, no Sanity.
+         */
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const W = await import("./watch-gm.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one apart");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(other, "no student the player does not own with a token on the scene on screen - this would measure nothing");
+        const scene = canvas.scene;
+        const tokens = [actor, other].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 3, "the scene on screen has fewer than three rooms");
+        const [A, B, C] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { at: tokens.map(t => ({ x: t.x, y: t.y })), stress: actor.system.resources.stress.value, tokens: new Set(scene.tokens.map(t => t.id)) };
+        const flagsWere = [];
+        for (const room of [A, B, C]) for (const piece of roomRegions(scene, room)) flagsWere.push([piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const made = [], told = [];
+        const judge = async (packet, from = player.id) => {
+            const at = told.length;
+            await G.judge(BRIDGE_ACTIONS, { requestId: `E74T9${foundry.utils.randomID(8)}`, ...packet }, from, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(at).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+        };
+        const rollOf = async (key, total) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            made.push({ message, kept: await recordFor(message, player, actor, key, { total }) });
+            return message.id;
+        };
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const cards = who => game.messages.filter(m => !seenIds.has(m.id) && m.speaker?.actor === who.id && m.whisper?.length).length;
+        const traces = () => scene.tokens.filter(t => !was.tokens.has(t.id) && remnantData(t)?.action === "infiltrate").map(t => remnantData(t)?.visibility ?? null);
+        const read = {};
+        try {
+            for (const [room, list] of [[A, [B]], [B, [A]], [C, []]]) for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
+            await tokens[1].update(M.positionIn(B, tokens[1]), PLACE);
+            await settle();
+            read.shut = [await judge({ action: "door.shut", actorId: actor.id, rollId: await rollOf("shut", 14) }), traces()];
+            read.pickBands = [{ opened: false, total: 10, withHope: false }, { opened: false, total: 10, withHope: true }, { opened: true, total: 16, withHope: true },
+                { opened: true, total: 18, withHope: true }, { opened: true, total: 4, isCritical: true, withHope: true }].map(D.pickTrace);
+            // The knock: the other student in B tries A's door, then again at once, then the author tries their own.
+            const author = cards(actor);
+            read.knock = [await judge({ action: "door.knock", actorId: other.id, room: A }, game.user.id), cards(actor) - author];
+            read.again = [await D.knockDoor({ actor: other, room: A }), cards(actor) - author];
+            await tokens[1].update(M.positionIn(C, tokens[1]), PLACE);
+            await settle();
+            read.far = (await D.knockDoor({ actor: other, room: A })).refused ?? null;
+            await D.endBarricade(D.barricadeKey(scene.id, A));
+            // The watch: held to its post and nowhere else.
+            await S.watchStore.patch(actor.id, { actorId: actor.id, total: 14, critical: false, post: A, entered: 0, left: 0, at: Date.now() });
+            read.held = [M.watchHolds(actor, A), M.watchHolds(actor, B), M.watchHolds(other, A)];
+            await S.watchStore.drop(actor.id);
+            await trustedWrite(actor, { "system.resources.stress.value": 0 }, { reason: "gmRuling" });
+            await W.declareWatch({ actor, total: 3, withHope: false });
+            read.sanity = [actor.system.resources.stress.value];
+            await W.declareWatch({ actor, total: 3, withHope: true });
+            read.sanity.push(actor.system.resources.stress.value);
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            await D.endBarricade(D.barricadeKey(scene.id, A));
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            for (const t of scene.tokens.filter(t => !was.tokens.has(t.id))) await t.delete();
+            for (const [piece, flags] of flagsWere) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, other.id].includes(m.speaker?.actor))) await m.delete();
+            await trustedWrite(actor, { "system.resources.stress.value": was.stress }, { reason: "gmRuling" });
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was.at[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ shut: ["done", ["subtle"]], pickBands: ["evident", "subtle", "subtle", "hidden", "hidden"],
+            knock: [null, 1], again: [{ told: false }, 1], far: "the character is not in that room", held: [true, false, false], sanity: [1, 1] }),
+            "{shut: [answer, the Remnants placed]; pickBands; knock, again: [answer (none: a report nobody waits on), the author's cards]; far; held: [the post, another room, another student]; sanity: [after a miss with Despair, after one with Hope]} - the doors' Remnants, the knock and the watch's rules");
     }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*

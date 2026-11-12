@@ -97,6 +97,7 @@ export async function shutDoor({ actor, total = 0, user = null }) {
     await barricadeStore.patch(barricadeKey(place.scene.id, place.room), { sceneId: place.scene.id, room: place.room,
         authorId: actor.id, strength, at: Date.now(), userId: user?.id ?? null });
     await setRoomBarricaded(place.scene, place.room, true);
+    await leaveDoorTrace(actor, "subtle", "shut", place.room);
     log(`${actor.name} barricaded ${place.room} (strength ${strength}).`);
     return { room: place.room, strength };
 }
@@ -158,6 +159,8 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
         await tellRooms(place.scene, [place.room, room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
             { name: actor.name, room }), new Set([actor.id]));
     }
+    // Every attempt leaves a Remnant: evident where it was heard (a pass, a miss with Despair), subtle otherwise.
+    if (held.length) await leaveDoorTrace(actor, forced || !withHope ? "evident" : "subtle", "force", room);
     const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
     if (forced && holds.lock && owner && owner !== actor.id && game.actors.get(owner)) {
         const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
@@ -197,6 +200,8 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
     if (tell && seen && lockish) {
         await tellRooms(place.scene, [place.room, room], game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room }), new Set([actor.id]));
     }
+    // Every attempt at a lock leaves a Remnant by its band (DA30); a Reroll's replay leaves none of its own.
+    if (tell && lockish) await leaveDoorTrace(actor, pickTrace({ opened, total: sum, isCritical, withHope }), "pick", room);
     const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
     const careless = lockish && ((opened && !isCritical && sum < rule.clean) || (!opened && !withHope));
     if (careless && owner && owner !== actor.id && game.actors.get(owner)) {
@@ -276,6 +281,54 @@ export async function dropLockRepairs(scene, room) {
         }
     }
     return n;
+}
+
+/** When each barricade's author was last told of somebody at the door, by key: one card a quarter minute. */
+const knocked = new Map();
+const KNOCK_MS = 15000;
+
+/**
+ * SOMEONE TRIES TO GET IN (E74; the plan's C2 card). A walk in through a door refused at a barricade, on the walker's own
+ * browser by the veto, which asks this of the primary (bridge `door.knock`): the barricade's author's owners are told that
+ * somebody tries the door - no name. Judged here: the room barricaded as the GMs hold it, next to the room the GMs read the
+ * walker in; one card a barricade a quarter minute. Answers `{ refused }` or `{ told }`.
+ */
+export async function knockDoor({ actor, room }) {
+    const M = await import("./movement.mjs");
+    const place = M.gmPlaceOf(actor);
+    if (!place?.room) return { refused: "the character is not standing in any room" };
+    const key = barricadeKey(place.scene.id, room ?? "");
+    const row = barricadeStore.get(key);
+    if (!row || room === place.room || !M.neighbouringRooms(place.scene, place.room).includes(room)) return { refused: "the character is not in that room" };
+    const now = Date.now();
+    if (now - (knocked.get(key) ?? 0) < KNOCK_MS) return { told: false };
+    knocked.set(key, now);
+    const author = game.actors.get(row.authorId ?? "");
+    if (!author || author.id === actor.id) return { told: false };
+    const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
+    await whisperToOwnerOnly(author, `<p>${esc(game.i18n.localize("DRPG.Infiltrate.shut.knock"))}</p>`);
+    return { told: true };
+}
+
+/**
+ * A door's Remnant (E74; DA30): left where the character stands, of the module's neutral kind, at `visibility` - a
+ * barricade's faint and subtle, a force's evident, a pick's by its band (`pickTrace`). Never stops the action: a Remnant that
+ * could not be placed is logged.
+ */
+async function leaveDoorTrace(actor, visibility, key, room) {
+    try {
+        const { dropRemnant } = await import("./remnants.mjs");
+        await dropRemnant(actor, { type: "neutral", visibility, faint: visibility === "subtle" && key === "shut",
+            note: game.i18n.format(`DRPG.Infiltrate.trace.${key}`, { room }), action: "infiltrate" });
+    } catch (err) {
+        log(`A door's Remnant could not be placed: ${err?.message ?? err}`);
+    }
+}
+
+/** A pick's Remnant by its band (DA30): a miss with Despair evident, a miss with Hope or an open below `clean` subtle, `clean` and up hidden. */
+export function pickTrace({ opened, total, isCritical, withHope }) {
+    if (!opened) return withHope ? "subtle" : "evident";
+    return isCritical || total >= INFILTRATE.pick.clean ? "hidden" : "subtle";
 }
 
 /** Take a barricade down: the row dropped and the public flag taken off. Answers whether there was one. */

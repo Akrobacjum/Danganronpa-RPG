@@ -31,7 +31,7 @@ branch for a tail (`settleTail`) and a Dash.
 - A Dash's Reroll: not measured. Nothing in E69 takes back the free crossings of a Dash whose roll is rerolled; what
   reroll.mjs does with a roll of `actionKey` "dash" was not read or run.
 
-## Defaults taken, owner to confirm
+## Defaults taken (default, owner may revise - the coordinator, 12.11)
 
 See SPEC.md: the ear glyph kept, Listen's approved description kept, Dash's bands. And for Tail Someone:
 

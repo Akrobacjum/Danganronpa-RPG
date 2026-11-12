@@ -1742,6 +1742,49 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && JSON.stringify(e74a.row) === JSON.stringify([e74a.p1.room, e74a.p1.total]) && e74a.p2 === true && e74a.logged.length === 0,
         JSON.stringify(e74a), { flow: "door-shut" });
 
+    /* E74-B. A WALK REFUSED AT A BARRICADE, FROM p1'S OWN PAGE (E74, 12.11.2026). The legal control of `door.knock`: Dorm A
+       and Dorm B are made neighbours (Room Setup's word), Botan stands in Dorm B behind a barricade of his own (the GMs'
+       row and the public flag, written on the GM), and p1 walks Aiko from Dorm A into Dorm B as a player drags a token.
+       The veto refuses the walk on p1's browser and asks the primary to tell the barricade's author (`requestDoorKnock`):
+       Botan's player gets one card naming nobody. Read: Aiko's room after, the cards to Botan's owners, the GM's log of
+       refusals (none). Put back: the barricade, the neighbours, Botan's token, the cards. */
+    phase("a walk refused at a barricade", { flow: "door-knock" });
+    const e74b = { setup: await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const D = await import("${repoUrl}/scripts/doors-gm.mjs");
+        const scene = canvas.scene, botan = scene.tokens.get("TOKBOTAN00000000");
+        const was = { botan: { x: botan.x, y: botan.y }, flags: {}, messages: game.messages.map(m => m.id) };
+        for (const room of ["Dorm A", "Dorm B"]) for (const piece of R.roomRegions(scene, room)) was.flags[piece.id] = piece.getFlag("${MOD}", M.ROOM_FLAGS.neighbours) ?? null;
+        for (const [room, list] of [["Dorm A", "Dorm B"], ["Dorm B", "Dorm A"]]) for (const piece of R.roomRegions(scene, room)) await piece.setFlag("${MOD}", M.ROOM_FLAGS.neighbours, list);
+        await botan.update(M.positionIn("Dorm B", botan), { teleport: true, movementAction: "displace", animate: false });
+        await S.barricadeStore.patch(D.barricadeKey(scene.id, "Dorm B"), { sceneId: scene.id, room: "Dorm B", authorId: "${IDS.botan}", strength: 12, at: Date.now() });
+        await M.setRoomBarricaded(scene, "Dorm B", true);
+        return was;`, { timeout: 60000 }) };
+    await settle(800);
+    await clearFailures(gm);
+    e74b.p1 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = canvas.scene.tokens.get("TOKAIKO000000000");
+        const before = M.roomOfToken(aiko);
+        try { await aiko.update(M.positionIn("Dorm B", aiko)); } catch {}
+        await new Promise(r => setTimeout(r, 1200));
+        return { before, after: M.roomOfToken(canvas.scene.tokens.get("TOKAIKO000000000")) };`, { timeout: 60000 });
+    await settle(800);
+    e74b.logged = await refusalsLogged(gm, "door.knock");
+    e74b.cards = await gm.eval(`const was = new Set(${JSON.stringify(e74b.setup?.messages ?? [])});
+        return game.messages.filter(m => !was.has(m.id) && m.speaker?.actor === "${IDS.botan}" && m.whisper?.length).length;`);
+    await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const D = await import("${repoUrl}/scripts/doors-gm.mjs");
+        const scene = canvas.scene, was = ${JSON.stringify(e74b.setup ?? {})};
+        await D.endBarricade(D.barricadeKey(scene.id, "Dorm B"));
+        for (const [id, value] of Object.entries(was.flags ?? {})) { const piece = scene.regions.get(id); if (!piece) continue;
+            if (value === null) await piece.unsetFlag("${MOD}", M.ROOM_FLAGS.neighbours); else await piece.setFlag("${MOD}", M.ROOM_FLAGS.neighbours, value); }
+        if (was.botan) await scene.tokens.get("TOKBOTAN00000000").update(was.botan, { teleport: true, movementAction: "displace", animate: false });
+        const keep = new Set(was.messages ?? []);
+        for (const m of game.messages.filter(m => !keep.has(m.id) && m.speaker?.actor === "${IDS.botan}" && m.whisper?.length)) await m.delete();
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    check("E74-B: p1's walk from Dorm A into Botan's barricaded Dorm B is refused on p1's browser, and Botan's player is told once, through the primary, that somebody tries the door - none refused",
+        e74b.p1?.before === "Dorm A" && e74b.p1?.after === "Dorm A" && e74b.cards === 1 && e74b.logged.length === 0,
+        JSON.stringify(e74b).slice(0, 2000), { flow: "door-knock" });
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

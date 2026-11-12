@@ -162,7 +162,7 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer", "barricaded"
+    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer", "barricaded", "onWatch"
 ]);
 
 /**

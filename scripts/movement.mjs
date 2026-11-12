@@ -59,7 +59,7 @@ import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-au
 import { actsAsMastermind } from "./passages-gm.mjs";
 // The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
 // static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
-import { eclipseMoveStore, crossingStore } from "./gm-stores.mjs";
+import { eclipseMoveStore, crossingStore, watchStore } from "./gm-stores.mjs";
 // E89 fix FG2 (G3): the waits for a token at rest counted (perf-counters.mjs; a leaf, no cycle).
 import { count } from "./perf-counters.mjs";
 
@@ -1174,12 +1174,21 @@ function eclipseSighting(student, from, tokenDoc, { adjacent = true } = {}) {
     if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
     const to = roomOfToken(tokenDoc), id = eclipseId(clock);
     if (!from || !to || from === to || !id) return null;
+    // A watcher keeps to the post through the Eclipse (E74 C6; DA34, the plan's "judgeEclipseCrossing refuses the watcher"):
+    // a walk out of it is put back here, on the primary, where the watch is known (watch-gm.mjs takes the post at the start).
+    if (watchHolds(student, from)) return { spent: { code: "onWatch", text: game.i18n.localize("DRPG.Bridge.why.onWatch") } };
     const allowance = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
     const tally = seenTally.get(student.id);
     const seen = Math.max(eclipseCountOf(eclipseMoveStore.get(student.id), id).seen, tally?.eclipse === id ? tally.seen : 0);
     const crossings = adjacent ? 1 : roomsApart(tokenDoc.parent, from, to);
     if (allowance !== null && seen + crossings > allowance) return { spent: { code: "eclipseSpent", text: game.i18n.localize("DRPG.Eclipse.noMovesLeft") } };
     return { actorId: student.id, eclipse: id, seen: seen + crossings };
+}
+
+/** Whether `student` keeps watch over `from` through the running Eclipse, as the GMs hold it (gm-stores.mjs `watchStore`). */
+export function watchHolds(student, from) {
+    const row = student?.id ? watchStore.get(student.id) : null;
+    return Boolean(row?.post) && row.post === from;
 }
 
 /**
@@ -1562,6 +1571,10 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
+        // A barricade (E74): its author is told somebody tries the door, through the primary (doors-gm.mjs `knockDoor`).
+        if (to && roomBarricaded(tokenDoc.parent, to) && allowed === game.i18n.localize("DRPG.Bridge.why.barricaded")) {
+            import("./bridge-asks.mjs").then(m => m.requestDoorKnock({ actorId: actor.id, room: to })).catch(() => {});
+        }
         return false;                                  // the move does not happen
     } catch {
         // Never block a move because our own check failed.

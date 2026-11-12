@@ -12,12 +12,13 @@ origin/claude/plan-130.
 | C4 | Pick the Lock: `INFILTRATE.pick` (Hand 15, 18 clean; a Shadow 16 cover), the bridge road `door.pick` with both rolls; at a door held by a lock or a seal (never a barricade) an open walks the picker in (the GM's move) and the lock stays locked; the room beyond sees who it was below the cover; a bedroom's owner warned of an open below 18 and of a miss with Despair | E74-T3 (tier 2), scenario 30 "forgeries of Pick the Lock" |
 | C6 | Keep Watch: `INFILTRATE.keepWatch` (Body 12, a default), the bridge road `watch.declare`, the GM store `watches`; declared before an Eclipse (struck through in one and before the Night Eclipse, Q-E74-2), the post the watcher's room at the Eclipse's start with a card of who is in it, a card for each settled crossing into or out of it (never which way), a summary at its end (action-watch.mjs, watch-gm.mjs) | E74-T4 (tier 2), scenario 30 "forgeries of Keep Watch" |
 | C5 (part) | Room Setup's Doors tab: the **Broken** column (Q-E74-4's default: the Locked column kept beside it), ticked for a lock a Force the Door or a breach forced; unticked and applied, the lock is mended (`setRoomBroken`). GM handbook EN and PL | E74-T5 (tier 2) |
+| C5 | Repair the Lock: `PASSAGE_PRESETS.repairLock` (Hand, Trivial), offered in Start New where a door of the builder's room has a broken lock, judged at the approval (doors-gm.mjs `repairLockRefusal`: broken, a door of the builder's room, one project a lock), its completion row "repairsLock" mending the lock (undone by a Reroll); a GM's repair by hand removes a project under way | E74-T8 (tier 2) |
+| C7 | The Reroll replays a Dash, a tail, a barricade, a forced door, a picked lock, a watch and a GM's room action (infiltrate-reroll.mjs), from facts the GMs' runs write on the roll's row; what cannot be taken back is said on its line | E74-T6, E74-T7 (tier 2) |
+| Item 3 | The "Someone tries to get in" card (bridge road `door.knock`, from the walker's veto, one card a barricade a quarter minute, no name); the Remnants (a barricade's subtle, a force's evident where heard, a pick's by DA30's bands); the watcher held to the post (the primary's Eclipse sighting puts a walk out of it back, code `onWatch`); a watch missed with Despair marks a Sanity | E74-T9 (tier 2), scenario 33 E74-B, scenario 30 "forgeries of a knock" |
 
 ## Next
 
-C5's preset Repair the Lock (a project at Trivial, offered only in a room with a broken lock, once a door, its completion
-mending the lock, its undo), C7 the rest of the registration (the Reroll branches, `OWN_PERFORMERS`), C8 shots and the GM
-handbook.
+C8's shots of this round (Start New with the preset). Then the coordinator's next word.
 
 ## Mutants (12.11, on a worktree of 32b4c1a)
 
@@ -26,30 +27,45 @@ barricade picked as a lock (E74-T3); the two-door limit dropped (E74-T1); a GM's
 crossing out of the post not told (E74-T4). All five killed. And one of E69's: a critical tail lost to any Dash (E69-T4),
 killed.
 
-## Not built in C1+C2 (said, not hidden)
+## Not built (said, not hidden)
 
-- The "Someone tries to get in" card to the author: an honest walk is refused on the walker's own browser by the
-  veto, which tells no GM; a card needs a request to the primary from the veto, not written in this round.
-- The neutral Remnant a barricade leaves, and Force the Door's Evident one (DA30).
+- Keep Watch's hindrance die on the opening roll at a watch of 18+ (DA44). Not built, for a reason found in the code: a
+  drawn roll's dice are the GM's own list (roll-draw.mjs `expectedFor`), and a die the GM adds that the roller's own window
+  did not is a difference "named on a card to the roller" (the trust model's layer two). The killer's browser cannot know
+  the victim watches (the watch is the GMs'), so the GM's die would be named to the killer - telling them of the watch.
+  A question for the owner: tell the killer's window "a hindrance die" without saying why, or roll it on the GM unnamed.
 - Force the Door has no legal control in scenario 33 (Aiko's room in the harness has no neighbour); tier 2's E74-T2 is
   its legal road, judged by `G.judge` as the primary judges a player's packet.
-- known-leaks.json's row for the public flag (DA47): the file holds only leaks a harness run reproduced (its `about`),
-  and no scenario barricades a room while 72-canary reads; the flag holds `true` and nothing else.
 - E53's ledger counters (Q-E74-5).
-- C7's Reroll branches (Shut replaces the strength, Force stays broken, Pick recounts): not built. Read on 12.11
-  (reroll.mjs `replayAction`, not run): `shut`, `force`, `pick` and `keepWatch` have no `case`, so a Reroll falls to
-  `default` - the GMs are told `DRPG.Reroll.noReplay` and what the first roll did stands - whose words ("this roll left no lasting
-  effect") are not true of these actions, which did leave one.
-- Keep Watch: the watcher held to the post during the Eclipse (`judgeEclipseCrossing`), a Sanity mark for a miss with
-  Despair, and the hindrance die an 18+ watch adds to an opening roll (DA44: `LEGAL_ROLL_MODIFIERS`, `expectedFor`,
-  `rollOpening`) - not built; the watch's cards are.
-- Pick the Lock's pass that lasts until the picker leaves the room (DA9) and is lost without an entry this time of day:
-  in this round the pass is used at once - the GM walks the picker in on an open - so there is no `lockpickStore` and no
-  player copy. Owner to confirm, or to ask for the stored pass.
-- The owner's warning at the next entry, from `crossingSettled` (DA30): the warning is sent at once, wherever the owner
-  is.
+- Pick the Lock's pass that lasts until the picker leaves the room (DA9): the pass is used at once (the GM walks the
+  picker in on an open); no `lockpickStore`, no player copy. Default, owner may revise.
+- The owner's warning at the next entry, from `crossingSettled` (DA30): it is sent at once, wherever the owner is.
+- A door forced, a lock picked and a room action's effects are not taken back by a lower Reroll; each line says so.
 
-## Defaults taken, owner to confirm
+## For the coordinator: the known-leaks row of the barricade flag (DA47)
+
+audit/harness/lib/canary.mjs requires a `deferred` or `foundryLimit` row to have its paragraph in audit/harness/README.md,
+marked `<!-- leak:<id> -->`; README is not mine to edit, so neither is added. Proposed row (audit/harness/known-leaks.json):
+
+```json
+{ "id": "E74-barricade-flag", "findings": ["DA47"], "class": "metadata", "severity": "low",
+  "what": "A barricaded room carries one public region flag (movement.mjs ROOM_FLAGS.barricaded, true), which every browser holds: a console reads which rooms are barricaded. Who put it up and how strong it is stay in the GMs' store `barricades`. Public on purpose (the owner's DA47).",
+  "deferred": "1.3.x (D27)",
+  "detectedBy": [{ "scenario": "33-bridge-paths", "check": "E74-A: ... the room's public flag, which p2's browser reads" }],
+  "readme": "leak:E74-barricade-flag",
+  "measuredAt": "E74 C2, 12.11.2026: scenario 33 E74-A read roomBarricaded true on p2's browser for Aiko's barricade" }
+```
+
+Proposed paragraph for audit/harness/README.md's list of what stays:
+
+> <!-- leak:E74-barricade-flag --> **A barricade's public flag (E74, DA47).** Shut the Door marks its room with one region
+> flag every browser holds, so a console can read which rooms are barricaded - never by whom or how strongly, which stay
+> the GMs'. The owner chose it (DA47): the room tile shows the barricade after a pull on its door, and the flag is what the
+> veto reads to refuse a walk in on the walker's own browser.
+
+With both in, 33's E74-A check would carry `{ knownLeak: "E74-barricade-flag", measured: e74a.p2 === true }`.
+
+## Defaults taken (default, owner may revise - the coordinator, 12.11)
 
 - "Open exits" are the room's neighbours a GM's lock does not shut (`openExits`); a seal or a barricade next door is not
   counted out.
@@ -85,6 +101,12 @@ killed.
 
 | 12.11, C3-C6 | the 34 scenarios at f64d5f6 | 33 green; 30 RED: its two door forgeries read `ids.scene`, which it has not - Force's read measured nothing, Pick's threw (fixed in 32b4c1a; 30 green after) |
 | 12.11, C5 and after | 30, 33, 40, 41, 60, 65, 66, 74, 76, 83 at 97ef581 (those that read vault.mjs, Room Setup's facade, or action-doors.mjs) | all green |
+
+| 12.11, C7 | E74-T6, E74-T7 on a worktree of a123ff1 with only tests-tier2.mjs copied in | failed: every case the no-replay line, no facts on the rows |
+| 12.11, C7 | E74-T6, E74-T7 on the tree; tiers 0-1 | 6 passed; 1164 passed, 1 failed (R1161: "Przerzut" is retired, the lines say "Po Rerollu"), green after |
+| 12.11, C5 | E74-T8 at 68ec08d / on the tree; tiers 0-1 | "presetApproval is not a function" / 5 passed; 1165 passed, 0 failed |
+| 12.11, item 3 | E74-T9 at e337ac9 / on the tree; tiers 0-1 | "undefined is not a function" / 5 passed; 1163 passed, 2 failed (R164: the knock's run, R1441: the Sanity read's census row), green after |
+| 12.11 | CI at df3ffb6 (after the E15-T4 fixture fix) | green - the first green run on this branch; every run before it was red on E15-T4 alone, which I had not checked |
 
 ## Pushed
 

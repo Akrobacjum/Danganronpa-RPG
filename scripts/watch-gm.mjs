@@ -38,7 +38,7 @@ export async function watchRefusal(actor) {
 }
 
 /** Declare a watch on the primary GM (the run of `watch.declare`). Answers `{ refused }` or `{ kept }`. */
-export async function declareWatch({ actor, total = 0, isCritical = false, userId = null }) {
+export async function declareWatch({ actor, total = 0, isCritical = false, withHope = true, userId = null }) {
     const why = await watchRefusal(actor);
     if (why) return { refused: why };
     await watchStore.whenHydrated();
@@ -46,6 +46,13 @@ export async function declareWatch({ actor, total = 0, isCritical = false, userI
     if (kept) {
         await watchStore.patch(actor.id, { actorId: actor.id, total: Number(total) || 0, critical: Boolean(isCritical), post: null,
             entered: 0, left: 0, at: Date.now(), userId });
+    }
+    // A miss with Despair costs a Sanity mark (the plan's C6): written by this GM, its reason the GM's alone.
+    if (!kept && !withHope) {
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const stress = actor.system?.resources?.stress ?? {};
+        const next = Math.min(Number(stress.max) || 0, (Number(stress.value) || 0) + 1);
+        if (next !== Number(stress.value)) await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "infiltrate" });
     }
     log(`${actor.name} ${kept ? "will keep watch" : "keeps no watch"} (${Number(total) || 0}).`);
     return { kept };

@@ -2940,6 +2940,11 @@
         "seenBy": "{name} is picking the lock to {room}.",
         "warned": "Somebody has been at the lock of {room}."
       },
+      "trace": {
+        "shut": "Something was pushed against the door of {room}.",
+        "force": "Splinters and scuffs at the door to {room}.",
+        "pick": "Fine scratches around the lock of the door to {room}."
+      },
       "repair": {
         "mended": "The lock of {room} has been repaired: the door holds again.",
         "dropped": "“{name}” is removed: the lock of {room} was repaired by hand.",
@@ -2957,6 +2962,7 @@
         "summary": "Your watch over {room} is over. Came in: {entered}. Left: {left}."
       },
       "shut": {
+        "knock": "Someone tries the door and cannot get in.",
         "done": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends."
       },
       "tail": {
@@ -3804,6 +3810,7 @@
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
         "watch.declare": "Keep Watch",
+        "door.knock": "Someone at the door",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",
@@ -3956,6 +3963,7 @@
         "doorLocked": "The door is locked.",
         "roomSealed": "That room is sealed for this time of day. Nobody gets in.",
         "barricaded": "The door does not give.",
+        "onWatch": "You keep watch: you stay at your post until the Eclipse ends.",
         "chained": "You are chained here until this time of day ends.",
         "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
         "trialLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",

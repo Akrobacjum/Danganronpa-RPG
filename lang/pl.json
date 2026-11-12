@@ -3202,6 +3202,11 @@
         "seenBy": "{name} majstruje przy zamku do: {room}.",
         "warned": "Ktoś majstrował przy zamku: {room}."
       },
+      "trace": {
+        "shut": "Coś dosunięto do drzwi: {room}.",
+        "force": "Drzazgi i otarcia przy drzwiach do: {room}.",
+        "pick": "Drobne rysy wokół zamka drzwi do: {room}."
+      },
       "repair": {
         "mended": "Zamek: {room} naprawiono, drzwi znów trzymają.",
         "dropped": "„{name}” usunięto: zamek {room} naprawiono ręcznie.",
@@ -3219,6 +3224,7 @@
         "summary": "Czuwanie w: {room} się skończyło. Weszło: {entered}. Wyszło: {left}."
       },
       "shut": {
+        "knock": "Ktoś próbuje wejść, ale drzwi nie ustępują.",
         "done": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia."
       },
       "tail": {
@@ -4133,6 +4139,7 @@
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
         "watch.declare": "Keep Watch",
+        "door.knock": "Ktoś przy drzwiach",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
@@ -4287,6 +4294,7 @@
         "doorLocked": "Drzwi są zamknięte.",
         "roomSealed": "To pomieszczenie jest zapieczętowane na tę porę dnia. Nikt nie wchodzi.",
         "barricaded": "Drzwi nie ustępują.",
+        "onWatch": "Czuwasz: zostajesz na posterunku do końca Eclipse.",
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",
         "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",

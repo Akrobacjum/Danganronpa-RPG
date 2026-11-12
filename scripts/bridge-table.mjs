@@ -47,7 +47,7 @@ import {
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH,
-    ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE
+    ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -57,7 +57,7 @@ import {
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
-    handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare
+    handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -214,13 +214,22 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_WATCH_DECLARE]: {
         label: "DRPG.Bridge.what.watch.declare",
         guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
         run: handleWatchDeclare,
         // The asker's card says whether a watch is kept (`performWatch`).
         answer: "reply",
         // Always a roll: the total and the critical are the GMs' record of the Body roll `rollId` names.
         rolled: { field: "rollId", actor: "actorId", kind: "keepWatch" },
         claims: { rollId: "the roll the watch is kept by (bridge-guards.mjs rollRefusal): the sender's own drawn Keep Watch roll of that character" }
+    },
+    [ACTION_DOOR_KNOCK]: {
+        label: "DRPG.Bridge.what.door.knock",
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, room: as.text }),
+        run: handleDoorKnock,
+        // A report nobody waits on: the walker was told by its own veto that the door does not give.
+        answer: "none", quiet: true,
+        claims: { room: "judged by knockDoor (doors-gm.mjs): a barricaded room next to the one the GMs read the character standing in; one card a barricade a quarter minute" }
     },
     [ACTION_TAIL_START]: {
         label: "DRPG.Bridge.what.tail.start",

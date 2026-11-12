@@ -122,6 +122,8 @@ export const ACTION_DOOR_FORCE = "door.force";
 export const ACTION_DOOR_PICK = "door.pick";
 /** player -> primary GM: a watch declared before an Eclipse, its Body roll on the GMs' record (E74 C6; watch-gm.mjs). */
 export const ACTION_WATCH_DECLARE = "watch.declare";
+/** player -> primary GM: a walk in refused at a barricade, told to its author as somebody at the door (E74; doors-gm.mjs `knockDoor`). */
+export const ACTION_DOOR_KNOCK = "door.knock";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw

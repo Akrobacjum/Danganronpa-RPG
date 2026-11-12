@@ -42,7 +42,7 @@ export async function performWatch(actor, options = {}) {
     if (!roll) return abort(actor, paid);
     const { requestWatchDeclare } = await import("./bridge-asks.mjs");
     const res = await requestWatchDeclare({ actorId: actor.id, total: roll.total, isCritical: Boolean(roll.isCritical),
-        rollId: rollInHand(actor)?.messageId ?? null });
+        withHope: Boolean(roll.withHope), rollId: rollInHand(actor)?.messageId ?? null });
     if (!res.ok || res.value?.refused) return null;
     const kept = res.value?.kept === true;
     await whisperToOwner(actor, `<p>${esc(game.i18n.localize(kept ? "DRPG.Infiltrate.watch.kept" : "DRPG.Infiltrate.watch.notKept"))}</p>`);

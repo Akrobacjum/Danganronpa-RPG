@@ -6300,6 +6300,8 @@ const REGRESSIONS = [
             forceDoor: "refused",
             // E74 C4: a lock picked on the primary (doors-gm.mjs), whose run passes its `{ refused }` on.
             pickLock: "refused",
+            // E74: somebody at a barricaded door (doors-gm.mjs), whose run passes its `{ refused }` on.
+            knockDoor: "refused",
             // E74 C6: a watch declared on the primary (watch-gm.mjs), its refusals by `watchRefusal`.
             declareWatch: "refused", watchRefusal: "returns",
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their

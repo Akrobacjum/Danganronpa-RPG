@@ -44,8 +44,8 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
  * `eclipseSighting`). movement.mjs reads this list (it imports this file, R161).
  */
 export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked", "eclipseSpent",
-    // E74 C1: a barricaded room (movement.mjs `barricadedFrom`).
-    "barricaded"]);
+    // E74 C1: a barricaded room (movement.mjs `barricadedFrom`); C6: a watcher off the post (movement.mjs `watchHolds`).
+    "barricaded", "onWatch"]);
 
 /** The codes a `move.sentBack` may carry: a wall, and since E80 C2 a floor the doors' rules do not join, and since E17 C1
  *  the rules' codes (`RULE_CODES`) - the things the audit sends a token back for, one packet for all of them. */

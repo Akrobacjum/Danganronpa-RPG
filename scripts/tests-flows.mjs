@@ -87,6 +87,9 @@ export const FLOWS = Object.freeze([
     // E74 C3 (12.11.2026): 30 forges the packet; the tier-2 test E74-T2 forces a barricade, a lock and a seal.
     { id: "door-force", what: "Force the Door: the Body roll drawn on the GM against everything that holds the door, read on the GM",
         entry: { bridge: ["door.force"] }, scenarios: ["30-security"], status: "partial", stage: "E74" },
+    // E74 (12.11.2026): 33 walks into a barricaded room from p1's page (E74-B); 30 forges the packet.
+    { id: "door-knock", what: "Someone at a barricaded door: the walker's veto asks the GM to tell the barricade's author",
+        entry: { bridge: ["door.knock"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E74" },
     // E74 C2 (12.11.2026): 33 shuts a door from p1's page (E74-A); 30 forges the packet.
     { id: "door-shut", what: "Shut the Door: the Body roll drawn on the GM, the barricade kept by the GM and its public flag set",
         entry: { bridge: ["door.shut"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E74" },

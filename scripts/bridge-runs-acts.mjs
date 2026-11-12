@@ -229,12 +229,22 @@ export async function handleDoorPick(payload, sender) {
     return { reply: { opened: out.opened, held: out.held } };
 }
 
+/** SOMEONE AT THE DOOR (E74, 12.11.2026; doors-gm.mjs `knockDoor`): a walk in refused at a barricade, told to its author. */
+export async function handleDoorKnock(payload) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { knockDoor } = await import("./doors-gm.mjs");
+    const out = await knockDoor({ actor, room: payload.room });
+    if (out?.refused) return { refused: out.refused };
+}
+
 /** KEEP WATCH (E74 C6, 12.11.2026; watch-gm.mjs). Answers `{ reply: { kept } }`. */
 export async function handleWatchDeclare(payload, sender) {
     const actor = game.actors.get(payload.actorId ?? "");
     if (!actor) return { refused: "no such character" };
     const { declareWatch } = await import("./watch-gm.mjs");
-    const out = await declareWatch({ actor, total: payload.total, isCritical: payload.isCritical, userId: sender?.id ?? null });
+    const out = await declareWatch({ actor, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope !== false,
+        userId: sender?.id ?? null });
     if (out.refused) return { refused: out.refused };
     await factsForReroll(payload.rollId, sender, actor.id, "keepWatch", { watchKept: Boolean(out.kept) });
     return { reply: { kept: out.kept } };

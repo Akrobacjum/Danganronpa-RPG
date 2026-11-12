@@ -39653,6 +39653,8 @@ const INVARIANTS = [
         const RULES = {
             "character.mjs initCharacter": "a new character's starting maximum and no marks, written once",
             "cleanup.mjs undoLastCleanup": "a Reroll puts the clean-up's Sanity marks back",
+            // E74 C6: Keep Watch missed with Despair marks a Sanity, written by the primary GM.
+            "watch-gm.mjs declareWatch": "a watch missed with Despair, its Sanity mark, written",
             "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
             "cleanup.mjs restoreStress": "a refund of Sanity, written",
             "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",

@@ -6672,6 +6672,20 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && watch.theirs.forOwnership && watch.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(watch).slice(0, 2000), { flow: "keep-watch" });
 
+    /* FORGERIES OF A KNOCK (E74, 12.11.2026). `door.knock` from p1's console: for Botan's character, and for Aiko at Dorm B,
+       which nobody has barricaded - each refused and logged on the GM, nothing told to anyone (a report nobody waits on:
+       `quiet`). The legal road is 33's E74-B. */
+    phase("forgeries of a knock", { flow: "door-knock" });
+    const readCards = `return game.messages.filter(m => m.whisper?.length && ["${ids.aiko}", "${ids.botan}"].includes(m.speaker?.actor)).length;`;
+    const knock = {
+        theirs: await forge("door.knock", { actorId: ids.botan, room: "Dorm A" }, readCards),
+        open: await forge("door.knock", { actorId: ids.aiko, room: "Dorm B" }, readCards)
+    };
+    check("SECURITY: a console's knock is refused for another's character and at a door nobody barricaded - no card - and each refusal is logged on the GM",
+        Object.values(knock).every(f => f.unchanged && f.reasons.length === 1) && knock.theirs.forOwnership
+            && knock.open.reasons[0].includes("the character is not in that room"),
+        JSON.stringify(knock).slice(0, 2000), { flow: "door-knock" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the
