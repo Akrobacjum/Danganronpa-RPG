@@ -32256,6 +32256,34 @@ const INVARIANTS = [
             + "the tracker's action, the words EN/PL])");
     }],
 
+    ["R3822 - a Call window folds away no row's description: in a Hope or a Despair Call window drawn as an action's, an unpicked row's line (its description and price) is shown as the picked row's is, in both themes (the owner's standing rule of 12.11: \"nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji NIGDY\")", async () => {
+        /*
+         * 12.11.2026, relayed by the coordinator. The action window's columns hide an unpicked row's `small` line
+         * (danganronpa.css, `.drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) ...`), and the
+         * Call windows took that layout with R3818. In a Call window that line is the row's description and its price, so
+         * it is shown on every row. Read as a cascade from the stylesheets' text (`styleCascade`) on a window built of
+         * the classes `callWindow` gives, one row unpicked. The action window's own rule is not this test's. Red at
+         * eee3ff7: `display: none` won.
+         */
+        const C = await styleCascade();
+        const shown = (theme, side) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel ${side} drpg-action-window"><section class="window-content"><div class="dialog-content">`
+                + `<div class="drpg-variant-columns"><div class="drpg-wide-col drpg-variant-ask"><form><div class="drpg-choice-list">`
+                + `<label class="drpg-choice"><input type="radio" name="choice" value="a" checked><span class="drpg-choice-text"><strong>A</strong><small>R3822 a</small></span></label>`
+                + `<label class="drpg-choice"><input type="radio" name="choice" value="b"><span class="drpg-choice-text"><strong>B</strong><small>R3822 b</small></span></label>`
+                + `</div></form></div></div></div></section></div>`;
+            const [, unpicked] = body.querySelectorAll(".drpg-choice-text small");
+            return C.winner(unpicked, ["display"])?.value ?? "(no rule)";
+        };
+        const read = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].flatMap(theme => ["drpg-hope-dialog", "drpg-despair-dialog"]
+            .map(side => [theme, side, shown(theme, side) !== "none"]));
+        equal(stableJson(read.filter(r => !r[2]).map(r => r.slice(0, 2))), "[]",
+            "a Call window hides an unpicked row's description line ([theme, side] where `display: none` wins)");
+    }],
+
     ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
         /*
          * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load

@@ -5172,6 +5172,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
 .drpg-variant-columns > .drpg-variant-ask { flex: 1.1 1 18rem; min-width: 0; padding-right: 6px; }
 .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: none; }
+/* A Call window shows every row's line (12.11.2026; the owner's standing rule "nie chowajmy w oknach akcji wyboru statystyki
+   ani opisu akcji NIGDY", relayed by the coordinator): there it is the row's description and price, which the rule above
+   would fold away under an unpicked row (call-pickers.mjs `callWindow`'s action layout, R3818). R3822 reads the cascade. */
+:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: block; }
 .drpg-variant-columns :is(.drpg-variant-ask, .drpg-variant-ask > form, .drpg-variant-brief > .drpg-briefing-block) > :first-child {
     margin-top: 0;
 }

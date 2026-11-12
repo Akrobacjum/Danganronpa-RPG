@@ -167,6 +167,16 @@ where that line leaves the rule open the default is written here (default, owner
 | C8 (dedc76d) | D064, D068, D090 | D064: already one road since E37 C2 (R1194), no code. D068: migration step `chapterRestStamps` (1.2.117): a chapterless stamp of the window now gets the clock's chapter, any other is dropped (R3814, new; default, owner may revise). D090: under quiet the planted Gear stays stowed and the victim's other working stowed piece is readied without a word or redraw (default, owner may revise: which piece is readied); E35-T7 changed on purpose |
 | C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | built (the owner's "Budujemy", 12.11; see "D038" below). R3819, R3820 new; tier 2 "D038 lair lock", "D038 lair seal"; 33 A22, 30 "forged asks at the Mastermind's door". Shots: round 8 |
 
+## The owner's standing rule of 12.11: no fold in an action window (checked on the Call windows)
+
+- "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji NIGDY". The Call windows hold no <details>, no Details
+  box, no hidden layer and no statistic choice. One fold found: the action layout's rule hides an unpicked row's line
+  (danganronpa.css `.drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) ... small`), which in a
+  Call window is the row's description and price; a rule after it shows the line in a Hope or Despair Call window. R3822
+  new (the cascade, both themes; red at eee3ff7). Shots: round 11, https://claude.ai/artifact/ByZ8xMitchw3S6dMFByKSB
+- Not this line's files, told to the coordinator: the action window itself still hides an unpicked row's line by that
+  rule and folds its fact lines behind Details (action-menus.mjs `detailsHtml`, E49 A8).
+
 ## C8's "Silence now" (12.11.2026; the plan's A9 of 11.10, left from C8)
 
 - gm-stores.mjs CAST_FIELDS gains `silencedDead` (`{ [actorId]: true }`), split per student; a new incident starts it
