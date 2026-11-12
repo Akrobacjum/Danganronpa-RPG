@@ -325,6 +325,21 @@ Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzu
 
 Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 1*, *Nieodkryty pokój 2* i tak dalej, na liście wyboru i w odpowiedzi: Listen mówi ci, kto jest za drzwiami, nie jaki pokój za nimi leży.
 
+Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone i Dash (kolejne dojdą później). W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+
+### Dash - Leg, 1 akcja
+
+Bieg: rzut na Leg daje darmowe przejścia do końca pory dnia, wydawane jak Free Move.
+
+| Rzut | Darmowe przejścia |
+|---|---|
+| poniżej 12 | żadne |
+| 12+ | 1 |
+| 18+ | 2 |
+| krytyk | 3 |
+
+Kośćmi rzuca przeglądarka GM-a i to ona daje przejścia; bez GM-a przy stole nic nie jest płacone i nic się nie dzieje.
+
 ### Palm - Hand, 1 akcja
 
 Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie do środka. Dwa niezależne rzuty: **Hand** decyduje, czy się udało, **Shadow** - czy zauważyli.

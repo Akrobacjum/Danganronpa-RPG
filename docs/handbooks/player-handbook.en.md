@@ -325,6 +325,21 @@ Work out who is in a neighbouring room. No GM needed. You pick the room before y
 
 A neighbouring room you have never been in is listed as *Unexplored room 1*, *Unexplored room 2* and so on, in the picker and in the answer: Listen tells you who is behind a door, not what the room behind it is.
 
+The tile is called **Infiltrate**: its window lists its actions one under another - Listen first, then Tail Someone and Dash (more come later). In a room with no neighbouring room Listen is greyed with the reason.
+
+### Dash - Leg, 1 action
+
+Run: a Leg roll gives free crossings until the time of day ends, spent like a Free Move.
+
+| Roll | Free crossings |
+|---|---|
+| under 12 | none |
+| 12+ | 1 |
+| 18+ | 2 |
+| critical | 3 |
+
+The GM's browser throws the dice and grants the crossings; with no GM connected nothing is paid and nothing happens.
+
 ### Palm - Hand, 1 action
 
 A hand in somebody's pocket, going either way, or just a look inside. Two independent rolls: **Hand** decides whether it worked, **Shadow** decides whether they noticed.
