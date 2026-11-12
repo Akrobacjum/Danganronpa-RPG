@@ -71334,7 +71334,7 @@ const SCENARIOS = [
             + "frozen, gone, cards; the lowered target: crossed, cards; the kept project: there after its crossing, gone once the bookmark moved on]");
     }],
 
-    ["the GMs' roads change a project through the one entry (E36-T4): each of create, edit, portrait, secrecy, share, revoke, reveal, reseal, a Rearm, a dragged token, the manager's Save and Delete waits for the queue and writes once; the manager's unchanged row writes nothing; the tray's -/+ on a project row is one change of 1 or -1 and its Delete deleteProject, with no Reveal or Hide on it", async () => {
+    ["the GMs' roads change a project through the one entry (E36-T4): each of create, edit, portrait, secrecy, share, revoke, reveal, reseal, a Rearm, a dragged token, the manager's Save and Delete waits for the queue and writes once; the manager draws no portrait and its Save writes none; the manager's unchanged row writes nothing; the tray's -/+ on a project row is one change of 1 or -1 and its Delete deleteProject, with no Reveal or Hide on it", async () => {
         /*
          * E36 C2, 25.10.2026; E36-09 to E36-11, audit S17-18, S09-36. Each GM's road read the Countdowns setting and wrote
          * it whole outside any queue, and a manager row wrote the image, the meta and the secrecy as three writes, so a
@@ -71343,7 +71343,10 @@ const SCENARIOS = [
          * `COUNTDOWNS_KEY` open: what it changed while held (nothing, if it waits in the queue), what it changed once let
          * go, and how many times it wrote the Countdowns setting and projectMeta (a counter on `game.settings.set`, this
          * browser's own writes). The manager is driven through DialogV2.wait as E12 C5's test drives it: one row given a
-         * portrait and sealed, every other row left as it was. The tray is a planted root in Daggerheart 2.10.5's markup
+         * sealed, every other row left as it was; since E49 FT batch 3 (90c32902, the owner's second round: no countdown
+         * picture in the project windows) the manager draws no portrait cell and no `img.<id>` field, so the row's Save
+         * must find none and leave the project's picture as it was (a portrait field coming back is red here; the
+         * project's own picture is still set by `setProjectImage`, the road above). The tray is a planted root in Daggerheart 2.10.5's markup
          * (`.countdown-container[data-countdown]`, `[data-action="increaseCountdown"]`), with a bubbling listener standing
          * in for its ApplicationV2 action handler, and its menu entries in 2.10.5's shape (`label`, `visible`, `onClick`);
          * whether v14 draws them so is a real table's (LIVE-E36-02), not this test's. At d0ede27a every road but the Rearm writes while the
@@ -71444,24 +71447,26 @@ const SCENARIOS = [
                 () => P.roomOf(placed));
             seen.drag = { held: drag.held.read, after: drag.after, meta: drag.meta };
 
-            // The manager's Save: one row given a portrait and sealed, every other row as the window drew it.
+            // The manager's Save: one row sealed, every other row as the window drew it; no portrait field drawn (90c32902).
             const rows = P.allProjects().length;
+            const imgBefore = project(placed)?.img ?? null;
+            let portraitField = null;
             D.wait = async cfg => {
                 const element = document.createElement("div"), form = document.createElement("form");
                 if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
                 else if (cfg?.content) form.append(cfg.content.cloneNode(true));
                 element.append(form);
                 const field = name => form.querySelector(`[name="${name}.${CSS.escape(placed)}"]`);
-                must(field("img") && field("secret"), "the manager drew no portrait or Secret for this test's row - the answer would change nothing");
-                field("img").value = "icons/svg/d20.svg";
+                must(field("secret"), "the manager drew no Secret for this test's row - the answer would change nothing");
+                portraitField = Boolean(field("img") || form.querySelector(`[data-project="${CSS.escape(placed)}"] img`));
                 field("secret").checked = true;
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
                 return save.callback(new Event("click"), save, { element });
             };
-            const manager = await road(() => UI.openProjectManager(), () => [project(placed)?.img, P.isSecret(placed)]);
+            const manager = await road(() => UI.openProjectManager(), () => [(project(placed)?.img ?? null) === imgBefore, P.isSecret(placed)]);
             if (ownWait) Object.defineProperty(D, "wait", ownWait);
             else delete D.wait;
-            seen.manager = { rows: rows > 1, held: manager.held.wrote, after: manager.after, cd: manager.cd, meta: manager.meta };
+            seen.manager = { rows: rows > 1, portraitField, held: manager.held.wrote, after: manager.after, cd: manager.cd, meta: manager.meta };
 
             // The tray: -/+ on a project row and on a row that is no project, and its menu.
             root = document.createElement("div");
@@ -71514,13 +71519,13 @@ const SCENARIOS = [
             reseal: { held: 0, resealed: true, cd: 1, meta: 0 },
             rearm: { held: false, after: true },
             drag: { held: room, after: elsewhere, meta: 1 },
-            manager: { rows: true, held: 0, after: ["icons/svg/d20.svg", true], cd: 1, meta: 1 },
+            manager: { rows: true, portraitField: false, held: 0, after: [true, true], cd: 1, meta: 1 },
             tray: { tray: true, plus: [0, 1, 1], minus: [1, 0, 1], reached: [["suiteE36T4NoProject", "increaseCountdown"]] },
             menu: { menu: true, shown: [[false, true], [false, true], [true, true]], clicked: ["CONTROLS.CommonDelete"], held: true, after: false },
             remove: { held: true, after: false, cd: 1, meta: 1 }
         }), "a GM's road does not change a project through the one entry [each road: what it changed while the queue was held, after, "
             + "its Countdowns and projectMeta writes; the reseal; the Rearm's armed while held and after; the dragged token's room; the manager's "
-            + "Save (more than one row, the sealed row's portrait and secrecy); the tray's + and - (the bar while held, after, its writes) and what "
+            + "Save (more than one row, no portrait drawn on the row, its picture unchanged and its secrecy); the tray's + and - (the bar while held, after, its writes) and what "
             + "reached the system's handler; the menu (Reveal, Hide, Delete shown on the project row and on the other), what the system's "
             + "Delete did, the project's Delete; deleteProject]");
     }],
