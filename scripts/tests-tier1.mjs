@@ -48958,64 +48958,69 @@ const INVARIANTS = [
             setting: ["world", true, true, false], lifetime: "table", section: ["gm"], words: [true, true]
         }), "[the trial's start row; the cut-in's row; the vote's row's labels; the switch's scope, type, default, shown by Foundry; its lifetime; its section; its words in both]");
     }],
-    ["R3703 - the entry's curtain closes by the panes' fronts and leaves no gap (scripts/glass-close.mjs `holeOf`, `holeField`, `paintClosing`; scripts/glass.mjs `entryPieces`; E61 C3, the owner's review of round 1, 12.11.2026): on a ring of 24 panes around a hole and on a jagged ring whose inner corners alternate in depth, at 1600x900 and 1366x768, the panes leave one hole; at offset 0 no cell of it is covered, at the field's reach every cell is, and each frame covers what the one before it covered and more; the painted frame at the reach covers the hole whole and paints nothing outside it", async () => {
+    ["R3703 - the entry's closed curtain is a tiling of panes of the curtain's kind (scripts/glass-close.mjs `fillHole`, `tilingReading`, `paneRange`; scripts/glass.mjs `entryPieces`; E61 C3 round 3, the owner's review of round 2, 12.11.2026): on three cuts the curtain's generator made (a GM at 1600x900, 1366x768 and 1440x900, read on the glass harness), the standing panes keep their place and the new panes fill what is left: every point of a 6 px grid lies in exactly one pane; every new pane is convex, has as many corners as the standing panes have (least to most), an area between the standing panes' least and most, no corner sharper than theirs, no width under theirs and no greater length for its width; the new panes' middle area is within half and twice the standing panes'", async () => {
         /*
-         * E61 C3, rebuilt 12.11.2026. Red at 6049386: glass-close.mjs does not exist (round 1 carried the panes to a
-         * closed plan by an affine map, which the owner turned down: the panes overlapped). The rings are the curtain's
-         * shape in small - a frame of panes around the map - not a cut of `curtainShapes`, which needs a layout jsdom has
-         * not got; the cut's own closing is read in Chromium on the glass harness (STATUS, round 2).
+         * E61 C3 round 3, 12.11.2026. Red at 8937575: glass-close.mjs exports no fillHole (round 2 flooded the hole
+         * from the standing panes' fronts, which the owner turned down: the new glass matched the old in neither size,
+         * look nor shape). The cuts are the generator's own (`E61_CUTS`); a ring of like panes was tried first and
+         * read nothing useful: its panes' range is a few thousand px² wide, a curtain's tens of thousands. Every
+         * size and both roles are read in Chromium on the glass harness (STATUS, round 3).
          */
         const C = await import("./glass-close.mjs"), G = await import("./glass.mjs");
-        ok(typeof G.entryPieces === "function", "glass.mjs exports no entryPieces");
+        ok(typeof G.entryPieces === "function" && typeof C.fillHole === "function", "glass.mjs exports no entryPieces, or glass-close.mjs no fillHole");
+        if (typeof C.fillHole !== "function") return;
         const read = [];
-        for (const [W, H] of [[1600, 900], [1366, 768]]) for (const jag of [false, true]) {
-            const panes = curtainRing(W, H, jag), hole = C.holeOf(panes, W, H);
-            const field = hole ? C.holeField(hole, W, H, 2) : null;
-            if (!field) { read.push({ W, jag, hole: null }); continue; }
-            const cells = field.owner.reduce((n, o) => n + (o >= 0 ? 1 : 0), 0);
-            const frames = [0, 0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1].map(f => {
-                const rgba = new Uint8ClampedArray(field.w * field.h * 4);
-                return { n: C.paintClosing(field, rgba, f * field.reach, () => [9, 9, 9]), rgba };
-            });
-            const outside = frames.at(-1).rgba.reduce((n, v, i) => n + ((i & 3) === 3 && v && field.owner[i >> 2] < 0 ? 1 : 0), 0);
+        for (const [key, polys] of Object.entries(E61_CUTS)) {
+            const [W, H] = key.match(/(\d+)x(\d+)/).slice(1).map(Number), standing = polys.map(poly => ({ poly }));
+            let sd = 11; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+            const fresh = C.fillHole(standing, W, H, rnd), r = C.tilingReading(standing, fresh, W, H, 6);
             read.push({
-                W, jag, loops: hole.loops, cellsMany: cells > 1000,
-                atZero: frames[0].n, atReach: frames.at(-1).n === cells,
-                growing: frames.every((fr, i) => i === 0 || fr.n >= frames[i - 1].n) && frames[3].n > frames[0].n && frames[6].n > frames[3].n,
-                outside
+                key, many: fresh.length >= 10, gaps: r.gaps, doubles: r.doubles, outOfRange: r.outOfRange,
+                convex: fresh.every(p => C.hull(p.poly).length === p.poly.length),
+                middle: r.fresh ? r.fresh.area[1] >= r.standing.area[1] / 2 && r.fresh.area[1] <= r.standing.area[1] * 2 : null
             });
         }
-        const want = (W, jag) => ({ W, jag, loops: 1, cellsMany: true, atZero: 0, atReach: true, growing: true, outside: 0 });
-        equal(stableJson(read), stableJson([want(1600, false), want(1600, true), want(1366, false), want(1366, true)]),
-            "[per screen and ring: the hole's loops, cells read, cells covered at offset 0, all covered at the reach, every frame grows, painted cells outside the hole]");
+        const want = key => ({ key, many: true, gaps: 0, doubles: 0, outOfRange: 0, convex: true, middle: true });
+        equal(stableJson(read), stableJson(Object.keys(E61_CUTS).map(want)),
+            "[per cut: ten new panes or more, grid points in no pane, in two, new panes out of the standing range, every new pane convex, the new panes' middle area near the standing panes']");
     }],
-    ["R3716 - the entry's panes never overlap and their fronts move only along their edges' normals (scripts/glass-close.mjs `holeField`, `fieldReading`; E61 C3, the owner's review of round 1, 12.11.2026: \"Kafle kurtyny nigdy nie powinny na siebie nachodzić, ale mają prawo podbierać sobie nawzajem miejsce\"): on both rings at both sizes, no cell a front covers lies inside a standing pane, every cell is its nearest pane's (no other pane's front would reach it first), and every cell is covered at exactly its distance from its own pane's edges, which for most of the hole is the perpendicular distance from one edge (its foot inside the edge, not at a corner); the reading catches a planted pane pushed into the hole and a planted front that runs ahead of its normal", async () => {
+    ["R3716 - the entry's panes never overlap at any frame, and a new pane grows as a pane (scripts/glass-close.mjs `growPlan`, `growPolys`, `insetPoly`, `overlapsIn`; E61 C3 round 3, the owner's reviews of 12.11.2026: \"Kafle kurtyny nigdy nie powinny na siebie nachodzić\"): on both rings at both sizes, at every 20 ms of the closing and of the opening, no two panes on screen overlap, standing or new; each new pane on screen lies within its own final pane and keeps three to its pane's corners; the new panes start one after another, outer first; at the closing's end every new pane stands whole, and at the opening's end none is left; the reading catches a planted pane grown past its edges and a planted new pane laid over a standing one", async () => {
         /*
-         * E61 C3, 12.11.2026. Red at 6049386: glass-close.mjs does not exist. `fieldReading` measures the field apart
-         * from how it was built: the pane test is the polygon's own, the distance is recomputed from the edge's line.
-         * Every cell is held to its distance from its own pane's edges; `checked` counts the cells whose foot falls inside
-         * an edge (not at a corner, where the front turns as an arc round the corner and has no one normal), and must
-         * be most of the hole. The first reading (12.11) skipped a cell nearer its edge than the field said, and so
-         * missed plant 2: the plant is why it counts every cell now. The plants are the two faults the owner named: a tile over another, and a front that moves off its
-         * normal (round 1's affine map moved each edge along a radius, not its normal).
+         * E61 C3 round 3, 12.11.2026. Red at 8937575: glass-close.mjs exports no growPlan or growPolys. The frames are
+         * the ones the sequence draws (sequence.mjs `drawTrialEntry` asks `growPolys` each frame), read here at a
+         * fixed step instead of the browser's; the closing lasts `SEQUENCE_TIMES.trialEntry.close`.
          */
-        const C = await import("./glass-close.mjs");
-        const read = [];
+        const C = await import("./glass-close.mjs"), S = await import("./sequence.mjs");
+        if (typeof C.growPolys !== "function") { ok(false, "glass-close.mjs exports no growPolys"); return; }
+        const T = S.SEQUENCE_TIMES.trialEntry, read = [];
+        const inside = (P, x, y) => { let sg = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; const cr = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (Math.abs(cr) < 0.01) continue; if (sg && Math.sign(cr) !== sg) return false; sg = Math.sign(cr); } return true; };
         for (const [W, H] of [[1600, 900], [1366, 768]]) for (const jag of [false, true]) {
-            const panes = curtainRing(W, H, jag), hole = C.holeOf(panes, W, H), field = C.holeField(hole, W, H, 2);
-            const r = C.fieldReading(field, hole, panes);
-            const nearest = field.apart.every((v, k) => field.owner[k] < 0 || v >= -1e-3);
-            // plant 1: one pane pushed 60 px into the hole, read against the field of the panes as they stood
-            const pushed = panes.map((p, i) => i !== 3 ? p : { poly: p.poly.map(([x, y]) => [x + (W / 2 - x) * 0.25, y + (H / 2 - y) * 0.25]) });
-            const plantOver = C.fieldReading(field, hole, pushed).inPane;
-            // plant 2: every cell's distance taken a fifth short, as a front that runs ahead of its normal
-            const ahead = { ...field, dist: field.dist.map(d => d * 0.8) };
-            const plantAhead = C.fieldReading(ahead, hole, panes).offNormal;
-            read.push({ W, jag, inPane: r.inPane, offNormal: r.offNormal, nearest, mostChecked: r.checked > r.cells * 0.5, plantOver: plantOver > 0, plantAhead: plantAhead > 0 });
+            const standing = curtainRing(W, H, jag);
+            let sd = 11; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+            const plan = C.growPlan(C.fillHole(standing, W, H, rnd), W, H);
+            let overlaps = 0, outside = 0, corners = 0, frames = 0;
+            for (const open of [false, true]) for (let ms = 0; ms <= T.close + 40; ms += 20) {
+                const polys = C.growPolys(plan, ms, { open });
+                frames++;
+                overlaps += C.overlapsIn([...standing.map(p => p.poly), ...polys.filter(Boolean)]);
+                polys.forEach((q, i) => {
+                    if (!q) return;
+                    if (!q.every(([x, y]) => inside(plan[i].poly, x, y))) outside++;
+                    if (q.length < 3 || q.length > plan[i].poly.length) corners++;
+                });
+            }
+            const delays = plan.map(p => p.delay), far = plan.map(p => { const n = p.poly.length, x = p.poly.reduce((t, q) => t + q[0], 0) / n, y = p.poly.reduce((t, q) => t + q[1], 0) / n; return Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2)); });
+            const outerFirst = far.every((f, i) => far.every((g, k) => !(f > g + 1e-9) || delays[i] <= delays[k]));
+            const end = C.growPolys(plan, T.close + 40), gone = C.growPolys(plan, T.close + 40, { open: true });
+            // plant 1: one new pane drawn 6 px past its own edges; plant 2: one new pane laid over a standing pane
+            const grownPast = C.overlapsIn([...standing.map(p => p.poly), ...plan.map((p, i) => i === 0 ? outset(p.poly, 6) : p.poly)]);
+            const laidOver = C.overlapsIn([...standing.map(p => p.poly), standing[0].poly.map(([x, y]) => [x + 3, y + 3])]);
+            read.push({ W, jag, frames: frames > 80, overlaps, outside, corners, staggered: new Set(delays).size > 2, outerFirst,
+                whole: end.every((q, i) => q === plan[i].poly), gone: gone.every(q => q === null), plants: [grownPast > 0, laidOver > 0] });
         }
-        const want = (W, jag) => ({ W, jag, inPane: 0, offNormal: 0, nearest: true, mostChecked: true, plantOver: true, plantAhead: true });
+        const want = (W, jag) => ({ W, jag, frames: true, overlaps: 0, outside: 0, corners: 0, staggered: true, outerFirst: true, whole: true, gone: true, plants: [true, true] });
         equal(stableJson(read), stableJson([want(1600, false), want(1600, true), want(1366, false), want(1366, true)]),
-            "[per screen and ring: cells inside a standing pane, cells off their edge's normal, every cell its nearest pane's, most cells measured, the planted overlap seen, the planted run-ahead seen]");
+            "[per screen and ring: frames read, overlapping pairs over all frames, frame corners outside their pane, frames with another number of corners, starts spread, outer first, whole at the close, gone at the open's end, the two plants seen]");
     }],
     ["R3704 - every road into the Class Trial plays the entry from the phase's one event, and the curtain's own turn stands aside for it (scripts/sequence.mjs `onPhaseChanged`, `playTrialEntry`; scripts/glass.mjs `entryPieces`, `rebuildAll`; E61 C3, C4): the clock's row fires `drpgPhaseChanged` once a phase moved, which the sequences hear; the entry's key is the trial's edge stamp, so a second hearing starts nothing; a phase change ends a running sequence; with no curtain the entry closes two lids (Monokuma Legacy's look), with no glass code run; and while the entry takes its pieces `rebuildAll` turns nothing", async () => {
         /*
@@ -50677,6 +50682,17 @@ async function roomSetupDrawn() {
 }
 
 export { INVARIANTS };
+
+/* R3703, R3716 (E61 C3 round 3): three cuts of the curtain as its generator made them, read off the glass harness in
+   headless Chromium on 12.11.2026 (a GM at 1600x900, 1366x768 and 1440x900, `entryPieces().close.panes`, at full precision:
+   rounded to a hundredth, the standing panes no longer met and the grid found gaps between them): the standing panes the hole is filled beside. jsdom has no layout to cut them from. */
+const E61_CUTS = {"gm-1600x900":[[[290.21353250677083,0],[324.252015179061,242.19638900231325],[0,287.76703786951094],[0,0]],[[324.252015179061,242.19638900231325],[364.32734451645234,527.3471739841632],[0,578.5500430874112],[0,287.76703786951094]],[[1003.2109375,0],[1003.2109375,145.078125],[596.7890625,145.078125],[596.7890625,0]],[[1233.0335637577543,62.960387212440764],[1241.8820691297765,0],[1600,0],[1600,114.53415646968791]],[[1212.7251639160972,207.4621605558396],[1233.0335637577543,62.960387212440764],[1600,114.53415646968791],[1600,261.89008927830315]],[[1600,608.0716039823419],[1364.0587670602806,574.9122261642824],[1408.7072375120315,257.22185136112734],[1600,284.1062958737127]],[[0,615.5955577017103],[352.2921324063819,665.1069880491887],[319.28007244105606,900],[0,900]],[[1451.2756113063313,731.3774339174706],[1600,710.4755841898595],[1600,900],[1474.973967493229,900]],[[1408.7072375120315,257.22185136112734],[1411.769045733153,235.4359538488128],[1600,261.89008927830315],[1600,284.1062958737127]],[[319.280072441056,900],[528.6144908095819,900],[538.8436422225054,754.0027299788331],[350.44035910979693,678.2830396964284]],[[528.6144908095819,900],[848.9521032071252,900],[847.5432407893908,864.9580608969554],[538.8436422225054,754.0027299788331]],[[921.1757914341551,900],[955.3461921467942,900],[955.6220544498826,869.6832559798297],[919.4107449389768,786.5129785519093]],[[848.9521032071252,900],[921.1757914341551,900],[920.7042796956741,869.6832559798297],[847.5432407893908,864.9580608969554]],[[955.3461921467942,900],[1239.1124905005065,900],[1225.8674993606983,798.1483386902174],[955.6220544498826,869.6832559798297]],[[1239.1124905005065,900],[1474.973967493229,900],[1452.6993588213716,741.5079238783078],[1225.8674993606983,798.1483386902174]],[[290.21353250677083,0],[596.7890625,0],[596.7890625,145.28898139018565],[487.1184134433409,233.12409199114293],[320.05599297290274,212.34013964216265]],[[487.1184134433409,233.12409199114293],[339.5833839472942,351.28474613850625],[320.05599297290274,212.34013964216265]],[[1003.2109375,0],[1241.8820691297765,0],[1222.895703422732,135.095011690019],[1094.4522955958732,153.57431497621258],[1003.2109375,141.17343762423843]],[[1222.895703422732,135.095011690019],[1217.9398327313909,170.35786395523817],[1094.4522955958732,153.57431497621258]],[[142.22282558624983,558.561928465787],[74.91510772974506,626.1241894738682],[0,615.5955577017103],[0,578.5500430874112]],[[1444.229187028663,586.1794439050801],[1523.8516206381166,721.1775409866129],[1600,710.4755841898595],[1600,608.0716039823419]]],"gm-1366x768":[[[290.21353250677083,0],[324.25853891816854,242.24280781803552],[0,287.81437353697277],[0,0]],[[886.2109375,0],[886.2109375,145.078125],[479.7890625,145.078125],[479.7890625,0]],[[999.0335637577545,62.960387212440764],[1007.8820691297766,0],[1366,0],[1366,114.5341564696879]],[[978.7251639160974,207.46216055583955],[999.0335637577545,62.960387212440764],[1366,114.5341564696879],[1366,261.8900892783031]],[[1366,541.422984196113],[1136.2733875174201,509.13701432445845],[1174.7982415269282,235.0184345459325],[1366,261.8900892783031]],[[0,388.87373139946396],[365.346569276436,440.2198432012294],[319.28007244105606,768],[0,768]],[[389.24410314393424,566.0440475410345],[712.4637191386231,600.0157981030219],[694.8078680615263,768],[368.01767720338336,768]],[[1217.2756113063313,599.3774339174706],[1366,578.4755841898595],[1366,768],[1240.973967493229,768]],[[319.280072441056,768],[368.01767720338336,768],[389.1878915307584,566.5788653153489],[346.99266731692256,570.8146414915594]],[[694.8078680615262,768],[949.2362595831764,768],[947.2671046022372,732.9580608969554],[711.156031722049,612.4576127765089]],[[949.2362595831764,768],[976.7802108840806,768],[970.9302203250772,607.1479964368045],[947.2671046022372,732.9580608969554]],[[976.7802108840806,768],[991.3227072803802,768],[990.824331813535,737.8745144591667],[975.5057784344939,732.9580608969554]],[[991.3227072803802,768],[1240.973967493229,768],[1219.1826652545838,612.9468278398198],[990.824331813535,737.8745144591667]],[[290.21353250677083,0],[479.7890625,0],[479.7890625,145.28898139018565],[432.1087069145095,155.60864178098055],[309.5612413525536,137.666101718788]],[[432.1087069145095,155.60864178098055],[315.6260522905656,180.81947383910287],[309.5612413525536,137.666101718788]],[[886.2109375,0],[1007.8820691297766,0],[989.2372220477528,132.6649804059154],[924.831062090129,142.35699447550144],[886.2109375,141.17343762423843]],[[989.2372220477528,132.6649804059154],[987.6047301758533,144.28076364326736],[924.831062090129,142.35699447550144]],[[134.87281331502433,292.51271866849754],[69.56009844715564,398.6497656972077],[0,388.87373139946396],[0,306]],[[150.80624926734555,266.6199373866031],[134.87281331502433,292.51271866849754],[0,306],[0,287.81437353697277]],[[1217.6788181676056,520.5778014973432],[1292.2962322662852,588.833973227867],[1366,578.4755841898595],[1366,541.4229841961131]]],"gm-1440x900":[[[290.21353250677083,0],[324.252015179061,242.19638900231325],[0,287.76703786951094],[0,0]],[[324.252015179061,242.19638900231325],[364.32734451645234,527.3471739841632],[0,578.5500430874112],[0,287.76703786951094]],[[923.2109375,0],[923.2109375,145.078125],[516.7890625,145.078125],[516.7890625,0]],[[1073.0335637577543,62.960387212440764],[1081.8820691297765,0],[1440,0],[1440,114.53415646968791]],[[1052.7251639160972,207.4621605558396],[1073.0335637577543,62.960387212440764],[1440,114.53415646968791],[1440,261.89008927830315]],[[1440,608.0716039823419],[1204.0587670602806,574.9122261642824],[1248.7072375120315,257.22185136112734],[1440,284.1062958737127]],[[0,615.5955577017103],[352.2921324063819,665.1069880491887],[319.28007244105606,900],[0,900]],[[1291.2756113063313,731.3774339174706],[1440,710.4755841898595],[1440,900],[1314.973967493229,900]],[[1248.7072375120315,257.22185136112734],[1251.769045733153,235.4359538488128],[1440,261.89008927830315],[1440,284.1062958737127]],[[319.280072441056,900],[528.6144908095819,900],[536.8536870152501,766.8577351166919],[350.18131107932993,680.1262622090568]],[[528.6144908095819,900],[776.9521032071252,900],[775.5300798972892,864.9580608969554],[536.8536870152501,766.8577351166919]],[[833.1757914341551,900],[867.3461921467942,900],[867.6218180402325,869.6526048502811],[831.3884699348278,786.5129785519093]],[[776.9521032071252,900],[833.1757914341551,900],[832.6978464576497,869.6526048502811],[775.5300798972892,864.9580608969554]],[[867.3461921467942,900],[1079.1124905005065,900],[1067.9974342611215,808.0061353867186],[867.6218180402325,869.6526048502811]],[[1079.1124905005065,900],[1314.973967493229,900],[1292.8292301342833,742.4320062860058],[1067.9974342611215,808.0061353867186]],[[290.21353250677083,0],[516.7890625,0],[516.7890625,145.28898139018565],[429.5854140989768,225.9665091337895],[320.05599297290274,212.34013964216265]],[[429.5854140989768,225.9665091337895],[334.35341261407274,314.07156646516506],[320.05599297290274,212.34013964216265]],[[923.2109375,0],[1081.8820691297765,0],[1062.8957034227317,135.09501169001902],[979.4461846554601,147.10099154120803],[923.2109375,141.17343762423843]],[[1062.8957034227317,135.09501169001902],[1060.0148369666454,155.59344164588865],[979.4461846554601,147.10099154120803]],[[142.22282558624983,558.561928465787],[74.91510772974506,626.1241894738682],[0,615.5955577017103],[0,578.5500430874112]],[[1284.229187028663,586.1794439050801],[1363.8516206381166,721.1775409866129],[1440,710.4755841898595],[1440,608.0716039823419]]]};
+
+/* R3716: a convex pane moved out along its edges' normals by `d` (the reverse of glass-close.mjs `insetPoly`) */
+function outset(P, d) {
+    const n = P.length, cx = P.reduce((t, q) => t + q[0], 0) / n, cy = P.reduce((t, q) => t + q[1], 0) / n;
+    return P.map(([x, y]) => { const l = Math.hypot(x - cx, y - cy) || 1; return [x + (x - cx) / l * d * 1.5, y + (y - cy) / l * d * 1.5]; });
+}
 
 /* R3703, R3716 (E61 C3): a frame of 24 panes around the map's hole, the curtain's shape in small; `jag` alternates the
    inner corners' depth (0.45 and 0.62 of the half-screen), which gives the hole the reflex corners a cut has */

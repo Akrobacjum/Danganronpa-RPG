@@ -11,7 +11,7 @@ mockups MK-R1 and MK-R2 of 05.11 (both read with the Artifact tool, with `mock/s
 | --- | --- | --- |
 | C1 | The sequence engine: one start per event (`started`, by the event's key), one at a time (a new one or a phase change cuts the running one), Escape in a capture listener registered before foundry-windows.mjs's (it takes the key only while a sequence plays), the still frame under reduced motion, the table's switch (world setting `sequences`, on by default, in the DRPG Settings window's Effects section; since the merge of the 1.2.107 line, its game section's GM list, where that line put it), Foundry tools and Map tools hidden by a body attribute for the span (never `toggleFoundryTools`), the notice stack raised over the host, counters `sequence.*` | scripts/sequence.mjs (new), settings.mjs, settings-window.mjs, module.mjs, styles/danganronpa.css |
 | C2 | Two sound slots, `trialStart` (the title's frame) and `verdictCut` (the stamp's), incident rows in EN and PL; the old `verdict` row (played at the vote's count) relabelled "The vote's result" / "Wynik głosowania", key kept (Q-E61-7 default) | config.mjs, lang/*.json |
-| C3 | E61-A under Stained Glass, rebuilt in round 2 on the owner's review (12.11): the panes stand where they are and the hole they leave closes by their fronts - every edge facing the hole moves along its own normal, at one speed, and each point of the hole is its nearest pane's, so no two panes ever cover one point and a pane takes the room its neighbour's front has not reached; each front carries its pane's glass mirrored across its edge. The panes' colour goes from the Investigation's blue to the trial's pink in eight batches, outer panes first; closed at 900 ms, the trial's cut stands under the pulse with the title (impact sound at 1400 ms), and opens by the same fronts in reverse from 2500 to 3400. Round 1's affine closed plan (`closedPoint`, `closedPlan`) is gone | glass-close.mjs (new: `holeOf`, `holeField`, `paintClosing`, `fieldReading`), glass.mjs (`entryPieces`), sequence.mjs (`drawTrialEntry`), styles |
+| C3 | E61-A under Stained Glass, rebuilt in round 3 on the owner's review of round 2 (12.11: the new glass matched the old in neither size, look nor shape): the standing panes keep their exact place and the hole they leave is tiled with new convex panes of the standing panes' corner count and size range, cut by straight lines (`fillHole`); the closed curtain is the curtain's own paint (`curtainPaint`) of the standing and the new panes as one cut, so fill, ink and lead are the curtain's; each new pane grows from its own inset (every edge moved in along its normal by one distance, from 0.65 of its inradius to none) to its full shape, 420 ms each, starts spread over 440 ms, outer first; the opening is the reverse onto the trial's cut. The panes' colour goes from the Investigation's blue to the trial's pink in eight batches, outer first; title at 1400 ms, open 2500-3360. Rounds 1 (affine closed plan) and 2 (fronts flooding the hole) are gone | glass-close.mjs (`fillHole`, `growPlan`, `growPolys`, `insetPoly`, `tilingReading`), glass.mjs (`entryPieces`), sequence.mjs (`drawTrialEntry`), styles |
 | C4 | E61-A under Monokuma Legacy (and wherever no curtain is cut): two lids with a red edge, the same title, times, sound, Esc and still frame; no glass code runs | sequence.mjs, danganronpa.css |
 | C5 | E61-B, the verdict's cut-in, from a GM's verdict card (`createChatMessage`, a message with `verdictAt`): band 0, portrait 250, votes 900, the stamp's hit 1700, the card's sentence 1950, frame 5 held to 3500, 180 ms fade; variants guilty / not guilty / nobody; two sentenced side by side (Q-E61-3 default). The card carries a new flag `verdictCut: { sentenced, right }` - what its words already say. `verdictBoardElement` is frame 5 alone, for E99. Round 2 (the owner's review): the count's heading and each vote row now come in one after another (320 ms each, 90 ms apart, eased), each bar growing after its row, and the sentence in 380 ms; before, the rows came as one block in 180 ms. Nothing animates under reduced motion | sequence.mjs, verdict.mjs, styles |
 
@@ -45,6 +45,26 @@ Round 2 (the owner's review of round 1): https://claude.ai/artifact/A2Krfqw5VQcM
 Glass and Monokuma Legacy as recordings and frame strips, the closed curtain's still frame in both themes at
 deviceScaleFactor 2, the verdict cut-in's recording and strip, and the measurements below; Polish captions. The glass
 harness in headless Chromium, PL and GM only on the pictures (the page says what they are not).
+
+Round 3 (the owner's review of round 2): https://claude.ai/artifact/JsXyBFu8skaSKzXME2n3ji - the entry under Stained
+Glass and Monokuma Legacy as recordings and frame strips, close-ups at 25 %, 50 % and 75 % of the closing and the
+closed curtain in both themes at deviceScaleFactor 2, and the table below per size and role; Polish captions; what the
+pictures are not is on the page.
+
+## Round 3 results (12.11.2026)
+
+- The real cut on the glass harness in Chromium, 7 sizes (1280x720 to 2560x1440), GM and player: 0 overlapping pairs
+  of panes in each of 92 frames (every 20 ms of the closing and the opening); every point of a 6 px grid in exactly
+  one pane; new panes' median area 18,502-35,202 px² beside the standing panes' 19,192-30,618; 0-2 new panes a screen
+  outside the standing panes' range (area, corners, angle, width, length for width), each one where the standing
+  panes force it: a crack between two standing panes narrower than any pane (8-24 px), a wedge between two of their
+  edges (tip 4-10 degrees), a notch at a corner, or a triangle at 1280, where the standing panes are all quads.
+  `entryPieces` 125-395 ms once (two more paints of the curtain); not measured at a table (LIVE-E61-01).
+- Lead width: the closed curtain is `curtainPaint`, the growing panes are stroked with `paintGlass`'s three strokes
+  (1.2, 0.5, 0.7 px). Read from the code, not measured in pixels.
+- R3703 and R3716 rewritten for round 3 (R3703 on three cuts the generator made, `E61_CUTS`, read off the harness;
+  a ring of like panes was tried first and its range was too narrow to read anything). Red at 8937575 (no `fillHole`,
+  no `growPolys`; glass.mjs does not load against round 2's file), green now.
 
 ## Round 2 results (12.11.2026, 8937575)
 

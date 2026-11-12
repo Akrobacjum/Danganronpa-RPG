@@ -39,7 +39,7 @@ import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
 import { esc } from "./utils.mjs";
-import { paintClosing } from "./glass-close.mjs";
+import { growPolys } from "./glass-close.mjs";
 
 export const SEQUENCE_HOST_ID = "drpg-sequence";
 export const SEQUENCE_ATTR = "data-drpg-sequence";
@@ -203,47 +203,67 @@ function pieceLayer(pieces, cls) {
     return { layer, els };
 }
 
-/* the hour's colour leaves a pane in its batch, outer panes first (MK-R2 #2): how far pane batch `b` is at `ms` */
+/* the hour's colour leaves a pane in its batch, outer panes first (MK-R2 #2) */
 const FADE_MS = 320, FADE_STEP = 90;
-const fadeAt = (b, ms) => Math.min(1, Math.max(0, (ms - b * FADE_STEP) / FADE_MS));
-const smooth = p => (p <= 0 ? 0 : p >= 1 ? 1 : p * p * (3 - 2 * p));
 
-/**
- * The hole's glass as one canvas at the field's resolution, stretched over the screen: `paint(t, ms)` covers every
- * cell the fronts have reached at offset `t` (glass-close.mjs `paintClosing`), each in its pane's glass, the old
- * colour mixed toward the new by the pane's batch at `ms`. Answers the cells covered.
- */
-function holeCanvas(side) {
-    const { field } = side;
-    const canvas = document.createElement("canvas");
-    canvas.width = field.w; canvas.height = field.h;
-    canvas.className = "drpg-seq-hole";
-    canvas.style.cssText = `position:absolute;left:0;top:0;width:${field.w * field.scale}px;height:${field.h * field.scale}px;`;
-    const g = canvas.getContext("2d"), img = g.createImageData(field.w, field.h), px = [0, 0, 0];
-    let last = -1;
-    const paint = (t, ms = Infinity) => {
-        const mix = side.texOld ? side.batchOf.map(b => fadeAt(b ?? 0, ms)) : null;
-        const tex = side.tex, old = side.texOld, owner = field.owner;
-        const covered = paintClosing(field, img.data, t, k => {
-            const o = k * 3;
-            if (!mix) { px[0] = tex[o]; px[1] = tex[o + 1]; px[2] = tex[o + 2]; return px; }
-            const f = mix[owner[k]] ?? 1;
-            px[0] = old[o] + (tex[o] - old[o]) * f; px[1] = old[o + 1] + (tex[o + 1] - old[o + 1]) * f; px[2] = old[o + 2] + (tex[o + 2] - old[o + 2]) * f;
-            return px;
-        });
-        g.putImageData(img, 0, 0);
-        last = covered;
-        return covered;
-    };
-    return { canvas, paint, get covered() { return last; } };
+/* the lead round a growing pane: the curtain's own three strokes (glass.mjs `paintGlass`: the lead 1.2 px, the bevel
+   0.5 px a pixel lower, the neon core 0.7 px in the hour's colour), so a pane coming in is edged as the panes beside it */
+function leadRound(g, poly, acc) {
+    const trace = () => { g.beginPath(); poly.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); };
+    g.lineCap = "round"; g.lineJoin = "round";
+    g.globalAlpha = 0.95; g.strokeStyle = "#08050d"; g.lineWidth = 1.2; trace(); g.stroke();
+    g.save(); g.translate(0, 1); g.globalAlpha = 0.22; g.strokeStyle = "#ffffff"; g.lineWidth = 0.5; trace(); g.stroke(); g.restore();
+    g.globalAlpha = 0.92; g.strokeStyle = acc; g.lineWidth = 0.7; trace(); g.stroke();
+    g.globalAlpha = 1;
 }
 
 /**
- * The entry's frames. Under Stained Glass with a curtain painted, the panes stay where they stand and the hole they
- * leave closes by their fronts, each edge moving along its own normal (glass.mjs `entryPieces`, glass-close.mjs; the
- * owner's review of round 1, 12.11.2026); the curtain opens the same way onto the trial's cut. Otherwise - Monokuma
- * Legacy, a narrow screen, a curtain not cut yet - two lids close from above and below (MK-R1: "two black panels with
- * a red edge"). Both carry the title.
+ * The new panes as one canvas over the screen: `draw(polys)` paints each pane at the polygon it stands at this frame
+ * (glass-close.mjs `growPolys`) with its own glass from the closed curtain, clipped to that polygon, and the lead round
+ * it. Answers how many panes it drew.
+ */
+function growCanvas(fill, W, H, acc) {
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    canvas.className = "drpg-seq-grow";
+    canvas.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;`;
+    const g = canvas.getContext("2d");
+    let shown = 0;
+    const draw = polys => {
+        g.clearRect(0, 0, W, H);
+        shown = 0;
+        polys.forEach((poly, i) => {
+            if (!poly) return;
+            const p = fill[i];
+            g.save();
+            g.beginPath(); poly.forEach((q, k) => (k ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); g.clip();
+            g.drawImage(p.canvas, p.box.x0, p.box.y0);
+            g.restore();
+            leadRound(g, poly, acc);
+            shown++;
+        });
+        return shown;
+    };
+    return { canvas, draw, get shown() { return shown; } };
+}
+
+/** The closed curtain's look as an element over the screen. */
+function closedCanvas(look) {
+    const c = document.createElement("canvas");
+    c.width = look.width; c.height = look.height;
+    c.className = "drpg-seq-closed";
+    c.style.cssText = `position:absolute;left:0;top:0;width:100%;height:100%;`;
+    c.getContext("2d").drawImage(look, 0, 0);
+    return c;
+}
+
+/**
+ * The entry's frames. Under Stained Glass with a curtain painted, the panes stand where they are and the hole they
+ * leave fills with new panes of the curtain's kind, each growing into place from a smaller copy of itself, the outer
+ * ones first (glass.mjs `entryPieces`, glass-close.mjs; the owner's reviews of rounds 1 and 2, 12.11.2026); closed, the
+ * curtain is the curtain's own paint of the whole cut; it opens the same way in reverse onto the trial's cut.
+ * Otherwise - Monokuma Legacy, a narrow screen, a curtain not cut yet - two lids close from above and below (MK-R1:
+ * "two black panels with a red edge"). Both carry the title.
  */
 function drawTrialEntry(ctx, glass, clock = getClock()) {
     const { host, still, times: T, anim, at, ARRIVE: IN } = ctx;
@@ -252,17 +272,18 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
     const title = titleBand(chapter);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
-        const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
-        const shut = holeCanvas(glass.close), wide = holeCanvas(glass.open);
-        close.layer.append(shut.canvas);
-        open.layer.append(wide.canvas);
-        host.append(close.layer, open.layer);
-        host.drpgEntry = { shut, wide, reachClose: glass.close.field.reach, reachOpen: glass.open.field.reach };
+        const closed = closedCanvas(glass.closed);
         if (still) {
-            close.layer.remove();
-            wide.paint(glass.open.field.reach);
+            host.append(closed);
         } else {
+            const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
+            const growIn = growCanvas(glass.close.fill, glass.W, glass.H, glass.acc), growOut = growCanvas(glass.open.fill, glass.W, glass.H, glass.acc);
+            close.layer.append(growIn.canvas);
+            open.layer.append(growOut.canvas);
+            closed.hidden = true;
             open.layer.hidden = true;
+            host.append(close.layer, closed, open.layer);
+            host.drpgEntry = { growIn, growOut, fill: [glass.close.fill, glass.open.fill] };
             glass.close.panes.forEach(p => anim(p.old, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, delay: p.batch * FADE_STEP, easing: "linear" }));
             const t0 = performance.now();
             let frame = 0, phase = "close";
@@ -270,30 +291,32 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
                 if (!host.isConnected) return;
                 // a frame's stamp is its start, which can fall before `t0` when the pieces' cut held the thread
                 const ms = Math.max(0, now - t0);
-                if (phase === "close") {
-                    shut.paint(glass.close.field.reach * smooth(Math.min(1, ms / T.close)), ms);
-                } else if (phase === "open") {
-                    const p = Math.min(1, Math.max(0, (ms - T.titleOut) / T.open));
-                    wide.paint(glass.open.field.reach * (1 - smooth(p)));
-                    if (p >= 1) return;
+                if (phase === "close") growIn.draw(growPolys(glass.close.fill, ms));
+                else if (phase === "open") {
+                    if (!growOut.draw(growPolys(glass.open.fill, ms - T.titleOut, { open: true })) && ms > T.titleOut + 50) return;
                 }
                 if (phase !== "held") frame = requestAnimationFrame(step);
             };
             frame = requestAnimationFrame(step);
             ctx.undo(() => globalThis.cancelAnimationFrame?.(frame));
-            // closed: the trial's cut takes over under the pulse, covered, and stands until the title goes
+            // closed: the curtain's own paint of the whole cut, under the pulse, until the title goes
             at(T.closed, () => {
                 phase = "held";
                 globalThis.cancelAnimationFrame?.(frame);
                 close.layer.remove();
-                open.layer.hidden = false;
-                wide.paint(glass.open.field.reach);
+                closed.hidden = false;
                 const pulse = document.createElement("div");
                 pulse.className = "drpg-seq-pulse";
                 host.append(pulse);
                 anim(pulse, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: 420, easing: "linear" });
             });
-            at(T.titleOut, () => { phase = "open"; frame = requestAnimationFrame(step); });
+            at(T.titleOut, () => {
+                closed.remove();
+                open.layer.hidden = false;
+                growOut.draw(glass.open.fill.map(p => p.poly));
+                phase = "open";
+                frame = requestAnimationFrame(step);
+            });
         }
     } else {
         const lids = ["top", "bottom"].map(side => {

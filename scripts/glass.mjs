@@ -23,7 +23,7 @@ import { log, AV_LIFT_EVENT } from "./utils.mjs";
 import { inFoundryWindow } from "./foundry-windows.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
-import { holeOf, holeField, insidePoly } from "./glass-close.mjs";
+import { fillHole, growPlan } from "./glass-close.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
 export const CHECKS = [];
@@ -4333,57 +4333,23 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   job.turn = h;
   return frame ? startTurn(h, frame) : startTurn(h);
 }
-/* ---- THE ENTRY'S CURTAIN (E61 C3, rebuilt 12.11.2026 on the owner's review of round 1) ----
-   The owner's words on the round-1 page: the screen is to be covered by the panes' edges moving perpendicular to
-   themselves; the panes never overlap, but one may take the room another leaves. Round 1 moved and grew every pane
-   toward the centre by an affine map, so they overlapped by design. Now the panes stand where they are and the hole
-   they leave closes by their fronts (glass-close.mjs: `holeOf`, `holeField`, `paintClosing`): every edge facing the
-   hole moves along its own normal at one speed, each point of the hole is the nearest edge's pane's, and the hole is
-   closed at the field's `reach`. The glass a pane carries into the hole is its own look mirrored across its edge
-   (`mx`, `my`), so a front is that pane's glass coming on; where none is (the mirror falls off the glass) the pane's
-   own mean colour stands. */
-const FIELD_SCALE = 2;
-function meanColour(data, LW, LH, sx, poly) {
-  const bb = bboxOf(poly);
-  let r = 0, g = 0, b = 0, n = 0;
-  for (let y = Math.max(0, Math.floor(bb.y0)); y < Math.min(LH, bb.y1); y += 4) for (let x = Math.max(0, Math.floor(bb.x0)); x < Math.min(LW, bb.x1); x += 4) {
-    if (!insidePoly(poly, x + 0.5, y + 0.5)) continue;
-    const o = (Math.floor(y * sx) * Math.round(LW * sx) + Math.floor(x * sx)) * 4;
-    if (data[o + 3] < 128) continue;
-    r += data[o]; g += data[o + 1]; b += data[o + 2]; n++;
-  }
-  return n ? [r / n, g / n, b / n].map(Math.round) : [24, 20, 32];
-}
-/* each cell's colour from `look` at its mirror point; the pane's mean where the mirror falls on no glass */
-function paintTexture(field, look, W, H, panes) {
-  const g = look.getContext("2d"), sx = look.width / W;
-  const data = g.getImageData(0, 0, look.width, look.height).data;
-  const mean = panes.map(p => meanColour(data, W, H, sx, p.poly));
-  const tex = new Uint8ClampedArray(field.owner.length * 3);
-  const w = field.w, sc = field.scale;
-  for (let k = 0; k < field.owner.length; k++) {
-    const own = field.owner[k];
-    if (own < 0) continue;
-    // the cell, its mirror across the edge and the foot between them: the mirror first, then nearer the edge, so a
-    // pane's thin border or a window's clear hole does not leave its front in the mean
-    const cx = (k % w + 0.5) * sc, cy = (Math.floor(k / w) + 0.5) * sc, fx = (cx + field.mx[k]) / 2, fy = (cy + field.my[k]) / 2;
-    let c = mean[own];
-    for (const f of [1, 0.6, 0.3, 0.12]) {
-      const x = Math.round((fx + (field.mx[k] - fx) * f) * sx), y = Math.round((fy + (field.my[k] - fy) * f) * sx);
-      if (x < 0 || y < 0 || x >= look.width || y >= look.height) continue;
-      const o = (y * look.width + x) * 4;
-      if (data[o + 3] >= 96) { c = [data[o], data[o + 1], data[o + 2]]; break; }
-    }
-    tex[k * 3] = c[0]; tex[k * 3 + 1] = c[1]; tex[k * 3 + 2] = c[2];
-  }
-  return tex;
-}
+/* ---- THE ENTRY'S CURTAIN (E61 C3; round 3, 12.11.2026, on the owner's review of round 2) ----
+   Round 1 moved every pane to a closed plan by an affine map, and the panes overlapped; round 2 let the standing panes'
+   fronts flood the hole, and the owner's word on it was that the new glass did not match the old in size, look or
+   shape. Round 3 closes the curtain with panes of the curtain's own kind: the standing panes keep their place, and
+   the hole they leave is tiled with new convex panes of the standing panes' corners and sizes (glass-close.mjs
+   `fillHole`), painted by the curtain's own paint (`curtainPaint`: the same fill, ink, pulse and lead), each growing
+   into place from a smaller copy of itself (`growPolys`). The closed curtain is the curtain's paint of the standing
+   panes and the new ones as one cut. */
+const FILL_SEED = 4099;
 /* THE ENTRY'S CUT. What the sequence draws: the panes on screen cut from the look as it stands (Investigation's
    colour) over the same cut painted at once in the new phase's colour with no turn of its own (`entryHold`: the entry
    owns this edge, so `rebuildAll` paints and does not turn), each pane's old colour fading in its batch, outer panes
-   first (MK-R2 #2); the hole's field and its glass in both colours (`close`); and the trial's cut, which the
-   curtain opens onto, with its own field (`open`). Null with no curtain painted (a narrow screen, Legacy, the curtain
-   not cut yet) or no hole: the sequence then draws the lids. Writes no setting and no document. */
+   first (MK-R2 #2); the new panes that close the hole, each cut from the closed curtain's look, with their growth's
+   plan (`close.fill`); the closed curtain itself (`closed`); and the trial's cut the curtain opens onto, with its own
+   new panes (`open`). Null with no curtain painted (a narrow screen, Legacy, the curtain not cut yet): the sequence
+   then draws the lids. Writes no setting and no document; the curtain is painted again as the trial's cut before it
+   answers. */
 let entryHold = false;
 export function entryPieces() {
   const j = curtains[0];
@@ -4397,24 +4363,39 @@ export function entryPieces() {
   try { rebuildAll(); } finally { entryHold = false; }
   pulseJob(j, performance.now());
   const newLook = snapshotLook(j, true) ?? oldLook;
-  const W = j.W, H = j.H;
-  // the trial's cut is most often the Investigation's (every size read on the glass harness, 12.11): one field then
-  const same = oldPanes.length === j.panes.length && oldPanes.every((p, i) => p.poly.length === j.panes[i].poly.length && p.poly.every((q, k) => q[0] === j.panes[i].poly[k][0] && q[1] === j.panes[i].poly[k][1]));
-  const holeA = holeOf(oldPanes, W, H), holeB = same ? holeA : holeOf(j.panes, W, H);
-  if (!holeA || !holeB) return null;
-  const fieldA = holeField(holeA, W, H, FIELD_SCALE), fieldB = same ? fieldA : holeField(holeB, W, H, FIELD_SCALE);
-  const texNew = paintTexture(fieldA, newLook, W, H, oldPanes);
+  const W = j.W, H = j.H, trial = j.panes;
+  const same = oldPanes.length === trial.length && oldPanes.every((p, i) => p.poly.length === trial[i].poly.length && p.poly.every((q, k) => q[0] === trial[i].poly[k][0] && q[1] === trial[i].poly[k][1]));
+  const fillA = fillHole(oldPanes, W, H, rng(j.seed + FILL_SEED));
+  const fillB = same ? fillA : fillHole(trial.map(p => ({ poly: p.poly })), W, H, rng(j.seed + FILL_SEED));
+  // the closed curtain, in the trial's colour: the curtain's own paint of the standing panes and the new ones as one cut
+  const paintClosed = (standing, fill) => {
+    const all = [...standing, ...fill.map(f => ({ poly: f.poly, content: false, kind: "fill" }))];
+    all.meta = trial.meta;
+    j.panes = all;
+    try { curtainPaint(j); pulseJob(j, performance.now()); return snapshotLook(j, true); } finally { j.panes = trial; }
+  };
+  let lookA = null, lookB = null;
+  try {
+    lookA = paintClosed(oldPanes, fillA);
+    lookB = same ? lookA : paintClosed(trial, fillB);
+  } finally {
+    curtainPaint(j);
+    pulseJob(j, performance.now());
+  }
+  if (!lookA || !lookB) return null;
   const order = paneOrder(oldPanes, W, H, "inward"), per = Math.ceil(order.length / TURN_BATCHES), batchOf = [];
   order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
-  count("sequence.glassPieces", oldPanes.length);
-  const piece = (p, i, look, old) => {
-    const box = boxOf([p.poly], 1);
-    return { box, poly: p.poly, batch: batchOf[i] ?? 0, canvas: cutLook(look, [p.poly], box, "drpg-seq-pane"), old: old ? cutLook(old, [p.poly], box, "drpg-seq-pane") : null };
+  count("sequence.glassPieces", oldPanes.length + fillA.length);
+  const piece = (poly, look, old = null, batch = 0) => {
+    const box = boxOf([poly], 1);
+    return { box, poly, batch, canvas: cutLook(look, [poly], box, "drpg-seq-pane"), old: old ? cutLook(old, [poly], box, "drpg-seq-pane") : null };
   };
+  const grown = (fill, look) => growPlan(fill, W, H).map(p => ({ ...p, ...piece(p.poly, look) }));
   return {
-    W, H,
-    close: { panes: oldPanes.map((p, i) => piece(p, i, newLook, oldLook)), field: fieldA, texOld: paintTexture(fieldA, oldLook, W, H, oldPanes), tex: texNew, batchOf },
-    open: { panes: j.panes.map((p, i) => piece(p, i, newLook, null)), field: fieldB, tex: same ? texNew : paintTexture(fieldB, newLook, W, H, j.panes) }
+    W, H, acc: j.acc,
+    close: { panes: oldPanes.map((p, i) => piece(p.poly, newLook, oldLook, batchOf[i] ?? 0)), fill: grown(fillA, lookA), batchOf },
+    closed: lookB,
+    open: { panes: trial.map(p => piece(p.poly, newLook)), fill: grown(fillB, lookB) }
   };
 }
 function rebuild() {
