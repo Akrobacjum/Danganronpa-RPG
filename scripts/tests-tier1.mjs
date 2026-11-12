@@ -18868,6 +18868,100 @@ const INVARIANTS = [
             "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
             + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
     }],
+    ["R3980 - the Rest window names the rest a map has no room for (gaps, the owner's 12.11): rest.mjs `restRoomsSentence`, asked as `restVariants` asks it for the window's hints (no `kind` in its data), on a map whose rooms allow no rest, says DRPG.Rest.noRooms with the rest's own name - Short Rest or Long Rest, in English and in Polish - and never an empty word", async () => {
+        /*
+         * Gaps, 12.11.2026 (the owner, through the coordinator): the Rest window read "No room on this map is marked for a
+         * yet" / "... oznaczony pod . GM ustawia to per scena". `restVariants` builds each choice's hint with
+         * `restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, ...)` - data with no `kind`, since "allowedIn" has none - and on
+         * a map with no rest room the sentence falls back to DRPG.Rest.noRooms with `kind: data?.kind ?? ""`. The refusal's
+         * road (`performRest`, DRPG.Rest.wrongRoom) passes `kind` and was whole. Asked here with a scene of the test's own
+         * (no region, so no rest room) and with the language's words standing in for `game.i18n` (lang/en.json and
+         * lang/pl.json, the module's own files), and restored. Red at 235c3210: the kind empty in both.
+         */
+        const R = await import("./rest.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const files = { en: await lang("en"), pl: await lang("pl") };
+        const scene = { id: "R3980SCENE", regions: [] };
+        const at = (obj, key) => key.split(".").reduce((o, p) => o?.[p], obj);
+        const read = {};
+        const own = game.i18n.localize, fmt = game.i18n.format;
+        try {
+            for (const code of ["en", "pl"]) {
+                const word = key => at(files[code], key) ?? key;
+                game.i18n.localize = key => word(key);
+                game.i18n.format = (key, data = {}) => String(word(key)).replace(/\{(\w+)\}/g, (m, k) => (k in data ? String(data[k]) : m));
+                read[code] = ["short", "long"].map(kind => R.restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, scene, null));
+            }
+        } finally {
+            game.i18n.localize = own;
+            game.i18n.format = fmt;
+        }
+        must(read.en?.length === 2 && read.pl?.length === 2, "restRoomsSentence answered nothing - this would measure nothing");
+        const want = code => ["short", "long"].map(kind => String(at(files[code], "DRPG.Rest.noRooms")).replace("{kind}", at(files[code], `DRPG.Rest.${kind}`)));
+        equal(JSON.stringify(read), JSON.stringify({ en: want("en"), pl: want("pl") }),
+            "{en, pl: [the Short Rest's sentence, the Long Rest's]} - a sentence with no rest's name in it");
+    }],
+    ["R3981 - game.drpg.a11y() lists a nameless control while it is on the page and not after its window is gone (gaps, 12.11.2026; the E99 line's full tier-2 run): a11y.mjs `a11yReport` names a nameless control of a module window standing in the page, and once that window is removed counts its kind on the line of kinds met only in windows since closed, and no longer as a control that carries no name", async () => {
+        /*
+         * Gaps, 12.11.2026 (the coordinator: tier 2's "every control in the module's own chrome has a name" failed after
+         * R3551 and passed alone). R3551's windows were gone from the page (read after it: no `r3551-` element), but the
+         * report's map keeps a kind from its first sight and listed "input in r3551-character-..." for ever. Here: a
+         * `.drpg-panel` of the test's own with a button that has nothing to be named by, appended, swept, read, removed,
+         * read again. Red at 235c3210: after the removal the report still said the kind "carries no name".
+         */
+        const A = await import("./a11y.mjs");
+        const host = document.createElement("section");
+        host.className = "drpg-panel";
+        host.id = `r3981-${Date.now().toString(36)}`;
+        host.innerHTML = `<button type="button" class="r3981-nameless"></button>`;
+        let on = "", off = "";
+        try {
+            document.body.append(host);
+            A.nameControls(host);
+            on = A.a11yReport();
+        } finally { host.remove(); }
+        off = A.a11yReport();
+        const kind = "button.r3981-nameless";
+        const read = {
+            on: on.includes(`${kind} in ${host.id}`) && /carry no name/.test(on),
+            offListed: off.split("\n").some(l => l.trim().startsWith(`${kind} in`)),
+            offCounted: /windows no longer on the page: .*button\.r3981-nameless/.test(off)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ on: true, offListed: false, offCounted: true }),
+            `{on: listed while on the page; offListed: still listed as on screen after removal; offCounted: counted among the closed} - the reports: ${JSON.stringify({ on, off })}`);
+    }],
+    ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
+        /*
+         * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground
+         * rgb(11,10,19), no Foundry chat stylesheet): an info card's glyph took the colour the page gave it, #000000, 1.07:1
+         * under the glass and 1.18:1 under Legacy against its card; a warning's (glass #e0182f, 4.07; Legacy 3.04) and a
+         * secret's (9.18; 3.86) are their tone's. The info glyph had no colour of its own: under the glass it is painted in
+         * `currentColor` through its mask (pixel-icons.css), under Legacy Font Awesome draws in `color`, and both took what
+         * Foundry or Daggerheart leave on a message's header. The commit's message has the table. Headless there is no
+         * paint, so this reads the cause: which rule decides the glyph's colour. Red at 7c0d1af9: info null in both themes.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            read[theme] = {};
+            for (const tone of ["info", "warning", "secret"]) {
+                const body = document.createElement("body");
+                body.className = theme;
+                const kit = body.appendChild(document.createElement("div"));
+                kit.className = "drpg-chat-kit";
+                kit.dataset.drpgTone = tone;
+                const head = kit.appendChild(document.createElement("header"));
+                head.className = "drpg-chat-kit-head";
+                const glyph = head.appendChild(document.createElement("i"));
+                glyph.className = "fa-solid fa-ear-listen drpg-chat-kit-glyph";
+                const w = C.winner(glyph, ["color"]);
+                read[theme][tone] = w ? `${w.value}${/components\.css/.test(w.file ?? w.sheet ?? "") ? "" : ` (${w.file ?? w.sheet ?? "?"})`}` : null;
+            }
+        }
+        const want = { info: "var(--drpg-kit-ink)", warning: "var(--drpg-kit-warn-edge)", secret: "var(--drpg-kit-secret-edge)" };
+        equal(stableJson(read), stableJson({ "drpg-theme-stained-glass": want, "drpg-theme-monokuma-legacy": want }),
+            "per theme and tone, the `color` the glyph's winning rule declares (and its sheet when not components.css); null when no rule of the module states it");
+    }],
     ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at

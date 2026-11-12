@@ -63,6 +63,10 @@ export function restRooms(kind, scene) {
  * sentence the list goes into, `data` its other fields, `scene` the scene whose rest rooms
  * are listed (the character's) and whose found rooms filter them - the camera's did until
  * E12 fix r1-G4; `known` is a parameter for the suite, which runs on a GM's browser.
+ *
+ * THE REST'S NAME FROM `kind`, NOT ONLY FROM `data` (gaps, the owner's 12.11.2026): the Rest window's hints ask with no
+ * `kind` in `data` (`restVariants`, whose "allowedIn" has none), and on a map with no rest room the fallback said "marked
+ * for a  yet" / "oznaczony pod ." - now it names the rest by `kindLabel`, as the refusal's road does. R3980.
  */
 export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe(scene)) {
     const rooms = restRooms(kind, scene);
@@ -70,7 +74,7 @@ export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe
     if (shown.length) return game.i18n.format(key, { ...data, rooms: shown.join(", ") });
     return rooms.length
         ? game.i18n.localize("DRPG.Rest.noKnownRooms")
-        : game.i18n.format("DRPG.Rest.noRooms", { kind: data?.kind ?? "" });
+        : game.i18n.format("DRPG.Rest.noRooms", { kind: data?.kind ?? kindLabel(kind) });
 }
 
 /**

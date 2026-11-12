@@ -4096,7 +4096,13 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-settings, .drpg-window-game
     border-bottom: 1px solid var(--drpg-kit-info-edge);
 }
 .drpg-chat-kit > .drpg-chat-kit-head:has(> .drpg-chat-kit-title) ~ * { grid-column: 1 / -1; }
-.drpg-chat-kit .drpg-chat-kit-glyph { flex: none; width: 1rem; line-height: 1.35; text-align: center; }
+/* THE GLYPH WEARS THE KIT'S INK, NOT WHAT THE PAGE LEAVES IT (gaps, 12.11.2026; the E93 line saw an info card's ear and
+   bed dark on the dark card under the glass). It had no colour of its own: painted in `currentColor` through its mask
+   under Stained Glass (pixel-icons.css), in `color` by Font Awesome under Legacy, it took whatever Foundry or Daggerheart
+   leave on a message's header - on the style harness with no Foundry chat sheet, #000000 at 1.07:1 (glass) and 1.18:1
+   (Legacy) against its card. Now the kit's ink, one token for every card's glyph; a warning and a secret keep their
+   tone's edge (below). R3982. */
+.drpg-chat-kit .drpg-chat-kit-glyph { flex: none; width: 1rem; line-height: 1.35; text-align: center; color: var(--drpg-kit-ink); }
 .drpg-chat-kit[data-drpg-tone="warning"] .drpg-chat-kit-glyph { color: var(--drpg-kit-warn-edge); }
 .drpg-chat-kit[data-drpg-tone="secret"] .drpg-chat-kit-glyph { color: var(--drpg-kit-secret-edge); }
 .drpg-chat-kit .drpg-chat-kit-title { margin: 0; padding: 0; border: 0; font-size: 1em; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
