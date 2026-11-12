@@ -38451,7 +38451,8 @@ const INVARIANTS = [
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
-            menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
+            // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
+            menus: ["action-analyze.mjs", "action-listen.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
                 "level-up.mjs", "palm.mjs"],
             never: [],
             frame: [false, true, true],
@@ -47010,6 +47011,56 @@ const INVARIANTS = [
             room: [["R3754a", "Tea", "head", 14, [["sanity", 2, "present", ""]]], [null, "Radio", "eye", 12, [["text", 1, "self", "A song plays."]]], [null, "", "eye", 12, []]],
             project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 } }
         }), `{tab; label; column, buttons, counts on the Facilities tab; rows; room: what the room's editor reads back; project: the project's} - Room Setup's Facilities tab and the two editors (window: ${Boolean(cfg)})`);
+    }],
+    ["R3755 - the Listen tile is the Infiltrate tile and its rows are one table (scripts/config.mjs `INFILTRATE`, `ACTIONS.listen`; E69 C1, DA27, DA28, DA48, DB40): the key stays `listen`, the label is Infiltrate in English and in Polish, the hint names all seven rows (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, Keep Watch) in both languages, `variants` lists `INFILTRATE`'s rows in order, Tail Someone's unseen roll is on Shadow at 15, and Dash rolls on Leg for 0 to 3 free crossings by band", async () => {
+        /*
+         * E69 C1, 12.11.2026. Read off the config and the two language files; nothing is written. The Polish label and hint are
+         * the config prose keys (`DRPG.Config.ACTIONS.listen.*`), read from lang/pl.json as i18n.mjs swaps them in.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const plRow = pl?.DRPG?.Config?.ACTIONS?.listen ?? {};
+        const seven = ["Listen", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch"];
+        const I = C.INFILTRATE ?? {};
+        const read = {
+            key: Object.hasOwn(C.ACTIONS, "listen"),
+            label: [C.ACTIONS.listen?.label ?? null, plRow.label ?? null],
+            hint: [seven.every(n => (C.ACTIONS.listen?.hint ?? "").includes(n)), seven.every(n => (plRow.hint ?? "").includes(n))],
+            variants: C.ACTIONS.listen?.variants ?? null,
+            rows: Object.keys(I),
+            // Tail Someone's effect statistics (Leg or Shadow, DA32) come with its GM ruling in C3 (R213 asks a ruling of any list of several).
+            tail: I.tail ? [I.tail.unseen?.trait, I.tail.unseen?.threshold] : null,
+            dash: I.dash ? [I.dash.traits, I.dash.bands?.map(b => [b.min, b.moves]), I.dash.critical?.moves] : null,
+            inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
+        };
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "tail", "dash"],
+            rows: ["listen", "tail", "dash"], tail: ["shadow", 15], dash: [["leg"], [[12, 1], [18, 2]], 3], inAggregate: true }),
+            "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
+    }],
+    ["R3756 - the Infiltrate window is one list of rows, Listen first and shut with its reason where the room has no neighbour (scripts/action-listen.mjs `infiltrateRows`, `performListen`; E69 C1, DA28): one row a key of `ACTIONS.listen.variants` in its order, each with its price; Listen open where the character's room has a neighbour and greyed with the no-neighbour line where it has none; a row not built greyed with its line; and `performListen` asks the rows before Listen's own room", async () => {
+        /*
+         * E69 C1, 12.11.2026. Read for every student standing in a named room (the harness world has rooms with and without
+         * neighbours on its scene), against movement.mjs `neighbouringRooms` read here; nothing is written.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        const L = await import("./action-listen.mjs");
+        const M = await import("./movement.mjs");
+        const C = await import("./config.mjs");
+        const students = game.actors.filter(a => a.type === "character" && M.locateActor(a)?.room);
+        must(students.length, "no student stands in a named room - this would measure nothing");
+        const rows = students.map(a => {
+            const place = M.locateActor(a);
+            const open = M.neighbouringRooms(place.scene, place.room).length > 0;
+            const r = L.infiltrateRows(a);
+            return [r.map(x => x.value).join(), r[0].disabled === !open,
+                r[0].why === (open ? "" : game.i18n.localize("DRPG.Listen.noNeighbours")), r.every(x => /\d/.test(x.hint))];
+        });
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/action-listen.mjs`).then(lfText), "performListen") ?? "");
+        equal(stableJson({ rows: [...new Set(rows.map(stableJson))].map(JSON.parse), variants: C.ACTIONS.listen.variants,
+            asksFirst: src.indexOf("infiltrateRows(actor)") > 0 && src.indexOf("infiltrateRows(actor)") < src.indexOf("neighbouringRooms(scene, here)") }),
+            stableJson({ rows: [...new Set(rows.map(r => stableJson([C.ACTIONS.listen.variants.join(), true, true, true])))].map(JSON.parse),
+                variants: ["listen", "tail", "dash"], asksFirst: true }),
+            "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
     }],
 ];
 

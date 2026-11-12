@@ -14,13 +14,14 @@
  * family it reads the shared layer alone.
  */
 
-import { spendAction } from "./actions.mjs";
-import { roomOfActor, locateActor } from "./movement.mjs";
+import { ACTIONS, INFILTRATE } from "./config.mjs";
+import { spendAction, actionsLeft } from "./actions.mjs";
+import { roomOfActor, locateActor, neighbouringRooms } from "./movement.mjs";
 import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { actionWindow } from "./action-menus.mjs";
+import { actionWindow, chooseVariant } from "./action-menus.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -40,6 +41,33 @@ export function listenLabels(neighbours, known) {
         : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
 }
 
+/** Each row's icon in the Infiltrate window. */
+const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running" });
+/** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
+const BUILT = new Set(["listen"]);
+
+/**
+ * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
+ * (config.mjs `INFILTRATE`'s order), each with its price and why it is shut: Listen in a room with no neighbour (until
+ * C1 that was a warning after the tile was pressed), a row not built yet. Read by `performListen` and by tier 1's R3756.
+ */
+export function infiltrateRows(actor) {
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = neighbouringRooms(scene, roomOfActor(actor));
+    return (ACTIONS.listen.variants ?? ["listen"]).map(key => {
+        const row = INFILTRATE[key] ?? {};
+        const why = !BUILT.has(key) ? game.i18n.localize("DRPG.Infiltrate.notBuilt")
+            : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours") : null;
+        return {
+            value: key, icon: ROW_ICONS[key] ?? "fa-circle",
+            label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
+            hint: `${plural("DRPG.Action.willCost", { n: row.cost ?? 1, left: actionsLeft(actor) })} · ${
+                game.i18n.localize(`DRPG.Infiltrate.row.${key}.hint`)}`,
+            disabled: Boolean(why), why: why ?? ""
+        };
+    });
+}
+
 /**
  * Listen - fully automatic, no GM.
  *
@@ -53,6 +81,11 @@ export function listenLabels(neighbours, known) {
  * line deliberately.
  */
 export async function performListen(actor, def, options) {
+    // The Infiltrate window first (E69 C1): its rows, the first usable one picked; Listen goes on to its room below.
+    const variant = options.variant ?? (await chooseVariant({
+        actor, title: def.label, intro: briefingBlock(actor, "listen", def), options: infiltrateRows(actor), showShut: true
+    }))?.value ?? null;
+    if (variant !== "listen") return null;
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 

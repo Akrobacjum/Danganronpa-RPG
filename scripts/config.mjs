@@ -1677,13 +1677,21 @@ export const ACTIONS = {
             + "of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much "
             + "and grants less Hope."
     },
+    /*
+     * INFILTRATE, THE TILE THAT WAS LISTEN (E69 C1, 12.11.2026; DA27: the key `listen` stays, no migration; DA28 and DA48: one
+     * list of rows without groups, seven once E74 adds its four). The rows are `INFILTRATE`'s, in its order (`variants`); the
+     * thresholds, critical and failure below stay Listen's, as the Listen row reads them. The description is the owner's
+     * approved text of batch B01a and speaks of Listen; the label and the hint name the tile.
+     */
     listen: {
         kind: "universal",
-        label: "Listen",
+        label: "Infiltrate",
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        hint: "Work out who is in a neighbouring room. No GM needed.",
+        variants: ["listen", "tail", "dash"],
+        hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
+            + "Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -2085,6 +2093,33 @@ export const REST = {
         breath: { label: "Breath", long: "Grants 2 Hope", short: "Grants 1 Hope" }
     }
 };
+
+/* ==========================================================================
+ * INFILTRATE  (E69: the rows of the tile that was Listen)
+ * ========================================================================== */
+
+/**
+ * THE INFILTRATE TILE'S ROWS (E69 C1, 12.11.2026; the owner's audit entry E69, DA8, DA19-DA21, DA26-DA28, DA32, DA33). One
+ * table, in the window's order; E74 adds Shut the Door, Force the Door, Pick the Lock and Keep Watch. Names and hints are
+ * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
+ *
+ *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
+ *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (its `traits` come in C3 with the GM's
+ *           ruling E68's card asks, as R213 holds every list of several), and whether the target notices on Shadow against
+ *           `unseen.threshold` (DA21: 15, as Palm).
+ *           `perDay` null: no daily limit, one active tail per tailer (DA26).
+ *   dash    Dash: Leg, free crossings by band (`bands`: the highest reached; `critical`), granted through actions.mjs
+ *           `grantFreeMoves`. The plan names "0-3 by band" and no numbers: a miss 0, 12+ 1, 18+ 2, a critical 3 - a
+ *           default taken (docs/dev/e69/SPEC.md).
+ */
+export const INFILTRATE = Object.freeze({
+    listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
+    tail: Object.freeze({ cost: 1, perDay: null,
+        unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
+    dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
+        bands: Object.freeze([Object.freeze({ min: 12, moves: 1 }), Object.freeze({ min: 18, moves: 2 })]),
+        critical: Object.freeze({ moves: 3 }) })
+});
 
 /* ==========================================================================
  * FACILITIES  (E93: the room's actions beside the two rests)
@@ -5106,6 +5141,7 @@ export const DRPG = {
     DYNAMIC_THRESHOLDS,
     REST,
     FACILITIES,
+    INFILTRATE,
     HOPE_CALLS,
     DESPAIR_CALLS,
     MOTIVE,

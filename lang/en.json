@@ -2914,6 +2914,23 @@
       },
       "discardNote": "{actor} threw away {item} in {room} (rolled {total})."
     },
+    "Infiltrate": {
+      "notBuilt": "Not built yet.",
+      "row": {
+        "listen": {
+          "label": "Listen",
+          "hint": "Shadow at a wall: who is in a neighbouring room."
+        },
+        "tail": {
+          "label": "Tail Someone",
+          "hint": "Follow somebody in your room and learn where they go."
+        },
+        "dash": {
+          "label": "Dash",
+          "hint": "Leg: free crossings to run with."
+        }
+      }
+    },
     "Facility": {
       "usedOk": "{action}: done.",
       "usedFailed": "{action}: it did not work. The action is used for this time of day.",

@@ -3176,6 +3176,23 @@
       "discardNote": "{actor} - wyrzucone {item} w: {room} (rzut {total}).",
       "cardUnread": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę."
     },
+    "Infiltrate": {
+      "notBuilt": "Jeszcze niezrobione.",
+      "row": {
+        "listen": {
+          "label": "Listen",
+          "hint": "Shadow przy ścianie: kto jest w sąsiednim pokoju."
+        },
+        "tail": {
+          "label": "Tail Someone",
+          "hint": "Idź za kimś z twojego pokoju i dowiedz się, dokąd idzie."
+        },
+        "dash": {
+          "label": "Dash",
+          "hint": "Leg: darmowe przejścia na szybki bieg."
+        }
+      }
+    },
     "Facility": {
       "usedOk": "{action}: zrobione.",
       "usedFailed": "{action}: nie wyszło. Akcja jest zużyta na tę porę dnia.",
@@ -6269,8 +6286,8 @@
           "description": "Do wyboru masz Sleep (Health), Meal (Sanity) i Breath (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
         },
         "listen": {
-          "label": "Listen",
-          "hint": "Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny.",
+          "label": "Infiltrate",
+          "hint": "Listen przy ścianie, Tail Someone, Dash przez korytarze, Shut the Door, Force the Door, Pick the Lock albo Keep Watch. Każde kosztuje akcję.",
           "description": "Wybierasz sąsiedni pokój, wydajesz akcję i rzucasz Shadow. Niezły wynik mówi, ile osób tam jest, wyższy zdradza, kto to jest, a krytyk pokazuje, kto jest w każdym sąsiednim pokoju. Przy pudle nic nie słyszysz. Gdy obok nie ma żadnego pokoju, nie tracisz akcji.",
           "thresholds": {
             "0": {
