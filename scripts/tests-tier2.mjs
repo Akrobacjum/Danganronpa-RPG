@@ -34766,6 +34766,96 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "an action whose GM left during the roll kept its price, took a search token, posted, or was not told once");
     }],
 
+    ["a GM's own Search for something specific whose card is not posted gives back the action and the room's search token (E91 C7, D072)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D072 ("the search token does not come back when the card is not
+         * published"). action-search.mjs `searchSpecific` gave the action back when its call on the GM was not posted
+         * (`abort`), and the room's token, taken after the dice, stayed taken. On a GM's own browser the token is the
+         * GM's to give back (`SearchTokens.giveBack`), and is now. A student stood alone in a room, its Search run from
+         * this GM's browser; the call's thread card refused by a `preCreateChatMessage` hook, so `callGm` answers false.
+         * Read: the actions and the room's tokens it kept taken. Red before C7: one token taken. A player's browser holds
+         * no road back once the last GM has gone (the spend's request id stays in the bridge); that case is not changed.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE, MODULE_ID } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [student] = cast(1);
+        const ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const had = foundry.utils.getProperty(student, ACTS);
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const windows = answerWindows((cfg, root) => {
+            const pick = root.querySelector('input[name="variant"][value="specific"]');
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const request = root.querySelector('[name="request"]');
+                if (request) request.value = "SUITE E91 C7 a spare key";
+            }
+            return press(cfg, root);
+        });
+        const errors = console.error;
+        const stood = await standAlone(student);
+        let blocked = 0, read = null;
+        const hook = Hooks.on("preCreateChatMessage", doc => {
+            if (doc?.flags?.[MODULE_ID]?.thread) { blocked++; return false; }
+            return true;
+        });
+        try {
+            console.error = () => {};
+            await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
+            student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total }, options: { roll: { trait: "eye" } } } });
+            const where = locateActor(student);
+            const left = SearchTokens.left(where?.room ?? null, where?.scene ?? null);
+            const before = actionsLeft(student);
+            await rolls.performAction(student, "search");
+            await settle(300);
+            read = [before - actionsLeft(student), left - SearchTokens.left(where?.room ?? null, where?.scene ?? null)];
+        } finally {
+            Hooks.off("preCreateChatMessage", hook);
+            console.error = errors;
+            windows.restore();
+            delete student.rollTrait;
+            for (const message of game.messages.contents.filter(m => !seen.has(m.id))) await message.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await student.update({ [ACTS]: had });
+            await stood.back();
+        }
+        must(blocked > 0, "no thread card was asked for - the Search did not reach its call, and this measures nothing");
+        equal(stableJson(read), stableJson([0, 0]), "[actions kept spent, the room's tokens kept taken] - a Search whose card was not posted kept its token");
+    }],
+
+    ["the Dynamic action's difficulty window names the character as its sheet does, by the GMs' actor, never by a packet's name (E91 C7, D076)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D076 ("the Dynamic window and the sheet name the character
+         * differently"). action-dynamic.mjs `askDynamicDifficulty` wrote `actorName`, the name the player's browser put in
+         * the packet (`dynamic.difficulty`'s `actorName`, kept on the card's data as `name`): a name the asker's copy held
+         * or any text, where the sheet shows the actor's own. Now the window reads the actor by id (the card's `by`), the
+         * packet's name only when no actor is found. The window's content read with Foundry's DialogV2.wait handed in,
+         * nothing answered. Red before C7: the packet's name.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        const [student] = cast(1);
+        const { askDynamicDifficulty } = await import("./action-rolls.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let seen = "";
+        try {
+            D.wait = async cfg => { seen = typeof cfg?.content === "string" ? cfg.content : cfg?.content?.innerHTML ?? ""; return null; };
+            await askDynamicDifficulty({ description: "SUITE E91 C7", actorName: "SUITE E91 C7 another name", actorId: student.id, room: null });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(seen.includes("SUITE E91 C7"), "the window was not drawn - this would measure nothing");
+        equal(stableJson([seen.includes(foundry.utils.escapeHTML(student.name)), seen.includes("another name")]), stableJson([true, false]),
+            "[the sheet's name, the packet's name] in the Dynamic window - it names the character by the packet");
+    }],
+
     ["a returning reader is given the line written for them: a GM keeps a card's uncut words beside its own and cuts them for each asker, at its post and at its rewrite (E18 fix e1-G6)", async () => {
         /*
          * E18 fix e1-G6, 24.10.2026; the end review's E18-END-6 and F5 (STATUS's C4 gap 1). A GM gave a returning reader
