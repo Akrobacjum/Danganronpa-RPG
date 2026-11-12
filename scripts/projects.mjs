@@ -40,6 +40,7 @@ import { cardMeta } from "./secret.mjs";
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
+import { facilityOrdinal } from "./facilities.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 import {
@@ -945,6 +946,18 @@ export const COMPLETION_EFFECTS = [
                 }
             };
         }
+    },
+    {
+        /*
+         * A FINISHED PROJECT'S ROOM ACTION STARTS ITS LIFETIME (E93 C1, 12.11.2026; the owner's audit entry E93 (4)). A
+         * project a GM gave an action (`facility`, facilities.mjs `cleanFacility`) stamps the time of day it was completed
+         * in (`facilityOrdinal`), which its lifetime is counted from (`facilityLive`); taken back below its target, the
+         * stamp goes, and the action with it, until it is completed again. Read for a project with an action only.
+         */
+        key: "facility",
+        has: meta => Boolean(meta.facility),
+        onCrossed: ({ id }) => ({ meta: { [id]: { completedAt: facilityOrdinal() } } }),
+        onUncrossed: ({ id }) => ({ meta: { [id]: { completedAt: null } } })
     }
 ];
 

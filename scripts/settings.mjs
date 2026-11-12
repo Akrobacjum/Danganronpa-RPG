@@ -440,6 +440,21 @@ export const SETTINGS = {
      */
     gmRifles: "gmRifles",
     /**
+     * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3) and its 05.11 limits): a GM store
+     * (gm-stores.mjs `facilityUseStore`), a row per GM's action (`g:<sceneId>:<room>:<actionId>`, closed for everyone
+     * once used) and per project's action and character (`p:<projectId>:<actorId>`), each `{ mark, actorId, userId,
+     * at, success }` - the time of day of its use (facilities.mjs `facilityMark`). Synced, not backed up; no player
+     * copy: who used what, where, is the GMs'.
+     */
+    gmFacilityUses: "gmFacilityUses",
+    /**
+     * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
+     * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
+     * `closeForAll`). A world setting every browser holds, so an honest Facilities window greys a closed action
+     * before its price is paid; it names no character and no user - who used it stays in `gmFacilityUses`.
+     */
+    facilityClosed: "facilityClosed",
+    /**
      * THE LAST CROSSINGS (E17 C3, 26.10.2026; audit S07-16, D18): a GM store (gm-stores.mjs `crossingStore`), a row per
      * character - its newest crossing the primary GM saw or made, what it cost and where the token stood before it -
      * which the Students window's "Refund last crossing" gives back (movement.mjs `refundLastCrossing`). Synced, not
@@ -1002,7 +1017,7 @@ const SEASON_SETTINGS = [
     SETTINGS.murderState, SETTINGS.sealedRooms, SETTINGS.restrictions, SETTINGS.projectMeta, SETTINGS.trialQueue,
     SETTINGS.trialProgress, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.discoveredRooms, SETTINGS.searchTokens,
     SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.gmAssignments, SETTINGS.despairPools,
-    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd
+    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd, SETTINGS.facilityClosed
 ];
 /*
  * The campaign's. The remembered exceptions and the scenes' roles, Room Setup's players' regions, the item tables' music
@@ -2013,6 +2028,23 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // The room actions used (E93 C1): no `onChange` - shown nowhere, read by the next use on the GM that serves it
+    // (facilities-gm.mjs `handleFacilityUse`).
+    game.settings.register(MODULE_ID, SETTINGS.gmFacilityUses, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The GM room actions closed this time of day (E93 C1): every browser's sheets redraw, so the Facilities tile and
+    // its window grey what was used.
+    game.settings.register(MODULE_ID, SETTINGS.facilityClosed, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
     });
     // The last crossings (E17 C3): the Students window redraws its Refund buttons on `drpgCrossingsChanged`, on every GM
     // the store reaches.

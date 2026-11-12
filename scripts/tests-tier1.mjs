@@ -6836,7 +6836,8 @@ const INVARIANTS = [
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
-            ...["description"].map(f => [`projectMeta while secret: ${f}`,
+            // E93 C1: a secret project's room action (its label and effects) as well.
+            ...["description", "facility"].map(f => [`projectMeta while secret: ${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
@@ -46872,6 +46873,85 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
             "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
+    }],
+    ["R3750 - a room action is held to the closed list as a GM types it (scripts/facilities.mjs `cleanAction`, `cleanEffect`, `cleanFacility`; E93 C1, the owner's audit entry E93 (2) and (5), 08.11): a GM's action keeps a label, a trait of TRAITS, a difficulty clamped to FACILITIES.dc and at most FACILITIES.maxEffects effects of FACILITIES.effects, each n clamped to its kind's amount and a scope of FACILITIES.scopes; an unknown kind, an empty label or text is dropped; a project's action costs an action unless its switch is false and its lifetime is forever unless it names timesOfDay or days with n from 1 to maxLifetime", async () => {
+        /*
+         * E93 C1, 12.11.2026. What a GM types in Room Setup or on a project reaches every browser (a region flag, projectMeta)
+         * and the GM's run reads it again; one cleaning for both, so a hand-edited flag is held to the list as a typed one.
+         */
+        const F = await import("./facilities.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const a = F.cleanAction({ id: "abc123", label: "  Brew tea  ", trait: "nope", dc: 99, effects: [
+            { kind: "health", n: 50, scope: "present" }, { kind: "fly", n: 1 }, { kind: "text", text: "  " },
+            { kind: "searchToken", n: 2, scope: "others" }, { kind: "hope", n: 0, scope: "nobody" }, { kind: "sanity", n: 2 }, { kind: "text", text: "x" }] });
+        const read = {
+            action: a && { id: a.id, label: a.label, trait: Object.hasOwn(TRAITS, a.trait), dc: a.dc, effects: a.effects },
+            noLabel: F.cleanAction({ label: "   " }),
+            newId: typeof F.cleanAction({ label: "x" })?.id === "string",
+            dcLow: F.cleanAction({ label: "x", dc: -4 })?.dc, dcNaN: F.cleanAction({ label: "x", dc: "q" })?.dc,
+            many: F.cleanActions(Array.from({ length: 12 }, (_, i) => ({ id: `id${i % 10}`, label: `a${i}` }))).length,
+            facility: F.cleanFacility({ label: "Soup", effects: [{ kind: "sanity", n: 1 }], costsAction: 0, lifetime: { kind: "days", n: 99 } }),
+            facilityDefaults: F.cleanFacility({ label: "Lamp" }),
+            facilityOff: F.cleanFacility({ label: "Lamp", costsAction: false, lifetime: { kind: "weeks", n: 3 } })
+        };
+        equal(stableJson(read), stableJson({
+            action: { id: "abc123", label: "Brew tea", trait: true, dc: FACILITIES.dc.max, effects: [
+                { kind: "health", n: FACILITIES.effects.health.amount, scope: "present" },
+                { kind: "searchToken", n: 2, scope: "self" }, { kind: "hope", n: 1, scope: "self" }, { kind: "sanity", n: 2, scope: "self" }] },
+            noLabel: null, newId: true, dcLow: FACILITIES.dc.min, dcNaN: FACILITIES.defaultDc, many: FACILITIES.maxActions,
+            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime } },
+            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" } },
+            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" } }
+        }), "{action: a GM's action cleaned; noLabel; newId; dcLow, dcNaN; many: twelve with ten ids, cut to maxActions; facility: a project's; facilityDefaults; facilityOff} - what a GM typed must be held to FACILITIES' closed list");
+    }],
+    ["R3751 - a completed project's action lives for its lifetime, counted in times of day from the one it was completed in (scripts/facilities.mjs `facilityOrdinal`, `facilityLive`, `facilityTimesLeft`, `facilityMark`; E93 C1, the owner's audit entry E93 (4)): forever stands, timesOfDay n the time of day of completion and the n - 1 after it, days n for n days of them; none outlives its chapter or its season; the mark of a use is the season, chapter, session, day and time of day, not the phase", async () => {
+        const F = await import("./facilities.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const at = (day, tod, more = {}) => ({ seasonStartedAt: 7, chapter: 2, session: 3, day, timeOfDay: TIMES_OF_DAY[tod], phase: "dailyLife", ...more });
+        const done = F.facilityOrdinal(at(2, 3));
+        const two = { label: "x", lifetime: { kind: "timesOfDay", n: 2 } }, day = { label: "x", lifetime: { kind: "days", n: 1 } }, ever = { label: "x", lifetime: { kind: "forever" } };
+        const read = {
+            ordinal: [F.facilityOrdinal(at(1, 0)).at, F.facilityOrdinal(at(1, 4)).at, F.facilityOrdinal(at(2, 0)).at, done.at],
+            two: [F.facilityLive(two, done, at(2, 2)), F.facilityLive(two, done, at(2, 3)), F.facilityLive(two, done, at(2, 4)), F.facilityLive(two, done, at(3, 0))],
+            day: [F.facilityLive(day, done, at(3, 2)), F.facilityLive(day, done, at(3, 3))],
+            ever: [F.facilityLive(ever, done, at(9, 0)), F.facilityLive(ever, done, at(1, 0, { chapter: 3 }))],
+            chapter: [F.facilityLive(day, done, at(2, 4, { chapter: 3 })), F.facilityLive(day, done, at(2, 4, { seasonStartedAt: 8 }))],
+            none: [F.facilityLive(null, done, at(2, 3)), F.facilityLive(two, null, at(9, 0))],
+            left: [F.facilityTimesLeft(two, done, at(2, 3)), F.facilityTimesLeft(two, done, at(2, 4)), F.facilityTimesLeft(two, done, at(3, 0)),
+                F.facilityTimesLeft(ever, done, at(2, 3)), F.facilityTimesLeft(day, null, at(2, 3))],
+            mark: [F.facilityMark(at(2, 3)) === F.facilityMark(at(2, 3, { phase: "investigation" })),
+                ...[{ seasonStartedAt: 8 }, { chapter: 3 }, { session: 4 }, { day: 3 }, { timeOfDay: TIMES_OF_DAY[0] }].map(d => F.facilityMark(at(2, 3)) !== F.facilityMark(at(2, 3, d)))]
+        };
+        const n = TIMES_OF_DAY.length;
+        equal(stableJson(read), stableJson({
+            ordinal: [0, 4, n, n + 3], two: [false, true, true, false], day: [true, false], ever: [true, true], chapter: [false, false],
+            none: [false, true], left: [2, 1, 0, null, n], mark: [true, true, true, true, true, true]
+        }), "{ordinal; two: timesOfDay 2 before, at, after, past; day: days 1 at the last and the first past; ever; chapter: a new chapter, a new season; none: no action, no stamp; left; mark: the phase not in it, then each of season, chapter, session, day, time of day} - a project's action must live its lifetime and no longer");
+    }],
+    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and not backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
+        const S = await import("./gm-stores.mjs");
+        const F = await import("./facilities.mjs");
+        const { COMPLETION_EFFECTS } = await import("./projects.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const store = S.facilityUseStore ?? null;
+        const row = COMPLETION_EFFECTS.find(r => r.key === "facility") ?? null;
+        const setting = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.facilityClosed}`) ?? null;
+        const read = {
+            store: store ? [store.spec.kind, store.spec.resetGroup, store.spec.sync, store.spec.backup] : null,
+            setting: setting ? setting.scope : null,
+            row: row ? [row.has({}), row.has({ facility: { label: "x" } }),
+                Object.keys(row.onCrossed({ id: "P1" }).meta?.P1 ?? {}).join(), row.onUncrossed({ id: "P1" }).meta?.P1?.completedAt === null] : null,
+            cost: [F.facilityCost("gm", null, 0), F.facilityCost("gm", null, 1), F.facilityCost("project", { costsAction: true }, 0),
+                F.facilityCost("project", { costsAction: false }, 0), F.facilityCost("project", { costsAction: false }, 1)],
+            shut: [F.facilityShut("gm", {}), F.facilityShut("gm", { lockdown: true }), F.facilityShut("project", { lockdown: true }),
+                F.facilityShut("gm", { powercut: true }), F.facilityShut("project", { powercut: true })],
+            keys: [F.gmActionKey("S1", "Kitchen", "a1"), F.projectActionKey("P1", "A1")]
+        };
+        equal(stableJson(read), stableJson({
+            store: ["ledger", "actions", true, false], setting: "world", row: [false, true, "completedAt", true],
+            cost: [FACILITIES.gmCost, FACILITIES.gmCost + 1, FACILITIES.projectCost, 0, 1],
+            shut: [null, "lockdown", "lockdown", null, "powercut"], keys: ["g:S1:Kitchen:a1", "p:P1:A1"]
+        }), "{store: [kind, reset group, synced, backed up]; setting: the closed keys' scope; row: [no action, an action, the crossed patch, the uncrossed stamp null]; cost; shut; keys} - a room action's uses, its closing, its price and its shutting");
     }],
 ];
 

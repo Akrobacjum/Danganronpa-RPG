@@ -939,6 +939,22 @@ export const rifleStore = defineGmStore({
 });
 
 /**
+ * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3), its 05.11 limits). A row per GM's action of a
+ * room, keyed `g:<sceneId>:<room>:<actionId>` - one person per time of day, closed for everyone once anyone used it, a
+ * failed roll too - and per completed project's action and character, `p:<projectId>:<actorId>` - once per person per
+ * time of day: `{ mark, actorId, userId, at, success }`, `mark` the time of day of the use (facilities.mjs
+ * `facilityMark`). Written and read by the primary GM in the use's run (facilities-gm.mjs `handleFacilityUse`); synced so
+ * that a GM who becomes the primary judges the next use alike; not backed up, as the rifles are not: a row is worth one
+ * time of day, and a restore that lost one gives one use back. Cut by the reset's "actions" group, with the budgets the
+ * uses were paid from; a row of another mark counts nothing. No player copy - who used which action where is the GMs'
+ * (the public `facilityClosed` names the GM actions closed, no one who closed them) - and no old key.
+ */
+export const facilityUseStore = defineGmStore({
+    name: "facilityUses", key: SETTINGS.gmFacilityUses,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true
+});
+
+/**
  * THE LAST CROSSING OF EACH CHARACTER (E17 C3, 26.10.2026; audit S07-16, D18: "the charge on the drop stays, and the GM
  * gets Refund last crossing"). A row per character, its newest crossing from one room to another: `{ id, tokenId, sceneId,
  * from, to, back, kind, eclipse, via, mark, at, refunded }` - `back` the spot the token stood on before it (x, y,

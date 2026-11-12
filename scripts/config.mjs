@@ -2082,6 +2082,57 @@ export const REST = {
 };
 
 /* ==========================================================================
+ * FACILITIES  (E93: the room's actions beside the two rests)
+ * ========================================================================== */
+
+/**
+ * WHAT A ROOM'S ACTIONS ARE MADE OF (E93 C1, 12.11.2026; the owner's audit entry E93 (2)-(5), 05.11 and 08.11). Two
+ * sources: a GM's action, set per room in Room Setup's Facilities tab and rolled (`gm`), and a completed project's,
+ * set by a GM on the project and not rolled (`project`). Every name a player sees is in lang/*.json under
+ * `DRPG.Facility`; nothing here is prose (config-prose.mjs reads this file's strings).
+ *
+ * `flag` is the region flag that holds a room's GM actions on every piece of the room, as the rest flags are held
+ * (rest.mjs `REST_FLAGS`). `maxActions` a room's, `maxEffects` an action's, `maxLabel` and `maxText` the lengths kept
+ * (facilities.mjs `cleanAction` cuts the rest): each a design number, not a measurement. `dc` is the range a GM's
+ * action's difficulty may take, `defaultDc` the field's first value (Daggerheart's ordinary 12-18 band).
+ *
+ * `effects` is the closed list built in E93's first round (docs/dev/e93/SPEC.md, "Effects"): each `{ amount }` the
+ * largest `n` a GM may give, or `{ text }` for a line the GM writes. `scopes` who an effect falls on - the user
+ * (`self`), everyone in the room at the moment of use (`present`, Q-E93-5's default) or everyone there but the user
+ * (`others`: "Hope for another present"). `once` effects act on the room or the table, not on a character, so their
+ * scope is ignored.
+ *
+ * `lifetimes` a completed project's action's: for good (`forever`), or for `n` times of day or days after the time of day
+ * it was completed in (`timesOfDay`, `days`), ending at a chapter's or a season's end. `gmCost` a GM's action's price in
+ * actions, `projectCost` a project's when its switch says it costs one (the owner's 08.11: the switch is the project
+ * action's only, default yes, Q-E93-1). `trace` the band a GM's action's use leaves (Q-E93-6's default).
+ */
+export const FACILITIES = Object.freeze({
+    flag: "facilityActions",
+    maxActions: 8,
+    maxEffects: 4,
+    maxLabel: 60,
+    maxText: 400,
+    dc: Object.freeze({ min: 5, max: 30 }),
+    defaultDc: 12,
+    gmCost: 1,
+    projectCost: 1,
+    effects: Object.freeze({
+        health: Object.freeze({ amount: 6 }),
+        sanity: Object.freeze({ amount: 6 }),
+        hope: Object.freeze({ amount: 3 }),
+        freeMove: Object.freeze({ amount: 2 }),
+        searchToken: Object.freeze({ amount: 3, once: true }),
+        overflowDown: Object.freeze({ amount: 10, once: true }),
+        text: Object.freeze({ text: true })
+    }),
+    scopes: Object.freeze(["self", "present", "others"]),
+    lifetimes: Object.freeze(["forever", "timesOfDay", "days"]),
+    maxLifetime: 30,
+    trace: Object.freeze({ type: "neutral", visibility: "subtle", faint: true })
+});
+
+/* ==========================================================================
  * HOPE CALLS  (player spends Hope)
  * ========================================================================== */
 
@@ -5028,6 +5079,7 @@ export const DRPG = {
     SABOTAGE_CONCEAL,
     DYNAMIC_THRESHOLDS,
     REST,
+    FACILITIES,
     HOPE_CALLS,
     DESPAIR_CALLS,
     MOTIVE,
