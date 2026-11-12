@@ -41583,6 +41583,43 @@ const INVARIANTS = [
             "monokuma-legacy": ["var(--drpg-pix-hammer)", "var(--drpg-pix-project)"]
         }, [true, true]]), "[{theme: [the action icon's glyph, the Remnant card's project glyph]}, [each declaration of --drpg-pix-hammer draws the approved rows]]");
     }],
+    ["R3988 - Hold this ready and Hand this over wear the pair the owner picked, in both themes (gaps-108; the owner's pick of round 2 on the review page, 12.11.2026: C's hand raising a star, A's arrow from one figure to another): an inventory row's equip and handover glyphs read `--drpg-pix-hold-ready` and `--drpg-pix-hand-over` under Stained Glass (`--drpg-glyph`) and Monokuma Legacy (`mask-image`), every declaration of each draws the picked rows, and the same Font Awesome classes outside the row keep what they wore", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: "Hold this ready" and "Hand this over" were too alike (a fist and an open palm
+         * under Stained Glass, a small fist and a cupped hand under Legacy). Round 1's pair still read as two blobs; round 2
+         * drew three pairs, every Hold one tall upright object and every Give a wide shape with a motion, and the owner took
+         * C's Hold and A's Give. The row buttons' classes are shared (fa-hand-fist: Strike, Resolve, Determination;
+         * fa-hand-holding: Secure a Trace, Plant), so the drawing is keyed on the row button, and the classes outside it are
+         * read too. Read by the sheets' cascade (`styleCascade`) on a body of its own per theme, and off pixel-icons.css's
+         * path data. Red at e4fa790f: fist and palm (glass), fist and give (legacy), no token of either name.
+         */
+        const HOLD = ["........................", "...........##...........", "...........##...........", "..........####..........", ".......##########.......", "........########........", ".........######.........", ".........##..##.........", "........##....##........", "........................", ".........##..##.........", ".........##..##.........", "........########........", "......##########........", "......##########........", "......##########........", "........########........", "........########........", ".........######.........", ".........######.........", ".........######.........", ".........######.........", "........................", "........................"];
+        const GIVE = ["........................", "........................", "........................", "........................", "........................", "........................", "..###..............###..", "..###..............###..", "..###..............###..", ".............#..........", ".#####.......##...#####.", ".#####.......###..#####.", ".#####.##########.#####.", ".#####.##########.#####.", ".#####.##########.#####.", ".#####.......###..#####.", ".#####.......##...#####.", ".#####.......#....#####.", "........................", "........................", "........................", "........................", "........................", "........................"];
+        const C = await styleCascade();
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const read = {};
+        for (const [theme, prop] of [["drpg-theme-stained-glass", "--drpg-glyph"], ["drpg-theme-monokuma-legacy", "mask-image"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-sheet-x"><ul class="drpg-inventory-list"><li><button type="button" class="drpg-row-button drpg-row-equip"><i class="fa-solid fa-hand-fist"></i></button>`
+                + `<button type="button" class="drpg-row-button drpg-row-handover"><i class="fa-solid fa-hand-holding"></i></button></li></ul>`
+                + `<span class="drpg-elsewhere"><i class="fa-solid fa-hand-fist"></i><i class="fa-solid fa-hand-holding"></i></span></div>`;
+            const [equip, give, fist, holding] = body.querySelectorAll("i");
+            const glyph = el => [prop, "-webkit-mask-image"].map(p => C.winner(el, [p])?.value.trim()).find(Boolean) ?? null;
+            read[theme.replace("drpg-theme-", "")] = [glyph(equip), glyph(give), glyph(fist), glyph(holding)];
+        }
+        const drawsOf = name => [...pcss.matchAll(new RegExp(`--drpg-pix-${name}:[^;]*?d='([^']+)'`, "g"))].map(([, d]) => {
+            const grid = Array.from({ length: 24 }, () => Array(24).fill("."));
+            for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) grid[+y][+x + k] = "#";
+            return grid.map(r => r.join("")).join("\n");
+        });
+        const drawn = [drawsOf("hold-ready").map(g => g === HOLD.join("\n")), drawsOf("hand-over").map(g => g === GIVE.join("\n"))];
+        equal(JSON.stringify([read, drawn]), JSON.stringify([{
+            "stained-glass": ["var(--drpg-pix-hold-ready)", "var(--drpg-pix-hand-over)", "var(--drpg-pix-fist)", "var(--drpg-pix-palm)"],
+            "monokuma-legacy": ["var(--drpg-pix-hold-ready)", "var(--drpg-pix-hand-over)", null, null]
+        }, [[true, true], [true, true]]]), "[{theme: [the equip glyph, the handover glyph, fa-hand-fist outside the row, fa-hand-holding outside the row]}, [each declaration of --drpg-pix-hold-ready, of --drpg-pix-hand-over, draws the picked rows]]");
+    }],
     ["R3985 - the panes that stand keep their frost through a turn (glass.mjs `glassTurn`, `turnPlan`; gaps, the owner's table on 1.2.108): on a stand-in curtain a recut that moves two panes and leaves two standing lays no animation that takes the frost to 0, clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`convexOverlap`), and to the new cut once they end", async () => {
         /*
          * The owner, 12.11.2026, on 1.2.108: folding or unfolding the Projects tray takes the blur off the notices tile

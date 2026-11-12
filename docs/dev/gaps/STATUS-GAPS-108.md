@@ -11,7 +11,7 @@ https://claude.ai/artifact/WQ3kVJyT6f8x2bWx9y27L2 (private until shared).
 | 1 | a thin light line at the screen's top and bottom while paused | fixed, red first | b25838ac |
 | 2 | a line under the eye on the GM button | approved by the owner, integrated (launcher only) | 76d25c47 |
 | 3 | the Projects action a hammer | approved by the owner, integrated (both themes) | 76d25c47 |
-| 3 | Hold this ready / Hand this over too alike | round 1 rejected; round 2 (pairs A, B, C) on the review page, waits for the owner's pick | - |
+| 3 | Hold this ready / Hand this over too alike | the owner's pick of round 2 (C's Hold, A's Give), integrated (both themes) | see 3 |
 | 4 | one project in the tray darker and fading | fixed, red first | 1adba33b |
 | 5 | folding the tray takes the notice tile's blur away for a moment | fixed, red first | 31d1949f |
 
@@ -92,3 +92,9 @@ https://claude.ai/artifact/WQ3kVJyT6f8x2bWx9y27L2 (private until shared).
   (`#drpg-popups`), the voice tile, the status strip, Despair and the clock unfrosted in some frame; after, min 1.00 and
   all five frosted in every frame. `drpgTrayFold` still recuts in frame 2 and turns.
 - That the owner's "notice tile" is `#drpg-popups` is a reading of glass.mjs's name for it; the fix holds for every pane.
+- The owner's pick (12.11): C's Hold (a hand raising a star) and A's Give (a bold arrow from one figure to another), both
+  themes. Integrated: glass:hold-ready and glass:hand-over, legacy rows `same` as them; under Stained Glass two FACE_RULES
+  keyed on the row button (`.drpg-row-equip > i.fa-hand-fist`, `.drpg-row-handover > i.fa-hand-holding`), so Strike,
+  Resolve and Determination keep the fist and Secure a Trace and Plant the palm; under Legacy the row rules in
+  danganronpa.css read the new tokens. A copying handover (fa-share-nodes) is unchanged. R3988: red at e4fa790f (glass
+  fist and palm, legacy fist and give, no token), green after.

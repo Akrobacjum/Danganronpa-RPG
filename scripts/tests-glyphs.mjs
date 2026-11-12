@@ -650,7 +650,13 @@ export const FACE_RULES = [
     /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
        projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
        gear, the corner Look launcher's gear with its sound waves. */
-    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"]
+    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"],
+    /* gaps-108 (the owner's pick of round 2, 12.11.2026; R3988): an inventory row's Hold this ready and Hand this over
+       wore FACES's fist and palm, two hands an inch apart; each takes a drawing of its own, keyed on the row button,
+       since Strike, Resolve and Determination keep fa-hand-fist's fist and Secure a Trace and Plant fa-hand-holding's palm.
+       A row's handover that copies (a bedroom key, a Truth Bullet) wears fa-share-nodes and is left as it was. */
+    ["an inventory row's Hold this ready (its fa-hand-fist is Strike's)", ".drpg-row-equip > i.fa-hand-fist", "hold-ready"],
+    ["an inventory row's Hand this over (its fa-hand-holding is Secure a Trace's)", ".drpg-row-handover > i.fa-hand-holding", "hand-over"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,

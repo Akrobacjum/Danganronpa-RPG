@@ -17036,9 +17036,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-flask);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-equip i {
-    -webkit-mask-image: var(--drpg-pix-fist);
-    mask-image: var(--drpg-pix-fist);
+    -webkit-mask-image: var(--drpg-pix-hold-ready);
+    mask-image: var(--drpg-pix-hold-ready);
 }
 
 .drpg-row-discard i {
@@ -17066,9 +17067,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-share);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-handover i.fa-hand-holding {
-    -webkit-mask-image: var(--drpg-pix-give);
-    mask-image: var(--drpg-pix-give);
+    -webkit-mask-image: var(--drpg-pix-hand-over);
+    mask-image: var(--drpg-pix-hand-over);
 }
 
 .drpg-row-present i {
