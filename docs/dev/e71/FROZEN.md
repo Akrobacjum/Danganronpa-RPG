@@ -14,14 +14,14 @@ Read at origin/main 235c3210 on 12.11.2026.
 
 | Branch | Head | Merge base |
 | --- | --- | --- |
-| e61-62 | 6b98f6c9 | fa73b601 |
+| e61-62 | 62309451 | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
 | e97-98 | 9ca7fcc1 | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
 | e92 | ce1ffadb | fa73b601 |
 | e93 | c17dd14f | f22a7e87 |
-| e72 | 4def61ea | f22a7e87 |
-| e64 | 951cd1fd | fa73b601 |
+| e72 | 478a8e71 | f22a7e87 |
+| e64 | a4717515 | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
 
 ## Handbook sections
@@ -39,6 +39,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.en.md | ## 5. Actions and budgets | e61-62, e64 |
 | gm-handbook.en.md | ## 7. Despair pools, assignments and overflow | e93 |
 | gm-handbook.en.md | ## 8. Monokuma, Monocubs and the Mastermind | e72, e92 |
+| gm-handbook.en.md | ### 13.1 Opening | e64 |
 | gm-handbook.en.md | ### 13.2 The incident (Stage 5) | e64 |
 | gm-handbook.en.md | ### 13.3 Cleaning up (Stage 6) and Tamper | e64 |
 | gm-handbook.en.md | ### 13.4 After the incident, and body discovery | e72 |
@@ -59,6 +60,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.pl.md | ## 5. Akcje i budżety | e61-62, e64 |
 | gm-handbook.pl.md | ## 7. Pule Despair, przydziały i overflow | e93 |
 | gm-handbook.pl.md | ## 8. Monokuma, Monocuby i Mastermind | e72, e92 |
+| gm-handbook.pl.md | ### 13.1 Otwarcie | e64 |
 | gm-handbook.pl.md | ### 13.2 Incydent (Stage 5) | e64 |
 | gm-handbook.pl.md | ### 13.3 Sprzątanie (Stage 6) i Tamper | e64 |
 | gm-handbook.pl.md | ### 13.4 Po incydencie i odkrycie ciała | e72 |
@@ -85,15 +87,16 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.en.md | ### Level Up | e64, e73, e97-98 |
 | player-handbook.en.md | ### Listen - Shadow, 1 action | e93 |
 | player-handbook.en.md | ### Observe - Eye, 1 action | e64 |
-| player-handbook.en.md | ### Palm - Hand, 1 action | e93 |
+| player-handbook.en.md | ### Palm - Hand, 1 action | e64, e93 |
 | player-handbook.en.md | ### Playing a Monocub | e64, e72 |
 | player-handbook.en.md | ### Projects - the project's statistic, 1 action | e64 |
 | player-handbook.en.md | ### Rest - no roll, 1 or 2 actions | e93 |
 | player-handbook.en.md | ### Rolling | e92 |
 | player-handbook.en.md | ### Tamper - Shadow, 1 action | e64 |
 | player-handbook.en.md | ### The Eclipse | e61-62 |
-| player-handbook.en.md | ### The Final Trial | e73, e97-98 |
+| player-handbook.en.md | ### The Final Trial | e64, e73, e97-98 |
 | player-handbook.en.md | ### The morning after | e72 |
+| player-handbook.en.md | ### The opening roll | e64 |
 | player-handbook.en.md | ### The overflow | e72 |
 | player-handbook.en.md | ### The vote | e72 |
 | player-handbook.en.md | ### Two states you do not want | e64 |
@@ -106,7 +109,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Despair Calls - co Monokuma może ci zrobić | e72 |
 | player-handbook.pl.md | ### Dwa stany, których nie chcesz | e64 |
 | player-handbook.pl.md | ### Eclipse | e61-62 |
-| player-handbook.pl.md | ### Final Trial | e73, e97-98 |
+| player-handbook.pl.md | ### Final Trial | e64, e73, e97-98 |
 | player-handbook.pl.md | ### Gra Monocubem | e64, e72 |
 | player-handbook.pl.md | ### Głosowanie | e72 |
 | player-handbook.pl.md | ### Jeśli jesteś ofiarą | e64 |
@@ -116,9 +119,10 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Następny poranek | e72 |
 | player-handbook.pl.md | ### Observe - Eye, 1 akcja | e64 |
 | player-handbook.pl.md | ### Overflow | e72 |
-| player-handbook.pl.md | ### Palm - Hand, 1 akcja | e93 |
+| player-handbook.pl.md | ### Palm - Hand, 1 akcja | e64, e93 |
 | player-handbook.pl.md | ### Projects - statystyka projektu, 1 akcja | e64 |
 | player-handbook.pl.md | ### Rest - bez rzutu, 1 albo 2 akcje | e93 |
+| player-handbook.pl.md | ### Rzut otwarcia | e64 |
 | player-handbook.pl.md | ### Rzuty | e92 |
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
@@ -510,7 +514,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 - e92: 243-247; 4885-4890; 4925-4930; 4927-4932
 - e93: 1653-1658; 1656-1660; 1672-1677; 1675-1679; 1679-1683; 2081-2086; 2409-2414; 5028-5033
 - e72: 2103-2108; 2106-2111; 2142-2147; 2299-2304; 2502-2507; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230
-- e64: 1792-1797; 3094-3098; 3118-3123; 3129-3134; 3207-3212; 3209-3213; 3383-3388; 3509-3514; 3565-3570; 3583-3588; 3623-3628; 3646-3651; 3657-3662; 3668-3673; 3750-3755; 4031-4036; 4048-4053; 4050-4054; 4324-4331; 5043-5048
+- e64: 170-175; 1744-1749; 1746-1750; 1792-1797; 1859-1864; 3094-3098; 3118-3123; 3129-3134; 3207-3212; 3209-3213; 3331-3336; 3383-3388; 3509-3514; 3565-3570; 3583-3588; 3623-3628; 3646-3651; 3657-3662; 3668-3673; 3750-3755; 4031-4036; 4048-4053; 4050-4054; 4324-4331; 5043-5048
 
 ## Sections frozen after this line edited them
 
