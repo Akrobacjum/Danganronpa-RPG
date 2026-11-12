@@ -133,6 +133,20 @@ changed (the owner's note is about the animation); the at-rest cut is not.
   stylesheet) green. `node audit/glass-sweep.mjs`: 2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing. Quick gate
   green.
 
+## Added 12.11.2026 (the coordinator's list for 1.2.108)
+
+- Glossary (docs/glossary.json, open entries, forbid nothing): Full-screen sequences / Sekwencje na cały ekran,
+  end-of-day board / plansza końca dnia, start-of-day board / plansza początku dnia, the school's mood / nastrój szkoły,
+  morning line / zdanie na poranek.
+- Player handbook: "Full-screen moments" / "Chwile na cały ekran" (EN, PL).
+- World secrets: the `sequences` setting holds a boolean alone, so it has no row of its own; world-secrets.mjs's header
+  now names it among the settings that hold nothing the rule keeps out (`everySetting` still reads it). The day boards'
+  mood has its row (docs/dev/e94/STATUS.md).
+- The setting's hint names everything the switch stops (docs/dev/e62/STATUS.md).
+- AUDIT 9.2: LIVE-E61-01 updated for round 5 (1920x1080's proportions); LIVE-E61-06 added (the floors' table check).
+- Not built: C6, the four-client scenario (a new layered part of scenario 63 with gm2, three players, reloads during the
+  entry and the cut-in): it did not fit this round's time. C7 (the floors): waits on LIVE-E61-06.
+
 ## Defaults taken, owner to confirm
 
 - Q-E61-1: a client that loads or reloads after the event plays nothing (the bus's `heard` is read at ready; a card in the log is not created again).
