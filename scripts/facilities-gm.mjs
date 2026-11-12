@@ -136,7 +136,8 @@ export async function applyEffects(actor, effects, place, sender = null) {
                 await grantFreeMoves(target, effect.n, { reason: "facility" });
                 lines.push(t("freeMove", { name, n: effect.n }));
             } else if (effect.kind === "text") {
-                await whisperToOwner(target, `<p>${esc(effect.text)}</p>`);
+                // E49's card (the coordinator's word of 12.11.2026), bare: the GM's words alone, under the Facilities tile's glyph.
+                await whisperToOwner(target, { glyph: "ACTIONS.rest", body: `<p>${esc(effect.text)}</p>` });
                 lines.push(t("text", { name }));
             } else if (rule.state) {
                 // A state ended (the owner's answer to Q-E93-3): one mark off its full track; the primary's hook on the
@@ -185,6 +186,10 @@ export async function leaveTrace(actor, label) {
 
 /** The user's card: what was used, whether it worked, and what it did. */
 export async function tellUse(actor, offer, success, lines) {
-    const head = game.i18n.format(success ? "DRPG.Facility.usedOk" : "DRPG.Facility.usedFailed", { action: esc(offer.label) });
-    await whisperToOwner(actor, `<p><strong>${head}</strong></p>${lines.length ? `<ul>${lines.map(line => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}`);
+    // Text, not markup: the card escapes its title (chat-card.mjs `chatCard`), so the label goes in as typed.
+    const head = game.i18n.format(success ? "DRPG.Facility.usedOk" : "DRPG.Facility.usedFailed", { action: offer.label });
+    // E49's card (the coordinator's word of 12.11.2026, "the facilities' whispered cards take E49's chatCard look"): the head
+    // its title, under the Facilities tile's glyph, and what it did its body. The words are the ones the card said before.
+    await whisperToOwner(actor, { glyph: "ACTIONS.rest", title: head,
+        body: lines.length ? `<ul>${lines.map(line => `<li>${esc(line)}</li>`).join("")}</ul>` : "" });
 }

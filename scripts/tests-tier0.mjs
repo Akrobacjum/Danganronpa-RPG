@@ -22232,9 +22232,9 @@ const REGRESSIONS = [
         };
         const PINNED = {
             "action-analyze.mjs": {"line": 4},
-            // E69, E74, E93 (merged into this train with E49's count on 12.11.2026): whispered lines to the one who acts, is
-            // tailed, watches or owns the door, and the room action's card - each a sentence to its reader (WHY.line); whether
-            // they take E49's card look is open (docs/dev/e93/STATUS.md). In the table's order, each in its place.
+            // E69, E74 (merged into this train with E49's count on 12.11.2026): whispered lines to the one who acts, is tailed,
+            // watches or owns the door - each a sentence to its reader (WHY.line). E93's room action's two whispers are E49's
+            // card (the coordinator, 12.11: "the facilities' whispered cards take E49's chatCard look"). In the table's order.
             "action-doors.mjs": {"line": 3}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"line": 2},
             "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
             "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
@@ -22249,7 +22249,7 @@ const REGRESSIONS = [
             "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
             "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"line": 6}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
-            "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"line": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
+            "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
             "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},

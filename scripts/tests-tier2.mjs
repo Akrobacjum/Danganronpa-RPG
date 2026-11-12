@@ -89383,6 +89383,39 @@ const SCENARIOS = [
             given: { stack: [[short, tip, true, false]], underStates: 0 }, ended: { stack: [], underStates: 0 } }),
             "{given: [the stack's timed badges as [words, tooltip, the white chip's class, Hope's class], timed badges under the states]; ended: the same after its end} - beside the armed Calls");
     }],
+    ["E93-T15 - a room action's card to its user is E49's chat card (scripts/facilities-gm.mjs `tellUse`, chat-card.mjs `chatCard`; the coordinator's word of 12.11.2026): the whisper holds one .drpg-chat-kit with the Facilities tile's glyph, the line \"used\" as its title - an action named with & and a tag reads as typed, escaped once - and what it did as its list", async () => {
+        /*
+         * E93, 12.11.2026. `tellUse` called as the primary's run calls it, for the test's actor; the whisper's words read as
+         * its readers read them (secret.mjs `wordsOf`) and the message deleted. Red at e469b45: the card was a bare paragraph and a list, no .drpg-chat-kit.
+         */
+        const { tellUse } = await import("./facilities-gm.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { actor } = await playerInRoom();
+        const label = "SUITE E93-T15 Tea & <b>cake</b>";
+        const before = new Set(game.messages.map(m => m.id));
+        let read = null;
+        try {
+            await tellUse(actor, { label }, true, ["SUITE line one", "SUITE line two"]);
+            await settle();
+            const message = game.messages.find(m => !before.has(m.id));
+            must(message, "no whisper was posted - this would measure nothing");
+            // A whisper's words are secret.mjs's (`postSecret`): read as its readers read them.
+            const { wordsOf } = await import("./secret.mjs");
+            const root = document.createElement("div");
+            root.innerHTML = String(await wordsOf(message, 1000) ?? message.content ?? "");
+            const card = root.querySelectorAll(".drpg-chat-kit");
+            read = { cards: card.length,
+                glyph: card[0]?.querySelector(".drpg-chat-kit-glyph")?.classList.contains(ACTIONS.rest.icon) ?? false,
+                title: card[0]?.querySelector(".drpg-chat-kit-title")?.textContent ?? null,
+                lines: [...(card[0]?.querySelectorAll(".drpg-chat-kit-body li") ?? [])].map(li => li.textContent) };
+        } finally {
+            for (const m of game.messages.filter(m => !before.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ cards: 1, glyph: true, title: game.i18n.format("DRPG.Facility.usedOk", { action: label }),
+            lines: ["SUITE line one", "SUITE line two"] }),
+            "{cards; glyph: the Facilities tile's; title: the line used, the label as typed; lines: what it did} - the room action's card");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it
