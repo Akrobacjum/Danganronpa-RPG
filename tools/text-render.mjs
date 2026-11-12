@@ -565,7 +565,11 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     ...["DRPG.Observe.generalHint", "DRPG.Observe.nonObviousHint", "DRPG.Observe.specificHint"].map(key => [key, Object.freeze({
         by: "E47-FC", date: "09.11.2026", page: "E46-CMP2", card: "bc047", text: "Podpisy sa 2-3x za dlugie pod podtypami akcji" })]),
     ...["DRPG.Analyze.analyseBulletHint", "DRPG.Analyze.findStashHint", "DRPG.Cleanup.transformActionHint", "DRPG.Tamper.frameHint",
-        "DRPG.Tamper.coverHint", "DRPG.Steal.takeHint", "DRPG.Steal.plantHint", "DRPG.Project.sabotageHint"].map(key => [key, LATER_E68])
+        "DRPG.Tamper.coverHint", "DRPG.Steal.takeHint", "DRPG.Steal.plantHint", "DRPG.Project.sabotageHint"].map(key => [key, LATER_E68]),
+    // E64, 12.11.2026: the owner's answer through the coordinator - Tamper costs one action and no Sanity, so the tile's hint
+    // drops "or Sanity once you have no action left" from B01a's approved after.
+    ["DRPG.Config.ACTIONS.tamper.hint", Object.freeze({ by: "E64", date: "12.11.2026", page: "E64 review", card: "Tamper",
+        text: "limit znika, Tamper kosztuje 1 akcje, domyslnie bez Sanity - Zgoda" })]
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

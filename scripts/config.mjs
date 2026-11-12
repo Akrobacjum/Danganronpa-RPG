@@ -1791,8 +1791,7 @@ export const ACTIONS = {
         // list is the traces the player has found (`cleanableTracesForPlayer`), not the ones
         // they left, and its critical can reshape one instead of wiping it.
         hint: "Erase a Remnant you have found here, unless it is Reinforced; on a critical, you can reshape it "
-            + "instead. You can also plant a false Remnant that points at somebody else. It costs an action, or Sanity "
-            + "once you have no action left.",
+            + "instead. You can also plant a false Remnant that points at somebody else. It costs an action.",
         // No thresholds here on purpose: the erase branch reads its number off
         // how visible the trace is (`CLEANUP.dc`) and the frame-up reads its
         // flat `threshold` off `CLEANUP.actions.misleadingTrail`. One number

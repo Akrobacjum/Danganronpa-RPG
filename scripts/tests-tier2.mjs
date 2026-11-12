@@ -618,6 +618,30 @@ async function inConsoleWindow(student, player, { honest = {}, forged, paths, du
  */
 const LEVEL_UP_POINTS = ["system.traits.strength.value", "system.traits.knowledge.value"];
 
+/*
+ * IN THE KILLER'S OWN STAGE 6 (E64, 12.11.2026). An ordinary Tamper costs no Sanity since the owner's answer (R3959),
+ * so the tests of a clean-up's Sanity - its receipt, the GMs' credit, a Reroll's rewind - run where it is still the price:
+ * `killer` kills `victim` with a Finishing blow, `run` cleans up on the killer's road (`viaAction: false`), and the
+ * incident is closed and the victim brought back after.
+ */
+async function inOwnStageSix(killer, victim, run) {
+    const M = await import("./murder.mjs");
+    const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+    const S = await import("./gm-stores.mjs");
+    try {
+        await fightOpen(M, killer, victim);
+        await turnFor(M, killer, "finishingBlow");
+        await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+        return await run();
+    } finally {
+        if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+    }
+}
+
 function sheetAsFound(actor, paths) {
     const was = Object.fromEntries(paths.map(path => [path, foundry.utils.getProperty(actor._source, path)]));
     return async () => {
@@ -20036,6 +20060,9 @@ const SCENARIOS = [
     }],
 
     ["a refused attempt does not leave the previous one's receipt", async () => {
+        const [who, victim] = cast(2);
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        return inOwnStageSix(who, victim, async () => {
         /*
          * E08+E28 C3, 03.10.2026; audit S05-44. A clean-up refused - here the trace reinforced
          * between two attempts - kept no receipt of its own and left the previous attempt's, so a
@@ -20044,26 +20071,25 @@ const SCENARIOS = [
          * refused, then that attempt's Reroll. Read: the row after the refusal, the Reroll's
          * answer, the Sanity it moved, and the fixture's traces standing before and after it.
          */
-        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
-        const [who] = cast(1);
+        // E64: in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity.
         const S = await import("./gm-stores.mjs");
         const { setRemnantSecret } = await import("./remnants.mjs");
         const F = await cleanupFixture(who, "SUITE E08 C3 a trace reinforced between two attempts");
         try {
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
             await who.update({ "system.resources.stress.value": 0 });
-            const miss = await F.scrub(0, { price: null });
+            const miss = await F.scrub(0, { viaAction: false, price: null });
             await settle();
             must(miss && !miss.removed && who.system.resources.stress.value === 1,
                 `the first attempt did not miss at a Sanity's price: ${stableJson([miss, who.system.resources.stress.value])}`);
             await setRemnantSecret(F.trace, { reinforced: true });
-            const refused = await F.scrub(30, { price: null });
+            const refused = await F.scrub(30, { viaAction: false, price: null });
             await settle();
             must(refused?.reinforced === true, `the second attempt was not refused: ${stableJson(refused)}`);
             const row = S.cleanupAttemptStore?.has(who.id) ?? null;
             const left = F.since(0).filter(tid => F.scene.tokens.get(tid));
             const before = who.system.resources.stress.value;
-            const replay = await F.scrub(30, { price: null, undo: true });
+            const replay = await F.scrub(30, { viaAction: false, price: null, undo: true });
             await settle();
             equal(stableJson([row, replay ?? null, who.system.resources.stress.value - before, F.since(0).filter(tid => F.scene.tokens.get(tid))]),
                 stableJson([false, null, 0, left]),
@@ -20072,6 +20098,7 @@ const SCENARIOS = [
         } finally {
             await F.putBack();
         }
+        });
     }],
 
     ["a Fear on a neutral roll feeds the right Monokuma", async () => {
@@ -39056,12 +39083,13 @@ const SCENARIOS = [
                 "a critical paid with an action healed a Sanity mark nobody spent");
             equal(who.system.resources.actions.value, 2, "the action was not handed back");
 
-            // ---- paid with a Sanity mark ----------------------------------
+            // ---- a Sanity claim, which an ordinary Tamper cannot pay (E64) -
+            // Since the owner's answer of 12.11.2026 an ordinary Tamper costs no Sanity (cleanup.mjs `tamperPriceSkip`):
+            // the claim is no claim, the GM charges the action (`chargeUnclaimed`) and the critical hands that back.
             await who.update({
                 "system.resources.actions.value": 1,
-                "system.resources.stress.value": 1
+                "system.resources.stress.value": 2
             });
-            await who.update({ "system.resources.stress.value": 2 });
             await settle();
             token = await fixture();
             await cleanup.resolveCleanup({
@@ -39069,9 +39097,9 @@ const SCENARIOS = [
                 isCritical: true, withHope: true, viaAction: true, price: "stress"
             });
             await settle();
-            equal(who.system.resources.stress.value, 1, "the Sanity mark was not lifted");
+            equal(who.system.resources.stress.value, 2, "an ordinary Tamper's Sanity claim moved the Sanity track");
             equal(who.system.resources.actions.value, 1,
-                "a critical paid with Sanity handed back an action as well");
+                "the action charged for a Sanity claim was not handed back by the critical, or another came with it");
 
             // ---- a claim the table does not know --------------------------
             await who.update({
@@ -39093,8 +39121,8 @@ const SCENARIOS = [
             equal(who.system.resources.stress.value, 2,
                 "a forged price claim did not pay the GM-side Sanity");
 
-            // ---- and a packet with no claim at all pays it ----------------
-            await who.update({ "system.resources.stress.value": 0 });
+            // ---- and a packet with no claim at all pays it: an action (E64) -
+            await who.update({ "system.resources.stress.value": 0, "system.resources.actions.value": 1 });
             await settle();
             token = await fixture();
             await cleanup.resolveCleanup({
@@ -39102,8 +39130,8 @@ const SCENARIOS = [
                 isCritical: false, withHope: true, viaAction: true
             });
             await settle();
-            equal(who.system.resources.stress.value, 1,
-                "a packet claiming nothing was not charged the Sanity the client never paid");
+            equal(stableJson([who.system.resources.stress.value, who.system.resources.actions.value]), "[0,0]",
+                "a packet claiming nothing was not charged the action the client never paid, or was charged Sanity [marks, actions]");
         } finally {
             for (const item of made) {
                 try { await item.delete(); } catch { /* already gone */ }
@@ -51593,12 +51621,14 @@ const SCENARIOS = [
     }],
 
     ["a clean-up a Reroll takes back takes the credit its price left, so the player's refund of the same is flagged", async () => {
+        const [who, victim] = cast(2);
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        return inOwnStageSix(who, victim, async () => {
         /* A clean-up whose packet names no step paid, so the GM charges its Sanity (cleanup.mjs `spendStress`), then
            its Reroll, whose replay names the step the fixture's client paid: the attempt's Sanity comes back through
            `undoLastCleanup` and nothing is charged again. */
-        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
-        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
-        const [who] = cast(1);
+        // E64: in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity.
         const player = game.users.find(u => !u.isGM);
         const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(who._source, STRESS));
         const F = await cleanupFixture(who, "SUITE E29 H6 a trace scrubbed and rerolled");
@@ -51608,11 +51638,11 @@ const SCENARIOS = [
             must(Number(who.system.resources?.stress?.max) >= 3, "the student's Sanity cannot take the attempt's mark over one");
             await who.update({ [STRESS]: 1 });
             await auditFromScratch(who);
-            await F.scrub(0, { price: null });
+            await F.scrub(0, { viaAction: false, price: null });
             await settle();
             const charged = marks(), paid = await creditHeld(who, "stress");
             must(charged > 1 && paid >= 1, `the fixture's attempt took no Sanity the GMs' credit holds: ${stableJson({ charged, paid })}`);
-            await F.scrub(30, { undo: true });
+            await F.scrub(30, { viaAction: false, undo: true });
             await settle();
             must(marks() === 1, `the Reroll did not give the attempt's Sanity back, or charged it again: ${marks()} marks`);
             read = await refundAfterGiveBack(who, "stress", player);
@@ -51621,9 +51651,14 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([0, "flagged"]),
             "a clean-up's Sanity given back by its Reroll left the price in the credit, or the player's refund of the same stood on it (the credit left, the verdict)");
+        });
     }],
 
     ["a Reroll of a critical clean-up neither mints nor loses the step its give-back handed over", async () => {
+        const [who, victim] = cast(2);
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose writes are judged");
+        return inOwnStageSix(who, victim, async () => {
         /*
          * E09 fix r2-G8, 09.10.2026. A critical clean-up's give-back is held to the GMs' credit since this fix
          * (cleanup.mjs `handBack`), and a Reroll replays the attempt over a rewind (`undoLastCleanup`) that takes back
@@ -51637,9 +51672,7 @@ const SCENARIOS = [
          * and the Reroll takes the Burst. Read: each one's means after the critical and after its Reroll.
          * Red at 8303625 (its runtime with these tests): the numbers are in fix r2-G8's commit message.
          */
-        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
-        needs(world.atLeast("playerAccounts", 1), "a player account whose writes are judged");
-        const [who] = cast(1);
+        // E64: in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity.
         const player = game.users.find(u => !u.isGM);
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const { actionsMax } = await import("./actions.mjs");
@@ -51664,11 +51697,11 @@ const SCENARIOS = [
                 await auditFromScratch(who);
                 if (paid !== null) await asPlayerWrite(who, { [path]: paid }, player, { reason: path === STRESS ? "price" : "spend" });
                 await sheetAuditIdle();
-                await F.scrub(30, { isCritical: true, price, grant });
+                await F.scrub(30, { viaAction: false, isCritical: true, price, grant });
                 await settle();
                 await sheetAuditIdle();
                 const once = value(path);
-                await F.scrub(30, { isCritical: again, price, grant, undo: true });
+                await F.scrub(30, { viaAction: false, isCritical: again, price, grant, undo: true });
                 await settle();
                 await sheetAuditIdle();
                 read.push([once, value(path)]);
@@ -51681,6 +51714,7 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[1, 1], [top, top - 1], [top - 1, top - 1], [1, 0]]),
             "a Reroll of a critical clean-up minted the step its give-back handed over, lost it, or took one nothing gave "
                 + "(the marks paid and Rerolled into a critical, the actions paid, the actions not paid, the Bursts paid: after the critical, after the Reroll)");
+        });
     }],
 
     ["a Reroll of a clean-up takes back the attempt's own Sanity and not a write that landed while it ran", async () => {
@@ -51700,13 +51734,26 @@ const SCENARIOS = [
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
-        const [who] = cast(1);
+        /*
+         * IN THE KILLER'S OWN STAGE 6 SINCE E64 (12.11.2026): an ordinary Tamper costs no Sanity any more (the owner's
+         * answer; R3959), so the Sanity receipts this test reads are the killer's own clean-up's alone. `who` kills
+         * `victim` with a Finishing blow first and cleans up through the same road; the incident is closed after.
+         */
+        const [who, victim] = cast(2);
         const player = game.users.find(u => !u.isGM);
+        const M = await import("./murder.mjs");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const S = await import("./gm-stores.mjs");
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(who._source, STRESS)) || 0;
         must(Number(who.system.resources?.stress?.max) >= 4, `${who.name}'s Sanity cannot take three marks - this would measure nothing`);
         const had = marks(), fixtures = [], read = [];
         try {
+            await fightOpen(M, who, victim);
+            await turnFor(M, who, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: who.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
             for (const [label, by, price, critical, again] of [["cleared", -1, "stress", false, true], ["marked", 1, "stress", false, true],
                 ["charged", -1, null, false, false], ["handed back", -1, "stress", true, false]]) {
                 const F = await cleanupFixture(who, `SUITE r2-G10 a write while a clean-up runs, ${label}`);
@@ -51727,7 +51774,7 @@ const SCENARIOS = [
                     return create.call(this, data, ...rest);
                 };
                 try {
-                    await F.scrub(critical ? 30 : 0, { isCritical: critical, price });
+                    await F.scrub(critical ? 30 : 0, { viaAction: false, isCritical: critical, price });
                 } finally {
                     if (own) Object.defineProperty(ChatMessage, "create", own);
                     else delete ChatMessage.create;
@@ -51736,13 +51783,16 @@ const SCENARIOS = [
                 await sheetAuditIdle();
                 must(landed !== null, `the GM's write did not land while the attempt ran (${label})`);
                 const once = marks();
-                await F.scrub(30, { isCritical: again, price, undo: true });
+                await F.scrub(30, { viaAction: false, isCritical: again, price, undo: true });
                 await settle();
                 await sheetAuditIdle();
                 read.push([once, marks(), await creditHeld(who, "stress")]);
             }
         } finally {
             for (const F of fixtures.reverse()) await F.putBack();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(who.id)) await S.usedToolStore.drop(who.id);
             await who.update({ [STRESS]: had });
             await sheetAuditIdle();
         }

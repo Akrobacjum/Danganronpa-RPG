@@ -49600,7 +49600,7 @@ const INVARIANTS = [
             reads: [true, true, true, true]
         }), "the reach per band; landings [Hall on 1, Library on 2, Library on 1, a room on neither list on 2 and 1] as [room, short]; none with no room near; the reads");
     }],
-    ["R3958 - Tamper has no cap a time of day: it costs its price and nothing limits how often (E64, the owner's review of 12.11.2026, \"niech kosztuje po prostu akcje, bez jakis dziwnych rozwiazan\"; it replaces 4f3882f's two-a-time-of-day cap): `CLEANUP` has no `tamperPerTimeOfDay`, cleanup.mjs neither declares nor calls `tamperOverLimit`, gm-stores.mjs has no `tamperAttemptStore`, settings.mjs no `gmTamperAttempts`, no `DRPG.Tamper.limitReached` in either language, and `PRICE_CHAINS.tamper` is 1 action, then T-1's 1 Sanity once no action is left", async () => {
+    ["R3958 - Tamper has no cap a time of day: it costs its price and nothing limits how often (E64, the owner's review of 12.11.2026, \"niech kosztuje po prostu akcje, bez jakis dziwnych rozwiazan\"; it replaces 4f3882f's two-a-time-of-day cap): `CLEANUP` has no `tamperPerTimeOfDay`, cleanup.mjs neither declares nor calls `tamperOverLimit`, gm-stores.mjs has no `tamperAttemptStore`, settings.mjs no `gmTamperAttempts`, no `DRPG.Tamper.limitReached` in either language, and `PRICE_CHAINS.tamper` keeps its two steps, 1 action and 1 Sanity (the Sanity is the killer's own Stage 6 alone since R3959)", async () => {
         /*
          * E64, the owner's review of 12.11.2026 (~10:17 Warsaw, through the coordinator). The cap came from the plan's
          * Q-E64-3 default (2), on audit item S02-58, whose own text and reason are not in this checkout: so it goes, and
@@ -49623,6 +49623,36 @@ const INVARIANTS = [
             price: (PRICE_CHAINS.tamper?.steps ?? []).map(s => [s.pay, s.amount])
         }), stableJson({ config: false, code: [false, false, false], langs: [true, true], price: [["action", 1], ["stress", 1]] }),
             "{config: the cap's field; code: [the check, its store, its setting]; langs: [en, pl] without the refusal; price: Tamper's steps}");
+    }],
+    ["R3959 - Tamper costs one action and no Sanity, outside the killer's own Stage 6 (E64; the owner's answer of 12.11.2026, \"limit znika, Tamper kosztuje 1 akcję, domyślnie bez Sanity\": \"Zgoda\"): cleanup.mjs `tamperPriceSkip` skips Tamper's Sanity step for anyone not cleaning their own scene and its action step for the killer who is (D3, unchanged); on the GM the Sanity step is no claim on the Tamper tile's road (`validPrice` reads `viaAction`), and an attempt with no claim is charged an action there, Sanity only on the killer's Stage 6 road (`chargeUnclaimed`); the refusal with no action left names no Sanity", async () => {
+        /*
+         * E64, 12.11.2026, after the owner's answer. Red at 41e7d1e: `tamperPriceSkip` answered [] for an ordinary
+         * Tamper, so a character with no action left paid 1 Sanity (T-1's chain); `validPrice` took any step of the
+         * chain, and a packet with no claim paid the Sanity on the GM.
+         */
+        const Cl = await import("./cleanup.mjs");
+        must(typeof Cl.tamperPriceSkip === "function", "cleanup.mjs exports no tamperPriceSkip - this would measure nothing");
+        const student = { id: "zR3959", getFlag: () => undefined, system: { resources: {} } };
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        must(src.length > 5000, "cleanup.mjs was not read - this would measure nothing");
+        const valid = fnSource(src, "validPrice");
+        const unclaimed = /\bfunction chargeUnclaimed\(/.test(src) ? fnSource(src, "chargeUnclaimed") : "";
+        const calls = ["resolveCleanup", "resolveStageSix"].map(name => {
+            const body = fnSource(src, name);
+            return [/chargeUnclaimed\(actor, \{ viaAction \}\)/.test(body), /!paidStep && !free\) (?:receipt\.stressMoved \+= )?await spendStress\(actor\)/.test(body)];
+        });
+        const langs = [];
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            langs.push(/Sanity/.test(json.DRPG?.Price?.nothingLeft?.tamper ?? "Sanity"));
+        }
+        equal(stableJson({
+            skip: Cl.tamperPriceSkip(student),
+            valid: /viaAction && step\.pay === "stress"/.test(valid),
+            unclaimed: [/!viaAction/.test(unclaimed), /spendStress\(actor\)/.test(unclaimed), /spendAction\(actor/.test(unclaimed)],
+            calls, langs
+        }), stableJson({ skip: ["stress"], valid: true, unclaimed: [true, true, true], calls: [[true, false], [true, false]], langs: [false, false] }),
+            "{skip: an ordinary student's skipped steps; valid: validPrice refuses Sanity on the tile's road; unclaimed: [asks the road, Sanity on the killer's, an action on the tile's]; calls: per resolver [charges through chargeUnclaimed, still charges Sanity itself]; langs: [en, pl] refusal names Sanity}");
     }],
 ];
 

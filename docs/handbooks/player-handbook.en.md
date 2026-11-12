@@ -338,7 +338,7 @@ Four outcomes, and the interesting ones are the mismatches: caught with nothing 
 
 ### Tamper - Shadow, 1 action
 
-Three things behind the tile. An attempt costs **1 action**; with no action left, it costs **1 Sanity** instead. Nothing caps how many attempts you make in a time of day: each one simply costs its price.
+Three things behind the tile. An attempt costs **1 action**, and never Sanity: with no action left there is no Tamper until your actions come back. Nothing caps how many attempts you make in a time of day: each one simply costs its price.
 
 **Erase a Trace.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase:
 

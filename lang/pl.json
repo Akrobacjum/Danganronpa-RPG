@@ -6242,7 +6242,7 @@
         },
         "tamper": {
           "label": "Tamper",
-          "hint": "Wymaż Remnant, o którym wiesz, że tu jest (nie Reinforced); przy krytyku możesz go zamiast tego przekształcić. Możesz też podłożyć fałszywy Remnant, który wskazuje na kogoś innego. Płacisz akcją, a gdy nie masz już akcji - Sanity.",
+          "hint": "Wymaż Remnant, o którym wiesz, że tu jest (nie Reinforced); przy krytyku możesz go zamiast tego przekształcić. Możesz też podłożyć fałszywy Remnant, który wskazuje na kogoś innego. Kosztuje akcję.",
           "description": "Im łatwiej zauważyć Remnant, tym trudniej go wymazać. Zamiast tego możesz go przekształcić, jeśli GM zatwierdzi nową nazwę i opis. Gdy ktoś patrzy, najpierw rzucasz Shadow, co może kosztować Sanity; po pudle obecni widzą, co robisz."
         },
         "directMurder": {
@@ -7106,7 +7106,7 @@
         "objection": "Nie masz już akcji, Hope ani Sanity, więc nie możesz wnieść objection.",
         "analyze": "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze.",
         "analyzeOneStep": "Nie masz już akcji, więc nie masz czym zapłacić za Analyze.",
-        "tamper": "Nie masz już akcji ani Sanity, które można by dać w zamian.",
+        "tamper": "Nie masz już akcji, a Tamper nie przyjmuje niczego innego.",
         "tamperSkippedAction": "Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić."
       },
       "paid": {

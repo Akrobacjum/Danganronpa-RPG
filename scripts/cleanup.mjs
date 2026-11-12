@@ -1793,8 +1793,8 @@ export async function resolveCleanup({
         // step arrived to say it was paid on the client (T-1). The free attempt
         // is spent on it too: an attempt, hit or miss (`consumeFreeCleanup`).
         const free = replayFree || await consumeFreeCleanup(actor);
-        if (!validPrice(price) && !free) await spendStress(actor);
-        if (free) await waivePrice(actor, validPrice(price), by);
+        if (!validPrice(price, { viaAction }) && !free) await chargeUnclaimed(actor, { viaAction });
+        if (free) await waivePrice(actor, validPrice(price, { viaAction }), by);
         // An attempt that kept no receipt, as the refusal below (E08+E28 C3; audit S05-44).
         await forgetAttempt(actorId);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
@@ -1854,10 +1854,14 @@ export async function resolveCleanup({
     // THE SERVER-SIDE PRICE - see the long note in `resolveStageSix`. A client
     // that paid the chain and says which step is not charged again; a packet with
     // no claim pays the Sanity here, as every packet used to.
-    const paidStep = validPrice(price);
+    let paidStep = validPrice(price, { viaAction });
     const free = replayFree || await consumeFreeCleanup(actor);
     receipt.free = free;
-    if (!paidStep && !free) receipt.stressMoved += await spendStress(actor);
+    if (!paidStep && !free) {
+        const charged = await chargeUnclaimed(actor, { viaAction });
+        receipt.stressMoved += charged.stress;
+        paidStep = charged.step;
+    }
     if (free) receipt.stressMoved -= await waivePrice(actor, paidStep, by);
     // What the report says was paid: the step the client claimed, with the
     // amount read off the table rather than off the packet - and nothing for
@@ -1985,7 +1989,12 @@ export function freeTonightText() {
  * not take.
  */
 export function tamperPriceSkip(actor) {
-    return isCleaner(actor) ? ["action"] : [];
+    /*
+     * NO SANITY OUTSIDE THE KILLER'S NIGHT (E64, 12.11.2026; the owner's answer: "limit znika, Tamper kosztuje 1
+     * akcje, domyslnie bez Sanity" - "Zgoda"). Anyone else's Tamper skips the chain's Sanity step: one action, and
+     * with none left no Tamper. Until 1.2.105 the chain went on to 1 Sanity (T-1). The killer's own Stage 6 keeps D3.
+     */
+    return isCleaner(actor) ? ["action"] : ["stress"];
 }
 
 /**
@@ -2447,9 +2456,9 @@ export async function resolveStageSix({
      * here, exactly as it was before. One price per attempt, and the GM decides
      * which when the claim is missing.
      */
-    const paidStep = validPrice(price);
+    let paidStep = validPrice(price, { viaAction });
     const free = await consumeFreeCleanup(actor);
-    if (!paidStep && !free) await spendStress(actor);
+    if (!paidStep && !free) paidStep = (await chargeUnclaimed(actor, { viaAction })).step;
     if (free) await waivePrice(actor, paidStep, by);
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
@@ -3029,8 +3038,31 @@ async function undoLastCleanup(actor, tokenId) {
  * than from the packet - there is nothing to gain by claiming "stress" and a lot
  * to gain by claiming five of it.
  */
-function validPrice(price) {
-    return PRICE_CHAINS.tamper.steps.find(step => step.pay === price) ?? null;
+function validPrice(price, { viaAction = false } = {}) {
+    /*
+     * THE SANITY STEP IS NO CLAIM ON AN ORDINARY TAMPER (E64, 12.11.2026; the owner's answer: it costs no Sanity).
+     * Read by the road, `viaAction` - the Tamper tile's door, which the killer's own Stage 6 never claims (action-tamper.mjs
+     * `performTamper`: `viaAction = !stageSix`) - and not by whether the incident still runs: an honest killer's Sanity
+     * paid in Stage 6 arriving after the GM closed it is still the step it paid (tier 2 "a clean-up that reaches the GM
+     * once its Stage 6 is over ..."). A refund asks without the road (`refundRefused`): `paidBack` gives back only what
+     * the GMs saw paid, and nobody's browser pays Sanity for an ordinary Tamper (`tamperPriceSkip`).
+     */
+    return PRICE_CHAINS.tamper.steps.find(step => step.pay === price && !(viaAction && step.pay === "stress")) ?? null;
+}
+
+/**
+ * The price of an attempt whose packet claims no step it may (E64, 12.11.2026): what the road's chain starts with -
+ * the Sanity on the killer's own Stage 6 road (D3), an action through the Tamper tile (`viaAction`), whose Tamper costs
+ * no Sanity since the owner's answer. Until then a packet with no claim paid the Sanity on every road. Answers `{ stress, step }`:
+ * the Sanity moved, for the receipt a Reroll takes back, and the action step taken, which then stands as the paid one.
+ */
+async function chargeUnclaimed(actor, { viaAction = false } = {}) {
+    if (!viaAction) return { stress: await spendStress(actor), step: null };
+    // By `import()`, as this file reaches actions.mjs elsewhere (`undoLastCleanup`'s `takeBackRefund`).
+    const { spendAction } = await import("./actions.mjs");
+    const paid = await spendAction(actor, 1, { quiet: true });
+    // The step it took stands as the attempt's paid step, so a critical hands back the action, not a Sanity mark nobody paid.
+    return { stress: 0, step: paid ? PRICE_CHAINS.tamper.steps.find(step => step.pay === "action") ?? null : null };
 }
 
 /**
