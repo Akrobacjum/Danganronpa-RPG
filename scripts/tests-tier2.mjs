@@ -48585,7 +48585,8 @@ const SCENARIOS = [
         const S = await import("./gm-stores.mjs");
         const M = await import("./mastermind.mjs");
         const A = await import("./assignments.mjs");
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        // The Season checklist's rows since E49 A1e (12.11.2026: Season setup's lower half, a window of its own).
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const [student] = cast(1);
         const before = foundry.utils.deepClone(A.assignments());
         const title = game.i18n.localize("DRPG.Season.step.nobodyPublic");
@@ -48603,7 +48604,7 @@ const SCENARIOS = [
                 }));
                 return null;
             };
-            await openSeasonSetup();
+            await openSeasonChecklist();
             const health = (await S.gmStoreHealth())?.rows ?? [];
             return { unpooled: M.mastermindUnpooled(), rows, health: health.filter(r => r.id === "nobodyPublic").map(r => r.level) };
         };
@@ -59952,9 +59953,9 @@ const SCENARIOS = [
          * region decided" read the scene on the GM's screen, so a GM viewing one floor saw it done
          * while regions drawn on another since the migration were nobody's rooms. Here a scene of the
          * suite's own holds one named region nobody marked, and the camera stays where it is; the
-         * checklist is opened and its row read. Red on 8eb3801: the row named nothing.
+         * checklist is opened and its row read. Red on 8eb3801: the row named nothing. The Season checklist since E49 A1e.
          */
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const UNDECIDED = "SUITE E12 fix r1-G2 a region drawn since";
         const title = game.i18n.localize("DRPG.Season.step.roomsMarked");
         const home = canvas?.scene ?? null;
@@ -59964,7 +59965,7 @@ const SCENARIOS = [
             await floor.createEmbeddedDocuments("Region", [{ name: UNDECIDED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] }]);
             await settle();
             must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
-            const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
+            const drawn = await withFormAnswered(() => false, () => openSeasonChecklist());
             const row = [...(drawn[0]?.querySelectorAll("li.drpg-check-row") ?? [])].find(li => li.querySelector(".drpg-check-title")?.textContent === title);
             must(row, "the checklist drew no row for the named regions - this would measure nothing");
             reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];

@@ -58,7 +58,7 @@ import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
-import { stepperId, drpgWindow, checkList, formGrid, roleButton } from "./ui-kit.mjs";
+import { stepperId, drpgWindow, checkList, formGrid } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
 import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
@@ -827,24 +827,19 @@ export function campaignFieldsHtml(clock, word) {
 }
 
 /**
- * THE WINDOWS A SEASON IS SET UP IN, A ROW OF BUTTONS UNDER EDIT CAMPAIGN (E49 A1e, 11.11.2026; the owner: Despair
- * Flow, The Mastermind, Killing game rules and Pre-season checks below it, their tiles out of the GM panel's Between
- * sessions). Each opens the window its tile opened, by the same call (`game.drpg.gmTeamPanel`, `mastermindDialog`,
- * `rulesManager` stay as they were); Pre-season checks was this window's footer button until then. A press is a round
- * trip like a row's Open (`wireSeasonWindows`). Exported for R3580.
+ * THE WINDOWS A SEASON IS SET UP IN, A ROW OF THE GM PANEL'S TILES UNDER EDIT CAMPAIGN (E49 A1e; the owner, 11.11.2026:
+ * Despair Flow, The Mastermind, Killing game rules below it, their tiles out of the GM panel's Between sessions; 12.11.2026:
+ * the row "the same shape as the GM panel's tiles", with their glyphs, "always at the bottom of Season setup, always
+ * visible", and the checklist that was this window's lower half a window of its own, opened from the row). The tiles are
+ * gm-panel.mjs `SEASON_TILES`, drawn by its `tileHtml` - `button.drpg-gmp-button[data-drpg-run]`, an icon and a label -
+ * inside `.drpg-gm-panel .drpg-gmp-grid`, so the panel's look and glyphs (keyed on `data-drpg-run`) reach them in both
+ * themes. Drawn in `drpgWindow`'s `pinned`, under the body that scrolls and above the footer. `tiles` is handed in
+ * (season-setup.mjs cannot import gm-panel.mjs, which imports it); a group named for a reader. Exported for R3580.
  */
-export const SEASON_WINDOWS = Object.freeze([
-    Object.freeze({ key: "gmTeam", labelKey: "DRPG.Panel.despairFlow", open: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) }),
-    Object.freeze({ key: "mastermind", labelKey: "DRPG.Mastermind.dialogTitle", open: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) }),
-    Object.freeze({ key: "rules", labelKey: "DRPG.Rules.manageTitle", open: () => import("./rules.mjs").then(m => m.openRulesManager()) }),
-    Object.freeze({ key: "checks", labelKey: "DRPG.Panel.seasonChecks", open: () => runPreSessionChecks() })
-]);
-
-/** The row of SEASON_WINDOWS' buttons: the kit's secondary role, `data-drpg-open` the row's key, a group named for a reader. */
-export function seasonWindowsHtml() {
-    const L = key => game.i18n.localize(key);
-    return `<div class="drpg-season-windows" role="group" aria-label="${esc(L("DRPG.Season.windows"))}">${
-        SEASON_WINDOWS.map(w => roleButton({ role: "secondary", label: L(w.labelKey), attrs: { "data-drpg-open": w.key } })).join("")}</div>`;
+export function seasonTilesHtml(tiles, tileHtml) {
+    const label = esc(game.i18n.localize("DRPG.Season.windows"));
+    return `<div class="drpg-gm-panel drpg-season-tiles"><div class="drpg-gmp-grid" role="group" aria-label="${label}">${
+        tiles.map(tile => tileHtml(tile)).join("")}</div></div>`;
 }
 
 /**
@@ -869,9 +864,9 @@ export function seasonOpening(root, place = null) {
     const focus = el => { try { el?.focus({ preventScroll: true }); } catch { /* a control that cannot take the focus */ } };
     if (place) {
         const row = place.step ? root.querySelector(`li.drpg-check-row[data-drpg-key="${CSS.escape(String(place.step))}"]`) : null;
-        // A footer button, or one of the row of windows under Edit campaign (E49 A1e: Pre-season checks among them).
+        // A footer button, or one of the tiles pinned under Edit campaign (E49 A1e).
         const action = place.action ? CSS.escape(String(place.action)) : null;
-        const target = action ? root.querySelector(`footer [data-action="${action}"], .drpg-season-windows > button[data-drpg-open="${action}"]`)
+        const target = action ? root.querySelector(`footer [data-action="${action}"], .drpg-season-tiles button[data-drpg-run="${action}"]`)
             : row?.querySelector(":scope > button[data-drpg-action]") ?? null;
         focus(target);
         if (content) content.scrollTop = Number(place.scrollTop) || 0;
@@ -1040,10 +1035,11 @@ function wireRoomCheck(dialog) {
 /**
  * Each step's Do it / Open it button: fix or open, then come back to a fresh window.
  *
- * `onHandOff` is how the round trip reaches `openSeasonSetup`, which returns it in
- * place of its own answer - see the note inside.
+ * `onHandOff` is how the round trip reaches the window's opener, which returns it in
+ * place of its own answer - see the note inside. `reopen` draws the window again with the draft (the Season checklist's
+ * since E49 A1e, where the rows went).
  */
-function wireSetupSteps(dialog, onHandOff) {
+function wireSetupSteps(dialog, onHandOff, reopen) {
     /* One listener on the list, not one per button (E20 fix round, G-1): Check rooms draws the rooms row again in place
        (`repaintStep`), and a button the redraw brings was wired by nobody. */
     // Each list: the checklist's and the First session screen's (E51 C8).
@@ -1079,7 +1075,7 @@ function wireSetupSteps(dialog, onHandOff) {
          * from the world. What changed is the two things that made one press
          * look like two:
          *
-         * `await dialog.close(); openSeasonSetup();` resolved the
+         * `await dialog.close(); openSeasonSetup();` (the checklist's window since E49 A1e) resolved the
          * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
          * returned, and the GM panel tile awaiting it opened the PANEL over
          * the window as it came back. `handOff` keeps the whole round trip in
@@ -1094,27 +1090,27 @@ function wireSetupSteps(dialog, onHandOff) {
          */
         // And the row acted on, with the scroll, so the copy that comes back opens there (C-2).
         const draft = readDraft(dialog.element, { step: step.key });
-        onHandOff(handOff(dialog, () => openSeasonSetup({ draft, opened: before })));
+        onHandOff(handOff(dialog, () => reopen({ draft, opened: before })));
     });
 }
 
 /**
- * The row of windows under Edit campaign (`SEASON_WINDOWS`, E49 A1e): a press opens its window as a row's Open does - in
+ * The tiles pinned under Edit campaign (`SEASON_TILES`, E49 A1e): a press opens its window as a row's Open does - in
  * front of this one, which stays until that window answers, then closes and comes back built from the world (what the
  * window changed may change a row: Despair Flow the pools' rows, The Mastermind its own) with the fields as typed and the
  * focus on the button pressed (`readDraft`'s `action`), and what was opened raised in front of it (S06-30). The same
  * `handOff` as a row's (SEASON-02): the tile that opened this window waits for the real end of the round trip.
  */
-function wireSeasonWindows(dialog, onHandOff) {
-    const row = dialog.element.querySelector(".drpg-season-windows");
+function wireSeasonTiles(dialog, tiles, onHandOff) {
+    const row = dialog.element.querySelector(".drpg-season-tiles");
     row?.addEventListener("click", async ev => {
-        const button = ev.target?.closest?.("button[data-drpg-open]");
-        const entry = SEASON_WINDOWS.find(w => w.key === button?.dataset.drpgOpen);
-        if (!entry || !row.contains(button)) return;
+        const button = ev.target?.closest?.("button[data-drpg-run]");
+        const entry = tiles.find(t => t.key === button?.dataset.drpgRun);
+        if (!entry || !row.contains(button) || button.disabled) return;
         ev.preventDefault();
         const before = windowStack();
         try {
-            await entry.open();
+            await entry.run();
         } catch (err) {
             error(`Could not open "${entry.key}" from Season setup`, err);
         }
@@ -1137,16 +1133,12 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     }
 
     const clock = getClock();
-    const list = steps();
+    // The panel's tiles, by `import()`: gm-panel.mjs imports this file (E49 A1e).
+    const { SEASON_TILES, tileHtml } = await import("./gm-panel.mjs");
 
-    // The First session screen's rows under their own heading, the rest as they were (E51 C8).
-    const rows = setupRows(list.filter(step => step.group !== FIRST_SESSION), { label: game.i18n.localize("DRPG.Season.title") });
-
-    const outstanding = list.filter(s => !s.done && !s.optional).length;
-
-    // A row button's round trip, if one is running: this window did not answer, it
-    // handed over (SEASON-02). Set by `wireSetupSteps` (and since E49 A1e `wireSeasonWindows`)
-    // through the callback the render below gives it, and read after the wait.
+    // A tile's round trip, if one is running: this window did not answer, it
+    // handed over (SEASON-02). Set by `wireSeasonTiles` (a row's Open's, `wireSetupSteps`, until E49 A1e, when the
+    // rows went to the Season checklist) through the callback the render below gives it, and read after the wait.
     let roundTrip = null;
     // End the chapter, pressed at the foot of Edit campaign's block: this window closes unsaved, as Edit campaign does.
     let endAsked = false;
@@ -1158,27 +1150,20 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
            wrapped to two rows in both themes and both languages (Chromium on probe 08's capture, the style harness:
            Cancel 136, Pre-season checks 201-307, Reset the season 171-227, Save 136 px, Polish under Legacy 780 px in
            all), the window 36 px taller. R3533. KEPT WITH EDIT CAMPAIGN AT ITS TOP (E49 A1e): the footer three buttons since
-           Pre-season checks went to the row of windows, which holds four; the width is the one the owner approved. */
+           Pre-season checks left it, and the four tiles pinned above the footer one row at this width; the width is the
+           one the owner approved. */
         width: "tables",
         title: game.i18n.localize("DRPG.Season.title"),
-        /* EDIT CAMPAIGN FIRST, THEN THE ROW OF WINDOWS, THEN THE LIST (E49 A1e, 11.11.2026; the owner: Edit campaign "the
-           first thing seen", the buttons below it, whatever else the window holds below the buttons). */
+        /* EDIT CAMPAIGN, THEN THE ROW OF TILES PINNED ABOVE THE FOOTER (E49 A1e; the owner, 11.11.2026: Edit campaign "the
+           first thing seen", the buttons below it; 12.11.2026: the row "always at the bottom, always visible", only Edit
+           campaign scrolling when the window is short, and the checklist a window of its own, `openSeasonChecklist`). */
         body: `<form>
             ${campaignFieldsHtml(clock, safeword())}
-
-            ${seasonWindowsHtml()}
-
-            <p>${esc(game.i18n.format(outstanding
-                ? "DRPG.Season.introOutstanding"
-                : "DRPG.Season.introReady", { n: outstanding }))}</p>
-
-            ${rows}
-            ${firstSessionHtml(list)}
-            <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
         </form>`,
+        pinned: seasonTilesHtml(SEASON_TILES, tileHtml),
         /* THE FOOTER BY ROLE (E21 C2b): Save the primary; Cancel, since Save is still to answer (E21 rule 3), its answer
-           "close" as before. PRE-SEASON CHECKS LEFT IT FOR THE ROW OF WINDOWS UNDER EDIT CAMPAIGN (E49 A1e; the owner:
-           Despair Flow, The Mastermind, Killing game rules, Pre-season checks), the same window by the same call.
+           "close" as before. PRE-SEASON CHECKS LEFT IT IN E49 A1e: a button of the row under Edit campaign on 11.11.2026,
+           the Season checklist's own button since 12.11.2026 (the owner), the same window by the same call.
            RESET THE SEASON, DESTRUCTIVE, ON THE LEFT (E49 A1d, 11.11.2026; the owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
            "season setup". W wolne miejsce wejda nowe ustawienia gma jako "Settings""): the GM panel's tile of its own
            until then. The press answers "reset" and nothing of the form is written; the window closes and the reset
@@ -1192,29 +1177,20 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             destructive: [{ action: "reset", label: game.i18n.localize("DRPG.Season.resetTitle") }],
             close: { role: "cancel", action: "close" }
         },
-        // Wire the per-row buttons against the mounted DOM - a listener attached
+        // Wire the buttons against the mounted DOM - a listener attached
         // to the detached content element never reaches the page. Same reason
         // projects-ui.mjs wires its portrait pickers from `render`.
         render: (event, dialog) => {
-            // A draft carried over from the copy that closed to fix a row (SEASON-02).
+            // A draft carried over from the copy that closed for a tile's window (SEASON-02).
             paintDraft(dialog.element, draft);
-            /*
-             * The room check reports INTO THE WINDOW, not only to the console.
-             * The person who has to act on "this room overlaps that one" is a GM
-             * in the region editor, and telling them to open devtools is telling
-             * them not to bother. The console copy stays: it carries the
-             * coordinates in a form that can be pasted.
-             */
-            wireRoomCheck(dialog);
-            wireSetupSteps(dialog, trip => { roundTrip = trip; });
-            wireSeasonWindows(dialog, trip => { roundTrip = trip; });
+            wireSeasonTiles(dialog, SEASON_TILES, trip => { roundTrip = trip; });
             // End the chapter (Edit campaign's part): the window closes without its Save, then the question.
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
                 endAsked = true;
                 dialog.close();
             });
-            // At its top, on its first field (S01-19), or where the copy that closed was (C-2); then what a row's Open
+            // At its top, on its first field (S01-19), or where the copy that closed was (C-2); then what a tile
             // opened, in front of it (S06-30).
             seasonOpening(dialog.element, draft?.place ?? null);
             if (opened) raiseOpened(opened);
@@ -1236,7 +1212,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     // Only when it moved. Every write to this setting redraws every open sheet
     // (see its `onChange`), and pressing Save on this window is something a GM
-    // does repeatedly while working through the checklist.
+    // does repeatedly.
     if (result.safeword !== safeword()) {
         await setSetting(SETTINGS.safeword, result.safeword);
         log(`Safeword set to "${safeword()}".`);
@@ -1244,6 +1220,78 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
+}
+
+/**
+ * THE SEASON CHECKLIST (E49 A1e, 12.11.2026; the owner: Season setup's lower half - "N still to do", its rows with their
+ * Open buttons, the First session rows - "moves OUT of Season setup into a NEW window opened by its own button in the
+ * row", and Pre-season checks with it, as a button there). The window Season setup's rows were until then, as they were:
+ * the intro, the rows (`setupRows`), the First session rows (`firstSessionHtml`), the note; a row's Do it or Open a round
+ * trip that brings this window back (`wireSetupSteps`), Check rooms in place (`wireRoomCheck`). Pre-season checks its
+ * secondary button, as it was Season setup's until E49 A1e: the window closes with where it was, the checks' window
+ * answers, and this one comes back there. Close, a read-out's (E21 C2b): nothing here is a form. Opened by Season setup's
+ * tile (gm-panel.mjs `SEASON_TILES`) and the Next line's Go (`EXTRA_ACTIONS.seasonChecklist`).
+ */
+export async function openSeasonChecklist({ draft = null, opened = null } = {}) {
+    if (alreadyOpen("drpg-window-season-checklist")) return RAISED;
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const list = steps();
+    // The First session screen's rows under their own heading, the rest as they were (E51 C8).
+    const rows = setupRows(list.filter(step => step.group !== FIRST_SESSION), { label: game.i18n.localize("DRPG.Season.checklistTitle") });
+    const outstanding = list.filter(s => !s.done && !s.optional).length;
+    // A row button's round trip, if one is running (SEASON-02), as in Season setup until E49 A1e.
+    let roundTrip = null;
+
+    const result = await drpgWindow({
+        classes: ["drpg-panel", "drpg-window-season-checklist"],
+        // Season setup's width, which the rows had there (E49 A1d).
+        width: "tables",
+        title: game.i18n.localize("DRPG.Season.checklistTitle"),
+        body: `<p>${esc(game.i18n.format(outstanding
+                ? "DRPG.Season.introOutstanding"
+                : "DRPG.Season.introReady", { n: outstanding }))}</p>
+
+            ${rows}
+            ${firstSessionHtml(list)}
+            <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>`,
+        footer: {
+            secondary: [
+            // "What is missing" and "fix it" are one errand (the checks were a GM-panel tile beside Set the season up
+            // once). The place is read here, while the window is on screen: a bare action would answer the string
+            // "checks", which carries nothing.
+            {
+                action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks"),
+                callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element, { action: "checks" }) })
+            }],
+            close: { role: "close", action: "close" }
+        },
+        render: (event, dialog) => {
+            /*
+             * The room check reports INTO THE WINDOW, not only to the console.
+             * The person who has to act on "this room overlaps that one" is a GM
+             * in the region editor, and telling them to open devtools is telling
+             * them not to bother. The console copy stays: it carries the
+             * coordinates in a form that can be pasted.
+             */
+            wireRoomCheck(dialog);
+            wireSetupSteps(dialog, trip => { roundTrip = trip; }, openSeasonChecklist);
+            // At its top, or where the copy that closed was (C-2); then what a row's Open opened, in front of it (S06-30).
+            seasonOpening(dialog.element, draft?.place ?? null);
+            if (opened) raiseOpened(opened);
+        },
+        rejectClose: false
+    });
+
+    if (roundTrip) return roundTrip;
+    if (result?.checks) {
+        await runPreSessionChecks();
+        return openSeasonChecklist({ draft: result.draft });
+    }
+    return null;
 }
 
 /* ==========================================================================

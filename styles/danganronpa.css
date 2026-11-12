@@ -4795,6 +4795,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    block. Measured: without it the paragraph computed to 672px, centred. */
 .application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-window-season :is(p, .notes):not(td):not(th):not(table *),
+.application.dialog.drpg-window-season-checklist :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-sound :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-window-tables :is(p, .notes):not(td):not(th):not(table *),
 .drpg-room-guide :is(p, .notes) {
@@ -15365,7 +15366,10 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
 
    Edit campaign, Despair Flow, Killing game rules and The Mastermind left the
    panel for Season setup in E49 A1e (11.11.2026), and their four rules went
-   with their tiles; their drawings stay rows of tools/glyphs.json.
+   with their tiles. Three came back on 12.11.2026 with the tiles of Season
+   setup's row (gm-panel.mjs SEASON_TILES, the panel's own tile markup), each
+   its drawing of before, beside the row's Season checklist (the legacy
+   checklist); Edit campaign's stays out.
    ========================================================================== */
 
 /* The icon slot becomes a mask box. Font Awesome still ships the element, so
@@ -15381,6 +15385,10 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i,
 .drpg-gmp-button[data-drpg-run="settings"] > i,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i,
+.drpg-gmp-button[data-drpg-run="gmTeam"] > i,
+.drpg-gmp-button[data-drpg-run="mastermind"] > i,
+.drpg-gmp-button[data-drpg-run="rules"] > i,
+.drpg-gmp-button[data-drpg-run="seasonChecklist"] > i,
 i.drpg-pix-foot {
     flex: 0 0 24px;
     width: 24px;
@@ -15406,6 +15414,10 @@ i.drpg-pix-foot {
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i::before,
 .drpg-gmp-button[data-drpg-run="settings"] > i::before,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i::before,
+.drpg-gmp-button[data-drpg-run="gmTeam"] > i::before,
+.drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
+.drpg-gmp-button[data-drpg-run="rules"] > i::before,
+.drpg-gmp-button[data-drpg-run="seasonChecklist"] > i::before,
 i.drpg-pix-foot::before {
     content: none !important;
 }
@@ -15458,6 +15470,26 @@ i.drpg-pix-foot::before {
 .drpg-gmp-button[data-drpg-run="failureLog"] > i {
     -webkit-mask-image: var(--drpg-pix-failure-log);
     mask-image: var(--drpg-pix-failure-log);
+}
+
+.drpg-gmp-button[data-drpg-run="gmTeam"] > i {
+    -webkit-mask-image: var(--drpg-pix-gm-team);
+    mask-image: var(--drpg-pix-gm-team);
+}
+
+.drpg-gmp-button[data-drpg-run="mastermind"] > i {
+    -webkit-mask-image: var(--drpg-pix-mastermind);
+    mask-image: var(--drpg-pix-mastermind);
+}
+
+.drpg-gmp-button[data-drpg-run="rules"] > i {
+    -webkit-mask-image: var(--drpg-pix-new-rule);
+    mask-image: var(--drpg-pix-new-rule);
+}
+
+.drpg-gmp-button[data-drpg-run="seasonChecklist"] > i {
+    -webkit-mask-image: var(--drpg-pix-checklist);
+    mask-image: var(--drpg-pix-checklist);
 }
 
 /* The token toolbar's own button - the module's front door.

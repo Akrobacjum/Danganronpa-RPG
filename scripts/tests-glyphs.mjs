@@ -411,10 +411,14 @@ export const ELEMENTS = {
     "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale",
     "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
     "gm.seasonSetup": "wand", "gm.settings": "gear",
-    "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
-    /* E49 A1e (11.11.2026): gm.jump, gm.gmTeam, gm.rules and gm.mastermind left with their tiles (Edit campaign, Despair
-       Flow, Killing game rules and The Mastermind, now Season setup's); Season setup's buttons for three of them are the
-       kit's text buttons, which wear no glyph. */
+    "gm.failureLog": "bug", "gm.caseWindow": "case-backup",
+    "gm.rules": "rules", "gm.gmTeam": "team", "gm.mastermind": "mask", "gm.seasonChecklist": "checklist"
+    /* E49 A1e: gm.jump left with its tile on 11.11.2026 (Edit campaign is Season setup's top block now). gm.gmTeam,
+       gm.rules and gm.mastermind left the panel with theirs and came back on 12.11.2026 as tiles of Season setup's row
+       (gm-panel.mjs SEASON_TILES; the owner: "the same shape as the GM panel's tiles", the glyphs they wore), each the
+       drawing it wore before. gm.seasonChecklist is the row's fourth, the Season checklist: the checklist drawing, the
+       Projects tile's, the closest the rounds drew (the coordinator's default) - a shared pair SAME does not join, which
+       R3338 names until the owner picks one drawing or joins them. */
 };
 
 /** What later stages build, by the inventory (S/stages/E48/GLYPH-INVENTORY.md, 10.11.2026): [row, stage, element,
@@ -1060,8 +1064,9 @@ ${perIcon.join("\n\n")}
  *  token (59) or the r-prefixed `trash` and now names `--drpg-pix-<n>` of the legacy row that took that drawing over, pixel for pixel
  *  (tools/glyphs.json's `from` names the old token; `palm` alone was renamed, to `palm-action`, because the px hand the
  *  objection launcher reads keeps `palm`); the 139 `fa:` readings are as recorded. E49 A1e (11.11.2026) took out the
- *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind: no such probe now);
- *  no other reading changed. */
+ *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind); on 12.11.2026 three
+ *  came back as tiles of Season setup's row, each its reading of before, and the row's Season checklist reads the
+ *  legacy checklist (`--drpg-pix-checklist`, px:checklist's); gm.jump stays out. No other reading changed. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
@@ -1128,6 +1133,10 @@ export const LEGACY_ICONS = {
     "gm.settings": "--drpg-pix-gear",
     "gm.failureLog": "--drpg-pix-failure-log",
     "gm.caseWindow": "fa:fa-box-archive",
+    "gm.rules": "--drpg-pix-new-rule",
+    "gm.gmTeam": "--drpg-pix-gm-team",
+    "gm.mastermind": "--drpg-pix-mastermind",
+    "gm.seasonChecklist": "--drpg-pix-checklist",
     "rule.caution": "fa:fa-hand",
     "rule.project-new": "fa:fa-lightbulb",
     "remnant.search": "--drpg-pix-search",

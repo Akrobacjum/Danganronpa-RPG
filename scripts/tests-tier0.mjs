@@ -3978,7 +3978,7 @@ const REGRESSIONS = [
         // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
         // E49 A1e: Season setup draws Edit campaign's own rows, so its chapter is the field read above.
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const fields = bodyOf(season, "export function campaignFieldsHtml(", { until: "export const SEASON_WINDOWS" });
+        const fields = bodyOf(season, "export function campaignFieldsHtml(", { until: "export function seasonTilesHtml(" });
         ok(/\bcampaignRows\(/.test(fields) && !/stepper\(\{ name: "chapter"/.test(season),
             "the Season setup window draws a chapter field of its own again, which this cap does not reach");
     }],
@@ -4185,9 +4185,17 @@ const REGRESSIONS = [
         ok(/paintDraft\(dialog\.element, draft\)/.test(season),
             "a carried draft is never painted back");
 
-        const rows = bodyOf(season, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(rows),
+        // E49 A1e (12.11.2026): the rows are the Season checklist's, and the row reopens the window it stands in (`reopen`),
+        // which the checklist hands as itself; Season setup's tiles make the same round trip back to Season setup.
+        ok(/openSeasonChecklist\(\{ draft = null(, [^}]*)? \} = \{\}\)/.test(season),
+            "the checklist's opener cannot be handed a draft");
+        const rows = bodyOf(season, "function wireSetupSteps(", { until: "function wireSeasonTiles(" });
+        ok(/handOff\(dialog, \(\) => reopen\(\{ draft(, [^}]*)? \}\)\)/.test(rows)
+            && /wireSetupSteps\(dialog, trip => \{ roundTrip = trip; \}, openSeasonChecklist\)/.test(season),
             "the row still closes and reopens on its own, so the close answers the caller");
+        const tiles = bodyOf(season, "function wireSeasonTiles(", { until: "export async function openSeasonSetup(" });
+        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(tiles) && !/await dialog\.close\(\)/.test(tiles),
+            "a tile of Season setup's row closes and reopens on its own, so the close answers the caller");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
@@ -4197,10 +4205,12 @@ const REGRESSIONS = [
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        const opener = bodyOf(season, "export async function openSeasonSetup(");
-        const tail = bodyOf(opener, "rejectClose: false");
-        ok(/if \(roundTrip\) return roundTrip;/.test(tail),
-            "the round trip is not returned, so the GM panel reopens itself over it");
+        for (const name of ["openSeasonSetup", "openSeasonChecklist"]) {
+            const opener = bodyOf(season, `export async function ${name}(`);
+            const tail = bodyOf(opener, "rejectClose: false");
+            ok(/if \(roundTrip\) return roundTrip;/.test(tail),
+                `${name}: the round trip is not returned, so the GM panel reopens itself over it`);
+        }
     }],
 
     ["R75 - revoking a Despair pool is asked first, and the form survives it", async () => {

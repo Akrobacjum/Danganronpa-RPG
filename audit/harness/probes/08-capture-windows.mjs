@@ -77,8 +77,7 @@ const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`
 /*
  * The windows, each `{ id, client, module, call, press }`: the opener's module under scripts/ and the call made on it
  * (`m` is the module), on the GM unless `client` names a player; with `press`, the window the opener drew is a step on
- * the way, and the one its button of that action opens is captured - a footer's `data-action`, or the row of windows'
- * `data-drpg-open` (Pre-season checks, from Season setup's row since E49 A1e). The list is E44's mockup set as far as an opener
+ * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from the Season checklist). The list is E44's mockup set as far as an opener
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
  * the mockup round's to build, not this probe's.
  */
@@ -138,7 +137,9 @@ export const WINDOWS = [
     { id: "sound", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "despair-flow", module: "gm-team-dialog.mjs", call: "m.openGmTeamDialog()" },
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
-    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonSetup()", press: "checks" },
+    // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
+    { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
+    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
@@ -206,8 +207,7 @@ const capture = (repoUrl, w) => `
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {
         const step = new Set(foundry.applications.instances.keys());
-        // A footer's button, or a button of Season setup's row of windows (E49 A1e: Pre-season checks left the footer).
-        const button = app.element.querySelector(\`[data-action="\${press}"], [data-drpg-open="\${press}"]\`);
+        const button = app.element.querySelector(\`[data-action="\${press}"]\`);
         let next = null;
         if (button) {
             button.click();

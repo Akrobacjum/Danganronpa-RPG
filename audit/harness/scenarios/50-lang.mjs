@@ -110,7 +110,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
             "Floor.bar.skip", "Floor.bar.minus", "Floor.bar.plus", "Floor.bar.overrule", "Floor.bar.endMode", "Floor.backToDebate", "Floor.repoint",
             "Floor.againSame", "Trial.overruledStamp", "Vote.executionCardTitle",
             "Panel.goMurderButton", "Panel.goAdvanceButton", "Panel.goChapterEndButton", "Panel.goTrialButton", "Panel.goInvestigationButton",
-            "Panel.goStartInvestigationButton", "Panel.goAutopsyButton", "Panel.goBodyButton", "Panel.goSeasonSetupButton",
+            "Panel.goStartInvestigationButton", "Panel.goAutopsyButton", "Panel.goBodyButton", "Panel.goSeasonChecklistButton",
             "Panel.goEclipseStartButton", "Panel.goEclipseEndButton", "Season.resourcesButton", "Season.cursorButton",
             "Hud.eclipseAskYes", "Ready.goAnyway", "Kit.cancel"],
         player: ["Vote.castConfirmed", "Vote.verdictCardTitle", "Trial.present", "Trial.objectionShort", "Floor.bar.overrule", "Trial.overruledStamp",

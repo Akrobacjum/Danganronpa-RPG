@@ -3935,7 +3935,7 @@
       "goStartInvestigationButton": "Start the Investigation",
       "goAutopsyButton": "Issue the autopsy",
       "goBodyButton": "Announce the body",
-      "goSeasonSetupButton": "Season setup",
+      "goSeasonChecklistButton": "Season checklist",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
@@ -3953,8 +3953,8 @@
         "other": "{n} students still have actions to spend."
       },
       "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
-      "nextSeasonSetup": "The season is not set up yet. Next in Season setup: {step}.",
-      "nextSeasonSetupAside": "Season setup still waits on: {step}.",
+      "nextSeasonSetup": "The season is not set up yet. Next in the Season checklist: {step}.",
+      "nextSeasonSetupAside": "The Season checklist still waits on: {step}.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
       "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
@@ -5122,8 +5122,9 @@
       "safeword": "Safeword",
       "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default.",
       "windows": "The season's windows",
+      "checklistTitle": "Season checklist",
       "startHereTitle": "Where to start",
-      "startHereText": "Start here: GM panel > Season setup. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
+      "startHereText": "Start here: GM panel > Season setup. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
       "state": {
