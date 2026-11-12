@@ -28,6 +28,8 @@ const traitOptions = () => Object.entries(TRAITS).map(([key, trait]) => [key, tr
 const kindOptions = () => [["", t("noEffect")], ...Object.keys(FACILITIES.effects).map(key => [key, game.i18n.localize(`DRPG.Facility.effect.${key}`)])];
 /** Who an effect falls on. */
 const scopeOptions = () => FACILITIES.scopes.map(key => [key, game.i18n.localize(`DRPG.Facility.scope.${key}`)]);
+/** How long a timed effect lasts (the owner's answer to Q-E93-3): the ends a GM may pick in the editor. */
+const untilOptions = () => ["timeOfDay", "day"].map(key => [key, game.i18n.localize(`DRPG.Facility.until.${key}`)]);
 
 /** One action's effects as fields, `prefix.e<j>.<field>`, each effect on one line: a kind, its amount, its scope and its text. */
 function effectFields(prefix, effects) {
@@ -38,6 +40,8 @@ function effectFields(prefix, effects) {
             ${select(name("kind"), kindOptions(), e.kind ?? "", `${t("effect")} ${j + 1}`)}
             ${stepper({ name: name("n"), value: e.n ?? 1, min: 1, max: 10, compact: true, attrs: { "aria-label": `${t("amount")} ${j + 1}` } })}
             ${select(name("scope"), scopeOptions(), e.scope ?? "self", `${t("scope")} ${j + 1}`)}
+            ${select(name("trait"), traitOptions(), e.trait ?? Object.keys(TRAITS)[0], `${t("trait")} ${j + 1}`)}
+            ${select(name("until"), untilOptions(), e.until ?? "timeOfDay", `${t("until")} ${j + 1}`)}
             <input type="text" name="${esc(name("text"))}" value="${esc(e.text ?? "")}" maxlength="${FACILITIES.maxText}"
                 placeholder="${esc(t("textPlaceholder"))}" aria-label="${esc(`${t("text")} ${j + 1}`)}" />
         </div>`;
@@ -49,7 +53,7 @@ function readEffects(form, prefix) {
     const value = name => form.querySelector(`[name="${CSS.escape(name)}"]`)?.value ?? "";
     return Array.from({ length: FACILITIES.maxEffects }, (_, j) => ({
         kind: value(`${prefix}.e${j}.kind`), n: wholeNumber(value(`${prefix}.e${j}.n`), { fallback: 1 }), scope: value(`${prefix}.e${j}.scope`),
-        text: value(`${prefix}.e${j}.text`)
+        text: value(`${prefix}.e${j}.text`), trait: value(`${prefix}.e${j}.trait`), until: value(`${prefix}.e${j}.until`)
     })).filter(e => e.kind);
 }
 

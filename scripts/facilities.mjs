@@ -60,7 +60,11 @@ export function cleanEffect(raw) {
         const text = clip(raw.text, FACILITIES.maxText);
         return text ? { kind, text, scope } : null;
     }
-    return { kind, n: whole(raw.n ?? 1, 1, rule.amount) ?? 1, scope };
+    const out = { kind, n: whole(raw.n ?? 1, 1, rule.amount) ?? 1, scope };
+    // A timed effect's fields (timed-effects.mjs): the statistic it names, and its end among those its kind allows.
+    if (rule.trait) out.trait = typeof raw.trait === "string" && Object.hasOwn(TRAITS, raw.trait) ? raw.trait : Object.keys(TRAITS)[0];
+    if (rule.untils) out.until = rule.untils.includes(raw.until) ? raw.until : rule.untils[0];
+    return out;
 }
 
 /** An action's effects, cleaned (`cleanEffect`), at most `maxEffects`. Pure. */

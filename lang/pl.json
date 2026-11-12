@@ -3278,6 +3278,16 @@
       }
     },
     "Facility": {
+      "timedBadge": "Efekt akcji w pokoju",
+      "timed": {
+        "traitBonus": "+{n} {trait}"
+      },
+      "until": {
+        "timeOfDay": "do końca pory dnia",
+        "day": "do końca dnia",
+        "nextRoll": "na twój następny rzut",
+        "eclipse": "w najbliższym Eclipse"
+      },
       "usedOk": "{action}: zrobione.",
       "usedFailed": "{action}: nie wyszło. Akcja jest zużyta na tę porę dnia.",
       "traceNote": "Akcja w pokoju: {action}",
@@ -3298,6 +3308,8 @@
         "other": "jeszcze {n} pory dnia"
       },
       "editor": {
+        "until": "Trwa",
+        "trait": "Statystyka",
         "roomTitle": "Facilities: {room}",
         "saveProject": "Zapisz akcję",
         "actionN": "Akcja {n}",
@@ -3333,6 +3345,7 @@
       },
       "roomColumn": "Akcje w pokoju",
       "applied": {
+        "timed": "{name}: {what}",
         "health": { "one": "{name}: +{n} Health", "few": "{name}: +{n} Health", "many": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
         "sanity": { "one": "{name}: +{n} Sanity", "few": "{name}: +{n} Sanity", "many": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
         "hope": { "one": "{name}: +{n} Hope", "few": "{name}: +{n} Hope", "many": "{name}: +{n} Hope", "other": "{name}: +{n} Hope" },
@@ -3343,6 +3356,7 @@
         "overflowDown": "Despair overflow: -{n}"
       },
       "effect": {
+        "traitBonus": "Statystyka, podniesiona na jakiś czas",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",
@@ -7585,6 +7599,7 @@
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
+        "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",

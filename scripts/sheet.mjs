@@ -79,6 +79,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 import { stateHeld } from "./states.mjs";
+import { effectLines as timedLines } from "./timed-effects.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
@@ -2333,6 +2334,17 @@ function paintStateBadges(section, actor) {
         const name = document.createElement("span");
         name.textContent = game.i18n.localize(`DRPG.States.${state.id}.name`);
         badge.append(icon, name);
+        return badge;
+    }), ...timedLines(actor).map(line => {
+        // A room action's timed effect (the owner's answer to Q-E93-3, 12.11.2026): what it does and what ends it, read
+        // on a GM off the GMs' store and on an owner's browser off their copy (timed-effects.mjs `effectLines`).
+        const badge = document.createElement("span");
+        badge.className = "drpg-state-badge drpg-timed-badge";
+        badge.dataset.tooltip = game.i18n.localize("DRPG.Facility.timedBadge");
+        badge.tabIndex = 0;
+        const name = document.createElement("span");
+        name.textContent = line;
+        badge.append(name);
         return badge;
     }));
 }

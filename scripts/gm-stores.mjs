@@ -980,6 +980,30 @@ export const barricadeStore = defineGmStore({
 });
 
 /**
+ * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026: "Dodajemy teraz"). A row per character, keyed by its
+ * actor id: `{ actorId, effects }`, `effects` its list written whole, each `{ id, kind, n, trait, until, mark, day, at }` -
+ * what a room action gave the character for a while (config.mjs `FACILITIES.effects`, the kinds with `untils`), `mark` the
+ * time of day and `day` the day it was given in. Written, read and dropped by the primary alone (timed-effects.mjs), which takes back what a row did when it ends;
+ * synced; backed up, and its owners told again after a restore (R182). Cut by the reset's "actions" group. No old key.
+ */
+export const timedEffectStore = defineGmStore({
+    name: "timedEffects", key: SETTINGS.gmTimedEffects,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    afterRestore: () => import("./timed-effects.mjs").then(m => m.retellTimedEffects()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S TIMED EFFECTS (Q-E93-3): `{ actorId: [rows] }` for the characters this user owns, as the primary GM sent
+ * them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's sheet (timed-effects.mjs
+ * `effectLines`).
+ */
+export const timedEffectCopy = defineGmCopy({
+    name: "timedEffects", key: SETTINGS.mineTimedEffects, from: "timedEffects", resetGroup: "actions", fallback: {},
+    combine: offersCombine
+});
+
+/**
  * THE PICK'S PASSES (E74, 12.11.2026; DA9 as the plan has it, the owner's "Wole zgodnie z planem" of that day). A row per
  * picker, keyed by the picker's actor id - one pass a picker, a new one replaces it: `{ actorId, sceneId, room, mark,
  * entered, at }`, `room` the room an open of Pick the Lock lets that character into past its lock, a bedroom's or a seal,

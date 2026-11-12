@@ -3016,6 +3016,16 @@
       }
     },
     "Facility": {
+      "timedBadge": "An effect from a room action",
+      "timed": {
+        "traitBonus": "+{n} {trait}"
+      },
+      "until": {
+        "timeOfDay": "until the time of day ends",
+        "day": "until the day ends",
+        "nextRoll": "on your next roll",
+        "eclipse": "in the next Eclipse"
+      },
       "usedOk": "{action}: done.",
       "usedFailed": "{action}: it did not work. The action is used for this time of day.",
       "traceNote": "Room action: {action}",
@@ -3034,6 +3044,8 @@
         "other": "{n} times of day left"
       },
       "editor": {
+        "until": "Lasts",
+        "trait": "Statistic",
         "roomTitle": "Facilities: {room}",
         "saveProject": "Save the action",
         "actionN": "Action {n}",
@@ -3069,6 +3081,7 @@
       },
       "roomColumn": "Room actions",
       "applied": {
+        "timed": "{name}: {what}",
         "health": { "one": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
         "sanity": { "one": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
         "hope": { "one": "{name}: +{n} Hope", "other": "{name}: +{n} Hope" },
@@ -3079,6 +3092,7 @@
         "overflowDown": "Despair overflow: -{n}"
       },
       "effect": {
+        "traitBonus": "Statistic, raised for a while",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",
@@ -5857,6 +5871,7 @@
         "barricades": "Which rooms are barricaded, by whom and how strongly",
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "lockpicks": "Who may walk through a lock they picked, into which room",
+        "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",
         "crossings": "Each character's last crossing between rooms, what it cost, and whether a GM gave it back",

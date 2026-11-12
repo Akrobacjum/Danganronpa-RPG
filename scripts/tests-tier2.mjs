@@ -88090,6 +88090,56 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ answer: "done", traces: [["subtle", true]] }),
             "{answer; traces: [visibility, faint] of each Remnant the use placed} - a project's room action's trace");
     }],
+    ["E93-T5 - a room action's temporary +X to a trait is a timed effect the GMs keep, shown on the owner's sheet and taken back when its time of day ends (scripts/timed-effects.mjs, facilities-gm.mjs `applyEffects`, facilities.mjs `cleanEffect`; the owner's answer to Q-E93-3, 12.11.2026: \"Dodajemy teraz\"): +2 Body until the time of day ends raises Body by 2, keeps one row naming it, lists it in the owner's copy and not another player's, and reads on the sheet; a new time of day takes the 2 back and the row with it; an effect until the day's end outlives the time of day and ends with the day", async () => {
+        /*
+         * E93, 12.11.2026 (the owner's DRPG-D1 answers, through the coordinator). The effect given as a use of a GM's room
+         * action gives it (`applyEffects`), on this GM; the time passing handed to the primary's reader as the next clock
+         * (`endTimedEffects`), so the clock is not moved. Put back: the rows, Body. Red at db68370: no timed-effects.mjs.
+         */
+        const T = await import("./timed-effects.mjs").catch(() => null);
+        must(T, "there is no timed-effects.mjs");
+        const F = await import("./facilities.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { TIMES_OF_DAY, TRAITS } = await import("./config.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const stranger = game.users.find(u => !u.isGM && u.id !== player.id && !actor.testUserPermission(u, "OWNER"));
+        const body = () => Number(actor.system.traits.strength.value) || 0;
+        const was = body();
+        const clock = getClock();
+        const i = TIMES_OF_DAY.indexOf(clock.timeOfDay);
+        // Another time of day of the same day (the one after, or the first where this is the last), and the next day.
+        const nextTime = { ...clock, timeOfDay: TIMES_OF_DAY[i + 1] ?? TIMES_OF_DAY[0] };
+        const nextDay = { ...clock, day: (clock.day ?? 1) + 1 };
+        const read = {};
+        try {
+            const effect = F.cleanEffect({ kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            read.clean = effect;
+            await applyEffects(actor, [effect], where, player);
+            await settle();
+            const rows = T.timedEffectsOf(actor.id);
+            read.given = [body() - was, rows.map(r => [r.kind, r.trait, r.n, r.until])];
+            read.copy = [Object.keys(T.timedEffectsFor(player.id).effects), stranger ? Object.keys(T.timedEffectsFor(stranger.id).effects) : []];
+            read.line = T.effectLines(actor);
+            await T.endTimedEffects({ clock: nextTime });
+            read.ended = [body() - was, T.timedEffectsOf(actor.id).length];
+            await applyEffects(actor, [F.cleanEffect({ kind: "traitBonus", trait: "body", n: 1, until: "day" })], where, player);
+            await T.endTimedEffects({ clock: nextTime });
+            read.day = [body() - was, T.timedEffectsOf(actor.id).length];
+            await T.endTimedEffects({ clock: nextDay });
+            read.dayEnded = [body() - was, T.timedEffectsOf(actor.id).length];
+        } finally {
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(actor, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /Body/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 120000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clean: { kind: "traitBonus", n: 2, scope: "self", trait: "body", until: "timeOfDay" },
+            given: [2, [["traitBonus", "body", 2, "timeOfDay"]]], copy: [[actor.id], []],
+            line: [game.i18n.format("DRPG.Facility.timed.traitBonus", { n: 2, trait: TRAITS.body.label }) + " - " + game.i18n.localize("DRPG.Facility.until.timeOfDay")],
+            ended: [0, 0], day: [1, 1], dayEnded: [0, 0] }),
+            "{clean; given: [Body's rise, rows]; copy: [whose rows the owner's copy holds, another player's]; line: the sheet's; ended: after the next time of day; day: an effect until the day's end after the next time of day; dayEnded: after the next day} - a timed +X to a trait");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

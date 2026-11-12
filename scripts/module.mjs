@@ -29,6 +29,7 @@ import { registerTails } from "./tail-gm.mjs";
 import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
+import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
 import { offerStartHere } from "./season-setup.mjs";
@@ -232,6 +233,7 @@ Hooks.once("init", () => {
     // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
     safely("the watches", registerWatches);
     safely("the pick's passes", registerLockpicks);
+    safely("the timed effects", registerTimedEffects);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
     // is drawn as evidence first and as theirs second (W-6).
     safely("the own-token ring", registerOwnRing);

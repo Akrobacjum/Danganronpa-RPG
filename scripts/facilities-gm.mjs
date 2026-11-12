@@ -127,6 +127,11 @@ export async function applyEffects(actor, effects, place, sender = null) {
                 await whisperToOwner(target, `<p>${esc(effect.text)}</p>`);
                 lines.push(t("text", { name }));
             }
+            // A timed effect (the owner's answer to Q-E93-3, 12.11.2026): given and kept by this GM until its end.
+            if (rule.untils) {
+                const { giveTimed, timedLine } = await import("./timed-effects.mjs");
+                if (await giveTimed(target, effect)) lines.push(game.i18n.format("DRPG.Facility.applied.timed", { name, what: timedLine(effect) }));
+            }
         }
     }
     return lines;

@@ -1685,6 +1685,35 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && e93b.p2?.inMessages === 0 && e93b.p2?.inSettings === 0 && e93b.logged.length === 0,
         JSON.stringify(e93b).slice(0, 2000), { flow: "facility" });
 
+    /* E93-C. A TIMED EFFECT ON ITS OWNER'S SHEET (the owner's answer to Q-E93-3, 12.11.2026). The primary gives Aiko a room
+       action's +2 Body until the time of day ends (facilities-gm.mjs `applyEffects`, as a use gives it). p1's browser, Aiko's
+       owner's, holds it in its copy and its sheet's line reads it; p2's holds nothing of it. Ended by hand on the GM, p1's
+       line is gone and Body is back. Put back: the row, Body. */
+    phase("a timed effect on its owner's sheet", { flow: "facility" });
+    const e93c = { setup: await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const G = await import("${repoUrl}/scripts/facilities-gm.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const body = Number(aiko.system.traits.strength.value) || 0;
+        await G.applyEffects(aiko, [F.cleanEffect({ kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" })], M.locateActor(aiko), game.user);
+        return { body, after: Number(aiko.system.traits.strength.value) || 0 };`, { timeout: 60000 }) };
+    await settle(1200);
+    const e93cLines = client => client.eval(`const T = await import("${repoUrl}/scripts/timed-effects.mjs"); return T.effectLines(game.actors.get("${IDS.aiko}"));`);
+    e93c.p1 = await e93cLines(p1);
+    e93c.p2 = await e93cLines(p2);
+    await gm.eval(`const T = await import("${repoUrl}/scripts/timed-effects.mjs");
+        for (const row of T.timedEffectsOf("${IDS.aiko}")) await T.endTimedEffect(row.id); return true;`, { timeout: 60000 });
+    await settle(1200);
+    e93c.p1After = await e93cLines(p1);
+    e93c.bodyAfter = await gm.eval(`return Number(game.actors.get("${IDS.aiko}").system.traits.strength.value) || 0;`);
+    await gm.eval(`const aiko = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if ((Number(aiko.system.traits.strength.value) || 0) !== ${Number(e93c.setup?.body ?? 0)}) await trustedWrite(aiko, { "system.traits.strength.value": ${Number(e93c.setup?.body ?? 0)} }, { reason: "gmRuling" });
+        for (const m of game.messages.filter(m => m.speaker?.actor === "${IDS.aiko}" && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+        return true;`, { timeout: 60000 });
+    check("E93-C: a room action's +2 Body is on Aiko's sheet for p1, Aiko's owner, through its copy, and nowhere on p2's browser; ended on the GM, p1's line is gone and Body is back",
+        e93c.setup?.after === (e93c.setup?.body ?? 0) + 2 && e93c.p1?.length === 1 && /\+2 Body/.test(e93c.p1[0] ?? "")
+            && Array.isArray(e93c.p2) && e93c.p2.length === 0 && e93c.p1After?.length === 0 && e93c.bodyAfter === e93c.setup?.body,
+        JSON.stringify(e93c), { flow: "facility" });
+
     /* E69-A. A DASH FROM p1'S OWN PAGE (E69 C5, 12.11.2026). The legal control of `dash.settle`: p1 dashes as the Infiltrate
        window does (action-listen.mjs `performDash`): an action paid, a Leg roll the GM draws, the free crossings the GM
        reads off its record of it. Read: the answer, Aiko's actions and free crossings before and after, and the GM's log of

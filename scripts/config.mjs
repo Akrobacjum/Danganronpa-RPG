@@ -2177,8 +2177,14 @@ export const FACILITIES = Object.freeze({
         freeMove: Object.freeze({ amount: 2 }),
         searchToken: Object.freeze({ amount: 3, once: true }),
         overflowDown: Object.freeze({ amount: 10, once: true }),
-        text: Object.freeze({ text: true })
+        text: Object.freeze({ text: true }),
+        /* THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026: "Dodajemy teraz"; timed-effects.mjs). Each kept by
+           the GMs as a row with its end (`until`, one of `TIMED_UNTIL`; `untils` the ones the GM may pick here, the first
+           the default). `trait`: the GM picks a statistic in the editor. */
+        traitBonus: Object.freeze({ amount: 3, trait: true, untils: Object.freeze(["timeOfDay", "day"]) })
     }),
+    /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
+    timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),
     scopes: Object.freeze(["self", "present", "others"]),
     lifetimes: Object.freeze(["forever", "timesOfDay", "days"]),
     maxLifetime: 30,

@@ -467,6 +467,13 @@ export const SETTINGS = {
     gmLockpicks: "gmLockpicks",
     mineLockpicks: "mineLockpicks",
     /**
+     * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
+     * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
+     * characters' rows (`mineTimedEffects`, `timedEffectCopy`), which their sheet reads. Synced and backed up.
+     */
+    gmTimedEffects: "gmTimedEffects",
+    mineTimedEffects: "mineTimedEffects",
+    /**
      * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
      * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
      * `closeForAll`). A world setting every browser holds, so an honest Facilities window greys a closed action
@@ -2062,6 +2069,21 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // The timed effects (Q-E93-3): the GMs' store and each owner's copy; the sheets redraw on either, as their line reads it.
+    game.settings.register(MODULE_ID, SETTINGS.gmTimedEffects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineTimedEffects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
     });
     // The pick's passes (E74, DA9): the GMs' store and each owner's copy; no `onChange` - read by the move veto and the
     // GMs' audit when a crossing is judged (movement.mjs `holdsPass`).
