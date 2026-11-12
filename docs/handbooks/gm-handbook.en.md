@@ -1227,6 +1227,8 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `critical-rule` | a critical keeps Daggerheart's own numbers |
 | `roll-dialog-context` | what a Call forces is filled into the roll window once it is open, as before |
 | `roll-draw` | rolls are thrown in the player's own browser, as in 1.2.66 |
+| `roll-marks-move-context` | the module's marks on a roll are lost: an action's roll reads as a statistic from the sheet, and the Loaded Die is not loaded |
+| `roll-outcome-evaluated` | an action's roll has no total where the module reads it, so the action is not carried out |
 | `dice-random-uniform` | nothing stands in for Foundry's randomiser |
 | `no-scrolling-text` | captions float over tokens as Foundry draws them |
 | `window-close` | windows close without the module's exit or its sound |
