@@ -736,7 +736,6 @@ decyduje GM, „Wyślij do GM-a”; przycisk, który tylko prowadzi do następne
 | `DRPG.Notices.filter.more` | pierwsza pozycja menu filtrów | “More filters” | „Więcej filtrów” | nowy |
 | `DRPG.Notices.filter.moreLabel` | nazwa menu dla czytnika ekranu | “More filters” | „Więcej filtrów” | nowy |
 | `DRPG.Notices.filter.withCount` | pozycja menu z liczbą | “{label} ({n})” | „{label} ({n})” | nowy |
-| `DRPG.TraitRuling.otherTrait` | zwinięty wybór statystyki w Search | “Another statistic” | „Inna statystyka” | nowy |
 
 ## 13. Why so much is rebuilt
 

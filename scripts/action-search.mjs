@@ -919,8 +919,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         prompt: game.i18n.localize("DRPG.Action.searchGoalHint"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
         // NO PICK OF THE ROLLER'S OWN HERE (Dawid, 29.08): since E68 C6 (DA2) the statistic is the
-        // player's proposal, Eye checked, in `extra` below - Eye asks nobody (DA49), another a GM. Folded
-        // under "Another statistic" since E100 item 5 (R4104): most Searches never open it.
+        // player's proposal, Eye checked, in `extra` below - Eye asks nobody (DA49), another a GM.
         traits: null,
         options: options.map(o => ({
             value: o.value,
@@ -933,7 +932,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
                 <span>${game.i18n.localize("DRPG.Action.goalSpecificPrompt")}</span>
                 <textarea name="request" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Action.goalSpecificPlaceholder")}"></textarea>
-            </label>${traitFieldHtml(actor, def.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch", fold: true })}`
+            </label>${traitFieldHtml(actor, def.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch" })}`
     });
 
     if (!picked) return null;

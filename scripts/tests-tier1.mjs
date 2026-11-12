@@ -48777,38 +48777,6 @@ const INVARIANTS = [
             once: ["all", "announcements", "evidence", "forYou", "messenger", "notDone", "players"], picked: ["evidence", []], back: ["forYou", ""] }),
             "{the chips; the menu [its values, named]; the seven filters, each offered once; a menu pick [the filter, the chips pressed]; a chip pressed after [the filter, the menu's value]}");
     }],
-    ["R4104 - Search's statistic is folded away under Another statistic, Eye the default (E100 item 5; the owner's 12.11.2026, the player-screens review's #8): action-menus.mjs `traitFieldHtml` with `fold` draws the proposal - the statistic and the words of how - inside a closed `details.drpg-trait-other` whose summary is `DRPG.TraitRuling.otherTrait`, the statistic's first choice and the one picked Eye; read back unopened it proposes Eye, which asks nobody (action-search.mjs `searchTrait`); Search's window asks it with `fold`, and the Dynamic action, whose statistic is the point, does not", async () => {
-        /*
-         * E100 item 5, 12.11.2026. The review: "Pole 'Którą statystykę proponujesz?' z sześcioma opcjami stoi w każdym
-         * Search, choć Search rzuca Eye" - fold it under "Inna statystyka". Read on markup in a detached box; the windows'
-         * calls in source. Red at the item 4 commit: no fold, the field drawn open.
-         */
-        const M = await import("./action-menus.mjs");
-        const { livingStudents } = await import("./chapter.mjs");
-        const actor = livingStudents()[0];
-        must(actor, "no living student to draw the field for - this would measure nothing");
-        const box = document.createElement("div");
-        box.innerHTML = M.traitFieldHtml(actor, ACTIONS.search.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch", fold: true });
-        const fold = box.querySelector("details.drpg-trait-other");
-        const plain = document.createElement("div");
-        plain.innerHTML = M.traitFieldHtml(actor, ACTIONS.search.traits, { propose: true, how: false });
-        const sources = new Map(await moduleSources());
-        const call = (file, fn) => fnSource(stripComments(sources.get(file) ?? ""), fn);
-        const read = {
-            fold: fold ? [fold.open, fold.querySelector(":scope > summary")?.textContent.trim() === game.i18n.localize("DRPG.TraitRuling.otherTrait"),
-                Boolean(fold.querySelector("select[name=proposed]")), Boolean(fold.querySelector("input[name=note]"))] : null,
-            first: box.querySelector("select[name=proposed]")?.options?.[0]?.value ?? null,
-            value: box.querySelector("select[name=proposed]")?.value ?? null,
-            unopened: M.readProposal(box, ACTIONS.search.traits).proposed,
-            plain: plain.querySelectorAll("details").length,
-            search: /traitFieldHtml\([^)]*fold: true/.test(call("action-search.mjs", "chooseSearchCategory")),
-            dynamic: /fold: true/.test(call("action-dynamic.mjs", "performDynamic")),
-            words: game.i18n.localize("DRPG.TraitRuling.otherTrait") !== "DRPG.TraitRuling.otherTrait"
-        };
-        equal(stableJson(read), stableJson({ fold: [false, true, true, true], first: "eye", value: "eye", unopened: "eye", plain: 0, search: true, dynamic: false, words: true }),
-            "{the fold [open, its summary's words, the statistic inside, the words of how inside]; the statistic's first choice; the one picked; read back unopened; "
-            + "folds without `fold`; Search asks with fold; the Dynamic action asks with fold; the summary's key}");
-    }],
     ["R4105 - one word per kind of button (E100 item 6; the owner's 12.11.2026, the player-screens review's #10): a button that rolls says Roll / Rzuć (Observe, Search, Tamper, Listen, Palm, Analyze, a project's work and sabotage and the project picker; the crisis roll), one whose words go to a GM to decide says Send to the GM / Wyślij do GM-a (the Dynamic action, a project's proposal), one that only leads to the next window says Next / Dalej (Propose a project, both Level Up menus), Rest's picks say Rest / Odpocznij and an open Frisk Ask them / Poproś; Do it is left to `chooseVariant`'s fallback alone, which Rest's first window still reaches (E93 turns it into Facilities, whose rows do more than lead on: its word is E93's), and Got it is gone", async () => {
         /*
          * E100 item 6, 12.11.2026. The review: Observe, Search and Tamper ended on "Rzut", Analyze and Projects on "Zrób to",

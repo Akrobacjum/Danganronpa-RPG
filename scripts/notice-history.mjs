@@ -239,8 +239,6 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * (`drpg-briefing-all`);
  * E49 B5a (11.11.2026): the module's chat card (chat-card.mjs `chatCard`: `drpg-chat-kit` and its head, glyph, title,
  * body and foot) and a warning line inside another card (`cardWarn`, `drpg-chat-kit-warn`);
- * E100 item 5 (12.11.2026): the proposal folded under "Another statistic" (action-menus.mjs `traitFieldHtml` with `fold`,
- * `drpg-trait-other`);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
@@ -256,7 +254,7 @@ export const NOTICE_CLASSES = Object.freeze([
     "drpg-objection-log", "drpg-objection-log-topic", "drpg-overruled-stamp", "drpg-row-denied", "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left", "drpg-sum-list", "drpg-sum-room",
     "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total", "drpg-sum-totals", "drpg-sum-who", "drpg-tb-badge", "drpg-tb-badges",
-    "drpg-trait-field", "drpg-trait-how", "drpg-trait-other", "drpg-trait-proposal", "drpg-variant-details", "drpg-warning", "drpg-wide-col", "drpg-wide-head",
+    "drpg-trait-field", "drpg-trait-how", "drpg-trait-proposal", "drpg-variant-details", "drpg-warning", "drpg-wide-col", "drpg-wide-head",
     "drpg-wide-section", "faint", "is-complete", "is-despair", "is-hope", "notes", "objection", "room", "type", "unavailable", "visibility"
 ]);
 const KEEP_CLASS = new Set(NOTICE_CLASSES);
