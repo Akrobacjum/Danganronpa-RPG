@@ -39,7 +39,9 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
             tokens: [...game.scenes].flatMap(s => [...s.tokens].map(t => [t.id, t.actorId, JSON.stringify(t.flags?.[mod] ?? {})])), settings };`;
 
     phase("setup");
-    const listen = `globalThis.__drpg94 = []; globalThis.__drpg94hook ??= Hooks.on("drpgDeadSpectator", m => globalThis.__drpg94.push(m)); return true;`;
+    const listen = `globalThis.__drpg94 = []; globalThis.__drpg94hook ??= Hooks.on("drpgDeadSpectator", m => globalThis.__drpg94.push(m));
+        globalThis.__drpg94opts = []; globalThis.__drpg94optsHook ??= Hooks.on("createToken", (t, o) => { if (o?.drpgDeadSpectator) globalThis.__drpg94opts.push(o.drpgDeadSpectator); });
+        return true;`;
     await p1.eval(listen);
     await p3.eval(listen);
     const sfx = await gm.eval(`const SFX = ${imp("sfx.mjs")}, ST = ${imp("settings.mjs")};
@@ -80,6 +82,10 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
 
         phase("moment");
         const moments = { p1: await p1.eval(`return globalThis.__drpg94;`), p3: await p3.eval(`return globalThis.__drpg94;`) };
+        // What every browser is handed with the token (the e93 review's F2): the phase and the silence, no student's id.
+        const handed = await p1.eval(`return globalThis.__drpg94opts;`);
+        check("moment: p1's browser is handed the token's option with no student's id in it (the e93 review's F2)",
+            handed?.length === 1 && Object.keys(handed[0]).sort().join(",") === "phase,silent", JSON.stringify(handed));
         const played = { p1: (await p1.eval(PLAYED)) - playedBefore.p1, p3: (await p3.eval(PLAYED)) - playedBefore.p3 };
         // The curtain's fade is 3.6 s on p3's browser (death-fade.mjs); 2 s have passed since the kill.
         await settle(2200);
@@ -173,7 +179,8 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
             await ST.setSetting(ST.SETTINGS.sfxMap, globalThis.__drpg94Sfx ?? {}); delete globalThis.__drpg94Sfx;
             return true;`, { timeout: 60000 });
         const unvolume = `const ST = ${imp("settings.mjs")}; await ST.setSetting(ST.SETTINGS.sfxVolumes, globalThis.__drpg94Vol ?? {}); delete globalThis.__drpg94Vol;
-            Hooks.off("drpgDeadSpectator", globalThis.__drpg94hook); delete globalThis.__drpg94hook; delete globalThis.__drpg94; return true;`;
+            Hooks.off("drpgDeadSpectator", globalThis.__drpg94hook); delete globalThis.__drpg94hook; delete globalThis.__drpg94;
+            Hooks.off("createToken", globalThis.__drpg94optsHook); delete globalThis.__drpg94optsHook; delete globalThis.__drpg94opts; return true;`;
         await p1.eval(unvolume);
         await p3.eval(unvolume);
         await settle(1200);

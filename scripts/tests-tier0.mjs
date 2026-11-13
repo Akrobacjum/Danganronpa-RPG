@@ -3974,6 +3974,20 @@ const REGRESSIONS = [
             + "net, and the table is built out of several settings");
     }],
 
+    ["R4560 - the body card's room, when the hold names none, is where the body lies: events.mjs `bodyCard` falls back to `locateActor(victim, { body: true })`, never to the walking Monocub's room (the e93 review's F4, 13.11.2026)", async () => {
+        /*
+         * E62 C3b fix, 13.11.2026; docs/dev/e93/REVIEW-E62-C3b.md F4. A victim made a Monocub holds two tokens, and
+         * `roomOfActor` answers the one it walks. Read off the source (the card needs a discovery's whole state to draw),
+         * with the kit's cut. Red at 12d0a57c: `roomOfActor(victims[0])`.
+         */
+        const sources = new Map(await otherSources());
+        const events = stripComments(sources.get("events.mjs") ?? "");
+        const card = bodyOf(events, "export function bodyCard", { until: "\nexport function " });
+        ok(card.length > 400, "bodyCard has moved or gone");
+        equal(JSON.stringify([/locateActor\(victims\[0\],\s*\{\s*body:\s*true\s*\}\)/.test(card), /roomOfActor\(victims\[0\]\)/.test(card)]), JSON.stringify([true, false]),
+            "the body card's fallback room ([asks for the body, asks for the walker])");
+    }],
+
     ["R67 - a repair moves the flags and says nothing", async () => {
         /*
          * F16, 20.09. The Players window's dropdown is documented as the tool that
@@ -23198,7 +23212,8 @@ const REGRESSIONS = [
             hooks: [...tile.matchAll(/Hooks\.on\("(\w+)"/g)].map(m => m[1]).sort(),
             registered: /Hooks\.on\("updateToken",[^]*?followBody\(tokenDoc, changes, options, userId\)/.test(topLevelFunction(tile, "registerBodyFollow") ?? ""),
             guards: follow ? [at(/!game\.user\?\.isGM/) >= 0 && at(/!game\.user\?\.isGM/) < write, at(/userId !== game\.user\.id/) >= 0 && at(/userId !== game\.user\.id/) < write,
-                at(/isCorpse\(actor\)/) >= 0 && at(/isCorpse\(actor\)/) < write, write > 0] : null,
+                // `isCorpseToken(tokenDoc)` since E62 C3b's fix (a Monocub's corpse too; movement.mjs reads `isCorpse` in it), on purpose
+                at(/isCorpse(?:Token)?\((?:actor|tokenDoc)\)/) >= 0 && at(/isCorpse(?:Token)?\((?:actor|tokenDoc)\)/) < write, write > 0] : null,
             exported: /^export function isCorpse\(/m.test(code("movement.mjs")),
             module: /safely\("[^"]+", registerBodyFollow\)/.test(code("module.mjs"))
         }), JSON.stringify({ hooks: ["drawTile", "refreshTile", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),

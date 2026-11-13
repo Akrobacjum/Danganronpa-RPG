@@ -51436,7 +51436,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -52162,7 +52162,8 @@ const INVARIANTS = [
         /*
          * E62 C3b, 13.11.2026. spectator-dead.mjs `momentOf` asked of a stand-in token, its owner, another player and a GM.
          * The curtain (another line) listens to `drpgDeadSpectator` on that browser; the fade's sound plays there. Red at
-         * 9a74628: no spectator-dead.mjs.
+         * 9a74628: no spectator-dead.mjs. Since the e93 review's F2 (13.11.2026) the student's id is the owner's browser's own
+         * (none here: the stand-in owns no actor of the world), never the options', changed on purpose.
          */
         let D = null;
         try {
@@ -52175,7 +52176,7 @@ const INVARIANTS = [
         const options = { drpgDeadSpectator: { phase: "fade", silent: false, studentId: "R4553s" } };
         const ask = (user, opts = options) => (D ? D.momentOf(token, opts, user) : "none");
         equal(stableJson({ owner: ask(owner), other: ask(other), gm: ask(gm), plain: ask(owner, {}), hook: D?.DEAD_SPECTATOR_HOOK ?? null }),
-            stableJson({ owner: { phase: "fade", silent: false, studentId: "R4553s", tokenId: "R4553t" }, other: null, gm: null, plain: null, hook: "drpgDeadSpectator" }),
+            stableJson({ owner: { phase: "fade", silent: false, studentId: null, tokenId: "R4553t" }, other: null, gm: null, plain: null, hook: "drpgDeadSpectator" }),
             "the moment read ([the owner's, another player's, a GM's, a hook without the option, the curtain's hook name])");
     }],
 ];

@@ -22,7 +22,8 @@
  * dropped, so the link moves onto the watcher as `FLAGS.watcherOf` (the student's id), which names a public death only.
  * A default of this build, not the spec's words; reported as open.
  *
- * THE CURTAIN'S HOOK. The token is made and taken away with `options[DEAD_SPECTATOR_OPTION]` = `{ phase, silent }`,
+ * THE CURTAIN'S HOOK. The token is made and taken away with `options[DEAD_SPECTATOR_OPTION]` = `{ phase, silent }` -
+ * no student's id, which every browser's hook would be handed (the e93 review's F2): the owner's browser names its own,
  * which Foundry hands every browser's createToken/deleteToken/updateToken hook. The owner's browser (the victim's
  * player) calls `Hooks.callAll(DEAD_SPECTATOR_HOOK, { phase, silent, studentId, tokenId })` for glass.mjs and
  * sequence.mjs to listen to (another line draws the fade and the return; nothing listens here yet), and plays the
@@ -32,8 +33,9 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { log, warn, error } from "./utils.mjs";
+import { log, warn, error, forcedDeletion } from "./utils.mjs";
 import { deathStore } from "./gm-stores.mjs";
+import { isDeadForGm } from "./settings.mjs";
 
 /** The hook the curtain listens to (glass.mjs, sequence.mjs: another line's; called on the victim's browser). */
 export const DEAD_SPECTATOR_HOOK = "drpgDeadSpectator";
@@ -134,7 +136,7 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
                 width: at.width, height: at.height, texture: { src: tokenImg }, hidden: false })).toObject();
             const level = at.level ?? at._source?.level;
             if (level !== undefined) data.level = level;
-            await place.scene.createEmbeddedDocuments("Token", [data], { [DEAD_SPECTATOR_OPTION]: { phase: "fade", silent, studentId: student.id } });
+            await place.scene.createEmbeddedDocuments("Token", [data], { [DEAD_SPECTATOR_OPTION]: { phase: "fade", silent } });
         } catch (err) {
             error(`Could not place ${student.name}'s Spectator where the body lies`, err);
         }
@@ -164,7 +166,7 @@ export async function removeDeadSpectator(student, { silent = false, row = undef
        (`watcherBecomesMonocub`), and goes with the revive as the Spectator's would; the corpse stays the student's. */
     for (const { scene, tokenDoc } of tokensOf(student).filter(({ tokenDoc }) => tokenDoc.getFlag?.(MODULE_ID, FLAGS.cubToken))) {
         try {
-            await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent, studentId: student.id } });
+            await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent } });
         } catch (err) {
             error(`Could not take ${student.name}'s Monocub token off the map`, err);
         }
@@ -173,7 +175,7 @@ export async function removeDeadSpectator(student, { silent = false, row = undef
     if (!watcher) return false;
     for (const { scene, tokenDoc } of tokensOf(watcher)) {
         try {
-            await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent, studentId: student.id } });
+            await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent } });
         } catch (err) {
             error(`Could not take ${student.name}'s Spectator token off the map`, err);
         }
@@ -231,7 +233,7 @@ export async function watcherBecomesMonocub(student) {
         try {
             await tokenDoc.update({ actorId: student.id, actorLink: true, name: student.name,
                 [`flags.${MODULE_ID}.${FLAGS.cubToken}`]: true },
-            { [DEAD_SPECTATOR_OPTION]: { phase: "monocub", silent: false, studentId: student.id } });
+            { [DEAD_SPECTATOR_OPTION]: { phase: "monocub", silent: false } });
             moved += 1;
         } catch (err) {
             error(`Could not turn ${student.name}'s Spectator token into the Monocub's`, err);
@@ -258,9 +260,13 @@ export async function monocubBecomesWatcher(student) {
     if (!watcher) return null;
     for (const { tokenDoc } of cubTokens) {
         try {
-            await tokenDoc.update({ actorId: watcher.id, actorLink: true },
-                { [DEAD_SPECTATOR_OPTION]: { phase: "spectator", silent: true, studentId: student.id } });
-            await tokenDoc.unsetFlag(MODULE_ID, FLAGS.cubToken);
+            /* ONE WRITE (E62 C3b fix; the e93 review's F5): the re-link and the mark's removal together, so no browser reads a
+               watcher's token as a Monocub's walker between two writes. `forcedDeletion()` is v14's operator; in a Foundry
+               with none the mark is unset after, as before. */
+            const gone = forcedDeletion();
+            await tokenDoc.update({ actorId: watcher.id, actorLink: true, ...(gone ? { [`flags.${MODULE_ID}.${FLAGS.cubToken}`]: gone } : {}) },
+                { [DEAD_SPECTATOR_OPTION]: { phase: "spectator", silent: true } });
+            if (!gone) await tokenDoc.unsetFlag(MODULE_ID, FLAGS.cubToken);
         } catch (err) {
             error(`Could not give ${student.name}'s Spectator its token back`, err);
         }
@@ -302,7 +308,18 @@ export function momentOf(tokenDoc, options, user = game.user) {
     const actor = tokenDoc?.actor ?? game.actors?.get?.(tokenDoc?.actorId);
     const mine = Boolean(actor?.testUserPermission?.(user, "OWNER")) || Boolean(tokenDoc?.testUserPermission?.(user, "OWNER"));
     if (!mine) return null;
-    return { phase: String(moment.phase ?? ""), silent: moment.silent === true, studentId: moment.studentId ?? null, tokenId: tokenDoc?.id ?? null };
+    // The student, named on this browser (the e93 review's F2: no id travels in the options): the token's own actor when
+    // it is the student's (a Monocub's token), else this player's own student, dead as this browser may know it first.
+    const own = actor?.id && !actor.getFlag?.(MODULE_ID, FLAGS.spectator) ? actor.id : null;
+    const studentId = own ?? ownStudentOf(user)?.id ?? null;
+    return { phase: String(moment.phase ?? ""), silent: moment.silent === true, studentId, tokenId: tokenDoc?.id ?? null };
+}
+
+/** `user`'s own student on this browser: a character it owns, no Spectator's and no Monokuma, a dead one first. */
+function ownStudentOf(user) {
+    const mine = [...(game.actors ?? [])].filter(a => a?.type === "character" && a.testUserPermission?.(user, "OWNER")
+        && !a.getFlag?.(MODULE_ID, FLAGS.spectator) && !a.getFlag?.(MODULE_ID, FLAGS.monokuma));
+    return mine.find(a => isDeadForGm(a)) ?? mine[0] ?? null;
 }
 
 /** What the victim's browser does with a moment: the curtain's hook, and the fade's sound when it is not silent. */

@@ -1106,7 +1106,7 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
  */
 function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
     // A Monocub's corpse beside the token it walks too (E62 C3b fix): the GMs' judge holds the body where the veto does.
-    if (isCorpse(student) || isMonocubCorpse(tokenDoc)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead"), rule: "corpse" };
+    if (isCorpse(student) || isCorpseToken(tokenDoc)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead"), rule: "corpse" };
     // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
     // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
     // Scenario 41 b1 read it on 12.10.2026: the hall linked after its tokens were recorded in its
@@ -1500,7 +1500,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         // for everything about being a person on the map - the same pair the
         // sheet's own action panels test.
         // And a Monocub's corpse beside the token it walks (E62 C3b fix): the body stays where it fell.
-        if (isCorpse(actor) || isMonocubCorpse(tokenDoc)) {
+        if (isCorpseToken(tokenDoc)) {
             ui.notifications.warn(game.i18n.localize("DRPG.Move.dead"));
             return false;
         }
@@ -1544,6 +1544,16 @@ function onPreUpdateToken(tokenDoc, changes, options) {
  * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
  * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
  */
+/**
+ * Whether this token is a body that does not walk (E62 C3b fix; the e93 review's F3): its actor a corpse (`isCorpse`), or
+ * a Monocub's corpse beside the token it walks (spectator.mjs `isMonocubCorpse`). The veto, the GMs' judge and the body
+ * tile's follow (body-tile.mjs `followBody`) ask it.
+ */
+export function isCorpseToken(tokenDoc) {
+    const actor = tokenDoc?.actor ?? null;
+    return Boolean(actor && isCorpse(actor)) || isMonocubCorpse(tokenDoc);
+}
+
 export function isCorpse(actor) {
     try {
         if (!isDeadForGm(actor) && !isMutedDead(actor)) return false;

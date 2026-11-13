@@ -35,7 +35,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { deathRecord } from "./settings.mjs";
-import { gmPlaceOf, roomAt, isCorpse } from "./movement.mjs";
+import { gmPlaceOf, roomAt, isCorpseToken } from "./movement.mjs";
 
 /** A floor as an id: a Level document's, an id as it is, null for none. */
 const floorId = level => level?.id ?? level ?? null;
@@ -314,7 +314,9 @@ export async function followBody(tokenDoc, changes, options, userId) {
     if (!game.user?.isGM || userId !== game.user.id) return null;
     if (!MOVED.some(key => key in (changes ?? {}))) return null;
     const actor = tokenDoc?.actor ?? null;
-    if (!actor || !isCorpse(actor)) return null;
+    // A Monocub's corpse beside the token it walks is a body too (E62 C3b fix; the e93 review's F3): a GM's move skips the
+    // owner's veto (movement.mjs `onPreUpdateToken` returns for a GM first), so its tile follows it as any corpse's.
+    if (!actor || !isCorpseToken(tokenDoc)) return null;
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
     const body = bodyTileOf(actor, { held: flagsHeldNow });
     if (!body || body.scene?.id !== tokenDoc.parent?.id) return null;

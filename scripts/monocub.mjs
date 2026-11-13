@@ -49,6 +49,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
+import { isMonocubCorpse } from "./spectator.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
 import { cubStore, cubCopy, cubTargetStore, bountyStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
@@ -567,7 +568,8 @@ export async function markWitnessesAt(victim) {
     let marked = 0;
     for (const token of place.scene.tokens ?? []) {
         const actor = token.actor;
-        if (!actor || token.hidden || !isMonocub(actor) || lawfulRoomOf(token) !== place.room) continue;
+        // A Monocub's corpse beside the token it walks is no witness (E62 C3b fix; the e93 review's F1): it stands where it walks.
+        if (!actor || token.hidden || !isMonocub(actor) || isMonocubCorpse(token) || lawfulRoomOf(token) !== place.room) continue;
         if (await cubSawIncident(actor)) marked++;
     }
     return marked;
