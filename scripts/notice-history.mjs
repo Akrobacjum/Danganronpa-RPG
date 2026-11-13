@@ -245,7 +245,7 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  */
 export const NOTICE_CLASSES = Object.freeze([
     "chapter", "drpg-action-details", "drpg-action-details-box", "drpg-action-details-mark", "drpg-action-details-sub", "drpg-action-details-toggle",
-    "drpg-action-trait", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-briefing-rolls", "drpg-briefing-watched", "drpg-chat-kit", "drpg-chat-kit-body",
+    "drpg-action-gm", "drpg-action-trait", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-briefing-rolls", "drpg-briefing-watched", "drpg-chat-kit", "drpg-chat-kit-body",
     "drpg-chat-kit-foot", "drpg-chat-kit-glyph", "drpg-chat-kit-head", "drpg-chat-kit-title", "drpg-chat-kit-warn", "drpg-check",
     "drpg-checkbox", "drpg-choice", "drpg-choice-details", "drpg-choice-list", "drpg-choice-text", "drpg-day-summary", "drpg-details-layer",
     "drpg-details-stack", "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod", "drpg-duality-op",

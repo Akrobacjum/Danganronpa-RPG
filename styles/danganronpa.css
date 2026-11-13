@@ -5220,9 +5220,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
 /* Under the pointer a row is Bone, whatever its road (E22 fix G1, 07.11.2026; the end review's SCREENS M1, Open 81):
    it was the eye's edge and wash, so "Find Stash" - a player's own road - took the GM row's red the moment it was
-   pointed at, and red means the GM's road and an irreversible answer only (D11, E22-07). The GM's row keeps its red
-   left edge under the pointer: `.drpg-choice.drpg-gm-route`, later in this sheet, outranks this rule's edge. The
-   Rest options and a Frisk's ways read the same. */
+   pointed at, and red means the GM's road and an irreversible answer only (D11, E22-07). Since E107 a GM's row has no
+   red edge of its own (its chip says it), so it reads as every row here. The Rest options and a Frisk's ways read the
+   same. */
 .drpg-choice:hover {
     border-color: var(--drpg-bone);
     background: rgba(var(--drpg-bone-rgb), 0.08);
@@ -11415,6 +11415,37 @@ body.drpg-stacked .application.sheet.actor.character {
     vertical-align: baseline;
 }
 
+/* OUT OF THE TILE'S FLOW (E107, 13.11.2026; the owner on 1.2.110's Hope Calls: "Layout hope calla z GM rozni sie od
+   reszty"). A tile centres its content, so the chip as a line under the cost lifted Talent's icon, name and cost above
+   the nine others': in Chromium at 8d7aa91f the icon stood 4.7 px from the tile's top on Talent and 21.4 on Support
+   under the glass, 13.7 and 22.2 under Legacy, a GM action tile the same. The chip now stands in the tile's top right
+   corner, out of the flow, and the three lines stand where a tile with no chip has them (docs/dev/e107/STATUS.md,
+   R5430). Not at the foot: under the glass the chip is 30 px tall at the sheet's floor size and a 110 px tile leaves
+   about 19 px under its cost - at the foot it covered the cost by 13 px (Chromium, the first cut of E107). In the
+   corner it stands beside the icon, the one line narrower than the tile. */
+.drpg-action-button {
+    position: relative;
+}
+.drpg-action-button .drpg-action-gm {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    margin: 0;
+}
+/* A pick row on the GM's road carries the same chip, at its top right, and its text leaves room for it (R5432). */
+.drpg-choice.drpg-gm-route {
+    position: relative;
+}
+.drpg-choice.drpg-gm-route .drpg-choice-text {
+    padding-right: 2.6em;
+}
+.drpg-choice .drpg-action-gm {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    margin: 0;
+}
+
 /* --- 3. equipped icons are not translucent ------------------------------ */
 
 .application.sheet.actor .item-img,
@@ -13268,19 +13299,10 @@ form:has(input[name="secret"]:not(:checked)):has(input[name="murder"]:not(:check
     text-decoration: line-through var(--drpg-crimson) 2px;
 }
 
-/* Red on a row that ends in somebody else deciding, the same red the buttons
-   carry. The whole row rather than the label: the row is the button here. */
-.drpg-choice.drpg-gm-route {
-    border-left: 3px solid var(--drpg-kit-role-gm-route);
-    padding-left: 5px;
-}
-
-/* ... and once picked (E22 fix G1; the end review's SCREENS m6): the pick's gold edge (`.drpg-choice:has(input:checked)`,
-   0,2,1) took the left edge with the rest, so the row that went to the GM stopped saying so once chosen - seen on
-   Analyze's "Ask for a hint" under Monokuma Legacy. The glass keeps its brush on the picked row (stained-glass.css). */
-.drpg-choice.drpg-gm-route:has(input:checked) {
-    border-left-color: var(--drpg-kit-role-gm-route);
-}
+/* A ROW THAT ENDS IN SOMEBODY ELSE DECIDING WEARS THE GM'S CHIP, NOT THE RED (E107, 13.11.2026; the owner: "Kafelki
+   wymagajace GMa niech nie beda czerwone - wystarczy czerwona ramka i napis jak w hope callu"). Until E107 it took a 3 px
+   left edge in the GM road's red, kept once picked (E22 fix G1); it is a plain row now, and the chip at its top right
+   (`choiceRowHtml`, the rules by `.drpg-action-gm` above) says who it waits for, picked or not. R5432, R1373. */
 
 /* ---- the Call header, above a target picker ---------------------------- */
 
