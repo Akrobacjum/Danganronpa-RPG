@@ -1022,6 +1022,11 @@ const REGRESSIONS = [
     }],
 
     ["R1330 - the notice history is on the kit (E44 C5; E44-19, the 11.10 amend A7): its window is a DrpgApp whose one scrolling region is the list, its foot the kit's footer with Clear on the left as destructive and never the default and Close on the right in one word, its chips the kit's chips and its empty list the kit's empty state; it keeps what A7 keeps - RAISED when raised, one keepLive and only on the list, redrawn from the history's change, a kept card drawn lazily through noticeSnapshot, no card, no sound - and no sheet names the window's class or the classes the kit replaced, and no sheet but components.css styles its parts", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the window's composition is the subject: which kit builders it is made
+           of, the scrolling region it names, what it never calls, and which sheets style its parts - a census of the
+           code and of the stylesheets. Its two outcomes a call could show (RAISED when raised, a kept card drawn
+           through noticeSnapshot) sit inside reads of the class's shape; driving them would open the window in tier 2
+           (not built in E40 item 4). */
         /*
          * E44 C5, 04.11.2026; the 11.10 amend A7 ("E44 moves the window onto the kit ... and in the same commit removes
          * the window's blocks from danganronpa.css, stained-glass.css and narrow.css"; what it keeps, by name). Read
@@ -2470,6 +2475,12 @@ const REGRESSIONS = [
             "applyVerdict no longer refuses a second verdict itself");
     }],
     ["R31 - Room Setup's Apply writes only what the GM changed, and refuses before writing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the Apply's rules are partly driven already (tier 2 "Room Setup's fog
+           edit keeps the rooms found while the window was open" and the E46-T1 test's Apply that writes no region with
+           nothing changed). What this keeps is the code's shape: no Room Setup code calls `saveDiscoveryMatrix` (a
+           call nothing may make), the form compares with `defaultChecked`, the one-bedroom check stands before the
+           fog's write (an order: a refused Apply driven end to end through the window was not built here), and the
+           bulk buttons are no DialogV2 button and no `data-action` (the markup's shape). */
         /*
          * ROOM-01, ROOM-02 and ROOM-03 (17.09). Apply wrote the Fog tab's open-time
          * snapshot over the scene's whole ledger, so rooms found while the window was
@@ -3403,6 +3414,10 @@ const REGRESSIONS = [
     }],
 
     ["R54 - the clock's chevrons hold one press at a time, and report a failure", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the author's own reason below holds: the double press is a race between
+           a rebuild and a dispatched click, and hud.mjs `control` is not exported, so a driven test would either win
+           the race by luck or need an export of `control` (rule 2). The order read (born disabled, the guard before
+           the await, the catch reporting, the latch by class) stays the code's shape. */
         /*
          * HUD-01 and HUD-03, 19.09. Double-clicking the Eclipse chevron opened the
          * Eclipse and closed it again: the handler disabled its own button, and the
@@ -3709,6 +3724,10 @@ const REGRESSIONS = [
     }],
 
     ["R61 - Monokuma Legacy states the whole ladder, and no rung is floored above its own size", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its subject is the stylesheet's declarations (each rung of the Legacy
+           ladder in rem, following the slider, its floor capped at its own size), not code: a computed size needs
+           layout and a root font size, which the harness has not (jsdom's cascade does not resolve `max()`/`min()` of
+           custom properties). */
         /*
          * W-2. Foundry sizes its chrome from `--font-size-*` and Daggerheart's sheet
          * reads the same ladder 223 times, so the ladder is what this theme
@@ -3906,6 +3925,11 @@ const REGRESSIONS = [
     }],
 
     ["R66 - the Players window writes what it was told, and offers the Despair that is left", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): not converted in E40 item 4: its first half (`applyAliveStates` driven
+           by the answer it is handed, a missing `silenced` key leaving a silence, a repair through `markDeceased`)
+           could be driven in tier 2 with fixtures of the Students window's answer, and its second (the donors built on
+           each redraw, the live watch left wide) needs the window open in tier 2; neither was built in this slice, so
+           it stays as read, for a later pass. */
         /*
          * F15, 20.09. Two halves of one mistake - reading the world once and using
          * it later.
@@ -4134,6 +4158,10 @@ const REGRESSIONS = [
     }],
 
     ["R71 - the cue pane is built on every redraw, not baked when the window opened", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): not converted in E40 item 4: what it guards (the cue pane rebuilt when
+           a sound joins the cue playlist) is behaviour, drivable only by opening the Sound window in tier 2 and
+           creating a playlist sound; that was not built in this slice. The keepLive options it reads (`settings: []`,
+           the three hooks, `after` rewiring) stay as read until then. */
         /*
          * F17, 20.09. The Play pane was three constants and a template read once, so
          * a track dragged into the cue playlist in the Playlists sidebar - which is
@@ -4393,6 +4421,11 @@ const REGRESSIONS = [
     }],
 
     ["R77 - every student stands on a frame, and yours is bone", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the frame is drawn on the canvas with PIXI (`drawRect`, a container at
+           the token's bottom, the hairline of the curtain), which the harness has not (`env.canvas` is false
+           headless), and own-ring.mjs `frameOf`, `isMine` and `hourColour` are not exported (would need an export of
+           each to drive the colour and ownership rules, rule 2). The registration order and the stylesheet's absent
+           token are the code's and the sheet's shape. */
         /*
          * W-6 (Dawid, 18.09): a player's token is lost in a room - a bedroom holds a
          * bed, a desk, two Remnants and four students, all drawn at the same size out
@@ -4728,6 +4761,10 @@ const REGRESSIONS = [
     }],
 
     ["R84 - a request that never went is not reported as sent, and a tile states the rule", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its last four assertions already read the live text (the hint through
+           `game.i18n`). The rest is the code's shape: `promptAndCallGm` answers null when `callGm` answered false -
+           which needs no GM connected on the browser running the suite, and the suite runs on a GM's - and the
+           proposal's own `if (sent === false) return null;` and the tile's threshold read from the rule's constant. */
         /*
          * ACT-15 and ACT-16, 20.09.
          *
@@ -13847,6 +13884,10 @@ const REGRESSIONS = [
     }],
 
     ["R118 - a project's room, a gather, a body and a Final Truth are placed on their own scene, never the one on screen", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over fourteen files: none of the roads that place a project's
+           room, a gather, a body or a Final Truth reads the camera or calls a camera fallback without handing it the
+           scene. The harm is driven by the tier-2 tests it names; what this holds is that no such read exists in any
+           of them, which no single call shows. */
         /*
          * E12 C5, 11.10.2026; plan-E12 V1 and section 4's C5, audit S11-15; the A5 project's
          * reserved R118, here because a tier-2 test carries no number (tools/registry.mjs) - the

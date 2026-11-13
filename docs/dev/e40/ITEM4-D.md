@@ -19,6 +19,15 @@ test that already drives an assertion the trimmed test dropped.
 | R83 | (b) + trimmed (c) | tier 2 "a deferred assembly is held on its own scene, not the one on screen, and an order whose room is gone is cleared and said (E40 item 4: R83's rule, driven; was R83)" | a scene, a region, a token and the order are fixtures. Kept as text: the clear after the room's check - with the order's scene read right it has no outcome a call can see (m6) |
 | R90 | (a) | in place (tier 0): `keepLive` on a host of the test's own, LIVE_PROBE | DOM only, no world |
 | R95 | (b), deleted from tier 0 | tier 2 "a window under the glass arrives by its contents' fade, never its own: the window grows with no opacity of its own and each child fades in (E40 item 4: R95's rule, driven; was R95)" | the theme switched and a window opened; `Element.prototype.animate` recorded for the render (jsdom has none). Every assertion held |
+| R1330 | (c) | - | the window's composition (kit builders, its region, what it never calls, which sheets style it): a census of code and sheets; RAISED and the lazy card would need the window opened in tier 2, not built here |
+| R31 | (c) | partly by tier 2 "Room Setup's fog edit keeps the rooms found while the window was open" and E46-T1 | kept: no `saveDiscoveryMatrix` call (a call nothing may make), the form's `defaultChecked`, the bedroom check before the fog's write (an order; a refused Apply through the window not built here), the bulk buttons' markup |
+| R54 | (c) | - | the test's own reason: a race between a rebuild and a click; hud.mjs `control` is not exported (would need an export of `control`) |
+| R61 | (c) | - | the stylesheet's declarations are the subject; a computed size needs layout, which the harness has not |
+| R66 | (c), not converted | - | drivable in tier 2 (`applyAliveStates` with answer fixtures; the window's donors and watch with the window open); not built in this slice - left for a later pass, said so in its note |
+| R71 | (c), not converted | - | behaviour (the cue pane rebuilt when a sound joins the cue playlist), drivable only with the Sound window open in tier 2; not built in this slice - said so in its note |
+| R77 | (c) | - | drawn with PIXI on the canvas (no canvas headless, `env.canvas`); own-ring.mjs `frameOf`, `isMine`, `hourColour` not exported (would need an export of each) |
+| R84 | (c) | its hint half already reads the live text | `promptAndCallGm`'s null needs no GM connected on the browser running the suite (a GM's); the proposal's line and the tile's constant are the code's shape |
+| R118 | (c) | the harm by the tier-2 tests it names | a census over fourteen files: no road reads the camera |
 
 ## Mutant tables
 
@@ -68,3 +77,4 @@ with a gather fixture. R99 is left as the pilot marked it; m4 above is a mutant 
 | Batch | Tests | node --check, check.mjs, lint | Tests by name | Tiers 0-1 whole |
 | --- | --- | --- | --- | --- |
 | 1 | R62, R65, R73, R78, R83, R90, R95 (+ R5170, R5171, three tier-2 tests) | ok; check 19 parts green; lint 346 files, 0 problems | tier 0-1: 8 ran, 9 passed; tier 2: 3 ran, 7 passed | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (446 s); the pilot's 1419/1404 plus R5170 and R5171, less R95 |
+| 2 | R1330, R31, R54, R61, R66, R71, R77, R84, R118 (notes only) | ok; check 19 parts green; lint 0 problems | tier 0-1: 9 ran, 10 passed | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (425 s) |
