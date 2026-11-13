@@ -7,7 +7,13 @@
  *     declares it or from a facade that re-exports it, `export *` followed;
  *   - a namespace's member: `import * as m from`, `const m = await import(...)`, then `m.a`;
  *   - `import()` destructured (`const { a } = await import(...)`) or read at once (`(await import(...)).a`);
+ *   - `import()` handed to `.then` (`import("./x.mjs").then(m => m.a())`, `.then(({ a }) => ...)`): the module's own
+ *     lazy road, its most common one. Missed until 13.11.2026, when 26 of the first run's 38 "dead" were read this way
+ *     (a grep of ten of them found every one called through `.then(m => m.<name>())`);
  *   - a use in its own file (an identifier other than its declaration);
+ *   - a namespace a module is loaded into by assignment, not declaration (`T = await import(...)`, and the module's own
+ *     `let m = null; import("./x.mjs").then(mod => { m = mod; })`), then `T.a` or `m?.a` (13.11.2026: 3 more of the
+ *     first run's "dead" were read one of these two ways);
  *   - the name as a whole string literal anywhere (a string-keyed table, `bridgeFn("a")`, a harness `eval` string):
  *     the name may be read by a string, so it is `unsure`, never `dead`.
  * An import source is matched by its base name (`./x.mjs`, `../../scripts/x.mjs`, `/scripts/x.mjs`). A source built at
@@ -30,13 +36,28 @@ function exportMaps(tree) {
     const own = new Map(), re = new Map(), stars = new Map();
     for (const f of tree.code.filter(c => c.kind === "module")) {
         const b = base(f.rel), mine = new Map(), reex = new Map(), st = [];
+        /* `import { a } from "./x.mjs"` then `export { a }` is a re-export written in two statements (trial-floor-ui.mjs
+           does it), not a declaration here: read as one, or the name reads as this file's own export that nothing
+           imports (13.11.2026: 1 of the first run's "dead"). */
+        const imported = new Map();
+        for (const n of f.ast.body) {
+            if (n.type !== "ImportDeclaration") continue;
+            for (const sp of n.specifiers) {
+                if (sp.type === "ImportSpecifier") imported.set(sp.local.name, { from: base(n.source.value), name: sp.imported.name ?? sp.imported.value });
+                else if (sp.type === "ImportDefaultSpecifier") imported.set(sp.local.name, { from: base(n.source.value), name: "default" });
+            }
+        }
         for (const n of f.ast.body) {
             if (n.type === "ExportNamedDeclaration") {
                 if (n.source) { for (const s of n.specifiers) reex.set(s.exported.name ?? s.exported.value, { from: base(n.source.value), name: s.local.name ?? s.local.value }); continue; }
                 const d = n.declaration;
                 if (d?.id) mine.set(d.id.name, lineOf(f.text, n.range[0]));
                 for (const v of d?.declarations ?? []) for (const x of bindings(v.id)) mine.set(x, lineOf(f.text, n.range[0]));
-                for (const s of n.specifiers ?? []) mine.set(s.exported.name ?? s.exported.value, lineOf(f.text, n.range[0]));
+                for (const s of n.specifiers ?? []) {
+                    const local = s.local.name ?? s.local.value, out = s.exported.name ?? s.exported.value;
+                    if (imported.has(local)) reex.set(out, imported.get(local));
+                    else mine.set(out, lineOf(f.text, n.range[0]));
+                }
             } else if (n.type === "ExportAllDeclaration" && n.source) st.push(base(n.source.value));
             else if (n.type === "ExportDefaultDeclaration") mine.set("default", lineOf(f.text, n.range[0]));
         }
@@ -93,6 +114,36 @@ export function find(tree) {
                 const b = importSource(unwrap(n.init));
                 if (b && n.id.type === "Identifier") bindNs(n.id.name, b);
                 if (b && n.id.type === "ObjectPattern") for (const p of n.id.properties) if (p.key?.type === "Identifier") mark(b, p.key.name, `${kind}:${f.rel}`);
+                /* `const [{ a }, x, { b }] = await Promise.all([import("./p.mjs"), y, import("./q.mjs")])`: several lazy
+                   imports read at once, element by element (fog.mjs:844 does it; 2 of the first run's "dead"). */
+                const all = unwrap(n.init);
+                const args = all?.type === "CallExpression" && all.callee?.type === "MemberExpression" && all.callee.property?.name === "all"
+                    && all.callee.object?.name === "Promise" && all.arguments?.[0]?.type === "ArrayExpression" ? all.arguments[0].elements : null;
+                if (args && n.id.type === "ArrayPattern") {
+                    n.id.elements.forEach((el, i) => {
+                        const from = importSource(unwrap(args[i]));
+                        if (!from || !el) return;
+                        if (el.type === "Identifier") bindNs(el.name, from);
+                        else if (el.type === "ObjectPattern") for (const p of el.properties) if (p.key?.type === "Identifier") mark(from, p.key.name, `${kind}:${f.rel}`);
+                    });
+                }
+            } else if (n.type === "CallExpression" && n.callee?.type === "MemberExpression" && !n.callee.computed && n.callee.property?.name === "then") {
+                const b = importSource(unwrap(n.callee.object));
+                const fn = n.arguments?.[0];
+                const param = b && /FunctionExpression$/.test(fn?.type ?? "") ? fn.params?.[0] : null;
+                if (param?.type === "Identifier") {
+                    bindNs(param.name, b);
+                    // `.then(mod => { m = mod; })`: the outer variable the callback hands the namespace to is one too.
+                    walk(fn.body, k => {
+                        if (k.type === "AssignmentExpression" && k.operator === "=" && k.right?.type === "Identifier"
+                            && k.right.name === param.name && k.left?.type === "Identifier") bindNs(k.left.name, b);
+                    });
+                }
+                else if (param?.type === "ObjectPattern") for (const p of param.properties) if (p.key?.type === "Identifier") mark(b, p.key.name, `${kind}:${f.rel}`);
+            } else if (n.type === "AssignmentExpression" && n.operator === "=" && n.left?.type === "Identifier") {
+                // `T = await import("./x.mjs")`, into a variable declared elsewhere (tier 1 does it).
+                const b = importSource(unwrap(n.right));
+                if (b) bindNs(n.left.name, b);
             } else if (n.type === "MemberExpression" && !n.computed && n.property.type === "Identifier") {
                 const obj = n.object.type === "AwaitExpression" ? n.object.argument : n.object;
                 const b = importSource(obj);
@@ -138,13 +189,14 @@ export function find(tree) {
 export const NAMED = ["consumeCall", "readiedItem", "vaultRoomOwnedBy", "MAX_EXTRA_ROLES", "openMonocubDialog"];
 
 export const PLANT = {
-    "scripts/x.mjs": "export function readStatic() {}\nexport function readDynamic() {}\nexport function readNamespace() {}\nexport function onlyOwn() {}\nexport const deadOne = 1;\nexport const byString = 2;\nexport function testOnly() {}\nonlyOwn();\ntestOnly();\nexport * from \"./y.mjs\";\n",
+    "scripts/x.mjs": "export function readStatic() {}\nexport function readDynamic() {}\nexport function readNamespace() {}\nexport function readThen() {}\nexport function readThenPick() {}\nexport function onlyOwn() {}\nexport const deadOne = 1;\nexport const byString = 2;\nexport function testOnly() {}\nonlyOwn();\ntestOnly();\nexport * from \"./y.mjs\";\nexport function readAll() {}\nexport function reExported() {}\nexport function readLate() {}\nexport function readAssigned() {}\n",
     "scripts/f.mjs": "export { facadeOnly } from \"./y.mjs\";\n",
     "scripts/y.mjs": "export function viaStar() {}\nexport function deadToo() {}\nexport function facadeOnly() {}\nexport function reboundRead() {}\n",
-    "scripts/z.mjs": "import { readStatic, viaStar } from \"./x.mjs\";\nconst { readDynamic } = await import(\"./x.mjs\");\nimport * as X from \"./x.mjs\";\nX.readNamespace();\nconst table = { k: \"byString\" };\n",
+    "scripts/w.mjs": "import { reExported } from \"./x.mjs\";\nexport { reExported as passedOn };\n",
+    "scripts/z.mjs": "import { readStatic, viaStar } from \"./x.mjs\";\nconst { readDynamic } = await import(\"./x.mjs\");\nimport * as X from \"./x.mjs\";\nX.readNamespace();\nconst table = { k: \"byString\" };\nimport(\"./x.mjs\").then(m => m.readThen?.()).catch(() => {});\nimport(\"./x.mjs\").then(({ readThenPick }) => readThenPick());\nconst [{ readAll }, other] = await Promise.all([import(\"./x.mjs\"), 1]);\nreadAll(other);\nlet late = null;\nimport(\"./x.mjs\").then(mod => { late = mod; });\nlate?.readLate();\nlet V = null;\nasync function load() { V = await import(\"./x.mjs\"); V.readAssigned(); }\n",
     "scripts/tests-a.mjs": "import { testOnly } from \"./x.mjs\";\nasync function one() { const V = await import(\"./y.mjs\"); V.reboundRead(); }\nasync function two() { const V = await import(\"./x.mjs\"); V.readStatic(); }\n"
 };
-export const PLANT_WANTS = { readStatic: "module", readDynamic: "module", readNamespace: "module", viaStar: "module", onlyOwn: "own", deadOne: "dead", deadToo: "dead", byString: "unsure", testOnly: "test", facadeOnly: "dead", reboundRead: "test" };
+export const PLANT_WANTS = { readStatic: "module", readDynamic: "module", readNamespace: "module", readThen: "module", readThenPick: "module", readAll: "module", reExported: "module", readLate: "module", readAssigned: "module", viaStar: "module", onlyOwn: "own", deadOne: "dead", deadToo: "dead", byString: "unsure", testOnly: "test", facadeOnly: "dead", reboundRead: "test" };
 
 export function selfCheck(espree) {
     const rows = find(readTree("/fixture", { files: PLANT, espree })).rows;
