@@ -23296,10 +23296,13 @@ const REGRESSIONS = [
             "[per action: one toggle and one box, fact lines outside the box, any inside, All thresholds or <details>, the toggle's and box's ARIA, a hidden line in the box; "
             + "Observe's sub-heading and its ladders in the box; Analyze's stacked layers; a bound <li>; Tamper's watched line kept on top; the keys]");
     }],
-    ["R3383 - Details holds its place in the stylesheets (styles/danganronpa.css and components.css, E49 A8's blocks; E49 A8.2, the rule of 10.11): the shut box is hidden by `visibility` alone and nothing hides the box, a layer or an unpicked block by `display: none`; the box is capped by `--drpg-details-cap`, set on the action window, and scrolls in itself; a row's layers share one grid cell; the left column is a flex column stretched to the row; the lines and the sub-heading at `--drpg-text-sm` in `--drpg-kit-brief-ink`; no rule left for E21's bound `<li>` (`.drpg-briefing-facts > li[data-drpg-when]`)", async () => {
+    ["R3383 - Details holds its place in the stylesheets (styles/danganronpa.css and components.css, E49 A8's blocks; E49 A8.2, the rule of 10.11): the shut box is hidden by `visibility` alone and nothing hides the box, a layer or an unpicked block by `display: none`; the box states no cap and no scroll of its own, so the window's body is its one scroller (fit-110, 13.11.2026: the owner's rule that an action window never hides its description, the coordinator's default); a row's layers share one grid cell; the left column is a flex column stretched to the row; the lines and the sub-heading at `--drpg-text-sm` in `--drpg-kit-brief-ink`; no rule left for E21's bound `<li>` (`.drpg-briefing-facts > li[data-drpg-when]`)", async () => {
         /*
          * E49 A8.2, 11.11.2026. What the sizes rest on, read off the module's sheets as text (comments stripped); what
          * Chromium makes of it is style-sweep `--details`'s reading, and a real v14's LIVE-E49-A8-01. Red at A8.1: no rule.
+         * The cap went in fit-110 (13.11.2026): a 15rem box that scrolled in itself was the fit pass's "a second scroller"
+         * in 9 readings (Observe under Legacy at every size, Observe, Search and Analyze at 390x844; first bad d9557fdc).
+         * Red at 9758de17: the cap read [var(--drpg-details-cap, 15rem)], [15rem], [auto].
          */
         const css = (await moduleStyles()).replace(/\/\*[\s\S]*?\*\//g, "");
         const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
@@ -23317,10 +23320,10 @@ const REGRESSIONS = [
                 value(".application.drpg-ui .drpg-action-details-box > .drpg-action-details-sub", "font-size")],
             oldBound: rules.filter(r => /\.drpg-briefing-facts\s*>\s*li\[data-drpg-when/.test(r.sel)).length
         };
-        equal(JSON.stringify(read), JSON.stringify({ shut: ["hidden"], byDisplay: [], cap: [["var(--drpg-details-cap, 15rem)"], ["15rem"], ["auto"]],
+        equal(JSON.stringify(read), JSON.stringify({ shut: ["hidden"], byDisplay: [], cap: [[], [], []],
             stack: [["grid"], ["1 / 1"], ["hidden"]], column: [["stretch"], ["column"]],
             lines: [["var(--drpg-text-sm)"], ["var(--drpg-kit-brief-ink)"], ["var(--drpg-text-sm)"]], oldBound: 0 }),
-            "[the shut box's visibility; rules hiding Details' parts by display: none; the cap, its value and the box's scroll; the stack's grid, its layers' cell and an unpicked one; "
+            "[the shut box's visibility; rules hiding Details' parts by display: none; a cap, its value and a scroll of the box's own (none); the stack's grid, its layers' cell and an unpicked one; "
             + "the columns stretched and the left one a column; the lines' size and ink and the sub-heading's size; E21's bound-li rules left]");
     }],
     ["R3464 - the cut is the critical's alone and its slot says so in both languages (E48 K7; Q8, amend [14]): private-rolls.mjs starts no animation on a chat card (no call of motion.mjs `play`, no clip-path, no `cutIn`); popup.mjs cuts a card only when its tone is \"critical\" (`cutCritical`), with a clip-path wipe and still under `reducedMotion()`; config.mjs `SFX_EVENTS.critical` reads \"Critical\" and its hint the notice's cut, and lang/pl.json's twin \"Krytyk\"", async () => {

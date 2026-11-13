@@ -17941,13 +17941,17 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
  * One block, A8's whole layout (action-menus.mjs `detailsHtml`, `detailsStack`, `syncDetails`). The left column is a
  * flex column stretched to the row's height; the box under the toggle stays in the flow shut as open - shut it is only
  * `visibility: hidden` (and `inert`, from the script) - so it holds its place: its content's height, more if the right
- * column leaves more, never past the cap (`--drpg-details-cap`), past which it scrolls in itself. A row's lines and
+ * column leaves more. It had a cap (`--drpg-details-cap`, 15rem), past which it scrolled in itself, until fit-110
+ * (13.11.2026): the fit pass read that box as "a second scroller" in 9 readings - Observe under Legacy at every size,
+ * where its Details ran 269 px into the 240 px box at 1366x768, and Observe, Search and Analyze at 390x844 (382 px)
+ * - and a description scrolling in a box of its own is the nearest thing to hiding it (the owner's rule: an action
+ * window never hides its stat choice or its description). Now no cap: the box is its content's height and the window's
+ * body is its one scroller. A row's lines and
  * the crisis menu's whole hints are layers of one grid cell, the unpicked ones `visibility: hidden` (`drpg-unpicked`):
  * the box and the column are as tall as their tallest row. Never `display: none` or `hidden` for any of them (R3383).
  * Measured in Chromium on probe 08's captures (style-sweep `--details`, 1366x768 and three more sizes, both themes):
  * S/stages/E49/STATUS.md A8; the mockup's numbers, S/stages/E49/A8-details.md 5.
  * ========================================================================== */
-.drpg-action-window { --drpg-details-cap: 15rem; }
 .drpg-action-window .drpg-variant-columns { align-items: stretch; }
 .drpg-action-window .drpg-variant-brief { display: flex; flex-direction: column; }
 .drpg-action-window .drpg-variant-brief > * { flex: 0 0 auto; }
@@ -17982,13 +17986,7 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
     transition: transform 120ms;
 }
 .drpg-action-details-toggle[aria-expanded="true"] > .drpg-action-details-mark { transform: rotate(45deg); }
-.drpg-action-details-box {
-    flex: 1 1 auto;
-    max-height: var(--drpg-details-cap, 15rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-right: 4px;
-}
+.drpg-action-details-box { flex: 1 1 auto; }
 .drpg-action-details-toggle[aria-expanded="false"] + .drpg-action-details-box { visibility: hidden; }
 /* The layers of one place (a row's lines; the crisis menu's whole hints under the lead). */
 .drpg-details-stack,
