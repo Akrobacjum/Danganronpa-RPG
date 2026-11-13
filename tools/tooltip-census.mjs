@@ -301,11 +301,17 @@ export function census(repo = REPO) {
 }
 
 export const identity = s => `${s.file}|${s.unit ?? ""}|${s.kind}|${s.key ?? ""}`;
-const countOf = rows => {
+const countOf = (rows, id = identity) => {
     const n = new Map();
-    for (const r of rows) n.set(identity(r), (n.get(identity(r)) ?? 0) + (r.count ?? 1));
+    for (const r of rows) n.set(id(r), (n.get(id(r)) ?? 0) + (r.count ?? 1));
     return n;
 };
+/* AGAINST MAIN'S COPY A ROW IS ITS FUNCTION'S, NOT ITS FILE'S (E54, 13.11.2026). A file split by pure moves (E54's cuts:
+   sheet.mjs into nine files, investigation.mjs, chapter.mjs, cleanup.mjs) carries each row to the file its function now
+   stands in, and by `identity` that row was one main's copy did not hold: every moved row read as "a row added here"
+   until the split was on main (five of the sheet's eight on 1.2.112). A row with a unit is counted by its unit, kind and
+   key; a top-level one (no unit) keeps its file, so two files' top-level sites never stand in for each other. */
+const mainIdentity = s => (s.unit ? `${s.unit}|${s.kind}|${s.key ?? ""}` : identity(s));
 
 /** Today's sites that need help against the baseline's rows (and main's copy, when given): the problems, one line each. */
 export function compare(sites, rows, mainRows = null) {
@@ -319,8 +325,8 @@ export function compare(sites, rows, mainRows = null) {
     }
     for (const [id, n] of left) if (n > 0) problems.push(`${BASELINE} keeps ${n} row(s) of ${id.replace(/\|/g, " ")} that no site needs any more: cut ${n === 1 ? "it" : "them"}, so the baseline only shrinks`);
     if (mainRows) {
-        const main = countOf(mainRows);
-        for (const [id, n] of countOf(rows)) if (n > (main.get(id) ?? 0)) problems.push(`${BASELINE} holds ${n} of ${id.replace(/\|/g, " ")} where origin/main's copy holds ${main.get(id) ?? 0}: a row added here hides a control with no help - give it a tooltip instead`);
+        const main = countOf(mainRows, mainIdentity);
+        for (const [id, n] of countOf(rows, mainIdentity)) if (n > (main.get(id) ?? 0)) problems.push(`${BASELINE} holds ${n} of ${id.replace(/\|/g, " ")} where origin/main's copy holds ${main.get(id) ?? 0}: a row added here hides a control with no help - give it a tooltip instead`);
     }
     return problems;
 }
