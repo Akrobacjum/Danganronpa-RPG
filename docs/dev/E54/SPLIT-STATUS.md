@@ -173,10 +173,10 @@ for byte, so those proofs stand.
 
 ### On other lines (13.11.2026)
 
-Run with the scripts before their last changes: on each of the 36 lines committed to since 12.11, merged into main,
-windows, key-remnants, cleanup-reshape and chapter split and repoint (`--dry`) on every one, and windows-settings and
-remnants-migrate refuse on every one; the sheet as above (e72, e100 refused). Being run again with the scripts as
-committed.
+With the scripts one commit before 84816bc0, on each of the 36 lines committed to since 12.11, merged into main, each
+cut on a fresh copy of the merge: windows, key-remnants, cleanup-reshape and chapter split and repoint (`--dry`) on
+every one; the sheet on all but e72 and e100, refused as above; windows-settings and remnants-migrate refuse on every
+one. Being run again with 84816bc0's repoint, whose counts differ; not yet measured.
 
 ### Not done here
 
