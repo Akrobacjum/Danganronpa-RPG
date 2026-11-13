@@ -102,9 +102,9 @@ export const SCREENS = Object.freeze([
     row("find-passage", "Find Passage and Breach the Wall, and what a player's browser knows of a passage", "flow", "both",
         ["scripts/action-analyze.mjs:locatePassage", "scripts/passages.mjs:*"]),
     /* The windows E09-E19 built or rebuilt, by the stage the comment above each names (read 31.10). */
-    row("death-window", "a death: the window and its cards", "window", "gm", ["scripts/chapter.mjs:openDeathDialog"], { stage: "E09" }),
-    row("body-discovery", "the body discovery", "window", "gm", ["scripts/chapter.mjs:openBodyDiscoveryDialog", "scripts/chapter.mjs:promoteFaintPrep"], { stage: "E11" }),
-    row("chapter", "a chapter's end and Stage Six", "flow", "both", ["scripts/chapter.mjs:*"]),
+    row("death-window", "a death: the window and its cards", "window", "gm", ["scripts/death.mjs:openDeathDialog"], { stage: "E09" }),
+    row("body-discovery", "the body discovery", "window", "gm", ["scripts/body.mjs:openBodyDiscoveryDialog", "scripts/body.mjs:promoteFaintPrep"], { stage: "E11" }),
+    row("chapter", "a chapter's end and Stage Six", "flow", "both", ["scripts/chapter.mjs:*", "scripts/body.mjs:*", "scripts/death.mjs:*"]),
     row("transform", "a weapon or a body changed by the cleanup", "window", "player", ["scripts/cleanup-reshape.mjs:askTransform", "scripts/cleanup-reshape.mjs:askTransformChange"], { stage: "E09" }),
     row("cleanup", "Stage 6: the killer cleaning up", "flow", "both", ["scripts/cleanup.mjs:*", "scripts/cleanup-reshape.mjs:*"], { stage: "E16" }),
     row("key-remnant", "a key Remnant placed, and the bullets swept", "window", "gm",
