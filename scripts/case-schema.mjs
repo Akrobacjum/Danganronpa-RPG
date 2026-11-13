@@ -44,9 +44,15 @@ export function newCaseNodeId(kind, random = () => foundry.utils.randomID(10)) {
     return `${CASE_KINDS.includes(kind) ? kind : "node"}-${random()}`;
 }
 
-/** The trial's modes a node may name (E99 draws one minigame per node): floor-machine.mjs `MODES`, as it lists them. */
+/* NOT A NODE'S (the owner, 13.11.2026: "usuwamy objection i rebuttal"): a player starts an Objection and its Rebuttal
+   follows, so no node plans one; a node stored with either reads as no mode (`caseNodeOf`), and its next Save writes what
+   its select then holds. */
+const PLAYER_MODES = Object.freeze([MODES.objection, MODES.rebuttal]);
+
+/** The trial's modes a node may name (E99 draws one minigame per node): floor-machine.mjs `MODES`, as it lists them,
+ *  less the two a player starts. */
 export function caseModes() {
-    return Object.values(MODES);
+    return Object.values(MODES).filter(m => !PLAYER_MODES.includes(m));
 }
 
 const ids = list => [...new Set((Array.isArray(list) ? list : []).filter(v => typeof v === "string" && v))];
@@ -54,7 +60,8 @@ const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
 /**
  * A schema row as the map reads it, or null for a row of no kind of `CASE_KINDS`. Every field has its empty value; a
- * `mode` is kept as written, known or not (C8's consistency check names one `caseModes` lacks). Pure.
+ * `mode` is kept as written, known or not (C8's consistency check names one `caseModes` lacks), but for an Objection or a
+ * Rebuttal, read as none (13.11.2026). Pure.
  */
 export function caseNodeOf(raw) {
     if (!isPlain(raw) || !CASE_KINDS.includes(raw.kind)) return null;
@@ -64,7 +71,7 @@ export function caseNodeOf(raw) {
         text: typeof raw.text === "string" ? raw.text : "",
         inputs: ids(raw.inputs),
         refutes: ids(raw.refutes),
-        mode: typeof raw.mode === "string" && raw.mode ? raw.mode : null,
+        mode: typeof raw.mode === "string" && raw.mode && !PLAYER_MODES.includes(raw.mode) ? raw.mode : null,
         order: Number.isFinite(raw.order) ? raw.order : null,
         made: typeof raw.made === "string" && raw.made ? raw.made : null,
         // E97 C12: a planned Incident Remnant's room, and the Remnant that stands for it once placed

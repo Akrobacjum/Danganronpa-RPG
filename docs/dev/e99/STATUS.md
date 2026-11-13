@@ -461,3 +461,12 @@ Defaults, as built (the owner may revise):
 | An empty or invalid field | written as `applyDashboardSave` takes it (the same rules as Save); nothing typed is lost |
 | A write that fails | one line, "Not saved. Your text is still in the fields." / "Nie zapisano. Wpisany tekst został w polach."; the fields keep the text and stay the GM's change |
 | Escape | saves, like Close (no earlier ruling gives Escape a "discard" meaning) |
+
+## No OBJECTION or Rebuttal on a node (13.11.2026; the owner through the coordinator: "usuwamy objection i rebuttal")
+
+- case-schema.mjs: `caseModes` (the node's select after "no trial mode", and the consistency check's list) leaves out
+  `objection` and `rebuttal`: the list is Nonstop Debate, Testimony, Panic Round, Closing Argument, Straw Poll, Logic
+  Dive, Scrum Debate. A node stored with either reads as no mode (`caseNodeOf`); nothing is rewritten, and the node's
+  next Save writes what its select then holds (only if the GM changes it, as every field).
+- R4451 (tier 1), red at 91ec405; R3373 (tier 0) reads the shorter list.
+- GM handbook (EN, PL), the schema at the trial: the sentence about OBJECTION and Rebuttal having no start button is gone.

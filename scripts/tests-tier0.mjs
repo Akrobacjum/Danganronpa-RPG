@@ -22988,7 +22988,7 @@ const REGRESSIONS = [
             meta: [S.caseMetaOf({ sort: "nonsense", manual: { a: 1, b: "x" }, run: 5, askedAt: "x" }), S.caseMetaOf({ sort: "room", run: "R1", askedAt: 9 })],
             sorts: S.CASE_SORTS, kinds: S.CASE_KINDS,
             nodes: g.nodes.map(brief), edges: g.edges, missing: g.missing, gmeta: g.meta.sort,
-            modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES))
+            modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES).filter(m => m !== "objection" && m !== "rebuttal"))
         }), JSON.stringify({
             keys: ["2:deduction-a", "2:meta", false, false, true],
             node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null },

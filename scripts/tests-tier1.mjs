@@ -8897,6 +8897,25 @@ const INVARIANTS = [
             skipped: [null, "skipped", false], second: "Q2 the time?", rule: true }),
             "{marker: the truth's marker in a floor; truthField: a truth field on a floor; tie: [no floor, its outcome, a record]; tie cards naming the true answer; skipped: [no floor, outcome, a record]; second: Q2 on the floor after a right answer; rule: world-secrets keeps truth out of trialQueue}");
     }],
+    ["R4451 - a node's trial mode is never OBJECTION or Rebuttal (the owner, 13.11.2026: \"usuwamy objection i rebuttal\"; players start them, never a node): the planner's list keeps no mode and the seven a GM starts, and a node stored with either reads as no mode", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:30. `caseModes` is the list the node's select draws (after its
+         * "no trial mode") and the consistency check holds a node to; a stored `objection` or `rebuttal` is read as no mode
+         * (`caseNodeOf`), with no migration: the next Save of that node writes what its select then holds. Red at 91ec405.
+         */
+        const S = await import("./case-schema.mjs");
+        const stored = mode => S.caseNodeOf({ kind: "deduction", label: "R4451", mode })?.mode ?? null;
+        const graph = { chapter: 1, nodes: [{ id: "d1", kind: "deduction", label: "R4451", ...S.caseNodeOf({ kind: "deduction", label: "R4451", mode: "objection" }) }], edges: [], missing: [] };
+        equal(stableJson({
+            modes: S.caseModes(),
+            stored: ["objection", "rebuttal", "testimony", "dive"].map(stored),
+            badMode: S.checkCase(graph).filter(p => p.code === "badMode").length
+        }), stableJson({
+            modes: ["debate", "testimony", "panic", "closing", "straw", "dive", "scrum"],
+            stored: [null, null, "testimony", "dive"],
+            badMode: 0
+        }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
+    }],
     ["R3905 - the zone modes' census (E73 C5; the plan's 'every mode has a panel, a name and a start button'; the owner's 09.11 census): Straw Poll, Logic Dive and Scrum Debate are modes of floor-machine.mjs MODES, each with a MODE_RULES row of family \"zones\" and no Objection, a MODE_STARTS row naming the console's one zones action, a row of trial-zones-ui.mjs ZONE_PANELS with its panel and name, and the name in both languages; E99's case schema lists them (`caseModes`)", async () => {
         /* E73 C5, 12.11.2026. Red at 4077664: no zone modes. */
         const { MODES } = await import("./floor-machine.mjs");
