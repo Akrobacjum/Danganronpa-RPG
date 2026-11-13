@@ -24402,6 +24402,45 @@ const REGRESSIONS = [
         }), JSON.stringify({ writers: ["settings.mjs#applyTheme"], onChange: true, loop: [true, true], memo: [true, false] }),
             "{writers: the functions that write the theme's body classes; onChange: the theme setting's change runs applyTheme; loop: applyTheme forgets each open window's memo before sizing it, and the loop was read; memo: scaleMemo keys the slider and the height, and names no theme}");
     }],
+    ["R4803 - one place decides a module window's size (E54 W6, the plan's done line): every `setPosition` of scripts/ that gives a window a width or a height of a number takes it from a function of the windows' family - settings.mjs `scaledBox` (through `scaleWindow`), utils.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), settings.mjs `actionsTabHeight` and `callsHeight` (the sheet's, Q-E54-7) - or is ui-kit.mjs `settleKitWidth`'s stated width of the kit (`kitWidth`, WINDOW_WIDTHS: the owner's question, listed); `height: \"auto\"` and a `top` alone decide no size", async () => {
+        /*
+         * E54 W6, 13.11.2026. Read off the sources, comments stripped: each `setPosition(` call of scripts/ (the suite's
+         * files aside) in the top-level function it stands in, its argument read for `width` and `height`; a size that is
+         * `"auto"`, or an argument holding neither key (roll-dialog.mjs's `top`), decides nothing. A function that gives a
+         * number must call one of the family's functions (FAMILY) - or be listed in KIT, the one place outside the family
+         * that states a size: ui-kit.mjs's table of the kit's widths, which a cut of ui-kit.mjs the plan does not list
+         * would move (its row says why). Red on 32f5093f: sheet.mjs `holdActionsTab` and `growForCalls` work out the
+         * sheet's height themselves (the plan's Q-E54-7, whose default is that the arithmetic be the windows' family's).
+         */
+        const sources = await otherSources();
+        const FAMILY = ["scaledBox", "windowWidthFor", "actionsTabHeight", "callsHeight"];
+        const KIT = { "ui-kit.mjs#settleKitWidth": "the kit's stated width of a window kind (ui-kit.mjs WINDOW_WIDTHS, kitWidth): the owner's question whether it moves to the windows' family (E54 W6)" };
+        const sites = [], decided = {};
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs")) continue;
+            const text = stripComments(raw);
+            const decls = [...text.matchAll(/^(?:export )?(?:async )?(?:function\*? ([\w$]+)|(?:const|let|class) ([\w$]+))/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));
+            for (const m of text.matchAll(/\bsetPosition\(/g)) {
+                const { close } = callArgs(text, m.index + m[0].length - 1);
+                const arg = text.slice(m.index + m[0].length, close);
+                const owner = decls.findLast(d => d.at <= m.index)?.name ?? "(top level)";
+                const key = `${file}#${owner}`;
+                const sizes = [...arg.matchAll(/\b(width|height)\s*:\s*([^,}]+)/g)].filter(x => !/^\s*"auto"\s*$/.test(x[2])).map(x => x[1]);
+                const shorthand = [...arg.matchAll(/(?:^|[{,]\s*)(width|height)\s*(?=[,}])/g)].map(x => x[1]);
+                const whole = /^\s*[\w$.]+\s*$/.test(arg) && !/^\s*\{/.test(arg);   // `setPosition(size)`: a size worked out above
+                sites.push(key);
+                if (!sizes.length && !shorthand.length && !whole) continue;
+                const body = topLevelFunction(text, owner) ?? "";   // an owner that is a const or a class has no body to read: it is "itself"
+                const by = FAMILY.filter(name => new RegExp(`\\b${name}\\(`).test(body));
+                decided[key] = by.length ? `the family: ${by.join(", ")}` : KIT[key] ? "the kit's table (listed)" : "itself";
+            }
+        }
+        must(sites.length >= 5, `only ${sites.length} setPosition call(s) read - this would measure nothing`);
+        const itself = Object.entries(decided).filter(([, how]) => how === "itself").map(([key]) => key).sort();
+        const stale = Object.keys(KIT).filter(key => !decided[key]);
+        equal(JSON.stringify({ itself, stale }), JSON.stringify({ itself: [], stale: [] }),
+            "{itself: the functions that give a window a number of their own for its width or height; stale: a listed site that gives none}");
+    }, expectedRed("E54", "Q-E54-7: sheet.mjs holdActionsTab and growForCalls work out the sheet's height themselves until the arithmetic is the windows' family's")],
 ];
 
 
