@@ -190,7 +190,7 @@ export async function startClassTrial() {
     // editor, `setPhase` and a debate opened outside a trial open one the same
     // way this does. A null is `setClock` refusing a trial in an Eclipse begun while this button's
     // windows stood open (E10 fix r2-G5): it told the GM, and no trial is announced.
-    if (await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow() }) === null) return null;
+    if (await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow(), trialCut: true }) === null) return null;
 
     // The refill is announced rather than done quietly: a rule the table cannot
     // see is a rule the table does not use, and "you have your actions again" is
@@ -668,7 +668,7 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
     try {
         // The floor closes with the phase - `reconcilePhase` in clock.mjs - which
         // is what makes ending a trial from the clock editor end it properly too.
-        await setClock({ phase: "dailyLife", timeOfDayStartedAt: serverNow() });
+        await setClock({ phase: "dailyLife", timeOfDayStartedAt: serverNow(), trialCut: true });
     } catch (err) {
         /* A WRITE THAT THREW ENDED NOTHING (E10 C12, 1.2.71; audit S06-36). This said "the floor is
            shut either way" and went on to announce the trial over and answer true - but the floor

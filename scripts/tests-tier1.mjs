@@ -51052,7 +51052,7 @@ const INVARIANTS = [
         must(sync.length > 2000 && seq.length > 2000 && glass.length > 20000, "a source was not read - the source half reads nothing");
         read.row = /onlyWhen\("phaseHook", "phase"\)/.test(sync) && /Hooks\.callAll\("drpgPhaseChanged"/.test(sync);
         read.heard = /Hooks\.on\("drpgPhaseChanged", onPhaseChanged\)/.test(seq);
-        read.held = /oldLook && !entryHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
+        read.held = /oldLook && !entryHold && !curtainHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
         equal(stableJson(read), stableJson({ key: true, notTrial: null, first: "motion", look: "lids", lids: 2, again: null, stillPlaying: "trialEntry", out: null, ended: null, row: true, heard: true, held: true }),
             "[the key is the edge's stamp; another phase has none; the first hearing; its look with no curtain; its lids; a second hearing; still playing; another phase; ended; the clock's row fires the hook once a phase moved; the sequences hear it; rebuildAll turns nothing while the entry holds it]");
     }],
@@ -51081,6 +51081,240 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ mode: "still", title: game.i18n.localize("DRPG.Sequence.trialTitle"), sub: true, lids: 2, cover: true, endedAlone: true, uncovered: true }),
             "[the entry's mode under reduced motion; the title; the chapter's line in this language; the closed lids; the tiles covered; ended on its own at its hold; the tiles uncovered]");
+    }],
+    ["R4420 - the entry hands over to the live curtain without a blink (scripts/sequence.mjs `drawTrialEntry`, `coverBlocks`; scripts/glass.mjs `holdPulse`, `pulseNow`, `entryPieces`; styles/danganronpa.css; the owner at the table, 12.11.2026: \"calosc blyska, bug pulsu\"): on a stand-in for the curtain's pieces, in motion the live curtain is held at 0 as the copies come in over the sequence's `handIn`, handed back over its last `hand` ms and let go once the host is gone, and no full-screen wash stands over the closed curtain; still, it is held at once and let go at the end; the pulse's clock stands while held and runs on from where it stood; the closed curtain's cover takes the interface's blocks with the tiles", async () => {
+        /*
+         * The entry's hand-over, 12.11.2026. Red at 421f2395: `playTrialEntry` takes no stand-in and drew the lids, so the
+         * pieces were never held, handed back or let go; glass.mjs had no `holdPulse`; the cover named the two tiles alone.
+         * The probe of the seam report read the base's blink in Chromium on the glass harness at 1366x768 (whole frame
+         * -11 at the start, +19 at 900 ms, +7 at the end); its after-numbers are in docs/dev/trial-exit/STATUS.md. jsdom
+         * plays no animation, so what is read here is who is held when, and the stylesheet.
+         */
+        const S = await import("./sequence.mjs"), G = await import("./glass.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const T = S.SEQUENCE_TIMES.trialEntry, read = {};
+        const stand = () => {
+            const calls = [], t0 = performance.now();
+            const at = () => Math.round(performance.now() - t0);
+            return { calls, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]), release: () => calls.push(["release", null, at()]) };
+        };
+        const near = (got, want, slack = 250) => Number.isFinite(got) && got >= want && got <= want + slack;
+        const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}` });
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            const m = stand(), c = clock("m");
+            read.motion = await S.playTrialEntry(c, { pieces: m });
+            read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
+            read.covered = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            await wait(T.closed + 150);
+            read.wash = document.querySelectorAll(`#${S.SEQUENCE_HOST_ID} .drpg-seq-pulse`).length;
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + 1500);
+            const [hold, back, rel] = ["hold", "handBack", "release"].map(k => m.calls.find(x => x[0] === k));
+            read.calls = m.calls.map(x => x[0]);
+            read.hold = hold?.[1] === T.handIn && hold?.[2] < 100;
+            read.back = back?.[1] === T.hand && near(back?.[2], T.end - T.hand);
+            read.release = near(rel?.[2], T.end);
+            read.again = await S.playTrialEntry(c, { pieces: stand() });
+            S.endSequence("cut");
+            body.classList.add("drpg-reduced-motion");
+            const st = stand();
+            read.still = await S.playTrialEntry(clock("s"), { pieces: st });
+            read.stillHold = st.calls.map(x => x.slice(0, 2));
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.still + 1500);
+            read.stillEnd = st.calls.map(x => x[0]);
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        // the pulse's clock: stands while held, runs on from the moment it stood
+        if (typeof G.holdPulse === "function") {
+            G.holdPulse(true);
+            const p0 = G.pulseNow();
+            await wait(120);
+            const p1 = G.pulseNow();
+            G.holdPulse(false);
+            const p2 = G.pulseNow();
+            await wait(60);
+            const p3 = G.pulseNow();
+            read.pulse = { stood: p1 === p0, resumed: p2 - p1 >= 0 && p2 - p1 < 40, runs: p3 - p2 >= 40 };
+        } else read.pulse = null;
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rule = /body\[data-drpg-sequence-cover\] :is\(([^{]*)\) \{\s*opacity: 0;/.exec(css)?.[1] ?? "";
+        read.cover = String(S.COVERED ?? "-").split(",").map(x => x.trim()).filter(sel => !rule.includes(sel));
+        read.coverNames = ["#drpg-hud", "#drpg-despair", "#countdowns", "#drpg-room-tile", "#drpg-voice-tile"].every(x => String(S.COVERED ?? "").includes(x));
+        read.washRule = /drpg-seq-pulse/.test(css);
+        equal(stableJson(read), stableJson({
+            motion: "motion", look: "glass", covered: true, wash: 0, calls: ["hold", "handBack", "release"], hold: true, back: true, release: true, again: null,
+            still: "still", stillHold: [["hold", 0]], stillEnd: ["hold", "release"],
+            pulse: { stood: true, resumed: true, runs: true }, cover: [], coverNames: true, washRule: false
+        }), "[in motion: what played, its look, the cover; a wash at the closed curtain; the stand-in's calls in order; held over handIn at the start; handed back over hand before the end; let go at the end; the same event again; still: what played, held at once, let go at its end; the pulse's clock held, resumed and running; blocks of COVERED the stylesheet's cover leaves out; the cover names the blocks; a wash rule left in the stylesheet]");
+    }],
+    ["R4421 - the trial's exit is E61's and names a new day in the same write (scripts/transitions.mjs `transitionFor`, `onClockHeard`; the owner's decision of 12.11.2026, every default accepted): out of the Class Trial into Daily Life is `{ kind: \"trialExit\", owner: \"E61\" }` with no direction for the curtain, and with `newDay` when the same write opened a later day (a chapter's end whose next morning lands in one run of the clock's row); the Investigation's way out stays the curtain's; heard, it hands the curtain no direction", async () => {
+        /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was `{ kind: "trialExit", how: "centre" }`, a hint for
+           the curtain's own turn, and named no new day. */
+        const T = await import("./transitions.mjs"), G = await import("./glass.mjs");
+        const c = (timeOfDay, phase = "dailyLife", extra = {}) => ({ day: 3, timeOfDay, phase, eclipse: false, ...extra });
+        const read = {
+            exit: T.transitionFor(c("night", "classTrial"), c("night")),
+            morning: T.transitionFor(c("night", "classTrial"), c("morning", "dailyLife", { day: 4 })),
+            investigation: T.transitionFor(c("noon", "classTrial"), c("noon", "investigation"))?.kind ?? null
+        };
+        try {
+            G.hintTurn(null);
+            T.onClockHeard(c("night", "classTrial"), { on: false, still: true });
+            read.heard = T.onClockHeard(c("night"), { on: false, still: false })?.owner ?? null;
+            await settle();
+            read.hint = G.pendingTurnHint();
+        } finally { G.hintTurn(null); }
+        equal(stableJson(read), stableJson({ exit: { kind: "trialExit", owner: "E61" }, morning: { kind: "trialExit", newDay: true, owner: "E61" }, investigation: "investigation", heard: "E61", hint: null }),
+            "[the trial's exit; the same with the next morning in the write; out into the Investigation; heard; the direction handed to the curtain]");
+    }],
+    ["R4422 - the trial's exit plays once on this browser, TRIAL ADJOURNED and the chapter's line, with no sound of its own (scripts/sequence.mjs `playTrialExit`, `trialExitKey`; lang; the owner's decision of 12.11.2026, every default accepted): with no curtain it closes the lids as the entry does, the title in this language - TRIAL ADJOURNED / KONIEC ROZPRAWY and \"Chapter {n} · Back to school\" / \"Rozdział {n} · Powrót do szkoły\" - and covers the tiles; its key is the trial's end stamp, so a second hearing starts nothing; Escape ends it; its frames are the entry's and its length too (3.4 s, still 1.5 s); under reduced motion it is the still frame and ends on its own; with the switch off, or for a crossing Edit campaign wrote, it plays nothing; it plays no sound", async () => {
+        /* The trial's exit, 12.11.2026. Red at 421f2395: sequence.mjs had no `playTrialExit` and no exit's words. */
+        const S = await import("./sequence.mjs"), C = await import("./perf-counters.mjs");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const stamp = `R4422:${Date.now()}`, read = {};
+        const clock = (k, extra = {}) => ({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `${stamp}${k}`, ...extra });
+        const words = t => ["exitTitle", "exitSubtitle", "exitSubtitleNoChapter"].map(k => t?.DRPG?.Sequence?.[k] ?? null);
+        read.words = { en: words(en), pl: words(pl) };
+        const T = S.SEQUENCE_TIMES.trialExit ?? {}, E = S.SEQUENCE_TIMES.trialEntry;
+        read.times = [T.end === E.end, T.still === E.still, T.closed === E.closed, T.titleOut === E.titleOut];
+        const sounds = () => C.snapshot()["sfx.played"] ?? 0;
+        try {
+            if (typeof S.playTrialExit !== "function") throw new Error("sequence.mjs has no playTrialExit");
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            read.key = S.trialExitKey(clock("k")) === `trialExit:${stamp}k` && S.trialExitKey({ ...clock("k"), phase: "classTrial" }) === null;
+            const heard = sounds();
+            read.motion = await S.playTrialExit(clock("m"), { on: true });
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            read.playing = S.sequenceNow()?.kind ?? null;
+            read.look = host?.dataset.drpgSequenceLook ?? null;
+            read.lids = host?.querySelectorAll(".drpg-seq-lid").length ?? 0;
+            read.cover = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            read.again = await S.playTrialExit(clock("m"), { on: true });
+            await wait(T.title + 150);
+            read.title = host?.querySelector(".drpg-seq-title-band")?.textContent === game.i18n.localize("DRPG.Sequence.exitTitle");
+            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter: 3 });
+            const esc1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+            window.dispatchEvent(esc1);
+            read.escaped = esc1.defaultPrevented && S.sequenceNow() === null && !document.getElementById(S.SEQUENCE_HOST_ID);
+            read.silent = sounds() === heard;
+            body.classList.add("drpg-reduced-motion");
+            read.still = await S.playTrialExit(clock("s"), { on: true });
+            read.stillTitle = Boolean(document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-title`));
+            await wait(T.still + 200);
+            read.endedAlone = S.sequenceNow() === null && !body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            read.off = await S.playTrialExit(clock("o"), { on: false });
+            read.quiet = await S.playTrialExit(clock("q", { trialCut: false }), { on: true });
+            read.none = S.sequenceNow();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({
+            words: { en: ["TRIAL ADJOURNED", "Chapter {chapter} · Back to school", "Back to school"], pl: ["KONIEC ROZPRAWY", "Rozdział {chapter} · Powrót do szkoły", "Powrót do szkoły"] },
+            times: [true, true, true, true], key: true, motion: "motion", playing: "trialExit", look: "lids", lids: 2, cover: true, again: null,
+            title: true, sub: true, escaped: true, silent: true, still: "still", stillTitle: true, endedAlone: true, off: null, quiet: null, none: null
+        }), "[the exit's words in English and Polish; its frames the entry's (end, still, closed, opening); the key is the trial's end and none in the trial; in motion: what played, what plays, its look, its lids, the cover; the same event again; the title; the chapter's line; Escape ends it; no sound; reduced motion: the still frame, its title, ended on its own and uncovered; the switch off; a crossing Edit campaign wrote; nothing playing]");
+    }],
+    ["R4423 - Edit campaign moves the clock across the trial's edge without a full-screen sequence (scripts/clock.mjs `trialCutOf`, `setClock`, `setPhase`; scripts/trial-floor-ui.mjs `startClassTrial`, `closeTrial`; scripts/gm-campaign.mjs `applyCampaignForm`; scripts/sequence.mjs `edgeShown`, `onPhaseChanged`; the owner's rule of 12.11.2026: \"edytuj kampanie nie ma odpalac animacji - tylko zegar/gora gm panel\"): a crossing into or out of the trial is marked `trialCut` true only when the write says so, false otherwise, and a write that is no crossing leaves the mark as it was; Start the Class Trial, End the trial and `setPhase` say so and Edit campaign's Apply, the season's reset and the chapter's clock step do not; the entry does not play for a crossing marked false and plays for one marked true or not marked at all", async () => {
+        /* The Edit campaign silence, 12.11.2026. Red at 421f2395: clock.mjs had no `trialCutOf`, no road wrote the mark
+           and the entry played for every crossing, Edit campaign's among them. The exit's half is R4422's `quiet`. */
+        const K = await import("./clock.mjs"), S = await import("./sequence.mjs");
+        const read = {};
+        const of = (b, p) => typeof K.trialCutOf === "function" ? K.trialCutOf(b, p) ?? "same" : "none";
+        read.pure = {
+            roadIn: of({ phase: "investigation" }, { phase: "classTrial", trialCut: true }), roadOut: of({ phase: "classTrial" }, { phase: "dailyLife", trialCut: true }),
+            editIn: of({ phase: "investigation" }, { phase: "classTrial" }), editOut: of({ phase: "classTrial" }, { phase: "dailyLife" }),
+            noEdge: of({ phase: "dailyLife" }, { phase: "investigation", trialCut: true }), morning: of({ phase: "dailyLife" }, { timeOfDay: "morning", day: 4 })
+        };
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const clock = src("clock.mjs"), floor = src("trial-floor-ui.mjs"), camp = src("gm-campaign.mjs"), wipe = src("season-wipe.mjs"), chapter = src("chapter.mjs");
+        must(clock.length > 5000 && floor.length > 5000 && camp.length > 2000 && wipe.length > 2000 && chapter.length > 5000, "a source was not read - the source half reads nothing");
+        read.roads = {
+            setPhase: /return setClock\(\{ phase: key, trialCut: true \}\)/.test(bodyOf(clock, "export async function setPhase(", { until: "\nexport " })),
+            setClock: /trialCutOf\(before, patch\)/.test(bodyOf(clock, "export async function setClock(", { until: "\nexport " })),
+            start: /setClock\(\{ phase: "classTrial", timeOfDayStartedAt: serverNow\(\), trialCut: true \}\)/.test(floor),
+            close: /setClock\(\{ phase: "dailyLife", timeOfDayStartedAt: serverNow\(\), trialCut: true \}\)/.test(floor),
+            edit: /await setClock\(patch\)/.test(bodyOf(camp, "export async function applyCampaignForm(", { length: 12000 })) && !/trialCut/.test(bodyOf(camp, "export async function applyCampaignForm(", { length: 12000 })),
+            wipe: !/trialCut/.test(wipe), chapterClock: !/trialCut/.test(chapter)
+        };
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), phase = body.dataset.drpgPhase;
+        const c = (k, extra) => ({ ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R4423${k}:${Date.now()}`, ...extra });
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            S.endSequence("cut");
+            read.edited = await S.onPhaseChanged("classTrial", c("e", { trialCut: false }));
+            read.editedNone = S.sequenceNow();
+            read.road = await S.onPhaseChanged("classTrial", c("r", { trialCut: true }));
+            S.endSequence("cut");
+            read.unmarked = await S.onPhaseChanged("classTrial", c("u", {}));
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({
+            pure: { roadIn: true, roadOut: true, editIn: false, editOut: false, noEdge: "same", morning: "same" },
+            roads: { setPhase: true, setClock: true, start: true, close: true, edit: true, wipe: true, chapterClock: true },
+            edited: null, editedNone: null, road: "motion", unmarked: "motion"
+        }), "[the mark by the write: a road in and out, Edit campaign in and out, no crossing, the next morning; which roads say so in source; the entry for a crossing marked false, then nothing playing; marked true; unmarked]");
+    }],
+    ["R4424 - a chapter's end that closes the trial and opens the next morning plays the exit first, then the day's boards (scripts/transitions.mjs `onClockHeard`; scripts/sequence.mjs `whenTrialExitEnds`; the owner's decision of 12.11.2026, every default accepted): heard as one run of the clock's row, the exit plays and the end-of-day board waits for it; heard as two runs - the trial's end, then the morning while the exit plays - the exit is not cut and the board starts when it ends; a new day with no exit asked for starts its board at once", async () => {
+        /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was no sequence and the board started at once, and since
+           a sequence cuts the one running, a board started during an exit would have cut it. */
+        const S = await import("./sequence.mjs"), T = await import("./transitions.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const day = 700 + (Date.now() % 100), tag = `R4424:${Date.now()}`, read = {};
+        const c = (d, timeOfDay, ph = "dailyLife", extra = {}) => ({ season: tag, session: d, day: d, timeOfDay, phase: ph, eclipse: false, chapter: 2, ...extra });
+        const kind = () => S.sequenceNow()?.kind ?? null;
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            // one run: the trial's end and the next morning in one reading of the clock
+            T.onClockHeard(c(day, "night", "classTrial"), { on: false, still: true });
+            T.onClockHeard(c(day + 1, "morning", "dailyLife", { trialEndedAt: `${tag}a` }), { on: true, still: true, keep: false });
+            await until(() => kind() !== null, 3000);
+            read.oneFirst = kind();
+            await wait(400);
+            read.oneStill = kind();
+            await until(() => kind() === "dayEnd", 4000);
+            read.oneThen = kind();
+            S.endSequence("cut");
+            // two runs: the trial's end, then the morning heard while the exit plays
+            T.onClockHeard(c(day + 1, "night", "classTrial"), { on: false, still: true });
+            T.onClockHeard(c(day + 1, "night", "dailyLife", { trialEndedAt: `${tag}b` }), { on: true, still: true, keep: false });
+            await until(() => kind() === "trialExit", 3000);
+            T.onClockHeard(c(day + 2, "morning", "dailyLife", { trialEndedAt: `${tag}b` }), { on: true, still: true, keep: false });
+            await wait(400);
+            read.twoStill = kind();
+            S.endSequence("skipped");
+            await until(() => kind() === "dayEnd", 3000);
+            read.twoThen = kind();
+            S.endSequence("cut");
+            // no exit: the board at once
+            T.onClockHeard(c(day + 2, "night"), { on: false, still: true });
+            T.onClockHeard(c(day + 3, "morning"), { on: true, still: true, keep: false });
+            await until(() => kind() !== null, 3000);
+            read.alone = kind();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({ oneFirst: "trialExit", oneStill: "trialExit", oneThen: "dayEnd", twoStill: "trialExit", twoThen: "dayEnd", alone: "dayEnd" }),
+            "[one run: what plays first, still after 400 ms, then; two runs: what plays 400 ms after the morning was heard, then once the exit was skipped; a new day with no exit]");
     }],
     ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
         /*
@@ -51561,7 +51795,7 @@ const INVARIANTS = [
         }), stableJson({ top: [0, 3], bottom: [3, 0], centre: true, inward: true, randomOnce: true, sameSeed: true, otherSeed: true }),
             "[top: first and last row; bottom: the same; centre's first is the middle's nearest; inward's first the farthest; random: every pane once, the same seed the same order, another seed another]");
     }],
-    ["R3709 - each change of the clock has its transition (scripts/transitions.mjs `transitionFor`; E62 C1, SB-R1 of 05.11, the plan's Q5 default): evening to night from the top, night to a new morning from the bottom, an hour taken back from the bottom, the Eclipse in from the centre and out inward (1.4 s), the Investigation's entry six random groups at MK-R3's onsets, the Class Trial's entry E61's and nothing here, its exit from the centre, and a clock that did not move none", async () => {
+    ["R3709 - each change of the clock has its transition (scripts/transitions.mjs `transitionFor`; E62 C1, SB-R1 of 05.11, the plan's Q5 default): evening to night from the top, night to a new morning from the bottom, an hour taken back from the bottom, the Eclipse in from the centre and out inward (1.4 s), the Investigation's entry six random groups at MK-R3's onsets, the Class Trial's entry and exit E61's and nothing here (the exit's since the owner's decision of 12.11.2026, R4421), and a clock that did not move none", async () => {
         /* E62 C1, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
         const T = await import("./transitions.mjs");
         const c = (timeOfDay, phase = "dailyLife", extra = {}) => ({ day: 3, timeOfDay, phase, eclipse: false, ...extra });
@@ -51573,7 +51807,7 @@ const INVARIANTS = [
             trial: k(c("noon", "investigation"), c("noon", "classTrial")), exit: k(c("noon", "classTrial"), c("noon")), same: k(c("noon"), c("noon")), first: T.transitionFor(null, c("noon"))
         }), stableJson({
             evening: ["hour", "top"], morning: ["newDay", "bottom"], back: ["hourBack", "bottom"], forward: ["hour", "top"], eclipseIn: ["eclipseIn", "centre"], eclipseOut: ["eclipseOut", "inward"],
-            investigation: ["investigation", "random"], onsets: [0, 360, 900, 1320, 1930, 2400], trial: ["trialEntry", "E61"], exit: ["trialExit", "centre"], same: null, first: null
+            investigation: ["investigation", "random"], onsets: [0, 360, 900, 1320, 1930, 2400], trial: ["trialEntry", "E61"], exit: ["trialExit", "E61"], same: null, first: null
         }), "[each pair's kind and direction (the owner for the trial's entry); the Investigation's onsets; no change; no clock seen before]");
     }],
     ["R3710 - no transition flashes more than three times a second (scripts/transitions.mjs `flashRate`; E62 C2, C4, the owner's 10.10 and MK-R3, WCAG 2.3.1's count): the Investigation's six onsets and the discovery's four read at most 3 in any second, and a planted table of four in 900 ms reads 4", async () => {

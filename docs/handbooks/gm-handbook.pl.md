@@ -1047,12 +1047,14 @@ Jeszcze niesprawdzone przy stole: regiony z dziurami i poziomami w v14, ruch tu�
 
 ### 15.3 Wejście do Rozprawy i cut-in werdyktu
 
-`scripts/sequence.mjs`, `glass.mjs`, `glass-close.mjs`. Każdy ekran przy stole odtwarza dwie krótkie sekwencje na cały ekran (od 1.2.109):
+`scripts/sequence.mjs`, `glass.mjs`, `glass-close.mjs`. Każdy ekran przy stole odtwarza krótkie sekwencje na cały ekran (od 1.2.109; wyjście z Rozprawy od 1.2.110):
 
-- **Wejście.** Gdy faza zmienia się na Class Trial, każdą drogą (rozdział 15.1), ekran zamyka się na około sekundę i stoi na nim tytuł: **CLASS TRIAL** z linią rozdziału. W Stained Glass kurtynę zamykają nowe kafle tego samego rodzaju: każdy wysuwa się w swoim rozmiarze zza krawędzi szkła obok, najpierw zewnętrzne, a zamknięta kurtyna to jedno cięcie kurtyny; otwiera się tak samo na cięcie Rozprawy. W Monokuma Legacy zamykają się i otwierają dwie czarne klapy z czerwoną krawędzią. Razem 3,4 sekundy.
+- **Wejście.** Gdy faza zmienia się na Class Trial - Rozpocznij Class Trial, debata otwarta poza Rozprawą, `setPhase` (rozdział 15.1) - ekran zamyka się na około sekundę i stoi na nim tytuł: **CLASS TRIAL** z linią rozdziału. W Stained Glass kurtynę zamykają nowe kafle tego samego rodzaju: każdy wysuwa się w swoim rozmiarze zza krawędzi szkła obok, najpierw zewnętrzne, a zamknięta kurtyna to jedno cięcie kurtyny; otwiera się tak samo na cięcie Rozprawy. W Monokuma Legacy zamykają się i otwierają dwie czarne klapy z czerwoną krawędzią. Razem 3,4 sekundy.
+- **Wyjście.** Gdy Zakończ Rozprawę (albo ekran Końca rozdziału) wraca stołem do Daily Life - tak samo: ekran zamyka się w kolorze pory dnia, stoi na nim **KONIEC ROZPRAWY** z "Rozdział N · Powrót do szkoły" i otwiera się na szkołę. 3,4 sekundy. Jedyny dźwięk to karta Zakończ Rozprawę. Jeśli to samo Zakończ otwiera też następny poranek, plansze dnia przychodzą po wyjściu.
+- **Edytuj kampanię nie odtwarza żadnej.** Zmiana fazy na Rozprawę albo z niej w Edytuj kampanię lub Ustawieniach sezonu tylko zmienia kolor kurtyny i zegar.
 - **Cut-in werdyktu.** Odtwarza go twoja karta werdyktu (rozdział 15, krok 4): portret i imię skazanego, głosy tak, jak je policzono, pieczątka (**WINNY**, gdy klasa trafiła, **NIEWINNY**, gdy nie) i zdanie wyroku z karty; gdy nikt nie jest skazany, nie ma portretu ani pieczątki. 3,7 sekundy.
 
-Esc pomija tę, która gra, tylko na tym ekranie. Przy ograniczonym ruchu stoi zamiast niej nieruchoma klatka (zamknięta kurtyna z tytułem przez 1,5 s; ostatnia klatka werdyktu przez 3 s). Ustawienia gry (kafel **Ustawienia** w panelu GM-a) mają **Sekwencje na cały ekran**, domyślnie włączone: wyłączone, nic nie gra na żadnym ekranie, a oba dźwięki grają dalej (rozdział 17). Klient, który wczyta się po zdarzeniu, nic nie odtwarza.
+Esc pomija tę, która gra, tylko na tym ekranie. Przy ograniczonym ruchu stoi zamiast niej nieruchoma klatka (zamknięta kurtyna z tytułem przez 1,5 s; ostatnia klatka werdyktu przez 3 s). Ustawienia gry (kafel **Ustawienia** w panelu GM-a) mają **Sekwencje na cały ekran**, domyślnie włączone: wyłączone, nic nie gra na żadnym ekranie, kurtyna tylko zmienia kolor, a dźwięki grają dalej (rozdział 17). Klient, który wczyta się po zdarzeniu, nic nie odtwarza.
 
 Jeszcze nie sprawdzone przy stole: ruch i koszt wejścia w prawdziwym Foundry przy 1366x768 i 1920x1080 w obu motywach, jako GM i jako gracz (zmierzone w headless Chromium na harnessie szkła: LIVE-E61-01), oraz skrót mikrofonu, gdy sekwencja zakrywa kafel głosu (LIVE-E61-08).
 

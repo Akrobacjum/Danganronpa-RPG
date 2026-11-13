@@ -2758,8 +2758,10 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
    of falling back to a different typeface mid-word. */
 @font-face {
     font-family: "DRPG Pixel";
-    /* ?v=2: Oacute redrawn (F5.5 iter. 2) - the query defeats the font cache. */
-    src: url("../fonts/pixel.woff2?v=2") format("woff2");
+    /* ?v=2: Oacute redrawn (F5.5 iter. 2); ?v=3: its acute lifted one font
+       pixel off the letter (trial exit, 13.11) - the query defeats the font
+       cache. */
+    src: url("../fonts/pixel.woff2?v=3") format("woff2");
     font-display: swap;
     font-weight: normal;
     font-style: normal;
@@ -2770,9 +2772,11 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 
 @font-face {
     font-family: "DRPG Pixel";
-    /* ?v=3: PL lowercase (iter. 1) + uppercase (iter. 2) redrawn - the query
-       defeats the font cache. */
-    src: url("../fonts/pixel-ext.woff2?v=3") format("woff2");
+    /* ?v=3: PL lowercase (iter. 1) + uppercase (iter. 2) redrawn; ?v=4: the
+       marks of the capitals with an acute or a dot lifted one font pixel
+       off the letter (trial exit, 13.11) - the query defeats the font
+       cache. */
+    src: url("../fonts/pixel-ext.woff2?v=4") format("woff2");
     font-display: swap;
     font-weight: normal;
     font-style: normal;
@@ -18197,15 +18201,17 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
 }
 body[data-drpg-sequence] #drpg-popups { z-index: 99990; }
 body[data-drpg-sequence] .drpg-foundry-window { visibility: hidden; }
-/* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8) */
-body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art) {
+/* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8); and the
+   blocks of the interface with them - the clock, Despair, the event panel, the status, the tray and the corner's
+   launchers (the entry's hand-over, 12.11.2026: the seam report's probe read the HUD 20 darker in the host's first frame
+   and back in its last). The rule is the still frame's; in motion sequence.mjs `coverBlocks` fades each out as the
+   curtain closes and back in as it opens, by its own animation: a transition here lost the cascade to the theme's own
+   `transition` on the same blocks (stained-glass.css turns their rotation), and the HUD went in one frame. */
+body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art, #drpg-hud, #drpg-despair, #drpg-events, #drpg-player-status, #countdowns, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]) {
     opacity: 0;
-    transition: opacity var(--drpg-t-beat) var(--drpg-ease-leave);
 }
-#drpg-sequence .drpg-seq-glass,
-#drpg-sequence .drpg-seq-pulse { position: absolute; inset: 0; }
+#drpg-sequence .drpg-seq-glass { position: absolute; inset: 0; }
 #drpg-sequence .drpg-seq-piece { position: absolute; }
-#drpg-sequence .drpg-seq-pulse { background: color-mix(in srgb, var(--drpg-seq-light) 10%, transparent); opacity: 0; }
 #drpg-sequence .drpg-seq-lid { position: absolute; left: 0; width: 100%; height: 50%; background: var(--drpg-seq-dark); }
 #drpg-sequence .drpg-seq-lid.is-top { top: 0; border-bottom: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
 #drpg-sequence .drpg-seq-lid.is-bottom { top: 50%; border-top: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
@@ -18229,13 +18235,32 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     letter-spacing: 0.05em;
     white-space: nowrap;
 }
+/* the trial's exit's title, TRIAL ADJOURNED / KONIEC ROZPRAWY, at four fifths: at the full size it ran 160 px out of its
+   band under Legacy's wide face at 1366x768 (the glass harness, 12.11.2026) */
+#drpg-sequence .drpg-seq-title.is-long .drpg-seq-title-band { font-size: clamp(11px, calc(var(--drpg-seq-title-size) * 0.8 * var(--drpg-seq-u)), 999px); }
 #drpg-sequence .drpg-seq-title-sub {
     margin-top: calc(18 * var(--drpg-seq-u));
     font: calc(28 * var(--drpg-seq-u)) var(--drpg-seq-font);
+    /* the 11 px floor (13.11.2026): at a phone's 393x852 the line stood at 6.9 px, under one of the pixel face's pixels,
+       and Ó read as O again (glass-sweep.mjs `--accents`) */
+    font-size: clamp(11px, calc(28 * var(--drpg-seq-u)), 999px);
+    /* there the line wraps to two, and at the pixel face's own 1 the second line's marks touched the first */
+    line-height: 1.4;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--drpg-seq-light);
     text-shadow: 0 calc(2 * var(--drpg-seq-u)) 0 var(--drpg-seq-dark), 0 0 calc(10 * var(--drpg-seq-u)) var(--drpg-seq-dark);
+    /* on its own dark shard (13.11.2026; the owner's review of the exit's shots): under Stained Glass the closed
+       curtain's panes are glass, and an open window's words and a lead line read through them across the line - its
+       surround read 2.1 to 4.2 against the line's colour at 1366x768, 1st percentile; under Legacy, at a phone's width,
+       the lids' red seam ran along its first line (3.6). glass-sweep.mjs `--title-contrast`. On Legacy's lid the shard
+       is the lid's own colour, so it shows only where it covers the seam. The entry and the exit share the line. */
+    display: inline-block;
+    /* the 5 px floor: at a phone's width 6 units were 1.5 px, and the cut's slant took Ó's acute off POWRÓT
+       (glass-sweep.mjs `--accents`, as drawn) */
+    padding: max(5px, calc(6 * var(--drpg-seq-u))) calc(26 * var(--drpg-seq-u));
+    background: color-mix(in srgb, var(--drpg-seq-dark) 90%, transparent);
+    clip-path: polygon(1% 0, 100% 10%, 99% 100%, 0 90%);
 }
 /* E61-B, the verdict's cut-in: frame 5 is the board as it stands (sequence.mjs `verdictBoardElement`) */
 #drpg-sequence .drpg-seq-verdict { position: absolute; inset: 0; }
