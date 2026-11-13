@@ -19,7 +19,10 @@
  *             handbooks and README's "describe version X." agree; with
  *             `--release`, the tag is "v" + that version. These were three
  *             shell steps of release.yml and R125; the handbooks said 1.2.55
- *             under a 1.2.56 module once (audit S14-16).
+ *             under a 1.2.56 module once (audit S14-16). And (E59 C4, 13.11)
+ *             the Foundry and Daggerheart rows of README's and the two GM
+ *             handbooks' "needs" tables name module.json's minimum and
+ *             verified versions, after a planted table with three faults.
  *   notes     .github/release-notes/v<version>.md exists and is not empty.
  *   dashes    the house rule (CLAUDE.md): no U+2014 or U+2013 in the language
  *             files' decoded keys and values, the handbooks, README and the
@@ -269,9 +272,47 @@ function stamps() {
     places.push(["README.md \"describe version X.\"", readme === version, `says ${readme ?? "no version"}`]);
     for (const [where, ok, what] of places) if (!ok) problems.push(`${where} ${what}; module.json says ${version}`);
     if (RELEASE !== null && RELEASE !== `v${version}`) problems.push(`the tag asked for is "${RELEASE}", module.json says ${version}`);
+    const manifest = JSON.parse(read("module.json"));
+    const compat = compatibilityProblems(manifest, Object.fromEntries(COMPAT_FILES.map(f => [f, exists(f) ? read(f) : null])));
+    const plant = compatibilityProblems(manifest, { "plant.md": "| Foundry VTT | 14.1 or newer (verified on 14.2) |\n| Daggerheart (Foundryborne) | 2.6.5 or newer |\n" });
+    problems.push(...compat.problems);
+    if (plant.problems.length !== 3) problems.push(`the compatibility self-check's planted table gave ${JSON.stringify(plant.problems)}, not its 3 faults`);
     console.log(`stamps: module.json ${version}; ${places.filter(p => p[1]).length}/${places.length} places agree`
-        + (RELEASE !== null ? `; tag ${RELEASE}` : ""));
+        + (RELEASE !== null ? `; tag ${RELEASE}` : "")
+        + `; compatibility ${compat.rows} row(s) in ${COMPAT_FILES.length} file(s) against module.json, ${compat.problems.length} problem(s); `
+        + `self-check ${plant.problems.length}/3 planted fault(s) seen`);
     return problems;
+}
+
+/*
+ * THE VERSIONS THE MODULE NEEDS, SAID ONE WAY (E59 C4's check, 13.11.2026; M12 of the E59 plan). module.json's
+ * `compatibility` (Foundry) and its Daggerheart relationship's are the truth; README's "Needs" table and the GM
+ * handbook's, in English and in Polish, each have a row for Foundry VTT and one for Daggerheart, whose first version is
+ * the minimum and whose second the verified one ("14.364 or newer (verified on 14.365)", "14.364 lub nowsza
+ * (sprawdzone na 14.365)"). A row missing, or either number not module.json's, is red. On 421f2395 the three files'
+ * six rows agreed with module.json.
+ */
+const COMPAT_FILES = ["README.md", "docs/handbooks/gm-handbook.en.md", "docs/handbooks/gm-handbook.pl.md"];
+
+function compatibilityProblems(manifest, texts) {
+    const daggerheart = (manifest.relationships?.systems ?? []).find(s => s.id === "daggerheart")?.compatibility ?? {};
+    const wanted = [["Foundry VTT", /^\|\s*Foundry VTT\s*\|/, manifest.compatibility ?? {}], ["Daggerheart", /^\|\s*\[?Daggerheart\b/, daggerheart]];
+    const problems = [];
+    let rows = 0;
+    for (const [file, text] of Object.entries(texts)) {
+        if (text === null) { problems.push(`${file} is missing`); continue; }
+        const lines = text.split("\n");
+        for (const [name, row, compat] of wanted) {
+            const at = lines.findIndex(l => row.test(l));
+            if (at < 0) { problems.push(`${file} has no "${name}" row in its table of what the module needs`); continue; }
+            rows += 1;
+            const cell = lines[at].split("|").slice(2).join("|").replace(/\]\([^)]*\)/g, "]");
+            const [minimum, verified] = [...cell.matchAll(/\b\d+\.\d+(?:\.\d+)?\b/g)].map(m => m[0]);
+            if (minimum !== compat.minimum) problems.push(`${file}:${at + 1}: ${name}'s minimum reads ${minimum ?? "nothing"}; module.json says ${compat.minimum}`);
+            if (verified !== compat.verified) problems.push(`${file}:${at + 1}: ${name}'s verified version reads ${verified ?? "nothing"}; module.json says ${compat.verified}`);
+        }
+    }
+    return { problems, rows };
 }
 
 function notes() {
