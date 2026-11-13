@@ -31556,7 +31556,7 @@ const INVARIANTS = [
             before: [ours("r1516-a.css"), "modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ours("r1516-b.css"), ".r1516"],
             removed: 4, after: ["modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ".r1516"], taken: [0, 1, 1, 0],
             // E54 W2: scaleWindow's hooks are registered at init, after the requirements' stop, and wait on the reader of
-            // the registration they were handed (settings.mjs `registerWindows`; R4800) - idle twice over in a module that stopped.
+            // the registration they were handed (window-scale.mjs `registerWindows`; R4800) - idle twice over in a module that stopped.
             registered: [false, true], scale: "if (!windowReaders?.registered()) return;", config: "if (!settingsRegistered()) return;",
             stopRemoves: true, held: [false, true, false]
         }), "a module that stopped still styles Foundry or throws on its windows [the inline sheet's rules before | sheets and imports removed | "
@@ -40144,7 +40144,7 @@ const INVARIANTS = [
             opened: { turn: true, claim: true, objection: true }
         }), "[each footer built (action, role, default, in tree order); the Reveal's confirmation: on the kit, its buttons (action, default, role), its answer; each window opened through the kit with its footer]");
     }],
-    ["R1367 - the Stop on the sheet stays in view (E21 C5a; E21-06, audit S01-06, S12-09): settings.mjs `scaleWindow` keys its memo on the slider and the layout height (`scaleMemo`), so the same window asked again at another height is sized again and at the same numbers is not; the screen's resize asks every open sheet again (`rescaleSheets`, from `watchScreen`); the sheet's min-height is bounded by the screen; and the Stop is sticky at the bottom-left of what scrolls, in both themes", async () => {
+    ["R1367 - the Stop on the sheet stays in view (E21 C5a; E21-06, audit S01-06, S12-09): window-scale.mjs `scaleWindow` keys its memo on the slider and the layout height (`scaleMemo`), so the same window asked again at another height is sized again and at the same numbers is not; the screen's resize asks every open sheet again (`rescaleSheets`, from `watchScreen`); the sheet's min-height is bounded by the screen; and the Stop is sticky at the bottom-left of what scrolls, in both themes", async () => {
         /*
          * E21 C5a, 06.11.2026. The Stop (sheet-sidebar.mjs `injectSafeword`) stood `position: absolute` at the foot of the sheet's
          * content box, and the box was held to `min-height: 830px` - below a 768 or 800 px screen whatever the window
@@ -50971,7 +50971,7 @@ const INVARIANTS = [
         equal(/body:not\(\.drpg-theme-stained-glass\) \.application\.drpg-ui\.drpg-panel > \.window-content:has\(> \.drpg-notices-body\)\s*\{[^}]*background:\s*var\(--drpg-kit-notice-ground\)/.test(css) && /--drpg-kit-notice-ground:\s*var\(--drpg-panel-ground\)/.test(css), true,
             "the notice history window has no ground of Legacy's own");
     }],
-    ["R3508 - a character sheet opens below the curtain's band (scripts/settings.mjs `sheetBandFoot`, `scaleWindow`; E49 B leftover, S03-30): on its first render a character's sheet stands its top 8 px under the lowest of Despair's pools and the Event panel, its height cut to the screen under it; a later render moves nothing, and with no band drawn the sheet keeps Foundry's place", async () => {
+    ["R3508 - a character sheet opens below the curtain's band (scripts/window-scale.mjs `sheetBandFoot`, `scaleWindow`; E49 B leftover, S03-30): on its first render a character's sheet stands its top 8 px under the lowest of Despair's pools and the Event panel, its height cut to the screen under it; a later render moves nothing, and with no band drawn the sheet keeps Foundry's place", async () => {
         /*
          * E48 K6's run, 11.11.2026 (the B1/B2 leftovers E49's STATUS names). S03-30: "the sheet opens on the curtain: it
          * covers the Despair pools, the debate's timer and the incident's turn signal" - the remedy "the sheet's default
@@ -53984,7 +53984,7 @@ const INVARIANTS = [
     ["R4801 - scaleWindow stands once on each of the two render hooks after init (E54 W2): registered by `registerWindows`, and a second call of it changes neither the hooks nor the readers", async () => {
         /*
          * E54 W2, 13.11.2026. Beside R4800's source reading, the hooks as the harness's Foundry holds them after the
-         * module's init: `renderApplicationV2` and `renderApplication` each hold settings.mjs's `scaleWindow` exactly once,
+         * module's init: `renderApplicationV2` and `renderApplication` each hold window-scale.mjs's `scaleWindow` exactly once,
          * and calling `registerWindows` again (with readers that throw, which it must not keep) leaves the hooks and the readers so. Green on
          * 32f5093f too for the count (the import registered them once); the second call is W2's.
          */

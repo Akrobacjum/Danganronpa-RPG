@@ -21570,7 +21570,7 @@ const REGRESSIONS = [
             + "card's live region and its draw asking knowsProject; since fix FG6 the GMs' list of the fields held while secret and its rule, "
             + "and applyProjectChange telling the players]");
     }],
-    ["R1356 - the fit sweep's reach (audit/style-sweep.mjs `--fit`; E21 C1c, E21-03, E21-13, E21-14): probe 08 keeps every tabbed window once per tab, opens the player's action windows (Observe, Search, Analyze, Tamper, Rest, Projects, Palm), the notice history with 250 notices and the room's description window; the sweep reads every captured window, the kit gallery, the sheet stand-in and the glass harness's A8 frames at 1920x1080, 1366x768, 1280x800 and 1024x768, a player's at 390x844, and names its four controls; the style harness places a window and the sheet stand-in reads settings.mjs `sheetBox`", async () => {
+    ["R1356 - the fit sweep's reach (audit/style-sweep.mjs `--fit`; E21 C1c, E21-03, E21-13, E21-14): probe 08 keeps every tabbed window once per tab, opens the player's action windows (Observe, Search, Analyze, Tamper, Rest, Projects, Palm), the notice history with 250 notices and the room's description window; the sweep reads every captured window, the kit gallery, the sheet stand-in and the glass harness's A8 frames at 1920x1080, 1366x768, 1280x800 and 1024x768, a player's at 390x844, and names its four controls; the style harness places a window and the sheet stand-in reads window-scale.mjs `sheetBox`", async () => {
         /*
          * E21 C1c, 05.11.2026. "Fits on the screen" is a reading in Chromium, never a headless one: jsdom lays nothing
          * out. What this holds is the sweep's reach - that the pages, the sizes and the controls the stage names are
@@ -24353,10 +24353,10 @@ const REGRESSIONS = [
         await step;
         ok(done, "the step did not go on once the board had ended");
     }],
-    ["R4800 - the windows' size is registered at init by settings.mjs `registerWindows(readers)` (E54 W2; the plan's F2): the two render hooks of `scaleWindow` stand inside it and nowhere else at the top of the file, module.mjs calls it once under `safely(` before `registerSettings()`, and `scaleWindow` and `scaleMemo` read the slider, the layout height and the registration through the readers it was handed, not settings.mjs's own `sliderScale`, `layoutHeight` and `settingsRegistered`", async () => {
+    ["R4800 - the windows' size is registered at init by window-scale.mjs `registerWindows(readers)` (E54 W2; the plan's F2): the two render hooks of `scaleWindow` stand inside it and nowhere else at the top of the file, module.mjs calls it once under `safely(` before `registerSettings()`, and `scaleWindow` and `scaleMemo` read the slider, the layout height and the registration through the readers it was handed, not settings.mjs's own `sliderScale`, `layoutHeight` and `settingsRegistered`", async () => {
         /*
          * E54 W2, 13.11.2026. The window's size was hooked at import (`Hooks.on("renderApplicationV2", scaleWindow)` at the
-         * foot of settings.mjs), and `scaleWindow` read three of settings.mjs's own readers, so the code could not leave the
+         * foot of window-scale.mjs), and `scaleWindow` read three of settings.mjs's own readers, so the code could not leave the
          * file it hooked from without importing it back (the plan's F2: a new file may not import its facade). W2 hands
          * the readers over at init, under the module's `safely`, so a throw there costs the windows' size and not the rest
          * of init. Read off the sources, comments stripped. Red on 32f5093f: the hooks at the top level, no
@@ -24415,7 +24415,7 @@ const REGRESSIONS = [
         }), JSON.stringify({ writers: ["settings.mjs#applyTheme"], onChange: true, loop: [true, true], memo: [true, false] }),
             "{writers: the functions that write the theme's body classes; onChange: the theme setting's change runs applyTheme; loop: applyTheme forgets each open window's memo before sizing it, and the loop was read; memo: scaleMemo keys the slider and the height, and names no theme}");
     }],
-    ["R4803 - one place decides a module window's size (E54 W6, the plan's done line): every `setPosition` of scripts/ that gives a window a width or a height of a number takes it from a function of the windows' family - settings.mjs `scaledBox` (through `scaleWindow`), windows.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), settings.mjs `actionsTabHeight` and `callsHeight` (the sheet's, Q-E54-7) - or is ui-kit.mjs `settleKitWidth`'s stated width of the kit (`kitWidth`, WINDOW_WIDTHS: the owner's question, listed); `height: \"auto\"` and a `top` alone decide no size", async () => {
+    ["R4803 - one place decides a module window's size (E54 W6, the plan's done line): every `setPosition` of scripts/ that gives a window a width or a height of a number takes it from a function of the windows' family - window-scale.mjs `scaledBox` (through `scaleWindow`), windows.mjs `windowWidthFor` (through ui-kit.mjs `fitKitWidth`), window-scale.mjs `actionsTabHeight` and `callsHeight` (the sheet's, Q-E54-7) - or is ui-kit.mjs `settleKitWidth`'s stated width of the kit (`kitWidth`, WINDOW_WIDTHS: the owner's question, listed); `height: \"auto\"` and a `top` alone decide no size", async () => {
         /*
          * E54 W6, 13.11.2026. Read off the sources, comments stripped: each `setPosition(` call of scripts/ (the suite's
          * files aside) in the top-level function it stands in, its argument read for `width` and `height`; a size that is
@@ -24423,7 +24423,7 @@ const REGRESSIONS = [
          * number must call one of the family's functions (FAMILY) - or be listed in KIT, the one place outside the family
          * that states a size: ui-kit.mjs's table of the kit's widths, which a cut of ui-kit.mjs the plan does not list
          * would move (its row says why). Red on 32f5093f, where sheet-fit.mjs `holdActionsTab` and `growForCalls` worked out the
-         * sheet's height themselves; green since Q-E54-7 gave that arithmetic to settings.mjs `actionsTabHeight` and `callsHeight`.
+         * sheet's height themselves; green since Q-E54-7 gave that arithmetic to window-scale.mjs `actionsTabHeight` and `callsHeight`.
          */
         const sources = await otherSources();
         const FAMILY = ["scaledBox", "windowWidthFor", "actionsTabHeight", "callsHeight"];
@@ -24454,7 +24454,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({ itself, stale }), JSON.stringify({ itself: [], stale: [] }),
             "{itself: the functions that give a window a number of their own for its width or height; stale: a listed site that gives none}");
     }],
-    ["R4804 - the sheet's two heights are the numbers they were (E54, Q-E54-7): settings.mjs `actionsTabHeight` and `callsHeight` answer what sheet-fit.mjs `holdActionsTab` and `growForCalls` worked out inline on 32f5093f, over a grid of window heights, tab shortfalls and screen heights - fractions, a screen shorter than the margin and zero among them", () => {
+    ["R4804 - the sheet's two heights are the numbers they were (E54, Q-E54-7): window-scale.mjs `actionsTabHeight` and `callsHeight` answer what sheet-fit.mjs `holdActionsTab` and `growForCalls` worked out inline on 32f5093f, over a grid of window heights, tab shortfalls and screen heights - fractions, a screen shorter than the margin and zero among them", () => {
         /*
          * E54 Q-E54-7, 13.11.2026. The two formulas are copied from 32f5093f's sheet.mjs as they stood
          * (`Math.min(Math.ceil(now + short + 2), Math.max(0, innerHeight - 48))` and
