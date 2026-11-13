@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, settingsText, settingsFetch, settingsBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -959,7 +959,7 @@ const INVARIANTS = [
         ok(/incidentParticipants\(\)/.test(body),
             "the lock no longer asks who is in the incident");
         const settingsSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(lfText));
+            await settingsFetch());
         const fnBody = bodyOf(settingsSrc, "function incidentParticipants", { length: 400 });
         for (const who of ["killerId", "victimId", "thirdId"]) {
             ok(new RegExp(`cast\\.${who}`).test(fnBody),
@@ -1530,7 +1530,7 @@ const INVARIANTS = [
             }
         };
 
-        const [settings, sync] = await Promise.all([read("settings.mjs"), read("sync.mjs")]);
+        const [settings, sync] = await Promise.all([settingsFetch(), read("sync.mjs")]);
         ok(settings.length > 1000 && sync.length > 500,
             "could not read settings.mjs and sync.mjs to check the refresh wiring");
 
@@ -2129,7 +2129,7 @@ const INVARIANTS = [
         ok(/numeric: true/.test(projects), "players are listed in creation order, not counting order");
 
         // The stats' boxes take the slider, like the window they stand in.
-        ok(/--drpg-slider-scale/.test(src("settings.mjs")), "the slider's own factor is no longer published");
+        ok(/--drpg-slider-scale/.test(settingsBy(src)), "the slider's own factor is no longer published");
 
         // The Despair names' column is the longest name's.
         ok(/function fitNameColumn\(/.test(src("despair.mjs")), "the Despair name column is a guess again");
@@ -13634,7 +13634,7 @@ const INVARIANTS = [
             + "and grown; the bar taken away with nothing in its place; back on Stained Glass, the top and how many observers watch]");
         const styles = await moduleStyles(), EMPTY = String.raw`#drpg-popups:not\(:has\(> \.drpg-popup:not\(\.drpg-popup-parked\)\)\)`;
         const DESK = String.raw`body:not\(\.drpg-theme-stained-glass\):not\(\.drpg-stacked\) `;
-        const theming = fnSource(code("settings.mjs"), "applyTheme"), tiling = fnSource(tileFile, "ensureNoticeTile");
+        const theming = fnSource(settingsBy(code), "applyTheme"), tiling = fnSource(tileFile, "ensureNoticeTile");
         equal(J([
             new RegExp(String.raw`${DESK}#drpg-popups \{[^}]*min-width: min\(27rem, 92vw\);[^}]*min-height: var\(--drpg-corner-room\);`).test(styles),
             new RegExp(String.raw`${DESK}${EMPTY} \{[^}]*z-index: calc\(var\(--z-index-app, 30\) - 1\);`).test(styles),
@@ -19296,7 +19296,7 @@ const INVARIANTS = [
                 [...box.querySelectorAll("[data-drpg-settings-note]")].some(n => n.textContent === game.i18n.localize("DRPG.SettingsWindow.liveNote"))],
             doors: [/import\(\s*"\.\/look\.mjs"\s*\)[\s\S]{0,80}openLookDialog\(\)/.test(fnSource(src("sfx.mjs"), "renderSoundLauncher")),
                 /settings-window\.mjs[\s\S]{0,40}openSettingsWindow\(\)/.test(fnSource(src("look.mjs"), "openLookDialog")),
-                /import\(\s*"\.\/settings-window\.mjs"\s*\)\.then\(\s*m\s*=>\s*m\.openSettingsWindow\(\)/.test(src("settings.mjs"))]
+                /import\(\s*"\.\/settings-window\.mjs"\s*\)\.then\(\s*m\s*=>\s*m\.openSettingsWindow\(\)/.test(settingsBy(src))]
         };
         equal(JSON.stringify(read), JSON.stringify({ same: true, gmOnly: [true, false], world: 0, look: LOOK.map(() => 1), volumes: ["vol:sound", "vol:music"], lines: [1, true, true], doors: [true, true, true] }),
             "{one markup whether the user may modify settings or not; the verbose log's row for a GM, for a player; world rows; each of the Look window's settings' rows; the volume sliders; [the scale's line, the list's foot, the volumes' line]; "
@@ -32830,7 +32830,7 @@ const INVARIANTS = [
             ? [S.settingsRegistered(new Map()), S.settingsRegistered(game.settings.settings)] : null;
 
         const sources = new Map(await otherSources());
-        const settings = stripComments(sources.get("settings.mjs") ?? "");
+        const settings = stripComments(settingsText(sources));
         const module = stripComments(sources.get("module.mjs") ?? "");
         must(settings.length && module.length, "settings.mjs or module.mjs is not among the module's sources - this would measure nothing");
         const firstLine = body => (body.match(/\{\s*([^\n]*)/)?.[1] ?? "").trim();
@@ -35140,7 +35140,7 @@ const INVARIANTS = [
         equal(stableJson([S.clearStaleSilences(storage), [...held.keys()], S.clearStaleSilences(storage)]),
             stableJson([["recommendsSilenced"], ["danganronpa-rpg.systemWarningSilenced"], []]),
             "the stale silence is not cleared, once, leaving the live one [cleared | left | again]");
-        const settingsSrc = (await moduleSources()).get("settings.mjs") ?? "";
+        const settingsSrc = settingsText(await moduleSources());
         ok(/clearStaleSilences\s*\(/.test(stripComments(fnSource(settingsSrc, "registerSettings"))), "the stale silence is not cleared at start");
         const part = D.REPORT_SECTIONS.find(s => s.id === "silences");
         const text = part ? String(await part.run({ gm: true })) : "";
@@ -37576,7 +37576,7 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const kindsOf = bodyOf(stripComments(sources.get("sync.mjs") ?? ""), "const SETTING_KINDS", { until: "};" });
         const kindOf = key => kindsOf.match(new RegExp(`^\\s*${key}:\\s*SYNC\\.(\\w+)`, "m"))?.[1] ?? null;
-        const cast = bodyOf(stripComments(sources.get("settings.mjs") ?? ""), "const onCastChange", { until: "};" });
+        const cast = bodyOf(stripComments(settingsText(sources)), "const onCastChange", { until: "};" });
         const listens = bodyOf(stripComments(sources.get("visibility.mjs") ?? ""), "export function registerVisibility", { until: "\n}\n" });
         got.routes = {
             murderState: kindOf("murderState"), trialQueue: kindOf("trialQueue"), trialProgress: kindOf("trialProgress"),
@@ -38636,7 +38636,7 @@ const INVARIANTS = [
          */
         const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.diceLookKind}`) ?? null;
         const src = stripComments((await moduleSources()).get("dice-sync.mjs") ?? "");
-        const settingsSrc = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        const settingsSrc = stripComments(settingsText(await moduleSources()));
         must(src.length > 1000 && settingsSrc.length > 1000, "dice-sync.mjs or settings.mjs did not load - this test reads nothing");
         const switches = /const SWITCHES = \[([^\]]*)\]/.exec(src)?.[1] ?? "";
         const table = /const TABLE_SETTINGS = \[([^\]]*)\]/.exec(settingsSrc)?.[1] ?? "";
@@ -40843,10 +40843,10 @@ const INVARIANTS = [
         }
         const sources = new Map(await moduleSources());
         const src = file => stripComments(sources.get(file) ?? "");
-        must(src("glass.mjs").length > 10000 && src("settings.mjs").length > 10000, "glass.mjs or settings.mjs read nothing - this test would read nothing");
+        must(src("glass.mjs").length > 10000 && settingsBy(src).length > 10000, "glass.mjs or settings.mjs read nothing - this test would read nothing");
         const schedule = lineAround(src("glass.mjs"), src("glass.mjs").indexOf("const schedule = "));
         const auto = S.autoScale();
-        equal(stableJson({ steps, schedule: /keyboardUp\(\)/.test(schedule), overlay: /virtualKeyboard;\s*if \(vk\) vk\.overlaysContent = true/.test(fnSource(src("settings.mjs"), "watchScreen")) }), stableJson({
+        equal(stableJson({ steps, schedule: /keyboardUp\(\)/.test(schedule), overlay: /virtualKeyboard;\s*if \(vk\) vk\.overlaysContent = true/.test(fnSource(settingsBy(src), "watchScreen")) }), stableJson({
             steps: [["desk", false, false, false, 0.7], ["typing, 460 high", false, false, true, 0.7], ["typing, back", false, false, false, 0.7],
                 ["no field, 460 high", true, false, false, 0.7], ["typing, width changed", true, true, false, 0.7], ["desk again", false, false, false, 0.7]],
             schedule: true, overlay: true
@@ -41676,7 +41676,7 @@ const INVARIANTS = [
             read.sameHeight = asked.length - second;
             read.differs = S.scaleMemo(1, 768) !== S.scaleMemo(1, 800);
         }
-        const settingsText = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(lfText));
+        const settingsText = stripComments(await settingsFetch());
         read.watcher = /\brescaleSheets\s*\(/.test(bodyOf(settingsText, "function watchScreen() {", { until: "\n}\n" }));
         const C = await styleCascade();
         read.paint = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
@@ -55364,7 +55364,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 1, "window-scale.mjs": 2, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -56429,7 +56429,7 @@ const INVARIANTS = [
          */
         const { CLEANUP, PRICE_CHAINS } = await import("./config.mjs");
         const src = await moduleSources();
-        const code = ["cleanup.mjs", "gm-stores.mjs", "settings.mjs"].map(f => stripComments(src.get(f) ?? ""));
+        const code = ["cleanup.mjs", "gm-stores.mjs", "settings.mjs", "window-scale.mjs"].map(f => stripComments(src.get(f) ?? ""));
         must(code.every(c => c.length > 5000), "cleanup.mjs, gm-stores.mjs or settings.mjs was not read - this would measure nothing");
         const langs = [];
         for (const lang of ["en", "pl"]) {
