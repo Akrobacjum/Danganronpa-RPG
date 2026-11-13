@@ -40578,12 +40578,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["giving a Monocub Hope, road by road: the Students window's Give and a GM's answer to its Ask for Hope owe the Despair until the next time of day and pay it then, Fuel a Monocub's Call is charged at once, and a GM's own write of its Hope takes no Despair (the owner's report of 13.11.2026 on 1.2.112)", async () => {
+    ["giving a Monocub Hope, road by road: the Students window's Give, Give 2 pressed on the chat card of its Ask for Hope and a GM's answer to that ask owe the Despair until the next time of day and pay it then, Fuel a Monocub's Call is charged at once, and a GM's own write of its Hope takes no Despair (the owner's report of 13.11.2026 on 1.2.112)", async () => {
         /*
          * The owner, 13.11.2026, at a table on 1.2.112: "Giving a Monocub Hope doesn't take Despair from the GM." Measured
          * here road by road, on this GM, a Monokuma's pool of this GM's at 5 owing nothing and a Monocub with no Hope:
          * - window: the Students window's Give pressed drawn, 2 from this GM's pool (gm-students.mjs, `convertDespairToHope`);
-         * - ask: this GM's Give 2 on the Monocub's Ask for Hope (monocub.mjs `answerHopeAsk`, E72 C5);
+         * - card: the road the owner took - the Monocub's Ask for Hope posted (`performCubAbility`, "askHope"), its card's
+         *   Give 2 pressed through the card's own click handler (messenger-app.mjs `wireCallActions`, which the chat log's
+         *   `renderChatMessageHTML` and the messenger both put on a card), claimed and ruled (`claimCard`, `ruleCubHope`);
+         * - ask: this GM's Give 2 on the Monocub's Ask for Hope called directly (monocub.mjs `answerHopeAsk`, E72 C5);
          * - fuel: Fuel a Monocub bought for the Monokuma actor whose pool that is (calls.mjs `spendDespairCallFor`);
          * - sheet: this GM's own write of the Monocub's Hope, the write Daggerheart's `toggleHope` on the Hope pips makes
          *   (`system.resources.hope.value`; read off the module's notes, not off Daggerheart's source, which the harness
@@ -40606,6 +40609,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { trustedWrite } = await import("./resource-guard.mjs");
         const { resourceValue, resourceMax } = await import("./character.mjs");
         const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
         const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)?.id === game.user.id) ?? null;
         must(Boolean(kuma), "no Monokuma actor draws on this GM's pool - this would measure nothing");
         must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
@@ -40635,6 +40640,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await until(() => resourceValue(cub, "hope") === 2, 4000);
                 for (const a of alive()) await a.close().catch(() => {});
             },
+            card: async () => {
+                const before = new Set(game.messages.contents.map(m => m.id));
+                const asked = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+                await settle();
+                const card = game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes("data-drpg-call=\"cubGiveHope\""));
+                must(asked?.done && card, "the Ask for Hope posted no card with a Give - this would measure nothing");
+                const body = document.createElement("div");
+                body.innerHTML = String(contentOf(card) ?? "");
+                wireCallActions(body, card);
+                const give2 = body.querySelector('[data-drpg-call="cubGiveHope"][data-n="2"]');
+                must(give2, "the card has no Give 2 - this would measure nothing");
+                give2.click();
+                await until(() => resourceValue(cub, "hope") === 2 && !cubStore.get(cub.id)?.askOpen, 4000);
+            },
             ask: () => M.answerHopeAsk(cub, 2),
             fuel: () => spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: cub } }),
             sheet: () => cub.update({ [HOPE]: 2 })
@@ -40648,6 +40667,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(M.isMonocub(cub) && M.purseOf(cub) === 0, `${cub.name} is no Monocub, or holds a purse - this would measure nothing`);
             must((resourceMax(cub, "hope") || STARTING.hopeMax) >= 2, `${cub.name}'s Hope maximum is under 2 - this would measure nothing`);
             for (const [road, give] of Object.entries(roads)) {
+                if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
                 await dropOwed();
                 await D.setDespair(donor.id, 5);
                 await trustedWrite(cub, { [HOPE]: 0 }, { reason: "gmRuling" });
@@ -40679,6 +40699,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({
             window: [[5, 2, 2], [3, 0]],
+            card: [[5, 2, 2], [3, 0]],
             ask: [[5, 2, 2], [3, 0]],
             fuel: [[4, 0, 1], [4, 0]],
             sheet: [[5, 0, 2], [5, 0]]

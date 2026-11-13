@@ -26753,8 +26753,8 @@ const INVARIANTS = [
     ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 38 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
         const TIPS = [
-            ["DRPG.Tips.Gm.minusTooltip","despair.mjs","buildRow"],
-            ["DRPG.Tips.Gm.plusTooltip","despair.mjs","buildRow"],
+            ["DRPG.Tips.Gm.minusTooltip","despair.mjs","despairRowOf"],
+            ["DRPG.Tips.Gm.plusTooltip","despair.mjs","despairRowOf"],
             ["DRPG.Tips.Gm.whichStudentTooltip","gm-items.mjs","openItemManager"],
             ["DRPG.Tips.Gm.whichTableTooltip","gm-items.mjs","giveExistingPane"],
             ["DRPG.Tips.Gm.categoryTooltip","gm-items.mjs","giveCreatePane"],
