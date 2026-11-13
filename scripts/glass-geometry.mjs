@@ -1,10 +1,10 @@
 /**
  * The curtain cut, pure (E54, the plan G1 and G5): what the glass is cut into for a screen and the blocks on it,
  * from arguments alone - the convex-polygon helpers, the slope field, the column and band cutters, the partitions
- * (`windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands`), the voice tile settle, the turns
- * and the affine math of the turn. Moved out of glass.mjs, which re-exports what it exported, measures the page for
- * the cut (`stackPage`, `deskPage`, `curtainPage`) and writes what the cut gives back (`writeCut`). It reads no page
- * and no state of glass.mjs: R4805.
+ * (`windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands`) and the affine math of the turn; the
+ * voice tile's settle and a block's turn it reads from glass-blocks.mjs. Moved out of glass.mjs, which exported none
+ * of these names, measures the page for the cut (`stackPage`, `deskPage`, `curtainPage`) and writes what the cut
+ * gives back (`writeCut`). It reads no page and no state of glass.mjs: R4805.
  */
 
 import { settleVoice, blockTurns } from "./glass-blocks.mjs";

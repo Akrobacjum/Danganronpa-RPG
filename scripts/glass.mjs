@@ -16,7 +16,9 @@
  * Nothing here touches the fog, the canvas or another module's window. When
  * the theme is "Monokuma Legacy" this file mounts nothing.
  *
- * E54 (the plan G1, G5): the curtain cut and the pure helpers it reads live in glass-geometry.mjs, re-exported here; this file keeps the page: measuring it, painting, the turn and the lifecycle.
+ * E54 (the plan G1, G5): the curtain cut and the pure helpers it reads live in glass-geometry.mjs and glass-blocks.mjs,
+ * imported here (of their names this file exported only `blockTurns`, re-exported); it keeps the page: measuring it,
+ * painting, the turn and the lifecycle.
  */
 
 import { SETTINGS, getSetting, shortScreen, keyboardUp, BREAKPOINTS } from "./settings.mjs";

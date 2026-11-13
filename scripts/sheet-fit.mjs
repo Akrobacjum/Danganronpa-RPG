@@ -1,7 +1,7 @@
 /**
- * How the sheet fits its window (E54, the sheet's family): the Loadout tab left, a tab's scroll kept, the action
- * tiles' fit (`fitActionTiles`, `fitTileText`, `watchTileFit`, `LONGEST_TILE_WORD`, `softWrap`) and the sheet's height
- * held and grown for the Calls (`holdActionsTab`, `growForCalls`).
+ * How the sheet fits its window (E54, the sheet's family): the Loadout tab left, a tab's scroll kept, the system's
+ * create buttons removed (`removeSystemCreators`), the action tiles' fit (`fitActionTiles`, `fitTileText`, `watchTileFit`,
+ * `LONGEST_TILE_WORD`, `softWrap`) and the sheet's height held and grown for the Calls (`holdActionsTab`, `growForCalls`).
  */
 
 import { ACTIONS, MONOCUB, HOPE_CALLS, DESPAIR_CALLS, SHEET_SIZE } from "./config.mjs";

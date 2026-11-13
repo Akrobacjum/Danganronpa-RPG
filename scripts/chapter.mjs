@@ -29,7 +29,7 @@
  * truth-bullets.mjs), and only a GM may write to another player's sheet.
  *
  * E54 (the plan's D1, D2): a death lives in death.mjs and a body found in body.mjs, both re-exported here; this
- * file keeps the chapter's end and the next session.
+ * file keeps the chapter's end: the reveal, the sweep, its steps and its record.
  */
 
 import { MODULE_ID, CHAPTERS_PER_SEASON } from "./config.mjs";

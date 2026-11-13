@@ -1,6 +1,6 @@
 /**
- * The inventory (E54, the sheet's family): the system's create buttons removed, the groups the player chose,
- * the rows and their buttons (use, equip, discard, stash, present, hand over; `guardRow` among them), the open stashes and
+ * The inventory (E54, the sheet's family): the groups the player chose, the rows and their buttons (use, equip,
+ * discard, stash, present, hand over; a row's guard is sheet-sidebar.mjs `guardRow`), the open stashes and
  * the Truth Bullets' groups, order and folds (`bulletGroups`).
  */
 
