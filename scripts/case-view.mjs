@@ -34,8 +34,18 @@
  * THE COLUMNS 80 PX APART (the owner, 13.11.2026: "Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko
  * siebie. Chodzi o odstep miedzy kolumnami"): 48 px until then. Measured in Chromium at 1366x768 (STATUS): the Map's
  * three columns 840 -> 904 px in its 972 px viewport, with a node open 952 -> 1016 px (dragged to, as a tall node is).
+ *
+ * 200 PX SINCE THE OWNER'S SECOND LOOK (13.11.2026, a 1.2.112 table: "The columns are still too close to each other"; five
+ * columns, the lines crossing densely in a gap a third of a node wide). Measured in Chromium on a built case of five
+ * columns and 42 lines (12 Remnants, deductions of 5, 4, 3 and 2, two counters): widening a gap does not change how many
+ * lines cross in it - 64 and 63 in the first two at 80 px, 64 and 70 at 200, the same order of rows - it gives them room:
+ * the gap 0.33 -> 0.83 of a node, the smallest crossing angle in the first gap 6 -> 13 degrees. Its price is the fit:
+ * at 1920x1080 under glass that case fits at 0.623 -> 0.480 (the node text 13.1 -> 10.1 px); at 1366x768 its fit is
+ * bound by the height and stays 0.308. 160 px gave 0.67 of a node and 11 degrees; 240 px one node and 15 degrees, at a
+ * fit of 0.445. The curves keep their shape (a spread bend moved the crossings out of the gap's middle fifth, 48% ->
+ * 12%, but added crossings and left a crossing at 3 degrees).
  */
-export const MAP_GEOMETRY = Object.freeze({ nodeW: 240, nodeH: 54, openW: 352, colGap: 80, pitch: 66, pad: 12, head: 28 });
+export const MAP_GEOMETRY = Object.freeze({ nodeW: 240, nodeH: 54, openW: 352, colGap: 200, pitch: 66, pad: 12, head: 28 });
 
 /** A node's size from `sizes` (a Map or an object of id to `{ w, h }`); a size not read, or read as 0 (jsdom), is the least. */
 function sizeOf(sizes, id, g) {
@@ -108,8 +118,13 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0 } = 
 export function edgePath(from, to, g = MAP_GEOMETRY) {
     const fw = from.w ?? g.nodeW, fh = from.h ?? g.nodeH, th = to.h ?? g.nodeH;
     const y1 = from.y + fh / 2, y2 = to.y + th / 2;
+    /* A BRACKET STANDS OUT AS FAR AS IT IS LONG (13.11.2026): 12 px from its column, and a share of the gap's half more
+       the longer it is (a whole share from six rows), so a bracket inside a longer one stands inside it and two of
+       different lengths never share one vertical line. At `colGap / 4` every bracket of a column stood on one line
+       (Chromium, the built case: C2 -> D2a and C3 -> D2c read as one dashed bar). */
     if (to.x <= from.x) {
-        const x = Math.min(from.x, to.x) - Math.round(g.colGap / 4);
+        const reach = Math.min(1, Math.abs(y2 - y1) / (6 * g.pitch));
+        const x = Math.min(from.x, to.x) - Math.round(12 + reach * Math.max(0, g.colGap / 2 - 24));
         return `M${from.x} ${y1} H${x} V${y2} H${to.x}`;
     }
     const x1 = from.x + fw, x2 = to.x;

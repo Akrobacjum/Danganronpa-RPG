@@ -23819,7 +23819,7 @@ const REGRESSIONS = [
         }), JSON.stringify({
             at: [{ x: g.pad, y: g.head + g.pad }, { x: g.pad + g.nodeW + g.colGap, y: g.head + g.pad }, g.head + g.pad + layout.gapAt * g.pitch + Math.round(g.nodeH / 2)],
             // a node's least width is MAP_GEOMETRY's (196 at C5, 240 since the E97 fix): the curve's start and middle follow it
-            edges: [`M${g.nodeW} 27 C${Math.round((g.nodeW + 244) / 2)} 27 ${Math.round((g.nodeW + 244) / 2)} 93 244 93`, `M244 159 H${244 - Math.round(g.colGap / 4)} V93 H244`],
+            edges: [`M${g.nodeW} 27 C${Math.round((g.nodeW + 244) / 2)} 27 ${Math.round((g.nodeW + 244) / 2)} 93 244 93`, `M244 159 H${244 - Math.round(12 + (66 / (6 * g.pitch)) * (g.colGap / 2 - 24))} V93 H244`],
             states: [["S.T1", "held"], ["S.T2", "onMap"], ["key:0", "planned"], ["d-a", "schema"], ["c-b", "schema"]],
             open: {
                 buttons: layout.columns.flat().map(id => {
@@ -24349,6 +24349,27 @@ const REGRESSIONS = [
             jsdom: { width: "", face: ["is-selected", "is-editing"] },
             css: { fields: "240px", node: "240px", boxes: true }
         }), "{the fields' width with the clicked face 240 px wide, and 300 px (its classes put back after the reading); a face reading 0 writes none; css: the fields' width, the node's, the text boxes filling the fields}");
+    }],
+    ["R5822 - a column's brackets stand apart (the owner, 13.11.2026, at a 1.2.112 table: \"The columns are still too close to each other\"; case-view.mjs `edgePath`): a bracket between two nodes of one column stands to their left, further out the longer it is, so one inside a longer one stands inside it and two of different lengths never share a vertical line; the longest stands inside the gap, short of the column before; a curve between columns keeps its shape", async () => {
+        /*
+         * fix-113d, 13.11.2026. Pure. Red at ed428f63: every bracket of a column stood at `colGap / 4` to its left, so a
+         * counter beside the second row and one beside the fifth drew one vertical line (Chromium, the built case of five
+         * columns: C2 -> D2a and C3 -> D2c read as one dashed bar).
+         */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const colX = g.pad + g.nodeW + g.colGap;
+        const at = row => ({ x: colX, y: g.head + g.pad + row * g.pitch, w: g.nodeW, h: g.nodeH });
+        const runX = d => Number(String(d).match(/^M\S+ \S+ H(-?[\d.]+) V/)?.[1]);
+        const short = runX(V.edgePath(at(4), at(3))), mid = runX(V.edgePath(at(5), at(2))), long = runX(V.edgePath(at(9), at(0))), longer = runX(V.edgePath(at(12), at(0)));
+        const curve = V.edgePath({ x: g.pad, y: 0 }, { x: colX, y: 66 });
+        const before = g.pad + g.nodeW;
+        equal(JSON.stringify({
+            apart: [short > mid, mid > long, long === longer],
+            inGap: [short < colX, long > before + 8],
+            curve: /^M\d+ \d+ C\d+ \d+ \d+ \d+ \d+ \d+$/.test(curve)
+        }), JSON.stringify({ apart: [true, true, true], inGap: [true, true], curve: true }),
+            `{brackets of one, three and nine rows each further out, nine and twelve at the most (x ${short}, ${mid}, ${long}, ${longer}); the shortest left of its column, the longest 8 px or more right of the column before (${before}); a curve between columns}`);
     }],
     ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
