@@ -141,12 +141,14 @@ export const FLOWS = Object.freeze([
     // tier 2 E70-T12 from a player's owner and from another's.
     // E73 C2, C5: a participant with no hall token picking a side (`trial.side`, trial-zones-ui.mjs `offerSidePick`) and a
     // Scrum speaker's thesis (`trial.keyword`); 68-trial-zones drives both from the players.
+    // E40 C5 (13.11.2026): 18-trial drives the trial step by step - real ballots from the three players, the count, a
+    // wrong verdict, the close - with a player leak scan after every step.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, an Objection raised, proved and re-pointed, and a round's turns",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
             "trial.claim", "trial.present", "trial.side", "trial.keyword"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "18-trial", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
     // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
     // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
     // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the

@@ -390,6 +390,9 @@ Hooks.once("ready", () => {
     // wraps again at ready) among them, so the rows read the load as it stands. Writes nothing to the world. The road
     // also hands rooms.mjs the call for a Levels throw met later in the load (E52 fix round, G-2).
     if (isPrimaryGm()) import("./patches.mjs").then(m => m.announceAtReady()).catch(err => error("Could not run the contract with Foundry and Daggerheart", err));
+    // The state's invariants (E40 C3; plan E40 item 2): read once at the primary GM's start, each problem a warning on
+    // this GM's console and nothing else - it writes nothing, tells nobody and stops nothing (state-check.mjs).
+    if (isPrimaryGm()) import("./state-check.mjs").then(m => m.checkState()).catch(err => error("Could not read the state's invariants", err));
     // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.
     announceRollDraw().catch(err =>
         error("Could not say that rolls are not drawn by the GM", err));

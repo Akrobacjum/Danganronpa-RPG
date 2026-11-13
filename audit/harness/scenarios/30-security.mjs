@@ -5646,6 +5646,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: the GM's copy of a bullet's fields is not written into the Truth Bullet answer key",
         inLedger === 0 && guardRan.bullets > 0, JSON.stringify({ inLedger, bullets: guardRan.bullets }));
 
+    /* The bullet's edits' last leftover (E40 C3, 13.11.2026). The guard's copy keeps every guarded field, one the bullet
+       never had as null (truth-bullets.mjs `guardedValues`), and the GM's put-right above wrote that copy back whole, so
+       Botan's bullet ends the phase holding `remnantRef: null` - a key world-secrets.mjs says no Item may carry, which the
+       cluster's state check reads after this scenario. The checks of the phase need the key in that copy (taken out of
+       the put-right, the three whole-list checks read "no record to restore", measured 13.11.2026), so it goes here, once
+       they have run, by the GM's own `unsetFlag`. Nothing after this reads the bullet. */
+    const leftover = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        const had = b ? Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent" : "no bullet";
+        if (had === null) await b.unsetFlag("${MOD}", "remnantRef");
+        return { had, now: b ? (Object.hasOwn(b.flags?.["${MOD}"] ?? {}, "remnantRef") ? b.flags["${MOD}"].remnantRef : "absent") : "no bullet" };`);
+    note("the bullet's remnantRef left by the put-right, taken off (E40 C3)", JSON.stringify(leftover));
+
     /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).
      *

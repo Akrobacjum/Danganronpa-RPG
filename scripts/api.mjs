@@ -78,6 +78,7 @@ import {
 import { diagnoseLive } from "./live.mjs";
 import { openTimes } from "./open-cost.mjs";
 import { diagnoseDiceLook } from "./dice-look.mjs";
+import { checkState } from "./state-check.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
 import {
@@ -1173,6 +1174,9 @@ export const DrpgApi = {
     /** Why do the dice look different between browsers (E60 C5b)? Run it on each browser: it reads that browser and,
      *  on a GM, every user's Dice So Nice flags; `{ messageId, test: true }` reads that roll and throws a test here. */
     diagnoseDiceLook,
+    /** This world's invariants read now (E40 C2): what no world data may hold, no passage or Frisk flag on a document, the
+     *  clock's phase and counters - `{ ok, problems }`, each problem on the console. GM only; reads, writes nothing. */
+    checkState,
     /** The players' rolls the GM drew whose statistic, modifiers or advantage it did not
      *  expect (E08+E28 C12b), newest first, from the last Reroll window's minutes. GM only. */
     rollFlags,

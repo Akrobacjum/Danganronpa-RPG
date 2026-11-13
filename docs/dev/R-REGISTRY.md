@@ -32,7 +32,7 @@ Next free: R5791. Reserved and unused: none.
 | R22 | 0 | <=1.2.50 | every name this module calls is a name it has |
 | R23 | 0 | <=1.2.50 | a document hook that checks for a GM checks for THE GM |
 | R24 | 0 | <=1.2.50 | an action that swings a weapon knows which weapon it swung |
-| R25 | 0 | <=1.2.50 | the action budget comes back when the Eclipse opens, and only there |
+| R25 | 0 | <=1.2.50 | the action budget comes back when the Eclipse opens, and only there (removed in E54) |
 | R26 | 0 | <=1.2.50 | a critical's Hope is paid once, by one payer |
 | R27 | 0 | <=1.2.50 | the state colour's sweep has no specificity to win with |
 | R28 | 0 | <=1.2.50 | "Move the clock on" runs the Eclipse |
@@ -62,7 +62,7 @@ Next free: R5791. Reserved and unused: none.
 | R52 | 0 | <=1.2.50 | the high-contrast switch states no type size |
 | R53 | 0 | <=1.2.50 | the Tamper tile's late answer does not eat the reason it is locked |
 | R54 | 0 | <=1.2.50 | the clock's chevrons hold one press at a time, and report a failure |
-| R55 | 0 | <=1.2.50 | a rewind is refused before it cancels anything |
+| R55 | 0 | <=1.2.50 | a rewind is refused before it cancels anything (removed in E54) |
 | R56 | 0 | <=1.2.50 | the body discovery refuses the dark before it asks anything, and the button says so |
 | R57 | 0 | <=1.2.50 | the case dashboard keeps what the GM did to it across a redraw |
 | R58 | 0 | <=1.2.50 | the trial console counts the seconds, a ballot is an event, and +30 s means thirty |
@@ -76,7 +76,7 @@ Next free: R5791. Reserved and unused: none.
 | R66 | 0 | <=1.2.50 | the Players window writes what it was told, and offers the Despair that is left |
 | R67 | 0 | <=1.2.50 | a repair moves the flags and says nothing |
 | R68 | 0 | <=1.2.50 | Edit campaign offers the chapter the clock is actually on |
-| R69 | 0 | <=1.2.50 | the Eclipse warning fires on a clock that moved |
+| R69 | 0 | <=1.2.50 | the Eclipse warning fires on a clock that moved (removed in E54) |
 | R70 | 0 | <=1.2.50 | Enter in a field that names a button presses that button |
 | R71 | 0 | <=1.2.50 | the cue pane is built on every redraw, not baked when the window opened |
 | R72 | 0 | <=1.2.50 | a tier pool a GM makes is filed like the installer's own |
@@ -94,7 +94,7 @@ Next free: R5791. Reserved and unused: none.
 | R84 | 0 | <=1.2.50 | a request that never went is not reported as sent, and a tile states the rule |
 | R85 | 0 | <=1.2.50 | a Call still applies when the roll window is unlocked |
 | R86 | 0 | <=1.2.50 | a Monocub may cross a room, and that is the list |
-| R87 | 0 | <=1.2.50 | a trace of unstated origin is not a free Analyze |
+| R87 | 0 | <=1.2.50 | a trace of unstated origin is not a free Analyze (removed in E54) |
 | R88 | 0 | <=1.2.50 | a refusal hands back what was paid, and an Observe miss is not a refusal |
 | R89 | 0 | <=1.2.50 | an Observe declaration outlives the browser that made it |
 | R90 | 0 | <=1.2.50 | a region that redraws itself comes back dressed |
@@ -102,7 +102,7 @@ Next free: R5791. Reserved and unused: none.
 | R92 | 0 | <=1.2.50 | a reshaped trace waits for a ruling |
 | R93 | 0 | <=1.2.50 | the Event panel sits under Despair in both themes, and an NPC sheet keeps its rows |
 | R94 | 0 | <=1.2.50 | the GM's trace card declares what it reads |
-| R95 | 0 | <=1.2.50 | a window under glass arrives frosted, not sharp and then frosted |
+| R95 | 0 | <=1.2.50 | a window under glass arrives frosted, not sharp and then frosted (removed in E54) |
 | R96 | 0 | <=1.2.50 | a project token opens a card that names only what its reader knows |
 | R97 | 0 | <=1.2.50 | an assistant GM's Despair goes to the primary, and cannot loop |
 | R98 | 0 | <=1.2.50 | a Level Up offer lives where no player can write it or read somebody else's |
@@ -1433,6 +1433,10 @@ Next free: R5791. Reserved and unused: none.
 | R4934 | 1 | E54 | a browser that loads within 10 minutes of a sequence's event plays it once, and after 10 minutes nothing (gaps-111; the owner's answer to Q-E61-1 and Q-E94-4, 13.11.2026: "Przez 10 minut"): sequence.mjs `lateSequence` picks, from the clock and the chat this browser holds, the newest event under 10 minutes old - the trial's entry, the verdict's cut-in, the start-of-day board - that this browser has not played, and only from what this browser would have seen live |
 | R5000 | 0 | E54 | D153 across two GMs (E38; E60's Open 50): Give a Truth Bullet runs its give on the primary - gm-items.mjs `giveTruthBulletDialog` asks bridge-asks.mjs `requestGiveBullet` and calls no `giveBullet(` itself; the bridge's row `bullet.give` takes a GM alone (its first guard `gmOnly`), answers a reply, and its run makes the bullet through `giveBullet`, in the receiver's finds' queue on the primary's browser |
 | R5001 | 0 | E54 | a private card's author keeps its words for a reader who was away (E38): secret.mjs `post`, when the poster is a GM and not among the recipients, calls `remember(` with an `authorHold` flag; `secretHtml` and `cardMeta` give that author nothing (they return for `authorHold`), and `answerWordsRequest` serves the card's readers from the author's store as before |
+| R5100 | 1 | E40 | the state's invariants are read in one place (E40 C2): state-check.mjs `stateProblems` finds nothing on a clean snapshot, a world secret by world-secrets.mjs's rule, a `passage*` or `frisk*` module flag on an actor, a token's delta, a region and a wall, and a clock with a phase of no `PHASES` key or a day of 0; `checkState()` reads this GM's world with no problem, says nothing quiet, and answers null on a player's browser |
+| R5150 | 0 | E40 | the windows that need Enter to press a button name it: the Mastermind's give-Hope row and the Sound window's cue picker |
+| R5170 | 0 | E40 | the clock's band names what this browser hears, not what the document says: a sound its playlist marks playing with no audio of its own playing here is not named, one this browser plays is, and the document's playlist flag names nothing (E40 item 4: R78's first half, driven) |
+| R5171 | 0 | E40 | a window reopened from its own answer closes the old copy first: `reopen` closes every open window of the class, without its transition, waits for each close before it calls the opener, leaves every other window standing, and answers what the opener answered (E40 item 4: R73's first half, driven) |
 | R5200 | 1 | E54 | the private cards' and the traps' diagnoses are on game.drpg (E43; the plan's item 4): `game.drpg.diagnoseSecrets()` answers secret.mjs `diagnoseSecrets`, and `game.drpg.diagnoseTraps()` answers traps.mjs `diagnoseTraps` on a GM and warns and answers null on a player (read in its line), as the diagnostics window's part runs it for the GMs alone |
 | R5201 | 1 | E54 | the GM's voice plan groups the accounts by where each is sent, lists what is sent nowhere apart, and has a section for the accounts with no character (E43; the plan's item 4): a Spectator talking with the Spectators under the Spectators' room, not its token's; a character whose owner is offline and one its account's ranking passed over under "(sent nowhere)"; an account with no character under ACCOUNTS WITH NO CHARACTER with where it goes |
 | R5202 | 1 | E54 | the voice plan's conflicts are only the accounts the ranking settled by actor id between two places (E43; the plan's item 4: no false "contested"): voice.mjs `contestedOf` names an account with two students in two rooms, and not one whose living student outranks a dead one, nor one whose spare stands on no room - the warning's own advice - nor a dead victim's account while the victim keeps its room by A9's rule; voiceTargets reads it |
