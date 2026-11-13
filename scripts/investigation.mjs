@@ -2653,9 +2653,34 @@ function readDashboardForm(d) {
      * been rebuilt since the window opened, so the rows on
      * screen are the ones to walk, not the ones it opened with.
      */
+    const form = d.element.querySelector("form");
+    const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+    return {
+        // The Final Key Remnant fields ride the same Save the
+        // whole dashboard uses - same reasoning their old home
+        // gave for riding Apply: planting the endgame clue must
+        // not need a second button to remember.
+        finalRoom: q("finalRoom")?.value ?? "",
+        finalSceneId: q("finalRoom")?.selectedOptions?.[0]?.dataset.scene ?? "",
+        finalVis: q("finalVis")?.value || "evident",
+        finalAuthor: q("finalAuthor")?.value ?? "",
+        finalName: q("finalName")?.value.trim() ?? "",
+        finalText: q("finalText")?.value.trim() ?? "",
+        finalAnalysis: q("finalAnalysis")?.value.trim() ?? "",
+        finalNote: q("finalNote")?.value.trim() ?? "",
+        ...readCaseFields(form)
+    };
+}
+
+/**
+ * The case's fields inside `form`, the window's form or one open node's editor: the traces' rows, the case schema's
+ * fields and the Key slots' rows, each field only where the GM changed it. No Final Key Remnant field: a node's save
+ * (`saveOpenNode`) reads its editor here, so a field of the Table that a node does not hold is never read as empty and
+ * written by a node's close (perf-open's review for 1.2.111, section 2; 13.11.2026).
+ */
+function readCaseFields(form) {
     const traces = allTraces();
     const plan = keyPlan();
-    const form = d.element.querySelector("form");
     const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
     /* ONLY WHAT THE GM CHANGED, AND WHAT IT WAS DRAWN FROM (E09 C3, S05-26). Every field read
        back as it stood, and Save wrote whatever differed from the world at that moment - so a
@@ -2677,18 +2702,6 @@ function readDashboardForm(d) {
         return fields;
     };
     return {
-        // The Final Key Remnant fields ride the same Save the
-        // whole dashboard uses - same reasoning their old home
-        // gave for riding Apply: planting the endgame clue must
-        // not need a second button to remember.
-        finalRoom: q("finalRoom")?.value ?? "",
-        finalSceneId: q("finalRoom")?.selectedOptions?.[0]?.dataset.scene ?? "",
-        finalVis: q("finalVis")?.value || "evident",
-        finalAuthor: q("finalAuthor")?.value ?? "",
-        finalName: q("finalName")?.value.trim() ?? "",
-        finalText: q("finalText")?.value.trim() ?? "",
-        finalAnalysis: q("finalAnalysis")?.value.trim() ?? "",
-        finalNote: q("finalNote")?.value.trim() ?? "",
         // ONLY THE ROWS THAT ARE ON SCREEN. The table renders what the
         // filter shows (by default: this chapter), so a trace the filter
         // hides has no fields in the form - and `?? ""` / `?? false` on
@@ -2798,7 +2811,7 @@ function saveOpenNode(root) {
     const open = root?.querySelector?.(".drpg-case-edit:not([hidden])");
     const fields = open ? [...open.querySelectorAll("[name]")].filter(isDirty) : [];
     if (!fields.length) return nodeWrites;
-    const result = readDashboardForm({ element: { querySelector: () => open } });
+    const result = readCaseFields(open);
     const drawn = fields.map(field => [field, keepDrawn(field)]);
     const write = () => applyDashboardSave(result, { traces: allTraces(), plan: keyPlan(), quiet: true }).catch(err => {
         for (const [field, was] of drawn) keepDrawn(field, was);

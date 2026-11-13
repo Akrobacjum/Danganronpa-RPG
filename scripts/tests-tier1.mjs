@@ -8898,6 +8898,24 @@ const INVARIANTS = [
             skipped: [null, "skipped", false], second: "Q2 the time?", rule: true }),
             "{marker: the truth's marker in a floor; truthField: a truth field on a floor; tie: [no floor, its outcome, a record]; tie cards naming the true answer; skipped: [no floor, outcome, a record]; second: Q2 on the floor after a right answer; rule: world-secrets keeps truth out of trialQueue}");
     }],
+    ["R4454 - a node's close reads the node's own fields and no Table field (perf-open's review for 1.2.111, section 2; 13.11.2026): saveOpenNode reads its editor through readCaseFields, which reads no Final Key Remnant field, and the window's Save reads the final fields beside readCaseFields(form)", async () => {
+        /*
+         * The review: investigation.mjs's node save read the open node through `readDashboardForm` with a stand-in
+         * element that answered every selector with the node, so the Final Key Remnant's fields, absent from a node, read
+         * as "" and "evident" on every node's close; harmless only because a final field is acted on when `finalRoom` is
+         * set. A later field whose empty value means "clear" would have been wiped by any node's close. Read in the
+         * source, since the node's save is not exported; tier 2's "planner autosave" runs it. Red at c598d3c: no
+         * readCaseFields.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
+        const node = fnSource(src, "saveOpenNode"), fields = fnSource(src, "readCaseFields"), dashboard = fnSource(src, "readDashboardForm");
+        equal(stableJson({
+            nodeReads: [/readCaseFields\(open\)/.test(node), /readDashboardForm/.test(node)],
+            fieldsFinal: (fields.match(/final\w*/gi) ?? []).length,
+            dashboard: [/finalRoom/.test(dashboard), /\.\.\.readCaseFields\(form\)/.test(dashboard)]
+        }), stableJson({ nodeReads: [true, false], fieldsFinal: 0, dashboard: [true, true] }),
+            "{the node's save: reads readCaseFields(open), reads readDashboardForm; final names in readCaseFields; Save's reader: reads finalRoom, spreads readCaseFields(form)}");
+    }],
     ["R4453 - a planned Remnant has a type (the owner, 13.11.2026): Incident where none is written, Prep, Neutral, Faint or Tamper as planned, never Key, Final Truth or Autopsy; no other kind of node has one; the node's face names the type", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~01:00. case-schema.mjs PLANNED_TYPES and `caseNodeOf`'s `type`;
