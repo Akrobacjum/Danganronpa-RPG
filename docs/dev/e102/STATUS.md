@@ -66,7 +66,10 @@ R numbers: R4750-R4754 (C1-C5), R4760 on (review fixes, C6-C8).
 
 Whole, on C2 (70613472), 13.11 01:17-02:32 UTC: tiers 0-2, 2676 tests, 2652 passed, 1 failed, 27 skipped. The one: "every
 control in the module's own chrome has a name to be read out" - a Daggerheart trait `<input>` on the sheet of a
-character a tier-2 test made (r3551), not an E102 control. Not yet measured on main alone, so not called pre-existing.
+character a tier-2 test made (r3551), not an E102 control. Measured on main alone (421f2395, 13.11 about 03:20 UTC):
+`node run-tests.mjs --tier 2 --only R3551 --only "every control in the module's own chrome"` fails the same way, so it
+is main's: an order dependence (R3551's sheet still open when tier 1's a11y crawl reads the chrome), which CI's shards
+do not meet because they run tier 1 before tier 2. Not E102's to fix; told to the coordinator.
 
 ## Open
 
