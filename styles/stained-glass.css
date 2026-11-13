@@ -4002,11 +4002,12 @@ body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
 
    One declaration, and it has to shout: the radii it is overruling are `!important`
    in the base sheet, and Foundry v14 puts the system's sheet in a cascade layer
-   above the module's. Circles that are meant to be circles keep theirs by name.
+   above the module's. Circles that are meant to be circles keep theirs by name: the radio among them since
+   gaps-radio (R4650; the owner, 13.11.2026: a radio is round), its box here and its dot in its own rule.
    ========================================================================== */
 body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-messenger,
     #drpg-hud, #drpg-despair, #countdowns, #drpg-player-status, #drpg-events, #drpg-popups) :not(
-    .drpg-despair-pip):not(.drpg-action-pip):not(img):not([class*="avatar"]):not([class*="token-"]) {
+    .drpg-despair-pip):not(.drpg-action-pip):not(img):not([class*="avatar"]):not([class*="token-"]):not([type="radio"]) {
     border-radius: 0 !important;
 }
 body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-messenger) {
@@ -4155,6 +4156,34 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
     mask: none;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):checked::before { transform: scale(1); }
+/* A RADIO IS ROUND, AND ITS DOT IS PINNED TO THE MIDDLE (gaps-radio, R4650; the owner's table on 1.2.109, 13.11.2026:
+   "a dark SQUARE box with a pink border, and the checked one shows a pink dot stuck in the box's top-left corner", the
+   zone picker's Mode). The radio wore the checkbox's square with shaved corners, and its dot was a square laid in the
+   box's flow by `place-content: center` - which holds only while nothing else positions the mark: with a stand-in for
+   core's (`::before` absolutely positioned) the dot stood 4.87 px up and left of the middle of the 22 px box, in
+   Chromium on the style harness (audit/radio-sweep.mjs), the owner's picture. Which rule v14's core writes there is not
+   read here. So the mark no longer rides the flow: the box is the containing block, the mark laid across it
+   (`inset: 0`, `margin: auto` with its own size) and grown about its centre, and no `translate`, `rotate` or `scale` of
+   anyone else's moves it; the radio's box and its dot are round, the checkbox keeps its square and its tick. */
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]) {
+    position: relative;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"])::before {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    transform-origin: center;
+    translate: none;
+    rotate: none;
+    scale: none;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"] {
+    border-radius: 50%;
+    clip-path: none;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]::before {
+    border-radius: 50%;
+}
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):disabled {
     border-style: dashed;
     cursor: not-allowed;

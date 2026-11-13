@@ -40736,7 +40736,9 @@ const INVARIANTS = [
             ["var(--drpg-eye)", "var(--drpg-eye-light)", "var(--drpg-eye)", "var(--drpg-eye-light)"],
             ["var(--drpg-sg-bone-dim)", "var(--drpg-glass-accent)", "var(--drpg-sg-bone-dim)", "var(--drpg-glass-accent)"],
             { sameValues: true, rulesForTheBox: 1, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" },
-            { sameValues: true, rulesForTheBox: 1, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" }
+            /* the radio's box is the one definition and, since gaps-radio (R4650, the owner's 13.11.2026: a radio is round),
+               the radio's own shape - `clip-path: none` beside its round corner - stated alike on every surface */
+            { sameValues: true, rulesForTheBox: 2, appearance: "none", width: "22px", markOff: "scale(0)", markOn: "scale(1)" }
         ]), "[the GM's scene rail and the right rail, at rest and active, under Monokuma Legacy and under Stained Glass; "
             + "the checkbox and the radio under the glass: the same values on a panel, a notice, the messenger and the sheet, unchecked and checked; how many rules win the box; its appearance and width; the mark's transform unchecked and checked]");
     }],
@@ -41259,6 +41261,60 @@ const INVARIANTS = [
         equal(stableJson(nested), "[]", "endless animations inside an at-rule or a nested rule (R1410 does not build them)");
         equal(found.length - nested.length, r1410, `top-level endless declarations (${found.length - nested.length}) against the cascade's rules that run one, R1410's set (${r1410})`);
         equal(stableJson(scripts), "[]", "scripts that start an endless animation of their own");
+    }],
+    ["R4650 - a radio is round and its dot is pinned to the middle, in both themes (gaps-radio, the owner's table on 1.2.109): on a module window (`.drpg-panel`), a radio in a plain label and one in a choice row draw their own box (`appearance: none`), `border-radius` 50% with no clip path, and a `::before` laid absolutely across the box (`inset: 0`, `margin: auto`, round), so no rule that moves a mark in the flow can push it to a corner; a checkbox stays square", async () => {
+        /*
+         * The owner, 13.11.2026, on 1.2.109: under Stained Glass a radio is a dark square box with a pink border and the
+         * checked one's dot stuck in its top-left corner (the zone picker's Mode). The glass gave every control one box,
+         * square with shaved corners (E23 C5b), the radio's dot a square laid in the box's flow by `place-content:
+         * center`; Legacy drew its own round radio in a choice row only (E68 C12) and left every other radio to
+         * Foundry, whose control at a table is a square with a mark in a corner (that note's words). Measured in Chromium
+         * on the style harness (audit/radio-sweep.mjs, 30 captures of 15 windows, PL and EN, dsf 1 and 2): on the module's
+         * sheets alone the glass dot was centred, and with a stand-in for core's mark (`::before` absolutely positioned) it
+         * stood 4.87 px up and left of the middle of a 22 px box - the owner's picture; Legacy had 52 radios Foundry's.
+         * Read here by the sheets' cascade (`styleCascade`), on a body of its own per theme. Red at 421f2395.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-panel drpg-ui"><section class="window-content"><fieldset class="drpg-zone-modes">`
+                + `<label class="drpg-zone-mode-pick"><input type="radio" name="mode" value="straw" checked> Straw Poll</label></fieldset>`
+                + `<div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="a"><span>A</span></label></div>`
+                + `<label><input type="checkbox" name="secret"> Secret</label></section></div>`;
+            const [plain, row, box] = body.querySelectorAll("input");
+            const v = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value.trim() ?? null;
+            const radio = el => [v(el, ["appearance", "-webkit-appearance"]), v(el, "border-radius"), v(el, "clip-path"), v(el, "position"),
+                v(el, ["inset"], "::before"), v(el, ["margin"], "::before"), v(el, ["position"], "::before"), v(el, "border-radius", "::before")];
+            read[theme.replace("drpg-theme-", "")] = { plain: radio(plain), row: radio(row), checkbox: v(box, "border-radius") };
+        }
+        const round = ["none", "50%", "none", "relative", "0", "auto", "absolute", "50%"];
+        equal(stableJson(read), stableJson({
+            "stained-glass": { plain: round, row: round, checkbox: "0" },
+            "monokuma-legacy": { plain: round, row: round, checkbox: null }
+        }), "{theme: {radio in a label / in a choice row: [appearance, border-radius, clip-path, position, ::before inset, margin, position, border-radius], the checkbox's border-radius}}");
+    }],
+    ["R4651 - under Monokuma Legacy a radio in the Projects window and the item tables keeps the round ring (gaps-radio): danganronpa.css's field rule for `.drpg-projects` no longer reaches a radio, so its corner, border and ground are the radio's, while a text field there keeps the field's", async () => {
+        /*
+         * gaps-radio, 13.11.2026. R4650's ring reached every radio on a module window, but in `.drpg-projects` (the
+         * Projects window, the item tables) the fields' rule - `:is(input, select, textarea)` with `!important` - still
+         * gave a radio its 2 px corner, its line and its ground: a new item's picture choices read 2 px in Chromium
+         * (audit/radio-sweep.mjs). Read here by the sheets' cascade on a body of its own. Red before the fix: 2px.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-monokuma-legacy";
+        html.append(body);
+        body.innerHTML = `<div class="application drpg-panel drpg-projects drpg-window-tables"><section class="window-content">`
+            + `<label class="drpg-choice drpg-glyph-choice"><input type="radio" name="newImgChoice" value="file"></label>`
+            + `<input type="text" name="name"></section></div>`;
+        const [radio, text] = body.querySelectorAll("input");
+        const v = (el, names) => C.winner(el, [names].flat())?.value.trim() ?? null;
+        equal(JSON.stringify([v(radio, "border-radius"), v(radio, ["border", "border-width", "border-style", "border-color"]), v(text, "border-radius")]),
+            JSON.stringify(["50%", "2px solid var(--drpg-bone)", "2px"]),
+            "[the radio's border-radius, its border, the text field's border-radius]");
     }],
     ["R1432 - reduced motion stops Foundry's pause caption too (E23 fix G3, E23-30; the end review's goal m1, Open 113): with `body.drpg-reduced-motion` a rule of the module's sheets wins the caption's animation with none, under both themes, over a stand-in for core's endless `pulse`; without the class the stand-in still wins", async () => {
         /*
