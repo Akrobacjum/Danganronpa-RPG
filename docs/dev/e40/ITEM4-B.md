@@ -4,19 +4,24 @@ Written 13.11.2026 on `claude/e40-item4-b`, started from d7566926 (claude/e39-40
 `docs/dev/e40/ITEM4.md`; this file is its rule 8 for slice B (the investigation): per test, the pick and its reason, the
 mutant tables, the gates run. R range R5130-R5149: none taken (no test was split into a new tier-0 or tier-1 row).
 
-## Where the slice stands (13.11.2026, after batch 4)
+## Where the slice stands (13.11.2026, after batch 8)
 
-- Of 29: **(a) 0**; **(b) 7 built** - R87 (deleted from tier 0), R36, R88, R89, R91, R92, R145 (each trimmed to what its new
-  test does not hold, the rest marked); **(c) 12** - R39, R40, R172, R305, R306, R376, R430, R1103, R1120, R1135, R1199,
-  R3143; **(b), not built: 10** - R32, R34, R37, R46, R47, R49, R53, R57, R96, R143, unchanged in tier 0.
-- Seven new tier-2 tests under slice B's line. Every one fails every mutant written for it; the old test missed at least one
-  (ii) mutant in each case, and in R89's also an (i): the scope set to world. Two first drafts were wrong and were caught
-  (R91's missed m91i-c; R92's failed on the clean tree), and R171 caught a raw store key in R89's first draft.
+- Of 29, every one read and picked; none left unbuilt. **(a) 2** - R57, R96, rewritten in place. **(b) 13** - R87 (deleted
+  from tier 0); R32, R34, R36, R37, R46, R47, R49, R88, R89, R91, R92, R145 (each trimmed to what its new test does not
+  hold, the rest marked TEXT GUARD). **(c) 14** - R39, R40, R53, R143, R172, R305, R306, R376, R430, R1103, R1120, R1135,
+  R1199, R3143. (2 + 13 + 14 = 29.)
+- Thirteen new tier-2 tests under slice B's line (one per (b)). Every new or rewritten test fails every mutant written for it;
+  the old test missed at least one (ii) mutant in each, and some missed an (i) as well (R89's scope set to world, R57's
+  callback writing no field, R32's F6 itself). Four first drafts were wrong and were caught by measuring (R91 missed
+  m91i-c; R92 and R37 failed on the clean tree; R89's named a store key raw, caught by R171), and one draft comment named a
+  mutant its test could not reach (R46; corrected before the run).
+- One line that changes no outcome: messenger-app.mjs `refundOnCard`'s `data.paid === "none"` (m88iii), kept as text.
 - For the owner: no export was asked for. Defaults taken, as ITEM4.md's: a moved test carries its old number in its name;
-  a trimmed tier-0 remainder that is behaviour not yet driven (R36's Tamper half, R145's Stage 6 order) is marked TEXT
-  GUARD as rule 1 says, with "not driven on this line" in its note. Exports that would let a (c) be driven, if wanted:
-  `searchedBy`/`pruneSpends` (R1199), `concealSabotage` (R40), `askWhatToAnalyze` (R1103), observe.mjs `pending` (R89's
-  remainder), `paintTamper` and `releaseTamper` (R53, R37).
+  a trimmed tier-0 remainder that is behaviour not yet driven (for example R36's Tamper half, R47's Stage 6 order, R49's
+  copy makers) is marked TEXT GUARD as rule 1 says, with "not driven on this line" in its note. Exports that would let a
+  (c) or a remainder be driven, if wanted: `searchedBy`/`pruneSpends` (R1199), `concealSabotage` (R40),
+  `askWhatToAnalyze` (R1103), observe.mjs `pending` (R89), `paintTamper` (R53), `readCaseFields` (R32), `createFind` and
+  `mintLootBullet` (R49).
 
 ## The picks
 
@@ -32,8 +37,8 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R39 | (c) | which readers the fee, the charge and the finders call; the fee's counts are tier 2's (four named tests); `keyPlanStatus`'s off-plan count and the case's bar are read as text only | batch 2 |
 | R40 | (c) | a census over the action family and cleanup.mjs, and a branch of `concealSabotage`, not exported | batch 2 |
 | R46 | (b), trimmed | the price at the dice, the closed window's refund, the free road from a console and as the GM, a forged refusal card pressed; the GM-check order, the three roads' refunds and the receipts census stay | batch 7 |
-| R47 | (b), not built | Tamper's one price through `attemptCleanup`/`attemptStageSix` with windows; the GM-side charge census is (c) |  |
-| R49 | (b), not built | `createFind` (not exported), the give dialog's two guards, `publishReading` and `mintLootBullet` (not exported): several fixtures |  |
+| R47 | (b), trimmed | `attemptCleanup`'s order and its watch block driven; Stage 6's attempt, the GM side's charge census, the claim's road stay | batch 8 |
+| R49 | (b), trimmed | Analyze publishing the trace's reading driven; `createFind` and `mintLootBullet` (not exported) and the give dialog's guards stay | batch 8 |
 | R53 | (c) | the tile is painted only on an open Daggerheart sheet, which the headless harness has none of (`env.systemSheets`); `paintTamper` not exported | batch 5 |
 | R57 | (a) | `wirePortraitPickers` and `wireKeyLimitOverride` (exported) called on a detached element; `wireCase` (not exported) and `keepLive`'s order stay as text in the same test | batch 6 |
 | R87 | (b) | `analyzeDc` and `resolveAnalyze` driven: a Neutral priced as Prep, its card's sentence | batch 1 |
@@ -230,6 +235,24 @@ placed its trace (rule 2 of the test contract); it is told the test asked first 
 A draft of the new test's comment named a different (ii) mutant for the free road (`|| Boolean(options.freeAll)`) that a
 call with `free: true` would not reach; corrected before the run, and the table above is the one run.
 
+### R49 -> "an Analyze of a bullet whose answer key holds no reading publishes its trace's reading (R49's reading half, driven; was R49)"
+
+| Mutant of truth-bullets.mjs `publishReading` | Old R49 | New test |
+| --- | --- | --- |
+| m49i: the fallback to the trace's public reading removed | FAIL | FAIL |
+| m49ii: the fallback reads `?.analyzedTextX` (its text kept) | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+### R47 -> "Tamper takes its price after the concealment and before the dice ... (R47's order, driven; was R47)"
+
+| Mutant of cleanup.mjs `attemptCleanup` | Old R47 | New test |
+| --- | --- | --- |
+| m47i-a: `chargeTamper` moved before the concealment | FAIL | FAIL |
+| m47ii-a: a `payPrice(actor, "tamper")` before the concealment, `chargeTamper` left where it was | ok - missed | FAIL |
+| m47i-b: the watch block removed | FAIL | FAIL |
+| m47ii-b: the watch block's refusal behind `if (watched && false)` | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
 ## Gates
 
 - Batch 1 (R87, R88, R172, R305, R306, R430, R1120): `node --check` on both test files; `node tools/check.mjs` 19 parts,
@@ -253,3 +276,5 @@ call with `free: true` would not reach; corrected before the run, and the table 
   the committed tree alone: 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (452 s).
 - Batch 7 (R37, R46): `node --check`; check 19 parts, all green; lint 0 problems; the new tests by name 2 ran, 0 failed;
   R37 and R46 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (446 s).
+- Batch 8 (R47, R49): `node --check`; check 19 parts, all green; lint 0 problems; the new tests by name 2 ran, 0 failed;
+  R47 and R49 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (457 s).

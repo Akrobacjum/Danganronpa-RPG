@@ -38633,6 +38633,109 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "or a refusal's card gave back its own amount ([asked as, actions moved at the dice, after]; [the press, the actions after it from 0])");
     }],
 
+    ["an Analyze of a bullet whose answer key holds no reading publishes its trace's reading (E40 item 4: R49's reading half, driven; was R49)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R49 (tier 0, trimmed in E40 to the copy makers' and the give dialog's lines)
+         * read truth-bullets.mjs `publishReading` as text: `secret.analyzedText || remnantPublicById(` in it. It passed a
+         * mutant that kept that text and read a field the trace's public record does not hold (`?.analyzedTextX`). T-2's
+         * road, which Analyze and the chapter's reveal share: a bullet whose answer key has no reading asks the trace it
+         * came from. A trace placed and given a reading on its public record, then a bullet of it on one student made with
+         * no reading of its own; the bullet analysed on the GM at 40. Read: the reading on the answer key before, and
+         * the bullet's reading flag after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const [student] = cast(1);
+        const R = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const READING = "SUITE E40 R49 what the trace says when read";
+        let token = null, item = null, read = null;
+        try {
+            token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: "SUITE E40 R49 a trace" });
+            must(token, "the fixture trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(token, { analyzedText: READING });
+            await settle();
+            must(R.remnantPublic(token)?.analyzedText === READING, "the trace's reading was not written - this would measure nothing");
+            item = await bullets.createTruthBullet(student, { name: "SUITE E40 R49 a bullet", realType: "prep", visibility: "evident",
+                remnantId: token.id, sceneId: canvas.scene.id });
+            must(item, "the fixture's bullet was not made");
+            await settle();
+            const keyed = bullets.secretOf(item.uuid)?.analyzedText ?? "";
+            const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 40 });
+            await settle();
+            const live = student.items.get(item.id);
+            read = [keyed, verdict?.success ?? null, live?.getFlag(MODULE_ID, bullets.TRUTH_BULLET_FLAGS.analyzedText) ?? null];
+        } finally {
+            if (item) {
+                const uuid = item.uuid;
+                try { await student.items.get(item.id)?.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            const doc = token ? canvas.scene.tokens.get(token.id) : null;
+            if (doc) await R.removeRemnant(doc);
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["", true, READING]),
+            "an Analyze of a bullet with no reading on its answer key did not publish its trace's reading (the answer key's "
+                + "reading before, the verdict, the bullet's reading after)");
+    }],
+
+    ["Tamper takes its price after the concealment and before the dice, and a watched attempt on a full Sanity track is refused before either (E40 item 4: R47's order, driven; was R47)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R47 (tier 0, trimmed in E40 to the GM side's charges, the claim's road and
+         * Stage 6's attempt) read cleanup.mjs `attemptCleanup` as text: `concealFromWitnesses(`, `chargeTamper(` and
+         * `rollTrait(` in that order, and `tamperWatchBlock(` named. It passed mutants that kept both: a price paid
+         * before the concealment through `payPrice` beside the `chargeTamper` it read (the attempt paid twice, the first
+         * time before the cover story could take the point), and the watch block's refusal behind `if (watched && false)`.
+         * T-1: the charge sits between the concealment and the dice, because the concealment's own Sanity can take the
+         * point the price needed; a full track stops an attempt somebody is watching. A student stood with another in one
+         * room (`aloneTogether`), Tampering a trace (`attemptCleanup`, the tile's road) with the windows' defaults; the
+         * character's `rollTrait` noting the actions moved at each roll it is asked, landing the concealment and closing
+         * the main roll. Then the same with the student's Sanity track full. Read: per roll asked, the actions moved
+         * then; the actions moved after; and for the full track, the rolls asked and the actions moved.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the two");
+        const [who, other] = cast(2);
+        const Cl = await import("./cleanup.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(who._source, ACT), [STRESS]: foundry.utils.getProperty(who._source, STRESS) };
+        const max = Number(who.system.resources?.stress?.max) || 0;
+        must(actionsMax(who) >= 1 && max >= 1, `${who.name} has no action to spend or no Sanity track - this would measure nothing`);
+        const F = await cleanupFixture(who, "SUITE E40 R47 a trace");
+        const windows = answerWindows(press);
+        const stood = await aloneTogether(who, other, { asked: true });
+        const read = [];
+        try {
+            must(F.trace, "the fixture's trace was not placed - this would measure nothing");
+            for (const track of [0, max]) {
+                await who.update({ [ACT]: actionsMax(who), [STRESS]: track });
+                await settle();
+                const start = actionsLeft(who), seen = [];
+                who.rollTrait = async () => {
+                    seen.push(actionsLeft(who) - start);
+                    return seen.length === 1 ? { total: 30, isCritical: false, withHope: true } : null;
+                };
+                await Cl.attemptCleanup(who, F.trace.id, { viaAction: true });
+                await settle();
+                delete who.rollTrait;
+                read.push([track === max ? "full" : "empty", seen, actionsLeft(who) - start]);
+            }
+        } finally {
+            delete who.rollTrait;
+            windows.restore();
+            await stood.back();
+            await F.putBack();
+            await who.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["empty", [0, -1], -1], ["full", [], 0]]),
+            "Tamper took its price before the concealment or after the dice, or a watched attempt on a full track went ahead "
+                + "([the Sanity track, the actions moved at each roll asked, the actions moved after])");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*

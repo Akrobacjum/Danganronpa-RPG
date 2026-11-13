@@ -2974,6 +2974,13 @@ const REGRESSIONS = [
     }],
 
     ["R47 - Tamper pays one price, on the client, after the concealment", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is Stage 6's attempt, the GM side's charges and the
+           claim's road. `attemptCleanup`'s order - the price after the concealment and before the dice - and its watch
+           block are tier 2's "Tamper takes its price after the concealment and before the dice, and a watched attempt on
+           a full Sanity track is refused before either (E40 item 4: R47's order, driven; was R47)". Read here: the same
+           order in `attemptStageSix` (it needs an incident's Stage 6: not driven on this line), the step named on both
+           attempts' rolls, every GM-side Sanity charge behind a missing claim (a census), `validPrice` and `handBack`
+           declared, the concealment's own refund, and the price carried by the bridge's run and a Reroll's replay. */
         /*
          * T-1. Tamper used to cost an action AND a Sanity mark: the action on the
          * player's client, the mark on the GM's. This reads the three rules that
@@ -2987,7 +2994,8 @@ const REGRESSIONS = [
          */
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
 
-        for (const fn of ["attemptCleanup", "attemptStageSix"]) {
+        // Stage 6's attempt alone: `attemptCleanup`'s order and its watch block are driven in tier 2 (above).
+        for (const fn of ["attemptStageSix"]) {
             const body = bodyOf(cleanup, `export async function ${fn}`, { until: "\nexport " });
             const conceal = body.indexOf("concealFromWitnesses(");
             const charge = body.indexOf("chargeTamper(");
@@ -2998,7 +3006,9 @@ const REGRESSIONS = [
             ok(charge < dice, `${fn} charges after the dice`);
             ok(body.includes("tamperWatchBlock("),
                 `${fn} stopped refusing a watched attempt on a full Sanity track`);
-            ok(body.includes("cleanupPrice"),
+        }
+        for (const fn of ["attemptCleanup", "attemptStageSix"]) {
+            ok(bodyOf(cleanup, `export async function ${fn}`, { until: "\nexport " }).includes("cleanupPrice"),
                 `${fn} does not tell the GM's side which step paid`);
         }
 
@@ -3094,6 +3104,11 @@ const REGRESSIONS = [
     }],
 
     ["R49 - a bullet whose badge says Neutral is not treated as identified", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the copy makers and the give dialog. Analyze's road
+           to the trace's reading is tier 2's "an Analyze of a bullet whose answer key holds no reading publishes its
+           trace's reading (E40 item 4: R49's reading half, driven; was R49)". Read here: observe.mjs `createFind` and
+           handover.mjs `mintLootBullet` (neither exported: reached through an Observe ruled by a GM and a body's loot, not
+           driven on this line), and the give dialog's two Neutral guards in gm-items.mjs (a GM's window). */
         /*
          * T-2's precondition, and a defect on its own. A Key or Final trace found
          * on an ordinary success arrived `analyzed: true` under a badge reading
@@ -3110,20 +3125,6 @@ const REGRESSIONS = [
         const gmi = stripComments(sources.get("gm-items.mjs") ?? "");
         equal((gmi.match(/analyzed: result\.shown === "neutral"/g) ?? []).length, 2,
             "the give dialog lost one of its two explicit-Neutral guards");
-
-        /*
-         * AND THE SENTENCE ITSELF, which is `analyzedText` on the trace's `public`
-         * record, in the bullet's secret and on the item once it is identified -
-         * the model 1.2.47 shipped, whose own scenario ("the analysis half of a
-         * trace is not on the item until it is bought") holds the four places it
-         * must not leak. What is read here is the two roads that model did not
-         * have when T-2 met it.
-         */
-        // In truth-bullets.mjs `publishReading` since E09 C8: the write Analyze and the chapter's reveal share.
-        const tb = stripComments(sources.get("truth-bullets.mjs") ?? "");
-        const publish = bodyOf(tb, "export async function publishReading(");
-        ok(/secret\.analyzedText\s*\|\|\s*remnantPublic(?:ById)?\(/.test(publish),
-            "publishing a reading no longer asks the trace when a bullet's secret holds no reading");
 
         // A looted trace is usually already revealed, so `revealSourceOf` returns
         // before it reconciles the new copy: the loot mint reads the ledger itself.
