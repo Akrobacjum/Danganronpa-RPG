@@ -223,8 +223,15 @@ The plan's items 2-6, in its order, with what each would take:
     only make a test slower. Measured on a copy where every wait right after a settle throws on a timeout (47 such
     pairs in the file, batches 1 and 2 among them): the 33 tests holding batch 1's and 2's sites, 0 failed; batch 3's 11
     tests, 0 failed once the three verdict waits were corrected; batch 4's 8 tests, 0 failed; batch 5's 6 tests, 0 failed; batch 6's 7 tests, 0 failed; batch 7's 5 tests, 0 failed; batch 8's 4 tests, 0 failed.
-  - Left: the 194 hook and notice sites, counted and not started: the coordinator approved the chat-card group; the
-    hook group waits for the coordinator's word.
+  - **The hook and notice group: measured, not converted** (13.11.2026). The finder for it (a settle whose next three
+    lines read `warned`, `told`, `notices`, `heard`, `fired`, `packets`, `replies` and the like, no chat read, none
+    within 8 lines of an item-4 slice line) lists 178 sites. Read for the first 25: the values come from a `send`
+    callback inside an awaited `judge`, a `ui.notifications.warn` override or a socket emit caught in the same call -
+    filled before the awaited call returns. Measured on a copy with the settle removed at the site: the first 25 sites
+    (23 tests) and 25 from the middle of the list (19 tests), each set in one run, 0 failed. So an `until()` there would
+    be true at once and change nothing; the settle is kept as it is. Not measured: whether a slower machine (CI's) makes
+    any of them late, and the other 128 sites one by one. The chat group's waits were checked to find their card, not
+    whether the card was already there before the settle ended.
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
   wiring is not this line's to touch.
 
