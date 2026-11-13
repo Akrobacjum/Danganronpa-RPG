@@ -1979,6 +1979,120 @@
       "width": 480,
       "buttons": [],
       "file": "room-window.html"
+    },
+    {
+      "id": "palm-frisk",
+      "client": "p1",
+      "opener": "palm.mjs m.choosePalm(game.actors.find(a => a.type === \"character\" && a.isOwner), C.ACTIONS.palm, [other], [])",
+      "captured": true,
+      "title": "Palm",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-action-window",
+        "drpg-ui",
+        "drpg-prompt",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Do it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "palm-frisk.html"
+    },
+    {
+      "id": "ballot",
+      "client": "p1",
+      "opener": "vote.mjs new Promise(r => setTimeout(() => r(null), 2500))",
+      "captured": true,
+      "title": "Who did it?",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ballot",
+        "drpg-ui",
+        "drpg-prompt"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Cast it",
+          "default": true
+        }
+      ],
+      "file": "ballot.html"
+    },
+    {
+      "id": "season-reset",
+      "client": "gm",
+      "opener": "season-wipe.mjs m.resetSeason()",
+      "captured": true,
+      "title": "Reset the season",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-season-reset",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": true
+        },
+        {
+          "action": "reset",
+          "label": "Reset the season",
+          "default": false
+        }
+      ],
+      "file": "season-reset.html"
+    },
+    {
+      "id": "use-item-pick",
+      "client": "p1",
+      "opener": "use-items.mjs (a => m.useItem(a, a.items.find(i => i.name === \"Probe odd vial\")))(game.actors.find(a => a.type === \"character\" && a.isOwner))",
+      "captured": true,
+      "title": "Use Probe odd vial",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Use it",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "use-item-pick.html"
     }
   ]
 }

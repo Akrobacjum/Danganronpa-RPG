@@ -85,6 +85,13 @@ const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes",
 /* The player's action windows (E21 C1c): `performAction` on the character p1 owns, each window dismissed. */
 const MINE = "game.actors.find(a => a.type === \"character\" && a.isOwner)";
 const ACTION_WINDOWS = ["observe", "search", "analyze", "tamper", "rest", "project", "palm", "dynamic"];
+/* gaps-radio's four (WINDOWS, at its end): Palm's one target, the ballot sent to p1, and a usable of no kind on p1's
+   student. `__P1__` in a GM's step is p1's user id, filled in by `run`. */
+const PALM_TARGET = "const C = await import(repoUrl + \"/scripts/config.mjs\"); const other = game.actors.find(a => a.type === \"character\" && !a.isOwner && !a.getFlag(\"danganronpa-rpg\", \"monokuma\"));";
+const BALLOT_TO_P1 = "game.socket.emit(\"module.danganronpa-rpg\", { action: \"vote.open\", round: 0, picks: 1, candidates: game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 4).map(a => ({ id: a.id, name: a.name, dead: false })) }, { recipients: [\"__P1__\"] });";
+const P1_STUDENT = "const p1Student = game.actors.find(a => a.type === \"character\" && a.testUserPermission(game.users.get(\"__P1__\"), \"OWNER\"));";
+const SEED_VIAL = `${P1_STUDENT} await p1Student.createEmbeddedDocuments("Item", [{ name: "Probe odd vial", type: "loot", system: { description: "", quantity: 1 }, flags: { "danganronpa-rpg": { category: "usable", tier: 1 } } }]);`;
+const DROP_VIAL = `${P1_STUDENT} const vials = p1Student.items.filter(i => i.name === "Probe odd vial").map(i => i.id); if (vials.length) await p1Student.deleteEmbeddedDocuments("Item", vials);`;
 /* 250 notices recorded on p1 before its history is opened (E21 C1c, the 11.10 amend A7): its own browser's history. */
 const NOTICES_250 = "const h = await import(`${repoUrl}/scripts/notice-history.mjs`); for (let i = 1; i <= 250; i++) h.recordNotice({ kind: \"info\", source: \"mine\", state: i > 240 ? \"unread\" : \"read\", title: `Probe notice ${i}`, text: `The probe's notice number ${i}, one of 250.` });";
 /* The seeds of the header's SEEDED (E49 A4, A5): each `before` keeps what it made on `globalThis.__probe08seed` for its
@@ -306,7 +313,18 @@ export const WINDOWS = [
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
     ...ACTION_WINDOWS.map(key => ({ id: `action-${key}`, client: "p1", module: "action-rolls.mjs", call: `m.performAction(${MINE}, ${JSON.stringify(key)})` })),
     { id: "notices-player-250", client: "p1", module: "notice-history-app.mjs", before: NOTICES_250, call: "m.openNotices()" },
-    { id: "room-window", client: "p1", module: "room-tile.mjs", call: "m.openRoomWindow()" }
+    { id: "room-window", client: "p1", module: "room-tile.mjs", call: "m.openRoomWindow()" },
+    /* THE FOUR RADIO WINDOWS NO OPENER REACHED (gaps-radio, 13.11.2026: audit/radio-sweep.mjs listed them as not read).
+       Palm's Frisk: performPalm returns before its window with nobody else in p1's room, so `choosePalm` draws it with
+       another student as the one target and nothing to plant, the Frisk row picked so its modes show. The ballot: drawn
+       on a player when a GM's `vote.open` packet reaches it, sent here by the GM to p1 alone (`gmDuring`, after p1's
+       capture has begun to watch) with four students as candidates - no vote is opened and nothing is written. The
+       season reset's cast: the GM's own window. Use an item's pick: asked only for a usable whose kind nothing names,
+       seeded on p1's student by the GM (`gmSeed`) and taken off after (`gmAfter`). */
+    { id: "palm-frisk", client: "p1", module: "palm.mjs", before: PALM_TARGET, click: 'input[name="variant"][value="frisk"]', call: `m.choosePalm(${MINE}, C.ACTIONS.palm, [other], [])` },
+    { id: "ballot", client: "p1", module: "vote.mjs", gmDuring: BALLOT_TO_P1, call: "new Promise(r => setTimeout(() => r(null), 2500))" },
+    { id: "season-reset", module: "season-wipe.mjs", call: "m.resetSeason()" },
+    { id: "use-item-pick", client: "p1", module: "use-items.mjs", gmSeed: SEED_VIAL, gmAfter: DROP_VIAL, call: `(a => m.useItem(a, a.items.find(i => i.name === "Probe odd vial")))(${MINE})` }
 ];
 
 const capture = (repoUrl, w) => `
@@ -434,10 +452,19 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
     /* The module's own en dash, em dash and minus sign as character references: the same page once parsed, and no such
        character in a line the repository adds (the house rule on dashes; the line's pre-push check). */
     const keep = (id, html) => fs.writeFileSync(path.join(OUT, `${id}.html`), `${html.replace(/[\u2013\u2014\u2212]/g, c => `&#${c.codePointAt(0)};`)}\n`);
+    /* A GM's step around a window another client captures (gaps-radio): `gmSeed` awaited before, `gmDuring` begun 400 ms
+       after the capture has started to watch (so what it makes appear is new to it), `gmAfter` once the capture is over;
+       `__P1__` in each is p1's user id. */
+    const p1Id = await p1.eval("return game.user.id;");
+    const onGm = step => gm.eval(`const repoUrl = ${JSON.stringify(repoUrl)}; ${step.replaceAll("__P1__", p1Id)} return true;`);
     for (const w of list) {
         const client = clients[w.client ?? "gm"];
         let got;
+        if (w.gmSeed) await onGm(w.gmSeed);
+        const during = w.gmDuring ? new Promise(r => setTimeout(r, 400)).then(() => onGm(w.gmDuring)).catch(err => String(err?.message ?? err)) : null;
         try { got = await client.eval(capture(repoUrl, w)); } catch (err) { got = { captured: false, threw: String(err?.message ?? err).slice(0, 400) }; }
+        if (during) { const d = await during; if (d !== true) note(`${w.id} gmDuring`, `threw: ${String(d).slice(0, 300)}`); }
+        if (w.gmAfter) { try { await onGm(w.gmAfter); } catch (err) { note(`${w.id} gmAfter`, `threw: ${String(err?.message ?? err).slice(0, 300)}`); } }
         const row = { id: w.id, client: w.client ?? "gm", opener: `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }) };
         if (got?.captured) {
             keep(w.id, got.html);

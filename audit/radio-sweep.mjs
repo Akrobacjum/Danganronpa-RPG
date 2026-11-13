@@ -19,9 +19,10 @@
  * puts a dot drawn in the flow at the box's top-left, as the owner saw it). Which rule v14's core really writes there
  * is not read (no core sheet here): the stand-in is that one property, labelled, and only a table settles it.
  * A checkbox beside them must stay square (`border-radius` 0) under both themes (a switch, `role="switch"`, is a pill
- * and is not read). Every closed `<details>` is opened first: a picker folded in one is read as its user sees it. A window that is not captured is not read: the run names the four whose openers probe 08 has none for
- * (Frisk's modes, the ballot, the season reset's cast, Use an item's pick), all `.drpg-panel` windows the same rules
- * reach. `--shots <dir>` keeps each window as drawn (its first radio checked), per language and theme, at device scale 1.
+ * and is not read). Every closed `<details>` is opened first: a picker folded in one is read as its user sees it. Every
+ * radio of scripts/ is in a captured window since gaps-radio's second commit: probe 08 gained Palm's Frisk modes, the
+ * ballot, the season reset's cast and Use an item's pick (`palm-frisk`, `ballot`, `season-reset`, `use-item-pick`).
+ * `--shots <dir>` keeps each window as drawn (its first radio checked), per language and theme, at device scale 1.
  * A radio not on screen where it stands (another element at its centre: a picker's grid clipped by its window, say) is
  * not read and is listed by window. Exit 1 on any radio or checkbox that does not hold.
  */
@@ -46,7 +47,6 @@ let BASE = opt("--base");
 const { chromium } = createRequire(path.join(REPO, "audit", "harness", "package.json"))("playwright");
 const freePort = () => new Promise(resolve => { const s = net.createServer(); s.listen(0, "127.0.0.1", () => { const { port } = s.address(); s.close(() => resolve(port)); }); });
 
-const NOT_CAPTURED = ["Frisk's modes (palm.mjs)", "the ballot (vote.mjs)", "the season reset's cast (season-wipe.mjs)", "Use an item's pick (use-items.mjs)"];
 const PROBE = `input[type="radio"]::before { background-color: #00ff00 !important; background-image: none !important; }`;
 const CORE = `input:is([type="radio"], [type="checkbox"])::before { position: absolute; }`;
 
@@ -167,7 +167,6 @@ async function main() {
     const seen = new Set();
     for (const p of problems) { if (!seen.has(p)) console.log(`radio-sweep: ${p}`); seen.add(p); }
     for (const u of unseenAll) console.log(`radio-sweep: not read, not on screen at its box: ${u}`);
-    console.log(`radio-sweep: not captured, not read: ${NOT_CAPTURED.join("; ")}`);
     console.log(`radio-sweep: ${windows} window(s), ${radios} radio reading(s); ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
     process.exitCode = problems.length || !radios ? 1 : 0;
 }
