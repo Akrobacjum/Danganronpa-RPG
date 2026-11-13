@@ -26,7 +26,7 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R | Pick | Reason | Done |
 | --- | --- | --- | --- |
 | R32 | (b), not built | the dashboard's Save driven on a filtered list and a renamed trace: a window, a fixture |  |
-| R34 | (b), not built | a Search that finds nothing must leave the plant: a Search driven with a planted item; the `lateMs` and one-caller lines are a census |  |
+| R34 | (b), trimmed | a miss and a hit driven with a planted item; the spend's and the plant run's shape, the late answer and the one-caller census stay | batch 5 |
 | R36 | (b), trimmed | `plantOnPerson` driven at the plant's bars; Tamper's two resolver lines stay as text, not driven | batch 3 |
 | R37 | (b), not built | `releaseTamper` (not exported) reached by closing Tamper's window after a landed concealment roll |  |
 | R39 | (c) | which readers the fee, the charge and the finders call; the fee's counts are tier 2's (four named tests); `keyPlanStatus`'s off-plan count and the case's bar are read as text only | batch 2 |
@@ -34,15 +34,15 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R46 | (b), not built | `performAnalyze`'s order (price before dice, the GM check before the price) with its windows answered; the call-site census of `gmRulingActions` is (c) |  |
 | R47 | (b), not built | Tamper's one price through `attemptCleanup`/`attemptStageSix` with windows; the GM-side charge census is (c) |  |
 | R49 | (b), not built | `createFind` (not exported), the give dialog's two guards, `publishReading` and `mintLootBullet` (not exported): several fixtures |  |
-| R53 | (b), not built | `paintTamper` (not exported) on a sheet whose ledger answers late |  |
+| R53 | (c) | the tile is painted only on an open Daggerheart sheet, which the headless harness has none of (`env.systemSheets`); `paintTamper` not exported | batch 5 |
 | R57 | (b), not built | a live window rebuilt with a picked portrait and the override ticked |  |
 | R87 | (b) | `analyzeDc` and `resolveAnalyze` driven: a Neutral priced as Prep, its card's sentence | batch 1 |
 | R88 | (b), trimmed | the cards' buttons pressed as a GM presses them; four assertions stay as text (below) | batch 1 |
 | R89 | (b), trimmed | the store's scope read off Foundry's registry; a resolve with no record driven; the write-through stays as text | batch 2 |
 | R91 | (b), trimmed | `openNewTrace` answered as a GM, refused off the form and from a console; the markup, the dashboard's door and the keys stay | batch 3 |
 | R92 | (b), trimmed | the ruling driven (a console, a reinforced trace, long words, a decline, no trace); the writers' census, the two roads, the card's wiring and its keys stay | batch 4 |
-| R96 | (b), not built | the project card read as a player; the CSS line is (c) |  |
-| R143 | (b), not built | ownership raised and a bullet edited by a player, each put back |  |
+| R96 | (a) | `projectCard` (exported, synchronous) called as the GM and with `isGM` false; `showProjectCard` (not exported), the CSS and the sizing stay as text in the same test | batch 5 |
+| R143 | (c) | a player's write judged on the primary: tier 2's writes are the GM's; scenario 30's phase 7i drives both roads from a player's browser | batch 5 |
 | R145 | (b), trimmed | the Analyze half driven; the Stage 6 order and the undo's receipt stay as text | batch 2 |
 | R172 | (c) | a census of 30 derived store writers and 2 migrations; the difference shows only with a second GM's copy | batch 1 |
 | R305 | (c) | a census of ten readers and writers of the tie; its behaviour is tier 2's | batch 1 |
@@ -162,6 +162,28 @@ The first draft of the new test failed on the clean tree, measured: its console 
 the ruling, so `asConsole`'s player seat (the call's synchronous start alone) had closed and the ruling ran as the GM.
 The proposal is written first now.
 
+### R96 (a), in place
+
+| Mutant of projects-map.mjs `projectCard` | Old R96 | R96 rewritten |
+| --- | --- | --- |
+| m96i: the secrecy row pushed before the GM's branch | FAIL | FAIL |
+| m96ii: `if (!game.user.isGM) rows.push([t("DRPG.Project.cardSecrecy"), "x"]);` after the GM's branch | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+### R34 -> "a planted item goes to the first Search that finds something, never to one that misses (was R34)"
+
+| Mutant of action-search.mjs | Old R34 | New test |
+| --- | --- | --- |
+| m34i: `performSearch` calls `searchDraw` before `searchNothing` on a miss | FAIL | FAIL |
+| m34ii: `searchNothing` calls `searchDraw` first and drops its answer (`performSearch`'s order and the one `takePlant` caller unchanged) | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+R34's assertions not held by the new test, kept in tier 0 and marked: no `takePlant` in `runSpend`, `searchedBy` asked in
+`runTakePlant`, the plant check's `lateMs`, and one `SearchTokens.takePlant(` in the action family.
+
+From batch 5 on, mutants run on two detached copies: d7566926's test files for the old test and this branch's for the new
+one, each mutant applied to both (an in-place (a) and its old self share a name).
+
 ## Gates
 
 - Batch 1 (R87, R88, R172, R305, R306, R430, R1120): `node --check` on both test files; `node tools/check.mjs` 19 parts,
@@ -177,3 +199,5 @@ The proposal is written first now.
   0 failed; R36 and R91 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (422 s).
 - Batch 4 (R92): `node --check`; check 19 parts, all green; lint 0 problems; the new test by name 1 ran, 0 failed; R92 by
   name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (441 s).
+- Batch 5 (R34, R53, R96, R143): `node --check`; check 19 parts, all green; lint 0 problems; R34's new test by name 1 ran,
+  0 failed; R34, R53, R96, R143 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (453 s).

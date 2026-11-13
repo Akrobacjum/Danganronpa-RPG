@@ -2540,6 +2540,13 @@ const REGRESSIONS = [
     }],
 
     ["R34 - a planted item is taken only by a Search that found something", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the token spend's and the plant run's shape and a
+           census of callers. The rule on the Search's own road - a miss leaves the plant, the first find takes it - is tier
+           2's "a planted item goes to the first Search that finds something, never to one that misses (E40 item 4: R34's
+           rule, driven; was R34)", which replaced this test's reading of `performSearch`'s order. Read here: no
+           `takePlant` in `runSpend` and `searchedBy` asked in `runTakePlant` (runs of the primary's table, reached by a
+           player's request: scenario 30 sends the plant's packets from a player's browser), the plant check's late answer kept for
+           the GM's window (R165), and `SearchTokens.takePlant(` called once in the action family. */
         /*
          * ACT-03 (17.09). The GM took the plant out of the room on every token spend,
          * before anybody knew what the dice said; a failed Search used it up and the
@@ -2557,17 +2564,8 @@ const REGRESSIONS = [
         // one back (E31 review): the wait keeps that late answer for the GM's window, not for one more clock (R165).
         ok(/\blateMs:\s*(?:PLANT_WINDOW_MS|TIMING\.plantWindowMs)\b/.test(fnSource(tokens, "requestPlantCheck")),
             "the plant check drops a late answer before the GM's window for giving the plant back has closed");
-        const draw = bodyOf(rolls, "async function searchDraw(", { until: "async function performSearch(" });
-        ok(draw.includes("SearchTokens.takePlant("), "the Search no longer asks for a plant");
         equal((rolls.match(/SearchTokens\.takePlant\(/g) ?? []).length, 1,
             "something other than the draw takes the plant out of the room");
-        const search = bodyOf(rolls, "async function performSearch(");
-        const take = search.indexOf("searchDraw(");
-        ok(take > 0, "performSearch no longer draws anything");
-        for (const marker of ["searchSpecific(", "searchNothing(", "searchStash("]) {
-            const at = search.indexOf(marker);
-            ok(at > 0 && at < take, `the plant is taken before ${marker.slice(0, -1)} can end the Search`);
-        }
     }],
 
     ["R35 - the Eclipse ends what was bought for the time of day, and the refill box only refills", async () => {
@@ -3382,6 +3380,10 @@ const REGRESSIONS = [
     }],
 
     ["R53 - the Tamper tile's late answer does not eat the reason it is locked", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the tile is repainted only on an open character sheet (sheet.mjs
+           `sheetsFor`), and the headless harness has no Daggerheart sheet to open (`env.systemSheets`, in
+           skip-baseline.json); `paintTamper` and `askTamper` are not exported. Driving it would need an export of
+           `paintTamper`, or a sheet the harness can draw. */
         /*
          * MEASURED ON A PLAYER'S SHEET IN A CLASS TRIAL (19.09). Every tile carried
          * "The Class Trial is in session..."; a second later, when the GM's ledger
@@ -5328,7 +5330,31 @@ const REGRESSIONS = [
          *
          * Measured live on two clients: Player A saw "You do not know what this is."
          * on two projects and the name, progress and room of the one they are in on.
+         *
+         * E40 item 4, slice B, 13.11.2026 (a): the GM's rows are read off the card itself. projects-map.mjs `projectCard`
+         * (exported) is called on a project of its own, an indirect murder's, once as this GM and once with `game.user.isGM`
+         * reading false for the call (synchronous: it awaits nothing), and each card is searched for the four things only
+         * the GM's may print. Until then the test read where the four keys stood in the source; a mutant that pushed the
+         * secrecy row again after the GM's branch for a player passed it. What stays text: `showProjectCard` (not exported:
+         * the token it reads, the `knowsProject` gate, the hook that draws it), the stylesheet's title band and the frame's
+         * sizing a frame late.
          */
+        const { projectCard } = await import("./projects-map.mjs");
+        const project = { id: "suite-e40-r96", name: "SUITE E40 R96 a project", start: 4, current: 1, room: "SUITE room",
+            indirectMurder: true, condition: "SUITE E40 R96 the trigger" };
+        const gmOnly = [game.i18n.localize("DRPG.Project.cardKnownBy"), game.i18n.localize("DRPG.Project.cardSecrecy"),
+            game.i18n.localize("DRPG.Project.indirect"), "data-drpg-project-manager"];
+        const asPlayer = () => {
+            Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+            try { return projectCard(project); } finally { delete game.user.isGM; }
+        };
+        must(game.user.isGM, "the suite is not running on a GM's browser - the GM's card cannot be read");
+        const cards = [projectCard(project), asPlayer()];
+        must(cards[1].includes(project.name) && cards[1].includes("1 / 4"), "the player's card does not carry the project at all - this would measure nothing");
+        equal(JSON.stringify(cards.map(card => gmOnly.map(text => card.includes(text)))),
+            JSON.stringify([[true, true, true, true], [false, false, false, false]]),
+            "[the GM's card, a player's card]: [who knows it, its secrecy, the indirect murder's trigger, the manager's button] printed");
+
         const sources = new Map(await otherSources());
         const map = stripComments(sources.get("projects-map.mjs") ?? "");
         const show = bodyOf(map, "function showProjectCard(", { until: "\nfunction " });
@@ -5340,13 +5366,6 @@ const REGRESSIONS = [
         ok(/knowsProject\(id\)/.test(show), "the card is not gated by knowsProject");
         ok(/Hooks\.on\("renderActorSheetV2"[\s\S]{0,120}showProjectCard/.test(map),
             "nothing draws the card when a project token's sheet opens");
-
-        const card = bodyOf(map, "function projectCard(", { until: "function unknownProjectCard(" });
-        const gm = bodyOf(card, "if (game.user.isGM)");
-        for (const key of ["cardKnownBy", "cardSecrecy", "DRPG.Project.indirect", "data-drpg-project-manager"]) {
-            ok(gm.includes(key) && card.indexOf(key) >= card.indexOf("if (game.user.isGM)"),
-                `"${key}" is printed outside the GM's branch, so a player reads it`);
-        }
 
         /* And the frame both cards share: the title band in the flow, the size a frame late. */
         const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
@@ -5617,6 +5636,11 @@ const REGRESSIONS = [
     }],
 
     ["R143 - ownership raised past the window's back, and a bullet a player edits, are put back", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): both roads are a player's write judged on the primary GM, and tier 2 runs
+           on the GM's browser: a write it makes is the GM's (the hooks' `userId`), so the put-back is not reached from it.
+           Scenario 30 drives both from a player's browser (phase 7i, "ownership" and "Truth Bullet edits"; the harness's
+           `noHook` silences `updateActor` too, so its ownership check reads the window's close road). What stays here is
+           the wiring: which hooks, in which order against the sheet audit, and the courtesy list on the player's client. */
         /*
          * E03, 24.09.2026; audit S11-04 and S05-12. Configure Ownership saves with
          * `noHook`, which skips the `pre` hook that was the only guard; and a player

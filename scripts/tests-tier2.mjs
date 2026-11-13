@@ -38368,6 +38368,68 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "the trace standing], the answer on a trace nothing holds)");
     }],
 
+    ["a planted item goes to the first Search that finds something, never to one that misses (E40 item 4: R34's rule, driven; was R34)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R34 (tier 0, trimmed in E40 to the plant check's late answer and the one
+         * caller of `takePlant`) read search-tokens.mjs and the action family as text: no `takePlant` in `runSpend`,
+         * `SearchTokens.takePlant(` once and inside `searchDraw`, and `searchDraw(` standing after `searchSpecific(`,
+         * `searchNothing(` and `searchStash(` in `performSearch`. It passed a mutant that kept all of that and took the
+         * plant at the miss as well (`searchNothing` handed a call of `searchDraw` first, whose answer it drops). ACT-03,
+         * 17.09: the plant left the room on every spend, a failed Search used it up and the next successful one in any
+         * room was handed it. A student alone in a room with no stash (`standAlone`), a thing planted there; a free Search
+         * whose roll misses, then one whose roll reaches the first tier, each with its windows' defaults (`answerWindows`)
+         * and the character's `rollTrait` answering the total. Read: whether the miss granted anything, and whether the hit
+         * granted the planted thing.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const T = await import("./traps.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const bars = ACTIONS.search.thresholds.map(t => t.min);
+        const low = Math.min(...bars);
+        must(low > 2, "the Search's lowest bar leaves no total under it - this would measure nothing");
+        const stood = await standAlone(actor);
+        const region = V.regionsByName(canvas?.scene).get(stood.room);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        const start = new Set(actor.items.map(i => i.id)), had = new Set(start);
+        const windows = answerWindows(press);
+        const read = [];
+        try {
+            must(region, `${stood.room} has no region`);
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [], [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+            must(SearchTokens.left(stood.room, canvas?.scene) >= 2 && !SearchTokens.sealed(stood.room, canvas?.scene),
+                `${stood.room} has fewer than two search tokens left - this would measure nothing`);
+            const identity = await T.plantItem("SUITE-E40-R34", stood.room, { sceneId: canvas.scene.id, name: "SUITE E40 R34 a planted thing" });
+            must(identity, "nothing was planted - this would measure nothing");
+            for (const total of [low - 1, low]) {
+                actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
+                    options: { roll: { trait: "instinct" } } } });
+                await rolls.performAction(actor, "search", { free: true });
+                await settle();
+                const fresh = actor.items.filter(i => !had.has(i.id));
+                for (const i of fresh) had.add(i.id);
+                read.push([fresh.length, fresh.some(i => i.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identity)]);
+            }
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            for (const i of actor.items.filter(i => !start.has(i.id) || i.name === "SUITE E40 R34 a planted thing")) await i.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([[0, false], [1, true]]),
+            "a Search that missed took the plant, or the first one that found something was not handed it "
+                + "([things granted, the plant among them] for a total under the lowest bar, then at it)");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*
