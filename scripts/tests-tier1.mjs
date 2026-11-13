@@ -51730,7 +51730,17 @@ const INVARIANTS = [
         const S = await import("./sequence.mjs");
         const T = await import("./transitions.mjs");
         const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
-        const day = 900 + (Date.now() % 1000), read = {};
+        /* A DAY NO RUN OF THIS PAGE HAS PLAYED (13.11.2026; R4400's red in release run 43397715368, the same pattern): a
+           board starts once per key on a page (sequence.mjs `started`), and the day was 900 + Date.now() % 1000, which a
+           later run of tiers 0-1 in the same boot (01-runtests A1, A2, A3, C) can draw again. With the GM's clock read to
+           1000 ms (a probe, not committed) and this test run three times in one boot: run 1 green, runs 2 and 3 red. So the
+           day is the first from 900, in steps of 2, whose boards - the roll-over's, and the night after's with the switch
+           off - this page has not started. */
+        const fresh = d => [d, d + 1].every(n => !S.sequenceStarted("dayEnd", `dayEnd:R3715:${n}:${n}`)
+            && !S.sequenceStarted("dayStart", `day:R3715:${n + 1}:${n + 1}`));
+        let day = 900;
+        while (!fresh(day)) day += 2;
+        const read = {};
         /* Each clock carries the roll-over's stamp on its own day (`dayBoard`, 12.11.2026): the boards play for a real roll-over
            alone since the owner's report on 1.2.109, and a hand-built clock without it is Edit campaign's correction (R4400). */
         const c = (d, timeOfDay) => ({ season: "R3715", session: d, day: d, timeOfDay, phase: "dailyLife", eclipse: false, dayBoard: d });
