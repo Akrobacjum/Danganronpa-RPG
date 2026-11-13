@@ -3738,6 +3738,9 @@ const overlayOf = actor => foundry.utils.deepClone(actor?.toObject?.().flags?.[D
 const overlayWrite = look => ({ [`flags.${DSN_SCOPE}.appearance`]: look });
 /** A GM's overlay on a character: the GMs' copy the put-back must come back to. */
 const GM_OVERLAY = { global: { colorset: "ice", material: "glass" } };
+/** A Dice So Nice role look (E108): the GM's Hope and Fear dice, and a player's own Hope die. */
+const GM_ROLE_LOOK = { hope: { global: { colorset: "fire" } }, fear: { global: { colorset: "ice" } } };
+const OWN_ROLE_LOOK = { hope: { global: { colorset: "black" }, d12: { colorset: "bloodmoon" } } };
 /** A player's or an Assistant's own: a colour of its own and a die scope the GM's has not. */
 const OWN_OVERLAY = { global: { colorset: "black" }, d6: { colorset: "bloodmoon" } };
 /**
@@ -86726,6 +86729,76 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             daggerheart: ["daggerheart-hope-colorset", "daggerheart-fear-colorset", "daggerheart-advantage-colorset", null],
             dsn: [], own: []
         }), "[each die's own colorset on the copy Dice So Nice draws: Daggerheart's look, Dice So Nice's look (no copy), each player's own (no copy)]");
+    }],
+
+    ["a player's own look for a Dice So Nice role goes back to the GM's, and the GM's role looks reach every player (E108, Q-E108-2)", async () => {
+        /*
+         * E108, 13.11.2026 (the coordinator's default for Q-E108-2). Dice So Nice 6.4 draws a role's die - Hope, Fear,
+         * a damage type - from the thrower's own `flags.dice-so-nice.roleAppearance` over the role's defaults (R5467 has
+         * the reading). The GM, the look's source, gives themself a Hope role look; it must reach a connected player; then
+         * the player writes a Hope die of its own through the server, as a console's would arrive. Read after each: the
+         * player's role looks against the GM's. Red before: the GM's never reached the player, and the player's stood.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const roles = () => stableJson(diceScopeOf(player)?.roleAppearance ?? null);
+        const read = {};
+        try {
+            await gm.update({ [`flags.${DSN_SCOPE}.roleAppearance`]: GM_ROLE_LOOK });
+            read.spread = await until(() => roles() === stableJson(GM_ROLE_LOOK), 3000);
+            await player.update({ [`flags.${DSN_SCOPE}.roleAppearance`]: OWN_ROLE_LOOK });
+            read.back = await until(() => roles() === stableJson(GM_ROLE_LOOK), 3000);
+        } finally {
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ back: true, spread: true }),
+            "[the GM's role looks reached the player; the player's own Hope die went back to the GM's]");
+    }],
+
+    ["a player's or an Assistant's role look on a character goes back to the GMs' and a full Gamemaster's own stands (E108, Q-E108-2)", async () => {
+        /*
+         * E108, 13.11.2026 (the coordinator's default for Q-E108-2). Dice So Nice 6.4 lays an actor's own
+         * `roleAppearance` over its thrower's (DsnSettings.js `ROLE_APPEARANCE`), so a player who owns a character could
+         * still throw a Hope die of its own through it. As the appearance overlay's test does it: the GM gives the
+         * player's character a role look; then the player and an Assistant GM made for the test (offline) each write
+         * one, as the primary hears their write (the hook with their id). Read: the character's role looks after each,
+         * the GM's 1.2 s after its write. Red before: every write stands.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const found = actorDiceFound([student]);
+        const made = [];
+        const rolesOf = actor => stableJson(foundry.utils.deepClone(actor?.toObject?.().flags?.[DSN_SCOPE]?.roleAppearance ?? null));
+        const asUser = async (user, look) => {
+            const write = { [`flags.${DSN_SCOPE}.roleAppearance`]: look };
+            await student.update(write, { noHook: true });
+            Hooks.callAll("updateActor", student, foundry.utils.expandObject(write), {}, user.id);
+        };
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E108 role assistant", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            await settle();
+            await student.update({ [`flags.${DSN_SCOPE}.roleAppearance`]: GM_ROLE_LOOK });
+            await wait(1200);
+            read.gm = rolesOf(student) === stableJson(GM_ROLE_LOOK);
+            await asUser(player, OWN_ROLE_LOOK);
+            read.player = await until(() => rolesOf(student) === stableJson(GM_ROLE_LOOK), 3000);
+            await asUser(assistant, { fear: { global: { colorset: "emerald" } } });
+            read.assistant = await until(() => rolesOf(student) === stableJson(GM_ROLE_LOOK), 3000);
+        } finally {
+            for (const user of made) if (game.users.get(user.id)) await user.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ assistant: true, gm: true, player: true }),
+            "[gm: the GM's role look on the character stands; player, assistant: put back to the GM's]");
     }],
 
     ["E60-T17 - a GM sees a player's drawn dice only with that GM's Monokuma in the roller's room (E60 C5e; E60-18, Q-C5-4): with the Monokuma's token in the roller's room this GM's screen throws the drawn roll and its audience names this GM; moved out, no throw and this GM is not in its audience; the roller is in it either way, and the GM reads the roll's card either way", async () => {

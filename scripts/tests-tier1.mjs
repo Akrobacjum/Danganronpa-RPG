@@ -37307,6 +37307,34 @@ const INVARIANTS = [
             "[the codes raised on 2.12.8 with no table look laid here, and with Daggerheart's laid]");
     }],
 
+    ["R5467 - the table's dice look carries the source Gamemaster's Dice So Nice role looks (E108, Q-E108-2): dice-sync.mjs `lookFrom` answers the source's `roleAppearance`, each role's library die owned by the source where it names none, and none as an empty one; `holdsTableLook` reads a user's own role look as not the table's", async () => {
+        /*
+         * E108 (the coordinator's default for Q-E108-2, 13.11.2026: "close the roleAppearance gap so a forced look is
+         * really forced"). Dice So Nice 6.4.5 lays a role's look - Hope, Fear, a damage type - from the role's defaults,
+         * the world's role scopes and then the thrower's own `flags.dice-so-nice.roleAppearance`, its actor's laid over it
+         * (module/settings/DsnSettings.js:208-246 `ROLE_APPEARANCE`, `ROLE_CONTEXT`; engine/DiceRoleRegistry.js:245-279
+         * `resolveRoleSlot`, which takes a library die's owner from the slot or else the thrower). Until this commit the
+         * forced look was `appearance` and `sfxList` alone, so a player's own Hope die stood. Pure, on stub users. Red
+         * before: no `roleAppearance` in the look.
+         */
+        const D = await import("./dice-sync.mjs");
+        const source = { id: "R5467gm" };
+        const roles = { hope: { global: { colorset: "fire" }, d12: { libraryDieId: "R5467-d12" } }, fear: { d12: { libraryDieId: "x", libraryDieOwner: "other" } } };
+        const look = D.lookFrom(source, { appearance: { global: { colorset: "ice" } }, roleAppearance: roles });
+        const none = D.lookFrom(source, { appearance: {} });
+        const user = flags => ({ getFlag: (scope, key) => (scope === "dice-so-nice" ? flags[key] : undefined) });
+        const holding = { appearance: { global: { colorset: "ice" } }, sfxList: [], roleAppearance: look.roleAppearance, saved: { appearance: true, sfx: true } };
+        equal(stableJson({
+            roles: look.roleAppearance ?? null, none: none.roleAppearance ?? null, given: roles.hope.d12.libraryDieOwner ?? null,
+            holds: D.holdsTableLook(user(holding), look),
+            own: D.holdsTableLook(user({ ...holding, roleAppearance: { hope: { global: { colorset: "black" } } } }), look),
+            missing: D.holdsTableLook(user({ ...holding, roleAppearance: undefined }), look)
+        }), stableJson({
+            roles: { hope: { global: { colorset: "fire" }, d12: { libraryDieId: "R5467-d12", libraryDieOwner: "R5467gm" } }, fear: { d12: { libraryDieId: "x", libraryDieOwner: "other" } } },
+            none: {}, given: null, holds: true, own: false, missing: false
+        }), "[the look's role looks (a library die owned by the source where it named none); none; the source's own object untouched; a user holding the look; one with a Hope die of its own; one with none]");
+    }],
+
     ["R1301 - the dice look's two preset findings know the table's look (E60 fix FG3; the end review's C-m5, G-m5): where this browser lays the table's Hope and Despair look (`browser.tableLook`), dice-look.mjs `lookFindings` words a duality die with no preset as drawn in the table's look (`presetMissing`, its own sentence) and holds a die's preset to the table's look rather than this browser's Daggerheart preset (`presetDiffers`, its own sentence; none where the two agree); with no table look laid both say what they said at C5b", async () => {
         /*
          * E60 fix FG3, 03.11.2026. C5d lays the table's look on each throw this browser draws and never on the message, so
