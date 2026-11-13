@@ -33145,7 +33145,9 @@ const INVARIANTS = [
         stableJson({
             before: [ours("r1516-a.css"), "modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ours("r1516-b.css"), ".r1516"],
             removed: 4, after: ["modules/r1516-other/styles/other.css", `modules/${MODULE_ID}-r1516/styles/lookalike.css`, ".r1516"], taken: [0, 1, 1, 0],
-            registered: [false, true], scale: "if (!settingsRegistered()) return;", config: "if (!settingsRegistered()) return;",
+            // E54 W2: scaleWindow's hooks are registered at init, after the requirements' stop, and wait on the reader of
+            // the registration they were handed (settings.mjs `registerWindows`; R4800) - idle twice over in a module that stopped.
+            registered: [false, true], scale: "if (!windowReaders?.registered()) return;", config: "if (!settingsRegistered()) return;",
             stopRemoves: true, held: [false, true, false]
         }), "a module that stopped still styles Foundry or throws on its windows [the inline sheet's rules before | sheets and imports removed | "
             + "its rules after | each sheet's element taken off: inline, linked, refusing ours, refusing another's | settings registered: none, this "
@@ -59128,6 +59130,31 @@ const INVARIANTS = [
         ]), stableJson([true, true, false, true, true, true, true, true, true, true]),
             "[the walk writes the pending row, asks, runs no announcement; the sound first; to the walker's players; kept; "
             + "the announcement drops the row and notes the bodies heard before its gather; asked at the stores' opening and a GM's leaving; registered]");
+    }],
+    ["R4801 - scaleWindow stands once on each of the two render hooks after init (E54 W2): registered by `registerWindows`, and a second call of it changes neither the hooks nor the readers", async () => {
+        /*
+         * E54 W2, 13.11.2026. Beside R4800's source reading, the hooks as the harness's Foundry holds them after the
+         * module's init: `renderApplicationV2` and `renderApplication` each hold settings.mjs's `scaleWindow` exactly once,
+         * and calling `registerWindows` again (with readers that throw, which it must not keep) leaves the hooks and the readers so. Green on
+         * 32f5093f too for the count (the import registered them once); the second call is W2's.
+         */
+        const S = await import("./settings.mjs");
+        must(typeof S.scaleWindow === "function", "settings.mjs exports no scaleWindow - this would measure nothing");
+        const count = () => ["renderApplicationV2", "renderApplication"].map(h => (Hooks.events?.[h] ?? []).filter(entry => entry.fn === S.scaleWindow).length);
+        const before = count();
+        let again = "no registerWindows", answered = null, after = null;
+        if (typeof S.registerWindows === "function") {
+            const boom = () => { throw new Error("R4801: a second registration's reader was read"); };
+            try { answered = S.registerWindows({ scale: boom, height: boom, registered: boom }); again = count(); } catch (err) { again = `threw: ${err.message}`; }
+            /* And the readers are still the first ones: a stand-in sheet is sized after the second call (its readers
+               would throw). Found 13.11.2026: a second call that kept its readers broke every later `scaleWindow` of
+               the browser - R1367 and R3508 failed in scenario 01's A2 and A3, after this test's A1. */
+            const asked = [];
+            const app = { document: { type: "character" }, options: { position: { width: 850, height: 800 } }, setPosition: size => asked.push(size) };
+            try { S.scaleWindow(app, document.createElement("div")); after = asked.length; } catch (err) { after = `threw: ${err.message}`; }
+        }
+        equal(JSON.stringify({ before, again, answered, after }), JSON.stringify({ before: [1, 1], again: [1, 1], answered: false, after: 1 }),
+            "{before: scaleWindow on renderApplicationV2 and renderApplication after init; again: the same after a second registerWindows; answered: what the second call answers; after: a stand-in sheet sized once after it}");
     }],
 ];
 

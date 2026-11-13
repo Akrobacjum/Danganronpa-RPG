@@ -4643,7 +4643,7 @@ const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
  * on-screen keyboard does not lower), so a resize that changes the height sizes the window again and a second render
  * at the same numbers writes nothing. Until C5a the key was the slider alone.
  */
-export function scaleMemo(scale, h = layoutHeight()) {
+export function scaleMemo(scale, h = windowHeight()) {
     return `${scale}@${Math.round(Number(h) || 0)}`;
 }
 
@@ -4670,7 +4670,7 @@ export function sheetBandFoot() {
 }
 
 export function scaleWindow(app, element, _context, options) {
-    if (!settingsRegistered()) return;
+    if (!windowReaders?.registered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
     /*
      * THE BOX IS BOTH THEMES' NOW (W-2, Dawid 19.09).
@@ -4683,8 +4683,8 @@ export function scaleWindow(app, element, _context, options) {
      * the repeat.
      */
     if (!el) return;
-    const s = sliderScale();
-    const h = layoutHeight();
+    const s = windowReaders.scale();
+    const h = windowReaders.height();
     const key = scaleMemo(s, h);
     if (el.dataset.drpgScaled === key) return;
     el.dataset.drpgScaled = key;
@@ -4738,8 +4738,34 @@ export function scaleWindow(app, element, _context, options) {
     if (typeof app.setPosition === "function") app.setPosition(size);
     else for (const [k, v] of Object.entries(size)) el.style[k] = v + "px";
 }
-Hooks.on("renderApplicationV2", scaleWindow);
-Hooks.on("renderApplication", scaleWindow);
+
+/*
+ * THE WINDOWS' SIZE IS REGISTERED AT INIT, HANDED ITS READERS (E54 W2, 13.11.2026; the plan's F2). The two hooks stood
+ * at this file's foot, so they were registered at import, and `scaleWindow` and `scaleMemo` read this file's own
+ * `sliderScale`, `layoutHeight` and `settingsRegistered` - which held the window's size to this file: moved out, the
+ * code would import its facade back. module.mjs calls `registerWindows` under `safely("the windows' size", ...)`
+ * before `registerSettings()`, handing the three readers; a throw there costs the windows' size, not the rest of init.
+ * Until it runs nothing is sized - as before settings are registered - and a second call changes nothing (R4801).
+ */
+let windowReaders = null;
+
+/** The layout height through the readers once handed, the window's own height before (nothing is sized then). */
+function windowHeight() {
+    return windowReaders ? windowReaders.height() : innerHeight;
+}
+
+/**
+ * Register the windows' size: `readers` are `{ scale, height, registered }` - the interface slider's factor, the layout
+ * height (an on-screen keyboard does not lower it) and whether the module's settings are registered.
+ */
+export function registerWindows(readers) {
+    // The first registration holds: a second (a console's, a test's) changes neither the hooks nor the readers.
+    if (windowReaders !== null) return false;
+    windowReaders = readers;
+    Hooks.on("renderApplicationV2", scaleWindow);
+    Hooks.on("renderApplication", scaleWindow);
+    return true;
+}
 
 Hooks.on("renderSettingsConfig", (_app, element) => {
     if (!settingsRegistered()) return;
