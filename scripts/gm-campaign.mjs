@@ -24,7 +24,7 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
@@ -165,10 +165,11 @@ export function campaignRows(clock, { extra = [], autofocus = false } = {}) {
         { label: L("DRPG.Clock.campaignName"), id: ids.name,
           field: `<input type="text" name="campaignName" id="${ids.name}"${autofocus ? " autofocus" : ""}
                        value="${foundry.utils.escapeHTML(clock.campaignName ?? "")}"
-                       placeholder="${foundry.utils.escapeHTML(game.world?.title ?? "")}" />` },
+                       placeholder="${foundry.utils.escapeHTML(game.world?.title ?? "")}"${tipAttr("DRPG.Tips.Gm.campaignNameTooltip")} />` },
         { label: L("DRPG.Clock.chapter"), id: ids.chapter,
-          field: stepper({ name: "chapter", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), step: 1, id: ids.chapter }) },
-        { label: L("DRPG.Clock.phase"), id: ids.phase, field: `<select name="phase" id="${ids.phase}">${phases}</select>` },
+          field: stepper({ name: "chapter", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), step: 1, id: ids.chapter,
+                         attrs: { "data-tooltip": tipText("DRPG.Tips.Gm.chapterTooltip") } }) },
+        { label: L("DRPG.Clock.phase"), id: ids.phase, field: `<select name="phase" id="${ids.phase}"${tipAttr("DRPG.Tips.Gm.phaseTooltip")}>${phases}</select>` },
         { label: L("DRPG.Clock.day"), id: ids.day, field: stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day }) },
         { label: L("DRPG.Clock.session"), id: ids.session, field: stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session }) },
         { label: L("DRPG.Clock.timeOfDay"), id: ids.time, field: `<select name="timeOfDay" id="${ids.time}">${times}</select>` },

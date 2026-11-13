@@ -25223,6 +25223,70 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
+    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 44 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key)", async () => {
+        /* Red at c5cf2aff with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. */
+        const TIPS = [
+            ["DRPG.Tips.Gm.minusTooltip","despair.mjs","buildRow"],
+            ["DRPG.Tips.Gm.plusTooltip","despair.mjs","buildRow"],
+            ["DRPG.Tips.Gm.whichStudentTooltip","gm-items.mjs","openItemManager"],
+            ["DRPG.Tips.Gm.whichTableTooltip","gm-items.mjs","giveExistingPane"],
+            ["DRPG.Tips.Gm.categoryTooltip","gm-items.mjs","giveCreatePane"],
+            ["DRPG.Tips.Gm.tierTooltip","gm-items.mjs","giveCreatePane"],
+            ["DRPG.Tips.Gm.whatThePlayerIsTooltip","gm-items.mjs","bulletShownSelect"],
+            ["DRPG.Tips.Gm.whichRemnantTooltip","gm-items.mjs","bulletExistingPane"],
+            ["DRPG.Tips.Gm.whatItReallyIsTooltip","gm-items.mjs","bulletCreatePane"],
+            ["DRPG.Tips.Gm.howHardTheOriginalTooltip","gm-items.mjs","bulletCreatePane"],
+            ["DRPG.Tips.Gm.tellThePlayerTooltip","gm-items.mjs","takeItemDialog"],
+            ["DRPG.Tips.Gm.giveAnItemTooltip","gm-items.mjs","gmGiveItemDialog"],
+            ["DRPG.Tips.Gm.giveATruthBulletTooltip","gm-items.mjs","giveTruthBulletDialog"],
+            ["DRPG.Tips.Gm.poolNameTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.revokeThePoolFromTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.monokumaTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.despairPoolTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.undoKeepTooltip","sheet-audit.mjs","auditButton"],
+            ["DRPG.Tips.Gm.showAgainTooltip","diagnostics.mjs","openReport"],
+            ["DRPG.Tips.Gm.openTooltip","gm-panel.mjs","nextLineHtml"],
+            ["DRPG.Tips.Gm.studentsTooltip","gm-panel.mjs","studentsLeftHtml"],
+            ["DRPG.Tips.Gm.copyToClipboardTooltip","gm-panel.mjs","openFailureLog"],
+            ["DRPG.Tips.Gm.clearTheLogTooltip","gm-panel.mjs","openFailureLog"],
+            ["DRPG.Tips.Gm.doNotMentionFoundTooltip","requirements.mjs","announceNewerSystem"],
+            ["DRPG.Tips.Gm.monokumaPoolTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.giveTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.stateTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.aCharacterDiesTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.inviteAsAMonocubTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.roleTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.amountTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.amountTooltip","monocub.mjs","openMonocubDialog"],
+            ["DRPG.Tips.Gm.levelUpTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.campaignNameTooltip","gm-campaign.mjs","campaignRows"],
+            ["DRPG.Tips.Gm.phaseTooltip","gm-campaign.mjs","campaignRows"],
+            ["DRPG.Tips.Gm.chapterTooltip","gm-campaign.mjs","campaignRows"],
+            ["DRPG.Tips.Gm.keepTheMastermindTooltip","gm-stores.mjs","runHealthCheck"],
+            ["DRPG.Tips.Gm.restoreFromAFileTooltip","gm-stores.mjs","runHealthCheck"],
+            ["DRPG.Tips.Gm.moveThemIntoTheTooltip","gm-stores.mjs","runHealthCheck"],
+            ["DRPG.Tips.Gm.clearTheMastermindTooltip","gm-stores.mjs","runHealthCheck"],
+            ["DRPG.Tips.Gm.backUpTooltip","gm-stores.mjs","openCaseWindow"],
+            ["DRPG.Tips.Gm.enterTooltip","gm-stores.mjs","enterCastByHand"],
+            ["DRPG.Tips.Gm.despairPool2Tooltip","monocub.mjs","openMonocubDialog"],
+            ["DRPG.Tips.Gm.give2Tooltip","monocub.mjs","openMonocubDialog"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 44, "lang/en.json has not the family's 44 keys under DRPG.Tips.Gm");
+        const fits = w => typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23;
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            const read = new RegExp(`tip(?:Attr|Text)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            return !(read && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is

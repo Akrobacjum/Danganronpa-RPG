@@ -18,7 +18,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
-import { launcher, drpgWindow, box } from "./ui-kit.mjs";
+import { launcher, drpgWindow, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
@@ -757,8 +757,10 @@ async function openFailureLog() {
         </div>`,
         footer: {
             close: { role: "close", action: "close" },
-            secondary: rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : [],
-            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : []
+            secondary: rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy"),
+                tooltip: tipText("DRPG.Tips.Gm.copyToClipboardTooltip") }] : [],
+            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
+                tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }] : []
         },
         rejectClose: false
     });
@@ -1027,7 +1029,7 @@ export function nextLineHtml(step) {
     const go = nextGoKey(step?.action);
     const setup = step?.setup ? `<div class="drpg-gmp-next-setup">
             <span class="drpg-gmp-next-setup-text">${step.setup.text}</span>
-            <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}">
+            <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}"${tipAttr("DRPG.Tips.Gm.openTooltip")}>
                 ${game.i18n.localize("DRPG.Season.openIt")}</button>
         </div>` : "";
     return `<div class="drpg-gmp-next">
@@ -1153,7 +1155,7 @@ export function advanceHtml(clock = getClock(), eclipse = isEclipse()) {
 export function studentsLeftHtml(roster = actingStudents()) {
     const n = roster.filter(a => actionsLeft(a) > 0).length;
     return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}
-                <button type="button" class="drpg-gmp-next-go" data-drpg-run="whoIsAlive">
+                <button type="button" class="drpg-gmp-next-go" data-drpg-run="whoIsAlive"${tipAttr("DRPG.Tips.Gm.studentsTooltip")}>
                     <i class="fa-solid fa-heart-pulse" inert></i> ${esc(game.i18n.localize("DRPG.Panel.whoIsAlive"))}</button></p>`;
 }
 

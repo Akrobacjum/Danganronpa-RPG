@@ -50,7 +50,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, plural, isPrimaryGm, wholeNumber } from "./utils.mjs";
-import { stepper, drpgWindow } from "./ui-kit.mjs";
+import { stepper, drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
@@ -775,9 +775,9 @@ export async function openMonocubDialog() {
                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.isOne")}: ${a.name}`)}" /></td>
             <td>${cub ? `${hope} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub ? `
-                <select name="donor:${a.id}">${donors}</select>
-                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, attrs: { style: "width:3.5em" } })}
-                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
+                <select name="donor:${a.id}"${tipAttr("DRPG.Tips.Gm.despairPool2Tooltip")}>${donors}</select>
+                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, attrs: { style: "width:3.5em", "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
+                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}"${tipAttr("DRPG.Tips.Gm.give2Tooltip")}>
                     ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub ? `
                 <input type="checkbox" name="silenced:${a.id}" ${silenced ? "checked" : ""}

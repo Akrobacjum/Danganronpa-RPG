@@ -149,7 +149,7 @@ import { readDuality } from "./despair-award.mjs";
 import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
-import { box, roleButton } from "./ui-kit.mjs";
+import { box, roleButton, tipText } from "./ui-kit.mjs";
 import { readSpectatorsWith } from "./spectator.mjs";
 
 /**
@@ -2801,7 +2801,8 @@ export function flaggedCard(row) {
  */
 function auditButton(attr, how, key, id = null) {
     // the kit's `roleButton` since E47-KFa (written by hand from BUTTON_ROLES before it), the same attributes in the same order
-    return roleButton({ role: how === "undo" ? "gmRoute" : "secondary", attrs: { [`data-drpg-${attr}`]: how, "data-drpg-row": id || null },
+    return roleButton({ role: how === "undo" ? "gmRoute" : "secondary", attrs: { [`data-drpg-${attr}`]: how, "data-drpg-row": id || null,
+        "data-tooltip": attr === "audit" && how === "undo" ? tipText("DRPG.Tips.Gm.undoKeepTooltip") : null },
         label: game.i18n.localize(key) });
 }
 

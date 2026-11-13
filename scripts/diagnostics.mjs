@@ -23,7 +23,7 @@ import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
@@ -2210,7 +2210,11 @@ export async function openReport(text, { wait = config => drpgWindow(config),
             footer: {
                 secondary: [
                     { action: "copy", label: localize("DRPG.Diagnose.copy") },
-                    ...left.map(s => ({ action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain") }))
+                    ...left.map(s => {
+                        const named = { warning: s.label };
+                        return { action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain"),
+                            tooltip: tipText("DRPG.Tips.Gm.showAgainTooltip", named) };
+                    })
                 ],
                 close: { role: "close", action: "close" }
             },

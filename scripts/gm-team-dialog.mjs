@@ -27,7 +27,7 @@ import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./mon
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -429,7 +429,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
             account: foundry.utils.escapeHTML(u.name),
             name: `<input type="text" name="poolName.${u.id}" value="${foundry.utils.escapeHTML(poolLabel(u))}"
                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Despair.poolName")}: ${u.name}`)}"
-                       placeholder="${foundry.utils.escapeHTML(u.name)}" />`
+                       placeholder="${foundry.utils.escapeHTML(u.name)}"${tipAttr("DRPG.Tips.Gm.poolNameTooltip")} />`
         }))
     });
 
@@ -441,7 +441,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
 
     const removeRow = removable.length ? `
         <label>${L("DRPG.Despair.revokeFrom")}
-            <select name="removePoolCandidate">${removable.map(u =>
+            <select name="removePoolCandidate"${tipAttr("DRPG.Tips.Gm.revokeThePoolFromTooltip")}>${removable.map(u =>
                 `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))}</option>`).join("")}</select>
         </label>` : "";
 
@@ -469,10 +469,10 @@ function buildContent(actors, gms, roster, candidates, removable) {
                 marked,
                 who: `<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait" />${foundry.utils.escapeHTML(actor.name)}`,
                 mark: `<input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""}
-                       aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />`,
+                       aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}"${tipAttr("DRPG.Tips.Gm.monokumaTooltip")} />`,
                 pool: `<span class="drpg-cell-none" data-drpg-pool-none${marked ? " hidden" : ""}>-</span>
                 <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled hidden"}
-                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}">${options}</select>`
+                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}"${tipAttr("DRPG.Tips.Gm.despairPoolTooltip")}>${options}</select>`
             };
         }),
         rowAttrs: r => ({ "data-actor": r.actorId, class: r.marked ? "drpg-is-monokuma" : null })
@@ -522,7 +522,8 @@ function buildContent(actors, gms, roster, candidates, removable) {
      * are gone, because two doors into one form is one door too many.
      */
     const body = kitTabs([
-        { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection },
+        { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection,
+          tooltip: tipText("DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip") },
         { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection },
         ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Despair.tabStudents"), html: assignSection }] : []),
         { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: overflowSection({ suggestion: overflowSuggestionNow() }) }

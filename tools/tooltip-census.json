@@ -330,36 +330,12 @@
    "why": "none needed: The note in the window says erasing happens at once, beside the other choice."
   },
   {
-   "file": "scripts/despair.mjs",
-   "unit": "buildRow",
-   "kind": "kit:stepper",
-   "key": "DRPG.Look.stepDown",
-   "count": 1,
-   "why": "E102 C4: Takes one Despair from this pool"
-  },
-  {
-   "file": "scripts/despair.mjs",
-   "unit": "buildRow",
-   "kind": "kit:stepper",
-   "key": "DRPG.Look.stepUp",
-   "count": 1,
-   "why": "E102 C4: Adds one Despair to this pool"
-  },
-  {
    "file": "scripts/diagnostics.mjs",
    "unit": "openReport",
    "kind": "footer",
    "key": "DRPG.Diagnose.copy",
    "count": 1,
    "why": "none needed: The window's intro says to copy the report and send it on."
-  },
-  {
-   "file": "scripts/diagnostics.mjs",
-   "unit": "openReport",
-   "kind": "footer",
-   "key": "DRPG.Diagnose.showAgain",
-   "count": 1,
-   "why": "E102 C4: Shows this silenced warning again: {warning}"
   },
   {
    "file": "scripts/enforced.mjs",
@@ -396,22 +372,6 @@
   {
    "file": "scripts/gm-campaign.mjs",
    "unit": "campaignRows",
-   "kind": "input",
-   "key": "DRPG.Clock.campaignName",
-   "count": 1,
-   "why": "E102 C4: Shown to everyone on the HUD; left empty, the world's name is used"
-  },
-  {
-   "file": "scripts/gm-campaign.mjs",
-   "unit": "campaignRows",
-   "kind": "select",
-   "key": "DRPG.Clock.phase",
-   "count": 1,
-   "why": "E102 C4: Moving it to Class Trial opens the trial; you are asked first"
-  },
-  {
-   "file": "scripts/gm-campaign.mjs",
-   "unit": "campaignRows",
    "kind": "select",
    "key": "DRPG.Clock.timeOfDay",
    "count": 1,
@@ -424,14 +384,6 @@
    "key": "DRPG.Chapter.endTitle",
    "count": 1,
    "why": "none needed: The warning box it sits in says what it does and that it asks first."
-  },
-  {
-   "file": "scripts/gm-campaign.mjs",
-   "unit": "campaignRows",
-   "kind": "kit:stepper",
-   "key": "DRPG.Clock.chapter",
-   "count": 1,
-   "why": "E102 C4: Corrects the number only; End the chapter below ends a chapter"
   },
   {
    "file": "scripts/gm-campaign.mjs",
@@ -459,43 +411,11 @@
   },
   {
    "file": "scripts/gm-items.mjs",
-   "unit": "openItemManager",
-   "kind": "select",
-   "key": "DRPG.Items.whichCharacterHub",
-   "count": 1,
-   "why": "E102 C4: Whose items are listed below"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
-   "unit": "giveExistingPane",
-   "kind": "select",
-   "key": "DRPG.Items.pickTable",
-   "count": 1,
-   "why": "E102 C4: The item table to pick from. It sets the item's category and tier."
-  },
-  {
-   "file": "scripts/gm-items.mjs",
    "unit": "giveExistingPane",
    "kind": "select",
    "key": "DRPG.Items.pickExisting",
    "count": 1,
    "why": "none needed: The label asks it, and the list holds only the table chosen above."
-  },
-  {
-   "file": "scripts/gm-items.mjs",
-   "unit": "giveCreatePane",
-   "kind": "select",
-   "key": "DRPG.Items.category",
-   "count": 1,
-   "why": "E102 C4: What kind of item it is, which decides how the student can use it"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
-   "unit": "giveCreatePane",
-   "kind": "select",
-   "key": "DRPG.Items.tier",
-   "count": 1,
-   "why": "E102 C4: Higher tiers last longer. A Tier 0 item breaks after one roll."
   },
   {
    "file": "scripts/gm-items.mjs",
@@ -523,22 +443,6 @@
   },
   {
    "file": "scripts/gm-items.mjs",
-   "unit": "bulletShownSelect",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: Whether the holder sees its real type or has to analyze it first"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
-   "unit": "bulletExistingPane",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.pickRemnant",
-   "count": 1,
-   "why": "E102 C4: The Remnant on the map this Truth Bullet copies"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
    "unit": "bulletCreatePane",
    "kind": "textarea",
    "key": null,
@@ -560,22 +464,6 @@
    "key": "DRPG.TruthBullet.namePlaceholder",
    "count": 1,
    "why": "none needed: The label says the player sees it, and the placeholder gives an example."
-  },
-  {
-   "file": "scripts/gm-items.mjs",
-   "unit": "bulletCreatePane",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.realType",
-   "count": 1,
-   "why": "E102 C4: Its true type, which a passed Analyze or the chapter's end reveals"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
-   "unit": "bulletCreatePane",
-   "kind": "select",
-   "key": "DRPG.TruthBullet.visibility",
-   "count": 1,
-   "why": "E102 C4: Sets how hard this Truth Bullet is to analyze"
   },
   {
    "file": "scripts/gm-items.mjs",
@@ -619,14 +507,6 @@
   },
   {
    "file": "scripts/gm-items.mjs",
-   "unit": "takeItemDialog",
-   "kind": "checkbox",
-   "key": "DRPG.Items.whichItem",
-   "count": 1,
-   "why": "E102 C4: Leave it unticked to take the item without a word to the player"
-  },
-  {
-   "file": "scripts/gm-items.mjs",
    "unit": "gmGiveItemDialog",
    "kind": "kit:kitTabs",
    "key": "DRPG.Items.tabGiveExisting",
@@ -642,60 +522,12 @@
    "why": "none needed: Each tab's label names its pane."
   },
   {
-   "file": "scripts/gm-items.mjs",
-   "unit": "gmGiveItemDialog",
-   "kind": "footer",
-   "key": "DRPG.Items.give",
-   "count": 1,
-   "why": "E102 C4: Gives it at once. With Tell the player ticked, they get a message."
-  },
-  {
-   "file": "scripts/gm-items.mjs",
-   "unit": "giveTruthBulletDialog",
-   "kind": "footer",
-   "key": "DRPG.TruthBullet.give",
-   "count": 1,
-   "why": "E102 C4: Gives it at once. One from a Remnant shows that Remnant to its holder."
-  },
-  {
-   "file": "scripts/gm-panel.mjs",
-   "unit": "nextLineHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: Opens the Season checklist"
-  },
-  {
    "file": "scripts/gm-panel.mjs",
    "unit": "nextLineHtml",
    "kind": "button",
    "key": "DRPG.Panel.nextLabel",
    "count": 1,
    "why": "none needed: Its label names the step it runs (Start the Eclipse, Announce the body, ...) and the line beside it says why."
-  },
-  {
-   "file": "scripts/gm-panel.mjs",
-   "unit": "studentsLeftHtml",
-   "kind": "button",
-   "key": "DRPG.Panel.studentsLeft",
-   "count": 1,
-   "why": "E102 C4: Opens the student list, with each student's state and actions"
-  },
-  {
-   "file": "scripts/gm-panel.mjs",
-   "unit": "openFailureLog",
-   "kind": "footer",
-   "key": "DRPG.Failures.copy",
-   "count": 1,
-   "why": "E102 C4: Copies the whole log, in more detail than shown here"
-  },
-  {
-   "file": "scripts/gm-panel.mjs",
-   "unit": "openFailureLog",
-   "kind": "footer",
-   "key": "DRPG.Failures.clear",
-   "count": 1,
-   "why": "E102 C4: Empties this browser's log for good"
   },
   {
    "file": "scripts/gm-stores.mjs",
@@ -717,14 +549,6 @@
    "file": "scripts/gm-stores.mjs",
    "unit": "runHealthCheck",
    "kind": "footer",
-   "key": "DRPG.Case.keepMastermind",
-   "count": 1,
-   "why": "E102 C4: The picked student stays the Mastermind, and their player is told"
-  },
-  {
-   "file": "scripts/gm-stores.mjs",
-   "unit": "runHealthCheck",
-   "kind": "footer",
    "key": "DRPG.Case.continue",
    "count": 1,
    "why": "none needed: The note under the rows says what Continue does and that the GM panel keeps reminding."
@@ -733,57 +557,9 @@
    "file": "scripts/gm-stores.mjs",
    "unit": "runHealthCheck",
    "kind": "footer",
-   "key": "DRPG.Case.restoreFromFile",
-   "count": 1,
-   "why": "E102 C4: Opens a backup file and shows what it brings back before anything changes"
-  },
-  {
-   "file": "scripts/gm-stores.mjs",
-   "unit": "runHealthCheck",
-   "kind": "footer",
-   "key": "DRPG.Case.moveTraces",
-   "count": 1,
-   "why": "E102 C4: Moves each Remnant's hidden answer off its token into the GM records"
-  },
-  {
-   "file": "scripts/gm-stores.mjs",
-   "unit": "runHealthCheck",
-   "kind": "footer",
    "key": "DRPG.Case.enterCast",
    "count": 1,
    "why": "none needed: The label says it, and it only opens the window that asks for the cast."
-  },
-  {
-   "file": "scripts/gm-stores.mjs",
-   "unit": "runHealthCheck",
-   "kind": "footer",
-   "key": "DRPG.Case.clearMastermind",
-   "count": 1,
-   "why": "E102 C4: Nobody is the Mastermind until you pick one again"
-  },
-  {
-   "file": "scripts/gm-stores.mjs",
-   "unit": "openCaseWindow",
-   "kind": "footer",
-   "key": "DRPG.Case.backup",
-   "count": 1,
-   "why": "E102 C4: Saves every GM secret of this world to a file no player should see"
-  },
-  {
-   "file": "scripts/gm-stores.mjs",
-   "unit": "openCaseWindow",
-   "kind": "footer",
-   "key": "DRPG.Case.restoreFromFile",
-   "count": 1,
-   "why": "E102 C4: Opens a backup file and shows what it brings back before anything changes"
-  },
-  {
-   "file": "scripts/gm-stores.mjs",
-   "unit": "enterCastByHand",
-   "kind": "footer",
-   "key": "DRPG.Case.castEnter",
-   "count": 1,
-   "why": "E102 C4: Records the cast; nothing is written without a killer and a victim"
   },
   {
    "file": "scripts/gm-stores.mjs",
@@ -796,114 +572,10 @@
   {
    "file": "scripts/gm-students.mjs",
    "unit": "aliveTableHtml",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: The Monokuma whose Despair pays. The number is what that pool can spend now"
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: Gives the Hope now. The Monokuma's pool pays at the next time of day."
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
    "kind": "checkbox",
    "key": "DRPG.Monocub.give",
    "count": 1,
    "why": "none needed: The column's head already carries the tooltip (DRPG.Monocub.silencedNote); a second copy on every row would repeat it."
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
-   "kind": "select",
-   "key": "DRPG.Panel.stateColumn",
-   "count": 1,
-   "why": "E102 C4: Corrects the state quietly on Apply: no announcement, and the inventory stays"
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
-   "kind": "button",
-   "key": "DRPG.Panel.state",
-   "count": 1,
-   "why": "E102 C4: Opens the full death procedure for this student"
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
-   "kind": "button",
-   "key": "DRPG.Chapter.deathTitle",
-   "count": 1,
-   "why": "E102 C4: Makes this dead student a Monocub now, with Hope, Health and Sanity at zero"
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
-   "kind": "select",
-   "key": "DRPG.Panel.roleColumn",
-   "count": 1,
-   "why": "E102 C4: Changes the character's role at once, without waiting for Apply"
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
-   "kind": "kit:stepper",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: How much Despair turns into Hope, one for one"
-  },
-  {
-   "file": "scripts/gm-students.mjs",
-   "unit": "aliveTableHtml",
-   "kind": "kit:roleButton",
-   "key": "DRPG.Advance.standing",
-   "count": 1,
-   "why": "E102 C4: Opens this character's Level Up window"
-  },
-  {
-   "file": "scripts/gm-team-dialog.mjs",
-   "unit": "buildContent",
-   "kind": "input",
-   "key": "DRPG.Despair.poolName",
-   "count": 1,
-   "why": "E102 C4: The name this Despair pool shows at the table"
-  },
-  {
-   "file": "scripts/gm-team-dialog.mjs",
-   "unit": "buildContent",
-   "kind": "select",
-   "key": "DRPG.Despair.revokeFrom",
-   "count": 1,
-   "why": "E102 C4: The Assistant GM who loses the pool, and the Despair in it"
-  },
-  {
-   "file": "scripts/gm-team-dialog.mjs",
-   "unit": "buildContent",
-   "kind": "checkbox",
-   "key": "DRPG.Monokuma.isMonokuma",
-   "count": 1,
-   "why": "E102 C4: Makes this character a Monokuma: no actions or Hope, Despair Calls instead"
-  },
-  {
-   "file": "scripts/gm-team-dialog.mjs",
-   "unit": "buildContent",
-   "kind": "select",
-   "key": "DRPG.Monokuma.pool",
-   "count": 1,
-   "why": "E102 C4: The GM pool this Monokuma spends Despair from"
-  },
-  {
-   "file": "scripts/gm-team-dialog.mjs",
-   "unit": "buildContent",
-   "kind": "kit:kitTabs",
-   "key": "DRPG.Despair.tabPools",
-   "count": 1,
-   "why": "E102 C4: Pools: which GM holds a Despair pool, and its name"
   },
   {
    "file": "scripts/handbooks.mjs",
@@ -1548,34 +1220,10 @@
   {
    "file": "scripts/monocub.mjs",
    "unit": "openMonocubDialog",
-   "kind": "select",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: Whose Despair pays; the number is what that pool can spend"
-  },
-  {
-   "file": "scripts/monocub.mjs",
-   "unit": "openMonocubDialog",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: Turns that much Despair into this Monocub's Hope at once, without Apply"
-  },
-  {
-   "file": "scripts/monocub.mjs",
-   "unit": "openMonocubDialog",
    "kind": "checkbox",
    "key": "DRPG.Monocub.silenced",
    "count": 1,
    "why": "none needed: Its column heading carries the tooltip that explains it, and the locked box says Tick Monocub first."
-  },
-  {
-   "file": "scripts/monocub.mjs",
-   "unit": "openMonocubDialog",
-   "kind": "kit:stepper",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: How much Despair turns into Hope, one for one"
   },
   {
    "file": "scripts/murder-rules.mjs",
@@ -1834,14 +1482,6 @@
    "why": "none needed: Its label and placeholder say who reads it; the card's note says when it saves."
   },
   {
-   "file": "scripts/requirements.mjs",
-   "unit": "announceNewerSystem",
-   "kind": "checkbox",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: The Diagnostics report can bring the warning back"
-  },
-  {
    "file": "scripts/rest.mjs",
    "unit": "choosePicks",
    "kind": "input",
@@ -2056,14 +1696,6 @@
    "key": null,
    "count": 1,
    "why": "none needed: Each row shows its label and hint."
-  },
-  {
-   "file": "scripts/sheet-audit.mjs",
-   "unit": "auditButton",
-   "kind": "kit:roleButton",
-   "key": null,
-   "count": 1,
-   "why": "E102 C4: Undo: puts back what the player changed by hand"
   },
   {
    "file": "scripts/sheet.mjs",

@@ -27,7 +27,7 @@
 
 import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
-import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
+import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
@@ -92,9 +92,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         const cubCells = {
             hope: cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : none,
             give: !cub ? none : donors ? `
-                <select name="donor:${a.id}">${donors}</select>
-                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true })}
-                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
+                <select name="donor:${a.id}"${tipAttr("DRPG.Tips.Gm.monokumaPoolTooltip")}>${donors}</select>
+                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true,
+                    attrs: { "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
+                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}"${tipAttr("DRPG.Tips.Gm.giveTooltip")}>
                     ${L("DRPG.Monocub.give")}</button>` : "-",
             silenced: cub
                 ? `<input type="checkbox" name="silenced:${a.id}" ${isCrimeSilenced(a) ? "checked" : ""} />`
@@ -122,16 +123,16 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         return {
             id: a.id, ...shared(a), ...cubCells, ...economy,
             // Its name, not its options' words (E48 K4: a11y.mjs no longer names a select by what it holds).
-            state: `<select name="state.${a.id}" aria-label="${esc(`${L("DRPG.Panel.stateColumn")} - ${a.name}`)}">
+            state: `<select name="state.${a.id}" aria-label="${esc(`${L("DRPG.Panel.stateColumn")} - ${a.name}`)}"${tipAttr("DRPG.Tips.Gm.stateTooltip")}>
                 ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
                     `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
                         L(sKey === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${sKey}`)}</option>`).join("")}
             </select>`,
             do: `${state === "alive"
                 ? `<button type="button" class="drpg-mini-button drpg-gm-route"
-                       data-drpg-kill="${a.id}">${L("DRPG.Chapter.deathTitle")}</button>`
+                       data-drpg-kill="${a.id}"${tipAttr("DRPG.Tips.Gm.aCharacterDiesTooltip")}>${L("DRPG.Chapter.deathTitle")}</button>`
                 : state === "dead"
-                    ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${L("DRPG.Monocub.invite")}</button>`
+                    ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}"${tipAttr("DRPG.Tips.Gm.inviteAsAMonocubTooltip")}>${L("DRPG.Monocub.invite")}</button>`
                     : ""}${refundButton(a)}`
         };
     };
@@ -170,9 +171,9 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         return {
             name: esc(a.name),
             open: `${sheetButton(a)}${role === "monokuma" ? keptSlot() : itemsButton(a)}`,
-            role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
+            role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}"${tipAttr("DRPG.Tips.Gm.roleTooltip")}>${
                 ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
-            levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
+            levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id, "data-tooltip": tipText("DRPG.Tips.Gm.levelUpTooltip") },
                 label: n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip") })
         };
     };

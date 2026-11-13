@@ -24,6 +24,7 @@ import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { narrowColumn } from "./narrow.mjs";
+import { tipText } from "./ui-kit.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
@@ -1228,16 +1229,16 @@ function buildRow(user) {
     const ghost = !isGM;
     row.append(
         stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0, ghost,
-            game.i18n.localize("DRPG.Look.stepDown")),
+            game.i18n.localize("DRPG.Look.stepDown"), tipText("DRPG.Tips.Gm.minusTooltip")),
         stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max, ghost,
-            game.i18n.localize("DRPG.Look.stepUp"))
+            game.i18n.localize("DRPG.Look.stepUp"), tipText("DRPG.Tips.Gm.plusTooltip"))
     );
     if (isGM && isOwnPool) row.classList.add("own");
 
     return row;
 }
 
-function stepper(icon, handler, disabled, ghost = false, label = "") {
+function stepper(icon, handler, disabled, ghost = false, label = "", tip = "") {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `drpg-despair-button${ghost ? " is-ghost" : ""}`;
@@ -1248,7 +1249,7 @@ function stepper(icon, handler, disabled, ghost = false, label = "") {
        Monokuma's count, which is a number a GM changes under time pressure. The two
        strings already existed for the Look window's own steppers. */
     if (label) {
-        button.dataset.tooltip = label;
+        button.dataset.tooltip = tip || label;
         button.setAttribute("aria-label", label);
     }
 
