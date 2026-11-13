@@ -2294,8 +2294,9 @@ function playerRollCard(player, student) {
  * A ROLL WINDOW (E08+E28 C7, 03.10.2026; Daggerheart's own since E33 C2b). The window Daggerheart's
  * duality roll opens (its `DefaultDialog`: at a table Daggerheart's, headless the harness's stand-in,
  * lib/dh-dice/applications/dialogs/d20RollDialog.mjs), on that roll built from `config` as its `build`
- * builds one (`createRollInstance`) - its data the character's roll data with the character as its
- * `parent` unless `config.data` names some, its advantage none unless `config.roll` says. The module's
+ * builds one (`createRollInstance`) - with 2.12.8's MoveContext's shape (the character as `actor`, `hasRoll`), its
+ * data the character's roll data with its experiences unless `config.data` names some, its advantage none unless
+ * `config.roll` says. The module's
  * hooks run on it as Foundry fires them, every other window hook of the module's too. `open()` renders
  * it and waits for the renders its hooks asked for; `renders` counts the renders the hooks were handed;
  * `submit()` presses Roll and `cancel()` closes it unsubmitted, each waiting for what the close hook
@@ -2305,8 +2306,12 @@ function playerRollCard(player, student) {
  */
 async function rollWindow(actor, config = {}) {
     const DR = game.system.api.dice.DualityRoll;
-    const data = config.data ?? Object.defineProperty(actor.getRollData(), "parent", { value: actor, configurable: true });
-    const cfg = { ...config, roll: { advantage: 0, ...(config.roll ?? {}) }, source: { actor: actor.uuid, ...(config.source ?? {}) }, data };
+    /* The config 2.12.8's MoveContext hands the window (move-context.mjs :38-136): the character as `actor`, `hasRoll`, and
+       roll data that carries the character's experiences (:131) and no `parent` - the window reads the actor off the
+       config (d20RollDialog.mjs:43-45) and draws its roll's controls only under `hasRoll` (rollSelection.hbs:3). Until
+       13.11.2026 this built 2.10.5's: the character as the roll data's `parent`, which 2.12.8's window does not read. */
+    const data = config.data ?? { ...actor.getRollData(), experiences: actor.system?.experiences ?? {} };
+    const cfg = { hasRoll: true, actor, ...config, roll: { advantage: 0, ...(config.roll ?? {}) }, source: { actor: actor.uuid, ...(config.source ?? {}) }, data };
     const app = new DR.DefaultDialog(DR.createRollInstance(cfg), cfg);
     let renders = 0;
     const counting = Hooks.on("renderApplicationV2", shown => { if (shown === app) renders += 1; });
