@@ -28,10 +28,10 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R32 | (b), trimmed | the plan row's half driven through `applyDashboardSave`; the form reader (`readCaseFields`, not exported) stays as text | batch 6 |
 | R34 | (b), trimmed | a miss and a hit driven with a planted item; the spend's and the plant run's shape, the late answer and the one-caller census stay | batch 5 |
 | R36 | (b), trimmed | `plantOnPerson` driven at the plant's bars; Tamper's two resolver lines stay as text, not driven | batch 3 |
-| R37 | (b), not built | `releaseTamper` (not exported) reached by closing Tamper's window after a landed concealment roll |  |
+| R37 | (b), trimmed | `attemptCleanup` driven watched and alone with the main window closed; the release's `isCleaner` read stays | batch 7 |
 | R39 | (c) | which readers the fee, the charge and the finders call; the fee's counts are tier 2's (four named tests); `keyPlanStatus`'s off-plan count and the case's bar are read as text only | batch 2 |
 | R40 | (c) | a census over the action family and cleanup.mjs, and a branch of `concealSabotage`, not exported | batch 2 |
-| R46 | (b), not built | `performAnalyze`'s order (price before dice, the GM check before the price) with its windows answered; the call-site census of `gmRulingActions` is (c) |  |
+| R46 | (b), trimmed | the price at the dice, the closed window's refund, the free road from a console and as the GM, a forged refusal card pressed; the GM-check order, the three roads' refunds and the receipts census stay | batch 7 |
 | R47 | (b), not built | Tamper's one price through `attemptCleanup`/`attemptStageSix` with windows; the GM-side charge census is (c) |  |
 | R49 | (b), not built | `createFind` (not exported), the give dialog's two guards, `publishReading` and `mintLootBullet` (not exported): several fixtures |  |
 | R53 | (c) | the tile is painted only on an open Daggerheart sheet, which the headless harness has none of (`env.systemSheets`); `paintTamper` not exported | batch 5 |
@@ -206,6 +206,30 @@ one, each mutant applied to both (an in-place (a) and its old self share a name)
 R32's F1 half (a row the filter hides is not read as blanks) stays in tier 0 as text: the reader is investigation.mjs
 `readCaseFields`, not exported, and the hidden row exists only in the open dashboard.
 
+### R37 -> "a Tamper window closed after a landed concealment roll keeps its price ... (was R37)"
+
+| Mutant of cleanup.mjs | Old R37 | New test |
+| --- | --- | --- |
+| m37i: `releaseTamper`'s `if (rolled)` never true | FAIL | FAIL |
+| m37ii: `attemptCleanup` asks `releaseTamper` with `rolled: cover === "roll"` (never true; `releaseTamper` unchanged) | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+The first draft of the new test failed on the clean tree, measured: `aloneTogether` asked `world.*` after the fixture had
+placed its trace (rule 2 of the test contract); it is told the test asked first (`{ asked: true }`).
+
+### R46 -> "Analyze takes its price before the dice ... (was R46)"
+
+| Mutant | Old R46 | New test |
+| --- | --- | --- |
+| m46i-a: action-analyze.mjs `const free = Boolean(options.free);` | FAIL | FAIL |
+| m46ii-a: `... && game.user.isGM \|\| Boolean(options.free) && !game.user.isGM` (the matched spelling still there) | ok - missed | FAIL |
+| m46i-b: the closed window's `refundPrice` removed | FAIL | FAIL |
+| m46ii-c: messenger-app.mjs `refundOnCard` taking `const amount = Number(data.amount) \|\| step.amount` | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+A draft of the new test's comment named a different (ii) mutant for the free road (`|| Boolean(options.freeAll)`) that a
+call with `free: true` would not reach; corrected before the run, and the table above is the one run.
+
 ## Gates
 
 - Batch 1 (R87, R88, R172, R305, R306, R430, R1120): `node --check` on both test files; `node tools/check.mjs` 19 parts,
@@ -227,3 +251,5 @@ R32's F1 half (a row the filter hides is not read as blanks) stays in tier 0 as 
   R32 and R57 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (446 s). That run
   read a tree that briefly held the next batch's first test (written in before the run ended, then taken out); run again on
   the committed tree alone: 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (452 s).
+- Batch 7 (R37, R46): `node --check`; check 19 parts, all green; lint 0 problems; the new tests by name 2 ran, 0 failed;
+  R37 and R46 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (446 s).

@@ -38490,6 +38490,149 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "name after the note's Save, the row on the second trace, the second's name)");
     }],
 
+    ["a Tamper window closed after a landed concealment roll keeps its price, and one closed with nobody watching gives it back (E40 item 4: R37's rule, driven; was R37)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R37 (tier 0, removed in E40) read cleanup.mjs as text: `concealFromWitnesses`
+         * returning "rolled", `releaseTamper`'s `if (rolled)` branch without `refundPrice(`, and no `spendStress(` or
+         * `isCleaner(` in `releaseTamper`. It passed a mutant that kept all of that and asked `releaseTamper` with
+         * `rolled: cover === "roll"` at `attemptCleanup`'s closed window (never true). ACT-04's review, 17.09: a closed
+         * Tamper window refunded the price after a concealment roll had landed and paid its Hope. A student stood with
+         * another in one room (`aloneTogether`: watched), then alone in one (`standAlone`), each with an action spent by
+         * nothing yet and no Sanity marked, Tampers a trace (`attemptCleanup`, the tile's road) with the windows' defaults
+         * (`answerWindows`); the character's `rollTrait` lands the concealment (a 30 with Hope) and closes the main roll's
+         * window. Read for each: the actions and the Sanity marks moved.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to one, or to the two");
+        const [who, other] = cast(2);
+        const Cl = await import("./cleanup.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(who._source, ACT), [STRESS]: foundry.utils.getProperty(who._source, STRESS) };
+        const marks = () => Number(foundry.utils.getProperty(who._source, STRESS)) || 0;
+        must(actionsMax(who) >= 1, `${who.name} has no action to spend - this would measure nothing`);
+        const F = await cleanupFixture(who, "SUITE E40 R37 a trace");
+        const windows = answerWindows(press);
+        const read = [];
+        try {
+            must(F.trace, "the fixture's trace was not placed - this would measure nothing");
+            for (const stand of ["watched", "alone"]) {
+                const stood = stand === "watched" ? await aloneTogether(who, other, { asked: true }) : await standAlone(who);
+                try {
+                    await who.update({ [ACT]: actionsMax(who), [STRESS]: 0 });
+                    await settle();
+                    const thrown = [];
+                    who.rollTrait = async (trait, config) => {
+                        thrown.push(trait);
+                        return thrown.length === 1 && stand === "watched" ? { total: 30, isCritical: false, withHope: true } : null;
+                    };
+                    const [actions, stress] = [actionsLeft(who), marks()];
+                    await Cl.attemptCleanup(who, F.trace.id, { viaAction: true });
+                    await settle();
+                    read.push([stand, thrown.length, actionsLeft(who) - actions, marks() - stress]);
+                } finally {
+                    delete who.rollTrait;
+                    await stood.back();
+                }
+            }
+        } finally {
+            windows.restore();
+            await F.putBack();
+            await who.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["watched", 2, -1, 0], ["alone", 1, 0, 0]]),
+            "a Tamper window closed after a landed concealment roll gave the price back, or one closed unwatched kept it "
+                + "([stood, rolls asked, actions moved, Sanity marks moved] watched, then alone)");
+    }],
+
+    ["Analyze takes its price before the dice, gives it back on a closed window, is free for a GM alone, and a refusal's card refunds the table's step, not its own amount (E40 item 4: R46's rule, driven; was R46)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R46 (tier 0, trimmed in E40 to its order against the GM check and two
+         * censuses) read action-analyze.mjs `performAnalyze` and messenger-app.mjs `refundOnCard` as text: `payPrice(`
+         * before `rollTrait(`, the free road's `options.free && game.user.isGM` in one of two spellings, `refundPrice(`
+         * named, `PRICE_CHAINS` in the refund and no `amount: data.` read. It passed mutants that kept every one of those:
+         * a free road open to anybody asking for it (`Boolean(options.free) && game.user.isGM || Boolean(options.free)
+         * && !game.user.isGM`: the spelling it matched still in it), and a refund that took the card's amount through a
+         * name of its own (`const amount = Number(data.amount) || step.amount`). T-1: the
+         * price is taken before the dice and a closed roll window keeps none of it; the free road is the GM's; and the
+         * card a refusal is pressed on is authored on the player's own client, so what comes back is the table's step.
+         * A student with a player and an analysable bullet: Analyze asked as a player's console asks it, `free: true`
+         * (`asConsole`: the free road is read before the first await), then as the GM with `free: true`, the
+         * character's `rollTrait` noting the actions it sees and closing its window. Then a refusal card in the
+         * student's thread naming an action paid and an amount of 5, pressed as a GM presses it (`wireCallActions`).
+         * Read: the actions moved at the dice and after each Analyze, and moved by the press.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the refusal card goes to a player's thread");
+        const { performAnalyze } = await import("./action-analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const step = PRICE_CHAINS.analyze?.steps?.[0];
+        must(step?.pay === "action" && actionsMax(student) >= step.amount + 1,
+            "the Analyze chain does not open on an action, or the student cannot spend one - this would measure nothing");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(student._source, ACT), [STRESS]: foundry.utils.getProperty(student._source, STRESS) };
+        const since = new Set(game.messages.contents.map(m => m.id));
+        let item = null;
+        const read = [];
+        try {
+            item = await bullets.createTruthBullet(student, { name: "SUITE E40 R46 a bullet", realType: "prep" });
+            must(item, "the fixture's bullet was not made");
+            for (const asked of ["console", "gm"]) {
+                await student.update({ [ACT]: actionsMax(student), [STRESS]: 0 });
+                await settle();
+                const start = actionsLeft(student);
+                let atDice = null;
+                student.rollTrait = async () => { atDice = actionsLeft(student) - start; return null; };
+                const run = () => performAnalyze(student, ACTIONS.analyze, { free: true, bulletId: item.id });
+                await (asked === "console" ? asConsole(run) : run());
+                await settle();
+                delete student.rollTrait;
+                read.push([asked, atDice, actionsLeft(student) - start]);
+            }
+            await student.update({ [ACT]: 0 });
+            await settle();
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await callGm(student, { title: "SUITE E40 R46 a refusal", actions: [{ action: "decline", label: "SUITE refuse",
+                data: { by: student.id, paid: "action", amount: "5", grant: "false", words: "refused" } }] });
+            const withButton = () => game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+            await until(withButton, 8000);
+            const card = withButton();
+            must(card, "the refusal card was not posted");
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const pressed = body.querySelector('[data-drpg-call="decline"]');
+            must(pressed, "the refusal card's button was not drawn");
+            pressed.click();
+            await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+            await settle();
+            read.push(["refused", actionsLeft(student)]);
+        } finally {
+            delete student.rollTrait;
+            if (item) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await student.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["console", -step.amount, 0], ["gm", 0, 0], ["refused", step.amount]]),
+            "Analyze paid after the dice, kept a price its closed window never rolled for, let a player's console take the free road, "
+                + "or a refusal's card gave back its own amount ([asked as, actions moved at the dice, after]; [the press, the actions after it from 0])");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*

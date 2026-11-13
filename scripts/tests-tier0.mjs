@@ -2602,35 +2602,20 @@ const REGRESSIONS = [
     }],
 
     ["R37 - a closed Tamper window after a landed concealment roll refunds nothing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is one read of `releaseTamper`'s inputs. The rule - a
+           window closed after a landed concealment roll keeps the price, one closed unwatched gives it back, and nothing
+           more is charged - is tier 2's "a Tamper window closed after a landed concealment roll keeps its price, and one
+           closed with nobody watching gives it back (E40 item 4: R37's rule, driven; was R37)". Read here: the release
+           does not ask `isCleaner` (who pays is read off the receipt), which the test's student, no cleaner, does not
+           reach. */
         /*
          * Review of ACT-04 (17.09). `concealFromWitnesses` ended with `return true`, the
          * callers refused a refund only for "rolled", and so the concealment roll's Hope
          * came with the action back. A killer on their own night paid nothing at all.
-         *
-         * REWRITTEN FOR T-1's SHAPE. The price is taken AFTER the concealment now, so
-         * the rule is no longer "charge the Sanity in the refund" - it is "keep what was
-         * paid and take nothing else". Written against the old names this test passed
-         * vacuously: `indexOf` returned -1, `slice(-1)` handed it one character, and
-         * both assertions were about an empty string.
          */
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
-        const conceal = bodyOf(cleanup, "async function concealFromWitnesses", { until: "\nasync function " });
-        ok(/return "rolled";/.test(conceal) && !/return true;/.test(conceal),
-            "concealFromWitnesses no longer tells its callers a concealment roll landed");
-
-        /*
-         * Bounded by the next DECLARATION, not by a character count and not by a
-         * comment: `stripComments` blanks a comment to spaces rather than deleting
-         * it, so there is no "/**" left to look for - and 900 characters runs into
-         * `stageSixDef`, which asks `isCleaner` for its own good reasons. The kit's
-         * fnSource reads it that way (E30).
-         */
         const release = fnSource(cleanup, "releaseTamper");
-        const kept = bodyOf(release, "if (rolled)", { until: "if (charge)" });
-        ok(kept.length > 20 && !/refundPrice\(/.test(kept),
-            "a closed window after a landed concealment roll hands the price back again");
-        ok(!/spendStress\(/.test(release),
-            "the kept charge is charged a second time - the price was taken before the roll");
+        ok(release.length > 100, "releaseTamper is gone or cut short");
         ok(!/isCleaner\(/.test(release),
             "the release asks isCleaner again instead of reading what was paid");
     }],
@@ -2946,6 +2931,13 @@ const REGRESSIONS = [
     }],
 
     ["R46 - Analyze pays the chain before the dice, and every road gives it back", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is order against the GM check and two censuses. The price
+           before the dice, the closed window's refund, the free road kept to a GM and the refusal card's refund from the
+           table are tier 2's "Analyze takes its price before the dice, gives it back on a closed window, is free for a GM
+           alone, and a refusal's card refunds the table's step, not its own amount (E40 item 4: R46's rule, driven; was
+           R46)". Read here: the chain quoted, not `canAfford`; the GM check before the price (a road with no GM cannot be
+           made in the harness, whose suite runs on a GM); the three roads that can end empty each naming `refundPrice(`
+           (not driven on this line); and every `gmRulingActions` call handed a receipt (a census). */
         /*
          * T-1. Three things at once, and all three are about ORDER or about who is
          * allowed to claim what: the price is taken before the dice, a road that
@@ -2962,15 +2954,8 @@ const REGRESSIONS = [
             "performAnalyze is back to counting pips instead of quoting the chain");
         ok(analyze.includes("quotePrice(") && analyze.includes("payPrice("),
             "performAnalyze stopped asking or stopped paying the chain");
-        ok(analyze.indexOf("payPrice(") < analyze.indexOf("rollTrait("),
-            "the price is taken after the dice again");
         ok(analyze.indexOf("gmOnline()") < analyze.indexOf("payPrice("),
             "a road with no GM on it is paid for before anybody notices");
-        ok(/options\.free\)? *&& *game\.user\.isGM|game\.user\.isGM *&& *Boolean\(options\.free/.test(analyze)
-            || /const free = Boolean\(options\.free\) && game\.user\.isGM;/.test(analyze),
-            "the free bypass is reachable from a player's macro, and it now skips Hope and Sanity");
-        ok(analyze.includes("refundPrice("),
-            "a closed roll window keeps the price it never rolled for");
 
         for (const road of ["analyseBullet", "askForHint", "locateStash"]) {
             const body = fnSource(src, road);
@@ -2986,19 +2971,6 @@ const REGRESSIONS = [
             ok(!/^\d+$/.test(argument) && argument !== "cost",
                 `gmRulingActions is still being handed a bare cost: ${argument}`);
         }
-
-        const messenger = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText));
-        const body = bodyOf(messenger, "function refundOnCard(", { until: "async function ruleCreateItem(" });
-        ok(body.length > 300 && body.includes("async function ruleDecline("),
-            "the refusal's refund has moved out of refundOnCard and ruleDecline");
-        ok(body.includes("PRICE_CHAINS"),
-            "the refund no longer takes its amount from the table, so a card can name its own");
-        // `cost` may still say WHETHER anything was paid (a "0" card refunds
-        // nothing); what it may never do is say how much comes back.
-        ok(!/amount:\s*(?:Number\()?data\./.test(body)
-            && !/refund\w*\(actor,\s*(?:Number\()?data\./.test(body),
-            "the refund reads an amount off a card the player authored");
     }],
 
     ["R47 - Tamper pays one price, on the client, after the concealment", async () => {
