@@ -24,7 +24,8 @@
  *
  * THE CASES. 1366x768 and 1920x1080; Stained Glass (its sheet 1120 wide, no resize handle) and Monokuma Legacy
  * (Daggerheart's 850, and 600, the narrowest this measures: the column is the grid's 275 px whatever the window's
- * width); both lists empty, and two readied items with two experiences; Daggerheart's bar layout and its pips
+ * width); both lists empty, one readied Tool with two experiences (the owner's second report, below), and two readied
+ * items with two experiences; Daggerheart's bar layout and its pips
  * (`useResourcePips`); English and Polish. Each case twice: the system's stylesheet in a cascade layer above the
  * module's (as the module's notes read v14: stained-glass.css "Foundry v14 puts the system's sheet CSS in a cascade
  * layer above the module's") and with neither layered, so the reading does not hang on a cascade order nobody here has
@@ -33,8 +34,16 @@
  * A CASE FAILS when the column (`.shortcut-items-section`, the part Daggerheart scrolls: overflow-y hidden, so its
  * overflow-x computes to auto) has a scrollWidth over its clientWidth; the line names, by hiding the column's
  * descendants one by one (E100's method), each one without which the column fits. It fails too when the case measured
- * nothing: the column under 200 px wide, the empty line not drawn where the lists are empty, or not two experience
- * rows where they are full.
+ * nothing: the column under 200 px wide, the empty line not drawn where the lists are empty, not two experience
+ * rows where there are experiences, or not as many of the module's rows drawn in the Equipped list as the case readied
+ * (the empty line where none).
+ *
+ * THE EQUIPPED LIST HOLDS THE MODULE'S ROWS ALONE (fix-113e's second report; the owner at a table on 1.2.112,
+ * 13.11.2026: "An empty field above the equipped item?", one Tool readied). Every li of the list is read - what it is,
+ * its display and its height - and a case FAILS when a li that is neither a readied row (`data-drpg-equipped`) nor the
+ * empty line (`drpg-equipped-empty`) is displayed. At ceb9e9c8 Daggerheart's unarmed row (the one it
+ * draws while no weapon is equipped) stood there in every case, `display: grid` from the system's
+ * `.inventory-item.inventory-item-compact`, 45 px under the glass and 44 under Legacy.
  *
  * THE CONTROL (the stackShapes lesson: a count that cannot see a fault measures nothing): on the first case, before the sweep, a 400 px block is planted in
  * the Experience list and the column must read wider than its box and wider than it read clean a moment before; then
@@ -77,7 +86,7 @@ const words = code => {
 
 /* The page: Foundry's frame as far as the column reads it, the system's sidebar, its header and a tab beside it. */
 const page = ({ theme, layered, layout, lists, width, height }) => {
-    const sidebar = fs.readFileSync(path.join(root, "audit", "sheet-column", `sidebar-${layout}-${lists}.html`), "utf8");
+    const sidebar = fs.readFileSync(path.join(root, "audit", "sheet-column", `sidebar-${layout}-${lists === "empty" ? "empty" : "full"}.html`), "utf8");
     const sheet = (href, layer) => (layered ? `<style>@import url("${href}") layer(${layer});</style>` : `<link rel="stylesheet" href="${href}">`);
     return `<!doctype html><html><head><meta charset="utf-8">
 <style>${layered ? "@layer drpg-module, drpg-system;" : ""}
@@ -100,15 +109,17 @@ ${styles.map(s => sheet(`/${s}`, "drpg-module")).join("\n")}
 };
 
 /* What sheet.mjs writes into the sidebar, by its own classes (see the header). */
-function inject({ full, t }) {
+function inject({ lists, t }) {
     const sb = document.querySelector(".character-sidebar-sheet");
     const h3 = sb.querySelector(".equipment-section h3");
     h3.textContent = t.equipped;
     h3.dataset.drpgRenamed = "1";
     sb.querySelector(".loadout-section").classList.add("drpg-hidden-block");
     const list = sb.querySelector(".equipment-section .items-sidebar-list");
-    if (full) {
-        for (const [category, name, tag] of [["crimeTool", "Kitchen knife", "Murder Weapon"], ["cleaningTool", "Bleach and a scrubbing brush", "Cleaning Tool"]]) {
+    const READIED = { one: [["tool", "Duct tape", "Tool"]],
+        full: [["crimeTool", "Kitchen knife", "Murder Weapon"], ["cleaningTool", "Bleach and a scrubbing brush", "Cleaning Tool"]] };
+    if (lists !== "empty") {
+        for (const [category, name, tag] of READIED[lists]) {
             const li = document.createElement("li");
             li.className = "inventory-item inventory-item-compact drpg-equipped-tool";
             li.dataset.drpgEquipped = category;
@@ -176,7 +187,15 @@ function measure() {
         }
     }
     const empty = col.querySelector(".drpg-experience-empty");
+    // Every li of the Equipped list: what it is, whether it is the module's (a readied row or the empty line), its display
+    // and its height. A li of anybody else's that is displayed stands in the list (fix-113e's second report).
+    const equipped = [...col.querySelectorAll(".equipment-section .items-sidebar-list > li")].map(li => ({
+        what: name(li) + (li.dataset.type ? `[data-type=${li.dataset.type}]` : ""),
+        mine: li.matches("[data-drpg-equipped], .drpg-equipped-empty"),
+        display: getComputedStyle(li).display, height: Math.round(li.getBoundingClientRect().height * 10) / 10
+    }));
     return {
+        equipped,
         scrollWidth: col.scrollWidth, clientWidth: col.clientWidth,
         emptyDrawn: !!empty && empty.getBoundingClientRect().height > 0,
         rows: col.querySelectorAll(".experience-row").length,
@@ -189,7 +208,7 @@ const cases = [];
 for (const [vw, vh] of SIZES) for (const theme of ["glass", "legacy"]) {
     const widths = theme === "glass" ? [Math.min(1120, vw - 48)] : [Math.min(850, vw - 48), 600];
     const height = Math.min(theme === "glass" ? 1160 : 800, vh - 48);
-    for (const width of widths) for (const lists of ["empty", "full"]) for (const layout of ["bar", "pips"]) for (const code of ["en", "pl"]) for (const layered of [true, false]) {
+    for (const width of widths) for (const lists of ["empty", "one", "full"]) for (const layout of ["bar", "pips"]) for (const code of ["en", "pl"]) for (const layered of [true, false]) {
         cases.push({ vw, vh, theme, width, height, lists, layout, code, layered });
     }
 }
@@ -205,7 +224,7 @@ const open = async c => {
         return route.fulfill({ path: file });
     });
     await pg.goto("http://sheet-column.local/");
-    await pg.evaluate(inject, { full: c.lists === "full", t: words(c.code) });
+    await pg.evaluate(inject, { lists: c.lists, t: words(c.code) });
     await pg.evaluate(() => document.fonts.ready);
     await pg.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
     return { ctx, pg };
@@ -241,7 +260,11 @@ for (const c of cases) {
     if (m.scrollWidth > m.clientWidth) why.push(`scrolls: ${m.scrollWidth} in ${m.clientWidth}, [${m.culprits.join(", ")}]`);
     if (m.clientWidth < 200) why.push(`measured nothing: the column ${m.clientWidth} px wide`);
     if (c.lists === "empty" && !m.emptyDrawn) why.push("measured nothing: the Experience's empty line not drawn");
-    if (c.lists === "full" && m.rows !== 2) why.push(`measured nothing: ${m.rows} experience rows, not 2`);
+    if (c.lists !== "empty" && m.rows !== 2) why.push(`measured nothing: ${m.rows} experience rows, not 2`);
+    const stray = m.equipped.filter(li => !li.mine && li.display !== "none");
+    if (stray.length) why.push(`not the module's, in the Equipped list: ${stray.map(li => `${li.what} display ${li.display} ${li.height} px`).join(", ")}`);
+    const mine = m.equipped.filter(li => li.mine && li.display !== "none" && li.height > 0).length;
+    if (mine !== { empty: 1, one: 1, full: 2 }[c.lists]) why.push(`measured nothing: ${mine} of the module's rows drawn in the Equipped list`);
     if (why.length) bad++;
     if (asJson) console.log(JSON.stringify({ ...c, ...m, ok: !why.length }));
     else console.log(`${why.length ? "FAIL" : "ok  "} ${label(c)}: ${m.scrollWidth} in ${m.clientWidth}${why.length ? ` - ${why.join("; ")}` : ""}`);

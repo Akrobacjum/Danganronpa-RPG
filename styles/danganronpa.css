@@ -846,7 +846,8 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
 
 .tab-navigation nav.sheet-tabs a[data-tab="loadout"],
 .character-sidebar-sheet .loadout-section,
-.character-sidebar-sheet .domain-card-section {
+.character-sidebar-sheet .domain-card-section,
+.character-sidebar-sheet .equipment-section .items-sidebar-list > li:not([data-drpg-equipped], .drpg-equipped-empty) {
     display: none !important;
 }
 
@@ -6383,10 +6384,16 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
    a Cleaning Tool (see `injectEquippedTools`). Daggerheart fills the same list
    with its own weapons and armour, so a character with nothing readied showed
    "Unarmed Attack" and nothing else: the one row that can never matter here,
-   standing where the row that decides an incident should be. */
-.equipment-section .items-sidebar-list > li.inventory-item:not([data-drpg-equipped]) {
-    display: none;
-}
+   standing where the row that decides an incident should be.
+   THE RULE THAT HIDES THEM STANDS WITH THE LOADOUT'S, earlier in this file (fix-113e, 13.11.2026; the owner at a table
+   on 1.2.112: "An empty field above the equipped item?"). It stood here as a plain `display: none` and lost to
+   Daggerheart 2.12.8's `.application.daggerheart.dh-style .inventory-item.inventory-item-compact { display: grid }`,
+   heavier (0,5,0 to 0,4,1) and in v14 in a cascade layer above this sheet: in Chromium on the system's own sidebar.hbs
+   and stylesheet (audit/sheet-column.mjs) its unarmed row (drawn while no weapon is
+   equipped) stood 45 px tall under the glass and 44 under Legacy above the readied rows and above the empty line. In
+   that selector list it is `!important`, which no specificity in a higher layer outweighs; 0 px after. Every li that
+   is neither a readied row nor the empty line goes, not only the unarmed one. R5841. */
+
 
 /* The empty state that replaces it. Without this, hiding the system rows left
    a titled box with nothing in it. */
