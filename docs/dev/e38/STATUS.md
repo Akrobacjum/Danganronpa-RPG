@@ -104,9 +104,10 @@ Not measured by this line (no counter in reach); the session's own usage is the 
 - C4-C5a: the STATUS push after them carried a CI-suppress directive in its title, which GitHub reads off the push's
   head, so no run started; 3871ab0c re-ran it. Run 43443577608 on 3871ab0c: lint, check and gate green, all eight
   scenario buckets green (97 in b3, 98 in b2, 73 in b5, 72 and 62 in b6, 61 in b1, 30 in b2), suite shards 2-8 green;
-  suite 1/8 was cancelled from outside 14 min into its 115-min limit, with no failing test in its log, so the verdict
-  failed on a missing shard, not on a test. The next push (the owner's answer and secret.mjs's comments) runs CI again
-  without the directive, for a whole run on the final head.
+  suite 1/8 was cancelled by the coordinator 14 min in, to free runners for the 1.2.111 release, so the verdict
+  failed on a missing shard, not on a test. Run 535 on 4201630c, started by a push sent before that word arrived, was
+  cancelled at once at the coordinator's request. From here this line pushes with the CI-suppress directive and starts
+  no run: 1.2.113's full CI runs when its tree is assembled, and the local numbers above stand as the evidence.
 - Tiers 0-1 locally after the comment change: 1405 passed, 1 failed, 16 skipped - the failure R3712 (the curtain's
   transition on a clock change, transitions.mjs, untouched here) passes 3 of 3 alone: a timing flake under load (that
   whole run took 523 s, against 465-492 s for the two before it).
