@@ -212,7 +212,8 @@ async function saveGmTeam(result) {
         const pools = {};
         for (const row of result.monokumas) {
             const actor = game.actors.get(row.id);
-            if (actor && isMonokuma(actor) && row.pool) pools[row.id] = row.pool;
+            const pool = row.pool === undefined ? poolFor(actor) : row.pool;
+            if (actor && isMonokuma(actor) && pool) pools[row.id] = pool;
         }
         await setPools(pools);
 
@@ -705,12 +706,15 @@ function readPoolNameForm(dialog, gms) {
     return map;
 }
 
-function readMonokumaForm(dialog, actors) {
+export function readMonokumaForm(dialog, actors) {
     const root = dialog.element;
-    return actors.map(actor => ({
-        id: actor.id,
-        pool: root.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`)?.value || null
-    }));
+    return actors.map(actor => {
+        /* No select, no answer (the r112 review's S6, 13.11.2026): the tab draws one for the Monokumas as they stood when it
+           was drawn, so a character made one meanwhile has none here, and `undefined` tells Save to keep the world's pool
+           (`saveGmTeam`); null was read as "no pool" and the whole map was written without it. Exported for R4473. */
+        const select = root.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`);
+        return { id: actor.id, pool: select ? select.value || null : undefined };
+    });
 }
 
 /*

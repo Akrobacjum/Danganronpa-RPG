@@ -18673,6 +18673,26 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ sections: [], listed: ["musicEnabled", "sfxVary"], music: [1, true, true, true], vary: [1, true, true, true], writes: true }),
             "{the two keys in the game's sections; SOUND_WINDOW_SETTINGS; [switches, as the setting stands, its name, before the table] on the Music tab; the same on the Effects tab; wireSoundDialog writes a switch}");
     }],
+    ["R4473 - Despair Flow's Save keeps the pool of a Monokuma it drew no select for (scripts/gm-team-dialog.mjs `readMonokumaForm`, `saveGmTeam`; the r112 review's S6, 13.11.2026): the form reads a row with no select as no answer (undefined), not as no pool (null), and Save keeps the world's pool (`poolFor`) for such a row", async () => {
+        /*
+         * The r112 review's S6 (REVIEW-112, 13.11.2026). Since E101 item 6 the Monokumas tab draws a pool select only for
+         * the characters that were Monokumas when it was drawn; every other row read `pool: null`, and `setPools` replaces
+         * the whole map, so a character made a Monokuma in the Students window while Despair Flow stood open (Season setup
+         * stays open under its tiles since E101 F4) lost the pool the world held for it at Save. Read on a form of the
+         * suite's own (one row with a select, one without) and Save's source; nothing is written. Red at the S5 commit: the
+         * row with no select read null, and no exported reader.
+         */
+        const T = await import("./gm-team-dialog.mjs");
+        must(typeof T.readMonokumaForm === "function", "gm-team-dialog.mjs exports no readMonokumaForm");
+        const element = document.createElement("div");
+        element.innerHTML = `<select name="pool.R4473A"><option value="R4473GM" selected>GM</option></select>`;
+        const rows = T.readMonokumaForm({ element }, [{ id: "R4473A" }, { id: "R4473B" }]);
+        const save = fnSource(stripComments(new Map(await moduleSources()).get("gm-team-dialog.mjs") ?? ""), "saveGmTeam");
+        must(save.length > 200, "saveGmTeam was not read");
+        equal(stableJson({ rows: rows.map(r => [r.id, r.pool === undefined ? "undefined" : r.pool]), kept: /row\.pool === undefined \? poolFor\(actor\)/.test(save) }),
+            stableJson({ rows: [["R4473A", "R4473GM"], ["R4473B", "undefined"]], kept: true }),
+            "{rows: [a row with a select, one without]; kept: Save keeps the world's pool where no select was drawn}");
+    }],
     ["R4051 - Despair Flow with one GM opens on Overflow with Pools, Monokumas and Students folded away, and its Monokumas tab picks only the pool (E101 item 6; the owner's yes of 12.11.2026 to the GM screens' review, #7): gm-team-dialog.mjs `despairFlowLayout` answers Overflow open and the three folded for one pool holder with no Assistant GM to grant or revoke, Pools open and nothing folded otherwise; `despairFlowMarkup` draws the folded tabs' buttons hidden and one Show button on the Overflow pane, no Monokuma box anywhere (the Students window's Role sets the role), and a pool select for each Monokuma of the world and for no one else; `saveGmTeam` calls no `setMonokuma`", async () => {
         /*
          * E101 item 6, 12.11.2026. The review (artifact T8eePyz1, Despair Flow): with one GM the first three tabs held
