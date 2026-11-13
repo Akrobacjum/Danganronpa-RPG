@@ -7,7 +7,8 @@
   ],
   "keep": "*",
   "stay": {
-    "openNewTrace": "async function"
+    "openNewTrace": "async function",
+    "keyPlanExtras": "function?"
   },
   "stayWhy": "openNewTrace stands between the plan and the placing road at the base and stays: a hand-placed trace, opened from the dashboard (the plan's F4, 3.2)",
   "targets": [
@@ -85,5 +86,6 @@
         "why": "the card-producing sites per file, as R3510's own classifier counts them on the split tree (13.11.2026): all three of investigation.mjs's moved with the fee and the placing road"
       }
     ]
-  }
+  },
+  "optionalWhy": "keyPlanExtras (E104, 1.2.112) builds a Key slot's planned fields for caseKeyCells, which stays in investigation.mjs; it stands among the moved plan and stays with its caller. Marked \"?\": a tree before 1.2.112 has no such function."
 }

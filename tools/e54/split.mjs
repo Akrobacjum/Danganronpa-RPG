@@ -94,7 +94,10 @@ const want = new Map();
 const optional = new Set();
 if (!KEEP_REST) for (const [name, kind] of Object.entries(manifest.keep)) { groupOf.set(name, "facade"); want.set(name, kind); }
 // `stay`, with `"keep": "*"`: a declaration that stands inside a moved section and stays in the facade by decision.
-for (const [name, kind] of Object.entries(manifest.stay ?? {})) { groupOf.set(name, "facade"); want.set(name, kind); }
+for (const [name, kind] of Object.entries(manifest.stay ?? {})) {
+    groupOf.set(name, "facade"); want.set(name, kind.replace(/\?$/, ""));
+    if (kind.endsWith("?")) optional.add(name);   // as a target's: a line adds it (keyPlanExtras, 1.2.112), an older tree has none
+}
 for (const t of manifest.targets) {
     for (const [name, kind] of Object.entries(t.names)) {
         if (groupOf.has(name)) refuse(`the manifest lists ${name} twice`);
