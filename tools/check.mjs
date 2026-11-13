@@ -23,7 +23,9 @@
  *             the Foundry and Daggerheart rows of README's and the two GM
  *             handbooks' "needs" tables name module.json's minimum and
  *             verified versions, after a planted table with three faults.
- *   notes     .github/release-notes/v<version>.md exists and is not empty.
+ *   notes     .github/release-notes/v<version>.md exists and is not empty;
+ *             and (E59 C5) CHANGELOG.md is what tools/changelog.mjs writes
+ *             from that folder, after a planted pair of notes.
  *   dashes    the house rule (CLAUDE.md): no U+2014 or U+2013 in the language
  *             files' decoded keys and values, the handbooks, README and the
  *             release notes and every other .md under docs/ (the R-number
@@ -315,12 +317,25 @@ function compatibilityProblems(manifest, texts) {
     return { problems, rows };
 }
 
-function notes() {
+async function notes() {
     const version = RELEASE ? RELEASE.replace(/^v/, "") : JSON.parse(read("module.json")).version;
     const rel = `.github/release-notes/v${version}.md`;
     const size = exists(rel) ? read(rel).trim().length : -1;
-    console.log(`notes: ${rel} ${size < 0 ? "missing" : `${size} characters`}`);
-    return size > 0 ? [] : [`${rel} is ${size < 0 ? "missing" : "empty"} - the release workflow publishes it as the release's text`];
+    const problems = size > 0 ? [] : [`${rel} is ${size < 0 ? "missing" : "empty"} - the release workflow publishes it as the release's text`];
+    /* CHANGELOG.md is tools/changelog.mjs's index of the notes (E59 C5): held to what it would write now, so a notes
+       file added, removed or retitled without it written again is red. */
+    const C = await import(url.pathToFileURL(path.join(REPO, "tools", "changelog.mjs")).href);
+    const notesFiles = C.readNotes(REPO);
+    const wanted = C.build(notesFiles);
+    const have = exists("CHANGELOG.md") ? read("CHANGELOG.md") : null;
+    const plant = C.build({ "v1.2.9.md": "# 1.2.9 - nine\n", "v1.2.10.md": "**Ten.** More.\n", "notes.md": "# not a release\n" });
+    const order = /\*\*1\.2\.10\*\* - Ten\.[\s\S]*\*\*1\.2\.9\*\* - nine/.test(plant) && !/not a release/.test(plant);
+    console.log(`notes: ${rel} ${size < 0 ? "missing" : `${size} characters`}; CHANGELOG.md ${have === null ? "missing" : have === wanted ? "current" : "stale"} `
+        + `against ${Object.keys(notesFiles).length} notes file(s); self-check ${order ? "holds" : "fails"} (version order, the two title forms)`);
+    if (have === null) problems.push("CHANGELOG.md is missing - write it with `node tools/changelog.mjs --write`");
+    else if (have !== wanted) problems.push("CHANGELOG.md is not what tools/changelog.mjs writes from .github/release-notes - run `node tools/changelog.mjs --write`");
+    if (!order) problems.push(`tools/changelog.mjs's planted notes did not come out newest first with both title forms: ${JSON.stringify(plant)}`);
+    return problems;
 }
 
 /* --------------------------------- dashes ---------------------------------- */
