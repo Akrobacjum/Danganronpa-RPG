@@ -24148,6 +24148,42 @@ const REGRESSIONS = [
         must(read > 300, `only ${read} reading(s)`);
         equal(JSON.stringify(differ), "[]", "the inputs where the family's answer is not the old inline arithmetic's");
     }],
+    ["R4805 - the glass cut's partitions read and write only their arguments (E54 G2-G4, the plan's F6): every declaration of glass.mjs from its section `the glass` to `painting` - `windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands` and the column and band cutters they call - names none of the page or the module's state (PIN, VOICE, ROT, OPEN_AREAS, CHECKS, LAST, narrowLayout, avLift, columnRail, tileButtons, railBox, document, getComputedStyle, innerWidth, innerHeight, `.querySelector`, `.getBoundingClientRect`) and hands `settleVoice` its wall; the callers (`curtainGeometry`, `cutBoxes`) measure the page and write what the cut returns. Listed: `resolveAcc` (the accent's colour, which the paint reads) and `railBox` (the rails' measure, which the callers take)", async () => {
+        /*
+         * E54 G2-G4, 13.11.2026. Read off glass.mjs, comments and strings blanked, between the section headers
+         * `---- the glass` and `---- painting` (the plan's F6: about 1350 lines). Each top-level declaration of that span is
+         * read to the next; a name of STATE in it is a read or a write of something that is not its argument - the page,
+         * or module state a later pass reads (VOICE.box, ROT, OPEN_AREAS: the callers write them since G3/G4). `settleVoice`
+         * with five arguments reads its wall off PIN (`voiceWall`), so a call in the span gives the sixth. G5 then moves the
+         * span into glass-geometry.mjs whole. Red on 32f5093f: stackShapes reads the stack's column, the curtain's frame and
+         * the rails (G3), deskShapes `avLift()`, `PIN.band` and the rails, buildColumn writes VOICE.box, ROT and OPEN_AREAS
+         * and settles the voice tile against PIN, curtainShapes reads `narrowLayout()` (G4).
+         */
+        const raw = new Map(await otherSources()).get("glass.mjs");
+        must(typeof raw === "string", "glass.mjs was not read");
+        const span = stripStrings(stripComments(bodyOf(raw, "/* ---- the glass ----", { until: "/* ---- painting ----" })));
+        const STATE = ["PIN", "VOICE", "ROT", "OPEN_AREAS", "CHECKS", "LAST", "narrowLayout", "avLift", "columnRail", "tileButtons", "railBox", "document", "getComputedStyle", "innerWidth", "innerHeight"];
+        const MEMBERS = ["querySelector", "getBoundingClientRect"];
+        const LISTED = {
+            resolveAcc: "the accent's colour, read off the page for the paint (paintGlass), not for the cut",
+            railBox: "the rails' measure: the callers take it (stackPage, deskPage) and hand the cut its bands",
+        };
+        const decls = [...span.matchAll(/^ {0,2}(?:export )?(?:function ([\w$]+)|(?:const|let) ([\w$]+)\b)/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));
+        must(decls.length >= 40, `only ${decls.length} declaration(s) read in the span - this would measure nothing`);
+        const reads = {}, found = new Set();
+        decls.forEach((d, i) => {
+            const body = span.slice(d.at, decls[i + 1]?.at ?? span.length);
+            const hit = [...STATE.filter(n => n !== d.name && new RegExp(`(?<![\\w$.])${n}\\b`).test(body)),
+                ...MEMBERS.filter(n => new RegExp(`\\.${n}\\(`).test(body)).map(n => `.${n}`)];
+            if (LISTED[d.name]) { if (hit.length) found.add(d.name); return; }
+            if (hit.length) reads[d.name] = hit;
+        });
+        const fiveArgs = [...span.matchAll(/(?<![\w$.])settleVoice\(/g)]
+            .filter(m => callArgs(span, m.index + m[0].length - 1).args.length < 6).length;
+        const stale = Object.keys(LISTED).filter(n => !found.has(n));
+        equal(JSON.stringify({ reads, settleVoiceWithoutWall: fiveArgs, stale }), JSON.stringify({ reads: {}, settleVoiceWithoutWall: 0, stale: [] }),
+            "{reads: a declaration of the cut's span and the page's or the module's state it names; settleVoiceWithoutWall: the calls that leave the wall to PIN; stale: a listed name that reads nothing any more}");
+    }, expectedRed("E54", "G3/G4: stackShapes, deskShapes, buildColumn and curtainShapes read the page and write VOICE.box, ROT and OPEN_AREAS themselves until the callers measure and write")],
 ];
 
 
