@@ -2208,6 +2208,22 @@
    "key": "DRPG.SearchTokens.spendOne",
    "count": 1,
    "why": "none needed: the tab's note (DRPG.SearchTokens.roomSetupNote) says the arrows move this room at once (O3)"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "closingButton",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "conditional: one builder draws the Closing's Confirm, Pick, continue and Resume; only Confirm (op \"confirm\") takes the tooltip"
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "scenesTabRows",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "conditional: one builder draws the School and the Trial hall selects; only School (role \"school\") takes the tooltip"
   }
  ]
 }

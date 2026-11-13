@@ -70,7 +70,10 @@ const TAGS = ["button", "input", "select", "textarea", "summary"];
 const KIT_ONE = ["toggle", "stepper", "iconButton", "chip", "roleButton", "launcher", "slider"];
 const KIT_EACH = ["kitTabs", "kitTabBar", "modeBar", "chips"];
 const ALWAYS = new Set(["iconButton", "launcher"]);
-export const WHY = /^(none needed: .{20,}|E\d{2,3} C\d+[a-z]?: .+)$/s;
+/** A row's reason: no help needed, a conditional tooltip with its condition named, or a stage's commit that gives one. */
+export const WHY = /^(none needed: .{20,}|conditional: .{20,}|E\d{2,3} C\d+[a-z]?: .+)$/s;
+/** What a kit builder other than a tab bar draws a tooltip from: its `attrs` (REVIEW-E102-code C9). */
+const KIT_TIP = /data-tooltip|aria-describedby/;
 
 let espreeMod = null;
 function espree(repo = REPO) {
@@ -247,9 +250,16 @@ export function scan(file, raw, es = espree()) {
                 let at = open + 1;
                 while (/\s/.test(s[at])) at++;
                 const items = s[at] === "[" ? arrayObjects(s, at) : [];
-                if (items.length) { for (const [x, y] of items) push(`kit:${own}-item`, x, y); continue; }
+                // a tab draws its section's `tooltip` (tabNav); a mode draws only its label; a chip only its attrs (C9)
+                if (items.length) {
+                    for (const [x, y] of items) {
+                        const text = s.slice(x, y);
+                        push(`kit:${own}-item`, x, y, own === "modeBar" ? { tip: "none" } : own === "chips" ? { tip: KIT_TIP.test(text) ? "always" : "none" } : {});
+                    }
+                    continue;
+                }
             }
-            push(`kit:${own}`, m.index, b, ALWAYS.has(own) ? { tip: "always" } : {});
+            push(`kit:${own}`, m.index, b, ALWAYS.has(own) ? { tip: "always" } : { tip: KIT_TIP.test(s.slice(m.index, b)) ? "always" : "none" });
         }
     }
     // footer objects and DialogV2 buttons
@@ -277,7 +287,9 @@ export function scan(file, raw, es = espree()) {
         const callRe = new RegExp(`(?<![.\\w])(${[...wrappers].map(reEsc).join("|")})\\(\\s*["'](${TAGS.join("|")})["']`, "g");
         for (const m of s.matchAll(callRe)) pushElement(`dom:${m[2]}`, m.index, m.index + m[0].length);
     }
-    for (const site of sites) site.needs = !site.closing && site.tip === "none" && !site.hint;
+    // A tooltip shown only under a condition is no help until its row names the condition (REVIEW-E102-code C1: a planted
+    // `${tipAttr(...) ? "" : ""}` read as help and drew nothing): it needs a row "conditional: <the condition>".
+    for (const site of sites) site.needs = !site.closing && site.tip !== "always" && !site.hint;
     return sites;
 }
 
@@ -302,6 +314,7 @@ export function compare(sites, rows, mainRows = null) {
     for (const s of sites.filter(x => x.needs)) {
         const id = identity(s), n = left.get(id) ?? 0;
         if (n > 0) left.set(id, n - 1);
+        else if (s.tip === "conditional") problems.push(`${s.file}:${s.line} (${s.unit ?? "top level"}) draws a ${s.kind} whose tooltip shows only under a condition: name the condition in a row of ${BASELINE} ("conditional: ..."), or draw it always`);
         else problems.push(`${s.file}:${s.line} (${s.unit ?? "top level"}) draws a ${s.kind} with no tooltip and no hint${s.key ? ` near ${s.key}` : ""}: give it one (ui-kit.mjs tipAttr), or a row in ${BASELINE} with its reason`);
     }
     for (const [id, n] of left) if (n > 0) problems.push(`${BASELINE} keeps ${n} row(s) of ${id.replace(/\|/g, " ")} that no site needs any more: cut ${n === 1 ? "it" : "them"}, so the baseline only shrinks`);
@@ -345,6 +358,8 @@ export const PLANTS = [
     ["d3", 'export function d3(x) { return document.createElement(x ? "button" : "span"); }', [["d3", "dom:button", true]]],
     ["d5", 'export function d5() { const b = document.createElement("button"); b.dataset.tooltipText = "x"; return b; }', [["d5", "dom:button", false]]],
     ["d6", 'export function d6() { const b = document.createElement("button"); setTip(b, "DRPG.Tips.X.bTooltip"); return b; }', [["d6", "dom:button", false]]],
+    ["c4", 'export function c4() { return toggle({ name: "t", label: "T", title: "x" }) + modeBar([{ key: "a", label: "A", tooltip: "x" }]); }', [["c4", "kit:toggle", true], ["c4", "kit:modeBar-item", true]]],
+    ["a7", 'export function a7() { return `<select name="s"${tipAttr("DRPG.Tips.X.sTooltip") ? "" : ""}></select>`; }', [["a7", "select", true]]],
     ["d4", 'function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }\nexport function d4() { const go = el("button", "go"); return go; }', [["d4", "dom:button", true]]]
 ];
 export const PLANT_HEAD = 'import { stepper, toggle, iconButton, slider as kitSlider, kitTabs, modeBar, tipAttr, tipText } from "./ui-kit.mjs";';
@@ -399,10 +414,13 @@ export function check(log = console.log, repo = REPO) {
     const rows = base.rows ?? [], main = mainBaseline(repo), keys = missingTipKeys(repo);
     const problems = [...compare(sites, rows, main.rows), ...keys.bad, ...shippedRows(rows, repo)];
     const need = sites.filter(s => s.needs).length, kept = rows.reduce((a, r) => a + (r.count ?? 1), 0);
-    const reasons = rows.filter(r => /^none needed: /.test(String(r.why ?? ""))).reduce((a, r) => a + (r.count ?? 1), 0);
+    const reasons = rows.filter(r => /^(none needed|conditional): /.test(String(r.why ?? ""))).reduce((a, r) => a + (r.count ?? 1), 0);
     log(`tooltips: ${sites.filter(s => !s.closing).length} control site(s) in ${new Set(sites.map(s => s.file)).size} file(s), `
-        + `${need} with no tooltip and no hint; baseline ${kept} (${reasons} none needed, ${kept - reasons} still to give one); `
-        + `main's copy ${main.rows ? `${main.rows.reduce((a, r) => a + (r.count ?? 1), 0)} row count(s) held` : `not read: ${main.why}`}; `
+        + `${need} with no tooltip and no hint; baseline ${kept} (${reasons} with a reason, ${kept - reasons} still to give one); `
+        + (main.rows ? `main's copy ${main.rows.reduce((a, r) => a + (r.count ?? 1), 0)} row count(s) held; `
+            // Loud on purpose (REVIEW-E102-code C2): CI's checkouts have no origin/main (.github/workflows/ci.yml fetches only
+            // the commit, and changing that is the owner's call), so there the growth guard does not run; this says so.
+            : `MAIN'S COPY NOT READ, so the guard on rows added by hand DID NOT RUN (${main.why}); `)
         + `${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - misses.length}/${planted} planted site(s) read; `
         + `${problems.length + misses.length} problem(s)`);
     return [...misses, ...problems];

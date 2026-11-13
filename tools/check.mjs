@@ -209,7 +209,7 @@
  *   tooltips  the controls with no help (E102 C1, widened after REVIEW-102;
  *             tools/tooltip-census.mjs, whose header lists the kinds of
  *             control it reads and the ones it does not): its self-check of
- *             25 planted sites, one of each kind, then each control site it
+ *             planted sites, one of every kind, then each control site it
  *             reads with neither a tooltip of its own nor a hint line within
  *             three lines, held to tools/tooltip-census.json by file, unit,
  *             kind and key - red on a new one with no row, on a row no site
