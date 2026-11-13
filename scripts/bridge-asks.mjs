@@ -1084,16 +1084,13 @@ export function requestCubAbility({ actorId, key, targetId, choice }) {
 }
 
 /**
- * Pull one item out of somebody else's stash. GM-only on both ends.
- *
- * `viaSearch` marks the route that has already paid for a concealed stash with
- * an action, a search token and a penalised roll - see `stealFromVault`. A
- * player's names that Search's roll (`rollId`), which the GM reads `viaSearch`
- * and `clumsy` off (`searchTheftOf`, E08+E28 C15).
+ * Pull one item out of somebody else's stash - the rifle, free and once a stash a time of day. GM-only on both ends.
+ * Until 1.2.112 a Search came this way too, saying it had paid for a concealed stash (`viaSearch`, with its roll's
+ * `rollId` and whether it fumbled, `clumsy`); a Search reaches into no stash now - see `stealFromVault`.
  */
-export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false, rollId = null }) {
-    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId, viaSearch, clumsy, rollId }, {
-        local: () => import("./vault.mjs").then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch, clumsy }))
+export function requestVaultSteal({ thiefId, ownerId, itemId }) {
+    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId }, {
+        local: () => import("./vault.mjs").then(m => m.stealFromVault({ thiefId, ownerId, itemId }))
     });
 }
 

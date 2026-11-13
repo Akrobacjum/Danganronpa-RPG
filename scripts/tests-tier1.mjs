@@ -26839,7 +26839,7 @@ const INVARIANTS = [
             difficulty: [/\bbeat\b/i.test(T(en).Actions?.difficultyTooltip ?? "beat"), /przebi/i.test(T(pl).Actions?.difficultyTooltip ?? "przebić")],
             anyRoom: [/any room/i.test(T(en).Actions?.room2Tooltip ?? ""), /dowoln/i.test(T(pl).Actions?.room2Tooltip ?? "")],
             frisk: /Zobaczą|miałeś/.test(T(pl).Actions?.letThemLookTooltip ?? "Zobaczą"),
-            rest: [/choosePicks\(kind,\s*rules\.picks,\s*cost\)/.test(rest), /plural\("DRPG\.Tips\.Actions\.doItCostTooltip",\s*\{\s*n:\s*cost\s*\}\)/.test(rest),
+            rest: [/choosePicks\(kind,\s*rules\.picks,\s*cost[,)]/.test(rest), /plural\("DRPG\.Tips\.Actions\.doItCostTooltip",\s*\{\s*n:\s*cost\s*\}\)/.test(rest),
                 cost && typeof cost === "object" ? Object.keys(cost).sort() : null, costPl && typeof costPl === "object" ? Object.keys(costPl).sort() : null],
             escape: /window with the Remnants/i.test(T(en).Trial?.openTheRemnantTableTooltip ?? "window with the Remnants"),
             gone: ["Actions.whichRemnantEraseATooltip", "Trial.endAndMoveTheTooltip", "Trial.endWithoutAdvancingTooltip", "Trial.endTheMurderTooltip"]
@@ -30102,7 +30102,7 @@ const INVARIANTS = [
         equal(JSON.stringify([seat("seatRoomArt", "#drpg-room-tile"), seat("seatVoiceArt", "#drpg-voice-tile")]), "[[true,true],[true,true]]",
             "[[the room's picture laid by paneLayer at its tile's turn, its turn taken off when it goes back], [the same for the voice tile's portrait]]");
     }],
-    ["R989 - a player's stash hunt gives its price back on the GMs' refusal, and a Search's trace out of a stash waits for the GMs' word that the thing moved (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-analyze.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request, and `searchStash`'s player's `got` follows the answer's `taken`", async () => {
+    ["R989 - a player's stash hunt gives its price back on the GMs' refusal (E16-T39; the review's E16p2-BEH-1, E16R-04, E16P2-R4; E16p2-BEH-2, E16R-03, E16P2-R2): both rows answer once carried out, action-analyze.mjs `locateStash` refunds a refusal in either shape before it notes the roll, its card goes out before the request (its second half, a Search's trace out of a stash waiting for the GMs' `taken`, went in 1.2.112 with the Search's reach into a stash)", async () => {
         /*
          * E16 fix e1-G2, 26.10.2026. On "ack" a refusal of the run came to a player's browser once `locateStash` and
          * `searchStash` had returned: a Class Trial opened while a hunt was in flight kept its price, and a reach refused
@@ -30114,18 +30114,17 @@ const INVARIANTS = [
         // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read -
         // `locateStash` stands in action-analyze.mjs, `searchStash` in action-search.mjs.
         const src = stripComments(actionText(await moduleSources()));
-        const locate = fnSource(src, "locateStash"), search = fnSource(src, "searchStash");
-        must(locate.length > 200 && search.length > 200, "locateStash or searchStash is gone - the reads below would measure nothing");
+        const locate = fnSource(src, "locateStash");
+        must(locate.length > 200, "locateStash is gone - the reads below would measure nothing");
         const at = (body, re) => body.search(re);
         const refund = at(locate, /if \(res\.ok \? Boolean\(res\.value\?\.refused\) : Boolean\(res\.refused\)\) \{\s*if \(charge\) await refundPrice\(actor, charge\);\s*return null;/);
         const card = at(locate, /DRPG\.Analyze\.stashSent/), asked = at(locate, /await requestStashSearch\(/), noted = at(locate, /noteRollContext\(/);
         equal(stableJson([BRIDGE_ACTIONS["vault.findStash"]?.answer ?? null, BRIDGE_ACTIONS["vault.steal"]?.answer ?? null,
-            card >= 0 && card < asked, asked >= 0 && asked < refund, refund >= 0 && refund < noted,
-            /game\.user\.isGM \? res\.value : res\.value\?\.taken \? \{ pending: true \} : null/.test(search)]),
-        stableJson(["reply", "reply", true, true, true, true]),
+            card >= 0 && card < asked, asked >= 0 && asked < refund, refund >= 0 && refund < noted]),
+        stableJson(["reply", "reply", true, true, true]),
             "a refusal of a player's stash hunt or reach is heard after its asker returned, or the asker does not read it "
             + "[vault.findStash's answer, vault.steal's answer, locateStash's card before its request, the request before the refund of a refusal, "
-            + "the refund before the roll is noted, searchStash's player's `got` read off `taken`]");
+            + "the refund before the roll is noted]");
     }],
     ["R990 - Create an item picks its picture from the module's item drawings, as a project picks its icon (H83, the owner's 26.10.2026 note): one radio cell per drawing itemIcon names, the category's own first and storing nothing, Another file last; a cell puts its drawing in img.new and the preview, the first cell \"\" and the category's drawing; a preset's picture lights its own cell, or Another file with that file", async () => {
         /*
@@ -56554,7 +56553,7 @@ const INVARIANTS = [
             drawnRoad: /loadedDieHeld\(config\)/.test(drawn) && giveAt > spendAt && spendAt > 0,
             // The faces filled on 2.12 before they are read (1.2.110's first CI run: read bare, no drawn die held).
             drawnFilled: drawn.indexOf("fillRollFacts(config)") > 0 && drawn.indexOf("fillRollFacts(config)") < drawn.indexOf("loadedDieHeld(config)"),
-            drawnRecords: /loaded: dieHeld, at:/.test(drawn) && /stash, loaded: dieHeld, roll:/.test(drawn)
+            drawnRecords: /loaded: dieHeld, at:/.test(drawn) && /total: roll\.total, loaded: dieHeld, roll:/.test(drawn)
         }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnFilled: true, drawnRecords: true }),
         "a Loaded Die that did not hold is not given back on one of its roads");
     }],

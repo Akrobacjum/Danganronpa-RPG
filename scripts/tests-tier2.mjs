@@ -3430,21 +3430,6 @@ const MODIFIER_FIXTURES = Object.freeze([
     { key: "loadedDie", cite: "player-handbook.en.md:346 (Loaded Die: one die is set to 12)", road: "a Loaded Die armed by a GM, the packet's mark",
         arrange: t => c3Call(t.theirs, { key: "freeCrit", kind: "hope", grants: "critical" }),
         claim: (t, s, on) => (on ? { edit: p => ({ ...p, loaded: s.nonce, calls: [s.nonce] }) } : {}), expect: true, moves: 7 },
-    { key: "stashStep", cite: "player-handbook.en.md:435 (a hidden stash: one more step of disadvantage)", road: "a concealed stash of another student's in the room, written by a GM",
-        arrange: async t => {
-            const V = await import("./vault.mjs");
-            const INV = await import("./inventory.mjs");
-            const room = await c3Room(t.theirs, { stashes: [{ actorId: t.other.id, concealed: true }] });
-            const item = await INV.grantItem(t.other, { name: "SUITE E33 C3 hidden", category: "usable", tier: 1, override: true, quiet: true });
-            const gone = async () => { if (item) await t.other.items.get(item.id)?.delete(); };
-            if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: room.room });
-            await settle();
-            if (!item || V.stashItemsIn(t.other, room.room, canvas?.scene).length !== 1) { await gone(); await room.back(); }
-            must(item && V.stashItemsIn(t.other, room.room, canvas?.scene).length === 1, "the thing is not in the hidden stash - this would measure nothing");
-            return { off: async () => { await gone(); await room.set(); }, undo: async () => { await gone(); await room.back(); } };
-        },
-        claim: (t, s, on) => ({ edit: p => ({ ...p, context: { category: "usable", ...(on ? { stashDie: true } : {}) } }) }),
-        expect: true, moves: ["rolled", null], moved: (A, B) => [A.stash?.kind ?? null, B.stash?.kind ?? null] },
     { key: "kind", cite: "roll-draw.mjs `onGmTerms` (a critical guaranteed by the character's own effects, a death move's Blaze of Glory); no handbook line",
         road: "an effect a GM made guaranteeing a critical",
         arrange: t => c3Effect(t.theirs, "SUITE E33 C3 critical", [{ key: "system.rules.roll.guaranteedCritical", value: "true", type: "override" }]),
@@ -10761,18 +10746,14 @@ const SCENARIOS = [
             "a Confusion reported spent with no drawn roll naming it was dropped, or one a record names stayed (unnamed held, named held)");
     }],
 
-    ["a Search at a hidden stash takes the step the GM drew", async () => {
+    ["a Search's drawn roll takes no stash step, whatever its packet says about a hidden stash", async () => {
         /*
-         * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on C11e. A hidden stash's step -
-         * the advantage die set aside, drawn at random, or one more disadvantage die - was drawn in
-         * the searcher's browser and was in no message. The GM draws it with the dice now, where the
-         * room it sees the searcher in holds a hidden stash, and the searcher takes that step and
-         * draws none (action-search.mjs `stashStepOf`). A player's character stood alone in a room
-         * where another student keeps a hidden stash with one thing in it, its Search's packet
-         * naming the stash; the GM's randomiser scripted to give a 6 for the extra die, then the
-         * searcher's to give a 1. Read: the step the GM answered and recorded, and the step the
-         * searcher's half takes from the answer. Until C12b the GM drew none and the searcher drew
-         * its own, the 1.
+         * 1.2.112, the owner's decision of 13.11.2026: a Search reaches into no stash, so nothing about a stash touches its
+         * roll. From E08+E28 C12b (04.10.2026) until then the GM drew a hidden stash's step with the dice where the room it
+         * saw the searcher in held one, and answered it (`stash`) for the searcher to take. A player's character stood alone
+         * in a room where another student keeps a hidden stash with one thing in it, its Search's packet still naming the
+         * stash (`stashDie`, a 1.2.111 browser's word). Read: what the GM answered and recorded of a step, the context it
+         * recorded, and the thing still in the stash. Until 1.2.112 the GM answered and recorded a step.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
@@ -10780,7 +10761,6 @@ const SCENARIOS = [
         const { player, theirs } = playerAndCharacters();
         const owner = cast(2).find(a => a.id !== theirs.id);
         must(owner, "no other student keeps the stash - this would measure nothing");
-        const rolls = await import("./action-rolls.mjs");
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
         const stood = await standAlone(theirs);
@@ -10788,50 +10768,42 @@ const SCENARIOS = [
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
         const path = k => `flags.${MODULE_ID}.${k}`;
-        const Dice = CONFIG.Dice;
-        const hadU = Object.hasOwn(Dice, "randomUniform"), realU = Dice.randomUniform;
-        let item = null, F = null, taken = null;
+        let item = null, F = null, read = null;
         try {
             must(region, `${stood.room} has no region`);
             await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
                 [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
-            item = await INV.grantItem(owner, { name: "SUITE C12b hidden", category: "usable", tier: 1, override: true, quiet: true });
+            item = await INV.grantItem(owner, { name: "SUITE 1.2.112 hidden", category: "usable", tier: 1, override: true, quiet: true });
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
             await settle();
             must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
-            // ceil((1 - 0.01) * 6) = 6 on the GM; ceil((1 - 0.99) * 6) = 1 on the searcher's half.
-            Dice.randomUniform = () => 0.01;
             F = await drawnForPlayer(player, theirs, { edit: p => ({ ...p, context: { category: "usable", stashDie: true } }) });
-            Dice.randomUniform = () => 0.99;
-            const drawn = { rollId: F.value?.rollId ?? null, messageId: F.value?.messageId ?? null, stash: F.value?.stash ?? null, loaded: false };
-            taken = typeof rolls.stashStepOf === "function"
-                ? await rolls.stashStepOf({ raw: { [rolls.DRAWN_ROLL]: drawn } }, theirs, true)
-                : await rolls.stashStepFor(F.message?.rolls?.[0] ?? {}, theirs);
+            must(F.message && F.record, "the GM drew nothing - this would measure nothing");
+            read = [F.value?.stash ?? null, F.record?.used?.stash ?? null, F.record?.legal?.stashDie ?? null,
+                (F.record?.flags ?? []).map(f => f.kind), V.stashItemsIn(owner, stood.room, canvas?.scene).length];
         } finally {
-            if (hadU) Dice.randomUniform = realU;
-            else delete Dice.randomUniform;
             if (F) await F.putBack();
             if (item) await owner.items.get(item.id)?.delete();
             if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
             await stood.back();
         }
-        const answered = F?.value?.stash ?? null;
-        equal(stableJson([answered?.kind ?? null, answered?.rolled ?? null, stableJson(F?.record?.used?.stash ?? null) === stableJson(answered),
-            stableJson(taken) === stableJson(answered)]), stableJson(["rolled", 6, true, true]),
-            "the GM did not draw the hidden stash's step, did not record the one it answered, or the searcher took a step of its own (kind, die, recorded, taken)");
+        equal(stableJson(read), stableJson([null, null, null, [], 1]),
+            "the GM answered, recorded or expected a hidden stash's step for a Search, flagged the packet over it, or the stash lost its thing "
+            + "(answered, recorded, expected, flag kinds, things in the stash)");
     }],
 
-    ["a drawn roll's Reroll takes its statistic, experiences and stash from the GM's record, not the bookmark", async () => {
+    ["a drawn roll's Reroll takes its statistic and experiences from the GM's record, not the bookmark", async () => {
         /*
          * E08+E28 C12b, 04.10.2026; round 1's security review (a Reroll's formula took the statistic and
          * the experiences from the bookmark's row - the roller's claim, which it may send again) and the
          * plan's 2.5 (a Search's Reroll takes the stash's step from the record once it is there). The GM
          * keeps them on the record as it draws (roll-draw.mjs `drawOnGm`), and the Reroll reads them
-         * there for a roll the GM drew (reroll.mjs `rollAsThrown`, `stashDieOf`). A player's Search,
+         * there for a roll the GM drew (reroll.mjs `rollAsThrown`). A player's Search,
          * drawn; a bookmark naming its message that says Hand, an experience and a hidden stash. Read:
-         * the statistic and the experiences of the roll the Reroll rebuilds, and whether it takes a
-         * stash's step. Until C12b all three were the bookmark's.
+         * the statistic and the experiences of the roll the Reroll rebuilds. Until C12b both were the bookmark's.
+         * Its third part, the stash's step from the record (`stashDieOf`), went in 1.2.112 with the step itself: no
+         * Search takes one ("a Reroll of a Search takes no stash step ...").
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -10843,9 +10815,8 @@ const SCENARIOS = [
             // The roll as the class rebuilds it from the packet's JSON: the harness's message keeps its rolls as JSON alone.
             const original = game.system.api.dice.DualityRoll.fromData(configuredRollOf(F.packet));
             const thrown = await R.rollAsThrown(original, theirs, F.message, bookmark);
-            const stash = typeof R.stashDieOf === "function" ? await R.stashDieOf(bookmark) : bookmark.stashDie;
-            equal(stableJson([thrown?.options?.roll?.trait ?? null, thrown?.options?.experiences ?? null, stash]), stableJson(["instinct", [], false]),
-                "a drawn roll's Reroll was rebuilt from the bookmark's statistic or experiences, or took a stash's step the GM did not draw (statistic, experiences, step)");
+            equal(stableJson([thrown?.options?.roll?.trait ?? null, thrown?.options?.experiences ?? null]), stableJson(["instinct", []]),
+                "a drawn roll's Reroll was rebuilt from the bookmark's statistic or experiences (statistic, experiences)");
         } finally {
             await F.putBack();
         }
@@ -15650,20 +15621,16 @@ const SCENARIOS = [
             "a crisis action of one statistic was not held to it at its character's turn: a roll on another went unflagged, or one on it was flagged (per draw: statistic flags, statistic expected, its row)");
     }],
 
-    ["a console's theft from a stash that says a Search found it is refused without that Search's roll, and read off the GMs' record of it", async () => {
+    ["a console's theft from a hidden stash it has not found is refused, whatever Search it says found it", async () => {
         /*
-         * E08+E28 C15, 04.10.2026; audit S10-06. `vault.steal` took `viaSearch` and `clumsy` on the
-         * sender's word: a packet saying a Search had paid for a concealed stash opened it, and one
-         * saying the hand was steady kept the owner from being told. A packet that says `viaSearch`
-         * names the Search's roll now, and both are read off the GMs' record of it (bridge-runs-acts.mjs
-         * `searchTheftOf`). The room a player's character stands in holds a concealed stash of
-         * another character's with an item in it (region and item put back after); the theft judged
-         * as the bridge judges that player's packet saying `viaSearch` and a steady hand: naming no
-         * roll; naming a Search of theirs the record says came to 3; naming one the record says came
-         * to 20 with Despair. Read: the codes the first two were refused with and whether the item is
-         * still stashed after each; after the third, the refusals told, whether it is still stashed,
-         * whether the thief holds it, and whether a "stolen" whisper went to its owner - the record's
-         * fumble, not the packet's steady hand. Red at C14's runtime: the first packet takes it.
+         * 1.2.112, the owner's decision of 13.11.2026: a stash is found by Analyze's Find Stash and by nothing else, and a
+         * Search reaches into none. From E08+E28 C15 (04.10.2026; audit S10-06) a `vault.steal` packet saying `viaSearch`
+         * and naming a Search of the thief's that hit opened a concealed stash, and its record's Despair told the owner.
+         * The room a player's character stands in holds a concealed stash of another character's with an item in it
+         * (region and item put back after); the theft judged as the bridge judges that player's packet saying `viaSearch`
+         * and a steady hand: naming no roll; naming a Search of theirs the record says came to 20 with Despair. Read: the
+         * refusals told, whether the item is still stashed after each, whether the thief holds it, and whether a "stolen"
+         * whisper went to its owner. Until 1.2.112 the second packet took it and told the owner.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the stash is in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -15678,11 +15645,13 @@ const SCENARIOS = [
         must(owner, "the world has no second character to own the stash");
         const region = V.regionsByName(where.scene).get(where.room);
         must(region, `the room ${where.room} has no region to hide a stash in`);
-        const NAME = "Suite C15 stashed";
+        must(!V.hasFoundStash(actor, where.room, owner.id, where.scene), `${actor.name} has found that stash already - this would measure nothing`);
+        const NAME = "Suite 1.2.112 stashed";
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
         const putBack = [], whispers = [];
         const hook = Hooks.on("createChatMessage", message => whispers.push(message.id));
+        let read = null;
         try {
             await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: true }],
                 [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
@@ -15690,32 +15659,24 @@ const SCENARIOS = [
             must(item, `${owner.name} could not be handed an item - this would measure nothing`);
             await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: where.room });
             must(V.stashItemsIn(owner, where.room, canvas?.scene).some(i => i.id === item.id), "the item is not in the stash - this would measure nothing");
-            const searched = [];
-            for (const total of [3, 20]) {
-                const { message } = await neutralRoll(actor);
-                must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
-                putBack.push(async () => game.messages.get(message.id)?.delete());
-                const R = await recordFor(message, player, actor, "search", { total, withHope: false });
-                putBack.push(R.putBack);
-                await rollStore.patch(R.rollId, { withFear: true });
-                searched.push(message.id);
-            }
+            const { message } = await neutralRoll(actor);
+            must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+            putBack.push(async () => game.messages.get(message.id)?.delete());
+            const R = await recordFor(message, player, actor, "search", { total: 20, withHope: false });
+            putBack.push(R.putBack);
+            await rollStore.patch(R.rollId, { withFear: true });
             const told = [];
-            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "vault.steal", requestId: `C15${foundry.utils.randomID(8)}`,
+            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "vault.steal", requestId: `S112${foundry.utils.randomID(8)}`,
                 thiefId: actor.id, ownerId: owner.id, itemId: item.id, viaSearch: true, clumsy: false, ...(rollId ? { rollId } : {}) },
             player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
             const stashed = () => owner.items.has(item.id);
             await ask(null);
             const unnamed = [told.at(-1) ?? null, stashed()];
-            await ask(searched[0]);
-            const missed = [told.at(-1) ?? null, stashed()];
-            const from = whispers.length;
-            await ask(searched[1]);
+            await ask(message.id);
             await settle();
-            const stolen = whispers.slice(from).map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
-            equal(stableJson([unnamed, missed, [told.length, stashed(), actor.items.some(i => i.name === NAME), stolen]]),
-                stableJson([["rollUnknown", true], ["rollMissed", true], [2, false, true, 1]]),
-                "the theft was not refused without its Search's roll or on a miss, or not read off the record's find and fumble (code, stashed; code, stashed; refusals, stashed, the thief's, owner told)");
+            const named = [told.at(-1) ?? null, stashed()];
+            const stolen = whispers.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+            read = [unnamed, named, told.length, actor.items.some(i => i.name === NAME), stolen];
         } finally {
             Hooks.off("createChatMessage", hook);
             for (const a of [owner, actor]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
@@ -15723,6 +15684,10 @@ const SCENARIOS = [
             for (const id of whispers) await game.messages.get(id)?.delete();
             await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
         }
+        must(read[0][0], `the first packet was not refused - this reading has no refusal to compare: ${stableJson(read)}`);
+        equal(stableJson(read), stableJson([[read[0][0], true], [read[0][0], true], 2, false, 0]),
+            "a theft that says a Search found a hidden stash was not refused as one with no Search is, took the thing, or told its owner "
+            + "([code, still stashed] naming no roll, naming a Search of 20 with Despair; refusals; the thief holds it; owner told)");
     }],
 
     ["an item handed over, planted or stolen arrives as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
@@ -46850,6 +46815,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["Secure a Trace leaves a Reinforced Remnant at the scene on every hit, and Leave a Clue's Hope stays plain", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: Secure a Trace was Leave a Clue at 15 instead of 12 - the same
+         * Remnants, Reinforced on a critical alone - so the harder roll bought nothing. Every hit of it leaves its Remnant
+         * Reinforced now (config.mjs `alwaysReinforced`, murder-rules.mjs `applyRemnant`). A direct murder between two
+         * students with players: Secure a Trace made with Hope, with Despair and as a critical, then Leave a Clue made with
+         * Hope, the control (a reading that saw every incident trace Reinforced would pass the first three). Read: each
+         * action's new traces as [visibility, Reinforced, tied to the crime]. Until 1.2.112 the Hope and the Despair hit
+         * read false.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const traces = () => game.scenes.contents.flatMap(s => R.remnantsOn(s));
+        const placed = [];
+        const read = {};
+        const act = async (key, total, isCritical, withHope) => {
+            await turnFor(M, victim, key);
+            const before = new Set(traces().map(t => t.key));
+            await M.resolveCrisisAction({ actorId: victim.id, key, total, isCritical, withHope });
+            await settle();
+            const fresh = traces().filter(t => !before.has(t.key));
+            placed.push(...fresh);
+            return fresh.map(t => R.remnantData(t)).map(d => [d?.visibility ?? null, d?.reinforced ?? null, d?.tiedToCrime ?? null]);
+        };
+        try {
+            await fightOpen(M, killer, victim);
+            read.hope = await act("secureTrace", 30, false, true);
+            read.despair = await act("secureTrace", 30, false, false);
+            read.critical = await act("secureTrace", 30, true, true);
+            read.clue = await act("leaveClue", 30, false, true);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const t of placed) {
+                await R.dropRemnantSecret(t.document ?? t).catch(() => {});
+                await t.document?.delete?.().catch(() => {});
+            }
+        }
+        equal(stableJson(read), stableJson({ hope: [["evident", true, true]], despair: [["subtle", true, true]],
+            critical: [["obvious", true, true]], clue: [["evident", false, true]] }),
+            "a hit of Secure a Trace left a Remnant that is not Reinforced, at another visibility or not tied to the crime, or Leave a Clue's "
+            + "Hope hit became Reinforced with it (each action's new traces: [visibility, Reinforced, tied to the crime])");
+    }],
+
     ["no player's packet holds the fight's last turns", async () => {
         /*
          * E32+E07 C17, 03.10.2026; audit S04-29. The last turns (`recent`) name who acted, what
@@ -52888,10 +52900,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * the action back - so opening a Search said whether somebody had hidden something
          * in the room, for nothing. Built here: the searcher's room a poor place for
          * usable things, and somebody else's hidden stash in it with one thing inside. The
-         * window's part is the room's -1 alone; the stash's step comes after the roll. At
-         * 1.2.64 the armed count was -2 and there was no second part. Since E32+E07 C11e the
-         * second part is `stashDie` (a step of disadvantage on the dice) where E06 C11 had
-         * `penalty: -1`.
+         * window's part is the room's -1 alone; the stash's step came after the roll. At
+         * 1.2.64 the armed count was -2 and there was no second part. From E32+E07 C11e the
+         * second part was `stashDie` (a step of disadvantage on the dice) where E06 C11 had
+         * `penalty: -1`; since 1.2.112 (the owner's decision of 13.11.2026) a Search reaches into
+         * no stash, and `searchOdds` answers the room's part alone, whatever stash is there.
          */
         const rolls = await import("./action-rolls.mjs");
         const V = await import("./vault.mjs");
@@ -52915,11 +52928,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             must(V.stashItemsIn(owner, room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
-            equal(stableJson(odds && [odds.situational, odds.stashDie, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
-                stableJson([-1, true, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its step");
+            equal(stableJson(odds), stableJson({ situational: -1 }), "the window's count holds the stash, or the Search still reads the stash");
             // E41 C4 (1.2.97): `performSearch` moved into action-search.mjs.
             const search = fnSource(stripComments((await moduleSources()).get("action-search.mjs") ?? ""), "performSearch");
-            ok(/\{ situational, stashDie\b[^}]*\} = searchOdds\(/.test(search)
+            ok(/\{ situational \} = searchOdds\(/.test(search)
                 && [...search.matchAll(/armSituational\(([^)]*)\)/g)].map(m => m[1]).join() === "situational",
                 "performSearch arms something other than searchOdds' situational part");
         } finally {
@@ -52929,22 +52941,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
-    ["a hidden stash's die lands on the total after the roll, and the card says so", async () => {
+    ["a Search where somebody keeps a stash, hidden or open, draws from the room and leaves the stash as it was", async () => {
         /*
-         * E32+E07 C11e, 02.10.2026; the owner's decision of 28.09.2026 (replaces E06 C11's "a
-         * hidden stash's -1 lands on the total after the roll, and the card says so"). A student
-         * stood alone in a room (`standAlone`) where another student keeps a hidden stash with
-         * one thing in it, the room favouring and hindering nothing, searches from this GM's
-         * browser, free, the goal window pressed as a player's default. The character's
-         * `rollTrait` hands back what the system's would - two bonus dice, a 5 and a 2, inside a
-         * total one above the lowest band's - and throws nothing; Foundry's randomiser
-         * (`CONFIG.Dice.randomUniform`, which the step draws from) is fixed so that the 5 is the
-         * die set aside, and the 2 is left: 3 off, a miss. Read: the card's line and its meta
-         * (`stashStep`), the bookmark's `stashDie`, the messages and the Dice So Nice throws the
-         * Search made (the card alone, none), and `stashDiceOf` on a roll as `rollTrait` hands it
-         * back with a die some reroll replaced, a `Roll` with a d8 penalty die, and one with
-         * neither; and in the source, that every other card a Search ends in is handed the line
-         * and the step. Until C11e the card said "-1" and the total that counts was one below.
+         * 1.2.112, the owner's decision of 13.11.2026: "a roll to discover, no roll to search or take an item". Until then a
+         * successful Search in a room where somebody else kept a stash with something in it took a random thing out of that
+         * stash instead of drawing from the room (action-search.mjs `searchStash`) - an open one first, a hidden one with one
+         * more step of disadvantage taken after the dice (`stashStep`, E32+E07 C11e). A hidden stash is found by Analyze's
+         * Find Stash now, and a found or open one is gone through with the free rifle. A student stood alone in a room
+         * (`standAlone`) where another student keeps a stash with one thing in it, the room favouring and hindering
+         * nothing, searches from this GM's browser, free, the goal window pressed as a player's default; the character's
+         * `rollTrait` hands back a total five above the lowest band's with no bonus dice and throws nothing, and Foundry's
+         * randomiser is fixed so that a stash's extra die would be a 1. Once with the stash hidden, once open. Read for each:
+         * the messages and Dice So Nice throws the Search made, a stash step in the card's meta, the bookmark's stash
+         * fields and its tier, and the things in the stash and whether the owner still holds the one. Until 1.2.112 both
+         * took the thing out of the stash (the hidden one at a total one lower) and the bookmark said `fromVault`.
          */
         needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
         needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
@@ -52953,8 +52963,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { ACTIONS } = await import("./config.mjs");
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
-        const { wordsOf, cardFlag } = await import("./secret.mjs");
+        const { cardFlag } = await import("./secret.mjs");
         const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
+        const total = low + 5;
+        const tier = ACTIONS.search.thresholds.filter(t => t.min <= total).sort((a, b) => b.min - a.min)[0]?.tier ?? null;
         const stood = await standAlone(actor);
         const region = V.regionsByName(canvas?.scene).get(stood.room);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
@@ -52964,34 +52976,36 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const hadU = Object.hasOwn(D, "randomUniform"), realU = D.randomUniform;
         const dsn = game.dice3d ?? null, ownThrow = dsn ? Object.getOwnPropertyDescriptor(dsn, "showForRoll") : null;
         const windows = answerWindows(press);
-        const had = new Set(game.messages.contents.map(m => m.id));
         let item = null, thrown3d = 0;
+        const read = {};
         try {
             must(region, `${stood.room} has no region`);
-            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
-                [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
-            item = await INV.grantItem(owner, { name: "SUITE C11e hidden", category: "usable", tier: 1, override: true, quiet: true });
+            item = await INV.grantItem(owner, { name: "SUITE 1.2.112 stashed", category: "usable", tier: 1, override: true, quiet: true });
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
-            await settle();
-            must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
-            const total = low + 1;
             actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
-                options: { roll: { trait: "instinct" } },
-                dAdvantage: { faces: 6, number: 2, results: [{ result: 5, active: true }, { result: 2, active: false, discarded: true }] } } });
-            // draw(2) = ceil((1 - 0.9) * 2) = 1: the first die, the 5.
-            D.randomUniform = () => 0.9;
+                options: { roll: { trait: "instinct" } } } });
+            // A stash's extra die, were one drawn: ceil((1 - 0.99) * 6) = 1.
+            D.randomUniform = () => 0.99;
             if (dsn) dsn.showForRoll = async () => { thrown3d++; };
-            await rolls.performAction(actor, "search", { free: true });
-            await until(() => game.messages.contents.some(m => !had.has(m.id)));
-            await settle();
-            const made = game.messages.contents.filter(m => !had.has(m.id));
-            const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
-            const line = `<p><em>${game.i18n.format("DRPG.Action.stashSetAside", { set: "5", total: total - 3 })}</em></p>`;
-            equal(stableJson([made.length, thrown3d, words.includes(line), made[0] ? cardFlag(made[0], "stashStep") : null,
-                rolls.rollInHand(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room, canvas?.scene).length]),
-            stableJson([1, 0, true, { kind: "setAside", read: [5, 2], setAside: 5, rolled: null, change: -3, score: total - 3 }, true, 1]),
-            "the Search made more than its card or threw dice, its card does not say the step and the total that counts, its meta does not hold the dice, or the bookmark lost the stash (messages, throws, line, meta, bookmark, stash)");
+            for (const concealed of [true, false]) {
+                await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed }],
+                    [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+                await settle();
+                must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the stash - this would measure nothing");
+                const had = new Set(game.messages.contents.map(m => m.id));
+                thrown3d = 0;
+                await rolls.performAction(actor, "search", { free: true });
+                await until(() => game.messages.contents.some(m => !had.has(m.id)));
+                await settle();
+                const made = game.messages.contents.filter(m => !had.has(m.id));
+                const mark = rolls.rollInHand(actor) ?? {};
+                read[concealed ? "hidden" : "open"] = [made.length, thrown3d, made.map(m => cardFlag(m, "stashStep") ?? null).filter(Boolean).length,
+                    mark.fromVault ?? null, mark.stashDie ?? null, mark.tier ?? null,
+                    V.stashItemsIn(owner, stood.room, canvas?.scene).length, owner.items.has(item.id)];
+                if (mark.itemId) await actor.items.get(mark.itemId)?.delete();
+                for (const m of made) await m.delete();
+            }
         } finally {
             windows.restore();
             delete actor.rollTrait;
@@ -53002,43 +53016,24 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 else delete dsn.showForRoll;
             }
             if (item) await owner.items.get(item.id)?.delete();
+            for (const i of actor.items.filter(i => i.name === "SUITE 1.2.112 stashed")) await i.delete();
             if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
             await stood.back();
         }
-        const read = typeof rolls.stashDiceOf === "function" ? [
-            rolls.stashDiceOf({ raw: { roll: { dAdvantage: { faces: 6, results: [{ result: 4 }, { result: 1, rerolled: true }, { result: 6 }] } } } }),
-            rolls.stashDiceOf({ dDisadvantage: { faces: 8, results: [{ result: 3 }] } }),
-            rolls.stashDiceOf({ total: 12 })
-        ] : null;
-        equal(stableJson(read), stableJson([{ sign: 1, results: [4, 6], faces: 6 }, { sign: -1, results: [3], faces: 8 }, { sign: 0, results: [], faces: 6 }]),
-            "the step reads the wrong dice off a roll: a replaced result, the penalty die's faces, or a die nobody threw");
-        // The other two cards a Search can end in, read in the source as E06 C11's test read them,
-        // and the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4).
-        // Since E37 C6 the stash's and the specific's card is built as `outcome` first, which `drpgActionResolved`
-        // carries too (`searchTold`): either shape holds the line and the step.
-        // E41 C4 (1.2.97): the Search's four ends and `performSearch` moved into action-search.mjs.
-        const actions = stripComments((await moduleSources()).get("action-search.mjs") ?? "");
-        equal(stableJson(["searchNothing", "searchStash", "searchSpecific"].map(name =>
-            /report\(actor, def, roll, \{[^}]*\bextra\b[^}]*\bstash\b|const outcome = \{[^}]*\bextra\b[^}]*\bstash\b[^}]*\};\s*await report\(actor, def, roll, outcome\)/
-                .test(fnSource(actions, name)))
-            .concat(/gmBody: `[\s\S]*?<\/p>\$\{extra\}`/.test(fnSource(actions, "searchSpecific")),
-                /\bextra,\s*stash,/.test(fnSource(actions, "performSearch")))),
-        stableJson([true, true, true, true, true]),
-        "a Search's card that is not a miss does not carry the step's line and its dice (nothing, stash, specific, the GM's specific, a find)");
+        const left = [1, 0, 0, null, null, tier, 1, true];
+        equal(stableJson(read), stableJson({ hidden: left, open: left }),
+            "a Search reached into a stash, took a step for it, or did not score its own dice on the room's table "
+            + "(per stash: messages, throws, stash steps in the meta, bookmark fromVault, bookmark stashDie, bookmark tier, things in the stash, the owner holds it)");
     }],
 
-    ["a Reroll of a Search at a hidden stash throws the stash's die again", async () => {
+    ["a Reroll of a Search takes no stash step, whatever an older bookmark says, and a 1.2.65 bookmark's -1 still lands", async () => {
         /*
-         * E32+E07 C11e, 02.10.2026. Until 1.2.65 the stash's disadvantage die was one of the
-         * roll's dice, and a Reroll threw it again with the others (reroll.mjs
-         * `rerollKeepingDice`). The step is taken after the dice now, so `settleSearch` takes it
-         * again on the new roll with a new draw. A missed Search is replayed from its bookmark on
-         * a new roll one below the lowest band's total, with no bonus or penalty dice: with `stashDie`
-         * and Foundry's randomiser fixed first to a 6 and then to a 1; with `stashDie` on a new
-         * roll that kept one bonus die, a 4 (in a total of 3 above the band, so the step decides
-         * the miss); with a 1.2.65 bookmark's `penalty: -1`; and with neither, a bookmark from
-         * before 1.2.65, whose receipt is the rest of every other's. Nothing is found, so nothing
-         * is drawn. Read: each receipt's first line, the rest against the plain one, the tier.
+         * 1.2.112, the owner's decision of 13.11.2026: a Search reaches into no stash, so a Reroll of one takes no stash step.
+         * From E32+E07 C11e (02.10.2026) `settleSearch` took the hidden stash's step again on the new dice with a new draw.
+         * A missed Search is replayed from its bookmark on a new roll one below the lowest band's total, with no bonus or
+         * penalty dice: plain; with a bookmark written before 1.2.112 that says `stashDie`, Foundry's randomiser fixed to a
+         * 6; and with a 1.2.65 bookmark's `penalty: -1`. Nothing is found, so nothing is drawn. Read: each receipt against
+         * the plain one, the -1's first line, the tier. Until 1.2.112 the stashDie bookmark's receipt began with the step.
          */
         const [actor] = cast(1);
         const R = await import("./reroll.mjs");
@@ -53046,35 +53041,29 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
         const D = CONFIG.Dice;
         const hadU = Object.hasOwn(D, "randomUniform"), realU = D.randomUniform;
-        const replay = async (extra, u, rerolled = { total: low - 1 }) => {
+        const replay = async (extra, u) => {
             if (u !== null) D.randomUniform = () => u;
             const done = [];
             const bookmark = { actionKey: "search", claimed: true, room: null, category: "usable", goal: "healing", itemId: null, ...extra };
-            const patch = await R.settleSearch(actor, bookmark, { total: rerolled.total, isCritical: false, withHope: true, withFear: false }, done, rerolled);
+            const after = { total: low - 1, isCritical: false, withHope: true, withFear: false };
+            const patch = await R.settleSearch(actor, bookmark, after, done, after);
             return { done, tier: patch?.tier ?? null };
         };
         let runs = null;
         try {
-            if (typeof R.settleSearch === "function") {
-                runs = [await replay({}, null), await replay({ stashDie: true }, 0), await replay({ stashDie: true }, 0.99),
-                    await replay({ stashDie: true }, 0, { total: low + 3, dAdvantage: { faces: 6, results: [{ result: 4 }] } }),
-                    await replay({ penalty: -1 }, null)];
-            }
+            runs = [await replay({}, null), await replay({ stashDie: true }, 0), await replay({ penalty: -1 }, null)];
         } finally {
             if (hadU) D.randomUniform = realU;
             else delete D.randomUniform;
             await settle();
         }
-        must(runs === null || runs[0].tier === null, "the plain replay one below the lowest band found something");
-        const plain = runs?.[0].done ?? [];
-        const say = (key, data) => game.i18n.format(key, data);
-        equal(stableJson(runs && runs.slice(1).map(r => [r.done[0], stableJson(r.done.slice(1)) === stableJson(plain), r.tier])),
-            stableJson([
-                [say("DRPG.Action.stashRolled", { rolled: "6", total: low - 7 }), true, null],
-                [say("DRPG.Action.stashRolled", { rolled: "1", total: low - 2 }), true, null],
-                [say("DRPG.Action.stashSetAsideOnly", { set: "4", total: low - 1 }), true, null],
-                [say("DRPG.Action.situationAfterRoll", { n: "-1", total: low - 2 }), true, null]
-            ]), "a Reroll does not take the stash's step again on the new dice and a new draw, or lost a 1.2.65 bookmark's -1 (first line, rest as the plain replay's, tier)");
+        must(runs[0].tier === null, `the plain replay one below the lowest band found something - this would measure nothing: ${stableJson(runs[0])}`);
+        const plain = runs[0].done;
+        equal(stableJson([stableJson(runs[1].done) === stableJson(plain), runs[1].tier,
+            runs[2].done[0], stableJson(runs[2].done.slice(1)) === stableJson(plain), runs[2].tier]),
+        stableJson([true, null, game.i18n.format("DRPG.Action.situationAfterRoll", { n: "-1", total: low - 2 }), true, null]),
+        "a Reroll of a Search took a stash step for a bookmark that says stashDie, or lost a 1.2.65 bookmark's -1 "
+            + "(stashDie's receipt as the plain one's, its tier; the -1's first line, the rest as the plain one's, its tier)");
     }],
 
     ["a GM report's document holds no words", async () => {
@@ -53834,6 +53823,91 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson(["putBack", 2, null, [`putBack:${[HOPE, RESTS].sort().join(",")}`]]),
             "a Rest in a room not marked for one kept its Hope or its stamp, or was not recorded as one put-back");
+    }],
+
+    ["Relief's rest offers Breath greyed with the reason, and a Breath picked past it gives no Hope", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: Relief costs 4 Hope and its Short Rest let Breath be picked, which
+         * gives 1 - three Hope lost for nothing. Relief's rest window (rest.mjs `choosePicks`) shows Breath disabled with
+         * the reason (DRPG.Rest.reliefNoBreath), and `applyRest` refuses a Breath that got past it, as it refuses one under
+         * the Despair darkening. A student at 2 Hope: Relief's rest (`takeRest`'s `free`, the Call's road) with Breath
+         * ticked on the drawn form whatever it says; then an ordinary Short Rest's window, closed unanswered, the control
+         * (a reading that greyed Breath everywhere would pass the first). Read: Breath disabled, its row's tooltip, what
+         * the rest said it gave and the Hope after; the control's Breath disabled. Until 1.2.112 Breath was offered and
+         * gave 1 Hope.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student to rest");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(!overflowBlocksHope(), "the Despair darkening holds Hope down - Breath would be greyed for that reason, and this would measure nothing");
+        const [student] = livingStudents();
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(student, [HOPE, "system.resources.hitPoints.value", "system.resources.stress.value"]);
+        const reason = game.i18n.localize("DRPG.Rest.reliefNoBreath");
+        const breathOf = element => element.querySelector('[name="pick"][value="breath"]');
+        let read = null;
+        try {
+            await trustedWrite(student, { [HOPE]: 2 }, { reason: "gmRuling" });
+            let rested = null;
+            const relief = await withFormAnswered(element => {
+                const box = breathOf(element);
+                if (box) box.checked = true;
+                return true;
+            }, async () => { rested = await takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }); });
+            const ordinary = await withFormAnswered(() => false, () => takeRest(student, "short", { ignoreRoom: true, ignoreLimit: true, quiet: true }));
+            const box = relief[0] ? breathOf(relief[0]) : null;
+            read = { offered: box ? [box.disabled, box.closest("label")?.getAttribute("title") === reason] : null,
+                applied: (rested?.applied ?? []).map(line => line.includes(reason)), hope: student.system.resources.hope.value,
+                ordinary: ordinary[0] ? breathOf(ordinary[0])?.disabled ?? null : null };
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ offered: [true, true], applied: [true], hope: 2, ordinary: false }),
+            "Relief's rest offered Breath, or greyed it without the reason, a Breath picked past it gave Hope or did not say why not, "
+            + "or an ordinary Short Rest greyed it too (Breath [disabled, its reason], each line said the reason, Hope after, the ordinary rest's Breath disabled)");
+    }],
+
+    ["a Relief rest's Hope is put back and its Meal stands", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: the GMs' side refuses Breath on a Relief's rest, as the roller's
+         * `applyRest` does (the test above). The GMs' audit (sheet-audit.mjs `restCovers`, `ref` "relief") covered a Relief
+         * rest's 1 Hope as any Short Rest's. A student at 5 Hope and 2 Sanity marked: Relief's 4 Hope paid, then its rest
+         * written with 1 Hope back (Breath); then the same from the start with its Sanity cleared instead (Meal), each as
+         * the player's write the primary hears. Read: the two rests' verdicts and the Hope and Sanity after. Until 1.2.112
+         * both stood, Hope 2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const r = student.system.resources;
+        const cost = HOPE_CALLS.relief.cost;
+        must(Number(r?.hope?.max) >= cost + 1 && Number(r?.stress?.max) >= 2, "the student's Hope or Sanity is too small for a Relief and a Meal");
+        const HOPE = "system.resources.hope.value", STRESS = "system.resources.stress.value";
+        const putBack = sheetAsFound(student, [HOPE, STRESS]);
+        let read = null;
+        try {
+            const relief = async rest => {
+                await student.update({ [HOPE]: cost + 1, [STRESS]: 2 });
+                await auditFromScratch(student);
+                await asPlayerWrite(student, { [HOPE]: 1 }, player(student), { reason: "call" });
+                const verdict = await asPlayerWrite(student, rest, player(student), { reason: "rest", ref: "relief" });
+                await sheetAuditIdle();
+                return verdict?.verdict ?? null;
+            };
+            const breath = await relief({ [HOPE]: 2 });
+            const hope = foundry.utils.getProperty(student._source, HOPE);
+            const meal = await relief({ [STRESS]: 1 });
+            read = [breath, hope, meal, foundry.utils.getProperty(student._source, STRESS)];
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson(["putBack", 1, "stands", 1]),
+            "a Relief rest's Hope stood, or its Meal was put back ([Breath's verdict, Hope after, Meal's verdict, Sanity after])");
     }],
 
     ["a Daggerheart roll message with Hope covers one Hope through the relay, once", async () => {
@@ -55918,7 +55992,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * back (`refundPrice`), Despair turned into Hope (despair.mjs `convertDespairToHope`), an item's effect a GM
          * grants (use-items.mjs `grantItemEffect`), a Despair Call's Hope (call-effects.mjs, Fuel a Monocub), a Hope Call
          * a GM buys on the sheet (calls.mjs `spendHopeCall`, a Sprint at 2) and a rest a GM gives (rest.mjs `takeRest`,
-         * Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
+         * Breath; paid with an action since 1.2.112, when a Relief's free rest stopped giving Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
          * Hope, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red) each road wrote from the
          * console's 5, on the sheet and in the mark alike: the Objection left 4 (1 since), the refund, the conversion, the
          * ruling, the Call and the rest 6 (3 since), the Sprint 3 (0 since).
@@ -55964,7 +56038,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.fuel = await inWindow(() => applyCall(null, "fuelTheCub", "despair", { target: student }));
             read.sprint = await inWindow(() => spendHopeCall(student, "sprint"));
             Dialog.wait = async () => ["breath"];
-            read.rest = await inWindow(() => takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }));
+            // A rest paid with an action: a Relief's free rest gives no Breath since 1.2.112 (rest.mjs `BREATH_REFUSED`).
+            await trustedWrite(student, { [ACTS]: 1 }, { reason: "gmRuling" });
+            read.rest = await inWindow(() => takeRest(student, "short", { ignoreRoom: true, ignoreLimit: true, quiet: true }));
             read.failedCall = await inConsoleWindow(student, player(student), { honest: { [HOPE]: 4 }, forged: { [HOPE]: 5 }, paths: [HOPE], during: true },
                 forge => {
                     Dialog.wait = async () => {
@@ -57118,21 +57194,22 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a card whose row was swept kept its buttons or said nothing, or a young card without its row lost them (per card: buttons, the line)");
     }],
 
-    ["a Search asked of the GM or taken from a stash names no find, and a stash's theft on a record a find stood on is refused", async () => {
+    ["a Search asked of the GM or one a stash's theft settled names no find, and a stash's theft reads no Search's record (1.2.112)", async () => {
         /* Round 1's m6. A Search drawn for the player's packet with the goal "something specific" keeps
            that goal on the GMs' record (roll-draw.mjs `CONTEXT_SENT`), and a tier-1 item named after it is
            flagged; so is one named after a record a stash's theft settled ("search" in its `resolved`, as
            bridge-guards.mjs `rollsFor` writes it); and the vault steal's reading of a record a find stood on
-           refuses the theft (bridge-runs-acts.mjs `searchTheftOf`), where the same reading of a fresh record takes
-           it. At HEAD the record kept no goal, both items stood, and the theft was taken. */
+           refused the theft (bridge-runs-acts.mjs `searchTheftOf`), where the same reading of a fresh record took
+           it. At HEAD the record kept no goal, both items stood, and the theft was taken. Since 1.2.112 a Search
+           reaches into no stash and `vault.steal` reads no roll (`rolled` gone, R5468): its half reads that, and a
+           record that says a theft settled it - an older world's - still names no find. */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const { rollStore } = await import("./gm-stores.mjs");
         const { searchTier } = await import("./action-rolls.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const theft = BRIDGE_ACTIONS["vault.steal"]?.rolled?.derive;
-        must(typeof theft === "function", "the vault steal reads no Search's record - this would measure nothing");
+        must(BRIDGE_ACTIONS["vault.steal"], "there is no vault steal to read - this would measure nothing");
         must(searchTier({ total: 13 }).tier === 1 && searchTier({ total: 13 }).hit, "the Search's table gives no tier-1 hit at 13 any more - the totals below measure nothing");
         const made = [], backs = [];
         let read = null;
@@ -57145,8 +57222,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await tokenSpent(player, theirs);
             const stash = await spentSearch(player, theirs, { total: 13 });
             const found = await spentSearch(player, theirs, { total: 13 });
-            const fresh = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
-            backs.push(stash.putBack, found.putBack, fresh.putBack);
+            backs.push(stash.putBack, found.putBack);
             must(rollStore.get(F.record.rollId)?.tokenSpentAt && stash.spent && found.spent,
                 "a spend did not mark the Search it followed - the finds below would be flagged for that alone");
             await rollStore.patch(stash.rollId, { resolved: ["search"] });
@@ -57158,16 +57234,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const verdicts = [await find("E29 G8 a find on a specific Search", F.record.rollId), await find("E29 G8 a find on a stash's Search", stash.rollId),
                 await find("E29 G8 a find", found.rollId)];
             await sheetAuditIdle();
-            read = [F.record.goal ?? null, ...verdicts, (await theft(rollStore.get(found.rollId)))?.why ?? null, (await theft(rollStore.get(fresh.rollId)))?.why ?? null];
+            read = [F.record.goal ?? null, ...verdicts, BRIDGE_ACTIONS["vault.steal"].rolled ?? null];
         } finally {
             await sheetAuditIdle();
             for (const item of made) if (theirs.items.get(item.id)) await item.delete();
             await sheetAuditIdle();
             for (const back of backs) await back();
         }
-        equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", "that roll has already settled that action", null]),
-            "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or a theft on a "
-                + "record a find stood on was taken, or one on a fresh record refused (the goal, the three verdicts, the two thefts' refusals)");
+        equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", null]),
+            "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or the "
+                + "vault steal still reads a roll (the goal, the three verdicts, the vault steal's roll row)");
     }],
 
     ["a console's call of a newly gated GM function changes nothing: syncStates", async () => {
@@ -72776,16 +72852,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a Gear arriving unseen put down the knife the victim held, readied another piece, or told them ([arrived, the knife held, the old Tool held, the planted Tool held, [packets, cards, redraws]])");
     }],
 
-    ["a stash rifled unseen does not redraw its owner's sheet, for a whole item or a piece of a stack; a clumsy hand's does (E35-T8, S08-34)", async () => {
+    ["a stash rifled unseen does not redraw its owner's sheet, for a whole item, a piece of a stack or a call that still says clumsy (E35-T8, S08-34; 1.2.112)", async () => {
         /*
          * E35 C3, 24.10.2026; audit S08-34, E35-17. The harm: somebody helping themselves from a stash is not
          * announced (the player handbook), but vault.mjs `stealFromVault` deleted the item with a bare `delete()`, so
          * an owner with their sheet open watched it leave the stash - where a Palm's unseen steal deletes with
          * `render: false`. Two students alone together, a stash of the first's in their room and the second's hands
          * free; a Tool rifled, a stack of two kits rifled (one piece: the count's write), and a Tool rifled by a
-         * clumsy hand (the Search's Despair, whose owner is told), each by a GM's own call. Read, per rifle: whether
-         * each write of the owner's items redraws their sheet, and the pieces that arrived. Red at 97437b3 (C2): the
-         * unseen rifles redrew it.
+         * clumsy hand, each by a GM's own call. Read, per rifle: whether each write of the owner's items redraws their
+         * sheet, and the pieces that arrived. Red at 97437b3 (C2): the unseen rifles redrew it. Until 1.2.112 the clumsy
+         * hand (a Search's Despair, whose owner was told at once) redrew it; a Search reaches into no stash now, every
+         * reach is unseen and its owner hears of it on walking in, so `clumsy` is a word `stealFromVault` no longer reads.
          */
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose mark the rifle reads - this would measure nothing");
@@ -72824,8 +72901,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ whole: [["delete:quiet"], 1], piece: [["update:quiet"], 1], clumsy: [["delete:redraws"], 1] }),
-            "an unseen rifle redrew its owner's sheet, a clumsy one did not, or nothing arrived (per rifle: each write of the owner's items and whether it redraws; the thief's pieces)");
+        equal(stableJson(read), stableJson({ whole: [["delete:quiet"], 1], piece: [["update:quiet"], 1], clumsy: [["delete:quiet"], 1] }),
+            "a rifle redrew its owner's sheet, or nothing arrived (per rifle: each write of the owner's items and whether it redraws; the thief's pieces)");
     }],
 
     ["each owner change's refusal and result reach its asker in its own words: into full hands and no stash a hand-over, a body's loot, a stash rifled, a Palm's steal and a Plant each leave the item where it was, and the asker reads its mode's line; with a stash of the taker's the loot, the rifle and the steal land in it, the taker reading where it went, and the hand-over and the Plant are refused as before (E35-T10, D42)", async () => {
@@ -73922,16 +73999,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[the count of a stack of three a player's use wrote to 2, the tool a player's use wrote broken], [the tools held ready after a GM's grant "
             + "of a second, whether the GM was warned the body's hands are still]]");
     }],
-    ["a stash is rifled once a time of day per thief, stash and owner: the second reach is told alreadyDone and takes nothing, another stash in the room or a new time of day opens again, a Search's find and its roll are not counted, a claimed Search with no roll is refused, the Mastermind is counted too, and the stamp is the GMs' (E14-T5, S08-06, D15)", async () => {
+    ["a stash is rifled once a time of day per thief, stash and owner: the second reach is told alreadyDone and takes nothing, another stash in the room or a new time of day opens again, a packet or a call claiming a Search is counted as any reach (1.2.112), the Mastermind is counted too, and the stamp is the GMs' (E14-T5, S08-06, D15)", async () => {
         /*
          * E14 part 1 C4, 24.10.2026; E14-14, D15 ("jeden rifle na postac na skrytke na pore dnia"). The harm: a player
          * standing at an open stash clicked Rifle three times and carried the whole stash off, free, and nobody was told
          * (S08-06); the "Take one thing" on the window promised a limit nothing kept. A connected player's character in a
          * named room, two other characters each with a stash there (the second's concealed later) and two or three things
          * in each. Judged as the bridge judges that player's `vault.steal` packets: a first reach into the first stash; a
-         * second; a reach into the second stash; a packet saying a Search paid for it and naming no roll (the bridge's
-         * `rolled` row, mutant r1); a Search's find as the GM serves it (`viaSearch`, read off the GMs' record by
-         * `searchTheftOf` on the bridge); the first stash again once its stamp names another time of day; the second
+         * second; a reach into the second stash; a packet saying a Search paid for it and naming no roll, and the same
+         * served on the GM (`viaSearch`) - since 1.2.112 neither is a road of its own: a Search reaches into no stash, the
+         * field is no packet's, and each is the second reach it is (until then the bridge's `rolled` row refused the
+         * first, mutant r1, and the second took the thing without asking the count); the first stash again once its stamp names another time of day; the second
          * stash, concealed, with the thief made the Mastermind (who may open it unfound, and is counted all the same).
          * Read: each reach's code (null: no refusal) and whether the thing is still in the stash, the stamps' store
          * (its reset group, synced, the thief's rows) and the time-of-day mark of a clock against its neighbours. Red at
@@ -74017,13 +74095,107 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await sheetAuditIdle();
             await settle();
         }
-        equal(stableJson(read), stableJson({ first: [null, false], again: ["alreadyDone", true], other: [null, false], claimed: ["rollUnknown", true],
-            search: [false, true], later: [null, false], mastermind: ["alreadyDone", true], store: ["stashesFound", true, 2],
+        equal(stableJson(read), stableJson({ first: [null, false], again: ["alreadyDone", true], other: [null, false], claimed: ["alreadyDone", true],
+            search: [true, true], later: [null, false], mastermind: ["alreadyDone", true], store: ["stashesFound", true, 2],
             mark: [true, true, true, true, true, true] }),
             "a stash was rifled more than once a time of day, or not again once that passed ([code, still stashed] per reach: the first, a second of "
-            + "that stash, another stash, a Search claimed with no roll, a Search's find [still stashed, the stamps untouched], a new time of day, "
+            + "that stash, another stash, a Search claimed with no roll, a Search claimed on the GM [still stashed, the stamps untouched], a new time of day, "
             + "the Mastermind at the concealed second stash; the store's [reset group, synced, the thief's rows]; the mark [the phase not in it, "
             + "then each of season, chapter, session, day, time of day in it])");
+    }],
+
+    ["a stash gone through while its owner was away is told to the owner once, when they next enter that room; one gone through before their eyes never is", async () => {
+        /*
+         * 1.2.112, the owner's decision of 13.11.2026: the owner of a stash is told "somebody has been in your stash" - never
+         * who, never when - not as it happens but when they next walk into the room where it was gone through, and never
+         * for a reach made while they stood in that room. Until 1.2.112 the owner was told only of a Search that took a
+         * thing out with Despair, at once, and a rifle was never told. The GMs keep the pending notice on the reach's row
+         * (gm-stores.mjs `rifleStore`, `unseen`); the crossing the primary hears (traps.mjs `onCrossed`, also relayed from
+         * a player's browser) delivers it (stash-reach.mjs `tellStashDisturbed`). Two students stood alone together in a
+         * room where a third keeps an open stash of three things, the owner elsewhere: both reach into it (stash-reach.mjs
+         * `stealFromVault`, as the GM serves a reach); the owner's crossing into that room, twice; then the owner stood in
+         * the room, the first thief's count forgotten and a third reach made before the owner's eyes, and the owner's
+         * crossing into it again. Read: the notices to the owner (a "stolen" whisper, `DRPG.Vault.noticed`) after the two
+         * reaches, after each crossing, after the reach in their presence and after the crossing that follows. Until
+         * 1.2.112: none, anywhere.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two thieves and the owner stand by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the thieves");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { rifleStore } = await import("./gm-stores.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const [owner, first, second] = cast(4).filter(onScreen);
+        must(owner && first && second, "three students on the scene on screen - this would measure nothing");
+        const together = await aloneTogether(first, second);
+        const room = together.room;
+        const region = V.regionsByName(canvas.scene).get(room);
+        const ownerToken = canvas.scene.tokens.find(t => t.actorId === owner.id);
+        const ownerWas = { x: ownerToken.x, y: ownerToken.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const NAME = "SUITE 1.2.112 disturbed";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const notices = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+        const backs = [];
+        const read = [];
+        try {
+            must(region, `${room} has no region to hold a stash`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            const things = [];
+            for (const n of [1, 2, 3]) {
+                things.push(await INV.grantItem(owner, { name: `${NAME} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } }));
+            }
+            await settle();
+            must(V.stashItemsIn(owner, room, canvas.scene).length === 3, "the three things are not in the stash - this would measure nothing");
+            for (const thief of [first, second]) backs.push(await handFreeFor(thief, "usable"));
+            await forgetRifles(first);
+            await forgetRifles(second);
+            const cross = async () => {
+                Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: room, tokenDoc: ownerToken });
+                await settle();
+                await until(() => false, 400);
+                await settle();
+            };
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[0].id });
+            await V.stealFromVault({ thiefId: second.id, ownerId: owner.id, itemId: things[1].id });
+            await settle();
+            read.push(["away", V.stashItemsIn(owner, room, canvas.scene).length, notices()]);
+            await cross();
+            read.push(["entered", notices()]);
+            await cross();
+            read.push(["again", notices()]);
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await settle();
+            await forgetRifles(first);
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[2].id });
+            await settle();
+            read.push(["present", V.stashItemsIn(owner, room, canvas.scene).length, notices()]);
+            await cross();
+            read.push(["after", notices()]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            for (const back of backs.reverse()) await back();
+            await forgetRifles(first);
+            await forgetRifles(second);
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            await together.back();
+        }
+        equal(stableJson(read), stableJson([["away", 1, 0], ["entered", 1], ["again", 1], ["present", 0, 1], ["after", 1]]),
+            "the owner was told of a reach as it happened, not told when they entered, told twice for two reaches or two entries, "
+            + "or told of a reach made before their eyes ([after the two reaches: things left, notices], [after the entry: notices], "
+            + "[after a second entry], [after a reach in their presence: things left, notices], [after their next entry])");
     }],
 
     ["the rifle's own refusals are told: a thing its owner took out, one in a stash of another room, a stash of nobody's here and a hidden one not found each read 'missing', alike, and a thief standing in no room 'notThere'; a second reach in a time of day is told in its own words why (E14-T5, S08-20, S08-06)", async () => {
@@ -79144,7 +79316,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "[cards with the room's sentence, each reaching the witness's player and every GM, the project named]");
     }],
 
-    ["E16-T31 - a weapon a Search takes out of a stash leaves a Prep Remnant, and a thing that is no weapon leaves none (audit S02-18, the owner's Q6)", async () => {
+    ["E16-T31 - a Search beside an open stash takes nothing out of it, a weapon or not, and leaves no trace of a thing still in it (1.2.112; audit S02-18, the owner's Q6)", async () => {
         /*
          * E16 part 2 C4, 26.10.2026. The handbooks say taking a Murder Weapon or a Cleaning Tool leaves a Prep
          * Remnant, and a Search of the room's table does (`traceTheFind`); a Search that opened a stash
@@ -79154,6 +79326,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * crime tool, then a usable thing (the control, as the room's table leaves none for it). Read for each:
          * whether the thing came out of the stash, and the Prep Remnants the Search left in the room, as [type,
          * faint, subject]. Red before C4: the crime tool came out and left nothing.
+         *
+         * 1.2.112 (the owner's decision of 13.11.2026): a Search reaches into no stash - a stash is gone through by the
+         * free rifle, and taking a thing that way leaves no Remnant, as a hand-over leaves none. The same fixtures; both
+         * things stay in the stash, and no trace names either. Until 1.2.112 both came out, the knife with its trace.
          */
         needs(world.atLeast("studentTokensOnScreen"), "the searcher stands in a room by their token");
         needs(world.atLeast("livingStudents", 2), "a searcher and a student whose stash is searched");
@@ -79203,6 +79379,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const mine = remnantsOn(canvas.scene).filter(t => !traces.has(t.id) && remnantData(t)?.subject === label);
                 read.push([label, !V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === label),
                     mine.map(t => remnantData(t)).map(d => [d.type, d.faint === true, d.action ?? null])]);
+                // Since 1.2.112 the thing stays in the stash; taken off, so the next is alone in it again.
+                if (owner.items.has(thing.id)) await thing.delete();
+                await settle();
             }
         } finally {
             windows.restore();
@@ -79218,8 +79397,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await stood.back();
             await setClock({ phase });
         }
-        equal(stableJson(read), stableJson([["SUITE E16-T31 a knife", true, [["prep", true, "search"]]], ["SUITE E16-T31 an apple", true, []]]),
-            "a Search that took a weapon out of a stash left no Prep Remnant, or a thing that is no weapon left one "
+        equal(stableJson(read), stableJson([["SUITE E16-T31 a knife", false, []], ["SUITE E16-T31 an apple", false, []]]),
+            "a Search took a thing out of a stash, or left a trace naming one "
             + "[the thing, taken out of the stash, the traces it left as [type, faint, action]]");
     }],
 
@@ -85853,7 +86032,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "{gm: the rows of each summary popup the GM was shown at the move; hidden: the bystander's clock hidden for the incident; "
             + "bystander: the summary popups a bystander was shown at the next move}");
     }],
-    ["E37-T5 - every Search that ran tells (E37 C6, E37-25; audit S02-48): a trap armed for \"somebody searches\" a room fires once for a Search that takes a thing out of a stash there and once for a Search for something specific there, each telling `drpgActionResolved` with the ordinary Search's shape on this GM's road and set off by the relay a player's browser sends for that event; and the primary's search ledger keeps another spend's fresh entry when it prunes", async () => {
+    ["E37-T5 - every Search that ran tells (E37 C6, E37-25; audit S02-48): a trap armed for \"somebody searches\" a room fires once for a Search there beside somebody's stash (which, since 1.2.112, draws from the room) and once for a Search for something specific there, each telling `drpgActionResolved` with the ordinary Search's shape on this GM's road and set off by the relay a player's browser sends for that event; and the primary's search ledger keeps another spend's fresh entry when it prunes", async () => {
         /*
          * E37 C6, 01.11.2026; E37-25, audit S02-48. action-rolls.mjs `performSearch` told `drpgActionResolved` only on its
          * road through the room's table: a Search that opened somebody's stash (`searchStash`) and one for something
@@ -85962,7 +86141,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 }
             }
             delete actor.rollTrait;
-            read.stash = !V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === "SUITE E37-T5 an apple");
+            // Since 1.2.112 a Search draws from the room, so the apple stays in the stash.
+            read.stash = V.stashItemsIn(owner, stood.room, canvas.scene).some(i => i.name === "SUITE E37-T5 an apple");
 
             // The ledger's control: a second spend's prune keeps the first spend's fresh entry, so its token comes back.
             const spendAs = ST.SEARCH_ACTIONS["searchTokens.spend"];
@@ -86001,7 +86181,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stash: true
         }), "{roads: per Search [what was looked for, the events told as [actionKey, success, room], the trap fired]; relay: per event "
             + "relayed as the player's browser sends it, the trap fired; ledger: the first of two spends' token asked back, and each room's "
-            + "count after; stash: the apple came out of the stash}");
+            + "count after; stash: the apple is still in the stash}");
     }],
     ["E37-T6 - one road of Despair to Hope (E37 C6, E37-27; audit S09-38, Q-E37-5): `convertDespairToHope` of 3 from a pool that can spend 2 to a student 1 under the Hope maximum grants 1 and owes 1, and of 3 to a student at 0 grants the 1 the pool can still spend; from a pool of 0 it refuses with \"That pool has no Despair to give.\"; Fuel a Monocub's Hope comes on a veiled card naming the paying pool, as a conversion's does; and both are refused under the Despair darkening", async () => {
         /*

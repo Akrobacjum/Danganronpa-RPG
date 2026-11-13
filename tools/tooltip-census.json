@@ -1963,10 +1963,10 @@
    "kind": "input",
    "key": "DRPG.Overflow.noHopeNow",
    "count": 1,
-   "why": "help in code: a blocked Breath's title says why; the other picks' words are beside them (choosePicks)",
+   "why": "help in code: a blocked Breath's title says why - the Despair darkening, or since 1.2.112 a Relief's rest (DRPG.Rest.reliefNoBreath); the other picks' words are beside them (choosePicks)",
    "held": {
     "fn": "choosePicks",
-    "pattern": "title=\"\\$\\{foundry\\.utils\\.escapeHTML\\(game\\.i18n\\.localize\\(\"DRPG\\.Overflow\\.noHopeNow\"\\)\\)\\}\""
+    "pattern": "title=\"\\$\\{foundry\\.utils\\.escapeHTML\\(game\\.i18n\\.localize\\(off === \"overflow\" \\? \"DRPG\\.Overflow\\.noHopeNow\""
    }
   },
   {

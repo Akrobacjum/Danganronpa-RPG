@@ -1235,17 +1235,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && JSON.stringify(uncoveredGm.traces) === JSON.stringify([["prep", "obvious"]]) && JSON.stringify(uncoveredGm.tied) === "[true]",
         JSON.stringify({ trapProject, uncovered, uncoveredGm }), { flow: "projects" });
 
-    // ---- 6f. a Search at a hidden stash: its step is the GM's --------------------------------
+    // ---- 6f. a Search at a hidden stash: no step, no reach -----------------------------------
     /*
-     * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on E32+E07 C11e. A hidden stash's
-     * step - one more disadvantage die here, the harness's roll having no advantage dice - was drawn
-     * on the searcher's browser and was in no message. The GM draws it now with the dice, where the
-     * room it sees the searcher in holds a hidden stash, and the searcher takes that step and draws
-     * none (action-search.mjs `stashStepOf`). The GM hides a thing in a stash of Daichi's in Aiko's
-     * room and scripts its randomiser to a 6 for the extra die; p1's is scripted to a 1, and p1
-     * searches - a miss, so the stash's thing stays where it is. Read on the GM: the record's step,
-     * the Search card's step (its meta, `stashStep`) and the record's flags. Until C12b the card's
-     * die was p1's 1, and the GM drew nothing.
+     * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on E32+E07 C11e: a hidden stash's step
+     * was drawn by the GM with the dice, and the searcher took it. 1.2.112 (the owner's decision of
+     * 13.11.2026): a Search reaches into no stash, so no step is drawn or taken, whatever the room
+     * holds. The GM hides a thing in a stash of Daichi's in Aiko's room and scripts its randomiser to
+     * a 6; p1's is scripted to a 1, and p1 searches. Read on the GM: the record's step, a Search card's
+     * step (its meta, `stashStep`), the record's flags and the things in the stash. Until 1.2.112 the
+     * record and the card held the GM's 6.
      */
     phase("a Search at a hidden stash", { flow: "search-observe" });
     const stashSet = await gm.eval(`
@@ -1297,6 +1295,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const step = card ? SE.cardFlag(card, "stashStep") : null;
         const { forcedDeletion } = await import("${REPO}/scripts/utils.mjs");
         const { room, keys, before, item, actions, calls } = globalThis.__c12bStash ?? {};
+        const left = room ? V.stashItemsIn(game.actors.get("${ids.daichi}"), room, canvas?.scene).length : null;
         delete globalThis.__c12bStash;
         const region = room ? V.regionsByName(canvas?.scene).get(room) : null;
         if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
@@ -1304,10 +1303,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const aiko = game.actors.get("${ids.aiko}");
         if (typeof actions === "number" && game.drpg.actionsLeft(aiko) !== actions) await game.drpg.setActions(aiko, actions);
         if (calls) await aiko.setFlag("${MOD}", "pendingCall", calls);
-        return { used: row?.used?.stash ?? null, flags: (row?.flags ?? []).map(f => f.kind), card: step };`, { timeout: 30000 });
-    check("p1: a Search at a hidden stash takes the extra die the GM drew (6), not one of its own (1), and the GM flags nothing",
-        stashSet.stashed === 1 && stashSearch.seen === 1 && !stashSearch.err && stashGm.used?.kind === "rolled" && stashGm.used.rolled === 6
-            && stashGm.card?.kind === "rolled" && stashGm.card.rolled === 6 && stashGm.card.change === stashGm.used.change && stashGm.flags.length === 0,
+        return { row: Boolean(row), used: row?.used?.stash ?? null, flags: (row?.flags ?? []).map(f => f.kind), card: step, left };`, { timeout: 30000 });
+    check("p1: a Search at a hidden stash takes no stash step, the GM draws none and flags nothing, and the stash keeps its thing",
+        stashSet.stashed === 1 && stashSearch.seen === 1 && !stashSearch.err && stashGm.row && stashGm.used === null
+            && stashGm.card === null && stashGm.flags.length === 0 && stashGm.left === 1,
         JSON.stringify({ stashSet, stashSearch, gm: stashGm }), { flow: "search-observe" });
 
     // ---- 6f. a player's Plant, scored on the GMs' record of both its rolls ----------------------
@@ -1462,11 +1461,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * roll's id from p1's Analyze at a hidden stash and from the theft a Search makes of a stash, and the
      * one that keeps no ruling on a Dynamic action's card, each survived every run. A regression there
      * refuses every honest packet of its kind at a table with the suite green. Daichi hides a kit in a
-     * hidden stash in Aiko's room; p1 locates it with an Analyze, then opens it with a Search, each on
-     * faces of 12 and 11; then p1 asks a Dynamic action, which the GM rules Trivial from its card's
-     * button, and throws it on 9 and 5. Read on the GM: whether Aiko found the stash, whether the kit
-     * is hers, the ruling the card keeps (bridge-runs-records.mjs `dynamicRulingOf`), and what each newest record
-     * of Aiko's settled.
+     * hidden stash in Aiko's room; p1 locates it with an Analyze on faces of 12 and 11, then takes the
+     * kit out with the drawer's free reach (`vault.steal`, no roll: since 1.2.112 a Search reaches into
+     * no stash, and a found stash is gone through as an open one - 6f reads the Search beside it); then
+     * p1 asks a Dynamic action, which the GM rules Trivial from its card's button, and throws it on 9
+     * and 5. Read on the GM: whether Aiko found the stash, whether the kit is hers, the ruling the card
+     * keeps (bridge-runs-records.mjs `dynamicRulingOf`), and what the Analyze's newest record settled.
      */
     phase("a player's stash, found and opened, and a Dynamic action ruled from its card", { flow: "give-take-stash" });
     const honestSet = await gm.eval(`
@@ -1490,7 +1490,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         globalThis.__h6Stash.item = item.id;
         if (game.drpg.tokensLeft(room) <= 0) await game.drpg.resetTokens();
         await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko));
-        return { room, stashed: V.stashItemsIn(daichi, room, canvas?.scene).length };`, { timeout: 30000 });
+        return { room, item: item.id, stashed: V.stashItemsIn(daichi, room, canvas?.scene).length };`, { timeout: 30000 });
     await settle(600);
     const NEWEST = action => `Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.actionKey === "${action}").sort((a, b) => b.at - a.at)[0] ?? null`;
     const honestAnalyze = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
@@ -1505,27 +1505,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const honestFound = await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs"); const S = await import("${REPO}/scripts/gm-stores.mjs");
         const row = ${NEWEST("analyze")};
         return { found: V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(honestSet.room ?? "")}, "${ids.daichi}", canvas?.scene), resolved: row?.resolved ?? null };`);
-    const honestSearch = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
-        globalThis.__forceRoll = { hope: 12, fear: 11 };
-        let err = null;
-        try { await game.drpg.performAction(actor, "search", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
-        finally { delete globalThis.__forceRoll; }
+    const honestReach = await p1.eval(`const B = await import("${REPO}/scripts/gm-bridge.mjs");
+        let err = null, res = null;
+        try { res = await B.requestVaultSteal({ thiefId: "${ids.aiko}", ownerId: "${ids.daichi}", itemId: ${JSON.stringify(honestSet.item ?? "")} }); }
+        catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
         await new Promise(r => setTimeout(r, 1500));
-        return { err };`, { timeout: 120000 });
+        return { err, ok: res?.ok ?? null, refused: res?.value?.refused ?? null };`, { timeout: 120000 });
     await settle(800);
-    const honestTaken = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
-        const row = ${NEWEST("search")};
-        const aiko = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
+    const honestTaken = await gm.eval(`const aiko = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
         const name = "Scenario 40 H6 stashed kit";
-        return { aiko: aiko.items.filter(i => i.name === name).length, daichi: daichi.items.filter(i => i.name === name).length, resolved: row?.resolved ?? null };`);
-    check("p1: an Analyze at a hidden stash and a Search that opens it each name the roll the GM drew, which settles them: Aiko finds the stash and takes the kit",
-        !honestSet.err && honestSet.stashed === 1 && !honestAnalyze.err && !honestSearch.err
+        // The reach's row in the GMs' count (and a notice pending for Daichi, were he away) is this phase's alone.
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        for (const key of Object.keys(S.rifleStore.entries()).filter(k => k.startsWith("${ids.aiko}:"))) await S.rifleStore.drop(key);
+        return { aiko: aiko.items.filter(i => i.name === name).length, daichi: daichi.items.filter(i => i.name === name).length };`);
+    check("p1: an Analyze at a hidden stash names the roll the GM drew, which settles it, and Aiko takes the kit from the stash she found with no roll: she finds the stash and takes the kit",
+        !honestSet.err && honestSet.stashed === 1 && !honestAnalyze.err && !honestReach.err && honestReach.refused === null
             && honestFound.found === true && JSON.stringify(honestFound.resolved) === JSON.stringify(["analyze"])
-            && honestTaken.aiko === 1 && honestTaken.daichi === 0 && (honestTaken.resolved ?? []).includes("search"),
-        JSON.stringify({ honestSet, honestAnalyze, honestFound, honestSearch, honestTaken }), { flow: "give-take-stash" });
+            && honestTaken.aiko === 1 && honestTaken.daichi === 0,
+        JSON.stringify({ honestSet, honestAnalyze, honestFound, honestReach, honestTaken }), { flow: "give-take-stash" });
 
     // The Dynamic action: p1 asks, and waits for the GM's ruling while the GM presses the card's button. The Analyze
-    // and the Search spent Aiko's actions (measured: "0 actions left and needs 1"), so they are refilled first.
+    // (and, until 1.2.112, a Search) spent Aiko's actions (measured: "0 actions left and needs 1"), so they are refilled first.
     await gm.eval(`const aiko = game.actors.get("${ids.aiko}"); await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko)); return true;`, { timeout: 30000 });
     await settle(400);
     await p1.eval(`const actor = game.actors.get("${ids.aiko}");

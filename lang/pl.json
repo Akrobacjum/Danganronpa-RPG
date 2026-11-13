@@ -1050,11 +1050,6 @@
       "costAnyRoom": "dowolny pokój",
       "tierShort": "Tier {tier}",
       "situationAfterRoll": "{n} przez sytuację: liczy się wynik {total}.",
-      "stashSetAside": "Sytuacja odkłada jedną z twoich kości premii ({set}) i liczy się najlepsza z pozostałych: liczy się wynik {total}.",
-      "stashSetAsideOnly": "Sytuacja odkłada twoją kość premii ({set}): liczy się wynik {total}.",
-      "stashRolled": "Sytuacja dokłada kość kary ({rolled}): liczy się wynik {total}.",
-      "stashRolledMore": "Sytuacja dokłada jeszcze jedną kość kary ({rolled}) i liczy się najgorsza z nich: liczy się wynik {total}.",
-      "stashCapped": "Sytuacja dołożyłaby kość kary, ale rzut ma ich już tyle, ile może: liczy się wynik {total}.",
       "waitsForGm": "GM",
       "murderSpendsAnyway": "Potwierdzenie wydaje akcję niezależnie od tego, czy się uda - a czy się udało, dowiesz się dopiero, gdy Eclipse się skończy.",
       "murderPromptParked": "Co robisz i jak? GM przeczyta to, gdy zapali się światło.",
@@ -2938,8 +2933,6 @@
     },
     "Vault": {
       "noOwner": "- nikt -",
-      "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",
-      "foundStashNothing": "Znajdujesz czyjąś skrytkę, ale nic z niej nie zostaje w twoich rękach.",
       "handsFull": "Masz pełne ręce: to, co leży w skrytce, zostaje na miejscu.",
       "section": "Skrytka - {room}",
       "stowTooltip": "Schowaj w skrytce (musisz być w pokoju)",
@@ -2950,13 +2943,12 @@
       "noBullets": "Truth Bullets to to, co wiesz, nie rzeczy w skrytce.",
       "full": "{room}: skrytka pełna. Mieści {limit} rzeczy - wyjmij coś, zanim coś włożysz.",
       "overflowed": "Masz pełne ręce, więc {item} trafia do skrytki. Twój limit ({category}) się nie zmienił.",
-      "foundInStash": "Ukryte w tym pokoju znajdujesz: {item}.",
       "stole": "Wyjmujesz {item} ze skrytki ({who}).",
       "rifledAgain": "O tej porze dnia już przeszukałeś skrytkę ({who}). Spróbuj znowu o następnej porze dnia.",
-      "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były.",
+      "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były ani kiedy.",
       "tabStashes": "Skrytki",
       "stashesIntro": "Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknij komórkę, by przełączać: brak, otwarta, ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie - jej komórka jest zacieniona - i tutaj możesz mu ją odebrać.",
-      "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, raz na porę dnia. Ukrytą trzeba najpierw znaleźć: przez Search z karą albo przez Analyze za 16 lub więcej. Skrytka w cudzym pokoju nie daje klucza do niego.",
+      "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, raz na porę dnia. Ukrytą trzeba najpierw znaleźć przez Find Stash w Analyze (16 lub więcej), a od tej chwili jest otwarta dla tego, kto ją znalazł. Skrytka w cudzym pokoju nie daje klucza do niego.",
       "stashCycle": "Kliknij, by przełączać: brak / otwarta / ukryta",
       "stashNone": "Brak skrytki",
       "stashOpen": "Otwarta",
@@ -3051,7 +3043,7 @@
       "rifle": "Przejrzyj skrytkę",
       "rifleTitle": "Skrytka w: {room}",
       "rifleIntro": "Skrytki, do których tu sięgasz ({room}): <strong>{who}</strong>. Z każdej weź jedną rzecz, raz na porę dnia.",
-      "rifleNote": "Za darmo. Ukryta skrytka, której jeszcze nie znalazłeś, wymaga Search.",
+      "rifleNote": "Za darmo. Ukrytą skrytkę, której jeszcze nie znalazłeś, trzeba najpierw znaleźć przez Find Stash w Analyze.",
       "noOpenStashHere": "W tym pokoju nie ma otwartej skrytki.",
       "stashEmpty": "Skrytka ({who}) jest pusta.",
       "openStashSection": "Skrytka ({who}) - {room}",
@@ -3923,7 +3915,8 @@
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
       "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów.",
-      "insomnia": "Insomnia: o tej porze dnia nie ma Short Rest."
+      "insomnia": "Insomnia: o tej porze dnia nie ma Short Rest.",
+      "reliefNoBreath": "Relief kosztuje więcej Hope, niż daje Breath, więc w tym odpoczynku Breath nie ma."
     },
     "Calls": {
       "resolveNext": "Następny rzut zapyta, której statystyki użyć.",
@@ -4295,7 +4288,7 @@
       "free": "Za darmo",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
-      "nextSprint": "Free Move zużyty. Następny pokój zabierze Sprint, a akcje zostaną.",
+      "nextSprint": "Free Move zużyty. Następny pokój zabierze darmowe przejście, a akcje zostaną.",
       "nextBurst": "Free Move zużyty. Następny pokój zabierze twój Burst, a akcje zostaną.",
       "entered": "Wchodzisz do: {room}.",
       "leftRooms": "Opuszczasz pokój.",
@@ -5767,8 +5760,7 @@
         "pick": "statystyka wybrana przez GM-a",
         "modifier": "modyfikator",
         "dice": "kości",
-        "advantage": "kości przewagi",
-        "stash": "niezgłoszona ukryta skrytka"
+        "advantage": "kości przewagi"
       },
       "flagFrom": "{line} (GM policzył: {list})",
       "counted": "GM policzył {list}",
@@ -5786,7 +5778,6 @@
         "breakdown": "Breakdown",
         "situation": "sytuacja",
         "loadedDie": "Loaded Die",
-        "stashStep": "krok ukrytej skrytki",
         "kind": "rodzaj rzutu"
       },
       "waitsForGm": "Rzut akcji czeka na GM-a: żaden GM nie jest połączony, więc akcja się nie odbyła i nic nie zapłacono.",
@@ -7079,8 +7070,8 @@
         },
         "move": {
           "label": "Move",
-          "hint": "W obrębie pokoju ruszasz się za darmo. Pierwsze przejście do innego pokoju o danej porze dnia zużywa twój Free Move, a za każde kolejne płacisz przejściem kupionym wcześniej Callem Sprint albo akcją.",
-          "description": "Ruch po pokoju jest darmowy. O każdej porze dnia pierwsze przejście do innego pokoju zużywa Free Move, a każde kolejne kosztuje przejście kupione Callem Sprint albo akcję; bez nich token wraca na miejsce. Overflow może zablokować Free Move, a GM-owie - wyłączyć opłaty za ruch.",
+          "hint": "W obrębie pokoju ruszasz się za darmo. Pierwsze przejście do innego pokoju o danej porze dnia zużywa twój Free Move, a każde kolejne zabiera darmowe przejście, jeśli je masz (Sprint, Dash, Facilities), albo akcję.",
+          "description": "Ruch po pokoju jest darmowy. O każdej porze dnia pierwsze przejście do innego pokoju zużywa Free Move, potem twoje darmowe przejścia, potem akcje; bez nich token wraca na miejsce. Overflow może zablokować Free Move, a GM-owie - wyłączyć opłaty za ruch.",
           "instruction": "Przeciągnij token. Liczy się przejście do innego pokoju - koszt naliczany jest, gdy dotrzesz."
         },
         "sabotage": {
@@ -7501,8 +7492,8 @@
         },
         "secureTrace": {
           "label": "Secure a Trace",
-          "hint": "Przy trafieniu zabezpieczasz Remnant powiązany ze zbrodnią: z Hope jest Evident, z Despair Subtle, a przy krytyku Obvious i Reinforced; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie jest Reinforced już z Hope, a krytyk zostawia dwa.",
-          "short": "Przy trafieniu zabierasz ze sobą Remnant powiązany ze zbrodnią.",
+          "hint": "Przy trafieniu zostawiasz na miejscu Remnant powiązany ze zbrodnią, zawsze Reinforced: z Hope jest Evident, z Despair Subtle, a przy krytyku Obvious; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie krytyk zostawia dwa.",
+          "short": "Przy trafieniu zostawiasz na miejscu Reinforced Remnant powiązany ze zbrodnią.",
           "failure": "Bez Remnantu, ale przewaga przy następnej próbie. Tylko przy porażce z Hope."
         },
         "selfDefence": {
