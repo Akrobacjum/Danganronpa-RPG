@@ -24047,6 +24047,43 @@ const REGRESSIONS = [
         }), JSON.stringify({ hooks: [2, 2], module: [1, true, true, true], reads: [0, 0, true, true] }),
             "{hooks: scaleWindow's two render hooks in settings.mjs, and of them inside registerWindows; module: its calls of registerWindows, one under safely(\"the windows' size\"), before registerSettings(), after the requirements' stop (a module that did not start registers none, R1516); reads: settings.mjs's own readers in scaleWindow and scaleMemo, and both read}");
     }],
+    ["R4802 - a theme switch sizes every open window again, so the memo needs no theme (E54 W4; the plan's F7a, the owner's default of Q-E54-6): the theme's body classes are written by settings.mjs `applyTheme` alone, the theme setting's change runs it, and its loop over the open windows deletes each one's `drpgScaled` before `scaleWindow` - while `scaleMemo` keys the slider and the height, not the theme", async () => {
+        /*
+         * E54 W4, 13.11.2026. The plan asked whether a theme switch could leave a window at the other theme's size, the
+         * memo being keyed `scale@height` (E21 C5a) and not the theme. Read off the sources, comments stripped: every
+         * write of `drpg-theme-stained-glass` or `drpg-theme-monokuma-legacy` onto an element's classes in scripts/ (the
+         * suite's files aside), the theme setting's registration, `applyTheme`'s loop, `scaleMemo`. Green on 32f5093f:
+         * no road switches the theme without `applyTheme`, and `applyTheme` sizes every open window again. So the memo
+         * stays as it is, and this test is the record (Q-E54-6's default: no change, the reading kept); it fails when a
+         * second road writes the theme's classes, or the loop stops forgetting the memo.
+         */
+        const sources = await otherSources();
+        // each write keyed by the top-level function it stands in (the last declaration before it)
+        const WRITE = /classList\.(?:add|toggle|remove|replace)\([^)]*drpg-theme-(?:stained-glass|monokuma-legacy)|className\s*=[^;\n]*drpg-theme-/g;
+        const writers = new Set();
+        let scanned = 0;
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs")) continue;
+            const text = stripComments(raw);
+            scanned++;
+            const decls = [...text.matchAll(/^(?:export )?(?:async )?(?:function\*? ([\w$]+)|(?:const|let|class) ([\w$]+))/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));
+            for (const m of text.matchAll(WRITE)) writers.add(`${file}#${decls.findLast(d => d.at <= m.index)?.name ?? "(top level)"}`);
+        }
+        must(scanned > 100, `only ${scanned} module files were read - this would measure nothing`);
+        const settings = stripComments(new Map(sources).get("settings.mjs") ?? "");
+        must(settings.length > 100000, "settings.mjs was not read - this would measure nothing");
+        const themeSetting = bodyOf(settings, "game.settings.register(MODULE_ID, SETTINGS.theme, {", { until: "});" });
+        const apply = fnSource(settings, "applyTheme") ?? "";
+        const loop = apply.match(/for \(const app of foundry\.applications\.instances\.values\(\)\) \{[\s\S]*?\n {4}\}/)?.[0] ?? "";
+        const memo = fnSource(settings, "scaleMemo") ?? "";
+        equal(JSON.stringify({
+            writers: [...writers].sort(),
+            onChange: /onChange: \(\) => applyTheme\(\)/.test(themeSetting),
+            loop: [/delete el\.dataset\.drpgScaled;\s*scaleWindow\(app, el\);/.test(loop), loop.length > 50],
+            memo: [/return `\$\{scale\}@/.test(memo), /theme/i.test(memo)]
+        }), JSON.stringify({ writers: ["settings.mjs#applyTheme"], onChange: true, loop: [true, true], memo: [true, false] }),
+            "{writers: the functions that write the theme's body classes; onChange: the theme setting's change runs applyTheme; loop: applyTheme forgets each open window's memo before sizing it, and the loop was read; memo: scaleMemo keys the slider and the height, and names no theme}");
+    }],
 ];
 
 
