@@ -21,7 +21,8 @@
 
 import { MODULE_ID, TRIAL, MONOCUB } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { error, plural, tickerRuns } from "./utils.mjs";
+import { error, plural, tickerRuns, trialModeLabel } from "./utils.mjs";
+import { isZoneMode, zoneOf } from "./zone-machine.mjs";
 import { pairOf, reserveLine } from "./murder-ui.mjs";
 import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
@@ -483,55 +484,75 @@ export function trialCard(clock) {
         const floor = trialFloor();
         const after = floor ? null : afterVerdictCard(clock);
         if (after) return after;
-
-        const key = floor ? floor.mode : "discussion";
-        const unknown = "-";
-        /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a
-           Rebuttal; an Objection read "Everyone has the floor" under the speaker's own name, and Debate
-           and Discussion read the same "EVERYONE" over "EVERYONE HAS THE FLOOR", so two different modes
-           looked alike and neither told a player what to do. Now: a mode nobody holds has no speaker line
-           (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
-           Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
-           row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
-        /* THE DEBATE'S QUESTION IS ITS SUBTITLE (E70 C3, 27.10.2026; S18-70): the line under "Debate" that names nobody,
-           as the games put the question at the top of the screen - the floor's, so every browser reads the same words,
-           drawn as text. An Objection and its rebuttal keep the speaker's name there. */
-        let speaker = floor?.mode === FLOOR_MODES.debate ? (floor.topic ?? null) : null;
-        let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
-            ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
-        if (floor?.mode === FLOOR_MODES.objection) {
-            speaker = floorHolder(floor)?.name ?? unknown;
-            meta = game.i18n.format("DRPG.Events.trialObjectionFloor", { who: speaker });
-        } else if (floor?.mode === FLOOR_MODES.rebuttal) {
-            speaker = floorTarget(floor)?.name ?? unknown;
-            meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
-        } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
-            /* A ROUND (E70 C7; E70-45): the speaker under the mode, and who speaks next - "Next: {name}" - or that this
-               is the last turn, from the order frozen at the round's start. */
-            speaker = floorHolder(floor)?.name ?? unknown;
-            const order = floor.round?.order ?? [];
-            const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
-            meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
-                : game.i18n.localize("DRPG.Events.trialLastTurn");
-        } else if (floor?.mode === FLOOR_MODES.closing) {
-            // The Closing Argument (E70 C8): the speaker, or nobody, and the phase's line for the table.
-            speaker = floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null;
-            meta = closingLine(floor) ?? meta;
-        }
-        return {
-            kind: "trial",
-            title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
-            sub: speaker,
-            meta,
-            note: gmNoteText(floor),
-            // The debate's countdown, only while a floor is open: a trial in session
-            // with nobody holding the floor has no clock running (see `paintTrialClock`).
-            clock: Boolean(floor)
-        };
+        return trialFloorCard(floor);
     } catch (err) {
         error("Could not read the trial's state for the Event panel", err);
         return null;
     }
+}
+
+/**
+ * THE TRIAL'S CARD FOR `floor` (null: the trial's discussion), `trialCard`'s answer once no vote and no verdict's card
+ * stands. Its own function since the owner's report of 13.11.2026 (R5900): a zone mode's card read its raw key and the
+ * Discussion's line, and a test that writes nothing could not hand `trialCard` a floor.
+ */
+export function trialFloorCard(floor) {
+    const key = floor ? floor.mode : "discussion";
+    const unknown = "-";
+    /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a
+       Rebuttal; an Objection read "Everyone has the floor" under the speaker's own name, and Debate
+       and Discussion read the same "EVERYONE" over "EVERYONE HAS THE FLOOR", so two different modes
+       looked alike and neither told a player what to do. Now: a mode nobody holds has no speaker line
+       (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
+       Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
+       row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
+    /* THE DEBATE'S QUESTION IS ITS SUBTITLE (E70 C3, 27.10.2026; S18-70): the line under "Debate" that names nobody,
+       as the games put the question at the top of the screen - the floor's, so every browser reads the same words,
+       drawn as text. An Objection and its rebuttal keep the speaker's name there. */
+    let speaker = floor?.mode === FLOOR_MODES.debate ? (floor.topic ?? null) : null;
+    let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
+        ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
+    if (floor?.mode === FLOOR_MODES.objection) {
+        speaker = floorHolder(floor)?.name ?? unknown;
+        meta = game.i18n.format("DRPG.Events.trialObjectionFloor", { who: speaker });
+    } else if (floor?.mode === FLOOR_MODES.rebuttal) {
+        speaker = floorTarget(floor)?.name ?? unknown;
+        meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
+    } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
+        /* A ROUND (E70 C7; E70-45): the speaker under the mode, and who speaks next - "Next: {name}" - or that this
+           is the last turn, from the order frozen at the round's start. */
+        speaker = floorHolder(floor)?.name ?? unknown;
+        const order = floor.round?.order ?? [];
+        const next = order[(Number(floor.round?.index) || 0) + 1] ?? null;
+        meta = next ? game.i18n.format("DRPG.Events.trialNext", { name: game.actors.get(next)?.name ?? unknown })
+            : game.i18n.localize("DRPG.Events.trialLastTurn");
+    } else if (floor?.mode === FLOOR_MODES.closing) {
+        // The Closing Argument (E70 C8): the speaker, or nobody, and the phase's line for the table.
+        speaker = floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null;
+        meta = closingLine(floor) ?? meta;
+    } else if (isZoneMode(floor?.mode)) {
+        /* A ZONE MODE (E73; the owner's report of 13.11.2026, R5900): it read the Discussion's "Talk it through - the GM
+           opens the debate" under its raw key. Its line is what a player does in the phase - the seconds are the card's
+           clock (`paintTrialClock` reads the floor's `seconds`: 45 for a Scrum's setup, a turn's own after it) - and its
+           subtitle the zone's question, as the debate's is its topic; in a Scrum's turn, the speaker. */
+        const zone = zoneOf(floor) ?? {};
+        const phaseKey = `DRPG.Events.trialZone.${floor.mode}.${zone.phase}`;
+        speaker = floor.mode === FLOOR_MODES.scrum && zone.phase === "speak" ? (floorHolder(floor)?.name ?? unknown) : (zone.question || null);
+        meta = game.i18n.has(phaseKey) ? game.i18n.format(phaseKey, {
+            n: (Number(zone.set?.index) || 0) + 1, total: zone.set?.total ?? 1, turn: zone.turn ?? 0, turns: zone.turns ?? 0,
+            zone: String(zone.side ?? "").toUpperCase()
+        }) : null;
+    }
+    return {
+        kind: "trial",
+        title: trialModeLabel(key),
+        sub: speaker,
+        meta,
+        note: gmNoteText(floor),
+        // The debate's countdown, only while a floor is open: a trial in session
+        // with nobody holding the floor has no clock running (see `paintTrialClock`).
+        clock: Boolean(floor)
+    };
 }
 
 /**

@@ -28,7 +28,7 @@ import { MODULE_ID, FLAGS, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES }
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { error, debug, tickerRuns, markLanguage, plural } from "./utils.mjs";
+import { error, debug, tickerRuns, markLanguage, plural, trialModeLabel } from "./utils.mjs";
 import { launcher } from "./ui-kit.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
@@ -57,6 +57,7 @@ import { renderEvents } from "./events.mjs";
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
+import { zoneOf } from "./zone-machine.mjs";
 import { trialVoiceLine } from "./voice.mjs";
 import { narrowColumn, narrowLayout } from "./narrow.mjs";
 import {
@@ -860,14 +861,16 @@ function measureEveryLabel(slot) {
                 widest = Math.max(widest, Math.ceil(probe.scrollWidth) + 2);
             }
         }
-        // …and the four words a Class Trial puts in the same slot. Measured for
+        // …and the words a Class Trial puts in the same slot. Measured for
         // the same reason the Eclipse forms are: the first time one of them
         // appears is a moment the whole table is watching, and the slot widening
         // under the new label is the jolt that turn-over animation exists to
         // avoid.
-        for (const key of ["discussion", "debate", "objection", "rebuttal"]) {
+        // Every mode of the floor since the owner's report of 13.11.2026 (R5900): the four of E10 were read, and the
+        // rounds, the Closing Argument and the zone modes widened the slot the first time they were shown.
+        for (const key of ["discussion", ...Object.values(FLOOR_MODES)]) {
             probe.className = "drpg-hud-time is-trial";
-            probe.textContent = game.i18n.localize(`DRPG.Hud.trial.${key}`);
+            probe.textContent = trialModeLabel(key);
             widest = Math.max(widest, Math.ceil(probe.scrollWidth) + 2);
         }
     } catch {
@@ -1122,38 +1125,49 @@ function line(className, text) {
 export function trialSlot() {
     try {
         if (getClock().phase !== "classTrial") return null;
-
-        const floor = trialFloor();
-        const key = floor ? floor.mode : "discussion";
-
-        // `holder` is whoever took the floor - the objector, in both restrictive
-        // modes - and `target` is who they aimed at. See `openObjection`.
-        const unknown = "-";
-        let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
-        let versus = null;
-
-        if (floor?.mode === FLOOR_MODES.objection) {
-            speaker = floorHolder(floor)?.name ?? unknown;
-        } else if (floor?.mode === FLOOR_MODES.rebuttal) {
-            speaker = floorTarget(floor)?.name ?? unknown;
-            versus = game.i18n.format("DRPG.Hud.trialVersus", {
-                who: floorHolder(floor)?.name ?? unknown
-            });
-        } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic) {
-            // A round's speaker (E70 C7; E70-45): "{name} speaks" / "Mówi {name}".
-            speaker = game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
-        } else if (floor?.mode === FLOOR_MODES.closing) {
-            // The Closing Argument (E70 C8): its phase's line - the volunteers' count, the GM's choice, who speaks.
-            speaker = closingLine(floor) ?? unknown;
-        }
-
-        return { key, label: game.i18n.localize(`DRPG.Hud.trial.${key}`), speaker, versus };
+        return trialSlotFace(trialFloor());
     } catch (err) {
         // A clock that cannot work out the trial shows the time of day, which is
         // the state it was in for every session before this existed.
         error("Could not read the trial's state for the HUD", err);
         return null;
     }
+}
+
+/**
+ * THE ROW'S WORDS FOR `floor` (null: the trial's discussion, no floor open), `trialSlot`'s answer once the phase says a
+ * trial is in session. Its own function since the owner's report of 13.11.2026 (R5900): the row read
+ * "DRPG.Hud.trial.scrum" for a zone mode, and a test that writes nothing could not hand `trialSlot` a floor.
+ *
+ * @returns {{key: string, label: string, speaker: string, versus: string|null}}
+ */
+export function trialSlotFace(floor) {
+    const key = floor ? floor.mode : "discussion";
+
+    // `holder` is whoever took the floor - the objector, in both restrictive
+    // modes - and `target` is who they aimed at. See `openObjection`.
+    const unknown = "-";
+    let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
+    let versus = null;
+
+    if (floor?.mode === FLOOR_MODES.objection) {
+        speaker = floorHolder(floor)?.name ?? unknown;
+    } else if (floor?.mode === FLOOR_MODES.rebuttal) {
+        speaker = floorTarget(floor)?.name ?? unknown;
+        versus = game.i18n.format("DRPG.Hud.trialVersus", {
+            who: floorHolder(floor)?.name ?? unknown
+        });
+    } else if (floor?.mode === FLOOR_MODES.testimony || floor?.mode === FLOOR_MODES.panic
+        || (floor?.mode === FLOOR_MODES.scrum && zoneOf(floor)?.phase === "speak")) {
+        // A round's speaker (E70 C7; E70-45): "{name} speaks" / "Mówi {name}". A Scrum Debate's turn is one too
+        // (zone-machine.mjs `scrumTurn` puts its speaker in `holderId`); every other zone phase is everybody's.
+        speaker = game.i18n.format("DRPG.Hud.trialSpeaks", { name: floorHolder(floor)?.name ?? unknown });
+    } else if (floor?.mode === FLOOR_MODES.closing) {
+        // The Closing Argument (E70 C8): its phase's line - the volunteers' count, the GM's choice, who speaks.
+        speaker = closingLine(floor) ?? unknown;
+    }
+
+    return { key, label: trialModeLabel(key), speaker, versus };
 }
 
 function buildTimeRow(clock, isGM) {

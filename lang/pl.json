@@ -693,7 +693,10 @@
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
         "panic": "Panic Round",
-        "closing": "Closing Argument"
+        "closing": "Closing Argument",
+        "straw": "Straw Poll",
+        "dive": "Logic Dive",
+        "scrum": "Scrum Debate"
       },
       "trialTooltip": "Class Trial. Debatę prowadzi GM ze swojej konsoli, nie stąd.",
       "trialClockTooltip": "Ile zostało tej części debaty.",
@@ -1891,6 +1894,19 @@
       "afterVerdict": "Werdykt zapadł",
       "trialNext": "Następny: {name}",
       "trialLastTurn": "Ostatnia tura",
+      "trialZone": {
+        "straw": {
+          "vote": "Stań w Strefie A albo w Strefie B"
+        },
+        "dive": {
+          "vote": "Pytanie {n} z {total} - stań w strefie swojej odpowiedzi",
+          "pause": "Pytanie {n} z {total} policzone"
+        },
+        "scrum": {
+          "setup": "Obozy ustawiają się w Strefie A i w Strefie B",
+          "speak": "Tura {turn} z {turns}, za Strefę {zone}"
+        }
+      },
       "waitingFor": "Incydent - ruch ma {name}",
       "reserveYou": "Masz jeszcze {hp} z {hpMax} Health i {sanity} z {sanityMax} Sanity.",
       "reserveOf": "{name} ma jeszcze {hp} z {hpMax} Health.",

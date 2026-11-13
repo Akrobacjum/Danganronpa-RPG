@@ -12999,7 +12999,8 @@ const REGRESSIONS = [
         ok(/class="drpg-evidence-card"[^]*class="drpg-objection-banner"/.test(fnSource(ui, "trialEventCard")),
             "the trial's cards are not the vote's markup (drpg-evidence-card and its banner)");
         ok(fnSource(ui, "startClassTrial").includes("drpg-briefing-facts drpg-trial-facts"), "the Start window's steps lost their own class (S06-29)");
-        const trialCard = fnSource(events, "trialCard");
+        // The floor's half of the card is `trialFloorCard` since the owner's report of 13.11.2026 (R5900): read both.
+        const trialCard = fnSource(events, "trialCard") + fnSource(events, "trialFloorCard");
         ok(trialCard.length > 400 && !/trialEveryone|trialFloorOpen/.test(trialCard)
             && ["trialDebateMeta", "trialDiscussionMeta", "trialObjectionFloor"].every(k => trialCard.includes(`DRPG.Events.${k}"`)),
             "the Event card says Everyone again, or lacks an instruction or the Objection's floor (S06-24)");
@@ -19471,7 +19472,10 @@ const REGRESSIONS = [
                 "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
                 "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable",
                 // E24 C1b: the incident card's reserves, "3 of 4 Health" / "3 z 4 Health" (the sheet's "Left: 3 / 4").
-                "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou"
+                "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou",
+                // The owner's report of 13.11.2026 (R5900): a zone mode's line on the Event card, "Question 2 of 3" /
+                // "Pytanie 2 z 3", "Turn 1 of 4" / "Tura 1 z 4" - the seconds are the card's clock.
+                "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak"
             ].map(key => [key, "R"]),
             ...[
                 "Vault.roomRatio"
@@ -19492,7 +19496,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 71, S: 37, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 71, S: 37, R: 29, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -24415,6 +24419,64 @@ const REGRESSIONS = [
         equal(JSON.stringify([owners, lists, names.filter(n => keys.has(n) || literal.has(n)), literal.has("roles"), names.length > 30]),
             JSON.stringify([["answerKey", "cast", "projectMeta"], [[...P.PROJECT_SECRET_FIELDS], [...S.CAST_FIELDS], [...W.WORLD_SECRET_RULES.everySetting.fields]], [], true, true]),
             "[the registry's owners; each owner's list beside the file's own; the names that are also a setting key, a FLAGS name or a literal flag; the read finds tables-editor.mjs's literal flag; the registry holds the lists]");
+    }],
+
+    ["R5900 - every mode of the trial's floor is named on the HUD and the Event panel: each member of floor-machine.mjs MODES and \"discussion\" has DRPG.Hud.trial.<mode> in lang/en.json and lang/pl.json, and for a floor of each mode (a zone mode in each of its phases) hud.mjs `trialSlotFace` and events.mjs `trialFloorCard` answer no line that is a key, and a zone mode's card does not read the Discussion's line (the owner's report of 13.11.2026)", async () => {
+        /*
+         * The owner's screenshot at a table on 1.2.112 (13.11.2026): the trial's card read "DRPG.Hud.trial.scrum" over a
+         * 0:30 clock and "Talk it through - the GM opens the debate". E73 (1.2.108) put the zone modes - straw, dive,
+         * scrum - into floor-machine.mjs `MODES` and added no `DRPG.Hud.trial` key for them, and the card's line under the
+         * mode fell through to the Discussion's. Red at ceb9e9c8: the three keys are missing in both files, and neither
+         * face is exported (the HUD's and the card's floor part were read inside `trialSlot` and `trialCard`, which read
+         * the clock and the floor from the world, so a test that writes nothing could not hand them a zone floor).
+         */
+        const FM = await import("./floor-machine.mjs");
+        const HUD = await import("./hud.mjs");
+        const EV = await import("./events.mjs");
+        const modes = ["discussion", ...Object.values(FM.MODES)];
+        must(modes.length >= 10 && modes.includes("scrum"), `MODES read ${modes.length} modes - this test would measure too little`);
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const missing = [];
+        for (const code of ["en", "pl"]) for (const mode of modes) {
+            const text = lang[code].get(`DRPG.Hud.trial.${mode}`);
+            if (typeof text !== "string" || !text.trim()) missing.push(`${code} ${mode}`);
+        }
+        equal(JSON.stringify(missing), "[]", "[the DRPG.Hud.trial keys missing, language and mode]");
+
+        // A floor of each mode, and each zone mode in each of its phases (zone-machine.mjs: straw vote; dive vote, pause;
+        // scrum setup, speak). Nobody's id is an actor, so a name reads "-".
+        const zone = (phase, extra = {}) => ({ phase, question: "Q?", answers: { a: "A", b: "B" }, picks: {}, stands: {}, step: 1,
+            counts: phase === "pause" ? { a: 1, b: 2 } : null, set: { id: "s", index: 0, total: 3 }, turn: 1, turns: 4, side: "a", ...extra });
+        const floors = [null, ...Object.values(FM.MODES).filter(m => !["straw", "dive", "scrum"].includes(m)).map(mode => ({ mode, holderId: null, seconds: 60, startedAt: 1 })),
+            { mode: "straw", seconds: 45, startedAt: 1, holderId: null, zone: zone("vote") },
+            { mode: "dive", seconds: 60, startedAt: 1, holderId: null, zone: zone("vote") },
+            { mode: "dive", seconds: 5, startedAt: 1, holderId: null, zone: zone("pause") },
+            { mode: "scrum", seconds: 45, startedAt: 1, holderId: null, zone: zone("setup") },
+            { mode: "scrum", seconds: 30, startedAt: 1, holderId: "nobody", zone: zone("speak") }];
+        must(typeof HUD.trialSlotFace === "function" && typeof EV.trialFloorCard === "function",
+            "hud.mjs `trialSlotFace` or events.mjs `trialFloorCard` is not exported");
+        const discussion = game.i18n.localize("DRPG.Events.trialDiscussionMeta");
+        const raw = [];
+        for (const floor of floors) {
+            const name = floor ? `${floor.mode}${floor.zone ? `/${floor.zone.phase}` : ""}` : "discussion";
+            const slot = HUD.trialSlotFace(floor);
+            const card = EV.trialFloorCard(floor);
+            for (const [where, text] of [["slot.label", slot?.label], ["slot.speaker", slot?.speaker], ["slot.versus", slot?.versus],
+                ["card.title", card?.title], ["card.sub", card?.sub], ["card.meta", card?.meta]]) {
+                if (text === null && !["slot.label", "card.title", "card.meta"].includes(where)) continue;
+                if (typeof text !== "string" || !text.trim() || /^DRPG\./.test(text)) raw.push(`${name} ${where}: ${JSON.stringify(text ?? null)}`);
+            }
+            if (floor?.zone && card?.meta === discussion) raw.push(`${name} card.meta: the Discussion's line`);
+            if (slot && slot.label === `DRPG.Hud.trial.${slot.key}`) raw.push(`${name} slot.label equals its key`);
+            // A Scrum Debate's turn has one speaker (zone-machine.mjs `scrumTurn` puts it in `holderId`): the row says so.
+            if (name === "scrum/speak" && slot?.speaker === game.i18n.localize("DRPG.Hud.trialEveryone")) raw.push(`${name} slot.speaker: everyone`);
+        }
+        equal(JSON.stringify(raw), "[]", "[each floor's line that is a key, empty, or the Discussion's under a zone mode]");
     }],
 
 ];
