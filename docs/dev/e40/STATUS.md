@@ -133,10 +133,18 @@ The plan's items 2-6, in its order, with what each would take:
   a deceased before and after discovery, the Final Trial, a second trial (D17), a reset during a suicide incident, and
   season-wipe on a world copy; most are 63-class-trial's, 61's and 65's (63: a late player, a reload, the verdict's
   window with "Nobody", a second trial, the Level Ups), and the rest is open.
-- **The regex tests** (item 4): the ~50 tier-0 tests that match behaviour by regex become function calls, each broken
-  once before and after. A mechanical, low-risk group once counted (the plan's Q-E40-3: the tree's counts, re-counted
-  when the work starts).
-- **settle() -> until()** (item 5): where a read crosses a client, a hook or a chat card.
+- **The regex tests** (item 4): counted, not converted. The plan's Q-E40-3 default: re-counted when the work starts.
+  The count, 13.11.2026 at 4f1ceb1d, by a script over scripts/tests-tier0.mjs that splits it at each entry's start
+  (`^    \["`) and reads each body for three things: it reads source (`bodyOf(`, `fnSource(`, `lineAround(`, `src(`), it
+  imports a module (`await import(`), it uses a regex (`.test(`, `.match(`, `matchAll(`). Of 404 entries: 189 read
+  source; 149 read source and import nothing; 140 of those also hold a regex - the pool the plan's "about 50 tier 0 tests
+  with a regex on behaviour" is in (the rest are text guards, which stay, and censuses of the code's shape). Which of the
+  140 hold behaviour is a reading test by test, not done; names such as R18 ("using an item mid-incident costs a turn"),
+  R25, R26, R29 and R30 read as behaviour, and most of those touch writes, so their call is a tier-2 test with a fixture,
+  not a pure call in tier 0. Each is to be broken once before and after its replacement (the plan's risk).
+- **settle() -> until()** (item 5): counted, not converted: scripts/tests-tier2.mjs holds `settle(` on 2512 lines and
+  `until(` on 541 (`grep -c`, 13.11.2026), against the plan's 2470 and 527 at ff11458; which of them read across a
+  client, a hook or a chat card is a reading call by call, not done.
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
   wiring is not this line's to touch.
 
