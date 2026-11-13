@@ -316,7 +316,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
 
     /*
      * ONE SOUND A BROWSER (the auditor's A113-C2-5 and A113-C2-1, 13.11.2026; the coordinator's default for the owner: one
-     * sound per moment per browser, the most specific winning; scenario 78). The victim's player whose screen faded heard
+     * sound per moment per browser, the most specific winning; scenario 79). The victim's player whose screen faded heard
      * `deathFade` (spectator-dead.mjs `playMoment`) and, inside the incident's audience, `death` as well: the fade is theirs,
      * so they are left out of the death's sound (`takeFadedFor`; on the card, the flag's `not`). An execution plays the
      * execution's own sound with its card and the trial's close its own (trial-progress.mjs `postExecutionCard`,

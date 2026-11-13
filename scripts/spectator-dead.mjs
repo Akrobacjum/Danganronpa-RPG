@@ -120,7 +120,7 @@ export function tokensOf(actor) {
  * WHO WAS FADED (the auditor's A113-C2-5, 13.11.2026; the coordinator's default: one sound per moment per browser). The
  * Spectator's token made at a death in play plays `deathFade` on its owners' browsers (`playMoment`), and the death's own
  * sound (`death`) went to the same players when they were in the incident's audience (chapter.mjs `killCharacter`): two
- * sounds, by default one file, on the victim's browser (scenario 78 measured it). So the users a fade went to are kept
+ * sounds, by default one file, on the victim's browser (scenario 79 measured it). So the users a fade went to are kept
  * here, by the student's id, for the death's sound to leave out (`takeFadedFor`, once).
  */
 const fadedFor = new Map();
@@ -337,9 +337,9 @@ async function ensureWatcherActorOnly(student) {
 
 /*
  * ONE WATCHER A STUDENT, WHOEVER MADE IT (the coordinator's task of 13.11.2026 after the owner's report of a third token;
- * scenario 77 part gm2). `ensureDeadSpectator` looks for a watcher, then makes one: two GMs running it at the same moment
+ * scenario 78 part gm2). `ensureDeadSpectator` looks for a watcher, then makes one: two GMs running it at the same moment
  * - both marking a student dead in the Players window, say - each find none and each make an actor and a token, and
- * scenario 77 measured two Spectator tokens where the body lies. Nothing a GM's browser does before its write can see the
+ * scenario 78 measured two Spectator tokens where the body lies. Nothing a GM's browser does before its write can see the
  * other GM's, so the primary settles it after: on every watcher's actor or token it sees made (`registerDeadSpectator`),
  * the watchers flagged with one student (`watchersOf`) are cut to one (`keptWatcher`: the smallest id, the same answer on
  * every browser), the others' tokens and actors deleted with no moment (no fade, no return), and a token made later for a

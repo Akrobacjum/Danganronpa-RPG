@@ -1,5 +1,5 @@
 /**
- * 78-death-sounds: which sounds one death plays, road by road and browser by browser (the auditor's A113-C2-5 and
+ * 79-death-sounds: which sounds one death plays, road by road and browser by browser (the auditor's A113-C2-5 and
  * A113-C2-1, the audit-113 line, 107dd82f; the coordinator's default for the owner, 13.11.2026: one sound per moment per
  * browser, the most specific one winning - an execution plays `execution`, the trial's close `trialClose` after it, and a
  * death in play `deathFade` on the victim's browser and `death` on the others', never both on one browser).
@@ -29,13 +29,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const MOD = "danganronpa-rpg";
     const KEYS = ["death", "deathFade", "execution", "trialClose"];
-    const fileOf = key => `sounds/s78-${key}.ogg`;
+    const fileOf = key => `sounds/s79-${key}.ogg`;
     const who = { gm, p1, p2, p3 };
-    const RECORD = `globalThis.__s78 = []; const H = foundry.audio.AudioHelper;
-        if (!globalThis.__s78Real) { globalThis.__s78Real = H.play; H.play = async (data, ...rest) => { globalThis.__s78?.push(String(data?.src ?? "")); return globalThis.__s78Real.call(H, data, ...rest); }; }
-        const C = ${imp("perf-counters.mjs")}; globalThis.__s78Played = C.snapshot()["sfx.played"] ?? 0; return true;`;
+    const RECORD = `globalThis.__s79 = []; const H = foundry.audio.AudioHelper;
+        if (!globalThis.__s79Real) { globalThis.__s79Real = H.play; H.play = async (data, ...rest) => { globalThis.__s79?.push(String(data?.src ?? "")); return globalThis.__s79Real.call(H, data, ...rest); }; }
+        const C = ${imp("perf-counters.mjs")}; globalThis.__s79Played = C.snapshot()["sfx.played"] ?? 0; return true;`;
     const READ = `const C = ${imp("perf-counters.mjs")};
-        return { files: [...(globalThis.__s78 ?? [])], played: (C.snapshot()["sfx.played"] ?? 0) - (globalThis.__s78Played ?? 0) };`;
+        return { files: [...(globalThis.__s79 ?? [])], played: (C.snapshot()["sfx.played"] ?? 0) - (globalThis.__s79Played ?? 0) };`;
     const keyOf = src => KEYS.find(k => src === fileOf(k)) ?? src;
     const begin = async () => { for (const c of Object.values(who)) await c.eval(RECORD); };
     const heard = async () => {
@@ -46,7 +46,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         }
         return out;
     };
-    const line = (road, h) => `[78] ${road}: ` + Object.entries(h).map(([n, r]) => `${n} ${r.keys.join("+") || "-"}${r.played !== r.keys.length ? ` (sfx.played ${r.played})` : ""}`).join("; ");
+    const line = (road, h) => `[79] ${road}: ` + Object.entries(h).map(([n, r]) => `${n} ${r.keys.join("+") || "-"}${r.played !== r.keys.length ? ` (sfx.played ${r.played})` : ""}`).join("; ");
     const REVIVE = `const C = ${imp("chapter.mjs")}; const chie = game.actors.get("${IDS.chie}");
         if (C.isDeadForGm(chie)) await C.reviveCharacter(chie, { quiet: true, silent: true });
         for (const a of game.actors.filter(a => a.getFlag("${MOD}", "watcherOf") === chie.id || (a.getFlag("${MOD}", "spectator") && a.name === chie.name))) {
@@ -69,13 +69,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
 
     phase("setup");
     const saved = await gm.eval(`const ST = ${imp("settings.mjs")}, SFX = ${imp("sfx.mjs")};
-        globalThis.__s78Map = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxMap) ?? {});
-        globalThis.__s78Clock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
-        globalThis.__s78Trial = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
-        for (const key of ${JSON.stringify(KEYS)}) await SFX.setSoundFor(key, "sounds/s78-" + key + ".ogg");
+        globalThis.__s79Map = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxMap) ?? {});
+        globalThis.__s79Clock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        globalThis.__s79Trial = foundry.utils.deepClone(game.settings.get("${MOD}", "trialProgress") ?? {});
+        for (const key of ${JSON.stringify(KEYS)}) await SFX.setSoundFor(key, "sounds/s79-" + key + ".ogg");
         return ${JSON.stringify(KEYS)}.map(k => SFX.soundFor(k));`, { timeout: 60000 });
     for (const c of Object.values(who)) await c.eval(`const SFX = ${imp("sfx.mjs")}, ST = ${imp("settings.mjs")};
-        globalThis.__s78Vol = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxVolumes) ?? {}); await SFX.setSfxVolume("sound", 0.8); return true;`);
+        globalThis.__s79Vol = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxVolumes) ?? {}); await SFX.setSfxVolume("sound", 0.8); return true;`);
     check("setup: each sound of a death mapped to its own file for the run", JSON.stringify(saved) === JSON.stringify(KEYS.map(fileOf)), JSON.stringify(saved));
     await settle(1200);
     const table = {};
@@ -152,17 +152,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
                 set?.phase === "classTrial" && set.kept === kept && closed?.done === true && closed.dead === true, JSON.stringify({ set, closed }));
             hold(`${road} (the sentence at the trial's close)`, table[road], { gm: ["execution", "trialClose"], p1: ["execution", "trialClose"], p2: ["execution", "trialClose"], p3: ["execution", "trialClose"] });
             await gm.eval(REVIVE, { timeout: 60000 });
-            await gm.eval(`await game.settings.set("${MOD}", "clock", globalThis.__s78Clock); await game.settings.set("${MOD}", "trialProgress", globalThis.__s78Trial); return true;`, { timeout: 60000 });
+            await gm.eval(`await game.settings.set("${MOD}", "clock", globalThis.__s79Clock); await game.settings.set("${MOD}", "trialProgress", globalThis.__s79Trial); return true;`, { timeout: 60000 });
             await settle(2000);
         }
     } finally {
         await gm.eval(`${REVIVE.replace(/return true;\s*$/, "")}
             const ST = ${imp("settings.mjs")};
             if (game.drpg.murderState()?.active) { const M = ${imp("murder-rules.mjs")}; await M.endMurder({ reason: "closed", followUp: false, conclude: false }); }
-            await game.settings.set("${MOD}", "clock", globalThis.__s78Clock); await game.settings.set("${MOD}", "trialProgress", globalThis.__s78Trial);
-            await ST.setSetting(ST.SETTINGS.sfxMap, globalThis.__s78Map ?? {}); return true;`, { timeout: 90000 });
-        for (const c of Object.values(who)) await c.eval(`const ST = ${imp("settings.mjs")}; await ST.setSetting(ST.SETTINGS.sfxVolumes, globalThis.__s78Vol ?? {});
-            if (globalThis.__s78Real) { foundry.audio.AudioHelper.play = globalThis.__s78Real; delete globalThis.__s78Real; } delete globalThis.__s78; return true;`);
+            await game.settings.set("${MOD}", "clock", globalThis.__s79Clock); await game.settings.set("${MOD}", "trialProgress", globalThis.__s79Trial);
+            await ST.setSetting(ST.SETTINGS.sfxMap, globalThis.__s79Map ?? {}); return true;`, { timeout: 90000 });
+        for (const c of Object.values(who)) await c.eval(`const ST = ${imp("settings.mjs")}; await ST.setSetting(ST.SETTINGS.sfxVolumes, globalThis.__s79Vol ?? {});
+            if (globalThis.__s79Real) { foundry.audio.AudioHelper.play = globalThis.__s79Real; delete globalThis.__s79Real; } delete globalThis.__s79; return true;`);
         await settle(1500);
     }
 }
