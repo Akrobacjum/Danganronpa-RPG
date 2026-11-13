@@ -52632,6 +52632,61 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ glass: { words: true, ground: true, apart: true }, legacy: { words: true, ground: true, apart: true } }),
             "{each theme: [the chosen tab's words apart from an unchosen one's; its ground apart (glass: its brush not a Bone, the bar's colour); glass: its brush drawn where an unchosen one's is not]}");
     }],
+    ["R5860 - every kit tab bar's open tab stands apart from the others in both themes (the owner at a table on 1.2.112, 13.11.2026: \"some tabs still don't show which one is open, e.g. in the Investigation table or the chat\"): on ui-kit.mjs `kitTabs`'s bar (`nav.drpg-tabs > button[role=tab][aria-selected]`), in a kit window and in the messenger, the open tab's look differs from an unopened one's - under the glass its words and its brush (drawn, and not in the bar's own Bone), under Legacy its ground and an edge at its foot", async () => {
+        /*
+         * Measured in Chromium first (13.11.2026, ceb9e9c8, the style harness's captures and the glass harness's
+         * messenger, 1366x768): under the glass the kit's bar is Bone (`--drpg-kit-tab-bar`), the open tab's brush Bone
+         * too (stained-glass.css's panel brush, Bone since E48 K2) and its words Ink (`--drpg-kit-tab-on-ink`), so the open
+         * tab read rgb(242, 238, 230) behind rgb(7, 7, 10) exactly as an unopened one - in every kit window, Investigation
+         * and the messenger's Chat and Note among them. The sheet's bar had the same fault and E100 its fix (R4110). Under
+         * Legacy the open tab is Ink on the bar with a Bone edge at its foot: held here as it is.
+         * Red at ceb9e9c8: under the glass the words and the brush.
+         */
+        const C = await styleCascade();
+        const read = {};
+        const windows = {
+            panel: `<div class="application dialog drpg-panel drpg-ui drpg-window-case"><section class="window-content">`,
+            messenger: `<div class="application drpg-panel drpg-ui drpg-messenger"><section class="window-content"><div class="drpg-messenger-body">`
+        };
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass drpg-gm"], ["legacy", "drpg-theme-monokuma-legacy drpg-gm"]]) {
+            for (const [where, open] of Object.entries(windows)) {
+                const html = document.createElement("html"), body = document.createElement("body");
+                body.className = cls;
+                html.append(body);
+                body.innerHTML = `${open}<nav class="drpg-tabs" role="tablist"><button type="button" role="tab" data-drpg-tab-key="a" aria-selected="true">Remnants</button>`
+                    + `<button type="button" role="tab" data-drpg-tab-key="b" aria-selected="false">Key Remnants</button></nav></div>`;
+                const [chosen, other] = body.querySelectorAll("nav.drpg-tabs > button");
+                const w = (el, prop, pseudo = null) => C.winner(el, prop, pseudo)?.value ?? null;
+                /* The cascade answers a declaration as written, `var()` and all; two tokens that name one colour would read
+                   apart. A value is resolved here as the browser would: each `var(--x, fallback)` by the nearest element up
+                   the tree whose rules give `--x` (the theme's tokens stand on the body), else its fallback. */
+                const resolve = (el, value, depth = 0) => {
+                    if (value === null || depth > 12) return value;
+                    return String(value).replace(/var\((--[\w-]+)\s*(?:,\s*([^()]*(?:\([^()]*\)[^()]*)*))?\)/g, (m, name, fallback) => {
+                        for (let e = el; e; e = e.parentElement) {
+                            const found = w(e, name);
+                            if (found !== null) return resolve(e, found, depth + 1);
+                        }
+                        return fallback === undefined ? m : resolve(el, fallback.trim(), depth + 1);
+                    });
+                };
+                const r = (el, prop) => resolve(el, w(el, prop));
+                must(w(chosen, "color") !== null && w(other, "color") !== null && (theme !== "glass" || w(chosen, "--brush") !== null),
+                    `the cascade read no colour or brush for the tabs under ${theme} in the ${where} - this would measure nothing`);
+                const words = r(chosen, "color") !== r(other, "color");
+                /* Under the glass the ground is the brush: drawn on the open tab (`--brush-on` 1) where an unopened one's is not,
+                   and not a Bone - the bar is Bone there (`--drpg-sg-bone`, rgb(242, 238, 230), read in Chromium). Under Legacy
+                   the words are Bone on every tab (Chromium: rgb(228, 222, 216) on both), and the open tab is told by its
+                   ground (Ink against the tabs' wash) and the edge at its foot (an inset box shadow), each held here. */
+                read[`${theme} ${where}`] = theme === "glass"
+                    ? { words, ground: r(chosen, "--brush-on") === "1" && r(other, "--brush-on") !== "1" && r(chosen, "--brush") !== resolve(body, "var(--drpg-sg-bone)") }
+                    : { ground: r(chosen, "background") !== r(other, "background"), edge: ![null, "none"].includes(r(chosen, "box-shadow")) && r(chosen, "box-shadow") !== r(other, "box-shadow") };
+            }
+        }
+        const glass = { words: true, ground: true }, legacy = { ground: true, edge: true };
+        equal(stableJson(read), stableJson({ "glass panel": glass, "glass messenger": glass, "legacy panel": legacy, "legacy messenger": legacy }),
+            "{each theme and window: glass [the open tab's words apart from an unopened one's; its brush drawn, and not the bar's Bone]; legacy [its ground apart; an edge at its foot]}");
+    }],
     ["R4112 - nothing in the sheet's left column reaches past its sides (E100; the owner at a table on 1.2.108, 12.11.2026: a sideways scrollbar under the Experience list): under the glass a row's brush behind an Equipped item (and any button) in `.character-sidebar-sheet` stands inside its box (`inset` with no negative side), where elsewhere it overhangs 5 px", async () => {
         /*
          * E100, 12.11.2026. Measured in Chromium (the style harness's sheet parts, 1366x768, glass): the column's
