@@ -733,7 +733,7 @@
         "rooms": "Pokoje",
         "kind": "Rodzaj",
         "shape": "Kształt",
-        "origin": "Pochodzenie",
+        "origin": "Źródło",
         "knows": "Kto zna",
         "start": "Na start sezonu",
         "startHint": "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu tajnego przejścia teraz.",

@@ -1378,8 +1378,17 @@ async function tablesRead(page, id) {
         }
         const cellsPast = cells.filter(td => td.getBoundingClientRect().right > right + 0.5).length;
         const rows = cells.length ? new Set(cells.map(td => td.parentElement)).size : 0;
+        /* A column's head wider than its cell (gaps, 13.11.2026; 1.2.105's known gap: Legacy's Polish "Pochodzenie" cut in
+           Origin): each head's words read by a range against the cell's width less its padding. */
+        const headsCut = [...win.querySelectorAll("[data-drpg-passages] th")].filter(th => th.getClientRects().length).map(th => {
+            const range = globalThis.document.createRange();
+            range.selectNodeContents(th);
+            const s = globalThis.getComputedStyle(th), c = th.getBoundingClientRect(), t = range.getBoundingClientRect();
+            const inner = c.width - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+            return t.width > inner + 0.5 ? `"${th.textContent.trim()}" ${r1(t.width)} in ${r1(inner)}` : null;
+        }).filter(Boolean);
         return { rows, buttons: cells.filter(c => c.classList.contains("drpg-data-col-actions")).reduce((n, td) => n + td.querySelectorAll("button").length, 0),
-            outside, cellsPast, past: pastOf(win.querySelector("[data-drpg-passages]") ?? win), size: size() };
+            outside, cellsPast, headsCut, past: pastOf(win.querySelector("[data-drpg-passages]") ?? win), size: size() };
     }, id);
 }
 
@@ -1444,7 +1453,8 @@ async function tablesPass(browser) {
                         if (r.rows !== 4) bad.push(`${r.rows} row(s) drawn (4 seeded)`);
                         if (r.outside.length) bad.push(`${r.outside.length} of ${r.buttons} button(s) past their cell (${r.outside.slice(0, 4).join(", ")})`);
                         if (r.cellsPast) bad.push(`${r.cellsPast} cell(s) past the window's body`);
-                        console.log(`style-sweep: --tables ${where}: ${r.rows} row(s), ${r.buttons} button(s), ${r.outside.length} past their cell, ${r.cellsPast} cell(s) past the body, window ${r.size.join("x")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                        if (r.headsCut.length) bad.push(`${r.headsCut.length} column head(s) cut (${r.headsCut.join(", ")})`);
+                        console.log(`style-sweep: --tables ${where}: ${r.rows} row(s), ${r.buttons} button(s), ${r.outside.length} past their cell, ${r.cellsPast} cell(s) past the body, ${r.headsCut.length} head(s) cut, window ${r.size.join("x")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
                     }
                     problems.push(...bad.map(b => `${where}: ${b}`));
                     if (SHOTS && w === 1366) {
