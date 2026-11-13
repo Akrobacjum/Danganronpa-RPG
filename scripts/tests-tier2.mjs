@@ -54197,11 +54197,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * as scenario 30 refuses one, and the rewind runs as reroll.mjs `settleCrisis` runs it, into a miss with Hope.
          * `settleCrisis` comes after the Reroll's payment, which writes the Hope from the GMs' value (fix r2-H5) and so
          * takes off a forged Hope heard before it: this one is heard between the payment and the rewind. Then a
-         * clean-up attempted at 3 Sanity marks is charged on the GM; the console lowers the Sanity maximum to 1,
-         * refused the same way, and the clean-up's Reroll takes the attempt back. Read: the Hope, the Health marks and
-         * the Sanity marks, each on the sheet and in the GMs' mark. At e253b3a (06.10.2026, e29run/r2h23red): [[4, 4,
-         * 1, 1], [1, 1]] - the most Hope (6) less the use's 2, not the GMs' 3 less it; and 1 Health mark and 1 Sanity
-         * mark where the maxima the GMs hold put back 4 and 3.
+         * clean-up attempted at 3 Sanity marks is charged on the GM (in the killer's own Stage 6 since E64, below); the
+         * console lowers the Sanity maximum to 1, refused the same way, and the clean-up's Reroll takes the attempt back.
+         * Read: the Hope, the Health marks and the Sanity marks, each on the sheet and in the GMs' mark. At e253b3a
+         * (06.10.2026, e29run/r2h23red): [[4, 4, 1, 1], [1, 1]] - the most Hope (6) less the use's 2, not the GMs' 3 less
+         * it; and 1 Health mark and 1 Sanity mark where the maxima the GMs hold put back 4 and 3.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
         needs(world.atLeast("sceneOnScreen"), "the clean-up's trace is placed on the scene on screen");
@@ -54272,12 +54272,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await trustedWrite(killer, was, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
+        /* The clean-up in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity since
+           E64 (R3959: an ordinary Tamper costs an action and no Sanity). On the Tamper tile's road, where it ran until
+           this fix, the attempt took none: "the fixture's attempt took no Sanity - this would measure nothing: 3 marks" (1.2.110's first
+           CI run, 43352869429, suite 7/8). The clean-up's take-back is the same `undoLastCleanup` on either road. */
+        await inOwnStageSix(killer, victim, async () => {
         const F = await cleanupFixture(killer, "SUITE E29 H23 a trace scrubbed and rerolled");
         try {
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
             await killer.update({ [SANITY]: 3 });
             await auditFromScratch(killer);
-            await F.scrub(0, { price: null });
+            await F.scrub(0, { viaAction: false, price: null });
             await settle();
             must(sheet(SANITY) > 3, `the fixture's attempt took no Sanity - this would measure nothing: ${sheet(SANITY)} marks`);
             refuseBack();
@@ -54286,7 +54291,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(forged?.verdict === "putBack" && sheet(SANITY_MAX) === 1 && marked("stress").max === most.stress,
                 `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
                     stableJson([forged?.verdict ?? null, sheet(SANITY_MAX), marked("stress")])}`);
-            await F.scrub(30, { undo: true });
+            await F.scrub(30, { viaAction: false, undo: true });
             await settle();
             await allowBack();
             cleanup = [sheet(SANITY), marked("stress").value ?? null];
@@ -54296,6 +54301,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (sheet(SANITY_MAX) !== was[SANITY_MAX]) await trustedWrite(killer, { [SANITY_MAX]: was[SANITY_MAX] }, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
+        });
+        await trustedWrite(killer, was, { reason: "gmRuling" });
+        await sheetAuditIdle();
         equal(stableJson([crisis, cleanup]), stableJson([[1, 1, 4, 4], [3, 3]]),
             "a Reroll's take-back read a Hope or a maximum a player's console wrote that the GMs' audit had not put back "
             + "(the crisis's Hope and Health marks, the clean-up's Sanity marks; each on the sheet and in the GMs' mark)");
