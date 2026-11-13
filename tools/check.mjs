@@ -94,6 +94,9 @@
  *             so a locator chain and a call split over lines count. A detector
  *             fixture runs first, as in `contract`, and the part is red when the
  *             gate's writer or the live runner is not there to be read.
+ *             And (E59 C0) audit/gate/ci-record.json, when it exists, holds
+ *             only rows audit/gate/ci-record.mjs wrote from a run it spawned,
+ *             read by that file's own rules after its planted rows refuse.
  *   live      every live check the code, the harness, the tools, the language
  *             files and the handbooks cite as LIVE-E<stage>-<n> is an item of
  *             audit/AUDIT-1.2.42.md section 9.2, written once.
@@ -755,7 +758,7 @@ function statementsOf(text) {
     return out;
 }
 
-function gatecode() {
+async function gatecode() {
     const problems = [];
     const hitsIn = text => statementsOf(text).filter(s => SECRET_FIELD.test(s.text)).map(s => s.line);
     const fx = hitsIn(GATECODE_FIXTURE.text);
@@ -766,7 +769,26 @@ function gatecode() {
     /* The writer and the live runner are what it exists to read: without them it read nothing. */
     for (const need of ["audit/gate/local-gate.mjs", "audit/live/foundry.mjs"]) if (!files.includes(need)) problems.push(`${need} is missing - nothing that logs into Foundry was read`);
     for (const f of files) for (const line of hitsIn(read(f))) problems.push(`${f}:${line}: aims at a password, admin key or licence field`);
-    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ${problems.length} problem(s)`);
+    /* THE CI RECORD (E59 C0, 13.11.2026): audit/gate/ci-record.json is written only by audit/gate/ci-record.mjs from a
+       run it spawned; this reads it with the writer's own rules (`recordProblems`), after planted rows each must refuse.
+       The file may be absent: no run recorded yet. */
+    let rec = { rows: 0, planted: "not read" };
+    if (!exists("audit/gate/ci-record.mjs")) problems.push("audit/gate/ci-record.mjs is missing - nothing writes or reads the ci record");
+    else {
+        const R = await import(url.pathToFileURL(path.join(REPO, "audit", "gate", "ci-record.mjs")).href);
+        const self = R.selfCheck();
+        rec.planted = `${self.refused}/${self.planted} planted row(s) refused, the control ${self.controlOk ? "accepted" : "refused"}`;
+        if (self.refused !== self.planted || !self.controlOk) problems.push(`the ci record's self-check: ${rec.planted} (${self.missed.join("; ")})`);
+        if (exists(R.RECORD_FILE)) {
+            let record = null;
+            try { record = JSON.parse(read(R.RECORD_FILE)); } catch (err) { problems.push(`${R.RECORD_FILE} is not JSON (${err.message})`); }
+            if (record) {
+                rec.rows = (record.rows ?? []).length;
+                problems.push(...R.recordProblems(record).map(p => `${R.RECORD_FILE}: ${p}`));
+            }
+        }
+    }
+    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s), ${rec.planted}; ${problems.length} problem(s)`);
     return problems;
 }
 
