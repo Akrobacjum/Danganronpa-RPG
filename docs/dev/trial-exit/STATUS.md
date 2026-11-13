@@ -115,9 +115,27 @@ the line's computed colour; fails under 4.5 at the glyphs' 5th percentile or the
 Before: Stained Glass entry surround min 2.50, 1st percentile 3.94; exit min 2.08, 1st percentile 4.24 (the glyphs
 themselves 10.5 and 15.6 at the 5th, the shadow's glow under them). Legacy 12.75 (its lids are opaque).
 
-Fix, the smaller of the two: under Stained Glass the line stands on its own dark shard (inline-block, 90 % of the
+Fix, the smaller of the two: the line stands on its own dark shard (inline-block, 90 % of the
 sequence's ink, a slanted cut like the title's band); the windows under the closed curtain are left as they are.
 After: Stained Glass entry 17.12 / 16.02 min / 16.43 1st; exit 17.29 / 15.43 / 16.24. Legacy unchanged. The entry and
 the exit share the line, so both have it.
 
-Not measured: other sizes than 1366x768, a real table's windows (the harness's dialog stands for one), deviceScaleFactor 2.
+Not measured: a real table's windows (the harness's dialog stands for one), deviceScaleFactor 2.
+
+## 5. The line at a phone's width (393x852, 13.11.2026)
+
+Asked for frames at a phone's width too, the line read "POWROT" again there, for two reasons in turn, each read red
+by `--accents` before its fix:
+- the line had no floor: 28 units are 6.9 px at 393 wide, under one of the pixel face's pixels, and the canvas test read
+  Ć Ń Ó Ś Ź Ż (and under VT323 all nine) as their base letters. The line is floored at 11 px (`clamp(11px, ..., 999px)`,
+  R60's count 7 -> 8); it wraps to two lines there, so its line height is 1.4 (at the face's own 1 the second line's
+  marks touched the first).
+- then the shard: 6 units of padding are 1.5 px there, and its cut's slant took the acute off Ó in POWRÓT. The canvas
+  test could not see that - it reads the face, not the element - so `--accents` now also sets each capital in the real
+  title and line, at the start, in Ó's place and at the end, and compares the element's shot with the base letter's:
+  red there (Ć Ń Ó Ś Ź Ż in the middle, 0 px differ), green with the padding floored at 5 px.
+
+And the shard went to both themes: at 393 wide Legacy's lid seam ran along the line's first line (surround 3.63 at the
+1st percentile); on the lid the shard is the lid's own colour, so it shows only where it covers the seam.
+`--title-contrast` at 393x852 after: Stained Glass 17.38 glyphs / 17.14-17.17 surround; Legacy 12.74 / 12.85-12.87;
+1366x768 as in section 4.
