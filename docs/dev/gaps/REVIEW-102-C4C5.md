@@ -165,6 +165,10 @@ Each key below is `DRPG.Tips.Gm.<key>` (prefix **G**) or `DRPG.Tips.Setup.<key>`
   - `showWaiting` (popup.mjs:1116);
   - the ready round's card (boundary.mjs:620).
 - **Fix:** in code. Set the tooltip only where `record` is true; the text stays.
+- **Why the cards stay out of the history (checked 13.11.2026, at the coordinator's ask to record them instead).** `record: false` is deliberate at both sites, and each says why beside it:
+  - popup.mjs:1111 (E81 C3): "Kept nowhere: it says only that an answer is coming, and the answer is its own card."
+  - boundary.mjs:607-611 (E37 fix FG1): the ready round's card is "kept nowhere". It reopens the round's window while the round stands, and takes itself down when the round ends. A history row would outlive the only thing it does.
+  - So the text is what is wrong, not the recording. The tooltip is set at popup.mjs:930, which exists only on `claude/e102`, so the fix is the E102 line's: `if (record) close.dataset.tooltip = ...`. Nothing was changed on gaps-radio.
 
 ### S8 - low - `showThePassageTooltip`: "your room", and the Polish word
 - **Where it is drawn:** sheet.mjs:2939, on the player's own sheet.
