@@ -28754,6 +28754,135 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["planner autosave: a node's edit on the Map is saved when its editor closes and when the window closes mid-edit, with no Save pressed (the owner, 12.11.2026: \"Moduly przy edycji nie powinny czekac na save, tylko zapisywac sie po zamknieciu edycji\")", async () => {
+        /*
+         * Planner autosave, 12.11.2026. A fixture Remnant, the dashboard drawn on the Map, its node opened, its name
+         * changed; then the editor's Close (no Save): the world holds the name. Again, its name changed and the window
+         * closed with the node still open (as Escape or the X close it, Foundry's close): the world holds that name too.
+         * Red at cebe4c6: the fields waited for the footer's Save, and closing anything else dropped them.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture Remnant stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const scene = canvas.scene;
+        let token = null, win = null;
+        const seen = {};
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - planner autosave" });
+            must(token, "could not place the fixture Remnant");
+            await remnants.setRemnantPublic(token, { name: "SUITE autosave as drawn" });
+            await gmStoresIdle();
+            const node = `${scene.id}.${token.id}`, key = `${scene.id}__${token.id}`;
+            const open = async () => {
+                const root = win.app?.element;
+                root?.querySelector(`[data-drpg-node="${CSS.escape(node)}"]`)?.click();
+                await until(() => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden]) [name="name.${CSS.escape(key)}"]`), 3000).catch(() => {});
+                return root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden])`) ?? null;
+            };
+            win = await drawnCaseWindow({ view: "map" });
+            let edit = await open();
+            must(edit, "the fixture's node did not open on the Map");
+            win.field(`name.${key}`).value = "SUITE autosave closed";
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => remnants.remnantData(token)?.public?.name === "SUITE autosave closed", 4000).catch(() => {});
+            seen.closed = remnants.remnantData(token)?.public?.name ?? null;
+            edit = await open();
+            must(edit, "the fixture's node did not open again");
+            win.field(`name.${key}`).value = "SUITE autosave window";
+            await win.close();
+            win = null;
+            await until(() => remnants.remnantData(token)?.public?.name === "SUITE autosave window", 4000).catch(() => {});
+            seen.window = remnants.remnantData(token)?.public?.name ?? null;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+        equal(stableJson(seen), stableJson({ closed: "SUITE autosave closed", window: "SUITE autosave window" }),
+            "{the name after the editor's Close, no Save; the name after the window closed mid-edit}");
+    }],
+
+    ["planner autosave: a node's write that fails is told and keeps the GM's text in its field, written at the next close; Cancel writes nothing (perf-open's review for 1.2.111, section 2; 13.11.2026)", async () => {
+        /*
+         * The review asked whether "Your text is still in the fields" holds after a failed write: the node closes and
+         * the region is redrawn. A fixture deduction drawn on the Map, its node opened, its name changed, the GMs' case
+         * store made to refuse the write, the node closed: the error told, the store unchanged, the field still holding
+         * the text. The store given back, the node opened and closed with nothing typed: the text written. Then Cancel,
+         * a discard (the coordinator's default for the owner's question): a name typed and Cancel pressed writes nothing.
+         * Red at c598d3c: Cancel wrote the node's name.
+         *
+         * CANCEL PRESSED AS A TABLE PRESSES IT (the planner's review for 1.2.111, 13.11.2026). The footer's cancel-role
+         * button is found by its role, not by its action, and pressed the way Foundry v14 dispatches it: a button whose
+         * action is "close" is ApplicationV2's own close and answers null, never reaching DialogV2 (ui-kit.mjs, "A
+         * CLOSING WORD WHOSE ACTION IS "close"", measured at a table on 11.09, trial-floor-ui.mjs `openVoteDialog`'s
+         * note; LIVE-E21-06 is the live check). The harness's DialogV2 does not model that dispatch, so this test does:
+         * until 13.11 it clicked `[data-action="close"]` and read "close", green on a path no table takes. Red at
+         * 4bab7361 pressed this way: Cancel wrote the node's name.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const chapter = getClock().chapter;
+        const id = "deduction-suiteautofail", base = `case:${chapter}:${id}`;
+        const told = [];
+        const toast = ui.notifications.error;
+        const ownPatch = Object.prototype.hasOwnProperty.call(caseSchemaStore, "patch"), realPatch = caseSchemaStore.patch;
+        const givePatchBack = () => { if (ownPatch) caseSchemaStore.patch = realPatch; else delete caseSchemaStore.patch; };
+        const label = () => S.caseNodeOf(S.caseRows(chapter).rows[id])?.label ?? null;
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE autofail as drawn" });
+            await gmStoresIdle();
+            ui.notifications.error = (text, ...rest) => { told.push(String(text)); return toast.call(ui.notifications, text, ...rest); };
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const openNode = async () => {
+                root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+                await until(() => root?.querySelector(`.drpg-case-edit:not([hidden]) [name="${CSS.escape(`${base}:label`)}"]`), 3000).catch(() => {});
+                return root?.querySelector(".drpg-case-edit:not([hidden])") ?? null;
+            };
+            let edit = await openNode();
+            must(edit, "the fixture node did not open on the Map");
+            caseSchemaStore.patch = async () => { throw new Error("SUITE the case store refused this write"); };
+            win.field(`${base}:label`).value = "SUITE autofail typed";
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => told.length > 0, 4000).catch(() => {});
+            await wait(400);
+            seen.failed = { told: told.includes(game.i18n.localize("DRPG.CaseMap.notSaved")), stored: label(), field: win.field(`${base}:label`)?.value ?? null };
+            givePatchBack();
+            edit = await openNode();
+            edit?.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => label() === "SUITE autofail typed", 4000).catch(() => {});
+            seen.next = label();
+            edit = await openNode();
+            must(edit, "the fixture node did not open a third time");
+            win.field(`${base}:label`).value = "SUITE autofail cancelled";
+            const cancel = root.querySelector("footer.form-footer button.drpg-role-cancel");
+            must(cancel, "the window's footer has no Cancel - this would measure nothing");
+            seen.cancelAction = cancel.dataset.action ?? null;
+            // ApplicationV2's own "close" (v14), or the button DialogV2 answers with its action
+            if (cancel.dataset.action === "close") await win.app.close(); else cancel.click();
+            await Promise.race([win.answer, wait(5000)]);
+            await gmStoresIdle();
+            await wait(400);
+            seen.cancel = label();
+            await win.close();
+            win = null;
+        } finally {
+            givePatchBack();
+            ui.notifications.error = toast;
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ failed: { told: true, stored: "SUITE autofail as drawn", field: "SUITE autofail typed" }, next: "SUITE autofail typed", cancelAction: "discard", cancel: "SUITE autofail typed" }),
+            "{after the refused write: the error told, the stored name, the field's text; the name after the next close; Cancel's action; the name after Cancel, pressed as v14 dispatches it}");
+    }],
+
     ["E97 C6: a case node's name, mode and inputs edited on the Map are saved by the panel's Save, and a name another GM moved under the window is refused and told", async () => {
         /*
          * E97 C6, 12.11.2026; Q-E97-6's default (schema edits ride Save, refused where another GM moved them). A fixture
@@ -28810,6 +28939,198 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (second) await second.close().catch(() => {});
             await S.dropCaseNode(chapter, id).catch(() => {});
         }
+    }],
+
+    ["planned Remnants of every type: a planned node of type Prep is placed by its Place on the map as a Prep Remnant with the plan's name, words and room (the owner, 13.11.2026: \"opcje w planerze dodawania zaplanowanych remnantow innego typu niz incident i keys\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:00. A planned node (case-schema.mjs kind "incident", the E97 C12
+         * row) carries a Remnant type since this commit; its Place on the map opens New Remnant filled in from the plan,
+         * the type among it, and the Remnant placed is that type. Red at 6ea98d9: the window was opened as an Incident
+         * Remnant whatever the plan said.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        needs(world.atLeast("sceneOnScreen"), "a scene with rooms to place on");
+        needs(env.dialogs(), "New Remnant is pressed on its drawn window");
+        const chapter = getClock().chapter;
+        const id = "incident-suiteplan3";
+        const room = allRooms(canvas.scene)[0] ?? null;
+        must(room, "the scene on screen has no room");
+        let token = null;
+        const seen = {};
+        try {
+            await S.setCaseNode(chapter, id, { kind: "incident", label: "SUITE planned prep", text: "SUITE the planned words", room, type: "prep" });
+            await gmStoresIdle();
+            const opened = I.placeIncident(chapter, id);
+            const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-newtrace"));
+            await until(() => drawn()?.element, 6000).catch(() => {});
+            const form = drawn()?.element?.querySelector("form");
+            seen.window = form ? { type: form.type?.value ?? null, room: form.room?.value ?? null, name: form.tname?.value ?? null } : null;
+            drawn()?.element?.querySelector('footer button[data-action="ok"]')?.click();
+            token = await Promise.race([opened, wait(8000).then(() => null)]);
+            await gmStoresIdle();
+            const data = token ? remnants.remnantData(token) : null;
+            seen.placed = data ? { type: data.type ?? null, name: data.public?.name ?? null, text: data.public?.playerText ?? null } : null;
+            seen.node = S.caseNodeOf(S.caseRows(chapter).rows[id])?.trace === (token ? `${token.parent?.id}.${token.id}` : "none");
+        } finally {
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, id).catch(() => {});
+        }
+        equal(stableJson(seen), stableJson({
+            window: { type: "prep", room, name: "SUITE planned prep" },
+            placed: { type: "prep", name: "SUITE planned prep", text: "SUITE the planned words" },
+            node: true
+        }), "{New Remnant as opened from the plan: type, room, name; the Remnant placed: type, name, words; the node pointed at it}");
+    }],
+
+    ["planned location: a Key slot's planned room is where the realization's preview and the Table's Place start, and Place puts it there; a room gone starts on the first and says so; a planned Remnant's fields show its room (the owner, 13.11.2026: \"opcje zaplanowania lokacji niepostawionego bulleta\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:10. A Key plan slot not on the map takes a room (`room`, the GMs'
+         * Key plan store); the realization's preview (case-realize.mjs) and the Table's Place (`placeKeyRow`) start on it,
+         * and Place puts the Key Remnant in it. A planned room the scene no longer has: the window starts on its first room,
+         * as before, and one line says so. A planned Remnant node's room select shows the room its row holds (utils.mjs
+         * `placeRoomOptions` marked none without a scene id). Red at 9267b1d.
+         */
+        const R = await import("./case-realize.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./case-schema.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        needs(env.dialogs(), "the windows are read and pressed as drawn");
+        needs(world.atLeast("sceneOnScreen"), "a scene with rooms");
+        const { workingScene } = await import("./utils.mjs");
+        const rooms = allRooms(workingScene());
+        must(rooms.length >= 2, "the working scene has fewer than two rooms");
+        const planned = rooms[1];
+        const plan = I.keyPlan();
+        const line = R.realizationLines({ plan, status: I.keyPlanStatus(), limit: I.caseKeyCount(plan.chapter) }).find(l => l.action === "create");
+        must(line, "the chapter's plan has no slot a run would create");
+        const slot = line.slot;
+        const setRoom = async room => { const entries = []; entries[slot] = { room }; await I.setKeyPlan({ chapter: plan.chapter, entries }); await gmStoresIdle(); };
+        const windowOf = cls => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes(cls));
+        const told = [];
+        const notes = ["info", "warn"].map(kind => [kind, ui.notifications[kind]]);
+        for (const [kind, fn] of notes) ui.notifications[kind] = (text, ...rest) => { told.push(String(text)); return fn.call(ui.notifications, text, ...rest); };
+        const nodeId = "incident-suiteplan5";
+        let token = null, win = null;
+        const seen = {};
+        try {
+            await setRoom(planned);
+            seen.stored = I.keyPlan().entries[slot]?.room ?? null;
+            const preview = R.openRealization({ chapter: plan.chapter }).catch(() => null);
+            await until(() => windowOf("drpg-window-case-realize")?.element, 6000).catch(() => {});
+            seen.preview = windowOf("drpg-window-case-realize")?.element?.querySelector(`select[name="room:${slot}"]`)?.value ?? null;
+            await windowOf("drpg-window-case-realize")?.close().catch(() => {});
+            await Promise.race([preview, wait(3000)]);
+            const placing = I.placeKeyRow(null, slot);
+            await until(() => windowOf("drpg-window-keyplace")?.element, 6000).catch(() => {});
+            seen.place = windowOf("drpg-window-keyplace")?.element?.querySelector('select[name="room"]')?.value ?? null;
+            windowOf("drpg-window-keyplace")?.element?.querySelector('footer button[data-action="ok"]')?.click();
+            token = await Promise.race([placing, wait(8000).then(() => null)]);
+            await gmStoresIdle();
+            seen.placed = token ? remnants.remnantData(token)?.room ?? null : null;
+            await setRoom("SUITE a room no scene has");
+            told.length = 0;
+            const again = I.placeKeyRow(null, slot);
+            await until(() => windowOf("drpg-window-keyplace")?.element, 6000).catch(() => {});
+            seen.gone = windowOf("drpg-window-keyplace")?.element?.querySelector('select[name="room"]')?.value ?? null;
+            seen.goneTold = told.some(t => t.includes("SUITE a room no scene has"));
+            await windowOf("drpg-window-keyplace")?.close().catch(() => {});
+            await Promise.race([again, wait(3000)]);
+            await S.setCaseNode(plan.chapter, nodeId, { kind: "incident", label: "SUITE planned room", room: planned });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            win.app?.element?.querySelector(`[data-drpg-node="${nodeId}"]`)?.click();
+            await until(() => win.field(`case:${plan.chapter}:${nodeId}:room`), 3000).catch(() => {});
+            seen.node = win.field(`case:${plan.chapter}:${nodeId}:room`)?.value ?? null;
+        } finally {
+            for (const [kind, fn] of notes) ui.notifications[kind] = fn;
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            const entries = [];
+            entries[slot] = { room: "", tokenId: null, sceneId: null };
+            await I.setKeyPlan({ chapter: plan.chapter, entries }).catch(() => {});
+            await S.dropCaseNode(plan.chapter, nodeId).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ stored: planned, preview: planned, place: planned, placed: planned, gone: rooms[0], goneTold: true, node: planned }),
+            "{the slot's room as stored; the preview's and Place's room select; the room the Key Remnant was placed in; Place's select for a room gone, and a line naming it; a planned Remnant node's room select}");
+    }],
+
+    ["planned Autopsy: the body's discovery sends the planned Autopsy to every living student with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:05. The case plans its Autopsy on a node of its own (case-schema.mjs
+         * kind "autopsy"); the discovery's hook on the primary (`writer`, chapter.mjs `announceBody`) sends it as the GM
+         * panel's window would by default - every student not dead, the name, the words and the GM's note - unless an Autopsy
+         * of the chapter is held already (gm-panel.mjs `autopsyIssued`: one sent by hand, or by an earlier body). The
+         * suite's rehearsal stamps send nothing. Red at a8650af: no such kind, nothing listening. Since 13.11 (perf-open's
+         * review for 1.2.111) the discovery's hook is heard with `writer: false`, a stamp made off this browser: the primary
+         * sends on its own role, not the writer's. Red at c598d3c: nothing went out. On another GM it skips (env.primaryGm).
+         *
+         * NOT TO THE DEAD, MEASURED (the planner's review for 1.2.111, minor 2; 13.11.2026). Until then the world's four
+         * students were all alive, so a send that ignored death passed: one fixture student is now dead for the GMs (the
+         * deaths store, as tier 2's other deaths, dropped after) and must get nothing. Red with `sendPlannedAutopsy`'s
+         * filter taken off: the dead student got one. And a world where a student already holds this chapter's Autopsy
+         * sends nothing by design (`autopsyIssued`), so it is a fact about the world, asked first, not a failure.
+         */
+        const S = await import("./case-schema.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { BODY_ANNOUNCED_HOOK, isDeadForGm } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        needs(env.primaryGm(), "the planned Autopsy goes out from the primary GM");
+        const chapter = getClock().chapter;
+        needs(world.atLeast("livingStudents", 2), "two living students: one to receive it, one made dead for the GMs");
+        needs(world.noAutopsyHeld(chapter), "no student holds this chapter's Autopsy yet - one held sends nothing, by design");
+        const corpse = studentActors().find(a => !isDeadForGm(a) && !deathStore.has(a.id)) ?? null;
+        must(corpse, "no living student without a death record to make dead - this would measure nothing");
+        const before = new Set(studentActors().flatMap(a => TB.bulletsOf(a).map(i => i.uuid)));
+        const autopsies = () => studentActors().flatMap(a => TB.bulletsOf(a).filter(i => !before.has(i.uuid) && TB.secretOf(i.uuid).realType === "autopsy")
+            .map(i => ({ actor: a.id, item: i })));
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const seen = {};
+        let living = [];
+        try {
+            await deathStore.patch(corpse.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            await gmStoresIdle();
+            living = studentActors().filter(a => !isDeadForGm(a));
+            seen.corpseDead = !living.some(a => a.id === corpse.id);
+            await S.setCaseMeta(chapter, { askedAt: Date.now() });
+            await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE planned autopsy", text: "SUITE stab wound, 23:10", note: "SUITE the GM's note" });
+            await gmStoresIdle();
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, rehearsal: true, victimIds: [] });
+            await wait(800);
+            seen.rehearsal = autopsies().length;
+            // a discovery stamped off this browser (`writer: false`): the primary sends it all the same
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: false, victimIds: [] });
+            await until(() => autopsies().length >= living.length, 6000).catch(() => {});
+            const sent = autopsies();
+            seen.to = sent.map(r => r.actor).sort();
+            seen.toCorpse = sent.some(r => r.actor === corpse.id);
+            seen.words = [...new Set(sent.map(r => `${r.item.name}|${TB.secretOf(r.item.uuid).gmNote ?? ""}`))];
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, victimIds: [] });
+            await wait(1200);
+            seen.again = autopsies().length - sent.length;
+        } finally {
+            for (const { item } of autopsies()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, "autopsy").catch(() => {});
+            await S.setCaseMeta(chapter, { askedAt: metaBefore.askedAt }).catch(() => {});
+            if (deathStore.has(corpse.id)) await deathStore.drop(corpse.id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ corpseDead: true, rehearsal: 0, to: living.map(a => a.id).sort(), toCorpse: false, words: ["SUITE planned autopsy|SUITE the GM's note"], again: 0 }),
+            "{the fixture student dead for the GMs; Autopsies after a rehearsal's hook; who got one after the discovery's; whether the dead one did; their name and GM note; more after a second body}");
     }],
 
     ["E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot", async () => {
@@ -28984,6 +29305,82 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await token?.delete().catch(() => {});
             await settle();
         }
+    }],
+
+    ["planned minigames: a node's planned Logic Dive set and Straw Poll question start from the console's node button with the zones' window filled in, nothing started until Start (the owner, 13.11.2026: \"mozliwosc zaplanowania logic dive i innych minigier class triala z poziomu planera sprawy\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:40. A schema node whose trial mode is a zone mode carries that
+         * mode's content (case-schema.mjs: `zoneQuestion`, `zoneA`, `zoneB`, `zoneThesis`, `diveSet`); the console's start
+         * button on the node (case-trial.mjs `startFromNode`) opens the zones' window (trial-zones-ui.mjs `openZonePicker`)
+         * on that mode with it filled in, and the GM still presses Start. The fixture is E73 C3's: a Class Trial and a hall
+         * of the suite's own with its two zones. Red at 6964661: the window opened empty, on its first mode for a Dive.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a Class Trial with participants");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const CT = await import("./case-trial.mjs");
+        const S = await import("./case-schema.mjs");
+        const R = await import("./rooms.mjs");
+        const { diveSetStore } = await import("./gm-stores.mjs");
+        must(typeof CT.startFromNode === "function", "case-trial.mjs has no startFromNode - the console's node button hands the window nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const SET = `suitePlan8${foundry.utils.randomID(6)}`;
+        const chapter = clock.chapter;
+        const picker = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-zone-picker"));
+        const read = {};
+        let hall = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            hall = await Scene.create({ name: "SUITE plan8 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+                { name: "SUITE Zone A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+                { name: "SUITE Zone B", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+            R.forgetSceneRoles();
+            await diveSetStore.patch(SET, { name: "SUITE planned dive", conclusion: null, chapter, made: Date.now(), by: game.user.id,
+                questions: [{ question: "SUITE was the door locked?", a: "Yes", b: "No", truth: "a" }], usedAt: null, endedAt: null, stoppedAt: null, outcome: null });
+            await S.setCaseNode(chapter, "deduction-suiteplan8d", { kind: "deduction", label: "SUITE dive node", mode: "dive", diveSet: SET });
+            await S.setCaseNode(chapter, "deduction-suiteplan8s", { kind: "deduction", label: "SUITE straw node", mode: "straw",
+                zoneQuestion: "SUITE who left first?", zoneA: "The cook", zoneB: "The guard" });
+            await gmStoresIdle();
+            await settle();
+            for (const [id, mode] of [["deduction-suiteplan8d", "dive"], ["deduction-suiteplan8s", "straw"]]) {
+                const opened = CT.startFromNode(chapter, id, "zones", mode).catch(() => null);
+                await until(() => picker()?.element, 5000).catch(() => {});
+                const root = picker()?.element;
+                const v = name => root?.querySelector(`[name="${name}"]`)?.value ?? null;
+                read[mode] = root ? { mode: root.querySelector('[name="mode"]:checked')?.value ?? null, set: v("setId"), question: v("question"), a: v("a"), b: v("b") } : null;
+                await picker()?.close().catch(() => {});
+                await Promise.race([opened, wait(3000)]);
+            }
+            read.floor = getSetting(SETTINGS.trialQueue)?.mode ?? null;
+            // the Map's fields of the Straw Poll node: its question shown and filled in, the Dive's set row hidden
+            const win = await drawnCaseWindow({ view: "map" });
+            win.app?.element?.querySelector('[data-drpg-node="deduction-suiteplan8s"]')?.click();
+            await until(() => win.field(`case:${chapter}:deduction-suiteplan8s:zoneQuestion`), 3000).catch(() => {});
+            const q = win.field(`case:${chapter}:deduction-suiteplan8s:zoneQuestion`), d = win.field(`case:${chapter}:deduction-suiteplan8s:diveSet`);
+            read.map = { question: q?.value ?? null, shown: Boolean(q) && !q.closest("[hidden]"), diveHidden: Boolean(d?.closest("[hidden]")) };
+            await win.close();
+        } finally {
+            for (const id of ["deduction-suiteplan8d", "deduction-suiteplan8s"]) await S.dropCaseNode(chapter, id).catch(() => {});
+            await diveSetStore.drop(SET).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
+            R.forgetSceneRoles();
+            if (hall) await hall.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            dive: { mode: "dive", set: SET, question: "", a: "", b: "" },
+            straw: { mode: "straw", set: SET, question: "SUITE who left first?", a: "The cook", b: "The guard" },
+            floor: null,
+            map: { question: "SUITE who left first?", shown: true, diveHidden: true }
+        }), "{per node: the window's mode, its set, question and answers; the floor after both windows were closed; the Map's Straw Poll node: its question, shown, and the Dive's set row hidden}");
     }],
 
     ["E73 C3, C4: a Straw Poll and a Logic Dive in the trial hall on the primary - the sides counted off the tokens, a Finding at two thirds, the stands given back, a right answer going on, a tie ending the set unrevealed, and no truth in the world's floor", async () => {

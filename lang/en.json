@@ -2465,6 +2465,8 @@
       "trackerScore": "{total} against {n}"
     },
     "Investigation": {
+      "plannedRoomGone": "The planned room “{room}” is not on this scene. Pick a room.",
+      "plannedRoom": "Planned room",
       "noRemnant": "- no Remnant -",
       "room": "Room",
       "visibility": "Visibility",
@@ -6393,6 +6395,11 @@
       "moveNote": "Move them into the ledger takes each trace's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
     },
     "CaseMap": {
+      "noDiveSet": "- no set -",
+      "diveSetGone": "(a set since deleted)",
+      "autopsySent": "Sent to the students.",
+      "autopsyWhen": "Goes to every living student when the body is found.",
+      "autopsyWentOut": {"one": "The planned Autopsy Truth Bullet went out to {n} student.", "other": "The planned Autopsy Truth Bullet went out to {n} students."},
       "viewSwitch": "Investigation view",
       "editLabel": "Fields of {name}",
       "toolsLabel": "Map tools",
@@ -6416,6 +6423,7 @@
         "remnant": "Remnant"
       },
       "state": {
+        "sent": "Sent",
         "held": "Found",
         "onMap": "On the map",
         "planned": "Planned"
@@ -6448,6 +6456,7 @@
       "sortLabel": "Order in a column",
       "moveUp": "Move up",
       "moveDown": "Move down",
+      "notSaved": "Not saved. Your text is still in the fields.",
       "field": {
         "label": "Name",
         "text": "Note for the GMs",
@@ -6466,7 +6475,7 @@
         "deduction": "New deduction",
         "counter": "New counter",
         "solution": "Solution",
-        "incident": "New Incident Remnant"
+        "incident": "New Remnant"
       },
       "reachYes": "{held}/{of}: the students can reach it",
       "reachNo": "{held}/{of}: not yet",
@@ -6491,13 +6500,13 @@
         "culpritOnly": "Only the culprit holds {ref}, an input of {node}, so it does not count.",
         "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares."
       },
-      "addIncident": "Add Incident Remnant",
+      "addIncident": "Add planned Remnant",
       "placeOnMap": "Place on the map",
       "showOnMap": "Show",
-      "waitingNone": "Every Incident Remnant the case plans is on the map.",
+      "waitingNone": "Every Remnant the case plans is on the map.",
       "waiting": {
-        "one": "The case waits for {n} Incident Remnant.",
-        "other": "The case waits for {n} Incident Remnants."
+        "one": "The case waits for {n} planned Remnant.",
+        "other": "The case waits for {n} planned Remnants."
       }
     },
     "CaseRealize": {

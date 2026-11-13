@@ -8395,7 +8395,8 @@ const INVARIANTS = [
             const plan = I.keyPlan();
             const ch = chapterPicked && Number.isInteger(n) ? n : getClock().chapter;
             const slots = ch === plan.chapter ? plan.entries.map((e, slot) => ({ ...e, slot })) : null;
-            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots });
+            // and the planned Autopsy's node, drawn for the chapter now running (13.11.2026)
+            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots, autopsy: ch === plan.chapter });
             const kept = frame().map((el, i) => Boolean(el) && el === first[i]);
             root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
             await until(() => view() === "table", 3000).catch(() => {});
@@ -9044,6 +9045,126 @@ const INVARIANTS = [
         }), stableJson({ marker: false, truthField: false, tie: [null, "tie", false], tieCardsNameMorning: false,
             skipped: [null, "skipped", false], second: "Q2 the time?", rule: true }),
             "{marker: the truth's marker in a floor; truthField: a truth field on a floor; tie: [no floor, its outcome, a record]; tie cards naming the true answer; skipped: [no floor, outcome, a record]; second: Q2 on the floor after a right answer; rule: world-secrets keeps truth out of trialQueue}");
+    }],
+    ["R4454 - a node's close reads the node's own fields and no Table field (perf-open's review for 1.2.111, section 2; 13.11.2026): saveOpenNode reads its editor through readCaseFields, which reads no Final Key Remnant field, and the window's Save reads the final fields beside readCaseFields(form)", async () => {
+        /*
+         * The review: investigation.mjs's node save read the open node through `readDashboardForm` with a stand-in
+         * element that answered every selector with the node, so the Final Key Remnant's fields, absent from a node, read
+         * as "" and "evident" on every node's close; harmless only because a final field is acted on when `finalRoom` is
+         * set. A later field whose empty value means "clear" would have been wiped by any node's close. Read in the
+         * source, since the node's save is not exported; tier 2's "planner autosave" runs it. Red at c598d3c: no
+         * readCaseFields.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
+        const node = fnSource(src, "saveOpenNode"), fields = fnSource(src, "readCaseFields"), dashboard = fnSource(src, "readDashboardForm");
+        equal(stableJson({
+            nodeReads: [/readCaseFields\(open\)/.test(node), /readDashboardForm/.test(node)],
+            fieldsFinal: (fields.match(/final\w*/gi) ?? []).length,
+            dashboard: [/finalRoom/.test(dashboard), /\.\.\.readCaseFields\(form\)/.test(dashboard)]
+        }), stableJson({ nodeReads: [true, false], fieldsFinal: 0, dashboard: [true, true] }),
+            "{the node's save: reads readCaseFields(open), reads readDashboardForm; final names in readCaseFields; Save's reader: reads finalRoom, spreads readCaseFields(form)}");
+    }],
+    ["R4453 - a planned Remnant has a type (the owner, 13.11.2026): Incident where none is written, Prep, Neutral, Faint or Tamper as planned, never Key, Final Truth or Autopsy; no other kind of node has one; the node's face names the type", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:00. case-schema.mjs PLANNED_TYPES and `caseNodeOf`'s `type`;
+         * case-map.mjs `kindLabel` on the planned node `graphOf` makes. Placing one is tier 2's "planned Remnants of every
+         * type". Red at 6ea98d9: no type on a row, every planned node an Incident Remnant.
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        const read = (kind, type) => S.caseNodeOf({ kind, label: "R4453", ...(type ? { type } : {}) })?.type ?? null;
+        const graph = S.graphOf ? S.graphOf({ chapter: 1, rows: { "incident-r4453": { kind: "incident", label: "R4453", type: "prep" } }, meta: null, traces: [], slots: [] }) : null;
+        const planned = graph?.nodes.find(n => n.id === "incident-r4453") ?? null;
+        equal(stableJson({
+            types: S.PLANNED_TYPES ?? null,
+            known: (S.PLANNED_TYPES ?? []).every(t => Boolean(REMNANT_TYPES[t])),
+            read: [read("incident"), read("incident", "prep"), read("incident", "key"), read("incident", "final"), read("incident", "autopsy"), read("deduction", "prep")],
+            face: planned ? M.kindLabel(planned) : null
+        }), stableJson({
+            types: ["incident", "prep", "neutral", "faint", "resolution"], known: true,
+            read: ["incident", "prep", "incident", "incident", "incident", null],
+            face: REMNANT_TYPES.prep.label
+        }), "{the types a plan offers; each a REMNANT_TYPES key; a row read with no type, prep, key, final, autopsy, and a deduction with prep; a planned prep node's face}");
+    }],
+    ["R4452 - the case map's columns stand 80 px apart, not 48 (the owner, 13.11.2026: \"Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko siebie\"): the evidence, each column of deductions and the solution, on the Map and in the trial console's schema", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:20: the gaps between columns, not rows. One gap for every column
+         * (case-view.mjs MAP_GEOMETRY.colGap, which `mapPlace` lays both the Map and the console's schema out with), 1.67x
+         * the 48 px it was. Measured in Chromium in the commit (STATUS): the widths and the fit at 1366x768. Red at 0f5591d.
+         */
+        const V = await import("./case-view.mjs");
+        const layout = { positions: { e: { col: 0, row: 0 }, d1: { col: 1, row: 0 }, d2: { col: 2, row: 0 }, s: { col: 3, row: 0 } }, gapAt: null, unrelated: [] };
+        const placed = V.mapPlace(layout);
+        const g = V.MAP_GEOMETRY;
+        equal(stableJson({ colGap: g.colGap, gaps: ["d1", "d2", "s"].map((id, i) => placed.at[id].x - (placed.at[["e", "d1", "d2"][i]].x + g.nodeW)), width: placed.width }),
+            stableJson({ colGap: 80, gaps: [80, 80, 80], width: 2 * g.pad + 4 * g.nodeW + 3 * 80 }),
+            "{MAP_GEOMETRY's column gap; the gaps evidence -> deduction -> deduction -> solution as mapPlace lays them; the canvas's width}");
+    }],
+    ["R4451 - a node's trial mode is never OBJECTION or Rebuttal (the owner, 13.11.2026: \"usuwamy objection i rebuttal\"; players start them, never a node): the planner's list keeps no mode and the seven a GM starts, and a node stored with either reads as no mode", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:30. `caseModes` is the list the node's select draws (after its
+         * "no trial mode") and the consistency check holds a node to; a stored `objection` or `rebuttal` is read as no mode
+         * (`caseNodeOf`), with no migration: the next Save of that node writes what its select then holds. Red at 91ec405.
+         */
+        const S = await import("./case-schema.mjs");
+        const stored = mode => S.caseNodeOf({ kind: "deduction", label: "R4451", mode })?.mode ?? null;
+        const graph = { chapter: 1, nodes: [{ id: "d1", kind: "deduction", label: "R4451", ...S.caseNodeOf({ kind: "deduction", label: "R4451", mode: "objection" }) }], edges: [], missing: [] };
+        equal(stableJson({
+            modes: S.caseModes(),
+            stored: ["objection", "rebuttal", "testimony", "dive"].map(stored),
+            badMode: S.checkCase(graph).filter(p => p.code === "badMode").length
+        }), stableJson({
+            modes: ["debate", "testimony", "panic", "closing", "straw", "dive", "scrum"],
+            stored: [null, null, "testimony", "dive"],
+            badMode: 0
+        }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
+    }],
+    ["R4455 - a tick written before ticks carried their trial is read as the running trial's when it was written in it (the planner's review for 1.2.111, minor 1; 13.11.2026): `caseTicks` reads a row with no `trial` as the current trial's where its `at` is at or after the record's `trialStartedAt`, and as an earlier trial's before it; a row that names its trial is read only in that trial; with no record every row with no `trial` reads, as before", async () => {
+        /*
+         * 1.2.108 and 1.2.109 write a tick as `{ ticked, by, at }` (case-schema.mjs `setCaseTick`), and the trial record's
+         * `trialStartedAt` is written at every trial's entry since 1.2.108 (trial-progress.mjs TRIAL_RECORD). So a Class
+         * Trial entered before the update and continued after it has a stamp, and its ticks none. The store's rows and
+         * the record are stood in for (`caseTickStore.entries`, `game.settings.get` for `trialProgress` alone) and put
+         * back. Red at 4bab7361: the two rows with no `trial` written in the running trial read unticked.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseTickStore } = await import("./gm-stores.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        must(game.user?.isGM, "caseTicks reads on a GM alone - this would measure nothing");
+        const CH = 9455, T = 1_000_000;
+        const rows = {
+            [`${CH}:legacyIn`]: { ticked: true, by: "g", at: T + 5 },
+            [`${CH}:legacyAtStart`]: { ticked: true, by: "g", at: T },
+            [`${CH}:legacyBefore`]: { ticked: true, by: "g", at: T - 5 },
+            [`${CH}:thisTrial`]: { ticked: true, by: "g", at: T + 9, trial: T },
+            [`${CH}:otherTrial`]: { ticked: true, by: "g", at: T + 9, trial: T - 400 },
+            [`${CH}:unticked`]: { ticked: false, by: "g", at: T + 9, trial: T },
+            [`${CH + 1}:elsewhere`]: { ticked: true, by: "g", at: T + 9 }
+        };
+        const ownEntries = Object.prototype.hasOwnProperty.call(caseTickStore, "entries"), realEntries = caseTickStore.entries;
+        const realGet = game.settings.get;
+        let record = { chapter: CH, trialStartedAt: T };
+        const read = {};
+        try {
+            caseTickStore.entries = () => rows;
+            game.settings.get = function (scope, key, ...rest) {
+                return key === SETTINGS.trialProgress ? record : realGet.call(this, scope, key, ...rest);
+            };
+            read.inTrial = Object.keys(S.caseTicks(CH)).sort();
+            record = { chapter: CH, trialStartedAt: null };
+            read.noStamp = Object.keys(S.caseTicks(CH)).sort();
+            record = { chapter: CH + 1, trialStartedAt: T };
+            read.otherChapter = Object.keys(S.caseTicks(CH)).sort();
+        } finally {
+            if (ownEntries) caseTickStore.entries = realEntries; else delete caseTickStore.entries;
+            game.settings.get = realGet;
+        }
+        equal(stableJson(read), stableJson({
+            inTrial: ["legacyAtStart", "legacyIn", "thisTrial"],
+            noStamp: ["legacyAtStart", "legacyBefore", "legacyIn"],
+            otherChapter: ["legacyAtStart", "legacyBefore", "legacyIn"]
+        }), "{the ticks read in the running trial; with a record of no stamp; with the record another chapter's}");
     }],
     ["R3905 - the zone modes' census (E73 C5; the plan's 'every mode has a panel, a name and a start button'; the owner's 09.11 census): Straw Poll, Logic Dive and Scrum Debate are modes of floor-machine.mjs MODES, each with a MODE_RULES row of family \"zones\" and no Objection, a MODE_STARTS row naming the console's one zones action, a row of trial-zones-ui.mjs ZONE_PANELS with its panel and name, and the name in both languages; E99's case schema lists them (`caseModes`)", async () => {
         /* E73 C5, 12.11.2026. Red at 4077664: no zone modes. */
@@ -39220,8 +39341,9 @@ const INVARIANTS = [
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 // E64-inv (the owner's pick of the Investigation review, 12.11.2026): no evidence log, no destructive row (R3967).
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", close: "cancel" },
-                ["save", "newTrace", "autopsy", "bodyFound", "realize", "close"]],
+                // Cancel's action "discard" since the planner's review for 1.2.111 (13.11.2026): "close" is ApplicationV2's own
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", discard: "cancel" },
+                ["save", "newTrace", "autopsy", "bodyFound", "realize", "discard"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */
@@ -48441,7 +48563,8 @@ const INVARIANTS = [
             traceNames: ["img.K", "name.K", "text.K", "analysis.K", "type.K", "vis.K", "faint.K", "crime.K", "reinf.K"],
             keys: { kit: true, cols: ["scale", "name", "text", "analysis", "note", "status"],
                 heads: ["DRPG.Investigation.difficulty", "DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.keyNoteLabel", "DRPG.Investigation.keyStatus"].map(L) },
-            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "place:0"]
+            // keyroom (13.11.2026): a slot's planned room, beside Place while it is not on the map
+            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "keyroom:0", "place:0"]
         }), "{who: WHO HAS WHAT on the drawn dashboard [a dataTable, its columns' keys, its heads' words, each head a number head, the Breakdown head's tooltip]; traces, keys: "
             + "the Traces tab's and the planner's tables [a dataTable, columns, heads]; traceNames, keyNames: their fields' names (a trace's row key as K)}");
     }],

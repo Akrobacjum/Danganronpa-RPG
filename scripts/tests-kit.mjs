@@ -16,6 +16,7 @@ import { studentActors, isMonokuma } from "./monokuma.mjs";
 import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import { isPrimaryGm } from "./utils.mjs";
+import { autopsyIssued } from "./investigation.mjs";
 import {
     lf, stripComments, lineAt, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES, TEST_FILE
@@ -705,6 +706,12 @@ const world = Object.freeze({
     settingRegistered(full) {
         askedOfWorld("world.settingRegistered");
         return probe("world.settingRegistered", game.settings.settings.has(full), `${full} is not registered by what is installed here`);
+    },
+    /* No student holds `chapter`'s Autopsy Truth Bullet of this season, by the GMs' answer keys - the reading the planned
+       Autopsy is held to (investigation.mjs `autopsyIssued`; the planner's review for 1.2.111, 13.11.2026). */
+    noAutopsyHeld(chapter) {
+        askedOfWorld("world.noAutopsyHeld");
+        return probe("world.noAutopsyHeld", !autopsyIssued(chapter), `a student already holds chapter ${chapter}'s Autopsy Truth Bullet`);
     }
 });
 

@@ -29,8 +29,12 @@
  * is its least height (so the gap between two nodes of a column is `pitch - nodeH`), the margin around the graph and the
  * room the column heads take above it. Read by `mapPlace` and by the stylesheet's node rule (components.css "THE CASE
  * MAP", whose least width and height and open width are these three numbers).
+ *
+ * THE COLUMNS 80 PX APART (the owner, 13.11.2026: "Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko
+ * siebie. Chodzi o odstep miedzy kolumnami"): 48 px until then. Measured in Chromium at 1366x768 (STATUS): the Map's
+ * three columns 840 -> 904 px in its 972 px viewport, with a node open 952 -> 1016 px (dragged to, as a tall node is).
  */
-export const MAP_GEOMETRY = Object.freeze({ nodeW: 240, nodeH: 54, openW: 352, colGap: 48, pitch: 66, pad: 12, head: 28 });
+export const MAP_GEOMETRY = Object.freeze({ nodeW: 240, nodeH: 54, openW: 352, colGap: 80, pitch: 66, pad: 12, head: 28 });
 
 /** A node's size from `sizes` (a Map or an object of id to `{ w, h }`); a size not read, or read as 0 (jsdom), is the least. */
 function sizeOf(sizes, id, g) {

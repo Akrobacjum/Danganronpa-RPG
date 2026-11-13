@@ -437,3 +437,164 @@ replace the node entirely.
   (f0b4f9b) and after: 24 pages each, 0 failing.
 - GM handbook (EN, PL): the fields open in the node's place, and Close.
 - Shots, before and after, 1366x768, both themes, PL then EN: https://claude.ai/artifact/2hGySDAeJ8vJTxCW5USYbd.
+
+## A node saves when its editing closes (12.11.2026; the owner through the coordinator, for 1.2.111)
+
+The owner: "Moduly przy edycji nie powinny czekac na save, tylko zapisywac sie po zamknieciu edycji".
+
+- investigation.mjs `saveOpenNode`: the open node's changed fields, read as Save reads the form but only inside that
+  node's fieldset, are written by `applyDashboardSave` (quiet: no "saved" toast; a refused field is told as Save tells
+  it) on the node's Close or Escape, a click on empty space, a pick of another node, the switch to the Table, and when
+  the window closes by its X, Escape or a footer button other than Save. The writes run one after another. A written
+  field takes its value as drawn (live.mjs `keepDrawn`), so a later Save does not hand it on again.
+- Red first: tier 2 "planner autosave: ..." - a Remnant's name changed on the Map, Close without Save: stored; changed
+  again, the window closed with the node open: stored. Red at cebe4c6 (both names stayed as drawn).
+- GM handbook (EN, PL): the fields save on close, no Save needed.
+
+Defaults, as built (the owner may revise):
+
+| Question | Default |
+| --- | --- |
+| A Save button in the node's fields | none; the footer's Save stays for the Table |
+| When it writes | the node's Close, Escape, a click on empty space, a pick of another node, the switch to the Table, the window closed (X, Escape, a footer button) |
+| Per keystroke | no: one write per close |
+| An empty or invalid field | written as `applyDashboardSave` takes it (the same rules as Save); nothing typed is lost |
+| A write that fails | one line, "Not saved. Your text is still in the fields." / "Nie zapisano. Wpisany tekst został w polach."; the fields keep the text and stay the GM's change |
+| Escape | saves, like Close (no earlier ruling gives Escape a "discard" meaning) |
+
+## No OBJECTION or Rebuttal on a node (13.11.2026; the owner through the coordinator: "usuwamy objection i rebuttal")
+
+- case-schema.mjs: `caseModes` (the node's select after "no trial mode", and the consistency check's list) leaves out
+  `objection` and `rebuttal`: the list is Nonstop Debate, Testimony, Panic Round, Closing Argument, Straw Poll, Logic
+  Dive, Scrum Debate. A node stored with either reads as no mode (`caseNodeOf`); nothing is rewritten, and the node's
+  next Save writes what its select then holds (only if the GM changes it, as every field).
+- R4451 (tier 1), red at 91ec405; R3373 (tier 0) reads the shorter list.
+- GM handbook (EN, PL), the schema at the trial: the sentence about OBJECTION and Rebuttal having no start button is gone.
+
+## The case map's columns farther apart (13.11.2026; the owner through the coordinator: "Wnioski ... sa za blisko bulletow i za blisko siebie. Chodzi o odstep miedzy kolumnami")
+
+- case-view.mjs `MAP_GEOMETRY.colGap` 48 -> 80 px (1.67x): every gap between columns (evidence, each deduction column,
+  the solution), on the Map and in the trial console's schema, which `mapPlace` lays out alike. Rows unchanged. A
+  bracket between two nodes of one column stands `colGap / 4` left of them, 20 px now (12 before).
+- R4452 (tier 1), red at 0f5591d; R3651 reads the bracket from the geometry.
+- Measured, case-map sweep, Chromium, 1366x768 (PL; EN the same widths), 32 pages, 0 failing before and after:
+
+| Where | Theme | Before | After |
+| --- | --- | --- | --- |
+| Map, nothing open (viewport 972 px) | both | canvas 840 px | 904 px, fits |
+| Map, a node open | both | canvas 952 px | 1016 px: 44 px past the viewport, reached by dragging (as the open node's height already is) |
+| Console schema, no mode (viewport 1242 px) | both | 840 px, fit 0.753 glass / 1 legacy | 904 px, the same fits |
+| Console schema, a debate (viewport 667 px) | glass | fit 0.601, smallest text 12.6 px | fit 0.601, 12.6 px (the height decides) |
+| Console schema, a debate | legacy | fit 0.794, 8.7 px | fit 0.738, 8.1 px |
+
+- Monokuma Legacy's fitted text in a debate goes from 8.7 to 8.1 px; it is outside the 11 px rule (glass only), and
+  100% zoom with dragging reads it, as the owner accepted for 8.7.
+
+## Planned Remnants of other types (13.11.2026; the owner through the coordinator: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz incident i keys")
+
+- The planned node (case-schema.mjs kind "incident", E97 C12) carries a Remnant type, `PLANNED_TYPES`: Incident (the
+  default, and every row written before), Prep, Neutral, Faint, Tamper (`resolution`). Its fields on the Map have a
+  Type select beside the room; the face names the type; **Place on the map** opens New Remnant filled in from the plan
+  with that type (tied to the murder for an Incident Remnant, as before; for the others the window's own default, "-").
+  New Remnant asks the rest (author, difficulty, analysis, note, reinforced) as it does in play.
+- Left out, and why: Key Remnant (the Key plan's slots plan it), Final Truth Remnant (the Final Truth form in the Map's
+  overview places it), Autopsy Remnant (handed over from the GM panel and never found: Observe has no number for it,
+  and New Remnant does not offer it).
+- Texts: the add button "Add planned Remnant" / "Dodaj zaplanowany Remnant"; a new one "New Remnant" / "Nowy Remnant";
+  the GM panel's waiting line counts planned Remnants. GM handbook (EN, PL): the Map's row and the GM panel's list.
+- Red first: tier 2 "planned Remnants of every type: ..." (a planned Prep placed as a Prep Remnant with the plan's
+  name, words and room; red at 6ea98d9: the window opened as an Incident Remnant) and R4453 (tier 1, red at 6ea98d9).
+  R3373 reads the node's new `type` field.
+
+## A planned location for a Remnant not yet placed (13.11.2026; the owner through the coordinator: "opcje zaplanowania lokacji niepostawionego bulleta")
+
+- A Key plan slot takes a room (`room`, the GMs' Key plan store): a room picker beside its **Place**, in the Table's Key
+  tab and on the slot's node on the Map, drawn while the slot is not on the map (a placed slot shows none: its Remnant
+  has its real room). The realization's preview and the Table's Place start on it, and Place puts the Key Remnant in it.
+  A planned room the scene no longer has is said in one line ("The planned room "X" is not on this scene. Pick a room." /
+  "Zaplanowanego pokoju „X" nie ma na tej scenie. Wybierz pokój."), and the window starts as before (its first room; the
+  preview's "leave it"). The map's slot node reads the room (`graphOf`).
+- A planned Remnant (E97 C12's planned node) already had a room; its Place on the map says the same line for a room
+  gone.
+- Two fixes found on the way, both in this commit: the Map drew no fields for a planned Remnant (it is evidence, and
+  only non-evidence nodes got the schema's editor), so its room, its Type (the commit before this one) and its Place on
+  the map were reached only from the GM panel's list; and utils.mjs `placeRoomOptions` marked no room selected when
+  given a room and no scene, so a planned Remnant's room read "- leave it -".
+- Red first: tier 2 "planned location: ..." (stored, the preview's and Place's first room, placed there, a room gone
+  starting on the first room with its line, a planned Remnant's room shown), red at 9267b1d.
+- GM handbook (EN, PL): the realization's paragraph.
+
+## A planned Autopsy, sent at the body with no GM click (13.11.2026; the owner through the coordinator: "Niech dziala tak samo jak key remnanty po prostu, tylko ze gracze dostaja od razu po odkryciu ciala. Bez kliku GMa")
+
+- Like a Key Remnant slot: the Map's evidence column always has an Autopsy Truth Bullet node (case-schema.mjs kind
+  "autopsy", one a chapter, `AUTOPSY_NODE`), drawn empty until the GM writes it. Its fields are the GM panel's Autopsy
+  window's: name, words for the players, the GM's note. It saves on close like every node. A deduction may rest on it,
+  and its holders are the students holding this chapter's Autopsy (`caseReach`).
+- Sent: on the primary GM's browser, from the discovery's own hook (chapter.mjs `BODY_ANNOUNCED_HOOK`, `writer`), by
+  case-realize.mjs `sendPlannedAutopsy`: to every student not dead (the hand window's own default), by the same road
+  (truth-bullets.mjs `issueAutopsy`: the answer key and the note stay the GMs'), and the GM is told how many. The suite's
+  rehearsal stamps send nothing.
+- Defaults as built, and where they differ from the brief:
+  - Once a chapter, not once a body: the case plans one Autopsy, and an Autopsy of the chapter already held (sent by
+    hand, or at an earlier body; `autopsyIssued`, moved from gm-panel.mjs to investigation.mjs) sends nothing.
+  - "No GM connected at the discovery": a discovery runs on the primary GM's browser (`runDiscovery`), so there is no
+    discovery with no GM to send it; nothing waits for a later connection. A plan written after the body was found is
+    not sent by itself; **Issue Autopsy Truth Bullet** opens filled in from it.
+  - The node shows "Planned" until sent, "Sent" after; its fields stay as what was planned.
+  - A planned Autopsy with neither a name nor words is not sent.
+- Red first: tier 2 "planned Autopsy: ..." (a rehearsal sends nothing; the discovery sends to every living student with
+  the name and the note; a second body sends nothing more), red at a8650af. R3373 reads the kind and the node's `note`;
+  R376 reads `autopsyIssued` in its new file; R2067 reads the Key row's `keyroom` field (item 5's, missed in its
+  commit: I ran only the named tests there).
+- GM handbook (EN, PL): the paragraph after the realization.
+- Scenario 62-investigation has no body discovery (checked: no `runDiscovery`, `announceBody` or the hook in it); 65-season,
+  66-rooms and 72-canary have one, and none of them is extended here. The send at a real table's discovery, with players'
+  browsers receiving the bullets, is for the live list.
+
+## Planned minigames (13.11.2026; the owner through the coordinator: "Dodajmy mozliwosc zaplanowania logic dive i innych minigier class triala z poziomu planera sprawy")
+
+- A schema node (deduction, counter, solution) whose trial mode is a zone mode plans its content in its own fields,
+  shown for that mode only (a change of the mode's select shows the mode's rows): Straw Poll and Scrum Debate the
+  question and the two answers (Scrum the thesis too), Logic Dive a saved set (the GMs' Logic Dive sets, their truths
+  there) with the sets' editor a button away. case-schema.mjs `ZONE_FIELDS` on the node row, in the GMs' case store:
+  never in a player's data. Saved on the node's close, as every node field (item 1).
+- The trial console's start button on that node (case-trial.mjs `startFromNode`) opens the **Hall zones** window
+  (trial-zones-ui.mjs `openZonePicker`) on the node's mode, filled in; the GM can still edit it and presses Start.
+  Nothing starts without that press (default: "prefilled", as the brief preferred).
+- A node's set deleted later reads "(a set since deleted)" in its select; the window then opens on its first set.
+- Red first: tier 2 "planned minigames: ..." (a planned Dive and a planned Straw Poll fill the window, nothing started;
+  the Map's Straw Poll node shows its question and hides the Dive's set), red at 6964661 (no `startFromNode`; the window
+  opened empty). R3373 reads the node's new fields.
+- GM handbook (EN, PL): the Map's paragraph.
+- The **Hall zones** window's fields named (13.11, b77190a's whole tier 2): its question, answers, thesis and set had
+  no name a screen reader could read (formGrid's label has no `for`), and "every control in the module's own chrome
+  has a name to be read out" failed once "planned minigames" had opened the window with a set in the store. Each field
+  now carries its row's label as `aria-label`. Red, then green: `--tier 2 --only "planned minigames" --only "every
+  control in the module's own chrome"` (`input name="question"` and `select name="setId"` reported, then none).
+- Seen beside it and not of this line: a run of tiers 0-2 in one process also reports R3551's character sheet input
+  (`system.traits.instinct.value`, tier 1) to that test, at 91ec405 as well (`--only R3551 --only "every control ..."`).
+  CI runs tier 2 in shards 2-8, apart from tier 1, so it does not see that input.
+- Not done here: shots. The Map's node fields for a zone mode and the filled window are drawn in the harness, and are
+  for the shots page with items 3-5.
+
+## perf-open's review for 1.2.111, section 2 (13.11.2026; the coordinator's six points; docs/dev/PERF-OPEN/REVIEW-111.md on the perf-open-b line, 0fafef1)
+
+- (1) The planned Autopsy is sent on the primary GM alone, not on the discovery's writer (case-realize.mjs
+  `registerCaseAsk`): every discovery stamps on the primary today, and one stamped off it would have gone out from
+  nobody. `sending` and `autopsyIssued` keep it once. Tier 2 "planned Autopsy" now hears the hook with `writer: false`:
+  red at c598d3c (nothing went out on it, the later `writer: true` call sent 4), green after.
+- (2) A node's close reads its editor through `readCaseFields(open)`, the traces', schema's and Key slots' part of the
+  reader, which reads no Final Key Remnant field; `readDashboardForm` is the final fields plus `readCaseFields(form)`.
+  The stand-in element that answered every selector with the node is gone. R4454 (tier 1, read in the source): red at
+  c598d3c (no readCaseFields), green after.
+- (3) **Cancel is a discard** (the coordinator's default; for the owner to confirm): its answer "close" writes neither the
+  open node nor the Table's changed fields. Not `if (!action)` alone, as the review's patch read: the footer's other
+  buttons (New trace, Autopsy, Log, Body found, Realize, Clear Faint, Sweep, Undo) also answer a string and reopen the
+  window, and they keep writing the open node, as "every other close keeps autosaving" asks. GM handbook EN/PL: one
+  sentence.
+- (4) Tier 2 "planner autosave: a node's write that fails ...": the case store made to throw, the node closed: the
+  "Not saved" error told, the store unchanged, the field still holding the text; the store given back, the next close
+  writes it. This half passed at c598d3c too (the review's "likely" holds); its Cancel half was red there.
+- (5) The Autopsy test asks `needs(env.primaryGm())`, a skip on a second GM.
+- (6) `DRPG.CaseMap.autopsySent`: "Sent to the students." / "Wysłany uczniom." (DB24).
+

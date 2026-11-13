@@ -1532,7 +1532,9 @@ export const caseSchemaStore = defineGmStore({
 /**
  * THE CASE'S TICKS AT A TRIAL (E99 C3; the owner's goal for E99: "a box to tick on every conclusion, counter and
  * solution ... the module only hints, the GM decides"; Q-E99-8: every GM, an Assistant too). A row per chapter and
- * schema node, `${chapter}:${nodeId}` - `{ ticked, by, at }`: ticked at the trial or not, by which GM, when. A GM store,
+ * schema node, `${chapter}:${nodeId}` - `{ ticked, by, at, trial }`: ticked at the trial or not, by which GM, when, and
+ * in which trial (its record's `trialStartedAt`, since E99 next; a row from before carries none, case-schema.mjs
+ * `caseTicks` reads it by its `at`). A GM store,
  * so no player holds it (the ticks are the trial's reading of the solution); two GMs ticking two nodes both keep theirs,
  * one node ticked and unticked by two at once keeps the later stamp. Not in the case's backup (the trial's state, as
  * the floor's), cut with the trial's group.

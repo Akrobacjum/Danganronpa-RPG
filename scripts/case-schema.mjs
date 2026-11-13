@@ -27,7 +27,20 @@ import { MODULE_ID } from "./config.mjs";
 
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
-export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident"]);
+export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident", "autopsy"]);
+/* THE PLANNED AUTOPSY (the owner, 13.11.2026: "Dodajmy tez opcje zaplanowania autopsy truth bullet zamiast wysylania go od
+   razu. Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa"): one row a
+   chapter, kind "autopsy", under this id - its name (`label`), the players' words (`text`) and the GM's note (`note`).
+   case-realize.mjs `sendPlannedAutopsy` sends it at the body's discovery. */
+export const AUTOPSY_NODE = "autopsy";
+/** The kinds a trial mode stands on, and a planned minigame's fields on them (13.11.2026, `caseNodeOf`). */
+const SCHEMA_KINDS = Object.freeze(["deduction", "counter", "solution"]);
+export const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
+/* A PLANNED REMNANT'S TYPE (the owner, 13.11.2026: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz
+   incident i keys"): an "incident" row plans a Remnant of one of these, Incident by default (every row before this).
+   Not a Key Remnant (the Key plan's slots plan those), a Final Truth Remnant (the Final Truth form places it) or an
+   Autopsy Remnant (handed over from the GM panel, never found: Observe has no number for it, New Remnant offers none). */
+export const PLANNED_TYPES = Object.freeze(["incident", "prep", "neutral", "faint", "resolution"]);
 /** The column orders (STAGE C4): by the GM's arrows, by kind, by room, by state, and with the fewest crossings. */
 export const CASE_SORTS = Object.freeze(["manual", "kind", "room", "state", "uncrossed"]);
 const META = "meta";
@@ -44,9 +57,15 @@ export function newCaseNodeId(kind, random = () => foundry.utils.randomID(10)) {
     return `${CASE_KINDS.includes(kind) ? kind : "node"}-${random()}`;
 }
 
-/** The trial's modes a node may name (E99 draws one minigame per node): floor-machine.mjs `MODES`, as it lists them. */
+/* NOT A NODE'S (the owner, 13.11.2026: "usuwamy objection i rebuttal"): a player starts an Objection and its Rebuttal
+   follows, so no node plans one; a node stored with either reads as no mode (`caseNodeOf`), and its next Save writes what
+   its select then holds. */
+const PLAYER_MODES = Object.freeze([MODES.objection, MODES.rebuttal]);
+
+/** The trial's modes a node may name (E99 draws one minigame per node): floor-machine.mjs `MODES`, as it lists them,
+ *  less the two a player starts. */
 export function caseModes() {
-    return Object.values(MODES);
+    return Object.values(MODES).filter(m => !PLAYER_MODES.includes(m));
 }
 
 const ids = list => [...new Set((Array.isArray(list) ? list : []).filter(v => typeof v === "string" && v))];
@@ -54,7 +73,8 @@ const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
 /**
  * A schema row as the map reads it, or null for a row of no kind of `CASE_KINDS`. Every field has its empty value; a
- * `mode` is kept as written, known or not (C8's consistency check names one `caseModes` lacks). Pure.
+ * `mode` is kept as written, known or not (C8's consistency check names one `caseModes` lacks), but for an Objection or a
+ * Rebuttal, read as none (13.11.2026). Pure.
  */
 export function caseNodeOf(raw) {
     if (!isPlain(raw) || !CASE_KINDS.includes(raw.kind)) return null;
@@ -64,12 +84,22 @@ export function caseNodeOf(raw) {
         text: typeof raw.text === "string" ? raw.text : "",
         inputs: ids(raw.inputs),
         refutes: ids(raw.refutes),
-        mode: typeof raw.mode === "string" && raw.mode ? raw.mode : null,
+        mode: typeof raw.mode === "string" && raw.mode && !PLAYER_MODES.includes(raw.mode) ? raw.mode : null,
         order: Number.isFinite(raw.order) ? raw.order : null,
         made: typeof raw.made === "string" && raw.made ? raw.made : null,
         // E97 C12: a planned Incident Remnant's room, and the Remnant that stands for it once placed
         room: typeof raw.room === "string" && raw.room ? raw.room : null,
-        trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null
+        trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null,
+        // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
+        type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
+        // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; no other kind has one
+        note: raw.kind === "autopsy" ? (typeof raw.note === "string" ? raw.note : "") : null,
+        /* THE PLANNED MINIGAME (the owner, 13.11.2026: "mozliwosc zaplanowania logic dive i innych minigier class triala z
+           poziomu planera sprawy"): what the zones' window asks for the node's zone mode - a Straw Poll's or a Scrum Debate's
+           question and two answers (a Scrum's thesis too), a Logic Dive's saved set (the GMs' `diveSetStore`, its truths
+           there). The GMs' store, as every row; the console's node button fills the window in (case-trial.mjs
+           `startFromNode`). Strings on the three kinds a trial mode stands on, null on the rest. */
+        ...Object.fromEntries(ZONE_FIELDS.map(f => [f, SCHEMA_KINDS.includes(raw.kind) ? (typeof raw[f] === "string" ? raw[f] : "") : null]))
     };
 }
 
@@ -97,7 +127,7 @@ export function caseMetaOf(raw) {
  * schema's nodes in row order. Edges: an input to its node ("input"), a counter to what it refutes ("refutes").
  * A reference to no node is named in `missing`, never dropped. Answers `{ chapter, meta, nodes, edges, missing }`.
  */
-export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], slots = [] } = {}) {
+export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], slots = [], autopsy = false } = {}) {
     const nodes = [];
     const alias = new Map();
     const bySlot = new Map();
@@ -120,7 +150,7 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
     for (const s of slots ?? []) {
         if (!Number.isInteger(s?.slot) || placed.has(s.slot)) continue;
         nodes.push({ id: `${SLOT}${s.slot}`, kind: "key", evidence: true, planned: true, slot: s.slot, trace: null, type: "key",
-            label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null,
+            label: s.name || s.text || "", tied: true, faint: false, room: s.room || s.createIn || null, chapter, foundAt: null, scale: s.scale ?? null,
             text: s.name && typeof s.text === "string" ? s.text : "" });
     }
     const traceKeys = new Set(nodes.filter(n => n.trace).map(n => n.trace));
@@ -136,12 +166,19 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
                 if (t) t.incident = id;
                 continue;
             }
-            nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: "incident", label: node.label,
-                tied: true, faint: false, room: node.room, chapter, foundAt: null, incident: id, text: node.text });
+            nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: node.type, label: node.label,
+                tied: node.type === "incident", faint: node.type === "faint", room: node.room, chapter, foundAt: null, incident: id, text: node.text });
+            continue;
+        }
+        // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)
+        if (node.kind === "autopsy") {
+            if (id !== AUTOPSY_NODE) continue;
+            nodes.push(autopsyNode(chapter, node));
             continue;
         }
         nodes.push({ id, evidence: false, planned: false, ...node });
     }
+    if (autopsy && !nodes.some(n => n.id === AUTOPSY_NODE)) nodes.push(autopsyNode(chapter));
     const known = new Set(nodes.map(n => n.id));
     const edges = [];
     const missing = [];
@@ -184,7 +221,7 @@ export function caseRows(chapter) {
  * with `chapters: "all"`), the Key plan's slots of the chapter that a GM wrote (or `slots`, as given), the schema's rows. `{}`-shaped and
  * empty on any other browser, which holds none of the three.
  */
-export function caseGraph(chapter = getClock().chapter, { chapters = "this", slots: given = null } = {}) {
+export function caseGraph(chapter = getClock().chapter, { chapters = "this", slots: given = null, autopsy = false } = {}) {
     if (!game.user?.isGM) return graphOf({ chapter });
     const traces = [];
     for (const scene of game.scenes ?? []) {
@@ -205,10 +242,18 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
     const { rows, meta } = caseRows(chapter);
     /* `slots` given (E97 C6): the Key plan's every slot as investigation.mjs `keyPlan` reads it, a slot no GM wrote among
        them, so the Map has a node - and the Table's fields - for each slot the Table draws a row for. */
-    return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots });
+    return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots, autopsy });
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace"]);
+/** The planned Autopsy's evidence node, from its row or, unwritten, empty (the Map draws it as the Key plan's slots are). */
+function autopsyNode(chapter, node = null) {
+    return { id: AUTOPSY_NODE, kind: "autopsy", evidence: true, planned: true, slot: null, trace: null, type: "autopsy",
+        label: node?.label ?? "", text: node?.text ?? "", note: node?.note ?? "", tied: true, faint: false, room: null, chapter,
+        foundAt: null, written: Boolean(node), inputs: [], refutes: [], mode: null };
+}
+
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note",
+    "zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
 const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -353,7 +398,18 @@ export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), 
  * second Class Trial in the chapter starts with no ticks and the first trial's stay where they were, unread, until the
  * season's reset cuts the store. Read off the record's world setting here, not through trial-progress.mjs, which this
  * leaf does not import. A row ticked before this stamp existed carries none and reads under a record with none.
+ *
+ * AND A ROW WITH NO STAMP, WRITTEN IN THE RUNNING TRIAL (the planner's review for 1.2.111, minor 1; 13.11.2026; R4455).
+ * 1.2.108 and 1.2.109 wrote `{ ticked, by, at }` while their record already stamped every trial's entry, so a trial
+ * entered before the update and continued after it read every tick unticked. A row with no `trial` is read as the
+ * running trial's where its `at` is at or after `trialStartedAt`, an earlier trial's before it; so a second trial still
+ * starts with none. `at` is the ticking GM's clock and the stamp the server's (`serverNow`): a tick in the first moments
+ * of a trial can read either way by their difference.
  */
+function tickTrialOf(row, trial) {
+    if (row?.trial !== undefined && row?.trial !== null) return row.trial;
+    return trial !== null && Number(row?.at) >= Number(trial) ? trial : null;
+}
 function trialStamp(chapter) {
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
@@ -370,7 +426,7 @@ export function caseTicks(chapter) {
     const trial = trialStamp(chapter);
     const out = {};
     for (const [key, row] of Object.entries(caseTickStore.entries() ?? {})) {
-        if (key.startsWith(prefix) && row?.ticked === true && (row.trial ?? null) === trial) out[key.slice(prefix.length)] = true;
+        if (key.startsWith(prefix) && row?.ticked === true && tickTrialOf(row, trial) === trial) out[key.slice(prefix.length)] = true;
     }
     return out;
 }
