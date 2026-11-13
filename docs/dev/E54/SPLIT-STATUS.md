@@ -229,7 +229,7 @@ Then tools/e54/glass.json (the plan's G1 and G5 in one cut: split.mjs refuses a 
 | repoint | 30 rewrites, the manifest's four patches (R509's stand-in sources, R4805's reading), 78 references left |
 | quick, tiers 0-1 on the repoint | green; 1410 passed, 0 failed, 16 skipped, 0 red |
 | audit/glass-golden.mjs, the cut against the tree before it | 276 cuts over 23 sizes: SAME, byte for byte |
-| `node audit/glass-sweep.mjs` | red on one line of 46 sizes with glass: S12-95's control (NOT PATCHED; it rewrote glass.mjs's response, and the branch moved). Fixed by bf036b2a; that check at 1920x1080 then read green before and after the cut. The whole sweep was not run again after the fix |
+| `node audit/glass-sweep.mjs` | red on one line of 46 sizes with glass: S12-95's control (NOT PATCHED; it rewrote glass.mjs's response, and the branch moved). Fixed by bf036b2a; that check at 1920x1080 then read green before and after the cut, and the whole sweep again with the fix: green, 2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing |
 | scenarios 74-room-tile, 75-voice-tile | 44/44 and 41/41 checks |
 
 What the glass manifest decides, and why: railBox, resolveAcc and accProbe read the page and stay; centreOrder stands
