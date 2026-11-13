@@ -258,7 +258,7 @@ for (const t of targets) {
    in its new file, and a row naming the whole source ("scripts/<source>:*") names each new file too, so the screen and
    its readers stay as they were. docs/dev/text-*.json's facts name a file and a word (`fn`) the file must spell: a fact
    on the source whose word only a new file spells now names that file - the one declaring it as a top-level name, or
-   else the first in the manifest's order that spells it; a word no file of the family spells refuses. */
+   else the one that spells it most often (ties: the manifest's order); a word no file of the family spells refuses. */
 const refEdits = new Map();   // file -> new text
 {
     const srcName = manifest.source;
@@ -294,7 +294,9 @@ const refEdits = new Map();   // file -> new text
         facts.forEach((f, k) => {
             if (spells(facadeText, f.fn)) return;
             const owner = declared.get(f.fn)?.group;
-            const pick = owner && owner !== "facade" ? owner : targets.map(t => t.file).find(file => spells(outputs.get(file), f.fn));
+            const times = file => (outputs.get(file).match(new RegExp(`(^|[^\\w$])${f.fn.replace(/[$]/g, "\\$")}(?=[^\\w$]|$)`, "g")) ?? []).length;
+            const most = targets.map(t => t.file).filter(file => spells(outputs.get(file), f.fn)).sort((x, y) => times(y) - times(x))[0];
+            const pick = owner && owner !== "facade" ? owner : most;
             if (!pick) { refuse(`${rel2}: a fact on ${srcName} names "${f.fn}", which no file of the family spells`); return; }
             const pos = at[k] + shift;
             const next = `"file": "${pick}"`;
