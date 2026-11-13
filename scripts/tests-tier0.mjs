@@ -20654,8 +20654,9 @@ const REGRESSIONS = [
             // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
             // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
             // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
-            counts: [19, 11, 38], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 38, the clock's entry does not "
+            // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
+            counts: [19, 11, 39], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 39, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
