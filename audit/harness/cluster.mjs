@@ -1068,6 +1068,28 @@ async function main() {
         try { canaryResult = await canary.finish(results); }
         catch (err) { check("the canary finished its scan", false, err.stack); }
     }
+    /* THE STATE'S INVARIANTS, AFTER EVERY SCENARIO (E40 C3, 13.11.2026; plan E40 item 2: "game.drpg.checkState() ...
+       after every scenario"). The world as the scenario left it, read on a GM still connected - the seeded one, or the
+       first other GM account left (66 X ends without the seeded GM) - by state-check.mjs `checkState`, quiet: its problems
+       are this check's details. A tree with no `checkState` (an older checkout through DRPG_REPO) is noted, not failed;
+       a run with no GM left is noted too. A probe is exempt, as is a run that threw. */
+    let stateResult = null;
+    if (!probe && !threw) {
+        const gmWho = ["gm", ...[...clients.keys()].filter(w => w !== "gm")]
+            .find(w => { const e = clients.get(w); return e && !e.gone && bootInfo.get(w)?.t === "ready" && roleOf(e.userId) >= 3; }) ?? null;
+        if (!gmWho) note("state: no GM left connected after the scenario - its invariants were not read");
+        else {
+            try {
+                stateResult = await handleFor(gmWho).eval(`return typeof game.drpg?.checkState === "function"
+                    ? game.drpg.checkState({ quiet: true }) : "absent";`, { timeout: 30000 });
+            } catch (err) {
+                stateResult = { error: String(err?.message ?? err) };
+            }
+            if (stateResult === "absent") note(`state: ${REPO} has no game.drpg.checkState - its invariants were not read`);
+            else check(`state: the world's invariants hold after the scenario, read on ${gmWho} (E40 C3; game.drpg.checkState)`,
+                stateResult?.ok === true, JSON.stringify(stateResult?.problems ?? stateResult).slice(0, 2000));
+        }
+    }
     const dt = Date.now() - t0;
 
     const passed = results.filter(r => r.status === "pass").length;
