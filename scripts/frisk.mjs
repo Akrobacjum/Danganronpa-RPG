@@ -12,7 +12,6 @@
  * end for every ask (`askToFrisk`, `answerFrisk`, `followFrisk`, `sweepFriskAsks`, `friskRouteSettled`).
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { SETTINGS, getSetting, getClock, isEclipse, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, TIMING } from "./config.mjs";
 import { gmPlaceOf, lawfulRoomOf } from "./movement.mjs";
@@ -25,6 +24,8 @@ import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerId
 import { drpgWindow } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /**
  * The asks this primary GM holds, by ask id (`askToFrisk` writes them): who asks whom, where (`sceneId`, `level`,

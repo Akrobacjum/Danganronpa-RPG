@@ -24,7 +24,6 @@
  * index.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { whisperToGms, log, error, plural, esc}
@@ -38,6 +37,8 @@ import {
     poolNameRefusal, USABLE_GOALS, ITEM_POOLS, MULTI_ROLE_TIER, rolesForPoolItem, tierTableIdFor, roomTableNames,
     tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName
 } from "./tables-pools.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**

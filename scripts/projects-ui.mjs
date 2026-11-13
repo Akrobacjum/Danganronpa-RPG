@@ -15,7 +15,6 @@
  * what the tray draws on every render into projects-tray.mjs.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import {
     MODULE_ID, PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS, PROJECT_DESCRIPTION_MAX, projectDescriptionProblem
 } from "./config.mjs";
@@ -35,6 +34,9 @@ import {
     leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
 
 export function registerProjectsUi() {

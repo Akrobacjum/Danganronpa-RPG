@@ -12,13 +12,14 @@
  *   a new experience at +2
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING, TRIAL } from "./config.mjs";
 import { listExperiences } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 
 /**

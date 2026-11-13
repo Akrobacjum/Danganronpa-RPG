@@ -135,7 +135,6 @@
  * (`hallRoom`, `setHallRoom`), under "THE HALL ON THE ROOM TILE" below.
  */
 
-import { tipAttr } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, seasonEpoch, getClock, isDeadForGm } from "./settings.mjs";
 import { trialCastStore, answerKeysOpen } from "./gm-stores.mjs";
@@ -147,6 +146,8 @@ import { gatherEveryone, carryAcross, clearCarriedFrom, CARRIED_FROM } from "./c
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
 import { formGrid, dataTable, toggle, box } from "./ui-kit.mjs";
 import { storedZones, zoneCandidates, zoneWarnings } from "./zone-geometry.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
 export const TRIAL_RETURN_FLAG = "trialReturnTo";

@@ -23,7 +23,6 @@
  * for the finale.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY, ECLIPSE_MOVES } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
@@ -33,6 +32,8 @@ import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top

@@ -25,7 +25,6 @@
  * vault-store.mjs that made the store a file of its own.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
@@ -49,6 +48,8 @@ import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
     startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom
 } from "./vault-store.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * GM SETUP

@@ -44,7 +44,6 @@
  * simply what talking looks like.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
@@ -63,6 +62,8 @@ import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { contentOf } from "./secret.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /** Flags that make a chat message a presentation. */
 export const TRIAL_FLAGS = {

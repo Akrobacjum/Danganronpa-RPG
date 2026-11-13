@@ -29,7 +29,6 @@
  * truth-bullets.mjs), and only a GM may write to another player's sheet.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { getClock, phaseLabel } from "./clock.mjs";
@@ -54,6 +53,8 @@ import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-s
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
 import { leaveBody, removeBodyTiles } from "./body-tile.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * DEATH

@@ -16,7 +16,6 @@
  * DESPAIR" below).
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, STARTING, DESPAIR_CALLS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
@@ -27,6 +26,8 @@ import { spentSince, markSpent } from "./motion.mjs";
 import { narrowColumn } from "./narrow.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 const WIDGET_ID = "drpg-despair";
 

@@ -11,7 +11,6 @@
  * imports this file as before.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
 import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft } from "./actions.mjs";
@@ -32,6 +31,9 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
 

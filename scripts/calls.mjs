@@ -14,7 +14,6 @@
  * public: when Monokuma acts, the room should know.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, ACTIONS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
@@ -24,6 +23,8 @@ import { announce, whisperToOwner, log, error, esc, proseOf } from "./utils.mjs"
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass } from "./call-pickers.mjs";
 import { alreadyOpen } from "./live.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /* The GM's approval window of a Call asked on the GM's own side (`askHopeCallApproval`): one at a time (D176). */
 const APPROVAL_CLASS = "drpg-call-hope-approval";

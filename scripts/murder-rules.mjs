@@ -63,7 +63,6 @@
  * because `writeState` arms it.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import {
     MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, TIMING,
     USABLE_EFFECTS
@@ -92,6 +91,8 @@ import {
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,
     registerDeathCopy, recordBlackened, leftABody, betrayalCandidate, keepOpeningNotice, retireOpeningNotices
 } from "./incident-store.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /*
  * VEILED, ALL OF THEM (LIVE-001, the closing half).

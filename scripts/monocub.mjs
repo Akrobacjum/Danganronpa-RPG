@@ -41,7 +41,6 @@
  * `appendArmedCall` sends it there.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
@@ -55,6 +54,8 @@ import { stepper, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * STATUS

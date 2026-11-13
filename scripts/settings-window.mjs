@@ -59,7 +59,6 @@
  * `data-drpg-pool-pane` for the same reason, E44 C4a), so a window of the kit's with tabs would hide them.
  */
 
-import { tipAttr } from "./ui-kit.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { esc, error, wholeNumber } from "./utils.mjs";
@@ -68,6 +67,8 @@ import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { themeOnlyKeys, scaleNote, systemWantsContrast } from "./look.mjs";
 import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /**
  * The sections of each place (Q4's seven, split by whose the setting is: E49 A1d), each `{ key, icon, place, keys }`:

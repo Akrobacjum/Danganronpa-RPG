@@ -65,7 +65,6 @@
  * eclipse.mjs; the bridge and the GM stores by `import()` as well, where a static import would close a cycle.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clock.mjs";
@@ -75,6 +74,8 @@ import { serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug 
 import { drpgWindow } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /**
  * Start the Eclipse, or end the running one (D44b).

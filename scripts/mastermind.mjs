@@ -27,7 +27,6 @@
  *                         is verdict.mjs's since E41 C10b, re-exported here
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, myMastermindLair, sameSeason } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
@@ -47,6 +46,9 @@ import { registerSeasonState } from "./season-reset.mjs";
 // re-exported here for every importer, and imported for the Mastermind window's button. verdict.mjs reads this file by
 // `import()` alone, so the static graph has no cycle (R161).
 import { openFinalVerdictDialog } from "./verdict.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 export { openFinalVerdictDialog, applyFinalVerdict } from "./verdict.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;

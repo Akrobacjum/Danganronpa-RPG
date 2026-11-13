@@ -15,7 +15,6 @@
  * (`chooseVariant`).
  */
 
-import { tipAttr } from "./ui-kit.mjs";
 import { CLEANUP, RESOLUTION_STRESS_COST } from "./config.mjs";
 // The killer's skipped step, for the menu's price (`tamperQuote`). Static:
 // cleanup.mjs reaches the action family only through `import()` of
@@ -28,6 +27,8 @@ import { plural, esc } from "./utils.mjs";
 import { equippedFor } from "./use-items.mjs";
 import { briefingBlock, tamperThresholdFacts } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * TAMPER

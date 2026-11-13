@@ -136,7 +136,6 @@
  * later write - a GM's included - is not written over but judged in its turn.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { SETTINGS, getSetting, getClock, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, primaryGmId, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
@@ -152,6 +151,8 @@ import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 import { box, roleButton } from "./ui-kit.mjs";
 import { readSpectatorsWith } from "./spectator.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since

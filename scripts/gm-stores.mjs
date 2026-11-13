@@ -20,7 +20,6 @@
  * it from the registry.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, whisperToGms, localeFormat } from "./utils.mjs";
@@ -32,6 +31,8 @@ import {
 } from "./gm-store.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 

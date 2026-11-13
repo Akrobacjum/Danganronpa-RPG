@@ -29,11 +29,12 @@
  * file imports none of them back statically, so no cycle closes (R161).
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, MOTIVE } from "./config.mjs";
 import { esc, wholeNumber, proseOf } from "./utils.mjs";
 import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 
 /* ==========================================================================

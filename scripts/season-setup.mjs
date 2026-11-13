@@ -31,7 +31,6 @@
 // `ROOMS_PER_PLAYER` is not read here any more: the ratio and its rounding
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
-import { tipText } from "./ui-kit.mjs";
 import {
     MODULE_ID, STARTING, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS
 } from "./config.mjs";
@@ -68,6 +67,9 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 import { permissionsInForce } from "./enforced.mjs";
+
+import { tipText } from "./ui-kit.mjs";
+
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
 

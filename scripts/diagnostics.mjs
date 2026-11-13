@@ -10,7 +10,6 @@
  *     game.drpg.diagnose()            all of them as one report, with Copy report
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, STALE_SILENCES, staleSilencesCleared, pixelFontOn } from "./settings.mjs";
 import { glassOn } from "./motion.mjs";
@@ -28,6 +27,8 @@ import { drpgWindow } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.

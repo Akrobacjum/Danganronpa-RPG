@@ -11,7 +11,6 @@
  * the parts that need real behaviour live here.
  */
 
-import { tipAttr } from "./ui-kit.mjs";
 import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES, TIMES_OF_DAY,
@@ -82,6 +81,8 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 import { stateHeld } from "./states.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked

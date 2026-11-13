@@ -18,7 +18,6 @@
  * imports nothing of the action family.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, TRAITS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { esc } from "./utils.mjs";
@@ -26,6 +25,8 @@ import { drpgWindow } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
 import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 import { holdRowLines } from "./ui-hold.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.

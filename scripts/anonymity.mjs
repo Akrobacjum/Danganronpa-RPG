@@ -47,7 +47,6 @@
  * writing down: nothing may sit behind this whose leak would spoil the game.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, LOOT } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased, BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
@@ -55,6 +54,8 @@ import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.

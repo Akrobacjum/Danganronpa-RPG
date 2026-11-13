@@ -40,7 +40,6 @@
  * line, and the footnote a sentence, saying it gives the passage at the next season's reset and nothing now.
  */
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
 import { error } from "./utils.mjs";
 import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
@@ -50,6 +49,8 @@ import {
     makePassagePublic, makePassageSecret, restoreBreach, whyText
 } from "./passages-gm.mjs";
 import { viewPassage, oneWayOf } from "./passages.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);

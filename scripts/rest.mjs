@@ -13,7 +13,6 @@
  * no rest at all.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { locateActor, roomsKnownToMe, sceneOfActor } from "./movement.mjs";
@@ -28,6 +27,8 @@ import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
 import { drpgWindow } from "./ui-kit.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /** Flags set on a Scene Region. */
 export const REST_FLAGS = {

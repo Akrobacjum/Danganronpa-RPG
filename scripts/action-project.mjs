@@ -30,7 +30,6 @@
  * names them).
  */
 
-import { tipAttr } from "./ui-kit.mjs";
 import { MODULE_ID, ACTIONS, TRAITS, INDIRECT_MURDER, PROJECT_SCALE, SABOTAGE_CONCEAL } from "./config.mjs";
 import { spendAction, refundAction } from "./actions.mjs";
 import { carriedFor, repairable } from "./inventory.mjs";
@@ -51,6 +50,8 @@ import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * PROJECTS

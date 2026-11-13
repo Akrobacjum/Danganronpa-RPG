@@ -18,7 +18,6 @@
  * reason - one way of building markup, not two.
  */
 
-import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
@@ -35,6 +34,9 @@ import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
+
+import { tipText } from "./ui-kit.mjs";
+
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
