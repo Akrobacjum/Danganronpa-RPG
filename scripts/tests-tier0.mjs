@@ -12912,7 +12912,8 @@ const REGRESSIONS = [
          * dashboard to read at a glance, read off every stylesheet the manifest loads (comments
          * stripped): the count cells (`.drpg-num`) given a width and centred; the window's hints in
          * `--drpg-dim`; the filters' labels to the left and the count no longer pushed to the far
-         * edge (`margin-left: auto`); the Key tab's description boxes one line until focused; a rule
+         * edge (`margin-left: auto`); the Key tab's description boxes one line (until focused, before float-text: a focused
+         * one now floats, scripts/float-text.mjs, and no rule of this sheet grows it in place); a rule
          * for `.drpg-state-change` in each theme, with the dashboard's "A body is discovered" carrying
          * the class (investigation.mjs); and a trace's context line at Stained Glass's floor, where
          * `.notes` sets it in VT323 at Legacy's 11 px (S12-52). No browser lays the window out in the
@@ -12931,13 +12932,15 @@ const REGRESSIONS = [
             bodies(/^\.drpg-trace-filters label$/).some(b => /align-items\s*:\s*flex-start/.test(b)),
             bodies(/^\.drpg-trace-filters \.notes$/).some(b => /margin-left\s*:\s*auto/.test(b)),
             bodies(/drpg-window-case \[data-drpg-pane="key"\] table\.drpg-data-table textarea$/).some(b => /min-height\s*:\s*0\b/.test(b))
-                && bodies(/drpg-window-case \[data-drpg-pane="key"\] table\.drpg-data-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
+                // since the float-text line (13.11.2026) a focused Key box floats over the window (float-text.mjs) and no
+                // rule grows it in place: a `:focus` height here would move its row under the float (float-sweep.mjs)
+                && !bodies(/drpg-window-case \[data-drpg-pane="key"\] table\.drpg-data-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
             bodies(/drpg-theme-stained-glass[^,]*\.drpg-state-change/).length > 0
                 && bodies(/^\.application\.dialog[^,]*\.drpg-state-change/).length > 0,
             /action:\s*"bodyFound"[^}]*class:\s*"drpg-state-change"/.test(inv),
             bodies(/drpg-theme-stained-glass \.drpg-trace-context$/).some(b => /font-size\s*:\s*var\(--drpg-sg-floor\)/.test(b))
         ]), JSON.stringify([true, true, true, false, true, true, true, true]),
-        "the dashboard's stylesheet (counts sized and centred; hints in var(--drpg-dim); filter labels left; the count pushed to the far edge; Key boxes one line until focused; a state-change rule in each theme; the body button's class; the context line at the glass's floor)");
+        "the dashboard's stylesheet (counts sized and centred; hints in var(--drpg-dim); filter labels left; the count pushed to the far edge; Key boxes one line, grown by no rule of their own on focus; a state-change rule in each theme; the body button's class; the context line at the glass's floor)");
     }],
 
     ["R310 - the handbooks' Key fee, difficulty ladders, reshape and Tamper's three things are the code's, in English and in Polish", async () => {

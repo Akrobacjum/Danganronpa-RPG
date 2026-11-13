@@ -21,11 +21,12 @@
  *   still      no other element of the window moved or changed size by half a pixel or more;
  *   window     the window's box is the same;
  *   scroll     the same elements of the window scroll as before, none more;
+ *   opaque     its background colour has no transparency while it floats (it stands over the window's other things);
  *   back       after a blur: its height is its own again (within half a pixel), its style attribute as it was, and the
  *              placeholder (`.drpg-float-text-hold`) gone.
  * Exit 1 on any field that fails one, and on a control that does not read as a fault.
  *
- * THE CONTROL, first (CLAUDE.md, the stackShapes lesson: a check that cannot see a fault measures nothing). On the first
+ * THE CONTROL, first (the stackShapes lesson of the working notes: a check that cannot see a fault measures nothing). On the first
  * field of the project manager (its field stands in a form's grid; in a table cell with room to spare, as the Remnants
  * table's, a missing placeholder moves nothing): a 12 px block put at the top of the window's content while the field
  * is edited must read as `still` failing, and the same field edited with the helper's placeholder collapsed (`display: none`; taken out, the helper puts the field back
@@ -117,6 +118,9 @@ async function measure(page, n, { plant = null, without = WITHOUT } = {}) {
             still: moved.length === 0, moved: moved.length, firstMoved: moved[0] ? `${moved[0][0].tagName}.${moved[0][0].className}` : null,
             window: boxOf(app).every((v, k) => Math.abs(v - appBefore[k]) < 0.5),
             scroll: scrolling() <= scrollBefore,
+            // over the window's other things, a see-through field shows them through its text (Legacy's !important ground,
+            // 13.11.2026): its background colour is read opaque while it floats; with no helper it does not float
+            opaque: without || /^rgb\(/.test(getComputedStyle(el).backgroundColor) || /,\s*1\)$/.test(getComputedStyle(el).backgroundColor),
             focused: document.activeElement === el
         };
         return out;
@@ -175,7 +179,7 @@ try {
                 if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${row.id}-${theme}-${n}.png`) });
                 const back = await release(page);
                 const backOk = WITHOUT || (back.hold === 0 && Math.abs(back.height - own) <= 0.5);
-                const bad = ["grows", "still", "window", "scroll"].filter(k => !got[k]);
+                const bad = ["grows", "still", "window", "scroll", "opaque"].filter(k => !got[k]);
                 if (!backOk) bad.push(`back (held ${back.hold}, height ${back.height} of ${own})`);
                 const line = `${row.id} ${theme} ${got.id}: own ${got.own}, needs ${got.needed}, shown ${got.shown}; ${got.moved} moved${got.firstMoved ? ` (${got.firstMoved})` : ""}`;
                 if (bad.length) { fails.push(`${line} - ${bad.join(", ")}`); console.log(`FAIL ${line} - ${bad.join(", ")}`); }

@@ -21,7 +21,8 @@
  *
  * THE FIELD'S OWN LOOK. A popover takes the browser's own face (a border, a padding, Canvas and CanvasText) where no rule
  * states another, so the field's computed face - its font, colours, border, padding, radius and shadow - is written on
- * it inline before it is lifted, and taken off after, its own `style` attribute put back as it was. A field drawn
+ * it inline, each declaration `important` (the module's sheets state some of a field's face with `!important`), before
+ * it is lifted, and taken off after, its own `style` attribute put back as it was. A field drawn
  * through (the glass's fields are 55 % ink) would show the window's text through it once it stands over other
  * things: its own colour is laid over an opaque ground, the theme's ink under light text and its bone under dark.
  *
@@ -102,6 +103,10 @@ export function groundFor(textColor, { ink = "#1d1a21", bone = "#e4ded8" } = {})
     return light ? ink : bone;
 }
 
+/* An inline declaration marked important (above). */
+const put = (el, prop, value) => el.style.setProperty(prop, String(value), "important");
+const got = (el, prop) => el.style.getPropertyValue(prop);
+
 const reduced = () => {
     try {
         return document.body.classList.contains("drpg-reduced-motion") || Boolean(globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
@@ -132,16 +137,28 @@ function lift(el) {
     const ground = groundFor(cs.color, { ink: root.getPropertyValue("--drpg-ink").trim() || undefined, bone: root.getPropertyValue("--drpg-bone").trim() || undefined });
     const background = bg && bg.a >= 1 ? `background:${cs.backgroundColor}`
         : `background-color:${ground};background-image:linear-gradient(${cs.backgroundColor}, ${cs.backgroundColor})${cs.backgroundImage && cs.backgroundImage !== "none" ? `, ${cs.backgroundImage}` : ""}`;
-    el.style.cssText = `${own.style ?? ""};${FACE.map(k => `${k}:${cs.getPropertyValue(k)}`).join(";")};${background};`
-        + `position:fixed;inset:auto;margin:0;box-sizing:border-box;overflow:auto;resize:none;max-width:none;max-height:none;min-height:0;`
-        + `left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px;`;
+    /* Each written `important`: the module's sheets state a field's face with `!important` in places (Legacy's textarea
+       ground, read 13.11.2026 on Room setup's description: its inline ground lost to it and the rows behind showed
+       through), and an inline declaration marked important is the one thing that wins over a sheet's. */
+    // read before the first write: a computed style is live, and the ground written below would read back as the field's
+    const face = FACE.map(k => [k, cs.getPropertyValue(k)]);
+    const fieldColor = cs.backgroundColor, fieldImage = cs.backgroundImage;
+    for (const [k, v] of face) put(el, k, v);
+    if (bg && bg.a >= 1) put(el, "background", fieldColor);
+    else {
+        put(el, "background-color", ground);
+        put(el, "background-image", `linear-gradient(${fieldColor}, ${fieldColor})${fieldImage && fieldImage !== "none" ? `, ${fieldImage}` : ""}`);
+    }
+    const place = { position: "fixed", inset: "auto", margin: "0", "box-sizing": "border-box", overflow: "auto", resize: "none", "max-width": "none",
+        "max-height": "none", "min-height": "0", "min-width": "0", left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` };
+    for (const [k, v] of Object.entries(place)) put(el, k, v);
     el.classList.add(FLOAT_CLASS);
     el.setAttribute("popover", "manual");
     try { el.showPopover(); } catch { el.removeAttribute("popover"); }
     el.scrollTop = own.scrollTop;
     current = { el, hold, own, ownHeight: box.height, frame: 0 };
     fit();
-    if (!reduced()) el.style.transition = `height ${GROW_MS}ms cubic-bezier(0.16, 0.84, 0.28, 1), top ${GROW_MS}ms cubic-bezier(0.16, 0.84, 0.28, 1)`;
+    if (!reduced()) put(el, "transition", `height ${GROW_MS}ms cubic-bezier(0.16, 0.84, 0.28, 1), top ${GROW_MS}ms cubic-bezier(0.16, 0.84, 0.28, 1)`);
     follow();
 }
 
@@ -154,19 +171,19 @@ function fit() {
     const cs = getComputedStyle(el);
     const borders = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
     // the text's height is read at the field's own height, so a field that held more and now holds less shrinks
-    const shown = el.style.height;
-    const transition = el.style.transition;
-    el.style.transition = "none";
-    el.style.height = `${c.ownHeight}px`;
+    const shown = got(el, "height");
+    const transition = got(el, "transition");
+    put(el, "transition", "none");
+    put(el, "height", `${c.ownHeight}px`);
     const needed = el.scrollHeight + borders;
     const height = floatHeight({ own: c.ownHeight, needed, screen: innerHeight });
-    el.style.height = shown;
+    put(el, "height", shown);
     void el.offsetHeight;
-    el.style.transition = transition;
-    el.style.height = `${height}px`;
-    el.style.left = `${box.left}px`;
-    el.style.width = `${box.width}px`;
-    el.style.top = `${floatTop({ top: box.top, height, screen: innerHeight })}px`;
+    if (transition) put(el, "transition", transition); else el.style.removeProperty("transition");
+    put(el, "height", `${height}px`);
+    put(el, "left", `${box.left}px`);
+    put(el, "width", `${box.width}px`);
+    put(el, "top", `${floatTop({ top: box.top, height, screen: innerHeight })}px`);
 }
 
 function follow() {
@@ -176,7 +193,7 @@ function follow() {
         if (current !== c) return;
         if (!c.el.isConnected || !c.hold.isConnected) { drop(); return; }
         const box = c.hold.getBoundingClientRect();
-        if (Math.round(box.left) !== Math.round(parseFloat(c.el.style.left)) || Math.round(box.width) !== Math.round(parseFloat(c.el.style.width))
+        if (Math.round(box.left) !== Math.round(parseFloat(got(c.el, "left"))) || Math.round(box.width) !== Math.round(parseFloat(got(c.el, "width")))
             || Math.abs(box.top - (c.lastTop ?? box.top)) >= 1) fit();
         c.lastTop = box.top;
         follow();

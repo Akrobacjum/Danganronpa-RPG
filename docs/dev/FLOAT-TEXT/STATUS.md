@@ -75,7 +75,27 @@ main; they are in a module window and float once merged, with no change here.
 `node audit/float-sweep.mjs` (new; Chromium, the style harness's captured windows under the module's seven sheets,
 1366x768, both themes, each field filled with a 1200-character Polish text, focused, read after the growth, blurred):
 
-(readings below)
+| Run | Windows | Field readings | Failing | What failed |
+| --- | --- | --- | --- | --- |
+| `--without` (no helper), English | 27 | 56 | 56 | every one `grows` alone (red) |
+| with the helper, English | 27 | 56 | 0 | - |
+| with the helper, Polish (probe 08 `DRPG_CAPTURE_LANG=pl` into the scratchpad, served at :8766 with `--windows --base`) | 33 | 66 | 0 | - |
+
+Fields not shown as captured (in another tab, read in that tab's own capture, or `visibility: hidden` until a choice, as
+an action's request field) are counted apart: 192 English, 330 Polish. Both controls read before each run: a 12 px block
+at the top of the window's content, 122-123 elements moved; the placeholder collapsed, 123.
+
+Found by the sweep on the way, and fixed:
+- the Key tab's `textarea:focus { min-height: 5.5rem }` (above): 31-99 elements moved under Legacy;
+- Legacy states a field's ground with `!important`, so the opaque ground written inline lost to it and the rows behind
+  showed through the floating field (seen on a screenshot of Room setup's description, not by the numbers): every
+  declaration the helper writes is now `important`, and the sweep checks the ground (`opaque`), red on the version
+  before (Room setup's description, Legacy, every field);
+- the sweep's own first reading took the window's boxes before `focus()` had scrolled it; it scrolls the field into view
+  first now and focuses with `preventScroll`.
+
+Shots (Polish, 1366x768, both themes, four windows before and after): a private page of the owner's account, linked in
+the line's report to the coordinator, not here.
 
 ## What is open
 
@@ -84,3 +104,12 @@ main; they are in a module window and float once merged, with no change here.
 - A real click, a window dragged while a field floats, and Foundry's own Escape handling with a field floating: at a
   table.
 - Whether notifications must stay above a floating field (the owner's call, above).
+
+## Runs before the push (13.11.2026, this container)
+
+- `npm run quick`: green.
+- Tiers 0-1 in full: 1323 tests, 1308 passed, 0 failed, 16 skipped, 0 red, 422.5 s. A first full run had R309 red: it
+  held the Key tab's `:focus` growth this line takes out; its reading now holds that no rule grows a Key box in place.
+- 00-boot: 33/33.
+- R4670-R4672 (tier 0) pass; R4671 and R4672 cannot run on main (no float-text.mjs), and the helper's behaviour is red
+  first in Chromium (`--without`, 56 of 56), not in the suite: jsdom has no top layer and lays nothing out.
