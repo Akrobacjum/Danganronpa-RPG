@@ -206,7 +206,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
 const row = (label, value) => `<div class="drpg-case-info-row"><span class="drpg-case-info-label">${esc(label)}</span><span class="drpg-case-info-value">${esc(value)}</span></div>`;
 
 /** A problem of `checkCase` as the GM reads it: its words, naming the node and what it names. */
-function problemText(p, graph) {
+export function problemText(p, graph) {
     const nameOfId = id => {
         const n = (graph?.nodes ?? []).find(x => x.id === id);
         return n ? nameOf(n) : String(id ?? "");
@@ -271,7 +271,7 @@ function nodeEditHtml({ graph, node, p, open, finders, authors, reach, problems,
  * words and `summary` (the chapter's own fields: who has what, the Key limit's override, the Final Truth Remnant form).
  * Not a node's, so on no node: the one block of the Map that is not, and it stands above the graph, not beside it.
  */
-function caseOverviewHtml({ graph, finders = null, problems = [], open = false, summary = "" } = {}) {
+export function caseOverviewHtml({ graph, finders = null, problems = [], open = false, summary = "" } = {}) {
     const all = graph?.nodes ?? [];
     const evidence = all.filter(n => n.evidence);
     const counts = [

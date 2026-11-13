@@ -437,7 +437,7 @@ export class SearchTokens {
  * quiet - in a step of SEARCH_KEY (E17 fix e1-G3; the review's E17P1-R3): written outside it, a reset landing while
  * the primary's spend step ran could be written over by that step's copy of the old counts.
  */
-async function clearSeasonSearchTokens() {
+export async function clearSeasonSearchTokens() {
     await SearchTokens.reset({ notify: false });
 }
 

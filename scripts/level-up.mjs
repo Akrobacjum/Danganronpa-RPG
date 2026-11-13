@@ -1463,7 +1463,7 @@ function traitName(dh) {
  * The window's changes, one box each, none ticked (pure): a +1 Health pick, a +1 Sanity pick, a point's rise. Each box's
  * name is `da39.<actorId>.<what>.<n>`, `what` one of `hpOld`, `sanOld` or `rise-<trait>` - what `readDa39Answers` counts.
  */
-function da39Boxes(plan) {
+export function da39Boxes(plan) {
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     return plan.map(row => {
         const boxes = [];

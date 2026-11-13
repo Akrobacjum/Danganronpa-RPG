@@ -2005,7 +2005,7 @@ export function contestedWarning(userId, list, chosen) {
  * @param {{main: string, dead: string}} words
  * @returns {string}
  */
-export function placeName(row, { main, dead }) {
+function placeName(row, { main, dead }) {
     if (isDeadRoom(row?.target) || row?.claim === CLAIM.dead) return dead;
     return row?.room ?? main;
 }

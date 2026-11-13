@@ -184,7 +184,7 @@ function controlHtml(key, reg, value, off) {
  * its hint with the rest as the line's tooltip (a caption, not a paragraph: the glass sets a `<p>` at its prose rung). `theme` is the theme the window shows (a setting of the other theme's
  * is drawn disabled, its reason the row's title). Answers "" for a key not registered.
  */
-function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {}) {
+export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {}) {
     const reg = registered(key);
     if (!reg) return "";
     const owner = ownerTheme(key);
@@ -269,7 +269,7 @@ function sectionsFor(sections, user = game.user, { voice = false } = {}) {
  * The two columns' markup of a place: the sections' list and every section's pane, `picked` (else the first) shown.
  * `foot` is a line under the list. Answers wideWindow's `columns`.
  */
-function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), picked = null, foot = "" } = {}) {
+export function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), picked = null, foot = "" } = {}) {
     const open = sections.find(s => s.key === picked)?.key ?? sections[0]?.key ?? null;
     const words = s => localize(`DRPG.SettingsWindow.sections.${s.key}`);
     const list = `<nav class="drpg-settings-sections" aria-label="${esc(localize("DRPG.SettingsWindow.sectionsLabel"))}">${sections.map(s =>

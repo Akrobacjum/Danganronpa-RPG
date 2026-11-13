@@ -17,7 +17,7 @@
 import { SETTINGS, getSetting, autoScale } from "./settings.mjs";
 
 /** True when this browser wears the Stained Glass theme. */
-function isStainedGlass() {
+export function isStainedGlass() {
     try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; }
 }
 

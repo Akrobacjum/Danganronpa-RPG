@@ -234,7 +234,7 @@ async function deleteDiveSet(id) {
  * ========================================================================== */
 
 /** The picker's body: a mode each, its fields; a Logic Dive's set list with each set's replay warning. */
-function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = null } = {}) {
+export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = null } = {}) {
     // a node's planned minigame (case-trial.mjs `startFromNode`, 13.11.2026): its fields filled in, its set picked
     const p = key => esc(plan?.[key] ?? "");
     const L = key => game.i18n.localize(key);
@@ -362,7 +362,7 @@ export async function openDiveSets() {
  * ========================================================================== */
 
 /** The Findings window's list: each Finding with Edit, Delete and "Monokuma confirms" (greyed once confirmed). */
-function findingsListHtml(list) {
+export function findingsListHtml(list) {
     if (!list.length) return `<p>${esc(game.i18n.localize("DRPG.Zones.findings.none"))}</p>`;
     const L = key => esc(game.i18n.localize(key));
     return `<ul class="drpg-findings-list">${list.map(f => `<li data-drpg-finding="${esc(f.id)}"><span>${esc(f.text)}</span>
