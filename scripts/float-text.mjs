@@ -114,6 +114,9 @@ const reduced = () => {
 };
 
 let current = null;
+/* The two parts audit/float-sweep.mjs turns off one at a time for its red runs (its INTERACTIONS): the frame-by-frame
+   following of the placeholder, and Escape's own handling. On at a table, always. */
+const parts = { follow: true, escape: true };
 
 function lift(el) {
     if (current?.el === el) return;
@@ -188,7 +191,7 @@ function fit() {
 
 function follow() {
     const c = current;
-    if (!c) return;
+    if (!c || !parts.follow) return;
     c.frame = requestAnimationFrame(() => {
         if (current !== c) return;
         if (!c.el.isConnected || !c.hold.isConnected) { drop(); return; }
@@ -239,7 +242,7 @@ function onInput(event) {
    further, so the window it stands in is not closed by the same press; the next Escape is Foundry's again. Registered
    in the capture phase on `window` before foundry-windows.mjs's and sequence.mjs's listeners (module.mjs's order). */
 function onKeyDown(event) {
-    if (event.key !== "Escape" || !current || event.target !== current.el) return;
+    if (!parts.escape || event.key !== "Escape" || !current || event.target !== current.el) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     const el = current.el;
@@ -248,10 +251,13 @@ function onKeyDown(event) {
 }
 
 let registered = false;
-/** Once, at init: every editable textarea of the module's windows floats while it has the focus. */
-export function registerFloatText() {
+/** Once, at init: every editable textarea of the module's windows floats while it has the focus. `follow` and `escape`
+ *  are the sweep's switches for its red runs (above); module.mjs passes neither. */
+export function registerFloatText({ follow = true, escape = true } = {}) {
     if (registered) return false;
     registered = true;
+    parts.follow = follow !== false;
+    parts.escape = escape !== false;
     document.addEventListener("focusin", onFocusIn, true);
     document.addEventListener("focusout", onFocusOut, true);
     document.addEventListener("input", onInput, true);

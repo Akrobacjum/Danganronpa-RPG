@@ -33,6 +33,21 @@
  * and the fault heals) must too.
  * Then each window is loaded clean.
  *
+ * INTERACTIONS (`--interactions` for these alone; run after the fields otherwise), on the project manager's description,
+ * in both themes, the window first stood where Foundry stands one (`position: fixed` at its own box):
+ *   I1 click   a real click into the field (`page.mouse`, not `focus()`): it floats and grows, and nothing else moves;
+ *   I2 drag    the window dragged 80 px right and 50 down by its header while the field floats: the window moved by that,
+ *              every other element with it (none moved against the window), the field over its placeholder (its left
+ *              on the placeholder's, its top on the placeholder's or moved up only as far as the screen's bottom needs),
+ *              and still focused and floating. The drag is the page's own model of Foundry's (a pointer down on the
+ *              header, its default prevented, so the field keeps the focus; whether Foundry's own drag keeps it is read
+ *              at a table), moving the window's `left` and `top`;
+ *   I3 escape  a listener closing the window on Escape, on `window` in the bubbling phase, as Foundry's keyboard manager
+ *              listens (a model: its phase on v14 is read at a table); Escape pressed in the floating field: the window
+ *              still in the page, the field no longer focused, back at its own height, no placeholder left.
+ * Red runs: `--without` (I1: nothing floats), `--disable follow` (I2: the field stays where the drag left it),
+ * `--disable escape` (I3: the window is closed by the same press).
+ *
  * WHAT IT IS NOT: Foundry's frame or its own stylesheet, a window's live data (the harness's seeded world), a real
  * click (`focus()`), or the actor sheet (the style harness's sheet is the module's parts on a model of Daggerheart's).
  */
@@ -48,6 +63,9 @@ const flag = name => args.includes(name);
 const values = name => args.flatMap((a, i) => (a === name && args[i + 1] ? [args[i + 1]] : []));
 const BASE = values("--base")[0] ?? "http://localhost:8765";
 const WITHOUT = flag("--without");
+/* A part of the helper turned off, for the interactions' red runs (float-text.mjs `registerFloatText` switches). */
+const DISABLE = values("--disable");
+const ONLY_INTERACTIONS = flag("--interactions");
 const ONLY = values("--only");
 const SHOTS = values("--shots")[0] ?? null;
 const EXE = values("--chromium")[0] ?? (fs.existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
@@ -146,15 +164,89 @@ async function open(browser, row, theme) {
     return page;
 }
 
+
+/* THE INTERACTIONS (above). */
+async function interactions(browser, theme) {
+    const row = manifest.find(r => r.id === "projects" && r.captured);
+    if (!row) return [`interactions: no captured project manager in ${WINDOWS_DIR}`];
+    const page = await open(browser, row, theme);
+    const out = [];
+    const opts = { without: WITHOUT, follow: !DISABLE.includes("follow"), escape: !DISABLE.includes("escape"), text: TEXT.repeat(6) };
+    const setup = await page.evaluate(async o => {
+        const F = await import("/scripts/float-text.mjs");
+        if (!o.without) F.registerFloatText({ follow: o.follow, escape: o.escape });
+        const el = document.querySelector(".drpg-style-shot .application textarea");
+        const app = el.closest(".application");
+        const r = app.getBoundingClientRect();
+        // where Foundry stands a window: fixed, at its own box
+        Object.assign(app.style, { position: "fixed", left: `${r.left}px`, top: `${Math.max(0, r.top)}px`, width: `${r.width}px`, margin: "0" });
+        el.value = o.text;
+        // the page's model of Foundry's drag: the header's pointer down, its default prevented, moves the window
+        const header = app.querySelector(".window-header");
+        let from = null;
+        header.addEventListener("mousedown", e => { e.preventDefault(); from = { x: e.clientX, y: e.clientY, left: parseFloat(app.style.left), top: parseFloat(app.style.top) }; });
+        window.addEventListener("mousemove", e => { if (from) { app.style.left = `${from.left + e.clientX - from.x}px`; app.style.top = `${from.top + e.clientY - from.y}px`; } });
+        window.addEventListener("mouseup", () => { from = null; });
+        // the page's model of Foundry's Escape: the window closed, on `window`, bubbling
+        window.addEventListener("keydown", e => { if (e.key === "Escape") app.remove(); });
+        await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+        const fr = el.getBoundingClientRect(), hr = header.getBoundingClientRect();
+        globalThis.__fs = { el, app, own: fr.height, others: [...app.querySelectorAll("*")].filter(x => x !== el && !el.contains(x)) };
+        globalThis.__fs.before = globalThis.__fs.others.map(x => { const b = x.getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; });
+        return { field: [fr.left + fr.width / 2, fr.top + Math.min(fr.height / 2, 10)], header: [hr.left + 40, hr.top + hr.height / 2] };
+    }, opts);
+    const read = () => page.evaluate(() => {
+        const { el, app, others, before, own } = globalThis.__fs;
+        const hold = document.querySelector(".drpg-float-text-hold");
+        const box = x => { const b = x.getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; };
+        const a = app.getBoundingClientRect();
+        return { connected: app.isConnected, appAt: [a.left, a.top], focused: document.activeElement === el, floating: el.matches(":popover-open"),
+            field: box(el), hold: hold ? box(hold) : null, own, screen: innerHeight,
+            others: others.filter(x => x.isConnected).map(x => box(x)), before };
+    });
+    const settle = () => page.waitForTimeout(300);
+    // I1
+    await page.mouse.click(setup.field[0], setup.field[1]);
+    await settle();
+    const r1 = await read();
+    const moved1 = r1.others.filter((b, i) => b.some((v, k) => Math.abs(v - r1.before[i][k]) >= 0.5)).length;
+    const i1 = r1.focused && r1.floating && r1.field[3] > r1.own + 1 && moved1 === 0;
+    out.push([`I1 click ${theme}`, i1, `focused ${r1.focused}, floating ${r1.floating}, ${Math.round(r1.own)} -> ${Math.round(r1.field[3])} px, ${moved1} moved`]);
+    // I2
+    const start = r1.appAt;
+    await page.mouse.move(setup.header[0], setup.header[1]);
+    await page.mouse.down();
+    for (let k = 1; k <= 10; k++) await page.mouse.move(setup.header[0] + 8 * k, setup.header[1] + 5 * k);
+    await page.mouse.up();
+    await settle();
+    const r2 = await read();
+    const dx = r2.appAt[0] - start[0], dy = r2.appAt[1] - start[1];
+    // an element with no box (an option of a closed select, a hidden input) reads 0,0 wherever the window stands
+    const withWindow = r2.others.filter((b, i) => (b[2] || b[3] || r1.others[i][2] || r1.others[i][3])
+        && (Math.abs(b[0] - r1.others[i][0] - dx) >= 0.5 || Math.abs(b[1] - r1.others[i][1] - dy) >= 0.5)).length;
+    const topWant = r2.hold ? Math.round(Math.max(8, Math.min(r2.hold[1], r2.screen - 8 - r2.field[3]))) : null;
+    const over = Boolean(r2.hold) && Math.abs(r2.field[0] - r2.hold[0]) < 1 && Math.abs(r2.field[1] - topWant) <= 1;
+    const i2 = Math.abs(dx - 80) < 1 && Math.abs(dy - 50) < 1 && withWindow === 0 && over && r2.focused && r2.floating;
+    out.push([`I2 drag ${theme}`, i2, `window moved ${Math.round(dx)},${Math.round(dy)}; ${withWindow} element(s) not moved with it; field at ${Math.round(r2.field[0])},${Math.round(r2.field[1])}, its place ${r2.hold ? `${Math.round(r2.hold[0])},${topWant}` : "none"}; focused ${r2.focused}, floating ${r2.floating}`]);
+    // I3
+    await page.keyboard.press("Escape");
+    await settle();
+    const r3 = await read();
+    const i3 = r3.connected && !r3.focused && !r3.floating && !r3.hold && Math.abs(r3.field[3] - r3.own) <= 0.5;
+    out.push([`I3 escape ${theme}`, i3, `window open ${r3.connected}, focused ${r3.focused}, floating ${r3.floating}, placeholder ${Boolean(r3.hold)}, height ${Math.round(r3.field[3])} of ${Math.round(r3.own)}`]);
+    await page.close();
+    return out;
+}
+
 const browser = await chromium.launch(EXE ? { executablePath: EXE } : {});
 const fails = [];
-let fields = 0, hidden = 0;
+let fields = 0, hidden = 0, interactionsRead = 0;
 try {
     /* The control: on the first window's first field, two planted faults must each read as `still` failing. */
     /* On the project manager, whose field stands in a form's grid: in a table cell with room to spare (the Remnants
        table) a missing placeholder moves nothing, so the control is read where it would. */
     const controlRow = manifest.find(row => row.id === "projects" && row.captured);
-    if (!WITHOUT && controlRow) {
+    if (!WITHOUT && controlRow && !ONLY_INTERACTIONS) {
         for (const plant of ["block", "hold"]) {
             const page = await open(browser, controlRow, "glass");
             const got = await measure(page, 0, { plant });
@@ -163,7 +255,7 @@ try {
             await page.close();
         }
     }
-    for (const row of withFields) {
+    for (const row of ONLY_INTERACTIONS ? [] : withFields) {
         for (const theme of THEMES) {
             const page = await open(browser, row, theme);
             const count = await page.evaluate(() => document.querySelectorAll(".drpg-style-shot .application textarea").length);
@@ -188,8 +280,15 @@ try {
             await page.close();
         }
     }
+    for (const theme of THEMES) {
+        for (const [name, pass, line] of await interactions(browser, theme)) {
+            console.log(`${pass ? "ok  " : "FAIL"} ${name}: ${line}`);
+            if (!pass) fails.push(`${name}: ${line}`);
+            interactionsRead++;
+        }
+    }
 } finally {
     await browser.close();
 }
-console.log(`float-sweep${WITHOUT ? " --without" : ""}: ${withFields.length} window(s), ${fields} field reading(s) in ${THEMES.length} theme(s) (${hidden} not shown as captured: in another tab, read in that tab's capture, or hidden until a choice), ${fails.length} failing`);
+console.log(`float-sweep${WITHOUT ? " --without" : ""}${DISABLE.length ? ` --disable ${DISABLE.join(",")}` : ""}: ${interactionsRead} interaction(s) read; ${ONLY_INTERACTIONS ? 0 : withFields.length} window(s), ${fields} field reading(s) in ${THEMES.length} theme(s) (${hidden} not shown as captured: in another tab, read in that tab's capture, or hidden until a choice), ${fails.length} failing`);
 if (fails.length) { for (const f of fails.slice(0, 40)) console.log(`  ${f}`); process.exit(1); }

@@ -97,12 +97,33 @@ Found by the sweep on the way, and fixed:
 Shots (Polish, 1366x768, both themes, four windows before and after): a private page of the owner's account, linked in
 the line's report to the coordinator, not here.
 
+## The interactions (13.11.2026, the coordinator's second ask)
+
+`node audit/float-sweep.mjs --interactions` (and after the fields in a whole run): on the project manager's description,
+both themes, the window stood where Foundry stands one (`position: fixed` at its box). I1 a real click
+(`page.mouse.click`), I2 the window dragged 80 px right and 50 down by its header while the field floats, I3 Escape in
+the floating field with a listener on `window` (bubbling) that closes the window on Escape.
+
+| Run | I1 click | I2 drag | I3 Escape |
+| --- | --- | --- | --- |
+| with the helper | ok both themes (63 -> 343 px glass, 58 -> 460 legacy, 0 moved) | ok both (window 80,50; 0 elements against it; the field on its placeholder; focused) | ok both (window open, field let go, own height) |
+| `--without` | red: nothing floats | red | red: the window closed |
+| `--disable follow` | ok | red: the field left 80,50 behind its place | ok |
+| `--disable escape` | ok | ok | red: the window closed by the same press |
+
+`registerFloatText({ follow, escape })` are the sweep's switches for those red runs; module.mjs passes neither (R4671
+reads the call bare). Two models in it, each a check at a table: the drag is the page's own, a header pointer down with
+its default prevented, so the field keeps the focus (whether Foundry's own drag keeps it is not known here: if it does
+not, the field lets go at the drag's start, which is also no fault); and Foundry's Escape is modelled on `window` in the
+bubbling phase, after the helper's capture listener (its phase on v14 is not read here). The whole run after these:
+6 interactions and 56 field readings, 0 failing.
+
 ## What is open
 
 - The actor sheet is not in the sweep: the style harness's sheet is the module's parts on a model of Daggerheart's, and
   the harness's sheet a stand-in. The biography and the Remnant card are read at a table.
-- A real click, a window dragged while a field floats, and Foundry's own Escape handling with a field floating: at a
-  table.
+- At a table: whether Foundry's own window drag keeps the field's focus, and the phase of Foundry's own Escape listener
+  (the sweep models both, above).
 - Whether notifications must stay above a floating field (the owner's call, above).
 
 ## Runs before the push (13.11.2026, this container)
