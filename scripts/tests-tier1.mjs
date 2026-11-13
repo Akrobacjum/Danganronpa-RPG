@@ -57217,6 +57217,19 @@ const INVARIANTS = [
         const box = /<div class="([^"]*)" data-tooltip="#item#/.exec(body)?.[1]?.split(/\s+/).sort() ?? null;
         equal(stableJson(box), stableJson(["img-portait", "img-portrait"]), "[the classes of the tool row's picture box]");
     }],
+    ["R5764 - the roll window's character is found where Daggerheart 2.12.8's window keeps it (d20RollDialog.mjs:43-45, `config.actor`; the roll data carries no `parent` there, move-context.mjs:95): roll-dialog.mjs `actorOf` answers the config's actor when the config names no actor's uuid, ahead of the speaker and this user's own character", async () => {
+        /*
+         * Red at 67506ecc: `actorOf` tried the config's `source.actor`, the roll data's `parent` (2.10.5's road), the
+         * speaker and then this user's own character, never `config.actor`, so a 2.12 config without a source uuid was
+         * read as this user's character (on a GM, none) - the research's item 5 (13.11.2026). Plain configs and a plain actor; nothing written.
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const student = { documentName: "Actor", id: "R5764Student", type: "character", name: "R5764" };
+        const read = typeof RD.actorOf === "function" ? RD.actorOf : () => "none";
+        const got = [read({ config: { actor: student, source: {}, data: {} } })?.id ?? null,
+            read({ config: { actor: student, data: {} } })?.id ?? null];
+        equal(stableJson(got), stableJson([student.id, student.id]), "[the actor found with an empty source; with no source]");
+    }],
 ];
 
 /**
