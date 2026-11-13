@@ -126,6 +126,10 @@ export const ACTION_GIVE_ITEM = "handover.item";
 export const ACTION_PASSAGE_SHARE = "passage.share";
 /** player -> GM: my character at a tunnel's end goes through it (E80 C2) - see passages-gm.mjs `crossTunnel`. */
 export const ACTION_PASSAGE_CROSS = "passage.cross";
+/** player -> GM: the Mastermind seals a passage at their own door (E91 C5, D038) - see passages-gm.mjs `sealLairPassage`. */
+export const ACTION_PASSAGE_LAIR_SEAL = "passage.lairSeal";
+/** player -> GM: the Mastermind locks or opens their own room, with the GM's lock (E91 C4, D038) - see mastermind.mjs `lockLair`. */
+export const ACTION_LAIR_LOCK = "mastermind.lairLock";
 /** player -> GM: my character's Analyze was a Find Passage (E80 C3) - see passages-gm.mjs `resolvePassageSearch`. */
 export const ACTION_PASSAGE_FIND = "passage.find";
 /** GM -> primary GM: give back a character's last crossing, its price and its token (E17 C3) - see movement.mjs `refundLastCrossing`. */
@@ -153,6 +157,12 @@ export const ACTION_BETRAYAL = "murder.betrayal";
 export const ACTION_PARK_MURDER = "murder.park";
 /** player -> GM: a Monocub uses the ability under `key` (E33 C10) - see monocub.mjs `cubAbilityOnGm`. */
 export const ACTION_CUB_ABILITY = "monocub.ability";
+/** player -> GM: a dead student's player answers the GMs' invitation to become a Monocub (E72 C6) - see monocub.mjs `answerMonocubOffer`. */
+export const ACTION_CUB_ANSWER = "monocub.answer";
+/** player -> GM: a living student offers a Monocub a Bribe (E72 C15) - see monocub.mjs `offerBribeOnGm`. */
+export const ACTION_BRIBE_OFFER = "bribe.offer";
+/** player -> GM: a Monocub's player answers a Bribe (E72 C15) - see monocub.mjs `answerBribeOnGm`. */
+export const ACTION_BRIBE_ANSWER = "bribe.answer";
 /** GM -> player: a request carried out, with its answer - see `bridgeRequest` in bridge-guards.mjs. */
 export const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */

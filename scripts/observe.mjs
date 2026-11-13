@@ -1051,9 +1051,10 @@ async function createFind(actor, entry, isCritical) {
        either one's find was being made: `pendingTracesOf` holds a trace only then) both passed it and both made a bullet - tier 2 "H84-02 ...": 2 with this
        check taken out (mutant h8402-noRecheck, 27.10.2026), 1 here. The copy is read again and the bullet made in one step of `serialWrite` under the character's
        key, after the window: the step awaits the create and its secret, never a person. */
+    const texts = findTexts({ pub, written, isCritical });
     const made = await mintFindCopy(actor, entry, {
         name: pub?.name || written?.name || fallbackName,
-        playerText: pub?.playerText ?? written?.playerText ?? "",
+        playerText: texts.copyText,
         analyzedText: pub?.analyzedText ?? written?.analyzedText ?? "",
         img: pub?.img ?? null,
         isCritical
@@ -1067,11 +1068,24 @@ async function createFind(actor, entry, isCritical) {
         <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
         <p><strong>${foundry.utils.escapeHTML(item.name)}</strong></p>
         ${pub?.playerText ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : ""}
+        ${texts.hint ? `<p>${foundry.utils.escapeHTML(texts.hint)}</p>` : ""}
         ${isCritical ? `<p><em>${game.i18n.localize("DRPG.Observe.critIdentified")}</em></p>` : ""}
         <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
 
     log(`Observe: ${actor.name} copied a ${data.type} Remnant as "${item.name}".`);
     return item;
+}
+
+/**
+ * What a find's copy says, and what of it is the finder's alone (E64 C2; audit S05-59). `pub` is the trace's public
+ * record after the window's write, `written` what the window answered. The copy's text is the trace's description and,
+ * on a critical, the hint below it; the hint is never in what `createFind` writes back to the trace (it reads
+ * `written.playerText`, never `critHint`). Pure, for tier 1 R3955.
+ */
+export function findTexts({ pub = null, written = null, isCritical = false } = {}) {
+    const described = pub?.playerText ?? written?.playerText ?? "";
+    const hint = isCritical ? String(written?.critHint ?? "").trim() : "";
+    return { described, hint, copyText: [described, hint].filter(Boolean).join("\n\n") };
 }
 
 /**
@@ -1181,6 +1195,22 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                 ? `<p><strong>${game.i18n.localize("DRPG.Observe.critPrompt")}</strong></p>`
                 : ""}
             ${/*
+                * THE CRITICAL'S HINT IS THE FINDER'S (E64 C2, 12.11.2026; audit S05-59). Until 1.2.105 the hint went in
+                * the description box below, which is the trace's own (`setRemnantPublicById`): every later finder's copy
+                * read it, a hint they had not earned. Its own box, on a critical only, and `findTexts` hands it to this
+                * copy alone. ASKED FIRST, AND FOCUSED (Q-E64-11; the owner, 12.11.2026: "Zgoda, przesun"): it stood last,
+                * under the lab's reading, and the description held the focus - measured in Chromium at 1366x768 (R3960's
+                * note) the body opened scrolled to the description, the window's top out of view, and on an undescribed
+                * trace under Stained Glass the box sat below the fold. Right under the critical's line now, which says
+                * what it is for.
+                */ ""}
+            ${isCritical
+                ? `<label>${game.i18n.localize("DRPG.Observe.critHint")}
+                    <textarea name="critHint" rows="3" autofocus
+                        placeholder="${game.i18n.localize("DRPG.Observe.critHintPlaceholder")}"></textarea></label>
+                   <p class="notes">${game.i18n.localize("DRPG.Observe.critHintNote")}</p>`
+                : ""}
+            ${/*
                 * THE NAME IS NOT ASKED TWICE (Dawid, 28.08: "finding a remnant
                 * by a second player prompts the DM to name it again, though
                 * there is no need").
@@ -1198,10 +1228,10 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     <input type="text" name="name" readonly
                            value="${foundry.utils.escapeHTML(stored.name ?? fallbackName)}" /></label>`
                 : `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                    <input type="text" name="name" autofocus
+                    <input type="text" name="name"${isCritical ? "" : " autofocus"}
                            value="${foundry.utils.escapeHTML(fallbackName)}" /></label>`}
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
-                <textarea name="playerText" rows="3"${stored ? " autofocus" : ""}
+                <textarea name="playerText" rows="3"${stored && !isCritical ? " autofocus" : ""}
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
             ${/*
@@ -1234,7 +1264,8 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                     return {
                         name: f.name.value.trim(),
                         playerText: f.playerText.value.trim(),
-                        analyzedText: f.analyzedText.value.trim()
+                        analyzedText: f.analyzedText.value.trim(),
+                        critHint: f.critHint?.value.trim() ?? ""
                     };
                 }
             }

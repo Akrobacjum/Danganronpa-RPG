@@ -1426,8 +1426,8 @@ const toldThisLoad = new Set();
 
 /**
  * At ready, on the primary GM (module.mjs, after `requirementsMet`, through `announceAtReady`): run the contract,
- * say the unknown rows in the console as a warning, and tell a GM of the failed rows in one permanent notice - each
- * row's target, file:symbol and what the table gets instead. Run again when a row can fail later in the load (the
+ * count the unknown rows no table check owns in one console info line (E91 C1), and tell a GM of the failed rows
+ * in one permanent notice - each row's target, file:symbol and what the table gets instead. Run again when a row can fail later in the load (the
  * first character sheet, `watchSheetRenders`; the first Levels throw, `announceLevelThrow`), it tells only the
  * rows no notice of this load named. `told` (a Set of row ids) and `notify` can be handed in (R1540, R1541, R1056).
  */
@@ -1435,8 +1435,15 @@ export function announceContract({ rows = PATCHES, told = toldThisLoad,
     notify = (text, options) => ui.notifications?.warn(text, options) } = {}) {
     const contract = runContract({ rows });
     const line = r => `${r.target} (${r.where}): ${r.note}`;
-    if (contract.unknown.length) {
-        warn(`The contract: ${contract.unknown.length} row(s) could not be read here, a warning and not a pass - ${contract.unknown.map(line).join("; ")}`);
+    /*
+     * E91 C1 (the owner's note of 09.11): a row not read yet is not a failure, and a warning on every load read as
+     * an error at the table. The rows a probe may still read later in the load (a hook not fired, a sheet not
+     * rendered) are one info line with their count and the call that lists them; the rows only a table check reads
+     * (`table`, B-E52-2 and B-E52-3) are left out of the console - the report and Pre-season still name both.
+     */
+    const unread = contract.unknown.filter(r => !rows.find(entry => entry.id === r.id)?.table);
+    if (unread.length) {
+        console.info(`${MODULE_ID} | The contract: ${unread.length} row(s) not read yet in this load (not a failure); game.drpg.diagnosePatches() lists them`);
     }
     if (contract.failed.length) {
         warn(`The contract: ${contract.failed.length} row(s) failed - ${contract.failed.map(r => `${line(r)}; instead: ${r.fallback}`).join(" | ")}`);

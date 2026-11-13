@@ -317,7 +317,9 @@ function deadHands(actor) {
  * "this is the one I am using now", and making the player un-equip first would
  * be a second click for no decision.
  */
-export async function toggleEquipped(actor, item, { shape = false } = {}) {
+export async function toggleEquipped(actor, item, { shape = false, render = true } = {}) {
+    // `render` false: the writes redraw no sheet (inventory.mjs `keepGearShape` under quiet, E91 C8).
+    const quietly = render ? {} : { render: false };
     if (!actor || !item || !isEquippable(item)) return false;
     // A player's click on the dead's own hands (C3). Not the Gear shape's readying (`shape`, inventory.mjs
     // `keepGearShape`), which a GM's grant, give or Palm into a body asks on the GM: D4 holds on a body too, and the GM
@@ -359,10 +361,10 @@ export async function toggleEquipped(actor, item, { shape = false } = {}) {
             // first hand that picks something up has to tidy all of them.
             for (const previous of readiedItems(actor)) {
                 if (previous.id === item.id) continue;
-                await trustedWrite(previous, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: false }, { reason: "equip" });
+                await trustedWrite(previous, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: false }, { reason: "equip", ...quietly });
             }
         }
-        await trustedWrite(item, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: !wasEquipped }, { reason: "equip" });
+        await trustedWrite(item, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: !wasEquipped }, { reason: "equip", ...quietly });
     } catch (err) {
         error("Could not change what is held ready", err);
         return false;

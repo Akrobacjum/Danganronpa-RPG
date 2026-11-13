@@ -43,18 +43,18 @@ import {
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
-    ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
+    ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
-    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
+    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
     handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
-    handleRefundCrossing, handlePassageFind, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
+    handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
-    handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
+    handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling
 } from "./bridge-runs-acts.mjs";
 import {
@@ -207,6 +207,32 @@ export const BRIDGE_ACTIONS = table({
         run: handleRefundCrossing,
         answer: "reply",
         claims: { actorId: "movement.mjs refundLastCrossing gives back only the GMs' own record of that character's newest crossing (gm-stores.mjs `crossingStore`), once, on the primary" }
+    },
+    /*
+     * THE MASTERMIND'S DOOR (E91 C4, C5; D038, the owner's "Budujemy" of 12.11.2026). The Mastermind's player locks or
+     * opens their own room with the GM's lock (mastermind.mjs `lockLair`, vault-store.mjs `writeRoomLock`) and seals a
+     * passage at their door with the tab's close (passages-gm.mjs `sealLairPassage`), on the primary. The sender's own
+     * student first; whether that student is the Mastermind and the sender the owner the door names
+     * (`actsAsMastermind`), and the lair, are the GMs' record's, judged in the run; every refusal is "nothing was carried
+     * out", so another player's ask learns nothing of the role. Tier 2 "D038 lair lock" and "D038 lair seal".
+     */
+    [ACTION_LAIR_LOCK]: {
+        label: "DRPG.Bridge.what.mastermind.lairLock",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, lock: as.bool }),
+        run: handleLairLock,
+        // The Mastermind's line says the door is locked or open: a reply, or nothing changed.
+        answer: "reply"
+    },
+    [ACTION_PASSAGE_LAIR_SEAL]: {
+        label: "DRPG.Bridge.what.passage.lairSeal",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, passageId: as.id }),
+        run: handlePassageLairSeal,
+        answer: "reply",
+        claims: {
+            passageId: "passages-gm.mjs sealLairPassage: an open passage of the GMs' records with a side in the lair the GMs' record names (`presetSideRefusal`), for the sender who acts as the Mastermind through the character (`actsAsMastermind`), on the primary"
+        }
     },
     [ACTION_PASSAGE_FIND]: {
         label: "DRPG.Bridge.what.passage.find",
@@ -422,7 +448,36 @@ export const BRIDGE_ACTIONS = table({
         run: handleCubAbility,
         // The roll it threw goes back, for the Monocub's card.
         answer: "reply",
-        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
+        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room, or for Tinker (E72 C13) a public, unfinished, unfrozen project there that a living student worked on this time of day; an id that is neither is refused as a missing one" }
+    },
+    [ACTION_CUB_ANSWER]: {
+        label: "DRPG.Bridge.what.monocub.answer",
+        // E72 C6: the player of a dead student the GMs invited; whether an invitation is open is the GMs' row's (`cubStore`).
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, accept: as.bool }),
+        run: handleCubAnswer,
+        // The player's window says what came of it (a Monocub now, or the invitation closed).
+        answer: "reply"
+    },
+    [ACTION_BRIBE_OFFER]: {
+        label: "DRPG.Bridge.what.bribe.offer",
+        // E72 C15: the payer is the sender's own student; the Monocub is judged in the run (`bribeRefusal`).
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, cubId: as.id }),
+        run: handleBribeOffer,
+        // The payer's Call says it was offered, or nothing was spent.
+        answer: "reply",
+        claims: { cubId: "judged by monocub.mjs bribeRefusal in offerBribeOnGm before anything is written: a Monocub, not the payer" }
+    },
+    [ACTION_BRIBE_ANSWER]: {
+        label: "DRPG.Bridge.what.bribe.answer",
+        // E72 C15: the Monocub's own player; the offer is the GMs' row's (`cubStore`'s `bribes`), never the packet's.
+        guards: [knownSender, notSpectator("cubId"), owns("cubId", "sender does not own that Monocub")],
+        sanitize: pick({ cubId: as.id, bribeId: as.id, accept: as.bool }),
+        run: handleBribeAnswer,
+        // The Monocub's window says what came of it.
+        answer: "reply",
+        claims: { bribeId: "judged by monocub.mjs answerBribeOnGm: an offer open in the GMs' row of that Monocub, never the packet's" }
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",

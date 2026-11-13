@@ -16,7 +16,7 @@ import {
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
-import { SETTINGS, isMutedDead } from "./settings.mjs";
+import { SETTINGS, isMutedDead, myMastermindLair } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
@@ -24,7 +24,7 @@ import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESE
 import { standingOffers, advanceKindName } from "./level-up.mjs";
 import { isMonokuma, isNotInClass, isSpectator, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
-import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
+import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor, callAsksGm } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import {
     isTruthBullet, truthBulletData, isAnalysable, isIdentified, TRUTH_BULLET_FLAGS
@@ -43,7 +43,7 @@ import { incidentTurnText, actingActor } from "./events.mjs";
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
 // day ends). Until then both arrived under one bare name and were renamed at this door,
 // which is how a reader of this file took one for the other.
-import { isMonocub, isCrimeSilenced } from "./monocub.mjs";
+import { isMonocub, isCrimeSilenced, cubBlockSaid, purseOf, cubPanelLines } from "./monocub.mjs";
 import { isCallSilenced, isChained, pendingGather, armedCallsShown, alreadyArmed } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
@@ -61,8 +61,8 @@ import { isCleaner, tamperQuote, witnessesTo, freeTonightText } from "./cleanup.
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy } from "./movement.mjs";
-import { isMoveChange, levelOf } from "./rooms.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy, isLocked } from "./movement.mjs";
+import { isMoveChange, levelOf, roomRegions } from "./rooms.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
 import { passagesKnownBy, passageSpot, viewPassage, tunnelEndsFor } from "./passages.mjs";
@@ -151,6 +151,8 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
         groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,
         passages: owner && !monokuma, mastermind: gm && isMastermindActor(actor),
+        // The Mastermind's own room, on their player's browser alone (E91 C4, C5; D038; `injectKnownPassages`).
+        lair: owner && !gm && !monokuma ? myMastermindLair() : null,
         present,
         get presentShown() {
             return presentFor();
@@ -1791,7 +1793,8 @@ function injectActionBar(app, element, fresh = false, mode = modeOf(app)) {
     const still = !mode.header.acts;
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
-    const { wounded } = actionBudget(actor);
+    // The lost action's mark, not the state's (E64 C1c): Wounded takes no action in the Class Trial.
+    const { costsAction: wounded } = actionBudget(actor);
 
     // What went out since this sheet last drew itself. Recorded even when it is
     // not shown - a first draw still has to know where the count started, or
@@ -2778,7 +2781,7 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
         // was read (H81 fix r1, movement.mjs `passageRooms`' note). The label's rooms are the map's, for no token.
         const elevation = from !== null && Number.isFinite(here?.tokenDoc?.elevation) ? here.tokenDoc.elevation : null;
         const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, elevation, ...given });
-        rows.push({ passage, label, shut, way });
+        rows.push({ passage, label, shut, way, rooms: [rooms[0] ?? null, rooms[1] ?? null] });
     }
     return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -2934,8 +2937,47 @@ export function knownPassageItem(row) {
     li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
         foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
         + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`
+        // The Mastermind's Seal on a passage at their door (E91 C5, D038; `injectKnownPassages` marks the row).
+        + (row.seal ? `<button type="button" class="drpg-mini-button drpg-passage-seal" data-tooltip="${t("DRPG.Passage.list.sealTip")}">${
+            t("DRPG.Passage.list.seal")}</button>` : "");
     return li;
+}
+
+/**
+ * THE MASTERMIND'S DOOR ON THEIR SHEET (E91 C4, C5; D038, 12.11.2026). On the browser of the player who holds the part
+ * (settings.mjs `myMastermindLair`; a GM locks rooms in Room Setup and closes passages in the tab): a line naming the
+ * room and whether its door is locked, with Lock or Unlock, and a Seal on every passage the sheet lists with a side in
+ * it. The lock is the GM's room lock (`isLocked`, as the door reads it), asked of the primary GM (bridge-asks.mjs
+ * `requestLairLock`, `requestLairSeal`). Nothing here is drawn on anybody else's browser.
+ */
+function lairLocked(room) {
+    return [...(game.scenes ?? [])].some(scene => roomRegions(scene, room).length && isLocked(scene, room));
+}
+
+function lairBlock(actor, room) {
+    const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
+    const locked = lairLocked(room);
+    const div = document.createElement("div");
+    div.className = "drpg-lair-line";
+    div.innerHTML = `<span class="drpg-lair-room">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Mastermind.lair.room", { room }))}</span>`
+        + `<span class="drpg-lair-state">${t(locked ? "DRPG.Mastermind.lair.locked" : "DRPG.Mastermind.lair.open")}</span>`
+        + `<button type="button" class="drpg-mini-button drpg-lair-lock">${t(locked ? "DRPG.Mastermind.lair.unlock" : "DRPG.Mastermind.lair.lock")}</button>`;
+    const button = div.querySelector(".drpg-lair-lock");
+    button.addEventListener("click", async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        button.disabled = true;
+        try {
+            const { requestLairLock } = await import("./gm-bridge.mjs");
+            await requestLairLock({ actorId: actor.id, lock: !locked });
+        } catch (err) {
+            error("Could not change the room's lock", err);
+        } finally {
+            actor.sheet?.render(false);
+        }
+    });
+    return div;
 }
 
 /** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
@@ -2947,17 +2989,31 @@ function injectKnownPassages(app, element, mode = modeOf(app)) {
     host.querySelector(".drpg-passages-section")?.remove();
     if (!actor || !mode.passages) return;
     const { mastermind } = mode;
-    const rows = knownPassageRows(actor, { mastermind });
-    if (!rows.length) return;
+    // The Mastermind's own room, on their player's browser alone (`lairBlock`).
+    const lair = mode.lair ?? null;
+    const rows = knownPassageRows(actor, { mastermind }).map(row => ({ ...row, seal: Boolean(lair) && row.rooms.includes(lair) }));
+    if (!rows.length && !lair) return;
 
     const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
     const section = document.createElement("div");
     section.className = "drpg-passages-section";
-    section.innerHTML = `<div class="title"><side-line-div class="invert"></side-line-div><h3>${t("DRPG.Passage.list.title")}</h3>`
-        + `<side-line-div></side-line-div></div><ul class="drpg-passage-list"></ul>`;
+    section.innerHTML = (rows.length ? `<div class="title"><side-line-div class="invert"></side-line-div><h3>${t("DRPG.Passage.list.title")}</h3>`
+        + `<side-line-div></side-line-div></div>` : "") + `<ul class="drpg-passage-list"></ul>`;
     const list = section.querySelector("ul");
+    if (lair) list.before(lairBlock(actor, lair));
     for (const row of rows) {
         const li = knownPassageItem(row);
+        li.querySelector(".drpg-passage-seal")?.addEventListener("click", async event => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.disabled = true;
+            try {
+                const { requestLairSeal } = await import("./gm-bridge.mjs");
+                await requestLairSeal({ actorId: actor.id, passageId: row.passage.id });
+            } catch (err) {
+                error("Could not seal a secret passage", err);
+            }
+        });
         const where = li.querySelector(".drpg-passage-where");
         const pan = event => {
             event.preventDefault();
@@ -4736,6 +4792,44 @@ function injectMonocubPanel(tab, actor) {
     grid.append(...monocubTiles(actor));
     panel.append(grid);
 
+    // THE PURSE (E72 C14; DC37): Hope a Bribe or a Bounty paid, kept by the GMs beside the sheet's and spent first.
+    const purse = purseOf(actor);
+    if (purse > 0) {
+        const line = document.createElement("p");
+        line.className = "notes drpg-monocub-purse";
+        line.textContent = game.i18n.format("DRPG.Monocub.purseLine", { n: purse });
+        panel.append(line);
+    }
+
+    /* PART B, UNDER THE TILES (E72 C19): each Bribe waiting with its Accept and Refuse (the same answer as the window,
+       monocub.mjs `openBribeOffer`), each open Bounty, and the Monocub's own Ghost Bet (`cubPanelLines`). Words only, as
+       the purse's line: no side, colour or title (DC39). */
+    for (const item of cubPanelLines(actor)) {
+        const line = document.createElement("p");
+        line.className = `notes drpg-monocub-${item.kind}`;
+        const words = document.createElement("span");
+        words.textContent = item.kind === "offer" ? game.i18n.format("DRPG.Monocub.panelOffer", { name: item.name, cost: item.cost })
+            : item.kind === "bounty" ? game.i18n.format("DRPG.Monocub.panelBounty", { name: item.name, reward: item.reward })
+                : game.i18n.format("DRPG.Monocub.panelBet", { name: item.name, n: item.value });
+        line.append(words);
+        // Wherever the panel is drawn (sheetMode's question, asked once above): the GM side judges the answer's sender.
+        if (item.kind === "offer") {
+            for (const accept of [true, false]) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "drpg-mini-button";
+                button.textContent = game.i18n.localize(accept ? "DRPG.Monocub.bribeAccept" : "DRPG.Monocub.bribeRefuse");
+                button.addEventListener("click", async () => {
+                    button.disabled = true;
+                    const { requestBribeAnswer } = await import("./gm-bridge.mjs");
+                    await requestBribeAnswer({ cubId: actor.id, bribeId: item.id, accept });
+                });
+                line.append(" ", button);
+            }
+        }
+        panel.append(line);
+    }
+
     if (isCrimeSilenced(actor)) {
         const note = document.createElement("p");
         note.className = "notes drpg-monocub-silenced";
@@ -4754,25 +4848,33 @@ function monocubTiles(actor) {
 }
 
 function abilityButton(actor, key, def) {
-    const held = hopeHeld(actor);
+    // The sheet's Hope and the purse's (E72 C14; DC37): a price may be paid from either.
+    const held = hopeHeld(actor) + purseOf(actor);
     const affordable = actionsLeft(actor) >= def.cost && held >= def.hopeCost;
+    /* SHUT, AND WHY (E72 C9, 12.11.2026; audit S18-62, DC22): a row's blocks this browser can read - Redeem used today,
+       the Hope full, an Ask for Hope still open (monocub.mjs `cubBlockSaid`, the owner's copy of the GMs' row) - grey
+       the tile with the block's own sentence. The GM asks them again before the price; this is the courtesy. */
+    const shut = cubBlockSaid(actor, def);
+    const free = def.cost === 0 && def.hopeCost === 0;
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `drpg-action-button${affordable ? "" : " unaffordable"}`;
+    button.className = `drpg-action-button${affordable && !shut ? "" : " unaffordable"}`;
     // Counted on the actions (E66 C2; S18-36): Hope agrees with nothing in either language.
-    button.dataset.tooltip = `${plural("DRPG.Monocub.meddleCost", {
-        actions: def.cost, hope: def.hopeCost
-    }, "actions")}${affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Monocub.cannotMeddle")}</em>`}`;
+    // The grid's own words for a price with no Hope (`costLabelFor`): "free", "1 action".
+    const price = free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0 ? plural("DRPG.Action.costActions", { n: def.cost })
+        : plural("DRPG.Monocub.meddleCost", { actions: def.cost, hope: def.hopeCost }, "actions");
+    const why = shut ? game.i18n.localize(shut) : affordable ? "" : game.i18n.localize("DRPG.Monocub.cannotMeddle");
+    button.dataset.tooltip = `${foundry.utils.escapeHTML(price)}${why ? `<br><em>${foundry.utils.escapeHTML(why)}</em>` : ""}`;
     // "1 · 1◆" was unreadable without already knowing which number was which.
     // Confusion is the only action in the game that costs two different things,
     // so the tile spells both out in the same order the tooltip does.
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${plural("DRPG.Monocub.meddleCostShort", {
-            actions: def.cost, hope: def.hopeCost
-        }, "actions")}</span>`;
+        <span class="drpg-action-cost">${free ? game.i18n.localize("DRPG.Action.costFree") : def.hopeCost === 0
+            ? plural("DRPG.Action.costActions", { n: def.cost })
+            : plural("DRPG.Monocub.meddleCostShort", { actions: def.cost, hope: def.hopeCost }, "actions")}</span>`;
 
     button.addEventListener("click", async () => {
         const { cubAbilityDialog } = await import("./monocub.mjs");
@@ -4982,7 +5084,8 @@ function callButton(call, monokuma, lockNote = null) {
        (`needsGm`) wait for a GM's yes before anything is spent (calls.mjs: their window's Send is on the GM's road,
        `callWindow`'s `gmRoute`), and their tiles looked like every Call a player simply buys. The flag that makes the
        window's Send red makes the tile red, and the chip under the cost says who it waits for, as an action tile's. */
-    const askGm = Boolean(call.needsGm) && !pending;
+    // And Talent's tile, whose two Calls a GM rules (E72; calls.mjs `callAsksGm`).
+    const askGm = callAsksGm(call, monokuma ? "despair" : "hope") && !pending;
     button.className = `drpg-action-button drpg-call-button${
         pending ? " drpg-call-pending"
             : lockNote ? " drpg-locked-eclipse"
@@ -5079,8 +5182,20 @@ async function runCall(actor, key, kind) {
         await import("./calls.mjs");
 
     const despair = kind === "despair";
-    const call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
+    let call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return;
+    /* A tile of two Calls asks which first (call-pickers.mjs `pickChoice`, E72); the rest runs on the chosen Call's own
+       row. A tile whose two a GM rules (Talent) asks it in its confirmation instead, with the note (`confirmCall`'s
+       `choices`, R3818): the rest runs on the tile's row up to there. */
+    const table = despair ? DESPAIR_CALLS : HOPE_CALLS;
+    const ruled = Array.isArray(call.choices) && callAsksGm(call, despair ? "despair" : "hope");
+    if (Array.isArray(call.choices) && !ruled) {
+        const { pickChoice } = await import("./call-pickers.mjs");
+        const chosen = await pickChoice(call, despair ? "despair" : "hope");
+        if (!chosen) return;
+        key = chosen;
+        call = table[key];
+    }
 
     /*
      * ONE PURCHASE OF A CALL AT A TIME (E51 fix round FG7, 31.10.2026; review goal G2). A sheet redrawn while this
@@ -5198,8 +5313,21 @@ async function runCall(actor, key, kind) {
         }
     }
 
-    const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor });
+    /* Talent's rows (`ruled`, above): one shut with its reason - Experience with none on the sheet, a Call already held -
+       stays greyed in the window, as an action's row, and the checks below the window are asked again of the one picked. */
+    const shut = {};
+    if (ruled) for (const k of call.choices) {
+        if (table[k].grants === "experience" && !Object.keys(actor.system?.experiences ?? {}).length) shut[k] = game.i18n.localize("DRPG.Calls.rowNoExperiences");
+        else if (table[k].grants && alreadyArmed(actor, { ...table[k], key: k })) shut[k] = game.i18n.localize("DRPG.Calls.rowArmed");
+    }
+    let note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor, ...(ruled ? { choices: call.choices, shut } : {}) });
     if (note === null) return;
+    if (ruled) {
+        if (!call.choices.includes(note.key) || shut[note.key]) return;
+        key = note.key;
+        call = table[key];
+        note = note.note;
+    }
 
     if (despair) await spendDespairCallFor(actor, key, { note, choice });
     else await spendHopeCall(actor, key, { note, choice });

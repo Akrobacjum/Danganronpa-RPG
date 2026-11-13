@@ -117,10 +117,19 @@ export function keepDayEndCard(html, title) {
     showPopup(html, { title, sticky: true, source: "summary" });
 }
 
-/** Whether the summary of `window` folds into the end-of-day board: the day's last time of day closed by the roll-over to a new day, with the table's switch on. Pure but for the switch. */
+/**
+ * Whether the summary of `window` folds into the end-of-day board, with the table's switch on: the day's last time of day
+ * closed by the roll-over to a new day that plays the boards (its clock stamped for them, `dayBoard`: transitions.mjs
+ * `boardsFor`), or by the Morning Eclipse opened at Night (12.11.2026; the owner's report on 1.2.109). That Eclipse's
+ * start closes the Night (`summaryWindow`), and its end with the advance plays the board, which holds the same rows: put
+ * up at the start, the Night's rows were shown twice. A Night to Morning moved by hand plays no board, so its summary is
+ * put up. Pure but for the switch.
+ */
 export function nightFoldsIntoBoard(window, after, on = sequencesOn()) {
-    return Boolean(on && window && window.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1]
-        && after?.timeOfDay === TIMES_OF_DAY[0] && after?.eclipse !== true);
+    const night = TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+    if (!on || !window || window.timeOfDay !== night || !after) return false;
+    if (after.eclipse === true) return after.timeOfDay === night;
+    return after.timeOfDay === TIMES_OF_DAY[0] && after.dayBoard != null && Number(after.dayBoard) === Number(after.day);
 }
 
 const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, clock?.session ?? null,

@@ -96,7 +96,13 @@ const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
 /* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"); every action
    window probe 08 captures since E68 C12 (one layout for every action, the owner's Q1 and Q4 of round M). */
-const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic"];
+const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic",
+    /* E64-inv (12.11.2026; the owner's pick of the Investigation review): End the chapter shows its clock options and the
+       case's backup without a scroll. Red at 235c321: its body scrolled at 1366x768 in both themes. */
+    "chapter-end",
+    /* E64-inv's second round (12.11.2026): New Remnant (61 px under the glass at 1366x768) and the realization preview
+       after a run (its footer on two rows in Polish under the glass, 12 px). */
+    "new-trace", "case-realize--made"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 
@@ -225,6 +231,13 @@ function fitPages() {
    own: on that card the box is the demo's, not a second region of a window, and it read "a second scroller" at every
    desk size. Skipped there only, by the card's id and the box's name; every other window still fails on it. */
 const DEMO_SCROLLERS = { "kit-table-scroll": ["div.drpg-data-table-box"] };
+/* A WINDOW WHOSE ONE SCROLLER IS NOT THE KIT'S BODY (E64-inv, 12.11.2026). The Investigation dashboard's frame is fixed
+   (components.css, "THE CASE PANEL'S FIXED FRAME", E97 C2, the owner's Q-C and Q-D of 11.11.2026): its body does not
+   scroll (`overflow: hidden`) and holds a toolbar of a stated height over the view's box (`.drpg-case-view`), the one box
+   that scrolls, both ways. So in that window the view takes the body's place: counted as its one scroller, and anything
+   else that scrolls beside it - the body included - is still a second one (until E64-inv the Legacy table's own box was:
+   44732a2 reads it). */
+const OWN_SCROLLER = { investigation: "div.drpg-case-live.drpg-case-view" };
 
 /** What is wrong with one window's state, as words; [] when it fits. */
 function misfits(win, state, still) {
@@ -236,7 +249,8 @@ function misfits(win, state, still) {
     if (state.labelsOff?.length) out.push(`label off its field: ${state.labelsOff.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
     const demo = DEMO_SCROLLERS[win?.window] ?? [];
-    const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
+    const own = OWN_SCROLLER[win?.window];
+    const others = state.scrollers.filter(s => (own ? s !== own : s !== "kit-body") && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
     // E47-FB: a body or footer wider than its box, cut sideways (the 1.2.102 clip) or scrolled (style-harness.html `wide`)

@@ -71,8 +71,13 @@ const SURFACES = [
 export const CONTROLS = "button, a[href], [role=\"button\"], input:not([type=\"hidden\"]), select, textarea, "
     + "img[data-drpg-portrait]";
 
-/** Controls the sweep could not name, for the report. Keyed so one entry is one kind. */
+/** Controls the sweep could not name, for the report. Keyed so one entry is one kind; `els` holds weak references to
+ *  the elements of that kind met, so the report can tell a kind still on the page from one met only in a window since
+ *  closed (`a11yReport`). */
 const unnamed = new Map();
+/* Past this many references a kind's list drops those whose element is gone, so a window drawn again and again does not
+   grow it without end. */
+const KIND_REFS = 32;
 
 /* A FIELD IS NOT NAMED BY WHAT IS IN IT (E48 K4, 11.11.2026). A select's `textContent` is every option's words run
    together and a textarea's is the text typed into it, so a field with no label read as "own" and was never offered the
@@ -167,7 +172,12 @@ export function nameControls(root = document) {
                      * is exactly what this branch still does.
                      */
                     if (!unnamed.has(kindOf(el))) {
-                        unnamed.set(kindOf(el), { where: host.id || kindOf(host), html: el.outerHTML.slice(0, 120) });
+                        unnamed.set(kindOf(el), { where: host.id || kindOf(host), html: el.outerHTML.slice(0, 120), els: [] });
+                    }
+                    const info = unnamed.get(kindOf(el));
+                    if (typeof WeakRef === "function") {
+                        info.els.push(new WeakRef(el));
+                        if (info.els.length > KIND_REFS) info.els = info.els.filter(ref => ref.deref()?.isConnected);
                     }
                     el.dataset.drpgNamed = "none";
                 }
@@ -251,12 +261,30 @@ export function focusIntoWindow(el) {
     }
 }
 
-/** Every control the sweep met and could not name, for the GM's diagnostics. */
+/** Every control the sweep met and could not name that is still on the page, and a count of the kinds met only in windows since closed, for the GM's diagnostics. */
 export function a11yReport() {
-    const rows = [...unnamed.entries()].map(([kind, info]) => `  ${kind} in ${info.where}\n    ${info.html}`);
-    return rows.length
+    /* ON THE PAGE NOW, NOT EVER MET (gaps, 12.11.2026; the E99 line's full tier-2 run). The map remembers a kind from its
+       first sight, and a kind met only in a window since closed was reported as a control on screen - its `where` the
+       window's id, which no longer exists: R3551's three stand-in windows, closed in its `finally` and gone from the page
+       (read after it: no element with an `r3551-` id), left "input in r3551-character-..." in the report, and tier 2's
+       "every control in the module's own chrome has a name" failed after it and passed alone. A kind is listed while one
+       of its elements is still in the page (read where one of them stands now, with its html), and the
+       kinds met only in windows since closed are counted on a line of their own. Without WeakRef every kind is listed. */
+    const live = [], gone = [];
+    for (const [kind, info] of unnamed.entries()) {
+        if (typeof WeakRef !== "function") { live.push([kind, info, null]); continue; }
+        info.els = info.els.filter(ref => ref.deref()?.isConnected);
+        (info.els.length ? live : gone).push([kind, info, info.els[0]?.deref() ?? null]);
+    }
+    const whereOf = (el, info) => {
+        const host = el?.closest?.(SURFACES.join(","));
+        return host ? host.id || kindOf(host) : info.where;
+    };
+    const rows = live.map(([kind, info, el]) => `  ${kind} in ${whereOf(el, info)}\n    ${el ? el.outerHTML.slice(0, 120) : info.html}`);
+    const closed = gone.length ? `\n${gone.length} more kind(s) met without a name only in windows no longer on the page: ${gone.map(([kind]) => kind).join(", ")}` : "";
+    return (rows.length
         ? `${rows.length} control kinds carry no name a screen reader can read:\n${rows.join("\n")}`
-        : "every control in the module's own chrome has a name";
+        : "every control in the module's own chrome has a name") + closed;
 }
 
 /** Called once at ready. */

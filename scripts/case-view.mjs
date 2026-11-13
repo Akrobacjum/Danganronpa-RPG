@@ -218,7 +218,8 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         const f = edits.get(id);
         if (f) {
             f.style.left = `${p.x}px`;
-            f.style.top = `${p.y + (b.offsetHeight || g.nodeH)}px`;
+            // the open node's fields stand in its place, its face hidden (`is-editing`, the owner, 12.11.2026)
+            f.style.top = `${p.y + (b.classList.contains("is-editing") ? 0 : (b.offsetHeight || g.nodeH))}px`;
         }
     }
     for (const head of canvas.querySelectorAll(":scope > [data-drpg-col-head]")) {

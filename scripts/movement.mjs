@@ -24,7 +24,7 @@
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, ACTIONS_RESOURCE } from "./config.mjs";
 import {
-    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
+    SETTINGS, iAmTheMastermind, incidentParticipants, incidentCast, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
     isDeceased, getClock, eclipseId, eclipseCountOf, isMutedDead
 } from "./settings.mjs";
 // The key rule (E14 part 1 C2), static for the veto's sake as the imports below: a leaf of config.mjs and inventory.mjs
@@ -932,7 +932,8 @@ function standingHere(tokenDoc, { lawful = true, last = null, told = false, reas
  * one write reads as a jump between two rooms that do not touch.
  */
 function ruleOf(verdict) {
-    if (verdict?.rule === "bedroomShut" || verdict?.rule === "corpse") return "cannotNow";
+    // "murderRoom": a Monocub refused a running murder's room (`restrictedFrom`, the 1.2.110 review's V1), put back as the Seal it read as until then.
+    if (verdict?.rule === "bedroomShut" || verdict?.rule === "corpse" || verdict?.rule === "murderRoom") return "cannotNow";
     return verdict?.code !== "cannotNow" && RULE_CODES.includes(verdict?.code) ? verdict.code : null;
 }
 
@@ -1342,7 +1343,10 @@ export async function refundLastCrossing(actorId) {
         await crossingStore.patch(actor.id, { refunded: true });
         awaitingPrice.delete(actor.id);
         // An Eclipse's count only in the Eclipse it was counted in: another's count is not this crossing's.
-        const kind = row.kind === "eclipse" && (!row.eclipse || row.eclipse !== eclipseId()) ? null : row.kind ?? null;
+        // And the free Move only in the time of day it was taken (E64, D059; the owner's default, confirmed 12.11.2026): it is
+        // a time of day's, refilled at each boundary, so one taken before a boundary given back after it was a second one.
+        const kind = row.kind === "eclipse" && (!row.eclipse || row.eclipse !== eclipseId()) ? null
+            : row.kind === "free" && row.mark !== timeOfDayMark() ? null : row.kind ?? null;
         const given = kind ? await refundCrossingOnGm(actor, kind) !== false : false;
         const token = game.scenes?.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null;
         let back = false;
@@ -1664,6 +1668,10 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
      */
     const allowance = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
 
+    // A Monocub pays nothing and counts no Eclipse crossing (E72 C10): only the connected rooms hold it, as a free
+    // placement holds nobody.
+    if (isMonocubActor(actor)) return cubStep(scene, from, to, floors, { free: eclipse && allowance === null, passage, keyed });
+
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.
         // Falling through would drop the crossing into the movement economy
@@ -1833,6 +1841,39 @@ export function roomsKnownToMe(scene = null) {
 }
 
 /**
+ * A Monocub's step (E72 C10): the connected rooms' rule alone (`crossingRefused`, a known passage joining two rooms as a
+ * door does), none in a free-placement Eclipse. Its own function, so the verdict keeps its two readings of the rule
+ * where R387, R431 and R558 read them.
+ */
+function cubStep(scene, from, to, floors, { free = false, passage = false, keyed = false } = {}) {
+    if (free) return true;
+    const refused = passage ? false : crossingRefused(scene, from, to, floors);
+    return refused ? refusal(keyed, "cannotNow", refused) : true;
+}
+
+/** A Monocub, by its flag (the veto is synchronous: no import of monocub.mjs here). */
+function isMonocubActor(actor) {
+    return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.monocub));
+}
+
+/**
+ * The room a running incident happens in, as a GM holds it (E72 C10): the victim's (the cast's `victimId`, a GM's
+ * record), on `scene`, while the world half says the incident runs; null on a player's browser or with none running.
+ */
+function incidentRoomForGm(scene) {
+    try {
+        if (!game.user?.isGM) return null;
+        const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        if (!state.active || !["openingRoll", "incident"].includes(state.stage)) return null;
+        const victim = game.actors.get(incidentCast()?.victimId ?? "");
+        const place = victim ? locateActor(victim) : null;
+        return place?.room && (!scene || place.scene?.id === scene.id) ? place.room : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Is this character pinned into a murder that is happening right now?
  *
  * Read straight off the world setting rather than through `murder.mjs`: this
@@ -1914,6 +1955,20 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
         if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
             if (isLocked(scene, to)) return refusal(keyed, "doorLocked", game.i18n.localize("DRPG.Move.locked"));
             if (isSealed(to)) return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
+            /* A MURDER'S ROOM SHUTS TO A MONOCUB, IN THE NEUTRAL WORDS (E72 C10, 12.11.2026; the owner's amendment of 06.11;
+               the 1.2.110 review's V1, 13.11.2026). Judged where the incident's room is known - a GM's browser, judging a
+               player's step (`mover`) - and never a GM's own move; a Monocub already inside is not crossing into it. It read as
+               a Seal until the review, so that a Monocub could not tell a running murder from one; but Seals are the world
+               setting `sealedRooms`, which every browser holds, and "sealed" for a room that list does not hold named the
+               murder's room. So it is `cannotNow` with that code's own sentence, which a crossing also gets for a room not
+               connected, a bedroom without its key and a dead character: nothing the world shows is contradicted by it.
+               What stays: the refusal itself says the room is shut to this Monocub now, which the rule (no Monocub into a
+               running murder's room) cannot avoid while it refuses. */
+            if (isMonocubActor(actor) && game.user?.isGM && !(mover ? mover.gm : true) && to === incidentRoomForGm(scene)) {
+                // Marked, so the primary still puts the token back as for a door's rule (`ruleOf`); the mark stays on the GM
+                // (movement-audit.mjs `markOf` sends a player only a bedroom's and a body's).
+                return refusal(keyed, "cannotNow", game.i18n.localize("DRPG.Bridge.why.cannotNow"), "murderRoom");
+            }
             // Somebody's bedroom. The owner walks in; anybody else needs the
             // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
@@ -2566,6 +2621,13 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
 
 /** `settleRoute`'s charge, on the browser that pays it; `record` is the primary's count inside its step of the key. */
 async function chargeRoute(tokenDoc, actor, { before, previous, crossings }, { record = null } = {}) {
+    /* A MONOCUB MOVES FREE (E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11, Q-E72-5's default): no Move, no
+       action and no Eclipse count, the Eclipse too. The veto (`crossingVerdict`) still holds the walls, the stairs, a seal,
+       the courtroom and a murder's room. */
+    if (isMonocubActor(actor)) {
+        if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        return true;
+    }
     // During an Eclipse the action economy is suspended: two free crossings
     // instead, judged by eclipse.mjs.
     //

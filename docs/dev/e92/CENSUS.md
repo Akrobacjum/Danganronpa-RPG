@@ -22,7 +22,7 @@ cast, the trial's floor, the investigation's suspects, the Calls' targets, the d
 the Despair pools) and leaves the Spectator by C1's change to `studentActors` and `studentCensus`. R3850 reads the main
 ones.
 
-## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1, 75 in 36 after C4; 77 in 38 in the 1.2.109 line after 1.2.108 was merged in, with dh-settings.mjs and trial-zones-ui.mjs)
+## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1, 75 in 36 after C4; 77 in 38 in the 1.2.109 line after 1.2.108 was merged in, with dh-settings.mjs and trial-zones-ui.mjs; still 77 in 38 in 1.2.110 after E72, one more in gm-stores.mjs and one fewer in monocub.mjs)
 
 | File:line (at 59d1935) | What it is | Class |
 | --- | --- | --- |
@@ -38,11 +38,12 @@ ones.
 | fog.mjs:3312 | the layer's owned tokens | leave it out (C4, by `isMine`'s rule) |
 | fog.mjs:4359 | whether this GM holds a Monokuma | character here |
 | gm-stores.mjs:1334 | the trial cast store's `exists` | character here |
+| gm-stores.mjs `fogSectionFor` (from E72 C10, merged 12.11 into 1.2.110) | the Monocubs a player owns, sent the rooms the class found | character here: a Spectator is never a Monocub (it never dies, C1) |
 | gm-stores.mjs:2405 `enterCastByHand` | the GM's killer/victim pick | leave it out (C1) |
 | gm-students.mjs:437 | the Students window's other characters | character here: the Spectators' group (C1) |
 | gm-team-dialog.mjs:269 | assigning characters to accounts | character here: the GM gives the account its Spectator |
 | hud.mjs:1384 | the GM's Monokuma | character here |
-| monocub.mjs:99, 105, 742 | the Monocubs; the dead who may become one; the dead's roster | character here: a Spectator never dies (no State on its row, C1) |
+| monocub.mjs:99, 105, 742 | the Monocubs; the dead who may become one; the dead's roster (742 went with the old Monocubs window, E72 C6, merged 12.11 into 1.2.110) | character here: a Spectator never dies (no State on its row, C1) |
 | monokuma.mjs:12 | a comment | - |
 | monokuma.mjs:37, 81 | the Monokumas; every character's id (the audit's waits) | character here |
 | monokuma.mjs:125, 131 `ownStudent`, `ownedStudents` | the account's student | leave it out (C1): a Spectator account has no student view |

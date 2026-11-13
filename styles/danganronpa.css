@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.109";
+    --drpg-css-version: "1.2.110";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -3818,6 +3818,12 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    gap of one in a wall, or which way a one-way tunnel goes. In the dim ink of 'the way is shut', not in italics, since
    it is an instruction and not a state. Chosen, not measured: the harness lays nothing out. */
 .drpg-passage-note { font-size: 0.9em; color: var(--drpg-dim); }
+/* The Mastermind's own room above the list (E91 C4, C5; D038; sheet.mjs `lairBlock`): its name, whether the door is
+   locked in the dim ink of 'the way is shut', and Lock or Unlock; a passage at that door gets a Seal beside its Show.
+   Drawn on the Mastermind's player's browser alone. Chosen, not measured: the harness lays nothing out. */
+.drpg-lair-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; }
+.drpg-lair-state { font-size: 0.9em; color: var(--drpg-dim); }
+.drpg-lair-lock, .drpg-passage-seal { white-space: nowrap; }
 /* Which way a tunnel goes, under its Shape in the GMs' Passages tab (H81-02; passages-tab.mjs `wayPicker`): the column's
    width at most, so a long room name does not widen the table (R606's sum). Chosen; in a Chromium mock-up with this
    stylesheet alone (20.10.2026, the stage's shots) its words wrap inside the 110 px column, five lines for "Only from Gym
@@ -4337,6 +4343,18 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     margin-top: 6px;
     font-style: italic;
     color: var(--drpg-crimson);
+}
+
+/* Part B under the tiles (E72 C14, C19): the purse, a Bribe waiting, a Bounty, the Monocub's own Ghost Bet - words in
+   the sheet's bone, at the module's small size, as the silenced note beside them sets its own. */
+.drpg-monocub-purse,
+.drpg-monocub-offer,
+.drpg-monocub-bounty,
+.drpg-monocub-bet {
+    margin-top: 6px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.35;
+    color: var(--drpg-bone);
 }
 
 /* THE DEAD'S AND AN NPC'S SHEET (E24 C3a, 08.11.2026; E24-18, E24-20). sheet.mjs `markSheetState` puts the
@@ -5154,6 +5172,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
 .drpg-variant-columns > .drpg-variant-ask { flex: 1.1 1 18rem; min-width: 0; padding-right: 6px; }
 .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: none; }
+/* A Call window shows every row's line (12.11.2026; the owner's standing rule "nie chowajmy w oknach akcji wyboru statystyki
+   ani opisu akcji NIGDY", relayed by the coordinator): there it is the row's description and price, which the rule above
+   would fold away under an unpicked row (call-pickers.mjs `callWindow`'s action layout, R3818). R3822 reads the cascade. */
+:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: block; }
 .drpg-variant-columns :is(.drpg-variant-ask, .drpg-variant-ask > form, .drpg-variant-brief > .drpg-briefing-block) > :first-child {
     margin-top: 0;
 }
@@ -9231,9 +9253,11 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     mask-image: var(--drpg-pix-listen);
 }
 
+/* The hammer, not the plain T (gaps-108, R3987; the owner's yes on the review page, 12.11.2026): legacy:hammer, the
+   glass drawing in both themes. The Remnant card's project glyph keeps `--drpg-pix-project`. */
 .drpg-action-button[data-drpg-action="project"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-pix-project);
-    mask-image: var(--drpg-pix-project);
+    -webkit-mask-image: var(--drpg-pix-hammer);
+    mask-image: var(--drpg-pix-hammer);
 }
 
 .drpg-action-button[data-drpg-action="sabotage"] .drpg-action-icon {
@@ -9535,7 +9559,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     content: none !important;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9549,11 +9574,21 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     image-rendering: pixelated;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon::before {
     content: none !important;
 }
 
-.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon {
+/* E72 (12.11.2026): Talent, Experience and Ultimate as one tile, wears Ultimate's star; the frame is the rule above. */
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-ultimate);
+    mask-image: var(--drpg-pix-ultimate);
+}
+
+/* E72 C15: the Hope Call Bribe shares Contribution's frame; its own mask is the rule after Contribution's. */
+.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9567,8 +9602,22 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     image-rendering: pixelated;
 }
 
-.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon::before {
     content: none !important;
+}
+
+/* The Bribe's drawing: two banknotes (the inventory's row 74), on :root since its legacy row (E72 C15). */
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-bribe);
+    mask-image: var(--drpg-pix-bribe);
+}
+
+/* The Bounty's drawing: a wanted poster with a coin (the inventory's row 75), on :root since its legacy row (E72 C16). */
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-bounty);
+    mask-image: var(--drpg-pix-bounty);
 }
 
 .drpg-call-button[data-drpg-call="reroll"] .drpg-action-icon {
@@ -9995,6 +10044,11 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
 .drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-horn); }
 .drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-gavel); }
 .drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-heartcrack); }
+/* E72 C9: a Monocub's Redeem, waiting - the ticket its tile wears. */
+.drpg-event[data-kind="redeemHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-redeem); }
+/* Part B's two cards for a Monocub's own player (E72 C19): the Bribe's tile glyph and the Ghost Bet's, both on :root. */
+.drpg-event[data-kind="bribeHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-bribe); }
+.drpg-event[data-kind="betHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-ghost-bet); }
 
 /* --- the Event panel, in both themes --------------------------------------
    `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
@@ -10167,6 +10221,10 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 .drpg-event[data-kind="assembly"] { --acc: var(--drpg-gold-antique); }
 .drpg-event[data-kind="trial"] { --acc: var(--drpg-crimson); }
 .drpg-event[data-kind="overflow"] { --acc: var(--drpg-crimson); }
+/* Redeem gives back Hope, and Hope's colour means Hope alone (E48 K1). */
+.drpg-event[data-kind="redeemHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="bribeHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="betHope"] { --acc: var(--drpg-gold); }
 
 /* ==========================================================================
    STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS
@@ -15438,7 +15496,8 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-summary-dialog, .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
-#chat-popout {
+#chat-popout,
+#drpg-sequence .drpg-seq-day {
     border: 1px solid var(--drpg-window-edge);
     box-shadow: 0 8px 28px rgba(var(--drpg-shadow-rgb), 0.55);
 }
@@ -16346,8 +16405,8 @@ i.drpg-pix-foot {
 }
 
 #drpg-gm-launcher i::before {
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
 }
 
 .application .window-header .header-control[data-action="close"]::before {
@@ -17047,9 +17106,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-flask);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-equip i {
-    -webkit-mask-image: var(--drpg-pix-fist);
-    mask-image: var(--drpg-pix-fist);
+    -webkit-mask-image: var(--drpg-pix-hold-ready);
+    mask-image: var(--drpg-pix-hold-ready);
 }
 
 .drpg-row-discard i {
@@ -17077,9 +17137,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-share);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-handover i.fa-hand-holding {
-    -webkit-mask-image: var(--drpg-pix-give);
-    mask-image: var(--drpg-pix-give);
+    -webkit-mask-image: var(--drpg-pix-hand-over);
+    mask-image: var(--drpg-pix-hand-over);
 }
 
 .drpg-row-present i {
@@ -18291,7 +18352,13 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
 
 /* THE START-OF-DAY BOARD (E94 C2; sequence.mjs `dayStartElement`; MK-R2 #4): a panel in the middle of the screen over the
    curtain's turn, the cast in a row of portraits, the dead greyed in their place with their name and "we remember",
-   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself. */
+   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself.
+   ITS FRAME IS A WINDOW'S (12.11.2026; the owner's report at a real table on 1.2.109: the frame was pink). The edge was
+   three units of `--drpg-seq-band`, the trial's band colour - Despair's pink under the glass, red here - on a panel
+   that is no part of the trial. It takes the module's ordinary window frame now: its selector stands in the list of
+   the module's windows above (the one-pixel `--drpg-window-edge` and the drop shadow), and in stained-glass.css's
+   rule of the windows' glass (6. LIQUID GLASS ON THE WINDOWS) - the same declarations, no copy of them;
+   `--drpg-seq-band` stays the trial's band and the "spilling" mood word's. R4402 reads both themes. */
 #drpg-sequence.drpg-sequence-dayStart { pointer-events: none; }
 #drpg-sequence .drpg-seq-day {
     position: absolute;
@@ -18303,7 +18370,6 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
     gap: calc(14 * var(--drpg-seq-u));
     padding: calc(28 * var(--drpg-seq-u)) calc(36 * var(--drpg-seq-u));
     background: color-mix(in srgb, var(--drpg-seq-dark) 94%, transparent);
-    border: calc(3 * var(--drpg-seq-u)) solid var(--drpg-seq-band);
     color: var(--drpg-seq-light);
     text-align: center;
 }

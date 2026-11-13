@@ -40,7 +40,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         answers: f.zone?.answers ?? null, holder: f.holderId ?? null } : null;`);
     const moveOn = (client, actorId, x, y) => client.eval(`const hall = game.scenes.get(globalThis.__s68hall ?? "");
         const t = hall?.tokens.find(t => t.actorId === "${actorId}"); if (!t) return false; await t.update({ x: ${x}, y: ${y} }); return true;`, { timeout: 30000 });
-    const chatHas = (client, text) => client.eval(`return game.messages.some(m => String(m.content).includes(${J(text)}));`);
+    /* A card the GM posts reaches each player's chat when that player's socket delivers it, not when the GM's own call
+       returns. 1.2.110's second CI run (43377699418, bucket b7, on 03b293f5) read C3's card on p3 and not yet on p1 and p2
+       ({"seenEmpty":[false,false,true]}), the GM's floor already ended; the first run on 12a7e309 read it on all three. So
+       each player's chat is waited for, up to 5 s, before it counts as not holding the card. */
+    const chatHas = (client, text) => client.eval(`const end = Date.now() + 5000;
+        const has = () => game.messages.some(m => String(m.content).includes(${J(text)}));
+        while (!has() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return has();`, { timeout: 30000 });
 
     /* ------------------------------ setup ------------------------------ */
     const hallId = await gm.eval(`const { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");

@@ -3843,7 +3843,7 @@ export function skipTurn() { let ended = false; for (const j of curtains) if (j.
  * colour and under TURN_WORTH of the panes moving.
  */
 export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, force = false, how = null, seed = 1, groups = TURN_BATCHES, delays = null } = {}) {
-  const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null };
+  const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null, stay: [] };
   if (reduced || !from?.length || !to?.length) return none;
   const recolour = Boolean(fromAcc && acc && fromAcc !== acc);
   const { dist } = centreOrder(to, W, H);
@@ -3858,7 +3858,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
   const at = b => (Array.isArray(delays) && Number.isFinite(delays[b]) ? delays[b] : b * gap);
   const delayOf = batchOf.map(at);
   const ease = curveOf(curve);
-  const used = new Set(), moves = [], items = [], statics = [], holes = [];
+  const used = new Set(), moves = [], items = [], statics = [], holes = [], stay = [];
   to.forEach((p, i) => {
     const c = centroid(p.poly);
     let best = -1, bd = Infinity;
@@ -3875,7 +3875,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
     let bestK = 0, bestD = Infinity;
     for (let k = 0; k < N; k++) { let d = 0; for (let n = 0; n < N; n++) { const f = F[(n + k) % N]; d += (f[0] - T[n][0]) ** 2 + (f[1] - T[n][1]) ** 2; } if (d < bestD) { bestD = d; bestK = k; } }
     F = F.map((_, n) => F[(n + bestK) % N]);
-    if (!F.some((q, n) => Math.hypot(q[0] - T[n][0], q[1] - T[n][1]) > TURN_MOVED)) { if (recolour) items.push({ from: best, batch: batchOf[i] }); else statics.push(i); return; }
+    if (!F.some((q, n) => Math.hypot(q[0] - T[n][0], q[1] - T[n][1]) > TURN_MOVED)) { stay.push(i); if (recolour) items.push({ from: best, batch: batchOf[i] }); else statics.push(i); return; }
     const A = fitAffine(F, T);
     const err = Math.max(...F.map(([x, y], n) => Math.hypot(A[0] * x + A[1] * y + A[2] - T[n][0], A[3] * x + A[4] * y + A[5] - T[n][1])));
     const box = boxOf([a], 1), o = [box.x0, box.y0];
@@ -3966,7 +3966,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
     none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
     // each batch's onset (E62 C2: a transition's own `delays`, else `gap` apart), which the turn's layers read
     batchDelay: Array.from({ length: nb }, (_, b) => at(b)),
-    frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
+    frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null, stay,
     glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
   };
 }
@@ -4010,6 +4010,24 @@ function curtainSibling(j, id, cls, extra = "") {
   const css = STYLE + "z-index:" + j.el.style.zIndex + ";" + extra;
   if (el.drpgCss !== css) { el.drpgCss = css; el.style.cssText = css; el.drpgClip = null; }
   return el;
+}
+/* The overlap of two convex polygons (Sutherland-Hodgman: `a` clipped by each edge of `b`), either winding; null when
+   they share no area. For the frost of a pane that travels (`glassTurn`). */
+export function convexOverlap(a, b) {
+  const area = p => p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2;
+  const sign = area(b) >= 0 ? 1 : -1;
+  const side = (p, q, r) => sign * ((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  let out = a;
+  for (let i = 0; i < b.length && out.length; i++) {
+    const p = b[i], q = b[(i + 1) % b.length], inp = out;
+    out = [];
+    for (let k = 0; k < inp.length; k++) {
+      const c = inp[k], n = inp[(k + 1) % inp.length], sc = side(p, q, c), sn = side(p, q, n);
+      if (sc >= 0) out.push(c);
+      if ((sc >= 0) !== (sn >= 0)) { const t = sc / (sc - sn); out.push([c[0] + t * (n[0] - c[0]), c[1] + t * (n[1] - c[1])]); }
+    }
+  }
+  return out.length >= 3 && Math.abs(area(out)) > 0.5 ? out : null;
 }
 /* the frost and the flash's host take the cut's silhouette, once a cut and never in a frame of a turn */
 function clipToCut(el, d) {
@@ -4281,8 +4299,21 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     clipToCut(fh, job.pathD);
     for (const f of plan.flashes) if (fl[f.pane]) layers.push({ el: fl[f.pane], frames: FLASH_KF, timing: { duration: FLASH.ms, delay: f.delay, easing: "linear" } });
   }
+  /* THE PANES THAT STAND KEEP THEIR FROST (gaps, R3985; the owner on 1.2.108: folding the Projects tray took the blur off
+     the notices tile beside it for a moment). The frost is one element under the whole curtain, and this turn faded all
+     of it out for the moves and back in after them, so every pane stood unfrosted for 700 ms, the ones the fold never
+     moved included - on the glass harness at 1366x768 (4dfac3a9) its opacity read 0.00 from 401 to 959 ms after the
+     tray's class changed. Where some panes stand, the frost is clipped to them alone for the moves, at full opacity, and
+     to the new cut once the moves are over (`onStart`); the travelling panes, the ones it would sit wrong under, are
+     unfrosted for their move as before. Only a turn in which every pane moves still fades the whole frost out. */
   const frost = plan.frost ? frostOf(job) : null;
-  if (frost) layers.push({ el: frost, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: plan.frost.out, fill: "forwards" }, frost: true });
+  /* and where a pane travels, the part its old place and its new one share: the partition's panes are convex, so their
+     overlap is (`convexOverlap`), and the travelling layer covers it from the first frame to the last. The voice tile
+     under the tray rides a pane the fold moves; without this it stood unfrosted for the move (the harness, 1366x768). */
+  const stay = frost ? [...plan.stay.map(i => to[i]?.poly),
+    ...plan.moves.map(m => (from[m.from] && to[m.to] ? convexOverlap(from[m.from].poly, to[m.to].poly) : null))].filter(p => p && p.length >= 3) : [];
+  if (frost && stay.length) clipToCut(frost, stay.map(p => p.map((q, i) => (i ? "L" : "M") + num(q[0], 1) + " " + num(q[1], 1)).join("") + "Z").join(""));
+  else if (frost) layers.push({ el: frost, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: plan.frost.out, fill: "forwards" }, frost: true });
   // the bloom crosses over and never goes out: the old glow's copy fades over the new one as the new fades in
   const gl = document.querySelector('[data-glow="' + job.seed + '"]');
   if (gl && plan.glow) {
@@ -4323,9 +4354,10 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     if (frost) {
       Promise.all(layers.map((l, i) => (l.move ? at(i) : true))).then(() => {
         if (h.ended) return;
-        h.anims[layers.findIndex(l => l.frost)].cancel();
+        const out = layers.findIndex(l => l.frost);
+        if (out >= 0) h.anims[out].cancel();
         clipToCut(frost, job.pathD);
-        h.frostIn = frost.animate([{ opacity: 0 }, { opacity: 1 }], { duration: plan.frost.in });
+        if (out >= 0) h.frostIn = frost.animate([{ opacity: 0 }, { opacity: 1 }], { duration: plan.frost.in });
       });
     }
     h.finished = Promise.all(layers.map((_, i) => at(i))).then(() => end(true));

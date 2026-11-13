@@ -123,7 +123,7 @@ function liveSchema(dialog, chapter) {
         // live.mjs replaces the region with what `build` returns, so it returns the region's own element: without it the
         // first redraw dropped `.drpg-case-trial-live`, and no later redraw found it (found by the round-4 sweep)
         build: () => `<div class="drpg-case-trial-live">${trialSchemaHtml({ ...trialSchemaState(chapter), camera })}</div>`,
-        watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
+        watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState, SETTINGS.trialProgress], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
         after: wire
     });
 }

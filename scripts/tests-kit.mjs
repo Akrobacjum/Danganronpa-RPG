@@ -2070,7 +2070,7 @@ const STANDING = [
     "openSoundDialog", "openInvestigationDashboard", "manageClassTrial",
     "openProjectManager", "openRoomSetupDialog", "openVaultInspector",
     "openItemTables", "openSeasonSetup", "openSeasonChecklist", "openMastermindDialog",
-    "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
+    "openRulesManager", "openGmTeamDialog",
     "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
     "openFailureLog", "openClockDialog", "openIncidentTracker",
     "openObjectionLog", "resetSeason"
