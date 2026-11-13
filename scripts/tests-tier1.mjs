@@ -19099,6 +19099,37 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ sheetHope: HOPE, sheetActions: DOT, stripHope: HOPE, stripActions: DOT }),
             "{the mask variable each mark's ::before wears under Stained Glass: [held, empty], on the sheet and on the strip}");
     }],
+    ["R4933 - a focused panel wears the module's own focus ring in both themes (gaps-111; 1.2.105's Known gaps: \"A focused panel has no focus ring of the module's own\"): the four panels a keyboard can focus since E48 K4 (explain.mjs PANELS: the clock, the Despair rail, the status strip, the Projects tray) each have a rule of the module's sheets that names `:focus-visible` on it and draws a solid outline", async () => {
+        /*
+         * gaps-111, 13.11.2026. E48 K4 made the four panels focusable (`tabindex="0"`, R3463) and left their ring to the
+         * browser: Chromium's `outline: auto`, read on the glass harness at 1366x768 in both themes, whose faintest tenth
+         * of pixels stood at 1.14-1.54:1 on the ground under them (the commit's numbers). Read as R3561 reads a state: every
+         * selector of every rule of the module's sheets that names `:focus-visible`, the state taken out and the rest
+         * matched against the panel, and the outline it declares. Red at 1b1daa92: no rule for any of the four.
+         */
+        const C = await styleCascade();
+        const shell = document.implementation.createHTMLDocument("R4933");
+        const page = shell.body;
+        page.innerHTML = `<div id="ui-top"><div id="drpg-hud" tabindex="0"></div><div id="drpg-despair" tabindex="0"></div></div>`
+            + `<div id="drpg-player-status" tabindex="0"></div><section id="countdowns" tabindex="0"></section>`;
+        const split = text => { const out = []; let depth = 0, part = ""; for (const ch of text) { if (ch === "(" || ch === "[") depth++; if (ch === ")" || ch === "]") depth--; if (ch === "," && !depth) { out.push(part.trim()); part = ""; } else part += ch; } if (part.trim()) out.push(part.trim()); return out; };
+        const ring = el => {
+            const found = C.rules.filter(rule => split(rule.selector).some(sel => {
+                if (!sel.includes(":focus-visible")) return false;
+                const rest = sel.replaceAll(":focus-visible", "").trim();
+                try { return el.matches(rest); } catch { return false; }
+            })).flatMap(rule => rule.decls.filter(d => d.property === "outline" || d.property === "outline-style").map(d => d.value.trim()));
+            return found.some(v => /\bsolid\b/.test(v)) ? "solid" : found.length ? found.join(" | ") : "none";
+        };
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const PANELS = ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns"];
+        const seen = {}, want = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            page.className = cls;
+            for (const sel of PANELS) { seen[`${theme} ${sel}`] = ring(page.querySelector(sel)); want[`${theme} ${sel}`] = "solid"; }
+        }
+        equal(stableJson(seen), stableJson(want), "{theme panel: the outline a :focus-visible rule of the module's sheets declares on it - solid, or none}");
+    }],
     ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
         /*
          * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground

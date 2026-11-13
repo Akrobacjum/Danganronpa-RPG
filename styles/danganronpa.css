@@ -1499,6 +1499,15 @@ body.drpg-hide-system-fear #resource-fear {
     outline-offset: 2px;
     border-radius: 3px;
 }
+/* A FOCUSED PANEL WEARS THE SAME RING (gaps-111, 13.11.2026; 1.2.105's Known gaps: "A focused panel has no focus ring of
+   the module's own"). E48 K4 made the clock, the Despair rail, the status strip and the Projects tray focusable
+   (explain.mjs PANELS, R3463) and left their ring to the browser: Chromium's `outline: auto`, whose faintest tenth of
+   pixels read 1.14-1.54:1 on the ground under them (the glass harness, 1366x768, both themes). The controls' ring above,
+   on the panel's box: no `border-radius` here, each panel keeps its own corner. Read by R4933; its contrast in the commit. */
+:is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 2px;
+}
 
 /* ==========================================================================
    PLAYER-LOCKED FIELDS
