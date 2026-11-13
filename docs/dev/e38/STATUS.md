@@ -105,3 +105,5 @@ Not measured by this line (no counter in reach); the session's own usage is the 
 - C1-C3 pushed earlier: run 43401864794 green (de4b9621).
 - C4-C5a (the two fixes): CI is running on this push (the earlier STATUS push carried [skip ci] on its head, which
   suppressed the whole push; this commit re-runs CI on the full chain). Result recorded here when it lands.
+
+- CI re-run triggered on this commit for the two fixes.
