@@ -683,9 +683,10 @@ export function voicePlacement(W, H, tray) {
    down from under the tray's five rows (`voicePlacement`'s y, kept as `y0`) to where its turned box is centred on
    H / 2, never higher than `y0` (the tray's rows keep their room) and no lower than its foot allows (`floor`). x
    and the centre read each other through the turn, so the two are settled together; three passes move nothing
-   after the second. `wall` is the x its top right corner stands VOICE_WALL from: the pin's (`voiceWall`), or the
-   screen's own edge where `buildColumn` stands the tile under the tab rail's run. */
-function settleVoice(b, W, { px, py, cs, sn }, floor, H = Infinity, wall = voiceWall(W)) {
+   after the second. `wall` is the x its top right corner stands VOICE_WALL from: the pin's (`voiceWall`, which
+   `deskPage` reads for the cut), or the screen's own edge where `buildColumn` stands the tile under the tab rail's
+   run. Every caller hands it (E54: it read `voiceWall(W)` itself when none was given, which put PIN in the cut). */
+function settleVoice(b, W, { px, py, cs, sn }, floor, H = Infinity, wall) {
   const y0 = b.y0 ?? b.y, full = Math.round(VOICE_TALL * b.w);
   const xAt = y => Math.floor(px + (wall - VOICE_WALL - px + (y - py) * sn) / cs - b.w);
   const hAt = (x, y) => Math.floor((floor - VOICE_FOOT - py - (x + b.w - px) * sn) / cs - (y - py));
