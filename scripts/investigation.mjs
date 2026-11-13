@@ -35,13 +35,14 @@ import {
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
+import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
 import { WIDE } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_NODE, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
@@ -2332,7 +2333,9 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
     const placed = placedKeyRemnants();
     const limit = caseKeyCount(plan.chapter);
     const slots = plan.entries.map((e, slot) => ({ ...e, slot }));
-    const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null });
+    // the planned Autopsy's node, empty until written, as the slots are: the chapter now running's (13.11.2026)
+    const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: chapter === plan.chapter });
+    for (const n of graph.nodes) if (n.id === AUTOPSY_NODE && n.kind === "autopsy") n.sent = autopsyIssued(chapter);
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
     const finders = findersByAnyRemnant();
     const authors = new Map();
@@ -2349,6 +2352,25 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
 }
 
 /**
+ * Whether a student holds an Autopsy Truth Bullet of `chapter` (moved from gm-panel.mjs on 13.11.2026: the planned
+ * Autopsy reads it too, case-realize.mjs `sendPlannedAutopsy`, and gm-panel.mjs imports this file), by the GMs' answer keys (`secretOf`: the
+ * real type and the chapter `createTruthBullet` wrote with it) over the items as the GMs hold them
+ * (`itemsHeldNow`, the key fee's reading in `keyFeeOf`). GM-side; a player's console cannot write an answer key.
+ * Of this season (E11 fix r2-H2; round 1's res R6, round 2's goal S06-42): a reset that keeps the Truth
+ * Bullets starts again at chapter 1, and last season's chapter-1 autopsy read as issued, so the new
+ * chapter's line never asked for one. An autopsy's answer key names its season since (truth-bullets.mjs
+ * `createTruthBullet`, a copy its original's); one issued before 1.2.73 names none and is read by its chapter alone, as before (`sameSeason`; tier 2
+ * "this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence").
+ */
+export function autopsyIssued(chapter) {
+    return studentActors().some(actor => itemsHeldNow(actor).some(item => {
+        if (!isTruthBullet(item)) return false;
+        const secret = secretOf(actor.items.get(item.id)?.uuid);
+        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter) && sameSeason(secret);
+    }));
+}
+
+/**
  * WHAT THE STUDENTS CAN REACH, LIVE (E97 C7; the owner's A and B of 09.11): each evidence node's holders - the students
  * holding a Truth Bullet whose answer key names its Remnant (the dead included here; `reachability` keeps the living) -
  * and the chapter's culprits, from the Blackened register and the incident's killers. A culprit's copy never counts: the
@@ -2361,7 +2383,10 @@ function caseReach(graph) {
     const holders = new Map();
     for (const actor of studentActors()) {
         for (const item of bulletsOf(actor)) {
-            const id = byToken.get(secretOf(item.uuid).remnantId);
+            const secret = secretOf(item.uuid);
+            // the Autopsy's node is held by whoever holds this chapter's Autopsy (13.11.2026)
+            const id = secret.realType === "autopsy" && Number(secret.chapter) === Number(graph.chapter) && sameSeason(secret)
+                ? (graph.nodes.some(n => n.id === AUTOPSY_NODE) ? AUTOPSY_NODE : null) : byToken.get(secret.remnantId);
             if (!id) continue;
             if (!holders.has(id)) holders.set(id, new Set());
             holders.get(id).add(actor.id);
@@ -2427,7 +2452,7 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
     }
     /* A PLANNED REMNANT'S FIELDS TOO (13.11.2026): it is evidence on the map, so until then it drew none, and its room,
        its type and its Place on the map were reached only from the GM panel's list (E97 C12's editor, never drawn). */
-    for (const node of graph.nodes) if (!node.evidence || (node.planned && node.kind === "incident")) add(node.id, schemaEditor(graph, node));
+    for (const node of graph.nodes) if (!node.evidence || (node.planned && ["incident", "autopsy"].includes(node.kind))) add(node.id, schemaEditor(graph, node));
     const slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]));
     caseKeyCells({ plan, status, placed, limit }).forEach((c, i) => {
         const id = slotNode.get(i);
@@ -2465,6 +2490,20 @@ function schemaEditor(graph, node) {
         editRow(L("DRPG.CaseMap.field.text"), `<textarea name="${esc(name("text"))}" rows="3">${esc(node.text)}</textarea>`),
         editRow(L("DRPG.CaseMap.field.mode"), `<select name="${esc(name("mode"))}">${modes.join("")}</select>`)
     ];
+    if (node.kind === "autopsy") {
+        /* THE PLANNED AUTOPSY (13.11.2026): the GM panel's Autopsy window's three fields, and whether it went out. It goes to
+           every living student when the body is found (case-realize.mjs `sendPlannedAutopsy`); sent, its fields stay, read
+           as what was planned. */
+        const said = node.sent ? L("DRPG.CaseMap.autopsySent") : L("DRPG.CaseMap.autopsyWhen");
+        return [
+            `<p class="drpg-case-info-note">${esc(said)}</p>`,
+            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+                esc(L("DRPG.TruthBullet.autopsyNamePlaceholder"))}" />`),
+            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
+                esc(L("DRPG.TruthBullet.autopsyTextPlaceholder"))}">${esc(node.text)}</textarea>`),
+            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2">${esc(node.note ?? "")}</textarea>`)
+        ].join("");
+    }
     if (node.kind === "incident") {
         // E97 C12: a planned Incident Remnant: its room, and the road onto the map (New Remnant, filled in from here)
         const rooms = placeRoomOptions({ room: node.room });
@@ -2542,7 +2581,8 @@ function readSchemaForm(form) {
 async function applySchemaSave(schema = []) {
     const refused = [];
     for (const { chapter, id, fields } of schema) {
-        const now = caseNodeOf(caseRows(chapter).rows[id]);
+        // the planned Autopsy's node is drawn before it is written (13.11.2026): its first write makes its row
+        const now = caseNodeOf(caseRows(chapter).rows[id]) ?? (id === AUTOPSY_NODE ? caseNodeOf({ kind: "autopsy" }) : null);
         if (!now) continue;
         const write = {};
         for (const [field, { value, drawn }] of Object.entries(fields)) {
@@ -2556,7 +2596,7 @@ async function applySchemaSave(schema = []) {
             if (!sameValue(held ?? "", drawn ?? "")) { refused.push({ field, value, row: now.label || id }); continue; }
             write[key] = key === "mode" ? (value || null) : value;
         }
-        if (Object.keys(write).length) await setCaseNode(chapter, id, write);
+        if (Object.keys(write).length) await setCaseNode(chapter, id, caseRows(chapter).rows[id] ? write : { kind: now.kind, ...write });
     }
     return refused;
 }

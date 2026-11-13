@@ -8409,7 +8409,7 @@ const REGRESSIONS = [
             ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
-            ["ITEM gm-panel.mjs#autopsyIssued", "judged (E11 fix r1-G4): the answer key (secretOf, the GMs' store) names the autopsy and its chapter (and its season since fix r2-H2, `sameSeason`), over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
+            ["ITEM investigation.mjs#autopsyIssued", "judged (E11 fix r1-G4; moved from gm-panel.mjs on 13.11.2026, unchanged): the answer key (secretOf, the GMs' store) names the autopsy and its chapter (and its season since fix r2-H2, `sameSeason`), over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
@@ -8417,6 +8417,7 @@ const REGRESSIONS = [
             ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
             ["ITEM investigation.mjs#missingKeyRows", "a display (E70 C9): the console's Missing Key Remnants on a GM, from keyPlanStatus and findersByRemnant (the living holders, as the fee's) and the GMs' Key plan; writes nothing - the Reveal judges each row again on the primary (trial-modes.mjs revealRefusal in revealInStep)"],
             ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
+            ["ITEM investigation.mjs#caseReach", "out of scope: the Map's reach, a GM's display (E97 C7); since 13.11.2026 the planned Autopsy node's holders by the answer key (secretOf), writes nothing"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
             ["ITEM investigation.mjs#studentsListHtml", "out of scope: 'Who has what' by name (E97 C7, E98 C4), a GM's display of the same students and items; writes nothing"],
             ["ITEM observe.mjs#mintFindCopy", "out of scope as a reader (E70 C12, moved out of createFind with its H84 step): `copiedRemnants` asks only whether a copy of this trace is held, in the character's `serialWrite` step, for Observe's find (createFind) and a successful Tamper's copy for its author (cleanup.mjs authorsCopy, on the GM after resolveStageSix scored the roll); the fields it names are the trace's, from the GMs' row"],
@@ -13123,7 +13124,8 @@ const REGRESSIONS = [
             ["investigation.mjs keysToPlace", fnSource(investigation, "keysToPlace"), /=== Number\(chapter\) && sameSeason\(r\.data\)\)\.length/],
             ["investigation.mjs keyPlanStatus's off-plan count", fnSource(investigation, "keyPlanStatus"), /\(r\.data\?\.chapter \?\? chapter\) === chapter && sameSeason\(r\.data\)/],
             ["investigation.mjs keyFeeOf", fnSource(investigation, "keyFeeOf"), /trace \? \(sameSeason\(trace\) \? trace\.chapter \?\? now : null\)/],
-            ["gm-panel.mjs autopsyIssued", fnSource(panel, "autopsyIssued"), /Number\(secret\.chapter\) === Number\(chapter\) && sameSeason\(secret\)/],
+            // moved to investigation.mjs on 13.11.2026 (the planned Autopsy reads it too)
+            ["investigation.mjs autopsyIssued", fnSource(investigation, "autopsyIssued"), /Number\(secret\.chapter\) === Number\(chapter\) && sameSeason\(secret\)/],
             ["monocub.mjs isCrimeSilenced", fnSource(monocub, "isCrimeSilenced"), /record\.chapter === getClock\(\)\.chapter && sameSeason\(record\)/]
         ];
         const blind = readers.filter(([, body, asks]) => !asks.test(body)).map(([name]) => name);
@@ -22991,10 +22993,10 @@ const REGRESSIONS = [
             modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES).filter(m => m !== "objection" && m !== "rebuttal"))
         }), JSON.stringify({
             keys: ["2:deduction-a", "2:meta", false, false, true],
-            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null, type: null },
-            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null, type: null },
+            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null, type: null, note: null },
+            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null, type: null, note: null },
             meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {} }],
-            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident"],
+            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident", "autopsy"],
             nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
                 ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
             edges: [{ from: "S1.T1", to: "deduction-a", kind: "input" }, { from: "S1.T2", to: "deduction-a", kind: "input" },

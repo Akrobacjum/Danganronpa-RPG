@@ -27341,6 +27341,56 @@ const SCENARIOS = [
             "{the slot's room as stored; the preview's and Place's room select; the room the Key Remnant was placed in; Place's select for a room gone, and a line naming it; a planned Remnant node's room select}");
     }],
 
+    ["planned Autopsy: the body's discovery sends the planned Autopsy to every living student with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:05. The case plans its Autopsy on a node of its own (case-schema.mjs
+         * kind "autopsy"); the discovery's hook on the primary (`writer`, chapter.mjs `announceBody`) sends it as the GM
+         * panel's window would by default - every student not dead, the name, the words and the GM's note - unless an Autopsy
+         * of the chapter is held already (gm-panel.mjs `autopsyIssued`: one sent by hand, or by an earlier body). The
+         * suite's rehearsal stamps send nothing. Red at a8650af: no such kind, nothing listening.
+         */
+        const S = await import("./case-schema.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { BODY_ANNOUNCED_HOOK, isDeadForGm } = await import("./chapter.mjs");
+        const { primaryGmId } = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        must(game.user.id === primaryGmId(), "this GM is not the primary - the Autopsy would not go out from here");
+        const chapter = getClock().chapter;
+        const living = studentActors().filter(a => !isDeadForGm(a));
+        needs(world.atLeast("livingStudents"), "living students to receive it");
+        const before = new Set(studentActors().flatMap(a => TB.bulletsOf(a).map(i => i.uuid)));
+        const autopsies = () => studentActors().flatMap(a => TB.bulletsOf(a).filter(i => !before.has(i.uuid) && TB.secretOf(i.uuid).realType === "autopsy")
+            .map(i => ({ actor: a.id, item: i })));
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const seen = {};
+        try {
+            await S.setCaseMeta(chapter, { askedAt: Date.now() });
+            await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE planned autopsy", text: "SUITE stab wound, 23:10", note: "SUITE the GM's note" });
+            await gmStoresIdle();
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, rehearsal: true, victimIds: [] });
+            await wait(800);
+            seen.rehearsal = autopsies().length;
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, victimIds: [] });
+            await until(() => autopsies().length >= living.length, 6000).catch(() => {});
+            const sent = autopsies();
+            seen.to = sent.map(r => r.actor).sort();
+            seen.words = [...new Set(sent.map(r => `${r.item.name}|${TB.secretOf(r.item.uuid).gmNote ?? ""}`))];
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, victimIds: [] });
+            await wait(1200);
+            seen.again = autopsies().length - sent.length;
+        } finally {
+            for (const { item } of autopsies()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, "autopsy").catch(() => {});
+            await S.setCaseMeta(chapter, { askedAt: metaBefore.askedAt }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ rehearsal: 0, to: living.map(a => a.id).sort(), words: ["SUITE planned autopsy|SUITE the GM's note"], again: 0 }),
+            "{Autopsies after a rehearsal's hook; who got one after the discovery's; their name and GM note; more after a second body}");
+    }],
+
     ["E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot", async () => {
         /*
          * E97 C10, 12.11.2026; the goal's "the realization has a preview and does nothing until the GM clicks Run" and

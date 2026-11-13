@@ -8370,7 +8370,8 @@ const INVARIANTS = [
             const plan = I.keyPlan();
             const ch = chapterPicked && Number.isInteger(n) ? n : getClock().chapter;
             const slots = ch === plan.chapter ? plan.entries.map((e, slot) => ({ ...e, slot })) : null;
-            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots });
+            // and the planned Autopsy's node, drawn for the chapter now running (13.11.2026)
+            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots, autopsy: ch === plan.chapter });
             const kept = frame().map((el, i) => Boolean(el) && el === first[i]);
             root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
             await until(() => view() === "table", 3000).catch(() => {});
@@ -47370,7 +47371,8 @@ const INVARIANTS = [
             traceNames: ["img.K", "name.K", "text.K", "analysis.K", "type.K", "vis.K", "faint.K", "crime.K", "reinf.K"],
             keys: { kit: true, cols: ["scale", "name", "text", "analysis", "note", "status"],
                 heads: ["DRPG.Investigation.difficulty", "DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.keyNoteLabel", "DRPG.Investigation.keyStatus"].map(L) },
-            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "place:0"]
+            // keyroom (13.11.2026): a slot's planned room, beside Place while it is not on the map
+            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "keyroom:0", "place:0"]
         }), "{who: WHO HAS WHAT on the drawn dashboard [a dataTable, its columns' keys, its heads' words, each head a number head, the Breakdown head's tooltip]; traces, keys: "
             + "the Traces tab's and the planner's tables [a dataTable, columns, heads]; traceNames, keyNames: their fields' names (a trace's row key as K)}");
     }],

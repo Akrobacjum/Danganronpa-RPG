@@ -523,3 +523,30 @@ Defaults, as built (the owner may revise):
 - Red first: tier 2 "planned location: ..." (stored, the preview's and Place's first room, placed there, a room gone
   starting on the first room with its line, a planned Remnant's room shown), red at 9267b1d.
 - GM handbook (EN, PL): the realization's paragraph.
+
+## A planned Autopsy, sent at the body with no GM click (13.11.2026; the owner through the coordinator: "Niech dziala tak samo jak key remnanty po prostu, tylko ze gracze dostaja od razu po odkryciu ciala. Bez kliku GMa")
+
+- Like a Key Remnant slot: the Map's evidence column always has an Autopsy Truth Bullet node (case-schema.mjs kind
+  "autopsy", one a chapter, `AUTOPSY_NODE`), drawn empty until the GM writes it. Its fields are the GM panel's Autopsy
+  window's: name, words for the players, the GM's note. It saves on close like every node. A deduction may rest on it,
+  and its holders are the students holding this chapter's Autopsy (`caseReach`).
+- Sent: on the primary GM's browser, from the discovery's own hook (chapter.mjs `BODY_ANNOUNCED_HOOK`, `writer`), by
+  case-realize.mjs `sendPlannedAutopsy`: to every student not dead (the hand window's own default), by the same road
+  (truth-bullets.mjs `issueAutopsy`: the answer key and the note stay the GMs'), and the GM is told how many. The suite's
+  rehearsal stamps send nothing.
+- Defaults as built, and where they differ from the brief:
+  - Once a chapter, not once a body: the case plans one Autopsy, and an Autopsy of the chapter already held (sent by
+    hand, or at an earlier body; `autopsyIssued`, moved from gm-panel.mjs to investigation.mjs) sends nothing.
+  - "No GM connected at the discovery": a discovery runs on the primary GM's browser (`runDiscovery`), so there is no
+    discovery with no GM to send it; nothing waits for a later connection. A plan written after the body was found is
+    not sent by itself; **Issue Autopsy Truth Bullet** opens filled in from it.
+  - The node shows "Planned" until sent, "Sent" after; its fields stay as what was planned.
+  - A planned Autopsy with neither a name nor words is not sent.
+- Red first: tier 2 "planned Autopsy: ..." (a rehearsal sends nothing; the discovery sends to every living student with
+  the name and the note; a second body sends nothing more), red at a8650af. R3373 reads the kind and the node's `note`;
+  R376 reads `autopsyIssued` in its new file; R2067 reads the Key row's `keyroom` field (item 5's, missed in its
+  commit: I ran only the named tests there).
+- GM handbook (EN, PL): the paragraph after the realization.
+- Scenario 62-investigation has no body discovery (checked: no `runDiscovery`, `announceBody` or the hook in it); 65-season,
+  66-rooms and 72-canary have one, and none of them is extended here. The send at a real table's discovery, with players'
+  browsers receiving the bullets, is for the live list.

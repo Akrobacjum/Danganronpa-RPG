@@ -7683,6 +7683,9 @@
       "moveNote": "Przenieś je do rejestru zdejmuje klucz odpowiedzi każdego śladu z jego żetonu (game.drpg.migrateRemnants); Dalej działa bez niego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
     },
     "CaseMap": {
+      "autopsySent": "Wysłany graczom.",
+      "autopsyWhen": "Trafi do każdego żywego ucznia, gdy ciało zostanie znalezione.",
+      "autopsyWentOut": {"one": "Zaplanowany Autopsy Truth Bullet trafił do {n} ucznia.", "few": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów.", "many": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów.", "other": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów."},
       "viewSwitch": "Widok śledztwa",
       "editLabel": "Pola: {name}",
       "toolsLabel": "Narzędzia mapy",
@@ -7706,6 +7709,7 @@
         "remnant": "Remnant"
       },
       "state": {
+        "sent": "Wysłany",
         "held": "U graczy",
         "onMap": "Na mapie",
         "planned": "W planie"

@@ -1352,20 +1352,26 @@ export async function issueAutopsyDialog() {
             }</label>`;
     }).join("");
 
+    /* WHAT THE CASE PLANNED (13.11.2026): the planned Autopsy's name, words and note fill the window in, for a body found
+       before it was planned or a GM sending it by hand (case-schema.mjs AUTOPSY_NODE). */
+    const { caseRows, caseNodeOf, AUTOPSY_NODE } = await import("./case-schema.mjs");
+    const { getClock } = await import("./clock.mjs");
+    const planned = caseNodeOf(caseRows(getClock().chapter).rows[AUTOPSY_NODE]);
+    const fill = planned?.kind === "autopsy" ? planned : { label: "", text: "", note: "" };
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.TruthBullet.autopsyTitle"),
         classes: ["drpg-panel", "drpg-window-autopsy"],
         body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.autopsyHint")}</p>
             <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="name" autofocus
+                <input type="text" name="name" autofocus value="${foundry.utils.escapeHTML(fill.label ?? "")}"
                        placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyNamePlaceholder")}" /></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
                 <textarea name="playerText" rows="3"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyTextPlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyTextPlaceholder")}">${foundry.utils.escapeHTML(fill.text ?? "")}</textarea></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
                 <textarea name="gmNote" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}">${foundry.utils.escapeHTML(fill.note ?? "")}</textarea></label>
             <fieldset><legend>${game.i18n.localize("DRPG.TruthBullet.autopsyWho")}</legend>${rows}</fieldset>
         </form>`,
         footer: {

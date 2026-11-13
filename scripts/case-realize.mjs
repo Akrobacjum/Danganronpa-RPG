@@ -21,10 +21,10 @@
  * row still names its own run - the later writer of the field wins on every GM (gm-store.mjs, a stamp per field), so
  * one of two runs stops before it places anything. Not a lock across a slow network: LIVE-E97-04.
  */
-import { esc, error, placeRoomOptions, primaryGmId } from "./utils.mjs";
+import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
-import { caseRows, caseMetaOf, setCaseMeta } from "./case-schema.mjs";
-import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord } from "./investigation.mjs";
+import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, AUTOPSY_NODE } from "./case-schema.mjs";
+import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyIssued } from "./investigation.mjs";
 import { remnantById, dropRemnantSecret } from "./remnants.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { placeScenes, roomNames } from "./rooms.mjs";
@@ -177,6 +177,11 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
  * nothing.
  */
 export function registerCaseAsk() {
+    // the planned Autopsy goes out first, with no window (13.11.2026; `sendPlannedAutopsy`)
+    Hooks.on(BODY_ANNOUNCED_HOOK, payload => {
+        if (!payload?.writer || payload.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
+        sendPlannedAutopsy(payload.chapter).catch(err => error("The planned Autopsy could not be sent", err));
+    });
     Hooks.on(BODY_ANNOUNCED_HOOK, payload => {
         if (!payload?.writer || payload.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
         setTimeout(() => { askAtBody(payload.chapter).catch(err => error("The case's question at a body failed", err)); }, 0);
@@ -206,4 +211,33 @@ export async function askAtBody(chapter) {
     });
     if (answer === "preview") return openRealization({ chapter });
     return null;
+}
+
+/**
+ * THE PLANNED AUTOPSY, SENT AT THE BODY (the owner, 13.11.2026: "gracze dostaja od razu po odkryciu ciala. Bez kliku
+ * GMa"). On the primary GM's browser, from the discovery's hook (`registerCaseAsk`): the chapter's planned Autopsy
+ * (case-schema.mjs AUTOPSY_NODE), with a name or words written, goes to every student not dead - the GM panel's window's
+ * own default (gm-items.mjs `issueAutopsyDialog`) - by the same road (truth-bullets.mjs `issueAutopsy`: the answer key
+ * and the GM's note stay the GMs'), and the GM is told how many. Once a chapter: an Autopsy of the chapter held already
+ * (sent by hand, or at an earlier body; investigation.mjs `autopsyIssued`) sends nothing, and two calls at once send
+ * once (`sending`). A body never found sends nothing; a discovery runs on the primary GM's browser, so there is no
+ * discovery with no GM to send it. Answers how many went out.
+ */
+const sending = new Set();
+export async function sendPlannedAutopsy(chapter) {
+    if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter) || sending.has(chapter)) return 0;
+    const plan = caseNodeOf(caseRows(chapter).rows[AUTOPSY_NODE]);
+    if (plan?.kind !== "autopsy" || !(plan.label || plan.text) || autopsyIssued(chapter)) return 0;
+    sending.add(chapter);
+    try {
+        const [{ studentActors }, { isDeadForGm }, { issueAutopsy }, { TRUTH_BULLET_TYPES }] = await Promise.all([
+            import("./monokuma.mjs"), import("./chapter.mjs"), import("./truth-bullets.mjs"), import("./config.mjs")]);
+        const living = studentActors().filter(a => !isDeadForGm(a));
+        if (!living.length) return 0;
+        const issued = await issueAutopsy(living, { name: plan.label || TRUTH_BULLET_TYPES.autopsy.label, playerText: plan.text, gmNote: plan.note ?? "" });
+        if (issued) ui.notifications.info(plural("DRPG.CaseMap.autopsyWentOut", { n: issued }));
+        return issued;
+    } finally {
+        sending.delete(chapter);
+    }
 }

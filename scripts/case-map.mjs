@@ -20,7 +20,7 @@
  * E99 READS: `caseGraphHtml` (the graph alone, any size of container), `mapPlace`, `edgePath` and `nodeState`.
  */
 import { esc, plural } from "./utils.mjs";
-import { REMNANT_TYPES } from "./config.mjs";
+import { REMNANT_TYPES, TRUTH_BULLET_TYPES } from "./config.mjs";
 import { caseRows, caseNodeOf } from "./case-schema.mjs";
 import { remnantById } from "./remnants.mjs";
 import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
@@ -34,6 +34,8 @@ export { MAP_GEOMETRY, mapPlace, edgePath, TILE_GUTTER, placeTileControls } from
  */
 export function nodeState(node, finders = null) {
     if (!node?.evidence) return "schema";
+    // a planned Autopsy once sent (13.11.2026)
+    if (node.kind === "autopsy") return node.sent ? "sent" : "planned";
     if (node.planned) return "planned";
     const names = finders?.get?.(tokenIdOf(node.trace)) ?? null;
     return names && names.size ? "held" : "onMap";
@@ -52,6 +54,7 @@ const F = (key, data) => game.i18n.format(key, data);
 /** A node's kind as its strip reads: the Remnant's type for evidence, the schema's kind otherwise. */
 export function kindLabel(node) {
     if (node.evidence) {
+        if (node.kind === "autopsy") return TRUTH_BULLET_TYPES.autopsy?.label ?? L("DRPG.CaseMap.kind.remnant");
         if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES[node.type ?? "incident"]?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
         return REMNANT_TYPES[node.type]?.label ?? REMNANT_TYPES[node.kind]?.label ?? L("DRPG.CaseMap.kind.remnant");
     }

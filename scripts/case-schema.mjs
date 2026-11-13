@@ -27,7 +27,12 @@ import { MODULE_ID } from "./config.mjs";
 
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
-export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident"]);
+export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident", "autopsy"]);
+/* THE PLANNED AUTOPSY (the owner, 13.11.2026: "Dodajmy tez opcje zaplanowania autopsy truth bullet zamiast wysylania go od
+   razu. Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa"): one row a
+   chapter, kind "autopsy", under this id - its name (`label`), the players' words (`text`) and the GM's note (`note`).
+   case-realize.mjs `sendPlannedAutopsy` sends it at the body's discovery. */
+export const AUTOPSY_NODE = "autopsy";
 /* A PLANNED REMNANT'S TYPE (the owner, 13.11.2026: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz
    incident i keys"): an "incident" row plans a Remnant of one of these, Incident by default (every row before this).
    Not a Key Remnant (the Key plan's slots plan those), a Final Truth Remnant (the Final Truth form places it) or an
@@ -83,7 +88,9 @@ export function caseNodeOf(raw) {
         room: typeof raw.room === "string" && raw.room ? raw.room : null,
         trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null,
         // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
-        type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null
+        type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
+        // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; no other kind has one
+        note: raw.kind === "autopsy" ? (typeof raw.note === "string" ? raw.note : "") : null
     };
 }
 
@@ -111,7 +118,7 @@ export function caseMetaOf(raw) {
  * schema's nodes in row order. Edges: an input to its node ("input"), a counter to what it refutes ("refutes").
  * A reference to no node is named in `missing`, never dropped. Answers `{ chapter, meta, nodes, edges, missing }`.
  */
-export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], slots = [] } = {}) {
+export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], slots = [], autopsy = false } = {}) {
     const nodes = [];
     const alias = new Map();
     const bySlot = new Map();
@@ -154,8 +161,15 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
                 tied: node.type === "incident", faint: node.type === "faint", room: node.room, chapter, foundAt: null, incident: id, text: node.text });
             continue;
         }
+        // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)
+        if (node.kind === "autopsy") {
+            if (id !== AUTOPSY_NODE) continue;
+            nodes.push(autopsyNode(chapter, node));
+            continue;
+        }
         nodes.push({ id, evidence: false, planned: false, ...node });
     }
+    if (autopsy && !nodes.some(n => n.id === AUTOPSY_NODE)) nodes.push(autopsyNode(chapter));
     const known = new Set(nodes.map(n => n.id));
     const edges = [];
     const missing = [];
@@ -198,7 +212,7 @@ export function caseRows(chapter) {
  * with `chapters: "all"`), the Key plan's slots of the chapter that a GM wrote (or `slots`, as given), the schema's rows. `{}`-shaped and
  * empty on any other browser, which holds none of the three.
  */
-export function caseGraph(chapter = getClock().chapter, { chapters = "this", slots: given = null } = {}) {
+export function caseGraph(chapter = getClock().chapter, { chapters = "this", slots: given = null, autopsy = false } = {}) {
     if (!game.user?.isGM) return graphOf({ chapter });
     const traces = [];
     for (const scene of game.scenes ?? []) {
@@ -219,10 +233,17 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
     const { rows, meta } = caseRows(chapter);
     /* `slots` given (E97 C6): the Key plan's every slot as investigation.mjs `keyPlan` reads it, a slot no GM wrote among
        them, so the Map has a node - and the Table's fields - for each slot the Table draws a row for. */
-    return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots });
+    return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots, autopsy });
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type"]);
+/** The planned Autopsy's evidence node, from its row or, unwritten, empty (the Map draws it as the Key plan's slots are). */
+function autopsyNode(chapter, node = null) {
+    return { id: AUTOPSY_NODE, kind: "autopsy", evidence: true, planned: true, slot: null, trace: null, type: "autopsy",
+        label: node?.label ?? "", text: node?.text ?? "", note: node?.note ?? "", tied: true, faint: false, room: null, chapter,
+        foundAt: null, written: Boolean(node), inputs: [], refutes: [], mode: null };
+}
+
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note"]);
 const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
