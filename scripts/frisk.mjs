@@ -466,7 +466,9 @@ async function cardToGms(html, extra = {}) {
 
 /**
  * One veiled card to the students who saw it happen in the ask's room (`roomWitnessesOnGm`, the two left out) - each
- * owner of each, a Monocub's among them - and the GMs; none where nobody saw it. No item is ever named on it.
+ * owner of each, a Monocub's among them - and the GMs; none where nobody saw it. Its words are the caller's: since
+ * privacy line 2 (#6, the owner's rule of 13.11.2026) a "shown" or "forced" end carries the searcher's list, as the
+ * room saw the pockets turned out (`endAsk`); every other end names no item.
  */
 async function tellWitnesses(row, html) {
     const scene = game.scenes?.get(row.sceneId) ?? null;
@@ -516,8 +518,9 @@ function standing(row) {
 /**
  * Ends `row` as `outcome`, on the primary, once: its windows closed, its ticket closed to a force, its cards posted
  * and the searcher's wait answered where it still waits. The outcomes, the design's words for each:
- *   shown          the list as it was at the ask to the searcher, 'You turn out your pockets' to the target, the room told;
- *   forced         the same list under 'is carrying:', the target forced, the room told;
+ *   shown          the list as it was at the ask to the searcher, 'You turn out your pockets' to the target, the room told
+ *                  with the same list (privacy line 2, #6);
+ *   forced         the same list under 'is carrying:', the target forced, the room told with the list;
  *   forceFailed    the searcher's neutral miss, the target shook them off, the room told;
  *   letGo          'Leave it', the force's clock, the searcher leaving, a refusal with `friskForce` off: the target and the room;
  *   gone           the target walked away: the searcher ('before answering', or after a refusal without it) and the room;
@@ -562,7 +565,12 @@ async function endAsk(row, outcome) {
         const words = say(forTarget[outcome], { who });
         await (row.silent ? cardToGms(words) : cardTo(target, words));
     }
-    if (forRoom[outcome] && asked) await tellWitnesses(row, say(forRoom[outcome], { who, target: them }));
+    // POCKETS TURNED OUT IN FRONT OF THE ROOM ARE SEEN BY THE ROOM (privacy line 2, #6; the owner's rule of 13.11.2026: a
+    // player learns what their character could know in the fiction, when they could know it). The witnesses of a "shown"
+    // or "forced" end read the list the searcher reads, the ask's snapshot (`row.lines`: `pocketsFrom`'s, never a Truth
+    // Bullet, never a stash); until 1.2.113 their card named no item.
+    const roomList = ["shown", "forced"].includes(outcome) ? listOfLines(target, row.lines) : "";
+    if (forRoom[outcome] && asked) await tellWitnesses(row, `${say(forRoom[outcome], { who, target: them })}${roomList}`);
     log(`${who} frisked ${them} openly: ${outcome}${["shown", "forced"].includes(outcome) ? `, ${row.lines.length} item(s) listed` : ""}.`);
     answerSearcher(row, { askId: row.askId, outcome, forceMs: null });
     return true;

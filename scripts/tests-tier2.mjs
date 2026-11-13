@@ -12774,6 +12774,112 @@ const SCENARIOS = [
         }
     }],
 
+    ["an open Frisk turned out in front of the room shows each witness the searcher's list (privacy line 2, #6; the owner's rule of 13.11.2026): the third student's card names what the target carries, never a Truth Bullet, never a stashed item, and the target's own card no list", async () => {
+        /*
+         * Privacy line 2 (#6), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. Pockets turned out in front of the room are seen by the room: the witnesses' card of a
+         * "shown" or "forced" open Frisk carries the list the searcher gets, the ask's snapshot (frisk.mjs `endAsk`,
+         * `row.lines`), which `pocketsFrom` already holds to no Truth Bullet and no stashed item. Before, the witnesses read
+         * only "{target} turns out their pockets for {who}." A player's character and another (whose connected player
+         * answers) alone in a room, a third student with a connected player of their own walked in; the target given a tool,
+         * a Truth Bullet and an item in a stash, each named here; the player's `action.friskAsk` judged as the bridge judges
+         * it after a payment written as the player's, and the target's player's allow. Read: each card with words, as [the
+         * line it opens with, who its words went to besides the GMs, the tool, the Truth Bullet, the stashed item named].
+         * The forced road's card is the same list and is read in scenario 40's "an open Frisk at the table" (p3, forceWon).
+         * Red at af9792c5: the third's card names no item.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the searcher, the one asked and a third, each a token on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const F = await import("./frisk.mjs");
+        const D = await import("./roll-draw.mjs");
+        const S = await import("./secret.mjs");
+        const Mv = await import("./movement.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const scene = canvas.scene;
+        const third = game.actors.find(a => a.type === "character" && ![theirs.id, other.id].includes(a.id) && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && scene?.tokens?.some(t => t.actorId === a.id) && ownerIdsOf(a).some(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active)) ?? null;
+        must(third, "no third student with a connected player of their own has a token on the scene on screen - this would measure nothing");
+        const thirdUser = ownerIdsOf(third).find(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active);
+        const role = id => (id === player.id ? "searcher" : id === answerer ? "target" : id === thirdUser ? "third" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const TOOL = "Suite PV6 a silver lighter", BULLET = "Suite PV6 a torn receipt", STASHED = "Suite PV6 a hidden ledger";
+        const ACT = "system.resources.actions.value";
+        const left = actionsLeft(theirs), top = Math.max(1, left);
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", [D.PAID_AS_PLAYER]: true });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", [D.PAID_AS_PLAYER]: true });
+        };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [["toRoom shown", "DRPG.Frisk.wShown", { who: theirs.name, target: other.name }],
+            ["shownList", "DRPG.Frisk.shownHeading", { who: other.name }], ["toTarget shown", "DRPG.Frisk.shown", { who: theirs.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? `other: ${words.slice(0, 80)}`;
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        const judged = async (action, fields, from) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `PV6${foundry.utils.randomID(8)}`, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const force = game.settings.settings.has(`${MODULE_ID}.friskForce`) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const stood = await aloneTogether(theirs, other);
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        let seen = null;
+        try {
+            F.forgetFriskAsks?.();
+            await INV.grantItem(other, { name: TOOL, category: "tool", tier: 1, override: true, quiet: true });
+            await INV.grantItem(other, { name: BULLET, category: "truthBullet", tier: 1, override: true, quiet: true });
+            await INV.grantItem(other, { name: STASHED, category: "tool", tier: 1, override: true, quiet: true, location: INV.LOCATIONS.vault });
+            must(other.items.some(i => i.name === STASHED && INV.isStashed(i)), "the stashed item is not in a stash - this would measure nothing");
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await settle();
+            must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
+            const from = made.length, sent = packets.length;
+            await pay();
+            const asked = await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id);
+            const row = [...(F.friskAsks?.values?.() ?? [])].find(r => r.searcherId === theirs.id) ?? null;
+            const yes = row ? await judged("action.friskAnswer", { askId: row.askId, allow: true }, answerer) : null;
+            const fresh = packets.slice(sent);
+            seen = { asked, yes, cards: made.slice(from).map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null)
+                .map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort(),
+                    words.includes(TOOL), words.includes(BULLET), words.includes(STASHED)]) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            F.forgetFriskAsks?.();
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const i of other.items.filter(i => [TOOL, BULLET, STASHED].includes(i.name))) await i.delete();
+            await thirdToken.update(thirdWas, PLACE);
+            await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            await stood.back();
+        }
+        equal(stableJson(seen), stableJson({ asked: [], yes: ["shown"], cards: [
+            ["shownList", ["searcher"], true, false, false], ["toTarget shown", ["target"], false, false, false],
+            ["toRoom shown", ["third"], true, false, false]] }),
+        "{asked, the allow's answer, cards: [the card's line, its readers besides the GMs, names the tool, the Truth Bullet, the stashed item]}");
+    }],
+
     ["an open Frisk is forced only behind the searcher's own refused or unanswered ask, on a Body roll the GMs drew for it inside its window (A11-8): won, the list as at the ask; lost, the neutral miss; another's roll, one older than the ask or past its window refused; no force before an answer, none with the GMs' friskForce off; 'Leave it' names no roll", async () => {
         /*
          * E80 part 2 C3, 19.10.2026; the A11 design's step 7, its A11-8. The harms: a console that forces a Frisk it was
