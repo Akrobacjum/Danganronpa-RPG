@@ -18,7 +18,11 @@
  * the token carries a neutral name, one countdown id and, since 13.11.2026, the
  * picture of the project's chosen glyph (`projectTokenIcon`, below: the owner's
  * choice, accepted as a trade-off - the glyph a world setting already gives every
- * browser), and nothing else. The id adds nothing a console does not already hold: the
+ * browser), and that picture's path again in a second flag, `projectIconWritten`
+ * (`PROJECT_ICON_FLAG`, below: the picture the module last wrote, so the sync can
+ * tell its own picture from a GM's), and nothing else. That flag holds no secret: its
+ * value is the token's own `texture.src`, which every browser on the scene already
+ * reads off the texture. The id adds nothing a console does not already hold: the
  * Countdowns setting it points into - the name, the progress and the ownership
  * map - is a world setting every browser holds, so a secret project is hidden
  * from the interface, not from the console (audit S09-05; the killer and the
@@ -261,6 +265,7 @@ export function projectTokenIcon(countdownId) {
  * lock for a project whose glyph is the key - is the GM's, and stays.
  */
 function wearsModuleIcon(token) {
+    // A token placed by 1de23ada or 5f074c16 (never released) wears a glyph's file with no flag, and is read as the GM's.
     const path = String(token?.texture?.src ?? "");
     return path === PROJECT_TOKEN.icon || path === PROJECT_TOKEN.oldIcon
         || (path.length > 0 && path === token?.getFlag?.(MODULE_ID, PROJECT_ICON_FLAG));
