@@ -38293,6 +38293,81 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "the console's call asked, game.drpg.newTrace)");
     }],
 
+    ["a reshape's ruling is the GM's, reads the trace as it stands, bounds the words and refunds nothing on a decline (E40 item 4: R92's ruling half, driven; was R92)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R92 (tier 0, trimmed in E40 to the writers' census and the card's keys) read
+         * cleanup.mjs `applyReshapeRuling` and `declineReshapeRuling` as text: the GM gate, `findRemnantToken(tokenId)`,
+         * `if (data.reinforced)`, `plainText(name,` and `plainText(text,`, no refund in the decline's first 900
+         * characters. It passed a mutant that kept every one of those and handed the proposal's raw name to `reshapeTrace`
+         * (`name: String(name)` where `name: safeName` stood). N-3, Dawid 21.09: bounding is not ruling, and the ruling
+         * reads the world as it stands. A trace placed for one student (`placeRemnant`), and a proposal written on that
+         * student's row as a Tamper leaves one (`proposeOnRow`) before each ruling: Approve from a player's console; Approve
+         * on the trace reinforced since; Approve of a name with markup and over the limit and a text over its limit;
+         * Decline, the student's actions and Sanity read around it; Approve on a trace id nothing holds. Read: each answer,
+         * the trace's public name after each, the bounded pair, the resources moved by the decline.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const cleanup = await import("./cleanup.mjs");
+        const R = await import("./remnants.mjs");
+        const { cleanupAttemptStore } = await import("./gm-stores.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const limits = CLEANUP.transformAction?.limits ?? {};
+        must(Number.isFinite(limits.name) && Number.isFinite(limits.text), "the reshape's limits are not stated - this would measure nothing");
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const hadRow = foundry.utils.deepClone(await cleanup.attemptOf(who.id));
+        const token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: "SUITE E40 R92 a trace" });
+        must(token, "the fixture trace was not placed - this would measure nothing");
+        const nameNow = () => R.remnantPublic(canvas.scene.tokens.get(token.id))?.name ?? null;
+        const STRESS = "system.resources.stress.value", ACT = "system.resources.actions.value";
+        const resources = () => [STRESS, ACT].map(p => Number(foundry.utils.getProperty(who._source, p)) || 0);
+        const rule = async (proposal, run = cleanup.applyReshapeRuling, tokenId = token.id) => {
+            const attempt = await proposeOnRow(who, token.id, proposal);
+            return run({ actorId: who.id, tokenId, attempt });
+        };
+        let read = null;
+        try {
+            const start = nameNow();
+            // Written first: `asConsole` holds a player's seat for the call's synchronous start alone.
+            const consoleAttempt = await proposeOnRow(who, token.id, { name: "SUITE E40 R92 console" });
+            const consoled = await asConsole(() => cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id, attempt: consoleAttempt }));
+            await settle();
+            const afterConsole = nameNow();
+            await R.setRemnantFlags(token, { reinforced: true });
+            const reinforced = await rule({ name: "SUITE E40 R92 reinforced" });
+            await settle();
+            const afterReinforced = nameNow();
+            await R.setRemnantFlags(token, { reinforced: false });
+            const long = await rule({ name: `<b>SUITE E40 R92</b> ${"n".repeat(2 * limits.name)}`, text: "t".repeat(2 * limits.text) });
+            await settle();
+            const shown = R.remnantPublic(canvas.scene.tokens.get(token.id)) ?? {};
+            const was = resources();
+            const declined = await rule({ name: "SUITE E40 R92 declined" }, cleanup.declineReshapeRuling);
+            await settle();
+            const moved = resources().map((v, i) => v - was[i]);
+            const gone = await rule({ name: "SUITE E40 R92 gone" }, cleanup.applyReshapeRuling, "suiteNoSuchTrace");
+            await settle();
+            read = [[consoled, afterConsole === start], [reinforced, afterReinforced === start],
+                [long, /[<>]/.test(shown.name ?? "<"), (shown.name ?? "").length <= limits.name, String(shown.playerText ?? "").length <= limits.text,
+                    String(shown.name ?? "").includes("SUITE E40 R92")],
+                [Boolean(declined), moved, Boolean(canvas.scene.tokens.get(token.id))], gone];
+        } finally {
+            if (canvas.scene.tokens.get(token.id)) {
+                if (typeof R.removeRemnant === "function") await R.removeRemnant(canvas.scene.tokens.get(token.id));
+                else await canvas.scene.tokens.get(token.id).delete();
+            }
+            if (hadRow) await cleanupAttemptStore.patch(who.id, hadRow);
+            else await cleanupAttemptStore.drop(who.id);
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[null, true], [null, true], [true, false, true, true, true], [true, [0, 0], true], null]),
+            "a reshape's ruling ran for a player, on a reinforced trace or on none, wrote unbounded words, or a decline moved "
+                + "the resources ([the console's answer, the name unchanged], [on a reinforced trace], [approved, markup in the name, "
+                + "the name and the description within their limits, the name the proposal's], [declined, Sanity and actions moved, "
+                + "the trace standing], the answer on a trace nothing holds)");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*

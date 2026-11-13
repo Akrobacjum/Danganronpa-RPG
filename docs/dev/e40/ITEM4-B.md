@@ -4,6 +4,20 @@ Written 13.11.2026 on `claude/e40-item4-b`, started from d7566926 (claude/e39-40
 `docs/dev/e40/ITEM4.md`; this file is its rule 8 for slice B (the investigation): per test, the pick and its reason, the
 mutant tables, the gates run. R range R5130-R5149: none taken (no test was split into a new tier-0 or tier-1 row).
 
+## Where the slice stands (13.11.2026, after batch 4)
+
+- Of 29: **(a) 0**; **(b) 7 built** - R87 (deleted from tier 0), R36, R88, R89, R91, R92, R145 (each trimmed to what its new
+  test does not hold, the rest marked); **(c) 12** - R39, R40, R172, R305, R306, R376, R430, R1103, R1120, R1135, R1199,
+  R3143; **(b), not built: 10** - R32, R34, R37, R46, R47, R49, R53, R57, R96, R143, unchanged in tier 0.
+- Seven new tier-2 tests under slice B's line. Every one fails every mutant written for it; the old test missed at least one
+  (ii) mutant in each case, and in R89's also an (i): the scope set to world. Two first drafts were wrong and were caught
+  (R91's missed m91i-c; R92's failed on the clean tree), and R171 caught a raw store key in R89's first draft.
+- For the owner: no export was asked for. Defaults taken, as ITEM4.md's: a moved test carries its old number in its name;
+  a trimmed tier-0 remainder that is behaviour not yet driven (R36's Tamper half, R145's Stage 6 order) is marked TEXT
+  GUARD as rule 1 says, with "not driven on this line" in its note. Exports that would let a (c) be driven, if wanted:
+  `searchedBy`/`pruneSpends` (R1199), `concealSabotage` (R40), `askWhatToAnalyze` (R1103), observe.mjs `pending` (R89's
+  remainder), `paintTamper` and `releaseTamper` (R53, R37).
+
 ## The picks
 
 (a) in place, (b) tier 2, (c) text guard (ITEM4.md rule 1). "(b), not built" is a test read as behaviour whose driving
@@ -26,7 +40,7 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R88 | (b), trimmed | the cards' buttons pressed as a GM presses them; four assertions stay as text (below) | batch 1 |
 | R89 | (b), trimmed | the store's scope read off Foundry's registry; a resolve with no record driven; the write-through stays as text | batch 2 |
 | R91 | (b), trimmed | `openNewTrace` answered as a GM, refused off the form and from a console; the markup, the dashboard's door and the keys stay | batch 3 |
-| R92 | (b), not built | the reshape's ruling roads; the one-writer census is (c) |  |
+| R92 | (b), trimmed | the ruling driven (a console, a reinforced trace, long words, a decline, no trace); the writers' census, the two roads, the card's wiring and its keys stay | batch 4 |
 | R96 | (b), not built | the project card read as a player; the CSS line is (c) |  |
 | R143 | (b), not built | ownership raised and a bullet edited by a player, each put back |  |
 | R145 | (b), trimmed | the Analyze half driven; the Stage 6 order and the undo's receipt stay as text | batch 2 |
@@ -134,6 +148,20 @@ R91's assertions not held by the new test, kept in tier 0 and marked: the kind l
 `findableKind`, the window's two flag fields, the dashboard's `newTrace` button and its handler (`runDashboardButton`
 not exported), and the nine keys localized.
 
+### R92 -> "a reshape's ruling is the GM's, reads the trace as it stands ... (R92's ruling half, driven; was R92)"
+
+| Mutant of cleanup.mjs `applyReshapeRuling` | Old R92 | New test |
+| --- | --- | --- |
+| m92i-a: its GM gate removed | FAIL | FAIL |
+| m92i-b: `safeName` the proposal's name unbounded | FAIL | FAIL |
+| m92ii-b: `reshapeTrace` handed `String(name)` where `safeName` stood (`plainText(name,` still there) | ok - missed | FAIL |
+| m92i-c: the reinforced refusal never asked (`if (false)`) | FAIL | FAIL (it throws: no claim is made on a reinforced trace) |
+| the clean copy | ok | ok |
+
+The first draft of the new test failed on the clean tree, measured: its console case awaited the proposal's write before
+the ruling, so `asConsole`'s player seat (the call's synchronous start alone) had closed and the ruling ran as the GM.
+The proposal is written first now.
+
 ## Gates
 
 - Batch 1 (R87, R88, R172, R305, R306, R430, R1120): `node --check` on both test files; `node tools/check.mjs` 19 parts,
@@ -147,3 +175,5 @@ not exported), and the nine keys localized.
   and m89i-a, m89ii-a and m89ii-b, run again on the copy with the corrected test, still fail it. Lint again 0 problems. Second run: 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (429 s).
 - Batch 3 (R36, R91): `node --check`; check 19 parts, all green; lint 346 files, 0 problems; the new tests by name 2 ran,
   0 failed; R36 and R91 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (422 s).
+- Batch 4 (R92): `node --check`; check 19 parts, all green; lint 0 problems; the new test by name 1 ran, 0 failed; R92 by
+  name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (441 s).

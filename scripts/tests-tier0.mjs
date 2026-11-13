@@ -4990,15 +4990,19 @@ const REGRESSIONS = [
     }],
 
     ["R92 - a reshaped trace waits for a ruling", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is a census of the writers and the card's wiring. The
+           ruling itself - GM-gated, refused on a trace reinforced since or gone, the words bounded, a decline refunding
+           nothing - is tier 2's "a reshape's ruling is the GM's, reads the trace as it stands, bounds the words and refunds
+           nothing on a decline (E40 item 4: R92's ruling half, driven; was R92)". Read here: `reshapeTrace` awaited once,
+           behind the approval; both roads (the Tamper action and the erase road's critical) propose instead of writing
+           (the Tamper road is driven by tier 2's reshape tests, `reshapeCopiesFixture`; the critical's is not on this
+           line); the card's two buttons in `CARD_ACTIONS`; the six keys localized (a live read, kept beside the rest). */
         /*
          * N-3, Dawid 21.09. A Tamper that succeeded wrote the player's name and
          * the player's sentence onto the GM's own evidence the moment the dice
          * landed. The packet was bounded - `plainText` caps both halves, the
          * visibility list is checked - but BOUNDING IS NOT RULING, and the next
          * person through the door read those words as the truth of the room.
-         *
-         * Starting a project is the precedent Dawid named: the form becomes a
-         * card, and nothing exists in the world until the GM presses a button.
          *
          * TWO ROADS WRITE THOSE WORDS, which is the half a reader misses: the
          * Tamper action, and the erase road's critical reward. A rule with a door
@@ -5024,23 +5028,6 @@ const REGRESSIONS = [
         const critical = bodyOf(src, "if (rewrite) {", { until: "} else if (outcome.removes" });
         ok(/await proposeReshape\(/.test(critical),
             "a critical clean-up still applies the lie itself");
-
-        /* The ruling reads the world as it stands, not as the card remembers it. */
-        ok(/findRemnantToken\(tokenId\)/.test(ruling),
-            "the ruling trusts the card for the trace instead of looking it up, so a "
-            + "trace swept between the roll and the button is relabelled in absentia");
-        ok(/if \(data\.reinforced\)/.test(ruling),
-            "a GM who reinforced the trace after the roll is still offered a button "
-            + "that edits it");
-        ok(/plainText\(name,/.test(ruling) && /plainText\(text,/.test(ruling),
-            "the words come off a dataset and are written without being bounded again");
-        ok(/if \(!game\.user\.isGM\) return null/.test(ruling),
-            "the approval is not GM-gated on the client that runs it");
-
-        /* A decline is a ruling, not a refund - the whole point of where this sits. */
-        const decline = bodyOf(src, "export async function declineReshapeRuling");
-        ok(!/refundPrice|handBack|trustedWrite/.test(decline.slice(0, 900)),
-            "declining hands the price back, which turns every ruling into a free retry");
 
         /* And the GM's card reaches both. */
         const app = stripComments(sources.get("messenger-app.mjs") ?? "");
