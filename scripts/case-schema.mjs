@@ -495,13 +495,10 @@ export function reachability(graph, holders = {}, { culpritId = null, living = n
     return out;
 }
 
-/** The codes `checkCase` names, in the order it reads them. */
-export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noTarget", "noSolution", "twoSolutions", "solutionUnreached", "badMode", "culpritOnly", "tooManyKeys", "incomplete"]);
-
 /**
  * THE CASE'S CONSISTENCY (E97 C8; STAGE C8, Q-E97-7's default: warnings that block nothing). Pure: `graph` of `graphOf`,
  * `reach` of `reachability`, `cycle` the nodes the layout found on a cycle, `modes` the trial's modes, `keyMax` the Key
- * Remnants a chapter prepares. Answers `[{ code, node, ref }]`, one per problem, in CASE_PROBLEMS' order:
+ * Remnants a chapter prepares. Answers `[{ code, node, ref }]`, one per problem, in the order of this list:
  * - noInputs: a deduction or the solution resting on nothing;
  * - cycle: a node on a circle of inputs (the map leaves those out);
  * - missing: a node naming a node, Remnant or Key slot that is not there (`ref` the name);
