@@ -6716,13 +6716,7 @@
       "noRecipient": "- nobody yet -",
       "bulletGiven": "Given.",
       "finalAskRoomTitle": "Where does the Final Truth Remnant go?",
-      "placeOnMap": "Place on the map",
-      "showOnMap": "Show",
-      "waitingNone": "Every Remnant the case plans is on the map.",
-      "waiting": {
-        "one": "The case waits for {n} planned Remnant.",
-        "other": "The case waits for {n} planned Remnants."
-      }
+      "placeOnMap": "Place on the map"
     },
     "CaseRealize": {
       "preview": "Realization preview",

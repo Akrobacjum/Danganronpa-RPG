@@ -255,22 +255,6 @@
   },
   {
    "file": "scripts/case-map.mjs",
-   "unit": "incidentAsksHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C6: Opens New Remnant with this Remnant's room, name and words filled in"
-  },
-  {
-   "file": "scripts/case-map.mjs",
-   "unit": "incidentAsksHtml",
-   "kind": "button",
-   "key": "DRPG.CaseMap.showOnMap",
-   "count": 1,
-   "why": "E102 C6: Opens the Investigation's Map on this Remnant"
-  },
-  {
-   "file": "scripts/case-map.mjs",
    "unit": "nodeEditHtml",
    "kind": "button",
    "key": null,

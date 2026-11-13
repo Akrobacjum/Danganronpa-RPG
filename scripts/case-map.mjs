@@ -19,10 +19,8 @@
  *
  * E99 READS: `caseGraphHtml` (the graph alone, any size of container), `mapPlace`, `edgePath` and `nodeState`.
  */
-import { esc, plural } from "./utils.mjs";
+import { esc } from "./utils.mjs";
 import { REMNANT_TYPES, TRUTH_BULLET_TYPES } from "./config.mjs";
-import { caseRows, caseNodeOf } from "./case-schema.mjs";
-import { remnantById } from "./remnants.mjs";
 import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
@@ -508,31 +506,3 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
     return camera;
 }
 
-/**
- * THE CASE'S INCIDENT REMNANTS TO PLACE, IN THE GM PANEL (E97 C12; the goal: "the list of Incident Remnants still to
- * place is in the GM panel"). The chapter's planned Incident Remnants: each not on the map yet with "Place on the map"
- * (New Remnant, filled in), each placed with "Show" (the Investigation panel on its node). Nothing when the case plans
- * none. A GM's (the schema is a GM store; a player's panel has no standing block).
- */
-export function incidentAsksHtml(chapter) {
-    if (!game.user?.isGM) return "";
-    // a planned Final Truth waits here too (E104)
-    const rows = Object.entries(caseRows(chapter).rows).map(([id, raw]) => [id, caseNodeOf(raw)]).filter(([, n]) => n?.kind === "incident" || n?.kind === "final");
-    if (!rows.length) return "";
-    const placed = n => {
-        if (!n.trace) return false;
-        const [sceneId, tokenId] = n.trace.split(".");
-        return Boolean(remnantById(sceneId, tokenId));
-    };
-    const waiting = rows.filter(([, n]) => !placed(n)).length;
-    const line = ([id, n]) => {
-        const on = placed(n);
-        const what = [n.label || L("DRPG.CaseMap.noName"), n.room].filter(Boolean).join(" · ");
-        return `<li class="drpg-case-ask${on ? " is-placed" : ""}"><span>${esc(what)}</span>`
-            + (on ? `<button type="button" class="drpg-mini-button" data-drpg-case-show="${esc(n.trace)}">${esc(L("DRPG.CaseMap.showOnMap"))}</button>`
-                : `<button type="button" class="drpg-mini-button" data-drpg-case-place="${esc(`${chapter}:${id}`)}">${esc(L("DRPG.CaseMap.placeOnMap"))}</button>`)
-            + `</li>`;
-    };
-    const head = waiting ? plural("DRPG.CaseMap.waiting", { n: waiting }) : L("DRPG.CaseMap.waitingNone");
-    return `<div class="drpg-case-asks"><p><strong>${esc(head)}</strong></p><ul>${rows.map(line).join("")}</ul></div>`;
-}

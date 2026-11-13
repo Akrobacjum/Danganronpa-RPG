@@ -30431,10 +30431,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             back: { a: read.ids[0], b: read.ids[1] }, stored: true, selected: read.ids, warned: ["zonesGap"], ids: undefined
         }), "{listed: Zone A's options (no room); live: the warning as the selects change; roles: written; back: the zones after a reload; stored: the hall kept; selected: drawn again; warned: the gap again}");
     }],
-    ["E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place on the map, and one on the map with Show", async () => {
+    ["the GM panel lists no planned Remnants to place (the owner, 13.11.2026: \"Let's remove 'the case waits...' from the GM panel\"; E97 C12 drew the list): with two planned Incident Remnants, one of them on the map, the panel's standing block draws no case line, no Place on the map and no Show, and no words of it", async () => {
         /*
-         * E97 C12, 12.11.2026. Two planned Incident Remnants in the GMs' store, one of them pointed at a Remnant on the
-         * map; the GM panel's standing block is read. Red at a860754: no such line.
+         * fix-113d, 13.11.2026; until then "E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place
+         * on the map, and one on the map with Show", whose fixture this keeps. A planned Remnant is placed from its own node
+         * on the Investigation window's Map (investigation.mjs `placeIncident`). Red at 58170191: the block and its two rows.
          */
         const S = await import("./case-schema.mjs");
         const P = await import("./gm-panel.mjs");
@@ -30446,16 +30447,21 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const panel = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector(".drpg-gmp-standing")) ?? null;
         let read = null;
         try {
-            token = await remnants.placeRemnant({ type: "incident", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter, note: "test fixture - E97 C12" });
+            token = await remnants.placeRemnant({ type: "incident", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter, note: "test fixture - the GM panel's case line" });
             must(token, "could not place the fixture Remnant");
             await S.setCaseNode(chapter, "incident-suitea", { kind: "incident", label: "SUITE C12 waits", room: "Library" });
             await S.setCaseNode(chapter, "incident-suiteb", { kind: "incident", label: "SUITE C12 placed", trace: `${canvas.scene.id}.${token.id}` });
             await gmStoresIdle();
             const opened = Promise.resolve(P.openGmPanel()).catch(() => null);
-            await until(() => panel()?.element?.querySelector(".drpg-case-asks"), 6000).catch(() => {});
-            const el = panel()?.element?.querySelector(".drpg-case-asks");
-            read = el ? { head: el.querySelector("strong")?.textContent ?? null,
-                rows: [...el.querySelectorAll("li")].map(li => [li.querySelector("span")?.textContent ?? "", li.querySelector("[data-drpg-case-place]") ? "place" : li.querySelector("[data-drpg-case-show]") ? "show" : null]) } : null;
+            await until(() => panel()?.element?.querySelector(".drpg-gmp-standing"), 6000).catch(() => {});
+            const el = panel()?.element ?? null;
+            const text = el?.querySelector(".drpg-gmp-standing")?.textContent ?? "";
+            read = el ? {
+                standing: Boolean(el.querySelector(".drpg-gmp-standing")),
+                asks: el.querySelectorAll(".drpg-case-asks, .drpg-case-ask").length,
+                buttons: el.querySelectorAll("[data-drpg-case-place], [data-drpg-case-show]").length,
+                named: ["SUITE C12 waits", "SUITE C12 placed"].filter(n => text.includes(n))
+            } : null;
             await panel()?.close().catch(() => {});
             await Promise.race([opened, wait(2000)]);
         } finally {
@@ -30463,9 +30469,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.dropCaseNode(chapter, "incident-suiteb").catch(() => {});
             if (token) { await remnants.dropRemnantSecret(token).catch(() => {}); await token.delete().catch(() => {}); }
         }
-        const { plural } = await import("./utils.mjs");
-        equal(stableJson(read), stableJson({ head: plural("DRPG.CaseMap.waiting", { n: 1 }), rows: [["SUITE C12 waits · Library", "place"], ["SUITE C12 placed", "show"]] }),
-            "{head: the line's count; rows: each planned Incident Remnant [its name and room, its button]}");
+        equal(stableJson(read), stableJson({ standing: true, asks: 0, buttons: 0, named: [] }),
+            "{standing: the panel's standing block drawn; asks: the case line and its rows; buttons: Place on the map and Show; named: the planned Remnants' names in the block}");
     }],
 
     ["a field changed under the window is marked and refused while the rest is saved", async () => {

@@ -8526,15 +8526,7 @@
       "noRecipient": "- jeszcze nikt -",
       "bulletGiven": "Wydany.",
       "finalAskRoomTitle": "Gdzie ma stanąć Final Truth Remnant?",
-      "placeOnMap": "Postaw na mapie",
-      "showOnMap": "Pokaż",
-      "waitingNone": "Każdy Remnant z planu sprawy jest na mapie.",
-      "waiting": {
-        "one": "Sprawa czeka na {n} zaplanowany Remnant.",
-        "few": "Sprawa czeka na {n} zaplanowane Remnanty.",
-        "many": "Sprawa czeka na {n} zaplanowanych Remnantów.",
-        "other": "Sprawa czeka na {n} zaplanowanych Remnantów."
-      }
+      "placeOnMap": "Postaw na mapie"
     },
     "CaseRealize": {
       "preview": "Podgląd realizacji",

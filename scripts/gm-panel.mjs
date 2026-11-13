@@ -26,7 +26,6 @@ import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
-import { incidentAsksHtml } from "./case-map.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
@@ -598,13 +597,10 @@ export async function openGmPanel() {
             // below), and a listener bound to a button that has since been
             // replaced is a "Do it" that does nothing.
             dialog.element.addEventListener("click", async ev => {
-                /* THE CASE'S INCIDENT REMNANTS (E97 C12): Place on the map and Show run as a tile does, so the panel comes
-                   back after them from the one place below (R1318). */
-                const caseLine = ev.target.closest?.("[data-drpg-case-place], [data-drpg-case-show]");
-                const button = caseLine ?? ev.target.closest?.("[data-drpg-run]");
+                const button = ev.target.closest?.("[data-drpg-run]");
                 if (!button || !dialog.element.contains(button)) return;
                 ev.preventDefault();
-                const item = caseLine ? { key: "caseLine", run: () => runCaseLine(caseLine) } : lookup.get(button.dataset.drpgRun);
+                const item = lookup.get(button.dataset.drpgRun);
                 if (!item) return;
                 await dialog.close();
                 let answer = null;
@@ -628,16 +624,6 @@ export async function openGmPanel() {
     });
 }
 
-/** The case line's buttons (E97 C12): Place on the map opens New Remnant filled in; Show, the Investigation panel on the
- *  Remnant's node (answering RAISED where that window stood open already). */
-async function runCaseLine(button) {
-    const I = await import("./investigation.mjs");
-    if (button.dataset.drpgCasePlace) {
-        const [chapter, id] = button.dataset.drpgCasePlace.split(":");
-        return I.placeIncident(Number(chapter), id);
-    }
-    return I.openInvestigationDashboard({ node: button.dataset.drpgCaseShow });
-}
 
 /**
  * Keep the whole panel true for as long as it is open - not just its first line.
@@ -1123,7 +1109,9 @@ function buildPanelContent() {
                      button stood at the window's left edge under it (R4058). */ ""}
                 <p class="drpg-gmp-advance-row">${advance}</p>
                 ${suggestion}
-                ${incidentAsksHtml(clock.chapter)}
+                ${/* No list of the case's planned Remnants here since 13.11.2026 (the owner: "Let's remove 'the case waits...'
+                     from the GM panel"; E97 C12 drew it): a planned Remnant or Final Truth is placed from its own node on
+                     the Investigation window's Map, Place on the map (investigation.mjs placeIncident). */ ""}
                 ${studentsLeftHtml()}
             </div>`;
 }
