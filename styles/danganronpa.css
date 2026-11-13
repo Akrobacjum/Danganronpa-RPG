@@ -13090,7 +13090,7 @@ body.drpg-high-contrast .drpg-trace-context {
     font-size: var(--drpg-text-xs);
 }
 
-.drpg-loot-list {
+.drpg-loot-items {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -13099,7 +13099,7 @@ body.drpg-high-contrast .drpg-trace-context {
     gap: 3px;
 }
 
-.drpg-loot-list li {
+.drpg-loot-items li {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -13109,26 +13109,21 @@ body.drpg-high-contrast .drpg-trace-context {
     background: rgba(var(--drpg-bone-rgb), 0.04);
 }
 
-.drpg-loot-list img {
+.drpg-loot-items img {
     width: 1.4rem;
     height: 1.4rem;
     border: 0;
     flex: 0 0 auto;
 }
 
-.drpg-loot-list .drpg-item-name {
+.drpg-loot-items .drpg-item-name {
     flex: 1 1 auto;
 }
 
-/* Taking is one press and it is not undoable, so the button says so by being
-   the only lit thing in a window of grey. */
-.drpg-loot-take {
-    flex: 0 0 auto;
-}
-
-.drpg-loot-take[disabled] {
-    opacity: 0.5;
-    cursor: default;
+/* Nothing on the list takes since 1.2.113: the one button under it opens Take from the Body's window
+   (anonymity.mjs `openBodyLoot`), where the rows are ticked and the Take is pressed. */
+.drpg-loot-foot {
+    margin: 0.5rem 0 0;
 }
 
 /* An emptied pane. It reads as locked rather than as broken, which is the whole
