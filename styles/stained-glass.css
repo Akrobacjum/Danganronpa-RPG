@@ -5004,13 +5004,18 @@ body.drpg-theme-stained-glass .application.sheet.actor :is(.hope-section, .drpg-
    of itself, and its own dark ground - `rgba(7,7,10,0.6)`. Red on red at 2.38 is
    the worst reading in the module and it is a word a GM has to pick out of a grid
    of ten tiles. `currentColor` for the edge so it needs no token of its own. */
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button, .drpg-choice) .drpg-action-gm {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button, .drpg-choice, .drpg-row-use) .drpg-action-gm {
     background: rgba(7, 7, 10, 0.72);
     border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
     padding: 0 5px;
     /* 1.1, not 1.35 (E107): in a tile's corner it stands beside the icon, and at the grid's least tile (92 px) a chip
        30 px tall reached a two-line name (Chromium, 5.2 px over "Direct Murder"). */
     line-height: 1.1;
+}
+/* In an item row's Use (E107 part 2) the chip stands inside a 26 px button: at the floor's 21 px and 1.1 it was 25 px
+   tall, over the button's own edge (Chromium, the style harness's sheet); at 1 it is 23. */
+body.drpg-theme-stained-glass .drpg-row-use .drpg-action-gm {
+    line-height: 1;
 }
 
 /* ---- 5. A SCRIM UNDER RUNNING TEXT -----------------------------------------
