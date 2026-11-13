@@ -3444,33 +3444,6 @@ const REGRESSIONS = [
             "the latch releases only the button it captured, so a rebuilt row stays dim");
     }],
 
-    ["R55 - a rewind is refused before it cancels anything", async () => {
-        /*
-         * HUD-02, 19.09. An Eclipse sits BEFORE the next time of day, so the clock
-         * still holds the one just finished - stepping it back renamed the running
-         * Eclipse rather than undoing anything, and on the Night Eclipse that turned
-         * free placement into a two-crossing budget with every crossing already made
-         * counting against it.
-         *
-         * ORDER IS THE RULE. The refusal has to come before `cancelGather()`, or the
-         * fix destroys a pending assembly and then declines to do the thing it
-         * destroyed it for. Comments are stripped, so the paragraph above the guard
-         * cannot satisfy this on its own.
-         */
-        const clock = stripComments(new Map(await otherSources()).get("clock.mjs") ?? "");
-        ok(clock.length > 1000, "clock.mjs did not load");
-        const body = bodyOf(clock, "export async function rewindTimeOfDay", { until: "export async function setTimeOfDay" });
-        ok(body.length > 200, "rewindTimeOfDay has moved or gone");
-
-        const guard = body.indexOf("eclipse");
-        const gather = body.indexOf("cancelGather");
-        const write = body.indexOf("setClock(");
-        ok(guard > 0, "a rewind no longer asks whether an Eclipse is running");
-        ok(guard < gather && guard < write,
-            "the Eclipse is checked after the rewind has already cancelled the assembly or moved the clock");
-        ok(/DRPG\.Clock\.rewindDuringEclipse/.test(body), "the refusal no longer says why");
-    }],
-
     ["R56 - the body discovery refuses the dark before it asks anything, and the button says so", async () => {
         /*
          * F12, 19.09. "A body is discovered" moved from a GM panel tile into the case
@@ -5316,6 +5289,10 @@ const REGRESSIONS = [
     }],
 
     ["R99 - an assembly's fallback writes to the assembly's scene", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. call-world.mjs `fallbackGather` is not
+           exported, and the road to it (an assembly firing on a scene that is not on this GM's screen) needs a second
+           scene with a gather fixture; driving it would mean exporting it, a change of production code this item does
+           not make. The rule read stays the same: the fallback is handed the assembly's scene and reads no canvas. */
         /*
          * CALL-18 carries the gather order's scene; the fallback placement, used when
          * the region cannot place the tokens itself, still wrote to `canvas.scene` -

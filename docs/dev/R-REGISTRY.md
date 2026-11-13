@@ -62,7 +62,7 @@ Next free: R5101. Reserved and unused: none.
 | R52 | 0 | <=1.2.50 | the high-contrast switch states no type size |
 | R53 | 0 | <=1.2.50 | the Tamper tile's late answer does not eat the reason it is locked |
 | R54 | 0 | <=1.2.50 | the clock's chevrons hold one press at a time, and report a failure |
-| R55 | 0 | <=1.2.50 | a rewind is refused before it cancels anything |
+| R55 | 0 | <=1.2.50 | a rewind is refused before it cancels anything (removed in E40) |
 | R56 | 0 | <=1.2.50 | the body discovery refuses the dark before it asks anything, and the button says so |
 | R57 | 0 | <=1.2.50 | the case dashboard keeps what the GM did to it across a redraw |
 | R58 | 0 | <=1.2.50 | the trial console counts the seconds, a ballot is an event, and +30 s means thirty |

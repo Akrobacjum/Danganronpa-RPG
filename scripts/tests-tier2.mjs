@@ -18937,6 +18937,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "in an Eclipse the picker was not shut with the Eclipse's sentence, or the GM carried out a Confusion or took its price (picker, said, the answer's total, a roll answered, the Call armed, actions and Hope after)");
     }],
 
+    // E40 item 4, slice A: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+
     ["a Monocub marked a crime witness this chapter lands Confusion like any other", async () => {
         /*
          * E33 C10; the guide p. 17, ACT-12, the owner's option B of 05.10.2026 (the plan's 2.7,
@@ -37932,6 +37935,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "a GM's search, the owner's show to the third player's student - a card left the private cards' road, or a GM's search missed a co-owner");
     }],
 
+    // E40 item 4, slice B: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+
     ["the GM's popup for a veiled ask", async () => {
         /*
          * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and
@@ -56819,6 +56825,47 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", "that roll has already settled that action", null]),
             "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or a theft on a "
                 + "record a find stood on was taken, or one on a fresh record refused (the goal, the three verdicts, the two thefts' refusals)");
+    }],
+
+    // E40 item 4, slice C: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["a rewind during an Eclipse is refused before it calls off an assembly or moves the clock (E40 item 4: R55's rule, driven; was R55)", async () => {
+        /*
+         * E40 item 4, the pilot, 13.11.2026. R55 (tier 0, removed in E40) read clock.mjs `rewindTimeOfDay` as text: the
+         * word "eclipse" before `cancelGather` and before `setClock(`, and the refusal's key in the body. It passed on a
+         * guard that asked anything containing "eclipse" (a mutant that tested `getClock().eclipse === "never"` kept every
+         * regex true). Here the rule is driven: an assembly called, an Eclipse opened, then the rewind pressed. Read: what
+         * the rewind answered, the clock unchanged, the assembly still standing, and the refusal's words warned.
+         */
+        const CE = await import("./call-effects.mjs");
+        const E = await import("./eclipse.mjs");
+        const C = await import("./clock.mjs");
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        must(room, "this scene has no named region to call an assembly in - this would measure nothing");
+        must(!CE.pendingGather(), "an assembly was already standing - this would measure nothing");
+        must(!E.isEclipse(), "an Eclipse was already running - this would measure nothing");
+        const refusal = game.i18n.localize("DRPG.Clock.rewindDuringEclipse");
+        const warn = ui.notifications.warn, warned = [];
+        let read = null;
+        try {
+            must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start - this would measure nothing");
+            must(CE.pendingGather(), "the assembly did not stand through the Eclipse's opening - this would measure nothing");
+            const before = stableJson(getClock());
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const answer = await C.rewindTimeOfDay();
+            await settle();
+            read = [answer, stableJson(getClock()) === before, Boolean(CE.pendingGather()), warned.includes(refusal)];
+        } finally {
+            ui.notifications.warn = warn;
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (CE.pendingGather()) await CE.cancelGather();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([null, true, true, true]),
+            "a rewind during an Eclipse was not refused before it acted (what it answered, the clock unchanged, the assembly standing, the refusal warned)");
     }],
 
     ["a console's call of a newly gated GM function changes nothing: syncStates", async () => {
@@ -75850,6 +75897,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "what was told; a console's packet on each at a project the player cannot see: the code and the bar, freeze or sight; the undo's freeze and repair while held and after; two Sabotages: answered, repairs, the pair; the Call; the Reroll: "
             + "stood, bar, done cards, the trap's arming; every crossing: project, way, kind, character]");
     }],
+
+    // E40 item 4, slice D: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
+    // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
 
     ["who sees a project is judged in the step (E36-T7): a revoke held in the queue with a share behind it ends without the revoked player and with the shared one, two shares queued together both land, and a seal from a window that listed the viewers keeps a player shared since the window drew them", async () => {
         /*

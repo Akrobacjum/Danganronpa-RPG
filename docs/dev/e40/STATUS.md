@@ -90,6 +90,9 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- Before the push of item 4's plan and pilot (13.11.2026): the new tier-2 test and R99 by name, 0 failed; the mutants
+  m1-m3 and the clean tree, old R55 against the new test (ITEM4.md); `node tools/check.mjs` 19/19; lint 0 problems;
+  tiers 0-1 whole 1419 ran, 1404 passed, 0 failed, 16 skipped, 0 red (R55 gone).
 - Before the push of item 5 batch 8 (13.11.2026): its 4 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
   problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 7 (13.11.2026): its 5 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
@@ -160,10 +163,12 @@ The plan's items 2-6, in its order, with what each would take:
   a deceased before and after discovery, the Final Trial, a second trial (D17), a reset during a suicide incident, and
   season-wipe on a world copy; most are 63-class-trial's, 61's and 65's (63: a late player, a reload, the verdict's
   window with "Nobody", a second trial, the Level Ups), and the rest is open.
-- **The regex tests** (item 4): **counted, not started.** The coordinator's word, 13.11.2026: the count below puts the
-  work at 25-50 hours (each of up to 140 tests read, and each one converted broken once before and after), which the
-  coordinator is putting to the owner; it does not start on this line until the owner answers. The plan's Q-E40-3
-  default: re-counted when the work starts.
+- **The regex tests** (item 4): **started, 13.11.2026.** The owner's word through the coordinator ("robimy teraz",
+  for 1.2.113), which replaced the "counted, not started" this file said before. `docs/dev/e40/ITEM4.md` holds the 111
+  tests, four slices (A-D) with their R ranges and their lines in tests-tier2.mjs, the rewrite rule and the gate; the
+  coordinator runs the slices on four parallel lines. The pilot, on this line: R55 driven in tier 2 and deleted from
+  tier 0 (its mutant m3, the check kept in text but never true, passed R55 and fails the new test), R99 kept and marked
+  as a text guard. Item 5 stopped after the chat-card group (the coordinator's word); its 194 hook sites wait.
   The count, 13.11.2026 at 4f1ceb1d, by a script over scripts/tests-tier0.mjs that splits it at each entry's start
   (`^    \["`) and reads each body for three things: it reads source (`bodyOf(`, `fnSource(`, `lineAround(`, `src(`), it
   imports a module (`await import(`), it uses a regex (`.test(`, `.match(`, `matchAll(`). Of 404 entries: 189 read
