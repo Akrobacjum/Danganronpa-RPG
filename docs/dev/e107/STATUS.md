@@ -107,8 +107,14 @@ Runs at 0dbef339: `npm run quick` green; tiers 0-1 1384 passed, 0 failed, 16 ski
 sheet offers no Use" green; scenario 71-sheet 41/41. Shots on the review page, section 7 (before b9dab19d). The
 registry's "Next free" reads R5435. No run in Foundry.
 
+## The owner's answer (13.11.2026)
+
+Passed on by the coordinator, the owner's words: "Super zmiany akceptuje". Accepted: the chip in the tile's corner
+rather than under the cost, and the window rows changed too (the picked GM row no longer all red). Before that the
+owner had confirmed the scope: "Akcje zwiazane z kontaktem z gm nie maja miec wlasnie czerwonych kafli - maja byc
+zwykle i miec tylko znacznik czerwony gm, analogicznie do hope calla."
+
 ## Open, for the owner
 
-1. The chip in the tile's corner rather than under the cost (why: above).
-2. The window rows changed too (the picked GM row was all red); keeping red there is a separate small change.
-3. Part 2: a GM tile's Legacy stripe is the action's grey, not the red it was before 10.09.2026.
+1. Part 2: a GM tile's Legacy stripe is the action's grey, not the red it was before 10.09.2026 (the coordinator: part
+   2 stands as sent; not put to the owner separately).
