@@ -897,14 +897,6 @@ export const CUB_TARGETS = Object.freeze({
             return null;
         }
     },
-    /**
-     * A PROJECT, FOR TINKER (E72 C13, 12.11.2026; the owner's DC23, DC24). `resolve` reads the id a packet names as a
-     * project (projects.mjs `allProjects`), null for none, so an unknown id is refused as a missing one. `list`: the
-     * projects in the Monocub's room on its scene that are public, unfinished and unfrozen - the room's own Work list
-     * (`projectsAvailableIn`) narrowed as a Sabotage's targets are (no repair), and never a secret project, even one this
-     * player is in on. `refuses` asks the same of the one named and, on a GM, that a living student worked on it this
-     * time of day (projects.mjs `workersNow`, the GMs' row; the picker on a player's browser cannot read it).
-     */
     /** A student of the class, for a Ghost Bet (E72 C18): anyone but the Monocub itself, a Monokuma or another Monocub. */
     student: {
         async list(actor) {
@@ -918,6 +910,14 @@ export const CUB_TARGETS = Object.freeze({
             return null;
         }
     },
+    /**
+     * A PROJECT, FOR TINKER (E72 C13, 12.11.2026; the owner's DC23, DC24). `resolve` reads the id a packet names as a
+     * project (projects.mjs `allProjects`), null for none, so an unknown id is refused as a missing one. `list`: the
+     * projects in the Monocub's room on its scene that are public, unfinished and unfrozen - the room's own Work list
+     * (`projectsAvailableIn`) narrowed as a Sabotage's targets are (no repair), and never a secret project, even one this
+     * player is in on. `refuses` asks the same of the one named and, on a GM, that a living student worked on it this
+     * time of day (projects.mjs `workersNow`, the GMs' row; the picker on a player's browser cannot read it).
+     */
     project: {
         async resolve(id) {
             const { allProjects } = await import("./projects.mjs");
@@ -1480,7 +1480,7 @@ async function scoreTinker(actor, target, choice, total, isCritical, row, paid =
 
 /**
  * REDEEM (E72 C5; audit S18-60, the owner's DC22): +1 Hope from nothing, on the GM, after its blocks held (once a game
- * day, the Hope not full, no darkened hour) and its action was taken. The day is written in the Monocub's row
+ * day, the Hope not full, no darkened hour); it takes no action since cca805ca. The day is written in the Monocub's row
  * (`redeemDay`), its owner told on a veiled card.
  */
 async function redeemHope(actor) {

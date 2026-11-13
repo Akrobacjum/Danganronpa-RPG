@@ -3336,7 +3336,7 @@ export const MONOCUB = {
         },
         /**
          * REDEEM (E72 C5, 12.11.2026; audit S18-60, the owner's DC22): +1 Hope from nothing, once a game day, shut at the
-         * Hope's maximum and in a darkened hour (`blocks`, monocub.mjs `CUB_BLOCKS`). One action, no Hope, no dice; aimed
+         * Hope's maximum and in a darkened hour (`blocks`, monocub.mjs `CUB_BLOCKS`). No action since cca805ca, no Hope, no dice; aimed
          * at the Monocub itself. Its price is a default taken (STATUS, owner to confirm).
          */
         redeem: {

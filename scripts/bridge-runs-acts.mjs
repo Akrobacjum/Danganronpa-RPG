@@ -767,12 +767,6 @@ export async function handleCleanup(payload, sender, ctx, prepared) {
     if (!cleaned) return { refused: "nothing was carried out: resolveCleanup cleaned nothing" };
 }
 
-    // A Monocub's ability writes to the TARGET's sheet, not the Monocub's own -
-    // arming a Call is exactly the write a player has no permission to make on
-    // somebody else's actor. Its dice are thrown here since E08+E28 C17, by the
-    // row the packet's `key` names (E33 C10, `cubAbilityOnGm`), and the roll goes
-    // back for the Monocub's card - none for one it refuses, which throws nothing
-    // since fix r2-H7.
 /*
  * A DEAD STUDENT'S PLAYER ANSWERS THE INVITATION (E72 C6, 12.11.2026; audit S18-61, the owner's DC17 and DC18). The
  * packet's `accept` is the player's word, which is what an answer is; whether an invitation is open for the character
@@ -801,6 +795,12 @@ export async function handleBribeAnswer(payload, sender) {
     return { reply: out };
 }
 
+// A Monocub's ability writes to the TARGET's sheet, not the Monocub's own -
+// arming a Call is exactly the write a player has no permission to make on
+// somebody else's actor. Its dice are thrown here since E08+E28 C17, by the
+// row the packet's `key` names (E33 C10, `cubAbilityOnGm`), and the roll goes
+// back for the Monocub's card - none for one it refuses, which throws nothing
+// since fix r2-H7.
 export async function handleCubAbility(payload, sender, ctx) {
     const { cubAbilityOnGm } = await import("./monocub.mjs");
     const out = await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice });

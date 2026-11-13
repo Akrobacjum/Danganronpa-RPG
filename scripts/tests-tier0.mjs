@@ -8013,7 +8013,8 @@ const REGRESSIONS = [
         const sets = [], unsets = [];
         for (const [file, text] of sources) {
             const src = stripComments(text);
-            for (const m of src.matchAll(/\bsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.silencedChapter|\.silencedChapter\}?`?\s*\]?\s*:/g)) sets.push(`${file}@${m.index}`);
+            // String keys too since the 1.2.110 review (E72 reader #9): a "flags.<mod>.silencedChapter" key and the flag named in quotes.
+            for (const m of src.matchAll(/\bsetFlag\(\s*MODULE_ID\s*,\s*(?:FLAGS\.silencedChapter|["'`]silencedChapter["'`])|\.silencedChapter\}?`?\s*\]?\s*:|["'][^"'\n]*\.silencedChapter["']\s*:/g)) sets.push(`${file}@${m.index}`);
             for (const m of src.matchAll(/unsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.silencedChapter/g)) {
                 const lift = bodyOf(src, "export async function liftCubWitness(", { until: "\n}\n" });
                 unsets.push(file === "monocub.mjs" && lift.includes(src.slice(m.index, m.index + 60)) ? "lift" : `${file}@${m.index}`);
@@ -8078,7 +8079,8 @@ const REGRESSIONS = [
         for (const [file, text] of sources) {
             const src = stripComments(text);
             const tops = [...src.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
-            for (const m of src.matchAll(/\bsetMonocub\(\s*[\w.]+\s*(?:,\s*([^,)]+))?/g)) {
+            // A first argument with its own call too since the 1.2.110 review (E72 reader #10): `setMonocub(game.actors.get(id), true)`.
+            for (const m of src.matchAll(/\bsetMonocub\(\s*[\w.$]+(?:\([^()]*\))?\s*(?:,\s*([^,)]+))?/g)) {
                 if (/^false\b/.test((m[1] ?? "").trim())) continue;
                 const fn = tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)";
                 if (fn === "setMonocub") continue;

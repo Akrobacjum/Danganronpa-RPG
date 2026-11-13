@@ -17860,7 +17860,7 @@ const SCENARIOS = [
         }), "the panel's lines or the GMs' flags are not part B's ({the lines: [kind, name]; the bet in the copy; the flags after the first, second and third accepted Bribe of the pair, the payer this chapter's Blackened from the second})");
     }],
 
-    ["a Ghost Bet names a student for the window's Hope, one bet a Monocub, shut to a crime witness, paid into the purse only when a right verdict sentences that student, its cards naming nobody else (E72 C18)", async () => {
+    ["a Ghost Bet names a student for the window's Hope, one bet a Monocub, shut to a crime witness, paid into the purse only when a right verdict sentences that student (E72 C18; the cards' words are not read here, the 1.2.110 review's E72 #11)", async () => {
         /*
          * E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; defaults, owner may revise: free to place,
          * one bet a Monocub until the next verdict, the value fixed when it is placed. The row `bet` (config.mjs
@@ -18022,6 +18022,46 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson({ posted: 1, open: true, owed: 1 }), "{posted: posts that answered a Bounty; open: one stands; owed: the Despair the pool owes for them}");
+    }],
+    ["1.2.110 lows, the crime witness's lift run - liftCubWitness moves an actor's old mark into the GMs' row and off the actor, keeps a row a GM has written since (fill-only), and a second run changes nothing (scripts/monocub.mjs `liftCubWitness`, migrate.mjs clause liftCubWitness; the E101 line's review of 1.2.110, E72 reader #9, 13.11.2026)", async () => {
+        /*
+         * The review's #9: nothing ran the lift; R178 lists its key and `since`, R3801 reads the source. Here, on the primary:
+         * two fixture students with the pre-1.2.110 flag `silencedChapter` (one a season's mark, one a bare chapter), the
+         * second's row already holding a mark a GM wrote since. Read: the rows after, the flags after, the answer of a
+         * second run. The flags and the rows are put back. Not red first: a test of what the code already does, the gap the
+         * review named.
+         */
+        needs(env.primaryGm(), "the lift is the primary GM's");
+        const [one, two] = cast(2);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const rowsWere = [one, two].map(a => foundry.utils.deepClone(S.cubStore.get(a.id) ?? null));
+        const flagsWere = [one, two].map(a => a.getFlag(MODULE_ID, FLAGS.silencedChapter));
+        const chapter = getClock().chapter, epoch = seasonEpoch();
+        const read = {};
+        try {
+            for (const a of [one, two]) if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+            await one.setFlag(MODULE_ID, FLAGS.silencedChapter, { chapter, epoch });
+            await two.setFlag(MODULE_ID, FLAGS.silencedChapter, 1);
+            await S.cubStore.patch(two.id, { witness: { chapter: 9, epoch } });
+            await settle();
+            must(one.getFlag(MODULE_ID, FLAGS.silencedChapter) && two.getFlag(MODULE_ID, FLAGS.silencedChapter) === 1, "the old marks could not be planted - this would measure nothing");
+            read.first = (await M.liftCubWitness())?.lifted ?? null;
+            await settle();
+            read.rows = [S.cubStore.get(one.id)?.witness ?? null, S.cubStore.get(two.id)?.witness ?? null];
+            read.flags = [one.getFlag(MODULE_ID, FLAGS.silencedChapter) ?? null, two.getFlag(MODULE_ID, FLAGS.silencedChapter) ?? null];
+            read.again = await M.liftCubWitness();
+        } finally {
+            for (const [i, a] of [one, two].entries()) {
+                if (a.getFlag(MODULE_ID, FLAGS.silencedChapter) !== undefined) await a.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+                if (flagsWere[i] !== undefined) await a.setFlag(MODULE_ID, FLAGS.silencedChapter, flagsWere[i]);
+                if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+                if (rowsWere[i]) await S.cubStore.patch(a.id, rowsWere[i]);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: 2, rows: [{ chapter, epoch }, { chapter: 9, epoch }], flags: [null, null], again: null }),
+            "{first: the characters lifted; rows: [the first's mark moved, the second's row kept as a GM wrote it]; flags: both off the actors; again: a second run's answer}");
     }],
     ["a move to order costs only its action: the Monocub's next Confusion after it accepted a Bribe this time of day takes no Hope, the one after it does, and an order lapses at the turn (E72 C17)", async () => {
         /*
