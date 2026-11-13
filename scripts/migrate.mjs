@@ -1054,6 +1054,28 @@ const CLAUSES = [
             if (!isPrimaryGm()) return { notPrimary: true };      // a body on the map: the primary's, once a world
             return await layOpenCaseBodies();
         }
+    },
+    {
+        key: "hideSecretProjects",
+        since: "1.2.112",
+        /*
+         * A SECRET PROJECT'S NAME AND WHO IS IN ON IT LEAVE DAGGERHEART'S COUNTDOWNS (known leak S17-31; the coordinator's
+         * task of 12.11.2026). Until 1.2.112 a secret project's countdown, in a world setting every browser holds, carried
+         * its name and a map with each player's own level - OBSERVER for those in on it -, so any console read the plan and,
+         * for an indirect murder, the killer's player. Once, on the primary: every secret project is resealed through the one
+         * change entry (projects.mjs `resealSecretProjects`), whose step lifts what an older seal left - the name into the
+         * GMs' store (`secretName`), the players the old map let in into it (`viewers`), the countdown left with
+         * `HIDDEN_NAME` and one level for every player - and then tells each player in on it by a private card
+         * (`tellSight`), so their tray keeps the row and its name. Idempotent: a lifted project reseals to nothing, and a
+         * second run, forced, changes none. It is the secrecy pass the boot runs as well, run here so the GMs are told how
+         * many projects it lifted; the header's rule holds - a clause that changes projects re-runs project secrecy.
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };      // the change entry runs on the primary
+            const { resealSecretProjects } = await import("./projects.mjs");
+            const lifted = await resealSecretProjects();
+            return lifted ? { lifted } : null;
+        }
     }
 ];
 

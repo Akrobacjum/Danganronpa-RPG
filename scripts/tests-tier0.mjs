@@ -22339,7 +22339,7 @@ const REGRESSIONS = [
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
             "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 5},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
-            "projects.mjs": {"built": 3, "card": 1, "line": 9, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
+            "projects.mjs": {"built": 3, "card": 1, "line": 12, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
             "remnants.mjs": {"built": 1, "card": 1, "heading": 2, "line": 1}, "requirements.mjs": {"built": 1},
             "reroll-receipts.mjs": {"card": 1}, "reroll.mjs": {"heading": 3, "line": 3}, "rest.mjs": {"action": 1},
             "roll-draw.mjs": {"built": 2, "card": 1, "message": 1}, "room-setup.mjs": {"message": 1},

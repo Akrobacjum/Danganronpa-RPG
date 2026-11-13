@@ -47,7 +47,7 @@ import { registerSeasonState } from "./season-reset.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, sightChange, SIGHT_KEYS
+    secretChange, sightChange, SIGHT_KEYS, HIDDEN_NAME, PROJECT_SIGHT, shownName, forgetToldSight
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
@@ -248,13 +248,55 @@ export async function tellDescription(countdownId) {
     // Not to a Spectator (E92, the coordinator's 12.11: "secret projects stay secret (GMs' half untouched)"): it sees the name and progress.
     const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
     if (!readers.length) return 0;
-    const name = rawCountdown(countdownId)?.name ?? "?";
+    const name = shownName(countdownId) || "?";
     const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.descriptionTold", { name }))}</p><p>${esc(words).replace(/\n/g, "<br>")}</p>`,
         { whisper: [...gmIds(), ...readers], veiled: true, flags: { [MODULE_ID]: { [PROJECT_WORDS]: { id: countdownId, text: words } } } });
     if (!posted) return 0;
     for (const id of readers) told[id] = words;
     await projectSecretStore.patch(countdownId, { descriptionTold: told }, { whole: true });
     return readers.length;
+}
+
+/**
+ * TELL A SECRET PROJECT'S PLAYERS THEY ARE IN ON IT, AND ITS NAME (known leak S17-31; the coordinator's task of 12.11.2026).
+ * The countdown every browser holds carries neither (projects-secrecy.mjs `HIDDEN_NAME`, `ownershipMap`), so a player in
+ * on a secret project learns it by the road its description takes (`tellDescription`): on the primary GM, after every
+ * change of it, each player in on it (`insidersOf`) whom the GMs' row does not record as told this name is sent one
+ * private card, veiled, its meta `{ id, in: true, name }` (`PROJECT_SIGHT`); each player told before and in on it no
+ * longer is sent `{ id, in: false }`. Their browser reads the newest (projects-secrecy.mjs `toldSight`): `canSee`, the
+ * tray's row and its name. A Spectator, who sees every project and is in on none (E92, the owner's DRPG-D1 of 12.11.2026),
+ * is sent the name alone, `{ id, in: false, name }` - its row comes from `canSee`'s Spectator rule; the description and the
+ * room action stay withheld from it (the coordinator's default of 13.11.2026, the owner's E92 answer). Who was told what is
+ * the GMs' (`sightTold`, in their row: the name, `watch:` and the name for a Spectator, or false). Answers how many players
+ * were told.
+ */
+export async function tellSight(countdownId) {
+    if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
+    const name = shownName(countdownId) || "?";
+    const told = { ...(secretsOf(countdownId).sightTold ?? {}) };
+    const inside = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM);
+    const watchers = [...spectatorUserIds()].filter(id => game.users.get(id) && !game.users.get(id).isGM && !inside.includes(id));
+    const letIn = inside.filter(id => told[id] !== name);
+    const letWatch = watchers.filter(id => told[id] !== `watch:${name}`);
+    const letOut = Object.keys(told).filter(id => told[id] !== false && !inside.includes(id) && !watchers.includes(id) && game.users.get(id));
+    let n = 0;
+    if (letIn.length) {
+        const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.sightTold", { name }))}</p>`,
+            { whisper: [...gmIds(), ...letIn], veiled: true, flags: { [MODULE_ID]: { [PROJECT_SIGHT]: { id: countdownId, in: true, name } } } });
+        if (posted) { for (const id of letIn) told[id] = name; n += letIn.length; }
+    }
+    if (letWatch.length) {
+        const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.sightWatched", { name }))}</p>`,
+            { whisper: [...gmIds(), ...letWatch], veiled: true, flags: { [MODULE_ID]: { [PROJECT_SIGHT]: { id: countdownId, in: false, name } } } });
+        if (posted) { for (const id of letWatch) told[id] = `watch:${name}`; n += letWatch.length; }
+    }
+    if (letOut.length) {
+        const posted = await whisperToGms(`<p>${esc(game.i18n.localize("DRPG.Project.sightGone"))}</p>`,
+            { whisper: [...gmIds(), ...letOut], veiled: true, flags: { [MODULE_ID]: { [PROJECT_SIGHT]: { id: countdownId, in: false } } } });
+        if (posted) { for (const id of letOut) told[id] = false; n += letOut.length; }
+    }
+    if (n) await projectSecretStore.patch(countdownId, { sightTold: told }, { whole: true });
+    return n;
 }
 
 /**
@@ -274,7 +316,7 @@ export async function tellFacility(countdownId) {
     const told = { ...(secretsOf(countdownId).facilityTold ?? {}) };
     const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && (told[id] ?? "") !== key);
     if (!readers.length) return 0;
-    const name = rawCountdown(countdownId)?.name ?? "?";
+    const name = shownName(countdownId) || "?";
     const text = facility ? game.i18n.format("DRPG.Project.facilityTold", { name, action: facility.label })
         : game.i18n.format("DRPG.Project.facilityGone", { name });
     const posted = await whisperToGms(`<p>${esc(text)}</p>`,
@@ -306,7 +348,7 @@ function projectsToldHere() {
  * card was posted: none for a secret project, one with no room (known to everybody who sees it), or a character no
  * player owns.
  */
-export async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name = rawCountdown(countdownId)?.name, room = roomOf(countdownId) } = {}) {
+export async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name = shownName(countdownId), room = roomOf(countdownId) } = {}) {
     if (!game.user?.isGM || !countdownId || !room || isSecret(countdownId)) return false;
     const actor = game.actors.get(by ?? "");
     if (!actor || !ownerIdsOfId(actor.id).some(id => !game.users.get(id)?.isGM)) return false;
@@ -455,7 +497,8 @@ export function allProjects() {
             const current = up ? raw : Math.max(0, start - raw);
             return {
                 id,
-                name: c.name,
+                // A secret project's name as this browser may hold it (S17-31: the countdown carries `HIDDEN_NAME`).
+                name: shownName(id, c),
                 img: c.img,
                 current,
                 start,
@@ -739,8 +782,10 @@ export const COMPLETION_EFFECTS = [
         onCrossed: ({ id, name, meta, countdowns }) => {
             const targetId = meta.repairs;
             const target = countdowns[targetId] ?? null;
+            // Its name as the GMs hold it (S17-31: a secret target's countdown carries none).
+            const targetName = target ? shownName(targetId, target) || "?" : "?";
             const content = `<p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${
-                game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(target?.name ?? "?") })
+                game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(targetName) })
             }</p>`;
             // A secret project's end goes to whoever can see it, veiled (E06 C10; audit S09-01): announced,
             // it told the table the name of a project the table may not know is there. Either half sealed
@@ -756,7 +801,7 @@ export const COMPLETION_EFFECTS = [
                 remove: true,
                 after: async () => {
                     await announce(whisper ? { content, veiled: true, whisper } : { content });
-                    log(`Repair "${name}" complete and removed; "${target?.name}" is workable again.`);
+                    log(`Repair "${name}" complete and removed; "${targetName}" is workable again.`);
                 }
             };
         }
@@ -1204,6 +1249,12 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
        or let somebody in - a create, an edit, a share, an Observe's find, a reseal - each player in on it whose card does
        not hold the words yet is sent one (`tellDescription`); any other change tells nobody, all being told. */
     if (result?.changed && !result.removed) {
+        // First that they are in on it, and its name (S17-31): the cards below are read on a browser that knows it.
+        try {
+            await tellSight(countdownId);
+        } catch (err) {
+            error(`Could not tell the players of the project ${countdownId} that they are in on it`, err);
+        }
         try {
             await tellDescription(countdownId);
         } catch (err) {
@@ -1246,6 +1297,8 @@ async function changeStep(countdownId, change, by) {
     // Both halves, before anything below can delete them: a repair's row goes with it in this step.
     const meta = { ...metaFor(countdownId), ...secretsOf(countdownId) };
     const up = countsUp(countdownId);
+    // The name the step reports (S17-31): a secret project's countdown carries `HIDDEN_NAME`, its name is the GMs' store's.
+    const named = (isSecret(countdownId) ? secretsOf(countdownId).secretName : null) ?? project.name;
     const oldStart = project.progress?.start ?? 0;
     const raw = project.progress?.current ?? 0;
     const before = up ? raw : Math.max(0, oldStart - raw);
@@ -1256,8 +1309,8 @@ async function changeStep(countdownId, change, by) {
         const held = secretsOf(countdownId);
         const why = repickRefusal(held, before, oldStart, change.repick);
         if (why) {
-            log(`The target of "${project.name}" was not chosen again: ${why}.`);
-            return { result: { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
+            log(`The target of "${named}" was not chosen again: ${why}.`);
+            return { result: { id: countdownId, name: named, from: before, to: before, target: oldStart, changed: false,
                 reason: "DRPG.Passage.card.repickGone", crossed: false, uncrossed: false, removed: false }, after };
         }
         repick = held.repick;
@@ -1270,7 +1323,7 @@ async function changeStep(countdownId, change, by) {
     }
 
     if (change.remove) {
-        const result = { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: true,
+        const result = { id: countdownId, name: named, from: before, to: before, target: oldStart, changed: true,
             crossed: false, uncrossed: false, removed: true };
         await removeInStep(countdownId, data, countdowns, after);
         return { result, after };
@@ -1285,8 +1338,8 @@ async function changeStep(countdownId, change, by) {
      * an undo or an Earthquake is not advancing it.
      */
     if (change.delta > 0 && isFrozen(countdownId)) {
-        log(`Project "${project.name}" did not move: it is frozen by sabotage.`);
-        return { result: { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
+        log(`Project "${named}" did not move: it is frozen by sabotage.`);
+        return { result: { id: countdownId, name: named, from: before, to: before, target: oldStart, changed: false,
             reason: "DRPG.Project.frozenNoProgress", crossed: false, uncrossed: false, removed: false }, after };
     }
 
@@ -1306,10 +1359,10 @@ async function changeStep(countdownId, change, by) {
         const always = change.reveal && meta.target?.preset
             ? (await import("./passages-gm.mjs")).PASSAGE_PRESETS[meta.target.preset]?.secret === "always" : false;
         const sight = always ? { refused: "it is always secret" } : sightChange(countdownId, change);
-        const unchanged = { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
+        const unchanged = { id: countdownId, name: named, from: before, to: before, target: oldStart, changed: false,
             crossed: false, uncrossed: false, removed: false };
         if (sight?.refused) {
-            log(`Who sees "${project.name}" was not changed: ${sight.refused}.`);
+            log(`Who sees "${named}" was not changed: ${sight.refused}.`);
             return { result: { ...unchanged, refused: sight.refused }, after };
         }
         const rest = Object.keys(change).filter(key => !SIGHT_KEYS.includes(key));
@@ -1330,6 +1383,21 @@ async function changeStep(countdownId, change, by) {
     if (change.name !== undefined) next.name = change.name;
     if (change.img !== undefined) next.img = change.img;
     if (change.ownership !== undefined) next.ownership = change.ownership;
+    /* NO NAME AND NO ONE TOLD APART IN WHAT EVERY BROWSER HOLDS (known leak S17-31; projects-secrecy.mjs `HIDDEN_NAME`). A
+       project that is secret once this change is made carries `HIDDEN_NAME` and the map that gives every player one level
+       (`ownershipMap`), its name going to the GMs' store (`secretName`, through `setProjectMeta` below); one revealed by it
+       takes its name back from the store. A project sealed before S17-31 is lifted the first time a change reaches it. */
+    const sealedAfter = change.meta && Object.hasOwn(change.meta, "secret") ? Boolean(change.meta.secret) : isSecret(countdownId);
+    const realName = change.name !== undefined && change.name !== null ? String(change.name) : named;
+    if (sealedAfter) {
+        next.name = HIDDEN_NAME;
+        next.ownership = ownershipMap();
+        if (secretsOf(countdownId).secretName !== realName) change = { ...change, meta: { ...change.meta, secretName: realName } };
+    } else if (isSecret(countdownId) || project.name === HIDDEN_NAME) {
+        next.name = realName;
+        change = { ...change, meta: { ...change.meta, secretName: null } };
+    }
+    const shown = realName;
     // One clamp for both directions (updateProject's A15): `current` is progress earned or what is left, and neither exceeds the start.
     if (change.target !== undefined) next.progress = { ...next.progress, start: change.target, current: Math.min(raw, change.target) };
     const start = next.progress?.start ?? 0;
@@ -1346,8 +1414,8 @@ async function changeStep(countdownId, change, by) {
     if (change.delta && !moved && !change.meta) {
         // Nothing moved. Saying so is the whole point: a silent no-op is indistinguishable from a broken socket.
         const why = change.delta > 0 ? "DRPG.Project.alreadyFull" : "DRPG.Project.alreadyEmpty";
-        log(`Project "${project.name}" did not move: already ${before}/${start}.`);
-        return { result: { id: countdownId, name: project.name, from: before, to: afterProgress, target: start, changed: false,
+        log(`Project "${named}" did not move: already ${before}/${start}.`);
+        return { result: { id: countdownId, name: named, from: before, to: afterProgress, target: start, changed: false,
             reason: why, crossed: false, uncrossed: false, removed: false }, after };
     }
 
@@ -1356,7 +1424,7 @@ async function changeStep(countdownId, change, by) {
     const crossed = (!wasDone && isDone) || Boolean(repick), uncrossed = wasDone && !isDone;
 
     // Every row answers before anything is written: a row whose answer throws leaves the project as it was.
-    const ctx = { id: countdownId, name: next.name, before, after: afterProgress, target: start, meta, by, countdowns };
+    const ctx = { id: countdownId, name: shown, before, after: afterProgress, target: start, meta, by, countdowns };
     const answers = [];
     if (crossed || uncrossed) {
         for (const row of COMPLETION_EFFECTS) {
@@ -1369,7 +1437,7 @@ async function changeStep(countdownId, change, by) {
     if (moved) {
         countdowns[countdownId] = next;
         await writeAllCountdowns({ ...data, countdowns });
-        log(`Project "${next.name}": ${before} -> ${afterProgress} of ${start}`);
+        log(`Project "${shown}": ${before} -> ${afterProgress} of ${start}`);
     }
     if (change.meta) await setProjectMeta(countdownId, change.meta);
     for (const answer of answers) {
@@ -1386,9 +1454,9 @@ async function changeStep(countdownId, change, by) {
         try {
             await answer.apply();
         } catch (err) {
-            error(`What the completion of the project "${next.name}" does could not all be done`, err);
+            error(`What the completion of the project "${shown}" does could not all be done`, err);
             const why = String(err?.message ?? err);
-            after.push(() => whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.effectFailed", { name: next.name, error: why }))}</p>`));
+            after.push(() => whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.effectFailed", { name: shown, error: why }))}</p>`));
         }
     }
     // A completion kept for a Reroll is let go when the bar is taken back under its target.
@@ -1410,9 +1478,9 @@ async function changeStep(countdownId, change, by) {
     for (const answer of answers) if (typeof answer.after === "function") after.push(answer.after);
     // Every crossing's own word: the builder, or whoever filled it (none for a repair or a trap, `announceProjectDone`).
     // A target chosen again (D023) finishes what the first crossing announced: its done card is not posted twice.
-    if (crossed && !repick) after.push(() => announceProjectDone(next.name, start, by.userId, meta));
+    if (crossed && !repick) after.push(() => announceProjectDone(shown, start, by.userId, meta));
 
-    return { result: { id: countdownId, name: next.name, from: before, to: afterProgress, target: start, changed: true,
+    return { result: { id: countdownId, name: shown, from: before, to: afterProgress, target: start, changed: true,
         crossed, uncrossed, removed }, after };
 }
 
@@ -1445,11 +1513,15 @@ async function createInStep(countdownId, change, existing, data, countdowns) {
         }
     }
     const target = change.target ?? PROJECT_SCALE.everyday.progress;
+    // A secret project is made with no name and no one told apart in the countdown (S17-31; `changeStep` keeps it so):
+    // its name goes to the GMs' store with its other secret fields.
+    const sealed = Boolean(change.meta?.secret);
+    const name = change.name ?? "?";
     countdowns[countdownId] = {
         type: "narrative",
-        name: change.name ?? "?",
+        name: sealed ? HIDDEN_NAME : name,
         img: change.img || "icons/magic/time/hourglass-yellow-green.webp",
-        ownership: change.ownership ?? { default: OBSERVER },
+        ownership: sealed ? ownershipMap() : (change.ownership ?? { default: OBSERVER }),
         progress: {
             current: 0,
             start: target,
@@ -1459,9 +1531,9 @@ async function createInStep(countdownId, change, existing, data, countdowns) {
         }
     };
     await writeAllCountdowns({ ...data, countdowns });
-    if (change.meta) await setProjectMeta(countdownId, change.meta);
+    if (change.meta) await setProjectMeta(countdownId, sealed ? { ...change.meta, secretName: name } : change.meta);
     if (repaired) await setProjectMeta(repaired, { frozenBy: countdownId });
-    return { result: { id: countdownId, name: countdowns[countdownId].name, from: 0, to: 0, target, changed: true,
+    return { result: { id: countdownId, name, from: 0, to: 0, target, changed: true,
         crossed: false, uncrossed: false, removed: false, created: true }, after: [] };
 }
 
@@ -1516,12 +1588,14 @@ export function registerProjectChanges() {
     /* A proposer's card, or its words, came or went (H84 fix G3): `projectsToldHere` reads again, and the tray and the
        project tokens ask again whom they show when the words name a project. */
     // A card that tells a secret project's description (`PROJECT_WORDS`, E44 fix FG6) is read again the same way.
-    const forget = () => { toldHere = null; wordsHere = null; };
+    const forget = () => { toldHere = null; wordsHere = null; forgetToldSight(); };
     Hooks.on("createChatMessage", forget);
     Hooks.on("deleteChatMessage", forget);
     Hooks.on("drpgSecretStored", message => {
         forget();
-        if (!cardMeta(message, PROJECT_KNOWN)) return;
+        // A card telling a player they are in on a secret project, or out (S17-31), asks the tray and the tokens again too:
+        // a share or a revoke writes no countdown any more, so Daggerheart's setting change no longer runs the pass.
+        if (!cardMeta(message, PROJECT_KNOWN) && !cardMeta(message, PROJECT_SIGHT)) return;
         import("./projects-tray.mjs").then(m => m.refreshProjects?.()).catch(err => error("Could not redraw the Projects tray", err));
         import("./visibility.mjs").then(m => m.applyAll?.()).catch(err => error("Could not ask again who sees the project tokens", err));
     });
@@ -1642,13 +1716,15 @@ export async function createProject({
        creation goes there by `project.change`. The countdown is the step's (`createInStep`). */
     const made = await applyProjectChange(id, {
         create: true, name, target, img: img || "icons/magic/time/hourglass-yellow-green.webp",
-        ownership: hidden ? ownershipMap(audience) : { default: OBSERVER },
+        ownership: hidden ? ownershipMap() : { default: OBSERVER },
         // `trait` is set by the GM at creation - the guide lets a project demand a
         // specific kind of work, so the player does not get to pick the easy stat.
         // `countsUp` is stamped rather than left to the default so the direction
         // stays explicit in the data, not just in this file's assumptions.
         meta: {
             room, indirectMurder, secret: hidden, trait, countsUp: true,
+            // Who is in on a secret project is the GMs' store's (S17-31: `viewers`), not the countdown's map.
+            ...(hidden ? { viewers: audience } : {}),
             /* Beside the room and the trait, in the step that writes the countdown with its ownership already sealed
                (`createInStep`): where the name goes, the words go, under the same secrecy (E44 C9, Q-C9-1). */
             ...(words ? { description: words } : {}),
@@ -1780,9 +1856,10 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
     // The repair was public and called "Repair: <the target's name>", so sabotaging a secret
     // project put its name on every player's Projects tray. It is sealed now to whoever
     // can see what it repairs - the target's viewers and its builder's owners, the GMs seeing
-    // everything - and named "Repair" alone: the countdowns setting that holds its name is read
-    // by every browser (known leak S17-31), so a name its viewers alone may know is not written
-    // there. A public project's repair is as it was.
+    // everything - and named "Repair" alone: the countdowns setting is read by every browser, and
+    // until S17-31's fix (1.2.112) a secret countdown held its name there. Since then a secret
+    // countdown carries none (projects-secrecy.mjs `HIDDEN_NAME`); the repair keeps the neutral
+    // name all the same, as its viewers read it. A public project's repair is as it was.
     const secret = isSecret(targetId);
     const repair = await createProject({
         name: secret
@@ -2405,7 +2482,10 @@ export async function seeAsSpectators(gone = []) {
             await applyProjectChange(project.id, { unshare: userId }, { by: { kind: "system" } });
         }
     }
-    return resealSecretProjects();
+    const resealed = await resealSecretProjects();
+    // A Spectator's name card, and a former one's goodbye (S17-31): a lifted project reseals to nothing, so it is asked here.
+    for (const project of secret) await tellSight(project.id).catch(err => error(`Could not tell the Spectators of ${project.id}`, err));
+    return resealed;
 }
 
 /* ==========================================================================
@@ -2462,7 +2542,7 @@ export async function unshareWith(countdownId, userId) {
        student who built it could no longer see it or work on it. Refused, and the GM told why. */
     if (builderIds(countdownId).includes(userId)) {
         ui.notifications?.warn(game.i18n.format("DRPG.Project.builderStays", {
-            name: game.users.get(userId)?.name ?? userId, project: rawCountdown(countdownId)?.name ?? countdownId
+            name: game.users.get(userId)?.name ?? userId, project: shownName(countdownId) || countdownId
         }));
         return null;
     }

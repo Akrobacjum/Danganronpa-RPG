@@ -31,7 +31,7 @@ import { SETTINGS } from "./settings.mjs";
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
+    leaveIconOnly, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
@@ -87,6 +87,8 @@ function onRenderCountdowns(app, element) {
 
         localiseRawKeys(root);
         hideUndiscovered(root);
+        // A secret project's name written back on its row for whoever may know it (S17-31: the countdown carries none).
+        nameSecretRows(root);
         // after the rows the player has not found are gone: they count as none (E79 C12, U1)
         showTrayToPlayer(root);
         paintProgress(root);

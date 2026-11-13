@@ -72411,8 +72411,10 @@ const SCENARIOS = [
             create: { held: { read: 0, wrote: 0 }, after: 1, cd: 1, meta: 1 },
             edit: { held: 0, after: ["SUITE E36 T4 renamed", 4, "SUITE E36 T4 a room"], cd: 1, meta: 1 },
             img: { held: 0, after: "icons/svg/d20.svg", cd: 1, meta: 0 },
-            secrecy: [{ held: 0, after: [true, true], cd: 1, meta: 1 }, { held: 0, after: false, cd: 1, meta: 0 },
-                { held: 0, after: true, cd: 1, meta: 0 }, { held: 0, after: false, cd: 1, meta: 1 }],
+            // A revoke and a share write no countdown since S17-31 (13.11.2026): who is in on a secret project is the GMs'
+            // store's, and the countdown gives every player one level whoever is in (projects-secrecy.mjs `ownershipMap`).
+            secrecy: [{ held: 0, after: [true, true], cd: 1, meta: 1 }, { held: 0, after: false, cd: 0, meta: 0 },
+                { held: 0, after: true, cd: 0, meta: 0 }, { held: 0, after: false, cd: 1, meta: 1 }],
             reseal: { held: 0, resealed: true, cd: 1, meta: 0 },
             rearm: { held: false, after: true },
             drag: { held: room, after: elsewhere, meta: 1 },
@@ -73124,7 +73126,8 @@ const SCENARIOS = [
         equal(stableJson(seen), stableJson({
             ten: { held: 0, after: 10 },
             trap: { returned: true, armed: true, receipts: 1 },
-            window: { writes: 1, name: "SUITE E36 T11 window renamed", viewers: ["guest", "player"] },
+            // No Countdowns write since S17-31 (13.11.2026): a secret project's name and who sees it are the GMs' store's.
+            window: { writes: 0, name: "SUITE E36 T11 window renamed", viewers: ["guest", "player"] },
             seal: { answered: 1, secret: true, name: true }
         }), "a road of the table does not land once in the one queue [ten +1 by the tray, a Call, two Works and three GM +1: the bar "
             + "while held and after; a watched trap's crossing: returned, armed, receipts; the project window's Save: Countdowns writes, "
@@ -89551,6 +89554,90 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ cards: 1, glyph: true, title: game.i18n.format("DRPG.Facility.usedOk", { action: label }),
             lines: ["SUITE line one", "SUITE line two"] }),
             "{cards; glyph: the Facilities tile's; title: the line used, the label as typed; lines: what it did} - the room action's card");
+    }],
+    ["S17-31-T1 - a secret project's name and who is in on it stay out of Daggerheart's Countdowns, which every browser holds (scripts/projects-secrecy.mjs `ownershipMap`, `viewersOf`; projects.mjs `createProject`, `allProjects`; known leak S17-31, the coordinator's task of 12.11.2026): a secret project made for one player holds in the setting neither its name nor an ownership map that tells one player apart; the GMs still read its name, its insider can see it and another player cannot; made public, it carries its name again", async () => {
+        /*
+         * S17-31, 12.11.2026. The setting read as any browser holds it (`game.settings.get("daggerheart", "Countdowns")`);
+         * the GMs' reading through the module's own readers. The project is deleted after. Red at 4eef965: the name and
+         * the insider's OBSERVER entry in the setting.
+         */
+        const P = await import("./projects.mjs");
+        const players = game.users.filter(u => !u.isGM);
+        needs(world.atLeast("playerAccounts", 2), "two player accounts: one in on the project, one not");
+        const [inside, outside] = players;
+        const NAME = "SUITE S17-31 a ribbon on the stairs";
+        const raw = id => game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id] ?? null;
+        // Who the map tells apart: the levels it gives the players (Daggerheart reads each player's own entry, not `default`).
+        const levelsOf = c => [...new Set(players.map(u => Number(c?.ownership?.[u.id] ?? 0)))];
+        let id = null;
+        const read = {};
+        try {
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [inside.id] }))?.id ?? null;
+            must(id, "the secret project could not be made - this would measure nothing");
+            await settle();
+            const c = raw(id);
+            must(c, "the project has no countdown - this would measure nothing");
+            read.setting = [String(c.name ?? "").includes("S17-31"), levelsOf(c).length];
+            read.gm = [P.allProjects().find(p => p.id === id)?.name ?? null, P.canSee(id, inside), P.canSee(id, outside)];
+            await P.revealProject(id);
+            await settle();
+            read.revealed = [raw(id)?.name ?? null, P.canSee(id, outside)];
+        } finally {
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ setting: [false, 1], gm: [NAME, true, false], revealed: [NAME, true] }),
+            "{setting: [the name in Countdowns, the levels its map gives the players]; gm: [the GMs' name, the insider sees it, another does not]; revealed: [its name in the setting, another sees it]} - a secret project kept out of Countdowns");
+    }],
+    ["S17-31-T2 - a world's secret projects from before S17-31 are lifted once by the migration (scripts/migrate.mjs clause hideSecretProjects, projects.mjs `resealSecretProjects`): a secret project whose countdown holds its name and a per-player map loses both - its countdown carries no name and gives every player one level - its name and its player go to the GMs' store, that player is told by a private card, and a second run, forced, changes nothing", async () => {
+        /*
+         * S17-31, 13.11.2026. The old shape planted on a project made now: Daggerheart's Countdowns written back with the name
+         * and the map an older seal wrote (the player in on it at OBSERVER, the rest at NONE), and the GMs' `secretName` and
+         * `viewers` emptied. The project is deleted after. Red before the clause: no clause "hideSecretProjects".
+         */
+        const P = await import("./projects.mjs");
+        const { projectSecretStore } = await import("./gm-stores.mjs");
+        const { OBSERVER, NONE } = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        needs(world.atLeast("playerAccounts", 2), "two player accounts: one in on the project, one not");
+        const players = game.users.filter(u => !u.isGM);
+        const [inside, outside] = players;
+        const NAME = "SUITE S17-31 T2 the old seal";
+        const raw = id => game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id] ?? null;
+        const levels = c => [...new Set(players.map(u => Number(c?.ownership?.[u.id] ?? 0)))].length;
+        const from = game.messages.contents.length;
+        let id = null;
+        const read = {};
+        try {
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [inside.id] }))?.id ?? null;
+            must(id, "the secret project could not be made - this would measure nothing");
+            await settle();
+            const data = foundry.utils.deepClone(game.settings.get("daggerheart", "Countdowns"));
+            const old = { default: NONE };
+            for (const u of players) old[u.id] = u.id === inside.id ? OBSERVER : NONE;
+            data.countdowns[id] = { ...data.countdowns[id], name: NAME, ownership: old };
+            await game.settings.set("daggerheart", "Countdowns", data);
+            await projectSecretStore.patch(id, { secretName: null, viewers: null, sightTold: null }, { whole: true });
+            await settle();
+            must(raw(id)?.name === NAME && levels(raw(id)) === 2, "the old shape could not be planted - this would measure nothing");
+            const first = await game.drpg.migrate1_2_0({ force: true, quiet: true, only: ["hideSecretProjects"] });
+            await settle();
+            const held = projectSecretStore.get(id) ?? {};
+            read.lifted = [raw(id)?.name === NAME, levels(raw(id)), held.secretName ?? null, held.viewers ?? null,
+                P.allProjects().find(p => p.id === id)?.name ?? null, P.canSee(id, inside), P.canSee(id, outside)];
+            // The card is veiled (its document names no reader): who was told is the GMs' record of it (`sightTold`).
+            read.told = [held.sightTold?.[inside.id] ?? null, held.sightTold?.[outside.id] ?? null];
+            read.first = Boolean(first?.clauses?.hideSecretProjects);
+            const before = JSON.stringify(raw(id));
+            await game.drpg.migrate1_2_0({ force: true, quiet: true, only: ["hideSecretProjects"] });
+            await settle();
+            read.again = JSON.stringify(raw(id)) === before;
+        } finally {
+            if (id) await P.deleteProject(id);
+            for (const m of game.messages.contents.slice(from)) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ lifted: [false, 1, NAME, [inside.id], NAME, true, false], told: [NAME, null], first: true, again: true }),
+            "{lifted: [the name in Countdowns, levels its map gives, the GMs' name, the GMs' list, the name the GMs read, the insider sees it, another does not]; told: [the name the insider was told, the other's]; first: the clause ran; again: a second run changed nothing} - the old seals lifted");
     }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*

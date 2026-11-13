@@ -255,6 +255,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("p1 and p2: projectMeta holds no killerId, by, condition, trigger or description of the secret project, and no character id of the killer",
         Boolean(made) && [metaP1, metaP2].every(m => m.row && !m.fields.length && !m.killer), JSON.stringify({ p1: metaP1, p2: metaP2 }));
 
+    /* A SECRET PROJECT'S NAME AND WHO IS IN ON IT ARE NOT IN DAGGERHEART'S COUNTDOWNS (known leak S17-31; the coordinator's
+       task of 12.11.2026, stricter than the marker scan). Daggerheart's world setting Countdowns reaches every browser: on
+       the two that are not the killer's player's, the secret project's countdown holds neither its name (the marker) nor an
+       ownership map that tells one player apart (every player at one level; Daggerheart reads each player's own entry and
+       not `default`, so the row it draws for every player is taken out by the module's tray for those not in on it) - for
+       an indirect murder the odd entry is the killer's player. The row has to be there, or its absence measures nothing.
+       Red at 4eef965: the name, and p3 at OBSERVER where the others were at NONE, on p1 and p2. */
+    const countdownHolds = p => p.eval(`const c = game.settings.get("daggerheart", "Countdowns")?.countdowns?.["${made ?? "none"}"] ?? null;
+        const players = new Set(game.users.filter(u => !u.isGM).map(u => u.id));
+        const own = c?.ownership ?? {};
+        const levels = [...players].map(id => Number(own[id] ?? 0));
+        return { row: Boolean(c), name: String(c?.name ?? ""), levels: [...new Set(levels)],
+            apart: [...players].filter(id => Number(own[id] ?? 0) !== levels[0]) };`)
+        // The name is compared here, not on the player's page: the marker is not theirs to be sent (the canary refuses it).
+        .then(c => ({ row: c.row, named: c.name.includes(project.name), levels: c.levels, apart: c.apart }));
+    const cdP1 = await countdownHolds(p1), cdP2 = await countdownHolds(p2);
+    check("p1 and p2: Daggerheart's Countdowns holds the secret project's row with neither its name nor an ownership map that tells one player apart",
+        Boolean(made) && [cdP1, cdP2].every(c => c.row && !c.named && c.levels.length === 1), JSON.stringify({ p1: cdP1, p2: cdP2 }));
+
     /* THE PRE-SESSION NOTE IS THE GMS' (E05 C6, 26.09.2026; audit S11-03, S01-08): p3 saved it
        through the primary GM, whose store keeps it, and it is no flag of p3's User document, which
        every browser holds. The scan above looks for its marker on every player; here it is read
