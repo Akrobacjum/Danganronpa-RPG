@@ -777,9 +777,13 @@ export function windowStack(apps = foundry.applications.instances.values()) {
     return stack;
 }
 
-/** The windows opened since `before`, or raised above where they stood then; never the checklist itself. */
+/**
+ * The windows opened since `before`, or raised above where they stood then; never the checklist itself. The checklist's
+ * class since E49 A1e (`drpg-window-season` is Season setup's, which a row's Open raises - the Scenes row's since E101:
+ * left out by that name, it stayed under the checklist that came back; the r112 review's S5, R1514).
+ */
 export function windowsOpenedSince(before, apps = foundry.applications.instances.values()) {
-    return [...apps].filter(app => standing(app) && !app.options?.classes?.includes("drpg-window-season")
+    return [...apps].filter(app => standing(app) && !app.options?.classes?.includes("drpg-window-season-checklist")
         && (!before.has(app.id) || zOf(app) > before.get(app.id)));
 }
 

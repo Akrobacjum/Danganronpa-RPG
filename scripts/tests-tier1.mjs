@@ -31299,10 +31299,16 @@ const INVARIANTS = [
         const app = (id, z, classes = []) => ({ id, rendered: true, element: { isConnected: true }, position: { zIndex: z }, options: { classes },
             raised: 0, bringToFront() { this.raised++; } });
         const panel = app("r1514panel", 10), raisedOne = app("r1514old", 5), sheet = app("r1514sheet", 40),
-            season = app("r1514season", 50, ["drpg-window-season"]), gone = { ...app("r1514gone", 60), rendered: false };
-        const before = SS.windowStack([panel, raisedOne, gone]);
+            season = app("r1514season", 50, ["drpg-window-season-checklist"]), gone = { ...app("r1514gone", 60), rendered: false };
+        /* Season setup itself, raised by the errand (the r112 review's S5, 13.11.2026): since E49 A1e the checklist is
+           `drpg-window-season-checklist` and Season setup `drpg-window-season`, which the filter left out by an exact match
+           - so the Scenes row's Open, which raises Season setup, brought the checklist back over it. Red at 59e1997a:
+           r1514setup not raised. */
+        const setup = app("r1514setup", 20, ["drpg-window-season"]);
+        const before = SS.windowStack([panel, raisedOne, gone, setup]);
         raisedOne.position.zIndex = 30;
-        const apps = [panel, raisedOne, sheet, season, gone];
+        setup.position.zIndex = 45;
+        const apps = [panel, raisedOne, sheet, season, gone, setup];
         const opened = SS.windowsOpenedSince(before, apps).map(a => a.id);
         const raised = SS.raiseOpened(before, apps).map(a => a.id);
         const sources = await moduleSources();
@@ -31319,7 +31325,7 @@ const INVARIANTS = [
             opening: ["campaignName", "campaignName", null],
             // E49 A1e: Edit campaign's fields (the selects are not inputs: phase, time of day), the safeword, the refill box.
             fields: [["campaignName", true], ["chapter", false], ["day", false], ["session", false], ["safeword", false], ["reset", false]], blockFirst: true,
-            opened: ["r1514old", "r1514sheet"], raised: ["r1514old", "r1514sheet"], counts: [0, 1, 1, 0, 0],
+            opened: ["r1514old", "r1514sheet", "r1514setup"], raised: ["r1514old", "r1514sheet", "r1514setup"], counts: [0, 1, 1, 0, 0, 1],
             wired: [true, true, true]
         }), "Set the season up opens away from its top, or a row's Open stays behind it [the opening: focused, the page's focus, an autofocus left in "
             + "the footer | the campaign block's fields, autofocus | the block before the list | the windows the errand opened or raised; raised; each "
