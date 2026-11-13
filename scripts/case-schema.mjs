@@ -398,7 +398,18 @@ export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), 
  * second Class Trial in the chapter starts with no ticks and the first trial's stay where they were, unread, until the
  * season's reset cuts the store. Read off the record's world setting here, not through trial-progress.mjs, which this
  * leaf does not import. A row ticked before this stamp existed carries none and reads under a record with none.
+ *
+ * AND A ROW WITH NO STAMP, WRITTEN IN THE RUNNING TRIAL (the planner's review for 1.2.111, minor 1; 13.11.2026; R4455).
+ * 1.2.108 and 1.2.109 wrote `{ ticked, by, at }` while their record already stamped every trial's entry, so a trial
+ * entered before the update and continued after it read every tick unticked. A row with no `trial` is read as the
+ * running trial's where its `at` is at or after `trialStartedAt`, an earlier trial's before it; so a second trial still
+ * starts with none. `at` is the ticking GM's clock and the stamp the server's (`serverNow`): a tick in the first moments
+ * of a trial can read either way by their difference.
  */
+function tickTrialOf(row, trial) {
+    if (row?.trial !== undefined && row?.trial !== null) return row.trial;
+    return trial !== null && Number(row?.at) >= Number(trial) ? trial : null;
+}
 function trialStamp(chapter) {
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
@@ -415,7 +426,7 @@ export function caseTicks(chapter) {
     const trial = trialStamp(chapter);
     const out = {};
     for (const [key, row] of Object.entries(caseTickStore.entries() ?? {})) {
-        if (key.startsWith(prefix) && row?.ticked === true && (row.trial ?? null) === trial) out[key.slice(prefix.length)] = true;
+        if (key.startsWith(prefix) && row?.ticked === true && tickTrialOf(row, trial) === trial) out[key.slice(prefix.length)] = true;
     }
     return out;
 }

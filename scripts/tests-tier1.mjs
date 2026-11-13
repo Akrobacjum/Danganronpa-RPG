@@ -8972,6 +8972,52 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R4455 - a tick written before ticks carried their trial is read as the running trial's when it was written in it (the planner's review for 1.2.111, minor 1; 13.11.2026): `caseTicks` reads a row with no `trial` as the current trial's where its `at` is at or after the record's `trialStartedAt`, and as an earlier trial's before it; a row that names its trial is read only in that trial; with no record every row with no `trial` reads, as before", async () => {
+        /*
+         * 1.2.108 and 1.2.109 write a tick as `{ ticked, by, at }` (case-schema.mjs `setCaseTick`), and the trial record's
+         * `trialStartedAt` is written at every trial's entry since 1.2.108 (trial-progress.mjs TRIAL_RECORD). So a Class
+         * Trial entered before the update and continued after it has a stamp, and its ticks none. The store's rows and
+         * the record are stood in for (`caseTickStore.entries`, `game.settings.get` for `trialProgress` alone) and put
+         * back. Red at 4bab7361: the two rows with no `trial` written in the running trial read unticked.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseTickStore } = await import("./gm-stores.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        must(game.user?.isGM, "caseTicks reads on a GM alone - this would measure nothing");
+        const CH = 9455, T = 1_000_000;
+        const rows = {
+            [`${CH}:legacyIn`]: { ticked: true, by: "g", at: T + 5 },
+            [`${CH}:legacyAtStart`]: { ticked: true, by: "g", at: T },
+            [`${CH}:legacyBefore`]: { ticked: true, by: "g", at: T - 5 },
+            [`${CH}:thisTrial`]: { ticked: true, by: "g", at: T + 9, trial: T },
+            [`${CH}:otherTrial`]: { ticked: true, by: "g", at: T + 9, trial: T - 400 },
+            [`${CH}:unticked`]: { ticked: false, by: "g", at: T + 9, trial: T },
+            [`${CH + 1}:elsewhere`]: { ticked: true, by: "g", at: T + 9 }
+        };
+        const ownEntries = Object.prototype.hasOwnProperty.call(caseTickStore, "entries"), realEntries = caseTickStore.entries;
+        const realGet = game.settings.get;
+        let record = { chapter: CH, trialStartedAt: T };
+        const read = {};
+        try {
+            caseTickStore.entries = () => rows;
+            game.settings.get = function (scope, key, ...rest) {
+                return key === SETTINGS.trialProgress ? record : realGet.call(this, scope, key, ...rest);
+            };
+            read.inTrial = Object.keys(S.caseTicks(CH)).sort();
+            record = { chapter: CH, trialStartedAt: null };
+            read.noStamp = Object.keys(S.caseTicks(CH)).sort();
+            record = { chapter: CH + 1, trialStartedAt: T };
+            read.otherChapter = Object.keys(S.caseTicks(CH)).sort();
+        } finally {
+            if (ownEntries) caseTickStore.entries = realEntries; else delete caseTickStore.entries;
+            game.settings.get = realGet;
+        }
+        equal(stableJson(read), stableJson({
+            inTrial: ["legacyAtStart", "legacyIn", "thisTrial"],
+            noStamp: ["legacyAtStart", "legacyBefore", "legacyIn"],
+            otherChapter: ["legacyAtStart", "legacyBefore", "legacyIn"]
+        }), "{the ticks read in the running trial; with a record of no stamp; with the record another chapter's}");
+    }],
     ["R3905 - the zone modes' census (E73 C5; the plan's 'every mode has a panel, a name and a start button'; the owner's 09.11 census): Straw Poll, Logic Dive and Scrum Debate are modes of floor-machine.mjs MODES, each with a MODE_RULES row of family \"zones\" and no Objection, a MODE_STARTS row naming the console's one zones action, a row of trial-zones-ui.mjs ZONE_PANELS with its panel and name, and the name in both languages; E99's case schema lists them (`caseModes`)", async () => {
         /* E73 C5, 12.11.2026. Red at 4077664: no zone modes. */
         const { MODES } = await import("./floor-machine.mjs");
@@ -38405,8 +38451,9 @@ const INVARIANTS = [
             ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", close: "cancel" },
-                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "close"]],
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", discard: "cancel" },
+                // Cancel's action "discard" since the planner's review for 1.2.111 (13.11.2026): "close" is ApplicationV2's own
+                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "discard"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */

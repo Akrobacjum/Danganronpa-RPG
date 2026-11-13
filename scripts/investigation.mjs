@@ -3144,7 +3144,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
 
     /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the views and the body secondary; Clear Faint and Sweep,
        which take what cannot be put back, destructive - each asks first (`confirmClearFaint`, `confirmSweepBullets`)
-       and is never the default; Cancel, since Save is still to answer (E21 rule 3), its answer "close" as before. */
+       and is never the default; Cancel, since Save is still to answer (E21 rule 3), its answer "discard" (below). */
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
@@ -3199,7 +3199,11 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                 // E97 C10: takes back only what nobody found, asked first
                 { action: "unrealize", label: game.i18n.localize("DRPG.CaseRealize.undo") }
             ],
-            close: { role: "cancel", action: "close" },
+            /* CANCEL'S ACTION IS "discard", NOT "close" (the planner's review for 1.2.111, 13.11.2026). ApplicationV2 keeps
+               `data-action="close"` for its own close: the press never reaches DialogV2 and the wait answers null
+               (ui-kit.mjs:113-119, measured at a table on 11.09; LIVE-E21-06 is the live check), which reads below as
+               the X and writes the open node. A cancel-role word with an action of its own reaches the wait. */
+            close: { role: "cancel", action: "discard" },
             // Two rows at every width, in both views (E97 C2; the owner's Q-C): the kit's grid footer.
             rows: 2
         },
@@ -3283,10 +3287,11 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
        closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save
        hands on every changed field, the node's among them, so it writes nothing here. CANCEL IS A DISCARD (13.11.2026;
        perf-open's review for 1.2.111 asked whether Cancel is a close or a discard, and the coordinator set the default
-       for the owner to confirm): its answer "close" writes neither the node nor the Table's changed fields. The X,
-       Escape and the footer's other buttons, which reopen the window, still write the open node. */
-    if (!action || (typeof action === "string" && action !== "close")) await saveOpenNode(drawnRoot);
-    if (!action || action === "close") return null;
+       for the owner to confirm): its answer "discard" writes neither the node nor the Table's changed fields. The X,
+       Escape and the footer's other buttons, which reopen the window, still write the open node; the X and Escape
+       answer null. Until the planner's review Cancel answered "close", which at a table is the X's null (above). */
+    if (!action || (typeof action === "string" && action !== "discard")) await saveOpenNode(drawnRoot);
+    if (!action || action === "discard") return null;
 
     const ran = await runDashboardButton(action);
     if (ran) return openInvestigationDashboard({ said: ran.said ?? null });

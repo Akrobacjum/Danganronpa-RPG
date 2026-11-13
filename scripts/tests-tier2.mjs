@@ -27167,6 +27167,14 @@ const SCENARIOS = [
          * the text. The store given back, the node opened and closed with nothing typed: the text written. Then Cancel,
          * a discard (the coordinator's default for the owner's question): a name typed and Cancel pressed writes nothing.
          * Red at c598d3c: Cancel wrote the node's name.
+         *
+         * CANCEL PRESSED AS A TABLE PRESSES IT (the planner's review for 1.2.111, 13.11.2026). The footer's cancel-role
+         * button is found by its role, not by its action, and pressed the way Foundry v14 dispatches it: a button whose
+         * action is "close" is ApplicationV2's own close and answers null, never reaching DialogV2 (ui-kit.mjs, "A
+         * CLOSING WORD WHOSE ACTION IS "close"", measured at a table on 11.09, trial-floor-ui.mjs `openVoteDialog`'s
+         * note; LIVE-E21-06 is the live check). The harness's DialogV2 does not model that dispatch, so this test does:
+         * until 13.11 it clicked `[data-action="close"]` and read "close", green on a path no table takes. Red at
+         * 4bab7361 pressed this way: Cancel wrote the node's name.
          */
         const S = await import("./case-schema.mjs");
         const { caseSchemaStore } = await import("./gm-stores.mjs");
@@ -27207,7 +27215,11 @@ const SCENARIOS = [
             edit = await openNode();
             must(edit, "the fixture node did not open a third time");
             win.field(`${base}:label`).value = "SUITE autofail cancelled";
-            root.querySelector('footer.form-footer button[data-action="close"]')?.click();
+            const cancel = root.querySelector("footer.form-footer button.drpg-role-cancel");
+            must(cancel, "the window's footer has no Cancel - this would measure nothing");
+            seen.cancelAction = cancel.dataset.action ?? null;
+            // ApplicationV2's own "close" (v14), or the button DialogV2 answers with its action
+            if (cancel.dataset.action === "close") await win.app.close(); else cancel.click();
             await Promise.race([win.answer, wait(5000)]);
             await gmStoresIdle();
             await wait(400);
@@ -27221,8 +27233,8 @@ const SCENARIOS = [
             await S.dropCaseNode(chapter, id).catch(() => {});
             await gmStoresIdle();
         }
-        equal(stableJson(seen), stableJson({ failed: { told: true, stored: "SUITE autofail as drawn", field: "SUITE autofail typed" }, next: "SUITE autofail typed", cancel: "SUITE autofail typed" }),
-            "{after the refused write: the error told, the stored name, the field's text; the name after the next close; the name after Cancel}");
+        equal(stableJson(seen), stableJson({ failed: { told: true, stored: "SUITE autofail as drawn", field: "SUITE autofail typed" }, next: "SUITE autofail typed", cancelAction: "discard", cancel: "SUITE autofail typed" }),
+            "{after the refused write: the error told, the stored name, the field's text; the name after the next close; Cancel's action; the name after Cancel, pressed as v14 dispatches it}");
     }],
 
     ["E97 C6: a case node's name, mode and inputs edited on the Map are saved by the panel's Save, and a name another GM moved under the window is refused and told", async () => {
@@ -27416,21 +27428,35 @@ const SCENARIOS = [
          * suite's rehearsal stamps send nothing. Red at a8650af: no such kind, nothing listening. Since 13.11 (perf-open's
          * review for 1.2.111) the discovery's hook is heard with `writer: false`, a stamp made off this browser: the primary
          * sends on its own role, not the writer's. Red at c598d3c: nothing went out. On another GM it skips (env.primaryGm).
+         *
+         * NOT TO THE DEAD, MEASURED (the planner's review for 1.2.111, minor 2; 13.11.2026). Until then the world's four
+         * students were all alive, so a send that ignored death passed: one fixture student is now dead for the GMs (the
+         * deaths store, as tier 2's other deaths, dropped after) and must get nothing. Red with `sendPlannedAutopsy`'s
+         * filter taken off: the dead student got one. And a world where a student already holds this chapter's Autopsy
+         * sends nothing by design (`autopsyIssued`), so it is a fact about the world, asked first, not a failure.
          */
         const S = await import("./case-schema.mjs");
         const TB = await import("./truth-bullets.mjs");
         const { BODY_ANNOUNCED_HOOK, isDeadForGm } = await import("./chapter.mjs");
         const { studentActors } = await import("./monokuma.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
         needs(env.primaryGm(), "the planned Autopsy goes out from the primary GM");
         const chapter = getClock().chapter;
-        const living = studentActors().filter(a => !isDeadForGm(a));
-        needs(world.atLeast("livingStudents"), "living students to receive it");
+        needs(world.atLeast("livingStudents", 2), "two living students: one to receive it, one made dead for the GMs");
+        needs(world.noAutopsyHeld(chapter), "no student holds this chapter's Autopsy yet - one held sends nothing, by design");
+        const corpse = studentActors().find(a => !isDeadForGm(a) && !deathStore.has(a.id)) ?? null;
+        must(corpse, "no living student without a death record to make dead - this would measure nothing");
         const before = new Set(studentActors().flatMap(a => TB.bulletsOf(a).map(i => i.uuid)));
         const autopsies = () => studentActors().flatMap(a => TB.bulletsOf(a).filter(i => !before.has(i.uuid) && TB.secretOf(i.uuid).realType === "autopsy")
             .map(i => ({ actor: a.id, item: i })));
         const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
         const seen = {};
+        let living = [];
         try {
+            await deathStore.patch(corpse.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            await gmStoresIdle();
+            living = studentActors().filter(a => !isDeadForGm(a));
+            seen.corpseDead = !living.some(a => a.id === corpse.id);
             await S.setCaseMeta(chapter, { askedAt: Date.now() });
             await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE planned autopsy", text: "SUITE stab wound, 23:10", note: "SUITE the GM's note" });
             await gmStoresIdle();
@@ -27442,6 +27468,7 @@ const SCENARIOS = [
             await until(() => autopsies().length >= living.length, 6000).catch(() => {});
             const sent = autopsies();
             seen.to = sent.map(r => r.actor).sort();
+            seen.toCorpse = sent.some(r => r.actor === corpse.id);
             seen.words = [...new Set(sent.map(r => `${r.item.name}|${TB.secretOf(r.item.uuid).gmNote ?? ""}`))];
             Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, victimIds: [] });
             await wait(1200);
@@ -27453,10 +27480,11 @@ const SCENARIOS = [
             }
             await S.dropCaseNode(chapter, "autopsy").catch(() => {});
             await S.setCaseMeta(chapter, { askedAt: metaBefore.askedAt }).catch(() => {});
+            if (deathStore.has(corpse.id)) await deathStore.drop(corpse.id).catch(() => {});
             await gmStoresIdle();
         }
-        equal(stableJson(seen), stableJson({ rehearsal: 0, to: living.map(a => a.id).sort(), words: ["SUITE planned autopsy|SUITE the GM's note"], again: 0 }),
-            "{Autopsies after a rehearsal's hook; who got one after the discovery's; their name and GM note; more after a second body}");
+        equal(stableJson(seen), stableJson({ corpseDead: true, rehearsal: 0, to: living.map(a => a.id).sort(), toCorpse: false, words: ["SUITE planned autopsy|SUITE the GM's note"], again: 0 }),
+            "{the fixture student dead for the GMs; Autopsies after a rehearsal's hook; who got one after the discovery's; whether the dead one did; their name and GM note; more after a second body}");
     }],
 
     ["E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot", async () => {
