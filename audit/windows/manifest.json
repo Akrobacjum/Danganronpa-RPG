@@ -854,6 +854,65 @@
       "file": "class-trial.html"
     },
     {
+      "id": "zone-picker",
+      "client": "gm",
+      "opener": "trial-zones-ui.mjs m.openZonePicker({ mode: \"dive\" })",
+      "captured": true,
+      "title": "Hall zones",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-narrow",
+        "drpg-zone-picker",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "start",
+          "label": "Start",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "zone-picker.html"
+    },
+    {
+      "id": "dive-editor",
+      "client": "gm",
+      "opener": "trial-zones-ui.mjs m.editDiveSet(\"probe08set\")",
+      "captured": true,
+      "title": "Edit a Logic Dive set",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-dive-editor",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save the set",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "dive-editor.html"
+    },
+    {
       "id": "reveal-confirm",
       "client": "gm",
       "opener": "trial-floor-ui.mjs m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })",
@@ -1686,6 +1745,36 @@
         }
       ],
       "file": "drpg-settings-player.html"
+    },
+    {
+      "id": "drpg-settings-player-voice",
+      "client": "p1",
+      "opener": "settings-window.mjs m.openSettingsWindow()",
+      "captured": true,
+      "title": "DRPG Settings",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save changes",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "drpg-settings-player-voice.html"
     },
     {
       "id": "notices-player",
