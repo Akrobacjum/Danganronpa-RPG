@@ -6,6 +6,8 @@
 docs/img/ export-ignore
 docs/design/ export-ignore
 docs/changelog-1.2.0.md export-ignore
+# CHANGELOG.md is tools/changelog.mjs's index of .github/release-notes (E59 C5), which does not ship either.
+CHANGELOG.md export-ignore
 # docs/dev holds working papers: the R-number registry (generated, INFRA I4), the text pilot's file and the review of the
 # texts written before the guide (E65 C13, C14, C-pilot).
 docs/dev/ export-ignore

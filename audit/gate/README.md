@@ -65,6 +65,19 @@ runner broke, not the module) or `not-run` with a reason:
 | no-playwright, no-browser | no | the runner's own dependencies are missing |
 | adapter-missing | no | the scenario needs something the sandbox adapter lacks |
 
+## The ci layer's record (E59 C0)
+
+`node audit/gate/ci-record.mjs [lint] [check] [gate] [suite] [scenarios]`, from the repository's root on a clean
+tree, runs `audit/harness/run-all.mjs` with those parts and writes one row per part into `ci-record.json`: the
+commit, what run-all answered (`passed` for green, `failed` otherwise), its counts and time, the run's exit code and
+the files the gate depends on (`GATE_FILES` in the writer; declared, not measured). E83 is to read it, to repeat only the
+gates a fix touched. No row is written by hand or from a run that did not happen: the writer takes only the
+`run-all.json` its own run wrote, and `node tools/check.mjs gatecode` refuses a row whose digest, result, exit code,
+command or files do not hold (the writer's header says what the digest does and does not prove). The file is
+committed only after a real run; until then the repository has none. The commit that adds the record touches `audit/gate/**` and so `**` itself: a reader that
+repeats the gates a diff touched leaves `ci-record.json` out of that diff. It is not read by `verify-gate.mjs` and binds
+no release.
+
 ## What the verifier lets through
 
 The rules are listed at the top of `verify-gate.mjs`. A release is **required**

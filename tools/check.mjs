@@ -19,8 +19,14 @@
  *             handbooks and README's "describe version X." agree; with
  *             `--release`, the tag is "v" + that version. These were three
  *             shell steps of release.yml and R125; the handbooks said 1.2.55
- *             under a 1.2.56 module once (audit S14-16).
- *   notes     .github/release-notes/v<version>.md exists and is not empty.
+ *             under a 1.2.56 module once (audit S14-16). And (E59 C4, 13.11)
+ *             the Foundry and Daggerheart rows of the two GM handbooks'
+ *             "needs" tables name module.json's minimum and verified
+ *             versions, after a planted table with three faults. README's
+ *             rows are not held: the owner's rule, beside COMPAT_FILES.
+ *   notes     .github/release-notes/v<version>.md exists and is not empty;
+ *             and (E59 C5) CHANGELOG.md is what tools/changelog.mjs writes
+ *             from that folder, after a planted pair of notes.
  *   dashes    the house rule (CLAUDE.md): no U+2014 or U+2013 in the language
  *             files' decoded keys and values, the handbooks, README and the
  *             release notes and every other .md under docs/ (the R-number
@@ -89,6 +95,9 @@
  *             so a locator chain and a call split over lines count. A detector
  *             fixture runs first, as in `contract`, and the part is red when the
  *             gate's writer or the live runner is not there to be read.
+ *             And (E59 C0) audit/gate/ci-record.json, when it exists, holds
+ *             only rows audit/gate/ci-record.mjs wrote from a run it spawned,
+ *             read by that file's own rules after its planted rows refuse.
  *   live      every live check the code, the harness, the tools, the language
  *             files and the handbooks cite as LIVE-E<stage>-<n> is an item of
  *             audit/AUDIT-1.2.42.md section 9.2, written once.
@@ -288,17 +297,73 @@ function stamps() {
     places.push(["README.md \"describe version X.\"", readme === version, `says ${readme ?? "no version"}`]);
     for (const [where, ok, what] of places) if (!ok) problems.push(`${where} ${what}; module.json says ${version}`);
     if (RELEASE !== null && RELEASE !== `v${version}`) problems.push(`the tag asked for is "${RELEASE}", module.json says ${version}`);
+    const manifest = JSON.parse(read("module.json"));
+    const compat = compatibilityProblems(manifest, Object.fromEntries(COMPAT_FILES.map(f => [f, exists(f) ? read(f) : null])));
+    const plant = compatibilityProblems(manifest, { "plant.md": "| Foundry VTT | 14.1 or newer (verified on 14.2) |\n| Daggerheart (Foundryborne) | 2.6.5 or newer |\n" });
+    problems.push(...compat.problems);
+    if (plant.problems.length !== 3) problems.push(`the compatibility self-check's planted table gave ${JSON.stringify(plant.problems)}, not its 3 faults`);
     console.log(`stamps: module.json ${version}; ${places.filter(p => p[1]).length}/${places.length} places agree`
-        + (RELEASE !== null ? `; tag ${RELEASE}` : ""));
+        + (RELEASE !== null ? `; tag ${RELEASE}` : "")
+        + `; compatibility ${compat.rows} row(s) in ${COMPAT_FILES.length} file(s) against module.json, ${compat.problems.length} problem(s); `
+        + `self-check ${plant.problems.length}/3 planted fault(s) seen`);
     return problems;
 }
 
-function notes() {
+/*
+ * THE VERSIONS THE MODULE NEEDS, SAID ONE WAY (E59 C4's check, 13.11.2026; M12 of the E59 plan). module.json's
+ * `compatibility` (Foundry) and its Daggerheart relationship's are the truth; the GM handbook's "needs" table, in
+ * English and in Polish, has a row for Foundry VTT and one for Daggerheart, whose first version is the minimum and whose
+ * second the verified one ("14.364 or newer (verified on 14.365)", "14.364 lub nowsza (sprawdzone na 14.365)"). A row
+ * missing, or either number not module.json's, is red. On 421f2395 the two files' four rows agreed with module.json.
+ *
+ * README.md IS NOT ONE OF THEM (REVIEW-111-e59 finding 2, 13.11.2026). The owner's rule is that the root README changes
+ * only in its version line ("They describe version X.", which `stamps` holds above); its own Foundry and Daggerheart
+ * rows (README.md:228-229 on c066123e) are the owner's to keep. Held here, a release that writes a newly verified
+ * Foundry or Daggerheart into module.json could not pass `stamps` without a second README edit: with module.json's
+ * verified versions planted as 14.366 and 2.12.9, README.md:228 and :229 were two of the six problems.
+ */
+const COMPAT_FILES = ["docs/handbooks/gm-handbook.en.md", "docs/handbooks/gm-handbook.pl.md"];
+
+function compatibilityProblems(manifest, texts) {
+    const daggerheart = (manifest.relationships?.systems ?? []).find(s => s.id === "daggerheart")?.compatibility ?? {};
+    const wanted = [["Foundry VTT", /^\|\s*Foundry VTT\s*\|/, manifest.compatibility ?? {}], ["Daggerheart", /^\|\s*\[?Daggerheart\b/, daggerheart]];
+    const problems = [];
+    let rows = 0;
+    for (const [file, text] of Object.entries(texts)) {
+        if (text === null) { problems.push(`${file} is missing`); continue; }
+        const lines = text.split("\n");
+        for (const [name, row, compat] of wanted) {
+            const at = lines.findIndex(l => row.test(l));
+            if (at < 0) { problems.push(`${file} has no "${name}" row in its table of what the module needs`); continue; }
+            rows += 1;
+            const cell = lines[at].split("|").slice(2).join("|").replace(/\]\([^)]*\)/g, "]");
+            const [minimum, verified] = [...cell.matchAll(/\b\d+\.\d+(?:\.\d+)?\b/g)].map(m => m[0]);
+            if (minimum !== compat.minimum) problems.push(`${file}:${at + 1}: ${name}'s minimum reads ${minimum ?? "nothing"}; module.json says ${compat.minimum}`);
+            if (verified !== compat.verified) problems.push(`${file}:${at + 1}: ${name}'s verified version reads ${verified ?? "nothing"}; module.json says ${compat.verified}`);
+        }
+    }
+    return { problems, rows };
+}
+
+async function notes() {
     const version = RELEASE ? RELEASE.replace(/^v/, "") : JSON.parse(read("module.json")).version;
     const rel = `.github/release-notes/v${version}.md`;
     const size = exists(rel) ? read(rel).trim().length : -1;
-    console.log(`notes: ${rel} ${size < 0 ? "missing" : `${size} characters`}`);
-    return size > 0 ? [] : [`${rel} is ${size < 0 ? "missing" : "empty"} - the release workflow publishes it as the release's text`];
+    const problems = size > 0 ? [] : [`${rel} is ${size < 0 ? "missing" : "empty"} - the release workflow publishes it as the release's text`];
+    /* CHANGELOG.md is tools/changelog.mjs's index of the notes (E59 C5): held to what it would write now, so a notes
+       file added, removed or retitled without it written again is red. */
+    const C = await import(url.pathToFileURL(path.join(REPO, "tools", "changelog.mjs")).href);
+    const notesFiles = C.readNotes(REPO);
+    const wanted = C.build(notesFiles);
+    const have = exists("CHANGELOG.md") ? read("CHANGELOG.md") : null;
+    const plant = C.build({ "v1.2.9.md": "# 1.2.9 - nine\n", "v1.2.10.md": "**Ten.** More.\n", "notes.md": "# not a release\n" });
+    const order = /\*\*1\.2\.10\*\* - Ten\.[\s\S]*\*\*1\.2\.9\*\* - nine/.test(plant) && !/not a release/.test(plant);
+    console.log(`notes: ${rel} ${size < 0 ? "missing" : `${size} characters`}; CHANGELOG.md ${have === null ? "missing" : have === wanted ? "current" : "stale"} `
+        + `against ${Object.keys(notesFiles).length} notes file(s); self-check ${order ? "holds" : "fails"} (version order, the two title forms)`);
+    if (have === null) problems.push("CHANGELOG.md is missing - write it with `node tools/changelog.mjs --write`");
+    else if (have !== wanted) problems.push("CHANGELOG.md is not what tools/changelog.mjs writes from .github/release-notes - run `node tools/changelog.mjs --write`");
+    if (!order) problems.push(`tools/changelog.mjs's planted notes did not come out newest first with both title forms: ${JSON.stringify(plant)}`);
+    return problems;
 }
 
 /* --------------------------------- dashes ---------------------------------- */
@@ -917,7 +982,7 @@ function statementsOf(text) {
     return out;
 }
 
-function gatecode() {
+async function gatecode() {
     const problems = [];
     const hitsIn = text => statementsOf(text).filter(s => SECRET_FIELD.test(s.text)).map(s => s.line);
     const fx = hitsIn(GATECODE_FIXTURE.text);
@@ -928,7 +993,39 @@ function gatecode() {
     /* The writer and the live runner are what it exists to read: without them it read nothing. */
     for (const need of ["audit/gate/local-gate.mjs", "audit/live/foundry.mjs"]) if (!files.includes(need)) problems.push(`${need} is missing - nothing that logs into Foundry was read`);
     for (const f of files) for (const line of hitsIn(read(f))) problems.push(`${f}:${line}: aims at a password, admin key or licence field`);
-    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ${problems.length} problem(s)`);
+    /* THE CI RECORD (E59 C0, 13.11.2026): audit/gate/ci-record.json is written only by audit/gate/ci-record.mjs from a
+       run it spawned; this reads it with the writer's own rules (`recordProblems`), after planted rows each must refuse.
+       The file may be absent: no run recorded yet. */
+    let rec = { rows: 0, planted: "not read" };
+    if (!exists("audit/gate/ci-record.mjs")) problems.push("audit/gate/ci-record.mjs is missing - nothing writes or reads the ci record");
+    else {
+        const R = await import(url.pathToFileURL(path.join(REPO, "audit", "gate", "ci-record.mjs")).href);
+        const self = R.selfCheck();
+        rec.planted = `${self.refused}/${self.planted} planted row(s) refused, the control ${self.controlOk ? "accepted" : "refused"}`;
+        if (self.refused !== self.planted || !self.controlOk) problems.push(`the ci record's self-check: ${rec.planted} (${self.missed.join("; ")})`);
+        if (exists(R.RECORD_FILE)) {
+            let record = null;
+            try { record = JSON.parse(read(R.RECORD_FILE)); } catch (err) { problems.push(`${R.RECORD_FILE} is not JSON (${err.message})`); }
+            if (record) {
+                rec.rows = (record.rows ?? []).length;
+                problems.push(...R.recordProblems(record).map(p => `${R.RECORD_FILE}: ${p}`));
+                /* REVIEW-111 L2: a row's commit is one this repository has, and an ancestor of HEAD - not a made-up id
+                   with its digest recomputed. A shallow clone cannot tell, and says so instead of guessing. */
+                let shallow = false;
+                try { shallow = execFileSync("git", ["-C", REPO, "rev-parse", "--is-shallow-repository"], { encoding: "utf8" }).trim() === "true"; } catch { shallow = true; }
+                const commits = [...new Set((record.rows ?? []).map(r => r?.commit).filter(c => /^[0-9a-f]{40}$/.test(String(c))))];
+                if (shallow) rec.commits = `${commits.length} commit(s) not checked (a shallow clone)`;
+                else {
+                    for (const c of commits) {
+                        const ok = spawnSync("git", ["-C", REPO, "merge-base", "--is-ancestor", c, "HEAD"]).status === 0;
+                        if (!ok) problems.push(`${R.RECORD_FILE}: commit ${c} is not in this repository's history up to HEAD`);
+                    }
+                    rec.commits = `${commits.length} commit(s) checked against HEAD's history`;
+                }
+            }
+        }
+    }
+    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s)${rec.commits ? ` (${rec.commits})` : ""}, ${rec.planted}; ${problems.length} problem(s)`);
     return problems;
 }
 
