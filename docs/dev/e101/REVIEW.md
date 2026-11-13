@@ -210,3 +210,25 @@ run can confirm.
 
 **Not read in depth:** E64's D008 and D003, the E64-inv screen-fit readings, the chi-square figures (not recomputed:
 nothing was run).
+
+## What became of the findings (13.11.2026)
+
+The coordinator put V1-V4 into 1.2.110 before it ships. They are fixed on `claude/v110-fix`, started from 12a7e309, one
+commit each, red first:
+
+| # | Commit | Red first | Fix |
+| --- | --- | --- | --- |
+| V1 | 2da4a085 | tier 2 "a Monocub crosses to a connected room ...": roomSealed and the Seal's sentence | the neutral `cannotNow` and its sentence, marked `murderRoom` so the primary still puts the token back; the mark stays on the GM |
+| V3 | 1d4cdfe4 | tier 2 "1.2.110 V3 ..." (GM thresholds [9, 9]); scenario 30-security on p1's own browser (p1 12, GM 9) | on a GM, `freshSceneBonus` counts only the unfound bodies the roller's player may know (`knowsOfDeath`, the rule their copy is built by) |
+| V2 | 5c43b13d | tier 2 "E64 DA39 migration" extended to the player's copy and picker: [null, null, []] | `ownerCopyOf` keeps `only: "trait"`; `playerPickerBody` draws the offer's options |
+| V4 | 3c7d13b0 | R4474 | `wrongVerdictTouches`: the case judged (`caseOpen` against the verdict before, the season) or a witness marked since it |
+| - | 32f5093f | - | R376 and R3951 read the code as V3 and V4 left it |
+
+Runs on claude/v110-fix: quick green; tiers 0-1 1369 passed, 0 failed, 16 skipped (after a first run with R376 and
+R3951 red, source reads of the changed lines); tier 2 by name 64 passed, 0 failed (the four fixes' tests, every Level
+Up test, the wrong verdict's, the crime witness's and the Ghost Bet's); scenario 30-security 282/283, its one expected
+red a Foundry limit.
+
+**Open, for after 1.2.110** (to be folded into r112's next round where they hold): R1-R12, T1 and N1 above, and from
+the first half of this file R1-R6 (the S17-31 read: the boot reseal before hydration, a cleared chat, the all-OBSERVER
+old seal, and the rest).
