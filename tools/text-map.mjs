@@ -123,7 +123,7 @@ export const SCREENS = Object.freeze([
     // E41 C8 (1.2.97): tables.mjs's code in tables-pools.mjs (the names, the pools, the draw) and tables-editor.mjs (the window, Install).
     row("table-names", "an item table named and its pane", "window", "gm", ["scripts/tables-editor.mjs:promptForTableName", "scripts/tables-editor.mjs:wirePaneHeading"], { stage: "E14" }),
     row("item-tables", "the item tables", "window", "gm", ["scripts/tables-pools.mjs:*", "scripts/tables-editor.mjs:*"], { note: "tables-pools.mjs: the guide \"tells the GM to improvise\"" }),
-    row("sheet-other", "the sheet's Other section", "window", "both", ["scripts/sheet.mjs:buildOtherSection"], { stage: "E14" }),
+    row("sheet-other", "the sheet's Other section", "window", "both", ["scripts/sheet-inventory.mjs:buildOtherSection"], { stage: "E14" }),
     row("projects", "projects and the countdown tray", "window", "both", ["scripts/projects-ui.mjs:*", "scripts/projects-tray.mjs:*", "scripts/projects.mjs:*"], { stage: "E15" }),
     row("betrayal", "the betrayal and a dynamic difficulty", "window", "both", ["scripts/action-murder.mjs:performBetrayal", "scripts/action-dynamic.mjs:askDynamicDifficulty"], { stage: "E16" }),
     row("roll-window", "the roll window", "window", "both", ["scripts/roll-dialog.mjs:*"], { stage: "E16" }),
@@ -152,7 +152,7 @@ export const SCREENS = Object.freeze([
     row("mastermind", "the Mastermind and the Final Trial", "window", "both", ["scripts/mastermind.mjs:*", "scripts/verdict.mjs:openFinalVerdictDialog",
         "scripts/verdict.mjs:applyFinalVerdict", "scripts/verdict.mjs:giveFinalVerdict"]),
     row("diagnostics", "the GM's reports (diagnostics and the map's checks)", "window", "gm", ["scripts/diagnostics.mjs:*", "scripts/fog-diagnostics.mjs:*"]),
-    row("sheet", "the character sheet", "window", "both", ["scripts/sheet.mjs:*", "scripts/sheet-audit.mjs:*", "scripts/anonymity.mjs:*"]),
+    row("sheet", "the character sheet", "window", "both", ["scripts/sheet.mjs:*", "scripts/sheet-mode.mjs:*", "scripts/sheet-item.mjs:*", "scripts/sheet-repaint.mjs:*", "scripts/sheet-fit.mjs:*", "scripts/sheet-header.mjs:*", "scripts/sheet-sidebar.mjs:*", "scripts/sheet-inventory.mjs:*", "scripts/sheet-actions.mjs:*", "scripts/sheet-mode.mjs:sheetMode", "scripts/sheet-audit.mjs:*", "scripts/anonymity.mjs:*"]),
     // E41 C7b (1.2.97): the stopwatch and the clock it shows, in their own file.
     row("hud", "the HUD", "tiles", "both", ["scripts/hud.mjs:*", "scripts/hud-elapsed.mjs:*"]),
     row("settings", "Foundry's settings window: the module's settings", "window", "both", ["scripts/settings.mjs:registerSettings"],
