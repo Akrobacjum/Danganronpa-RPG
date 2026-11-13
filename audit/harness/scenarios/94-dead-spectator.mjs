@@ -16,6 +16,8 @@
  *   monocub  the death made the table's and Chie a Monocub (the coordinator's 7): her Spectator token is her Monocub's and
  *            where she stands; p3 cannot drag the corpse; Aiko in the corpse's room stays hidden on p3's browser;
  *            then a Monocub no more, a Spectator back on that token;
+ *   curtain  p3's curtain (death-fade.mjs): bare after the fade and p1's not, lit after the Monocub's return, bare again at
+ *            once a Monocub no more, lit after the revive;
  *   revive   the GM revives Chie: p3's browser handed the hook's "return", the watcher and its token gone from every
  *            browser.
  * Everything is put back: Chie alive, the watcher gone, the tokens where they were, the Sound map.
@@ -79,6 +81,11 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
         phase("moment");
         const moments = { p1: await p1.eval(`return globalThis.__drpg94;`), p3: await p3.eval(`return globalThis.__drpg94;`) };
         const played = { p1: (await p1.eval(PLAYED)) - playedBefore.p1, p3: (await p3.eval(PLAYED)) - playedBefore.p3 };
+        // The curtain's fade is 3.6 s on p3's browser (death-fade.mjs); 2 s have passed since the kill.
+        await settle(2200);
+        const BARE = `return document.body.classList.contains("drpg-bare-glass");`;
+        const curtain = { p3: await p3.eval(BARE), p1: await p1.eval(BARE) };
+        check("curtain: after the fade p3's curtain rests bare (drpg-bare-glass), p1's not (E62 C3)", curtain.p3 === true && curtain.p1 === false, JSON.stringify(curtain));
         check("moment: p3's browser is handed the fade, not silent, and plays the Death fade once; p1's neither",
             moments.p3?.length === 1 && moments.p3[0].phase === "fade" && moments.p3[0].silent === false && moments.p3[0].studentId === IDS.chie
             && moments.p1?.length === 0 && played.p3 === 1 && played.p1 === 0, JSON.stringify({ moments, played }));
@@ -126,8 +133,10 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
         await settle(1200);
         const eye = await p3.eval(`const V = ${imp("visibility.mjs")};
             return V.tokenShownTo(canvas.scene.tokens.get("TOKAIKO000000000"), V.viewerHere());`);
+        const litAsCub = await p3.eval(BARE);
         check("monocub: Chie's Spectator token becomes her Monocub's and is where she stands; p3 cannot drag the corpse, and Aiko in the corpse's room stays hidden on p3's browser",
             cubbed?.cub === true && cubbed.located === watcherToken && corpseDrag?.stayed === true && eye === "hide", JSON.stringify({ cubbed, corpseDrag, eye }));
+        check("curtain: after the Monocub's return p3's curtain is lit again (E62 C3)", litAsCub === false, JSON.stringify({ litAsCub }));
         const unCub = await gm.eval(`const MC = ${imp("monocub.mjs")}, D = ${imp("spectator-dead.mjs")};
             const chie = game.actors.get("${IDS.chie}");
             await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 300, y: 300 }, { animate: false });
@@ -135,11 +144,14 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
             return D.watcherActorOf(chie)?.id ?? null;`, { timeout: 60000 });
         watcherId = unCub ?? watcherId;
         await settle(1200);
+        const bareAgain = await p3.eval(BARE);
+        check("curtain: a Monocub no more, p3's curtain is bare again at once (SB-C3 #10)", bareAgain === true, JSON.stringify({ bareAgain }));
 
         phase("revive");
         await p3.eval(`globalThis.__drpg94 = []; return true;`);
         await gm.eval(`const C = ${imp("chapter.mjs")}; await C.reviveCharacter(game.actors.get("${IDS.chie}"), { quiet: true }); return true;`, { timeout: 60000 });
-        await settle(2000);
+        await settle(3000);
+        const litBack = await p3.eval(BARE);
         const back = await p3.eval(`return { moments: globalThis.__drpg94, actor: Boolean(game.actors.get("${watcherId}")),
             tokens: [...game.scenes].flatMap(s => [...s.tokens]).filter(t => t.actorId === "${watcherId}").length };`);
         const gone = await p1.eval(`return { actor: Boolean(game.actors.get("${watcherId}")),
@@ -147,6 +159,7 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
         check("revive: p3's browser is handed the return; the watcher and its token are gone on p3's and p1's",
             back?.moments?.length === 1 && back.moments[0].phase === "return" && back.moments[0].silent === false
             && back.actor === false && back.tokens === 0 && gone?.actor === false && gone.tokens === 0, JSON.stringify({ back, gone }));
+        check("curtain: after the revive p3's curtain is lit again (E62 C3)", litBack === false, JSON.stringify({ litBack }));
     } finally {
         await gm.eval(`const C = ${imp("chapter.mjs")}, ST = ${imp("settings.mjs")};
             const chie = game.actors.get("${IDS.chie}");

@@ -52034,6 +52034,108 @@ const INVARIANTS = [
         equal(voice, dead.id, "the account's voice in the trial (the listed dead student, not its Spectator)");
     }],
 
+    ["R4555 - the death fade's batches are read off the panes' blocks at any size: the top slivers, the bottom slivers, the rail with the status and the tray, the clock with the notes and the room tile, the voice tile with the launchers (E62 C3; SB-C3's batches at 1366x768)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `batchOf` asked of stand-in panes as glass.mjs `LAST.panes` holds them
+         * (`tone`, `y0`, `y1`) on a screen 800 px high. The storyboard named its batches by pane index at one size; the
+         * pane's block is the same reading at every size. Red at 45448ef2: no death-fade.mjs.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        const pane = (tone, y0, y1) => ({ tone, y0, y1 });
+        const read = D ? [pane(null, 0, 100), pane(null, 700, 800), pane("rail", 0, 800), pane("three", 0, 200), pane("event", 0, 50), pane("tray", 600, 800),
+            pane("hud", 0, 200), pane("note-block", 400, 700), pane("room-block", 600, 800), pane("voice-block", 300, 500), pane("tiles-row", 700, 800),
+            pane("launch", 700, 800)].map(p => D.batchOf(p, 800)) : "no death-fade.mjs";
+        equal(stableJson(read), stableJson([1, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5]),
+            "the batch of each pane ([a top sliver, a bottom one, the rail, the status, the event strip, the tray, the clock, the notes, the room tile, the voice tile, the tiles' row, the launchers])");
+    }],
+
+    ["R4556 - the death fade and the Monocub's return keep the storyboard's times: the fade's onsets 0, 600, 1200, 1800 and 2400 with each later batch's colour back at +180 and out at +270, the pulse off and the edges flickering at 3000 and 3300, the rest bare at 3600; the return's edges, pulse at 500, batches from the player's tools out, the rest lit after M5's last step, at 2470; Legacy the same in four groups (E62 C3; SB-C3, MK-C3)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `fadePlan`, read as the steps' times by kind. Red at 45448ef2: no file; and
+         * once on the first cut, which set the return's rest at 2400, before batch 1's step at 2470.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        ok(D !== null, "death-fade.mjs could not be imported - the curtain has no death fade");
+        if (!D) return;
+        const fade = D.fadePlan("fade", 5), back = D.fadePlan("return", 5), legacy = D.fadePlan("fade", 4);
+        const onsets = plan => [...new Set(plan.filter(s => s.batch !== undefined).map(s => `${s.batch}@${s.at}:${s.on}`))];
+        const read = {
+            fade: onsets(fade), fadeEnd: fade.at(-1), seams: fade.filter(s => s.seams === "dim").map(s => s.at), pulseOff: fade.find(s => s.pulse === 0 && s.at === 3000) !== undefined,
+            back: onsets(back).filter(x => x.endsWith(":false")).map(x => x.split(":")[0]), backEnd: back.at(-1), pulseBack: back.find(s => s.pulse === 1)?.at ?? null,
+            legacy: onsets(legacy).filter(x => x.endsWith(":true")).map(x => x.split(":")[0]), legacyEnd: legacy.at(-1)
+        };
+        equal(stableJson(read), stableJson({
+            fade: ["1@0:true", "2@600:true", "2@780:false", "2@870:true", "3@1200:true", "3@1380:false", "3@1470:true", "4@1800:true", "4@1980:false",
+                "4@2070:true", "5@2400:true", "5@2580:false", "5@2670:true"],
+            fadeEnd: { at: 3600, rest: "bare" }, seams: [3000, 3300], pulseOff: true,
+            back: ["5@600", "5@870", "4@1000", "4@1270", "3@1400", "3@1670", "2@1800", "2@2070", "1@2200", "1@2470"], backEnd: { at: 2470, rest: "lit" }, pulseBack: 500,
+            legacy: ["1@0", "2@600", "2@870", "3@1200", "3@1470", "4@1800", "4@2070"], legacyEnd: { at: 3600, rest: "bare" }
+        }), "the plans ([the fade's batch steps], its end, the edges' dims, the pulse off; [the return's batches out], its end, the pulse back; [Legacy's groups in], its end)");
+    }],
+
+    ["R4557 - the death fade and the return flicker at most three times in any second, in both themes (E62 C3; the flash rule C2 and the storyboard reuse)", async () => {
+        /*
+         * E62 C3, 13.11.2026. transitions.mjs `flashRate` over death-fade.mjs `flickerOnsets` of each plan. Red at
+         * 45448ef2: no file.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        const T = await import("./transitions.mjs");
+        const read = D ? [["fade", 5], ["return", 5], ["fade", 4], ["return", 4]].map(([k, n]) => T.flashRate(D.flickerOnsets(D.fadePlan(k, n))))
+            : "no death-fade.mjs";
+        ok(Array.isArray(read) && read.every(n => n >= 1 && n <= 3), `the most flickers in any second ([fade, return] Stained Glass, then Legacy): ${stableJson(read)}`);
+    }],
+
+    ["R4558 - the curtain rests bare for a player whose every student is dead and no Monocub, a kept death too, and for nobody else: a GM, a living student, a Monocub, a player with no student (E62 C3; SB-C3's rest state, a reload shows it at once)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `restsBare` asked of stand-in users and actors; `isDeadForGm` reads the
+         * deceased flag on these (a kept death is the same reader through the player's copy). Red at 45448ef2: no file.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        const user = (id, isGM = false) => ({ id, isGM });
+        const actor = (owner, flags = {}) => ({ id: `R4558${Math.random()}`, type: "character",
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: (u, level) => level === "OWNER" && u?.id === owner });
+        const dead = { [FLAGS.deceased]: { chapter: 1 } };
+        const ask = (u, list) => (D ? D.restsBare(u, list) : "none");
+        const read = {
+            dead: ask(user("a"), [actor("a", dead)]), living: ask(user("a"), [actor("a")]), both: ask(user("a"), [actor("a", dead), actor("a")]),
+            cub: ask(user("a"), [actor("a", { ...dead, [FLAGS.monocub]: true })]), gm: ask(user("a", true), [actor("a", dead)]),
+            none: ask(user("a"), []), watcher: ask(user("a"), [actor("a", dead), actor("a", { [FLAGS.spectator]: true })])
+        };
+        equal(stableJson(read), stableJson({ dead: true, living: false, both: false, cub: false, gm: false, none: false, watcher: true }),
+            "whether the curtain rests bare ([a dead student, a living one, one of each, a Monocub, a GM, no student, a dead student and its Spectator])");
+    }],
+
+    ["R4559 - the dead's moment reaches the curtain as the storyboard says: a fade drawn, a correction at its end at once (bare), a Monocub's return and a revive drawn back to lit, a Monocub no more bare at once, nothing drawn under reduced motion or with the table's sequences off (E62 C3; SB-C3 #10, #16, #17)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `onDeadMoment` with the switches handed in; what it answers ("drawn" or
+         * "rest") and the body's class after it; `setRest(false)` puts the page back after each. Red at 45448ef2: no file.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        ok(D !== null, "death-fade.mjs could not be imported - the curtain has no death fade");
+        if (!D) return;
+        const bare = () => document.body.classList.contains(D.BARE_CLASS);
+        const was = bare();
+        const read = [];
+        try {
+            for (const [moment, opts] of [[{ phase: "fade" }, {}], [{ phase: "fade", silent: true }, {}], [{ phase: "monocub" }, {}], [{ phase: "return", silent: true }, {}],
+                [{ phase: "spectator" }, {}], [{ phase: "fade" }, { still: true }], [{ phase: "fade" }, { on: false }], [{ phase: "else" }, {}]]) {
+                const answer = D.onDeadMoment(moment, { on: true, still: false, ...opts });
+                read.push([moment.phase, answer, bare()]);
+                D.setRest(false);
+            }
+        } finally {
+            D.setRest(was);
+        }
+        equal(stableJson(read), stableJson([["fade", "drawn", false], ["fade", "rest", true], ["monocub", "drawn", false], ["return", "rest", false],
+            ["spectator", "rest", true], ["fade", "rest", true], ["fade", "rest", true], ["else", null, false]]),
+            "[the moment, what the curtain did, bare after it] for: a fade, a corrected fade, a Monocub, a corrected revive, a Monocub no more, a fade under reduced motion, a fade with the sequences off, a phase of nobody's");
+    }],
+
     ["R4552 - the Death fade Sound row: in the incident group, played by default with the death's own file, its own file when one is set (E62 C3b, the storyboard's 9)", async () => {
         /*
          * E62 C3b, 13.11.2026. config.mjs `SFX_EVENTS.deathFade` and sfx-play.mjs `soundsFor`, read with the Sound map

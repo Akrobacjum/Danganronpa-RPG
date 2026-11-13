@@ -80,7 +80,7 @@ The roll window is locked for players: dice, statistic, advantage, experiences a
 
 The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls or Level Ups, and nobody counts you anywhere. Other players do not see your token. Your microphone is off; **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and **Go back to your room** brings you back. If the GM turned the voice tile off, that button is not there. Drag your token to move, at no cost; whether walls stop you has not been tried at a table yet. You see every room the class has found, everybody's token and every project, secret ones too. At the day's end you see only the end of the day and the school's mood. You have no chat.
 
-When your character dies, you watch the same way, with a Spectator of your own: it has your character's name and pictures and stands where your body lies. Drag it anywhere, at no cost; other players do not see it. You still see only what a dead student sees. If you become a Monocub, its token becomes your Monocub.
+When your character dies, you watch the same way, with a Spectator of your own: it has your character's name and pictures and stands where your body lies. Drag it anywhere, at no cost; other players do not see it. You still see only what a dead student sees. If you become a Monocub, its token becomes your Monocub. At your death the glass on your screen goes grey, batch by batch, with the Death fade sound; it stays grey while you are dead and lights up again if you become a Monocub or are brought back. Only your screen shows it.
 
 
 ---

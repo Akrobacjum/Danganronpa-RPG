@@ -18344,6 +18344,16 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
    light instead - the clock, the status, Despair's bar and the notice tile. */
 body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #drpg-despair, #drpg-notices-corner) { filter: brightness(1.7); }
 
+/* BARE GLASS UNDER MONOKUMA LEGACY (E62 C3; death-fade.mjs; SB-C3 #11-#13): no curtain, so the four groups grey, the
+   whole frame with its content, text still readable - the Despair bar, the status and projects, the clock with the room
+   tile, the voice tile with the launchers - one by one in the fade and the return, all of them at rest. */
+body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g1) #ui-top,
+body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g2) #ui-right-column-1,
+body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g3) #ui-left-column-1,
+body.drpg-theme-monokuma-legacy:is(.drpg-bare-glass, .drpg-bare-g4) :is(#drpg-voice-tile, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]) {
+    filter: grayscale(1) brightness(0.75);
+}
+
 
 /* THE START-OF-DAY BOARD (E94 C2; sequence.mjs `dayStartElement`; MK-R2 #4): a panel in the middle of the screen over the
    curtain's turn, the cast in a row of portraits, the dead greyed in their place with their name and "we remember",

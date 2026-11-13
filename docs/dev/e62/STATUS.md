@@ -116,8 +116,10 @@ called on the victim's browser and nothing listens yet.
 | Voice: the silenced dead go to the Spectators' room (Q-C3b-5); the Spectator has no voice row and is never the trial's voice of its account | voice.mjs |
 | The Sound row "Death fade" / "Gaśnięcie" (incident; empty, the death's file), on the victim's browser at a fade that is not silent | config.mjs, sfx-play.mjs, spectator-dead.mjs |
 | The Students window draws a dead student's Spectator's Role as words, and a Role change of it is refused with a notice | gm-students.mjs, monokuma.mjs |
+| The curtain's listener of `drpgDeadSpectator` (SB-C3, MK-C3): the death fade (3.6 s, five batches outside in), the Monocub's return (to 2.47 s, the player's tools first), bare glass as the rest state while dead (a reload shows it at once), Legacy's four groups greyed; a correction, reduced motion, the sequences switch off and Escape go to the end state at once | death-fade.mjs, stained-glass.css, danganronpa.css |
 
-Tests: R4550-R4554 (tier 1); tier 2 "E62 C3b ..." (six); scenario 94-dead-spectator (ci, 10 checks). Each red first on
+Tests: R4550-R4559 (tier 1); tier 2 "E62 C3b ..." (six); scenario 94-dead-spectator (ci, 14 checks); the drawn check
+`node audit/death-fade-drawn.mjs` (Chromium, the glass harness, three sizes, both themes; not in CI). Each red first on
 the tree before it, as a measured failure, but "a Spectator keeps its images", which holds E92's behaviour (green
 before by design).
 
@@ -133,3 +135,12 @@ before by design).
    the season reset are silent.
 6. The module has no Monocub image: the Monocub's token keeps the student's token image.
 7. No migration (Q-C3b-6); voice-client.mjs `deadRoomFor` stays exported, routed to by nothing.
+8. The curtain's batches are read off each pane's block (glass.mjs `LAST.panes[].tone`) at every size, the storyboard's
+   pane indices at 1366x768 read as: 1 the top slivers, 2 the bottom slivers, 3 the rail, the status, the event strip
+   and the tray, 4 the clock, the notes and the room tile, 5 the voice tile, the tiles' row and the launchers.
+9. Bare glass greys the frost under the glass as well as the glass: the glass is translucent, and a filter on its canvas
+   alone left what a player sees coloured (the drawn check measured 0.23 against 0.27 lit). The launchers' and the
+   interface's own colours stay (the storyboard's #5); the room tile's and the voice tile's art grey with their batches.
+10. The Monocub's return rests lit at 2470 ms, the end of the storyboard's M5, not at 2400, which cut batch 1's last step.
+11. A kept death's copy reaches the victim before its moment; the rest state follows the copy only after 1.5 s with no
+    moment heard (a body with no token), so the fade's first frame is not bare.
