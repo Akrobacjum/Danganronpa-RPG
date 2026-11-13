@@ -51629,6 +51629,50 @@ const INVARIANTS = [
             one: ["drpg-seq-day"]
         }), "[the entry with the glass in motion: what played; at its start and once titled - the host's children, their aria-hidden, the curtain layer's children, the title layer's, a title in the curtain layer, the band's words; the fades in and out over handIn and hand; the lids in motion the same; still; the exit (still: reduced motion stays on); a day's board's host children]");
     }],
+    ["R5382 - over the windows the title's grounds are whole (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026, \"napis i jego tlo na otwartych oknach\"; the stage's shots of 13.11.2026): read through the module's cascade in both themes, in the title layer of the trial's edges the band's ground and the chapter line's dark shard are opaque - neither mixes with transparent - so a window's words under them do not read through; outside the trial's edges (the verdict's cut-in, a host with no look) the band keeps the sequences' band token", async () => {
+        /*
+         * E105, 13.11.2026. Red at 6ea64bac: the band under Stained Glass is the Despair pink at 95 % and the line's shard
+         * the dark at 90 % in both themes, chosen to stand on the closed curtain; once the title stood over the windows the
+         * stage's shots (glass harness, 1366x768 and 393x852, deviceScaleFactor 2) showed a window's title and words
+         * through both. The custom properties are resolved up the tree by the cascade's text, not by a browser.
+         */
+        const C = await styleCascade();
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const resolve = (el, value, depth = 0) => String(value ?? "").replace(/var\(\s*(--[\w-]+)\s*(?:,([^()]*))?\)/g, (all, name) => {
+            if (depth > 6) return all;
+            for (let at = el; at; at = at.parentElement) {
+                const w = C.winner(at, [name])?.value;
+                if (w != null) return resolve(at, w, depth + 1);
+            }
+            return all;
+        });
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme;
+            body.setAttribute("data-drpg-sequence", "trialEntry");
+            const host = body.appendChild(Object.assign(document.createElement("div"), { id: "drpg-sequence", className: "drpg-sequence drpg-sequence-trialEntry" }));
+            host.dataset.drpgSequenceLook = "glass";
+            host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-curtain" }));
+            const title = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-top" }))
+                .appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title" }));
+            const band = title.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-band" }));
+            const sub = title.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-sub" }));
+            const ground = el => resolve(el, C.winner(el, ["background", "background-color"])?.value);
+            const cut = document.createElement("body");
+            cut.className = theme;
+            const other = cut.appendChild(Object.assign(document.createElement("div"), { id: "drpg-sequence" }))
+                .appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-band" }));
+            return {
+                band: /transparent/.test(ground(band)) || ground(band) === "",
+                sub: /transparent/.test(ground(sub)) || ground(sub) === "",
+                bandToken: /--drpg-seq-band/.test(C.winner(band, ["background", "background-color"])?.value ?? ""),
+                cut: /--drpg-seq-band/.test(C.winner(other, ["background", "background-color"])?.value ?? "")
+            };
+        };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }),
+            stableJson({ legacy: { band: false, sub: false, bandToken: true, cut: true }, glass: { band: false, sub: false, bandToken: true, cut: true } }),
+            "[each theme, the title layer: the band's ground see-through or missing; the line's shard the same; the band drawn from the band token; outside the edges the band token]");
+    }],
     ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
         /*
          * E61 C5, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. The messages are stand-ins with `author` and

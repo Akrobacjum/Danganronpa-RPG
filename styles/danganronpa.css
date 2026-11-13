@@ -18230,6 +18230,12 @@ body[data-drpg-sequence] .drpg-foundry-window { visibility: hidden; }
     z-index: 99980;
     pointer-events: none;
 }
+/* Over a window the title's grounds are whole (the stage's shots, 13.11.2026, glass harness at 1366x768 and 393x852): the
+   chapter line's shard at 90 % and the glass's band at 95 % (stained-glass.css) were chosen to stand on the closed
+   curtain, and over a window its title and words read through both, across the line. In the title layer the shard is the
+   sequences' dark and the band its own colour, whole; R5382. */
+#drpg-sequence > .drpg-seq-top .drpg-seq-title-sub { background: var(--drpg-seq-dark); }
+body.drpg-theme-stained-glass #drpg-sequence > .drpg-seq-top { --drpg-seq-band: var(--drpg-sg-despair); }
 body.drpg-theme-stained-glass:is([data-drpg-sequence="trialEntry"], [data-drpg-sequence="trialExit"]) #drpg-popups {
     z-index: calc(var(--z-index-window, 100) - 1);
 }
