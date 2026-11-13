@@ -6494,6 +6494,7 @@
         "barricades": "Which rooms are barricaded, by whom and how strongly",
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "lockpicks": "Who may walk through a lock they picked, into which room",
+        "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",

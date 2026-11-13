@@ -64,8 +64,8 @@ export function echoCounts(actor, askerOwners, { hidden = false, dead = false, o
 /** The players (no GM) who own `actor`. */
 const playerOwners = actor => (game.users ?? []).filter(u => !u.isGM && actor?.testUserPermission?.(u, "OWNER")).map(u => u.id);
 
-/** One crossing from each room of `scene`, for `actor`: the doors, the stairs, the tunnels the actor knows. */
-async function crossingsOf(scene, actor) {
+/** One crossing from each room of `scene`, for `actor` standing on `token`: the doors, the stairs, the tunnels it knows. */
+async function crossingsOf(scene, actor, token) {
     const M = await import("./movement.mjs");
     const links = new Map();
     const link = (a, b) => {
@@ -80,7 +80,6 @@ async function crossingsOf(scene, actor) {
     try {
         const { passagesKnownBy, endsOf } = await import("./passages.mjs");
         const { isMastermindActor } = await import("./passages-gm.mjs");
-        const token = scene.tokens?.find?.(t => t.actorId === actor.id) ?? null;
         for (const row of passagesKnownBy(actor, { mastermind: isMastermindActor(actor) })) {
             if (row.sceneId !== scene.id || !Array.isArray(row.ends) || !token) continue;
             const [a, b] = row.ends.map(end => M.roomAt(end.x, end.y, token, end.level ?? undefined));
@@ -121,7 +120,7 @@ export async function echoesFor(actor, { random = Math.random } = {}) {
         const room = M.roomOfToken(token);
         if (room) occupied.add(room);
     }
-    const links = await crossingsOf(scene, actor);
+    const links = await crossingsOf(scene, actor, place.tokenDoc);
     const found = nearestEchoRoom({ start: place.room, edges: room => [...(links.get(room) ?? [])], occupied, random });
     log(`Echoes for ${actor.name} from ${place.room}: ${found ? `${found.room} (${found.steps})` : "nobody"}.`);
     return { room: found?.room ?? null, steps: found?.steps ?? 0 };

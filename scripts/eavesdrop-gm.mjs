@@ -131,7 +131,8 @@ export async function startEavesdrop({ actor, into, userId = null, rolled = fals
     if (!(await voice())) {
         if (!saidNoVoice) {
             saidNoVoice = true;
-            await whisperToGms(`<p>${esc(game.i18n.localize("DRPG.Listen.eavesdrop.noVoiceGm"))}</p>`);
+            // The GMs' warning card (E49's census, R3510): once a load.
+            await whisperToGms({ tone: "warning", glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize("DRPG.Listen.eavesdrop.noVoiceGm"))}</p>` });
         }
         return { moved: false, free };
     }

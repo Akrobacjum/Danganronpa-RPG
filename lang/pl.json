@@ -8282,6 +8282,7 @@
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
+        "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju, i którego pokoju może znów posłuchać za darmo",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
