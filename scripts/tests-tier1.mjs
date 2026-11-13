@@ -52154,12 +52154,13 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ note: ["P", true, false, null, false], placed: true }),
             "{the note [tag, DRPG.Move.free as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
     }],
-    ["R4472 - Move's words hold where Move does (the r112 review's P2 and P4, 13.11.2026): sheet.mjs `moveDragSaid` answers no in a Class Trial and in an incident the character is in, and yes otherwise; the HUD's Move row and the Monocub's Move tile ask it; a locked Move tile says no \"Drag your token\" and takes the keyboard's focus with its words as a label; the Monocub's line says \"Free\" only while the Free Move is there, the next crossing's price after it, and the panel's repaint draws it again", async () => {
+    ["R4472 - Move's words hold where Move does (the r112 review's P2 and P4, 13.11.2026): sheet.mjs `moveDragSaid` answers no in a Class Trial and in an incident the character is in, and yes otherwise; the HUD's Move row and the Monocub's Move tile ask it; a locked Move tile says no \"Drag your token\" and takes the keyboard's focus with its words as a label; the Monocub's line says \"Free\" with the Free Move and after it (1.2.113: a Monocub's drag costs nothing, R5701), a character that is no Monocub reads the next crossing's price after it, and the panel's repaint draws it again", async () => {
         /*
          * The r112 review's P2 and P4 (REVIEW-112, 13.11.2026). E100 item 1 put "drag your token there" first in the HUD's
          * Move tooltip and "Drag your token" on the Monocub's Move tile, whatever the phase: in a Class Trial the drag is
          * refused (movement.mjs `trialLocked`), and the tile is locked there too. The Monocub's line read "Free" after its
-         * Free Move was spent, when its next crossing costs an action. And the tile, a `div` since item 1, took no focus,
+         * Free Move was spent, when its next crossing was read to cost an action - a premise 1.2.113 measured wrong for a
+         * Monocub's drag (movement.mjs `chargeRoute`, E72 C10; R5701), so the line is Free again. And the tile, a `div` since item 1, took no focus,
          * so its tooltip (the lock's reason among it) was the mouse's alone. Read on stand-ins, so tier 1 changes nothing:
          * the helper under the two states, the tiles and the line built here, and the readers in source. Red at 318935b9:
          * no `moveDragSaid`, no exported `stillMoveTile`.
@@ -52178,9 +52179,13 @@ const INVARIANTS = [
         };
         const lines = tile => [...tile.querySelectorAll(".drpg-action-cost")].map(n => n.textContent.trim());
         const open = S.stillMoveTile(button(), false), shut = S.stillMoveTile(button(), true);
-        // A Monocub stand-in: its Free Move there, then spent with nothing banked and one action left.
-        const cub = used => ({ system: { resources: { actions: { value: 1, max: 2 } } }, getFlag: (scope, key) => (key === "freeMoveUsed" ? used : undefined) });
-        const fresh = S.monocubMoveNote(cub(false)), spent = S.monocubMoveNote(cub(true));
+        // A Monocub stand-in: its Free Move there, then spent with nothing banked and one action left. Until 1.2.113 the
+        // stand-in carried no Monocub flag and "line" read the next price after the Free Move; a Monocub's drag costs
+        // nothing (movement.mjs `chargeRoute`, E72 C10; measured in tier 2 on 13.11.2026), so its line says Free (R5701),
+        // and the next price is read on the same purse with no Monocub flag.
+        const cub = (used, monocub = true) => ({ system: { resources: { actions: { value: 1, max: 2 } } },
+            getFlag: (scope, key) => (key === "freeMoveUsed" ? used : key === FLAGS.monocub ? monocub : undefined) });
+        const fresh = S.monocubMoveNote(cub(false)), spent = S.monocubMoveNote(cub(true)), notCub = S.monocubMoveNote(cub(true, false));
         const read = {
             said: [S.moveDragSaid(null, { trial: true, incident: false }), S.moveDragSaid(null, { trial: false, incident: true }),
                 S.moveDragSaid(null, { trial: false, incident: false })],
@@ -52188,13 +52193,38 @@ const INVARIANTS = [
                 /stillMoveTile\(button, locked\)/.test(fnSource(src("sheet.mjs"), "actionButton"))],
             tiles: [lines(open).includes(short), lines(shut).includes(short), open.tabIndex, shut.tabIndex,
                 (shut.getAttribute("aria-label") ?? "").includes(ACTIONS.move.label)],
-            line: [fresh.textContent === free, spent.textContent === B.moveLine(cub(true)), spent.textContent !== free],
+            line: [fresh.textContent === free, spent.textContent === free, notCub.textContent === B.moveLine(cub(true, false)), notCub.textContent !== free],
             repaint: /monocubMoveNote\(actor\)/.test(fnSource(src("sheet.mjs"), "refreshMonocubTiles"))
         };
         equal(stableJson(read), stableJson({ said: [false, false, true], readers: [true, true], tiles: [true, false, 0, 0, true],
-            line: [true, true, true], repaint: true }),
-            "{said: the drag sentence [in a trial, in an incident, otherwise]; readers: [the HUD's Move row, the Monocub's tile]; tiles: [the drag line on an open tile, on a locked one, the open tile's tabIndex, the locked one's, the locked tile's label names Move]; line: [Free with the Free Move, the next price after it, not Free]; repaint: the Monocub's repaint draws the line}");
+            line: [true, true, true, true], repaint: true }),
+            "{said: the drag sentence [in a trial, in an incident, otherwise]; readers: [the HUD's Move row, the Monocub's tile]; tiles: [the drag line on an open tile, on a locked one, the open tile's tabIndex, the locked one's, the locked tile's label names Move]; line: [a Monocub: Free with the Free Move, Free after it (1.2.113); no Monocub after it: the next price, not Free]; repaint: the Monocub's repaint draws the line}");
     }],
+    ["R5701 - a Monocub's Move line reads \"Free\" whatever its purse: a Monocub's crossing by a drag takes no Free Move, free crossing, Burst or action (movement.mjs `chargeRoute`, E72 C10), so the line says Free with the Free Move spent, with free crossings banked and with nothing left; a character that is no Monocub reads the next price (sheet.mjs `monocubMoveNote`; 1.2.113)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. From the r112 review's P2 the line read actions.mjs `nextCrossingPrice` once the Free Move
+         * was spent, on the premise that a Monocub pays as a student does; tier 2 "1.2.113 a Monocub's crossing costs
+         * nothing ..." measured the charge: a Monocub with nothing to pay with crosses and nothing is written (E72 C10's
+         * "A MONOCUB MOVES FREE"). Stand-ins: a Monocub with its Free Move spent and [nothing banked | two free crossings
+         * banked (a Dash's, a Sprint's or a room action's: one counter) | a Burst | no action], and the same purse with no
+         * Monocub flag. Red at aabf28b8: the Monocub's line named the next price.
+         */
+        const S = await import("./sheet.mjs"), B = await import("./action-briefing.mjs");
+        const free = game.i18n.localize("DRPG.Move.free");
+        const purse = ({ cub = true, actions = 1, crossings = 0, bursts = 0 } = {}) => ({
+            system: { resources: { actions: { value: actions, max: 2 } } },
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === FLAGS.monocub ? cub : key === FLAGS.freeMoveUsed ? true
+                : key === FLAGS.freeMoveGrants ? crossings : key === FLAGS.freeActionGrants ? bursts : undefined) });
+        const line = actor => S.monocubMoveNote(actor).textContent;
+        const student = purse({ cub: false });
+        const read = {
+            cub: [line(purse()), line(purse({ crossings: 2 })), line(purse({ bursts: 1 })), line(purse({ actions: 0 }))].map(t => t === free),
+            student: [line(student) === B.moveLine(student), line(student) !== free]
+        };
+        equal(stableJson(read), stableJson({ cub: [true, true, true, true], student: [true, true] }),
+            "{cub: Free on a Monocub's line [the Free Move spent, free crossings banked, a Burst, no action]; student: [the next price, not Free]}");
+    }],
+
     ["R4108 - every action window names its statistic outside Details (E100; the owner's rule of 12.11.2026, the E93 line's finding): for each action whose briefing names statistics (all but Projects and Sabotage, whose project names its own), action-briefing.mjs `briefingBlock` shows them in the lead - the description naming the first, or a line of its own (`drpg-briefing-rolls`, \"Rolls: ...\") right after it - and the \"Rolls\" line is in no Details box and stands once", async () => {
         /*
          * E100, 12.11.2026. The owner: "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji NIGDY". E49 A8.1 put

@@ -18927,6 +18927,79 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "a Monocub paid for a crossing, or walked into a murder's room, or was told something no public fact explains, or a GM's move was refused ([free step, the murder room's code and words, its put-back mark, the put-back's line on the player, a GM's move])");
     }],
 
+    ["1.2.113 a Monocub's crossing costs nothing once its Free Move is spent - the movement charge, handed a Monocub with no Free Move, no free crossing, no Burst and no action, the movement cost on and no Eclipse, lets its crossing stand and writes nothing; the same character as no Monocub is put back (movement.mjs `chargeRoute`, E72 C10; what sheet.mjs `monocubMoveNote` says)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. The Monocub's panel says Move's price (sheet.mjs `monocubMoveNote`); from the r112 review's
+         * P2 it read actions.mjs `nextCrossingPrice` once the Free Move was spent - a Sprint, a Burst, an action - on the
+         * premise that a Monocub pays its crossings as a student does. Measured here on the charge itself, as E17-T4 drives
+         * it: movement.mjs's `onUpdateToken` taken off `Hooks.events`, handed a plain token of a plain character whose id is
+         * a student's and whom no connected player owns, so the primary GM settles the route; recorded by our own revert in
+         * the first room of two joined ones, then moved into the second. The character: the Free Move used, no free
+         * crossings, no Burst, no action. Read: what was written back (a put-back), as a Monocub and as no Monocub.
+         * Not red first: it pins what a2b233d2's charge does (E72 C10: "A MONOCUB MOVES FREE"), the fact the label is
+         * fixed to.
+         */
+        needs(env.primaryGm(), "the primary pays a route no connected player owns");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const player = game.users.find(user => !user.isGM);
+        const student = cast(3).find(a => !isMastermind(a));
+        must(student, "no living student who is not the Mastermind - this would measure nothing");
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        const chargeWas = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const made = [];
+        const onMessage = message => { made.push(message.id); };
+        const ROOMS = ["SUITE M113 Hall", "SUITE M113 Study"];
+        const region = (name, i) => ({ id: `suite-m113-${i}`, name, behaviors: [], levels: new Set(), shapes: [],
+            bounds: { x: 400 * i, y: 0, width: 400, height: 400 },
+            testPoint: point => point.x >= 400 * i && point.x < 400 * (i + 1) && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-m113-scene", name: "SUITE M113", grid: { size: 100 }, regions: new Set(ROOMS.map(region)) };
+        const plain = cub => ({ id: student.id, name: student.name, type: "character", items: [], isOwner: false,
+            system: { resources: { actions: { value: 0, max: 2 } } },
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined
+                : key === FLAGS.monocub ? cub : key === FLAGS.freeMoveUsed ? true : key === FLAGS.freeMoveGrants ? 0 : key === FLAGS.freeActionGrants ? 0 : undefined),
+            testUserPermission: () => false, update: async () => { throw new Error("the stand-in was written"); },
+            setFlag: async () => { throw new Error("the stand-in was written"); } });
+        const cross = async cub => {
+            const written = [];
+            const actor = plain(cub);
+            const token = { id: `suite-m113-${foundry.utils.randomID(6)}`, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene,
+                actor, update: async data => { written.push(data); return token; } };
+            await charge(token, { x: 100, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            Object.assign(token, { x: 500, y: 100, movement: { pending: { waypoints: [] } } });
+            let threw = null;
+            try {
+                await charge(token, { x: 500, y: 100 }, {}, player.id);
+            } catch (err) {
+                threw = String(err?.message ?? err);
+            }
+            await until(() => written.length > 0, cub ? 600 : 2000);
+            return [written.map(w => `${w.x},${w.y}`), threw];
+        };
+        let read = null;
+        try {
+            must(M.crossingRefused(scene, ROOMS[0], ROOMS[1]) === false, "the two rooms do not join - this would measure nothing");
+            if (clock.phase !== "dailyLife" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            if (!chargeWas) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            Hooks.on("createChatMessage", onMessage);
+            read = { monocub: await cross(true), student: await cross(false) };
+        } finally {
+            Hooks.off("createChatMessage", onMessage);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== chargeWas) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeWas);
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ monocub: [[], null], student: [["100,100"], null] }),
+            "a crossing with nothing to pay with ([what was written back, a throw]: as a Monocub, as no Monocub)");
+    }],
+
     ["a Monocub's owner is sent every room the class found under the Monocub's own row, not who found which, and not the Mastermind's (E72 C10)", async () => {
         /*
          * E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11. A Monocub's player saw only the rooms its own
