@@ -183,6 +183,20 @@ export function knowsProject(countdownId, user = game.user) {
 }
 
 /**
+ * WHETHER `user` KNOWS THIS PROJECT IS THERE WITHOUT HAVING SEEN ITS ROOM (PV, 13.11.2026): in on a secret one (a
+ * viewer, its builder, a finder by Observe), its proposer, or one who knew it while it was sealed - the roads of
+ * `knowsProject` above that are not the room's. Such a reader knows the project exists wherever they stand; what they
+ * see of its bar is still what they saw last (projects-seen.mjs `asSeen`). A repair is nobody's by this road: the
+ * sabotage that made it happened in a room the reader may not have been in.
+ */
+export function knowsWithoutRoom(countdownId, user = game.user) {
+    if (!user || !rawCountdown(countdownId) || !canSee(countdownId, user) || repairs(countdownId)) return false;
+    if (isSecret(countdownId)) return true;
+    if (proposedBy(countdownId, user)) return true;
+    return (metaFor(countdownId).sealedViewers ?? []).includes(user.id);
+}
+
+/**
  * WHETHER `user` PROPOSED THIS PUBLIC PROJECT, AS THIS BROWSER MAY KNOW IT (H84 fix G3, 27.10.2026; the end review's
  * H84-SEC-02, H84R-5). Who proposed a project is the GMs' (`by`, projects-secrecy.mjs `PROJECT_SECRET_FIELDS`), so it is
  * read where it is held: on a GM's browser from `by` (an owner of the proposing character); on the proposer's own
@@ -1001,6 +1015,8 @@ export const COMPLETION_EFFECTS = [
         has: meta => meta.target?.preset === "secretPassage" && Boolean(meta.passage),
         onCrossed: ({ id, name, meta, by }) => {
             const finders = new Set(Object.keys(meta.foundBy ?? {}));
+            // Where it stood, read before the step removes it: a finder's card waits for an entry to this room (PV).
+            const where = { room: roomOf(id), sceneId: projectScene(id)?.id ?? null };
             const builders = new Set(ownerIdsOfId(meta.by));
             // Only while it is secret (fix e1-G1, SEC-2): a project made public some other way has every player a viewer.
             const users = isSecret(id) ? viewersOf(id).filter(u => !finders.has(u.id) && !builders.has(u.id)) : [];
@@ -1020,11 +1036,11 @@ export const COMPLETION_EFFECTS = [
                         return;
                     }
                     await (await import("./passages-gm.mjs")).tellPassageBuilt(made);
+                    /* ON THE FINDER'S NEXT ENTRY (PV, 13.11.2026; the owner's rule #3). A finder whose character stands
+                       in the room is told now; every other finder's card waits in the GMs' `foundDone` until one of
+                       their characters walks in (projects-seen.mjs `holdFoundDone`, `tellFoundOnEntry`). */
                     const told = [...finders].filter(userId => game.users.get(userId) && !game.users.get(userId).isGM);
-                    if (told.length) {
-                        await announce({ content: `<p>${game.i18n.format("DRPG.Observe.projectFoundDone", { name: esc(name) })}</p>`,
-                            whisper: Array.from(new Set([...gmIds(), ...told])) });
-                    }
+                    if (told.length) await (await import("./projects-seen.mjs")).holdFoundDone(id, name, told, where);
                 }
             };
             return answer;

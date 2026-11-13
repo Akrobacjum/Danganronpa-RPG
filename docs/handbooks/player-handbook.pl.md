@@ -248,7 +248,7 @@ Wybierasz, jak patrzysz:
 | Skup wzrok | powiedz, czego szukasz; GM decyduje, na czym zatrzyma się twój wzrok |
 | Zbadaj punkt zainteresowania | coś, co nie jest śladem - osoba, maszyna, pogoda; GM rozstrzyga |
 
-Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Remnanty powiązane ze zbrodnią pokazywane są zawsze jako pierwsze. *Spójrz poza oczywiste* może też wyciągnąć tajny projekt w pokoju (18+ albo krytyk); znalezienie go wtajemnicza cię w niego.
+Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Remnanty powiązane ze zbrodnią pokazywane są zawsze jako pierwsze. *Spójrz poza oczywiste* może też wyciągnąć tajny projekt w pokoju (18+ albo krytyk); znalezienie go wtajemnicza cię w niego. Od tej chwili widzisz jego postęp taki, jaki był przy twojej ostatniej wizycie w jego pokoju, a o ukończeniu dowiadujesz się przy pierwszej wizycie po nim (od 1.2.113).
 
 ### Analyze - Head, 1 akcja
 
@@ -399,7 +399,7 @@ Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradzi
 
 Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję** i nigdy Sanity: gdy nie masz już akcji, nie ma Tamper, dopóki akcje nie wrócą. Liczba prób w porze dnia nie ma limitu: każda po prostu kosztuje swoją cenę.
 
-**Erase a Trace.** Wymaż jeden ślad w tym pokoju, o którym wiesz: taki, którego kopię masz jako Truth Bullet, albo ślad walki, w której bierzesz udział. Im łatwiej go zobaczyć, tym trudniej usunąć:
+**Erase a Trace.** Wymaż jeden ślad w tym pokoju, o którym wiesz: taki, którego kopię masz jako Truth Bullet, albo ślad walki, w której bierzesz udział. Każdy inny, kto go znalazł i jest gdzie indziej, ma go dalej na mapie, przygaszony, dopóki któraś z jego postaci nie stanie znów w tym pokoju (od 1.2.113). Im łatwiej go zobaczyć, tym trudniej usunąć:
 
 | Widoczność | Wymaga |
 |---|---|
@@ -903,7 +903,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa - stopa za każde pozostałe przejście albo, gdy możesz wybrać dowolny pokój, jedna pełna stopa, która zostaje dostępna; akcje Monocuba mówią wtedy *Tylko ustawianie.* Stopy Monocuba są zawsze pełne, bo jego przejścia nic nie kosztują. Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
-**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16). Każdy projekt to jeden wiersz, z nazwą i licznikiem w jednej linii; gdy jest ich więcej niż pięć, lista się przewija, a jej dół gaśnie, póki niżej są kolejne (od 1.2.101).
+**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16). Każdy projekt to jeden wiersz, z nazwą i licznikiem w jednej linii; gdy jest ich więcej niż pięć, lista się przewija, a jej dół gaśnie, póki niżej są kolejne (od 1.2.101). Licznik zmienia się na bieżąco, póki któraś z twoich postaci stoi w pokoju projektu; poza nim wiersz pokazuje licznik taki, jaki któraś z nich ostatnio tam widziała, a projekt założony albo naprawa zaczęta od tamtej pory pojawia się, gdy któraś z nich znów będzie w tym pokoju. Projekt, o którym wiesz, ale którego w jego pokoju na tej przeglądarce nie widziano, pokazuje **?** (od 1.2.113).
 
 **Wiersze Despair** pokazują każdą pulę i to, jak jest pełna, a pod nimi overflow: "?" w miejscu jego licznika, obok liczby, przy której odpala. Kliknij, by dowiedzieć się, czym jest Despair.
 

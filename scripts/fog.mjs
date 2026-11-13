@@ -4303,6 +4303,9 @@ async function reactToMove(tokenDoc) {
         const room = roomOfToken(tokenDoc);
         if (!room) return;
         await recordDiscovery(scene, actor, room);
+        /* A Secret Passage's "finished" card held for this character's player since it was finished elsewhere (PV,
+           13.11.2026; the owner's rule #3): posted on this entry. By `import()`: projects-seen.mjs reaches this file. */
+        await (await import("./projects-seen.mjs")).tellFoundOnEntry(actor, scene?.id ?? null, room);
     } catch (err) {
         error("Could not record a room discovery", err);
     }

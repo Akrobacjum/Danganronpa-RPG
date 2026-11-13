@@ -620,6 +620,7 @@ export const CAMERA_READERS = Object.freeze({
        a token that is not drawn here, and asks this browser's token visibility again - it decides nothing a roll, a
        stash or a trace reads. */
     "visibility.mjs#recheckAtRest": "draw",
+    "remnant-ghosts.mjs#drawGhosts": "draw",
     /* The rooms of a scene changed (E89 fix FG2, SEC-1): it reads the scene on screen only to skip a region of a scene
        not drawn here, and asks this browser's token visibility again - it decides nothing a roll, a stash or a trace
        reads. */

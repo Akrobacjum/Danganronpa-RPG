@@ -377,13 +377,14 @@ export async function openProjectsExplainer() {
            so it has to list exactly what the tray lists. On `visibleProjects` it
            named every public project on the board, discovered or not - which
            made it a way of reading the season's plan off a help window. */
-        const { knownProjects } = await import("./projects.mjs");
-        const mine = knownProjects(game.user);
+        // As this reader last saw each (PV, 13.11.2026; the owner's rule #2): the tray's own list, projects-seen.mjs.
+        const { projectsAsSeen } = await import("./projects-seen.mjs");
+        const mine = projectsAsSeen(game.user);
 
         // `current` counts UP toward `start`, whichever way the underlying
         // countdown is stored - `allProjects()` has already normalised that,
         // and reading the raw countdown here would undo it for half of them.
-        const rows = mine.map(p => esc(`${p.name ?? "-"} - ${p.current ?? 0}/${p.start ?? 0}`));
+        const rows = mine.map(p => esc(`${p.name ?? "-"} - ${p.seen === "unknown" ? "?" : p.current ?? 0}/${p.start ?? 0}`));
 
         const body = [
             section(t("DRPG.Explain.projects.title"), [

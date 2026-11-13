@@ -43,6 +43,8 @@ import { registerMovement } from "./movement.mjs";
 import { registerRoomPieces } from "./vault.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
+import { registerSeen } from "./projects-seen.mjs";
+import { registerRemnantGhosts } from "./remnant-ghosts.mjs";
 import { registerProjectChanges } from "./projects.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
@@ -225,6 +227,9 @@ Hooks.once("init", () => {
     safely("a piece renamed out of a room", registerRoomPieces);
     safely("the projects tray", registerProjectsUi);
     safely("projects on the map", registerProjectsMap);
+    // What each player last saw of a project and of an erased trace (PV, 13.11.2026; the owner's rules #2-#4).
+    safely("what a player saw last", registerSeen);
+    safely("the erased traces' ghosts", registerRemnantGhosts);
     // A completion a row keeps for a Reroll is let go when the GMs' bookmark of that roll changes (E36 C1).
     safely("the kept projects", registerProjectChanges);
     safely("inventory limits", registerInventoryLimits);

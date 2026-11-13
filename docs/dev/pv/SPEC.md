@@ -136,12 +136,24 @@ runs as a GM); tier-2 tests are named.
 | R5647 | bystander cost: `refreshSeen` is not asked for a token update of a token this user does not own (read of the hook's guard, and a counter read) | - |
 | R5648 | P2: the Observe card's text no longer promises live progress (EN and PL) | `DRPG.Observe.projectFound` says "how far along it is" |
 | R5649 | P3: `ghostOf` answers a ghost for a found trace erased in a room no own character stands in, none when one does, none for a trace this browser did not show | the function does not exist |
-| R5650 | P3: `refreshSeen` drops a ghost whose room an own character stands in, keeps the others | as above |
+| R5650 | P3: `takeSnapshot` drops a ghost whose room an own character stands in, keeps the others | as above |
+| R5651 | the project's token on a player's map follows the same rule (visibility.mjs `applyToProjectToken` asks `tokenShownAsSeen`), read once a pass, and a change of what was seen asks the project tokens again, never a whole pass | the gate was `knowsProject` alone |
 | tier 2 "a finished Secret Passage tells a finder away from its room on their next entry" | P2 on the primary: a row in `foundDone`, no whisper; the move into the room posts it and tombstones the row | today the whisper is posted at once |
 | tier 2 "a finder standing in a finished Secret Passage's room is told at once" | the control | - |
 
-Older tests that pin the old behaviour are changed, never skipped: the finder's whisper at completion (tests-tier2.mjs,
-the E15 T12 test reading `projectFoundDone` at once, and the E15-44 test beside it) now reads the row and the entry.
+Older tests that pin the old behaviour are changed, never skipped: E15-T16 read the "finished" card at once for two
+finders with no character in the room; it now reads both cards held in `foundDone` (E15-T12's finder stands in the room
+and is told at once, unchanged). Census rows added, each a new road named: R379, R432 and R553 (the new token and canvas
+hooks), R382 (`drawGhosts` reads the scene drawn), R3510 (the "finished" card's one poster moved from projects.mjs to
+projects-seen.mjs). The backup test ("Back up the case, then Restore") holds every backed-up store to a fixture: one for
+`foundDone`.
+
+### As built (13.11.2026)
+
+- The map's project token follows the tray (R5651): found in the self-review - a project made, or a repair begun, while
+  the player was away appeared on their map at once, as `knowsProject` alone gated it.
+- Scenario 86's E89 C2 caught the first wiring: a change of the snapshot asked a whole visibility pass on an own move;
+  it asks the project tokens alone now (`projectTokensPass`).
 
 ## Text
 

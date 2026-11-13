@@ -38702,6 +38702,183 @@ const INVARIANTS = [
         }), "[the look's role looks (a library die owned by the source where it named none); none; the source's own object untouched; a user holding the look; one with a Hope die of its own; one with none]");
     }],
 
+    /*
+     * PV (privacy line 3, 13.11.2026; the owner's rules #2-#4; docs/dev/pv/SPEC.md): what a player saw last. Pure, on
+     * stub readers of the world, as the suite runs as a GM: projects-seen.mjs `takeSnapshot`, `asSeen`, `ghostOf`, the
+     * tray's passes with a list of rows handed in. Each was red on af9792c5: the file and its names did not exist, and the
+     * tray read `knowsProject` and the live bar alone.
+     */
+    ["R5640 - a player's snapshot of the projects is taken where one of their characters stands (PV): projects-seen.mjs `takeSnapshot` writes each project standing in a room stood in now as seen, replaces that room's visit with the projects it holds, leaves a room not stood in as it was, drops a seen project whose countdown is gone, and answers null when nothing changed", async () => {
+        const S = await import("./projects-seen.mjs");
+        const where = p => p.where;
+        const a = { id: "R5640a", where: "s1/Lab", current: 2, start: 6, frozen: false };
+        const b = { id: "R5640b", where: "s1/Gym", current: 1, start: 4, frozen: false };
+        const held = { projects: { R5640b: { current: 0, start: 4, frozen: false, repairs: null, at: 1 }, R5640gone: { current: 3, start: 3, frozen: false, repairs: null, at: 1 } },
+            rooms: { "s1/Gym": { at: 1, ids: ["R5640b"] } }, ghosts: {} };
+        const next = S.takeSnapshot({ projects: [a, b], standing: new Set(["s1/Lab"]), held, whereOf: where, now: 9 });
+        const again = S.takeSnapshot({ projects: [a, b], standing: new Set(["s1/Lab"]), held: next, whereOf: where, now: 10 });
+        equal(stableJson({ projects: next?.projects ?? null, rooms: next?.rooms ?? null, again }), stableJson({
+            projects: { R5640a: { current: 2, start: 6, frozen: false, repairs: null, at: 9 }, R5640b: { current: 0, start: 4, frozen: false, repairs: null, at: 1 } },
+            rooms: { "s1/Gym": { at: 1, ids: ["R5640b"] }, "s1/Lab": { at: 9, ids: ["R5640a"] } },
+            again: null
+        }), "[the Lab's project seen at 9, the Gym's left at its old reading, the gone countdown dropped; the visits; a second snapshot with nothing new]");
+    }],
+
+    ["R5641 - a player away from a project's room sees its bar as they last saw it, and live while they stand there (PV, the owner's rule #2): projects-seen.mjs `asSeen` answers the snapshot's numbers to a player away, the live row to one standing in the room, to a GM and to a Spectator (`live`), and to anyone for a project with no room", async () => {
+        const S = await import("./projects-seen.mjs");
+        const user = { id: "R5641u", isGM: false };
+        const live = { id: "R5641p", room: "Lab", where: "s1/Lab", current: 5, start: 6, frozen: true, complete: false };
+        const section = { projects: { R5641p: { current: 2, start: 6, frozen: false, repairs: null, at: 7 } }, rooms: { "s1/Lab": { at: 7, ids: ["R5641p"] } }, ghosts: {} };
+        const base = { user, section, whereOf: p => p.where, knows: () => true, insider: () => false, live: false };
+        const read = (o = {}, p = live) => { const r = S.asSeen(p, { ...base, ...o }); return r && [r.seen, r.current, r.frozen]; };
+        equal(stableJson({
+            away: read({ standing: new Set(["s1/Gym"]) }),
+            there: read({ standing: new Set(["s1/Lab"]) }),
+            gm: read({ standing: new Set(), live: true }),
+            noRoom: read({ standing: new Set() }, { ...live, room: null, where: null })
+        }), stableJson({ away: ["last", 2, false], there: ["live", 5, true], gm: ["live", 5, true], noRoom: ["live", 5, true] }),
+        "[away: the snapshot's 2 and not frozen; standing there: live; a GM or Spectator: live; no room: live]");
+    }],
+
+    ["R5642 - who knows a project is there, away from its room (PV, the owner's rule #2 and the builders' default): `asSeen` answers null to a player whose last visit to the room did not list the project (made after they left), the record's answer with an unknown bar in a room this browser holds no visit of, and to a builder or insider away the project with its last-seen bar, or an unknown one", async () => {
+        const S = await import("./projects-seen.mjs");
+        const user = { id: "R5642u", isGM: false };
+        const p = { id: "R5642p", room: "Lab", where: "s1/Lab", current: 3, start: 6 };
+        const visit = { projects: {}, rooms: { "s1/Lab": { at: 7, ids: [] } }, ghosts: {} };
+        const none = { projects: {}, rooms: {}, ghosts: {} };
+        const seenOnce = { projects: { R5642p: { current: 1, start: 6, frozen: false, repairs: null, at: 3 } }, rooms: { "s1/Lab": { at: 7, ids: [] } }, ghosts: {} };
+        const read = (section, insider, knows = true) => {
+            const r = S.asSeen(p, { user, section, standing: new Set(), whereOf: q => q.where, knows: () => knows, insider: () => insider, live: false });
+            return r && [r.seen, r.current];
+        };
+        equal(stableJson({
+            madeAfter: read(visit, false), noVisit: read(none, false), notKnown: read(none, false, false),
+            builderUnseen: read(visit, true), builderSeen: read(seenOnce, true)
+        }), stableJson({ madeAfter: null, noVisit: ["unknown", null], notKnown: null, builderUnseen: ["unknown", null], builderSeen: ["last", 1] }),
+        "[made after the last visit: unknown to its room's visitor; no visit on this browser: the record, bar unknown; not known: null; a builder away: known, bar unknown or last seen]");
+    }],
+
+    ["R5643 - a sabotage's repair row follows the visits alone (PV, the owner's rule #2: the repair row follows the snapshot): `asSeen` answers a repair to a player, insider of its target or not, only when a visit listed it or this browser holds a snapshot of it - never by the record alone", async () => {
+        const S = await import("./projects-seen.mjs");
+        const user = { id: "R5643u", isGM: false };
+        const repair = { id: "R5643r", room: "Lab", where: "s1/Lab", current: 0, start: 3, repairs: "R5643t" };
+        const read = (section, insider) => {
+            const r = S.asSeen(repair, { user, section, standing: new Set(), whereOf: q => q.where, knows: () => true, insider: () => insider, live: false });
+            return r && r.seen;
+        };
+        const before = { projects: {}, rooms: { "s1/Lab": { at: 1, ids: ["R5643t"] } }, ghosts: {} };
+        const none = { projects: {}, rooms: {}, ghosts: {} };
+        const after = { projects: { R5643r: { current: 0, start: 3, frozen: false, repairs: "R5643t", at: 2 } }, rooms: { "s1/Lab": { at: 2, ids: ["R5643r", "R5643t"] } }, ghosts: {} };
+        equal(stableJson({ before: read(before, false), insiderBefore: read(before, true), noVisit: read(none, false), insiderNoVisit: read(none, true), after: read(after, false) }),
+            stableJson({ before: null, insiderBefore: null, noVisit: null, insiderNoVisit: null, after: "last" }),
+            "[a visit before the sabotage; the same for an insider; no visit; no visit, insider; a visit after it]");
+    }],
+
+    ["R5644 - the Projects tray draws a player's rows as last seen (PV): projects-tray.mjs `hideUndiscovered` takes out the row of a project made after the player's last visit and keeps the others; `paintProgress` writes the snapshot's numbers into a row's tag and bar, \"?\" and an empty bar for a project this browser never saw, and leaves a live row as drawn", async () => {
+        const T = await import("./projects-tray.mjs");
+        const user = { id: "R5644u", isGM: false };
+        const rows = [["R5644old", "1 / 6"], ["R5644new", "0 / 4"], ["R5644far", "5 / 6"], ["R5644here", "4 / 5"]];
+        const projects = [
+            { id: "R5644old", where: "s1/Lab", room: "Lab", current: 5, start: 6 }, { id: "R5644new", where: "s1/Lab", room: "Lab", current: 0, start: 4 },
+            { id: "R5644far", where: "s1/Gym", room: "Gym", current: 5, start: 6 }, { id: "R5644here", where: "s1/Dorm", room: "Dorm", current: 4, start: 5 }];
+        const section = { projects: { R5644old: { current: 2, start: 6, frozen: false, repairs: null, at: 1 } }, rooms: { "s1/Lab": { at: 1, ids: ["R5644old"] } }, ghosts: {} };
+        const build = () => {
+            const root = document.createElement("div");
+            for (const [id, tag] of rows) {
+                const row = document.createElement("div");
+                row.className = "countdown-container";
+                row.dataset.countdown = id;
+                row.innerHTML = `<div class="countdown-content"><header>${id}</header><span class="progress-tag">${tag}</span></div>`;
+                root.append(row);
+            }
+            return root;
+        };
+        const opts = { section, standing: new Set(["s1/Dorm"]), projects, seen: { whereOf: q => q.where, knows: () => true, insider: () => false, live: false } };
+        const root = build();
+        const removed = T.hideUndiscovered(root, user, opts);
+        T.paintProgress(root, user, opts);
+        const read = id => { const row = root.querySelector(`[data-countdown="${id}"]`); return row && [row.querySelector(".progress-tag").textContent, row.style.getPropertyValue("--w"), row.dataset.drpgSeen ?? null]; };
+        equal(stableJson({ removed, old: read("R5644old"), made: read("R5644new"), far: read("R5644far"), here: read("R5644here") }),
+            stableJson({ removed: 1, old: ["2 / 6", "33%", "last"], made: null, far: ["? / 6", "0%", "unknown"], here: ["4 / 5", "80%", null] }),
+            "[rows removed; the Lab's old project at its last-seen 2/6; the Lab's newer project gone; the Gym's, never seen here, unknown; the Dorm's, stood in now, live]");
+    }],
+
+    ["R5645 - the project card on the map and the Projects explainer show a player the bar as seen (PV): projects-map.mjs `projectCard` draws a row seen last with its numbers and the \"as last seen\" words, one never seen with \"?\" and an empty bar; explain.mjs lists `projectsAsSeen`, not the live `knownProjects`", async () => {
+        const M = await import("./projects-map.mjs");
+        const html = M.projectCard({ id: "R5645p", name: "R5645", room: "Lab", current: 2, start: 6, seen: "last" });
+        const blank = M.projectCard({ id: "R5645q", name: "R5645q", room: "Lab", current: null, start: 6, seen: "unknown" });
+        const textOf = h => { const box = document.createElement("div"); box.innerHTML = h; return box.textContent; };
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/explain.mjs`).then(lfText);
+        const body = fnSource(src, "openProjectsExplainer");
+        equal(stableJson({
+            last: [html.includes("2 / 6"), textOf(html).includes(game.i18n.localize("DRPG.Project.seenAsLast"))],
+            unknown: [blank.includes("? / 6"), blank.includes("width: 0%"), textOf(blank).includes(game.i18n.localize("DRPG.Project.seenUnknown"))],
+            explainer: [/projectsAsSeen\(/.test(body), /knownProjects\(/.test(body)]
+        }), stableJson({ last: [true, true], unknown: [true, true, true], explainer: [true, false] }),
+        "[a card seen last: its numbers, its words; one never seen: ?, an empty bar, its words; the explainer's list]");
+    }],
+
+    ["R5646 - what a player saw is kept per world and per user, and never on a GM's browser (PV): projects-seen.mjs `seenSection` reads only the section of this world and that user; `refreshSeen` on a GM writes nothing; the setting is client-scoped, so no other browser holds it", async () => {
+        const S = await import("./projects-seen.mjs");
+        const u1 = { id: "R5646a", isGM: false }, u2 = { id: "R5646b", isGM: false };
+        const held = { [S.seenKey(u1)]: { projects: { x: { current: 1, start: 2 } }, rooms: {}, ghosts: {} }, [`otherWorld/${u1.id}`]: { projects: { y: {} }, rooms: {}, ghosts: {} } };
+        const setting = game.settings.settings.get(`${MODULE_ID}.seenProjects`);
+        equal(stableJson({
+            own: Object.keys(S.seenSection(u1, held).projects), other: Object.keys(S.seenSection(u2, held).projects),
+            gmWrites: await S.refreshSeen(game.user), scope: setting?.scope ?? null, config: setting?.config ?? null
+        }), stableJson({ own: ["x"], other: [], gmWrites: false, scope: "client", config: false }),
+        "[user one's section of this world; user two's, empty; a GM's refresh; the setting's scope and its place in the settings window]");
+    }],
+
+    ["R5647 - another player's move costs a bystander's browser nothing here (PV; scenario 86 counts it): projects-seen.mjs `registerSeen`'s token hook returns on a GM and on a token this user does not own before it reads anything, and asks the snapshot only for a move of an own token", async () => {
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/projects-seen.mjs`).then(lfText);
+        const hook = bodyOf(fnSource(src, "registerSeen"), `Hooks.on("updateToken"`, { until: "});" });
+        const lines = hook.split("\n").map(l => l.trim()).filter(Boolean);
+        const guard = lines.findIndex(l => l.startsWith("if (game.user?.isGM || !tokenDoc?.isOwner || !isMoveChange(changes)) return;"));
+        const work = lines.findIndex(l => /refreshSoon\(\)/.test(l));
+        equal(stableJson({ guard: guard === 1, work: work > guard, reads: lines.slice(0, Math.max(guard, 0)).some(l => /standingNow|allProjects|seenSection/.test(l)) }),
+            stableJson({ guard: true, work: true, reads: false }), "[the hook's first line is the guard; the snapshot after it; nothing read before it]");
+    }],
+
+    ["R5648 - the Observe card no longer promises a found secret project's live progress (PV, the owner's rule #3): `DRPG.Observe.projectFound` says the progress shows as it was on the finder's last visit and updates on their return, in English and in Polish", async () => {
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const e = en.DRPG.Observe.projectFound, p = pl.DRPG.Observe.projectFound;
+        equal(stableJson({ enOld: /how far along it is/.test(e), enLast: /last visit/.test(e), plOld: /jak daleko zaszło/.test(p), plLast: /ostatniej wizycie/.test(p), name: [e.includes("{name}"), p.includes("{name}")] }),
+            stableJson({ enOld: false, enLast: true, plOld: false, plLast: true, name: [true, true] }), "[the old English promise; the last visit; the old Polish; ostatnia wizyta; {name} in both]");
+    }],
+
+    ["R5649 - an erased trace leaves its finder a ghost where it stood, unless they saw it go (PV, the owner's rule #4): projects-seen.mjs `ghostOf` answers the scene, room, place, size and picture of a trace this browser showed as found, erased in a room none of the user's characters stands in; none when one stands there, none for a trace not shown here, none with no room", async () => {
+        const S = await import("./projects-seen.mjs");
+        const doc = { parent: { id: "s1" }, x: 300, y: 400, width: 1, height: 1, texture: { src: "icons/R5649.webp" } };
+        const ghost = S.ghostOf(doc, { shown: true, room: "Lab", standing: new Set(["s1/Gym"]), now: 5 });
+        equal(stableJson({
+            ghost, seen: S.ghostOf(doc, { shown: true, room: "Lab", standing: new Set(["s1/Lab"]) }),
+            notShown: S.ghostOf(doc, { shown: false, room: "Lab", standing: new Set() }), noRoom: S.ghostOf(doc, { shown: true, room: null, standing: new Set() })
+        }), stableJson({ ghost: { sceneId: "s1", room: "Lab", x: 300, y: 400, width: 1, height: 1, src: "icons/R5649.webp", at: 5 }, seen: null, notShown: null, noRoom: null }),
+        "[a found trace erased away from its finder; erased in front of them; not shown here; in no room]");
+    }],
+
+    ["R5650 - a ghost goes when one of the finder's characters stands in its room again (PV, the owner's rule #4): `takeSnapshot` drops each ghost of a room stood in now and keeps the others, and answers null with no ghost to drop and nothing else new", async () => {
+        const S = await import("./projects-seen.mjs");
+        const held = { projects: {}, rooms: {}, ghosts: { a: { sceneId: "s1", room: "Lab" }, b: { sceneId: "s1", room: "Gym" }, c: { sceneId: "s2", room: "Lab" } } };
+        const next = S.takeSnapshot({ projects: [], standing: new Set(["s1/Lab"]), held, whereOf: () => null, now: 3 });
+        const none = S.takeSnapshot({ projects: [], standing: new Set(["s3/Hall"]), held: { ...held, rooms: { "s3/Hall": { at: 1, ids: [] } } }, whereOf: () => null });
+        equal(stableJson({ ghosts: Object.keys(next?.ghosts ?? {}).sort(), none }), stableJson({ ghosts: ["b", "c"], none: null }),
+            "[the Lab's ghost on s1 gone, the Gym's and s2's Lab kept; a room with no ghost and no news]");
+    }],
+
+    ["R5651 - a project's token on a player's map follows the tray's rule (PV, the owner's rule #2): visibility.mjs `applyToProjectToken` shows a project's token only when `knowsProject` and projects-seen.mjs `tokenShownAsSeen` both say so, the pass's reading is dropped with its own (`forgetMyRooms` calls `forgetSeenPass`), a change of what the player saw asks the project tokens again and no whole pass (`projectTokensPass`; scenario 86's E89 C2), and `tokenShownAsSeen` answers true on a GM's browser", async () => {
+        const S = await import("./projects-seen.mjs");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText);
+        const apply = fnSource(src, "applyToProjectToken"), forget = fnSource(src, "forgetMyRooms"), reg = fnSource(src, "registerVisibility");
+        equal(stableJson({
+            gate: /if \(knowsProject\(projectId\) && tokenShownAsSeen\(projectId\)\) return;/.test(apply),
+            forget: /forgetSeenPass\(\)/.test(forget), pass: /Hooks\.on\("drpgSeenChanged", \(\) => projectTokensPass\(\)\)/.test(reg) && /applyToProjectToken\(token, projectId\)/.test(fnSource(src, "projectTokensPass")),
+            gm: S.tokenShownAsSeen("R5651none", game.user)
+        }), stableJson({ gate: true, forget: true, pass: true, gm: true }), "[the token's gate; the pass's reading dropped; the project tokens asked again on a change; a GM's answer]");
+    }],
+
     ["R1301 - the dice look's two preset findings know the table's look (E60 fix FG3; the end review's C-m5, G-m5): where this browser lays the table's Hope and Despair look (`browser.tableLook`), dice-look.mjs `lookFindings` words a duality die with no preset as drawn in the table's look (`presetMissing`, its own sentence) and holds a die's preset to the table's look rather than this browser's Daggerheart preset (`presetDiffers`, its own sentence; none where the two agree); with no table look laid both say what they said at C5b", async () => {
         /*
          * E60 fix FG3, 03.11.2026. C5d lays the table's look on each throw this browser draws and never on the message, so

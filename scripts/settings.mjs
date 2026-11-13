@@ -468,6 +468,20 @@ export const SETTINGS = {
      */
     gmRifles: "gmRifles",
     /**
+     * A SECRET PASSAGE'S "FINISHED" HELD FOR ITS FINDER (PV, 13.11.2026; the owner's rule #3): a GM store (gm-stores.mjs
+     * `foundDoneStore`), a row per finder and project `<userId>:<countdownId>`: `{ name, room, sceneId, at }`, posted
+     * and dropped by the primary when one of that user's characters next stands in the room (projects-seen.mjs
+     * `tellFoundOnEntry`). Synced and backed up; no player copy: the finder's browser holds nothing until the card.
+     */
+    gmFoundDone: "gmFoundDone",
+    /**
+     * WHAT THIS BROWSER'S PLAYER SAW LAST (PV, 13.11.2026; the owner's rules #2-#4): a client setting, a section per
+     * world and user (`<worldId>/<userId>`), each `{ projects, rooms, ghosts }` - a project as it stood when one of the
+     * user's characters was last in its room, the projects each visited room held, and the erased traces still drawn
+     * where they were found (projects-seen.mjs). Written by this browser alone, from what it already holds.
+     */
+    seenProjects: "seenProjects",
+    /**
      * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3) and its 05.11 limits): a GM store
      * (gm-stores.mjs `facilityUseStore`), a row per GM's action (`g:<sceneId>:<room>:<actionId>`, closed for everyone
      * once used) and per project's action and character (`p:<projectId>:<actorId>`), each `{ mark, actorId, userId,
@@ -2205,6 +2219,21 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // A Secret Passage's "finished" held for its finder (PV): no `onChange` - read by the primary at a move and at ready.
+    game.settings.register(MODULE_ID, SETTINGS.gmFoundDone, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // What this browser's player saw last (PV): the tray, the project card and the ghosts are drawn again on a change.
+    game.settings.register(MODULE_ID, SETTINGS.seenProjects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgSeenChanged")
     });
     // The room actions used (E93 C1): no `onChange` - shown nowhere, read by the next use on the GM that serves it
     // (facilities-gm.mjs `handleFacilityUse`).
