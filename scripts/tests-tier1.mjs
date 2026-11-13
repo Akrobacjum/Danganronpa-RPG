@@ -49231,10 +49231,52 @@ const INVARIANTS = [
         must(src.length > 10000, "sheet.mjs was not read");
         const read = {
             note: note ? [note.tagName, note.textContent === word, note.hidden, note.closest?.("details") ?? null, note.hasAttribute("data-tooltip")] : null,
-            placed: /monocubMoveNote\(\)/.test(fnSource(src, "injectMonocubPanel"))
+            // The character handed in since the r112 review's P2 (13.11.2026), so the line follows its Free Move (R4472).
+            placed: /monocubMoveNote\(actor\)/.test(fnSource(src, "injectMonocubPanel"))
         };
         equal(stableJson(read), stableJson({ note: ["P", true, false, null, false], placed: true }),
             "{the note [tag, DRPG.Move.free as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
+    }],
+    ["R4472 - Move's words hold where Move does (the r112 review's P2 and P4, 13.11.2026): sheet.mjs `moveDragSaid` answers no in a Class Trial and in an incident the character is in, and yes otherwise; the HUD's Move row and the Monocub's Move tile ask it; a locked Move tile says no \"Drag your token\" and takes the keyboard's focus with its words as a label; the Monocub's line says \"Free\" only while the Free Move is there, the next crossing's price after it, and the panel's repaint draws it again", async () => {
+        /*
+         * The r112 review's P2 and P4 (REVIEW-112, 13.11.2026). E100 item 1 put "drag your token there" first in the HUD's
+         * Move tooltip and "Drag your token" on the Monocub's Move tile, whatever the phase: in a Class Trial the drag is
+         * refused (movement.mjs `trialLocked`), and the tile is locked there too. The Monocub's line read "Free" after its
+         * Free Move was spent, when its next crossing costs an action. And the tile, a `div` since item 1, took no focus,
+         * so its tooltip (the lock's reason among it) was the mouse's alone. Read on stand-ins, so tier 1 changes nothing:
+         * the helper under the two states, the tiles and the line built here, and the readers in source. Red at 318935b9:
+         * no `moveDragSaid`, no exported `stillMoveTile`.
+         */
+        const S = await import("./sheet.mjs"), B = await import("./action-briefing.mjs");
+        must(typeof S.moveDragSaid === "function" && typeof S.stillMoveTile === "function", "sheet.mjs exports no moveDragSaid or stillMoveTile");
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        must(src("sheet.mjs").length > 10000 && src("player-status.mjs").length > 1000, "the sources were not read");
+        const short = game.i18n.localize("DRPG.Move.dragShort"), free = game.i18n.localize("DRPG.Move.free");
+        const button = () => {
+            const b = document.createElement("button");
+            b.innerHTML = `<span class="drpg-action-name">${foundry.utils.escapeHTML(ACTIONS.move.label)}</span><span class="drpg-action-cost">0</span>`;
+            b.dataset.tooltip = "SUITE R4472 tooltip";
+            return b;
+        };
+        const lines = tile => [...tile.querySelectorAll(".drpg-action-cost")].map(n => n.textContent.trim());
+        const open = S.stillMoveTile(button(), false), shut = S.stillMoveTile(button(), true);
+        // A Monocub stand-in: its Free Move there, then spent with nothing banked and one action left.
+        const cub = used => ({ system: { resources: { actions: { value: 1, max: 2 } } }, getFlag: (scope, key) => (key === "freeMoveUsed" ? used : undefined) });
+        const fresh = S.monocubMoveNote(cub(false)), spent = S.monocubMoveNote(cub(true));
+        const read = {
+            said: [S.moveDragSaid(null, { trial: true, incident: false }), S.moveDragSaid(null, { trial: false, incident: true }),
+                S.moveDragSaid(null, { trial: false, incident: false })],
+            readers: [/moveDragSaid\(/.test(fnSource(src("player-status.mjs"), "buildPlayerView")),
+                /stillMoveTile\(button, locked\)/.test(fnSource(src("sheet.mjs"), "actionButton"))],
+            tiles: [lines(open).includes(short), lines(shut).includes(short), open.tabIndex, shut.tabIndex,
+                (shut.getAttribute("aria-label") ?? "").includes(ACTIONS.move.label)],
+            line: [fresh.textContent === free, spent.textContent === B.moveLine(cub(true)), spent.textContent !== free],
+            repaint: /monocubMoveNote\(actor\)/.test(fnSource(src("sheet.mjs"), "refreshMonocubTiles"))
+        };
+        equal(stableJson(read), stableJson({ said: [false, false, true], readers: [true, true], tiles: [true, false, 0, 0, true],
+            line: [true, true, true], repaint: true }),
+            "{said: the drag sentence [in a trial, in an incident, otherwise]; readers: [the HUD's Move row, the Monocub's tile]; tiles: [the drag line on an open tile, on a locked one, the open tile's tabIndex, the locked one's, the locked tile's label names Move]; line: [Free with the Free Move, the next price after it, not Free]; repaint: the Monocub's repaint draws the line}");
     }],
     ["R4108 - every action window names its statistic outside Details (E100; the owner's rule of 12.11.2026, the E93 line's finding): for each action whose briefing names statistics (all but Projects and Sabotage, whose project names its own), action-briefing.mjs `briefingBlock` shows them in the lead - the description naming the first, or a line of its own (`drpg-briefing-rolls`, \"Rolls: ...\") right after it - and the \"Rolls\" line is in no Details box and stands once", async () => {
         /*

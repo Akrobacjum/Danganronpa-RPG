@@ -18,7 +18,7 @@ import {
     BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
-    canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
+    canPayFor, freeActionsLeft, freeMovesLeft, nextCrossingPrice } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
     from "./character.mjs";
 import { standingOffers, advanceKindName } from "./level-up.mjs";
@@ -67,7 +67,7 @@ import { isMoveChange, levelOf } from "./rooms.mjs";
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
 import { passagesKnownBy, passageSpot, viewPassage, tunnelEndsFor } from "./passages.mjs";
 import { isMastermindActor } from "./passages-gm.mjs";
-import { listenLabels } from "./action-rolls.mjs";
+import { listenLabels, moveLine } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
 // exists; the question is asked in action-rolls.mjs now, where the menu is.
@@ -944,6 +944,8 @@ function refreshMonocubTiles(actor, element) {
             .filter(node => node.disabled).map(node => [node.dataset.drpgAction, node]));
         grid.replaceChildren(...monocubTiles(actor).map(tile => busy.get(tile.dataset?.drpgAction) ?? tile));
     }
+    // Move's line follows the Free Move (the r112 review's P2).
+    for (const note of element.querySelectorAll(".drpg-monocub-panel .drpg-monocub-move")) note.replaceWith(monocubMoveNote(actor));
 }
 
 /**
@@ -4759,7 +4761,7 @@ function injectMonocubPanel(tab, actor) {
     }
 
     // Move's line, on screen (E100, R4107): its window is gone; the owner wants "Free" here, not the whole description.
-    panel.append(monocubMoveNote());
+    panel.append(monocubMoveNote(actor));
 
     tab.prepend(panel);
 }
@@ -4772,11 +4774,24 @@ function injectMonocubPanel(tab, actor) {
  * CUT DOWN THE SAME DAY: the owner, passed on by the coordinator - on the Monocub's panel Move needs only "za darmo",
  * not the whole description. The line reads `DRPG.Move.free` ("Free" / "Za darmo"), still a line of its own, not folded.
  */
-export function monocubMoveNote() {
+export function monocubMoveNote(actor = null) {
     const note = document.createElement("p");
     note.className = "notes drpg-monocub-move";
-    note.textContent = game.i18n.localize("DRPG.Move.free");
+    /* "Free" while it is (the r112 review's P2, 13.11.2026): a Monocub pays its crossings as a student does (actions.mjs
+       `takeMove`), so once the Free Move is spent the line says what the next crossing takes (action-briefing.mjs
+       `moveLine`), and the panel's repaint draws it again (`refreshMonocubTiles`). With no character, the owner's word. */
+    note.textContent = !actor || nextCrossingPrice(actor) === "free" ? game.i18n.localize("DRPG.Move.free") : moveLine(actor);
     return note;
+}
+
+/**
+ * Whether Move's "drag your token" is true for this character now (the r112 review's P2, 13.11.2026): not in a Class
+ * Trial, where the drag is refused (movement.mjs `trialLocked`), nor in an incident the character is in
+ * (`lockedInIncident`); the tile is locked in both (`actionButton`). The HUD's Move row and the Monocub's Move tile ask
+ * it. `trial` and `incident` are for the suite (R4472).
+ */
+export function moveDragSaid(actor, { trial = inClassTrial(), incident = Boolean(murderState()?.stage === "incident" && sideOf(actor)) } = {}) {
+    return !trial && !incident;
 }
 
 /* A Monocub's tiles: the Move, then one tile per row of its table (E33 C10): Confusion today, a second ability a row.
@@ -5726,7 +5741,7 @@ export function actionButton(actor, key, def) {
         fightTile ? "" : `
         <span class="drpg-action-cost">${costLabel}</span>`}${gmMark}`;
 
-    return key === "move" ? stillMoveTile(button) : button;
+    return key === "move" ? stillMoveTile(button, locked) : button;
 }
 
 /*
@@ -5736,17 +5751,25 @@ export function actionButton(actor, key, def) {
  * `data-drpg-action`, so the delegate (`attachActionDelegate`) has nothing to press and the stylesheets' hover, which
  * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R4100.
  */
-function stillMoveTile(button) {
+export function stillMoveTile(button, locked = false) {
     const tile = document.createElement("div");
     tile.className = button.className;
     tile.classList.add("drpg-action-still");
     for (const [k, v] of Object.entries(button.dataset)) if (k !== "drpgAction") tile.dataset[k] = v;
     tile.dataset.drpgTile = "move";
     tile.innerHTML = button.innerHTML;
-    const line = document.createElement("span");
-    line.className = "drpg-action-cost";
-    line.textContent = game.i18n.localize("DRPG.Move.dragShort");
-    tile.append(line);
+    // No "Drag your token" where the tile is locked: a Class Trial or an incident refuses the drag (the r112 review's P2).
+    if (!locked) {
+        const line = document.createElement("span");
+        line.className = "drpg-action-cost";
+        line.textContent = game.i18n.localize("DRPG.Move.dragShort");
+        tile.append(line);
+    }
+    /* Reached by the keyboard (the r112 review's P4): a `div` takes no focus, and Foundry shows `data-tooltip` on focus, so
+       the hint and a lock's reason were the mouse's alone. Its words as its label, for a screen reader. Exported for R4472. */
+    tile.tabIndex = 0;
+    tile.setAttribute("role", "note");
+    tile.setAttribute("aria-label", [tile.textContent.replace(/\s+/g, " ").trim(), button.dataset.tooltip ?? ""].filter(Boolean).join(". "));
     return tile;
 }
 

@@ -25,7 +25,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFr
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, actingStudents } from "./monokuma.mjs";
-import { sheetMode, moveSlots, moveFeetHtml, moveLegend } from "./sheet.mjs";
+import { sheetMode, moveSlots, moveFeetHtml, moveLegend, moveDragSaid } from "./sheet.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural, markLanguage } from "./utils.mjs";
@@ -508,8 +508,10 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
             const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
                 free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent",
                 !free);
-            // What to do first (E100 item 1: the Move window that said it is gone), then the state and the feet.
-            row.dataset.tooltip = `${game.i18n.localize("DRPG.Move.drag")} ${row.dataset.tooltip} ${moveLegend()}`;
+            // What to do first (E100 item 1: the Move window that said it is gone), then the state and the feet. Not in a
+            // Class Trial or an incident the character is in, where the drag is refused (the r112 review's P2).
+            const lead = moveDragSaid(actor) ? `${game.i18n.localize("DRPG.Move.drag")} ` : "";
+            row.dataset.tooltip = `${lead}${row.dataset.tooltip} ${moveLegend()}`;
             return row;
         }),
 
