@@ -90828,6 +90828,63 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the student's flags unchanged], the link after the publication, what the revive left)");
     }],
 
+    ["1.2.113 no Spectator for an NPC - a dead student no player owns, killed at once and killed as the GMs keep a death then published, gets no Spectator: no actor and no token; the GMs' row keeps the kill's answer for the publication (spectator-dead.mjs `isNpcAtDeath`; the owner's decision of 13.11.2026)", async () => {
+        /*
+         * 1.2.113, the owner's decision of 13.11.2026: "a Spectator for an NPC must not exist". A character made here with
+         * no player among its owners (scenario 41's "S41 Ghost" is one), its token beside a cast student's on a place
+         * scene, killed at once and revived, then killed as the GMs keep a death, published and revived. Read: the actors
+         * and tokens the deaths made, and the kept row's `watcher` before the publication. Red at a2b233d2: each death
+         * made a Spectator (an actor and a token).
+         */
+        needs(env.primaryGm(), "the watcher is made by a GM, and the deaths' row read on the primary");
+        const [student] = cast(1);
+        const C = await import("./chapter.mjs");
+        const M = await import("./movement.mjs");
+        const S = await import("./gm-stores.mjs");
+        const at = M.locateActor(student) ?? null;
+        must(at?.tokenDoc && at.scene, `${student.name} has no token on a place scene - this would measure nothing`);
+        const actorsBefore = new Set(game.actors.map(a => a.id));
+        const tokenIds = () => new Set([...game.scenes].flatMap(sc => [...sc.tokens].map(t => t.id)));
+        let npc = null, npcToken = null, read = null;
+        try {
+            npc = await Actor.create({ name: "T2 NPC 1.2.113", type: "character", ownership: { default: 0 } });
+            [npcToken] = await at.scene.createEmbeddedDocuments("Token", [{ name: npc.name, actorId: npc.id, actorLink: true,
+                x: at.tokenDoc.x + 100, y: at.tokenDoc.y, width: 1, height: 1 }]);
+            await settle();
+            const tokensBefore = tokenIds();
+            const made = () => ({ actors: game.actors.filter(a => !actorsBefore.has(a.id) && a.id !== npc.id).map(a => a.name),
+                tokens: [...tokenIds()].filter(id => !tokensBefore.has(id)).length });
+            must(await C.killCharacter(npc, { secret: false, keepBullets: true, silent: true }), "the NPC's death was not recorded");
+            await settle();
+            const publicDeath = made();
+            await C.reviveCharacter(npc, { quiet: true, silent: true });
+            await settle();
+            must(await C.killCharacter(npc, { secret: true, keepBullets: true, silent: true }), "the NPC's death was not kept by the GMs");
+            await settle();
+            const kept = { ...made(), row: S.deathStore.get(npc.id)?.watcher ?? null };
+            await C.publishDeath(npc);
+            await settle();
+            read = { publicDeath, kept, published: made() };
+        } finally {
+            if (npc) {
+                await C.reviveCharacter(npc, { quiet: true, silent: true }).catch(() => {});
+                await settle();
+                for (const a of game.actors.filter(a => !actorsBefore.has(a.id))) {
+                    for (const sc of game.scenes) {
+                        const ids = [...sc.tokens].filter(t => t.actorId === a.id).map(t => t.id);
+                        if (ids.length) await sc.deleteEmbeddedDocuments("Token", ids).catch(() => {});
+                    }
+                    await a.delete().catch(() => {});
+                }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ publicDeath: { actors: [], tokens: 0 }, kept: { actors: [], tokens: 0, row: { npc: true } },
+            published: { actors: [], tokens: 0 } }),
+            "an NPC's deaths ([the actors and tokens a public death made], [a kept death's, its row's watcher], [the publication's])");
+        ok(Boolean(npcToken), "the NPC stood on the map");
+    }],
+
     ["E62 C3b the Monocub's token - a public death's Spectator token becomes the student's own Monocub token where it stands, the Spectator actor gone and the body's token kept; a Monocub no more gets a Spectator back on that token (E62 C3b, Q-C3b-7's default)", async () => {
         /*
          * E62 C3b, 13.11.2026. A cast student killed at once (`secret: false`, `silent`), its watcher's token moved off the

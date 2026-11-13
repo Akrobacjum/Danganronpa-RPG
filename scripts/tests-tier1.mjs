@@ -56718,6 +56718,35 @@ const INVARIANTS = [
             "left out of the voice rows ([actor, watches for the dead]: a watcher nobody owns, an away player's watcher, an away E92 Spectator)");
     }],
 
+    ["R5700 - a dead student no player owns is an NPC and gets no Spectator; a student whose player is away is that player's, and so is one whose ownership's default is OWNER; a kept death's row decides for its publication (spectator-dead.mjs `isNpcAtDeath`; the owner's decision of 13.11.2026, 1.2.113)", async () => {
+        /*
+         * 1.2.113, the owner's decision of 13.11.2026: a Spectator for an NPC must not exist. "NPC" is read off the
+         * ownership at the moment of the death: no user who is not a GM owns the student (Foundry's
+         * `testUserPermission(u, "OWNER")`, which counts an owner by name and an ownership's default of OWNER). A player
+         * who is away still owns the student, so it keeps its Spectator. A kept death's row carries the kill's answer:
+         * `watcher.npc` stays an NPC's, `watcher.actorId` a player's. Stand-ins: users handed in, never game.users.
+         * Red at a2b233d2: no `isNpcAtDeath`.
+         */
+        const D = await import("./spectator-dead.mjs");
+        const ask = typeof D.isNpcAtDeath === "function" ? D.isNpcAtDeath : () => "none";
+        const gm = { id: "R5700g", isGM: true, active: true }, here = { id: "R5700h", isGM: false, active: true },
+            away = { id: "R5700a", isGM: false, active: false };
+        const users = [gm, here, away];
+        const student = (owners, byDefault = false) => ({ id: "R5700s", type: "character",
+            testUserPermission: (u, level) => level === "OWNER" && (byDefault || u.isGM || owners.includes(u.id)) });
+        const read = {
+            npc: ask(student([]), { users, row: null }),
+            gmOnly: ask(student([gm.id]), { users, row: null }),
+            present: ask(student([here.id]), { users, row: null }),
+            away: ask(student([away.id]), { users, row: null }),
+            byDefault: ask(student([], true), { users, row: null }),
+            keptNpc: ask(student([away.id]), { users, row: { watcher: { npc: true } } }),
+            keptPlayer: ask(student([]), { users, row: { watcher: { actorId: "R5700w" } } })
+        };
+        equal(stableJson(read), stableJson({ npc: true, gmOnly: true, present: false, away: false, byDefault: false, keptNpc: true, keptPlayer: false }),
+            "an NPC at the death ([no owner, a GM alone, a player here, a player away, the default OWNER, a kept NPC's row, a kept player's row])");
+    }],
+
     ["R4554 - the Class Trial mutes a dead player who owns its Spectator: the account's voice in the trial is the listed dead student, never the Spectator actor its player was given (E62 C3b; scenario 30's SECURITY dead-Botan checks, 13.11.2026)", async () => {
         /*
          * E62 C3b, 13.11.2026. voice.mjs `trialVoiceActorOf` asked of stand-ins: an account owning a dead student on the
