@@ -1255,10 +1255,14 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
 }
 
 /* OWED, ON A GM'S BAR ALONE (the owner's report of 13.11.2026 on 1.2.112; despair.mjs `despairRowOf`). A conversion
-   to Hope's Despair, still in the pool until the next time of day pays it: the skull filled, dimmer and unlit. */
+   to Hope's Despair, still in the pool until the next time of day pays it: the skull filled, dimmer and unlit, in a
+   dashed box - told from a lit and an empty skull by the box, not by colour alone (measured in Chromium, 13.11.2026:
+   at 0.45 and no box, Stained Glass's owed skull stood 1.40:1 from its empty one, the same hue). */
 #drpg-despair .drpg-despair-pip.filled.owed {
-    opacity: 0.45;
+    opacity: 0.6;
     filter: none;
+    outline: 1px dashed currentColor;
+    outline-offset: 1px;
 }
 
 #drpg-despair.gm-editable .drpg-despair-pip:hover {

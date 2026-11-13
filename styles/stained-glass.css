@@ -2482,7 +2482,7 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip {
 }
 body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip.filled { opacity: 1; }
 /* Owed, on a GM's bar alone (despair.mjs `despairRowOf`; the owner's report of 13.11.2026): filled, and dimmer. */
-body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip.filled.owed { opacity: 0.45; }
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pip.filled.owed { opacity: 0.6; }
 body.drpg-theme-stained-glass #drpg-despair .drpg-despair-button {
     --brush: var(--drpg-sg-despair);
     color: var(--drpg-sg-despair);
