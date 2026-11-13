@@ -57175,6 +57175,27 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([["R5469o", true], ["R5469w", true], ["R5469e", false]]),
             "left out of the voice rows ([actor, watches for the dead]: a watcher nobody owns, an away player's watcher, an away E92 Spectator)");
     }],
+    ["R5850 - the Facilities tile and its window read one list of rows: sheet.mjs `roomBlockFor` answers the tile keyed rest with action-facilities.mjs `facilitiesShutReason`, which judges `facilitiesRows`, and action-rest.mjs `performRest` offers `facilitiesRows` (fix line 113f; the owner's report of 13.11.2026 at a table on 1.2.112: the tile was struck through with no rest available while a GM's room action or a project's was)", async () => {
+        /*
+         * 13.11.2026. The tile read rest.mjs `restShutReason`, the two rests alone, written before E93 put the room's
+         * actions in the window, so the two drifted apart. E93-T16 (tier 2) measures the tile against the window in a room;
+         * this holds the shape that keeps them together, read off the source without comments: [the tile's line in
+         * `roomBlockFor`, the window's options in `performRest`, the reason reads the list, the list is the rests then the
+         * room's actions]. Red at ceb9e9c8: none of the four.
+         */
+        const all = new Map(await moduleSources());
+        const src = file => stripComments(all.get(file) ?? "");
+        const sheet = src("sheet.mjs"), rest = src("action-rest.mjs"), fac = src("action-facilities.mjs");
+        must(sheet && rest && fac, "the module's sources were not read - this would measure nothing");
+        const has = (text, name, needle) => (topLevelFunction(text, name) ?? "").includes(needle);
+        equal(stableJson([
+            has(sheet, "roomBlockFor", "if (key === \"rest\") return facilitiesShutReason(actor);"),
+            has(rest, "performRest", "options: facilitiesRows(actor)"),
+            has(fac, "facilitiesShutReason", "const rows = facilitiesRows(actor);"),
+            has(fac, "facilitiesRows", "return [...restVariants(actor), ...facilityRows(actor)];")]),
+        stableJson([true, true, true, true]),
+            "[the tile reads facilitiesShutReason, the window offers facilitiesRows, the reason reads the list, the list is the rests and the room's actions]");
+    }],
 
     ["R5700 - a dead student no player owns is an NPC and gets no Spectator; a student whose player is away is that player's, and so is one whose ownership's default is OWNER; a kept death's row decides for its publication (spectator-dead.mjs `isNpcAtDeath`; the owner's decision of 13.11.2026, 1.2.113)", async () => {
         /*

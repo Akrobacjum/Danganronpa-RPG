@@ -38,12 +38,13 @@ export const WARM_IMPORTS = Object.freeze({
     /* The gear's Settings window (settings-window.mjs, its look section look.mjs, its voice section voice-panel.mjs), the
        notice history, a Frisk, and the trial's windows a player is shown (the floor's prompts, the zones, the modes).
        And the e93 line's (merged into the 1.2.111 tree after this list was written, 13.11.2026): Infiltrate's Tail and
-       its doors (action-listen.mjs reaches action-tail.mjs and action-doors.mjs), a rest's room actions (action-rest.mjs,
-       action-facilities.mjs) and the Reroll that replays an Infiltrate roll (reroll.mjs, infiltrate-reroll.mjs). Each is
-       imports and functions, nothing run at load. */
+       its doors (action-listen.mjs reaches action-tail.mjs and action-doors.mjs) and the Reroll that replays an Infiltrate
+       roll (reroll.mjs, infiltrate-reroll.mjs). Each is imports and functions, nothing run at load. action-facilities.mjs,
+       a rest's room actions, was here until fix line 113f (13.11.2026): the sheet imports it statically since, for the
+       Facilities tile's reason, so it loads at boot. */
     everyone: Object.freeze(["settings-window.mjs", "look.mjs", "voice-panel.mjs", "notice-history-app.mjs", "frisk.mjs",
         "trial-modes.mjs", "trial-floor-ui.mjs", "trial-zones-ui.mjs",
-        "action-tail.mjs", "action-doors.mjs", "action-facilities.mjs", "infiltrate-reroll.mjs"]),
+        "action-tail.mjs", "action-doors.mjs", "infiltrate-reroll.mjs"]),
     /* The GMs' own: Room setup's Passages tab and the Class Trial console's case schema and summary; and the room action
        editors of Room setup's Facilities tab and a project's window (facility-editor.mjs, the e93 line's E93 C2). */
     gm: Object.freeze(["passages-tab.mjs", "case-trial.mjs", "case-summary.mjs", "facility-editor.mjs"])

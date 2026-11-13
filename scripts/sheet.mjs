@@ -33,7 +33,7 @@ import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { presentRefusal, trialFloor } from "./trial-floor.mjs";
 import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
-import { restShutReason } from "./rest.mjs";
+import { facilitiesShutReason } from "./action-facilities.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-murder.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
@@ -5450,10 +5450,13 @@ async function runCall(actor, key, kind) {
  */
 export function roomBlockFor(actor, key) {
     try {
-        // Rest is about the actor, and is dimmed only when neither of its rows can be taken: the tooltip names both
-        // reasons, and the window shows both rows greyed (E16 part 2 C4, 26.10.2026; audit S02-26). The tile looked
-        // live and its press answered "Nothing here can be done right now." alone.
-        if (key === "rest") return restShutReason(actor);
+        // Facilities (the tile keyed "rest") is dimmed only when no row of its window can be taken: the tooltip names
+        // every row's reason, and the window shows them all greyed (E16 part 2 C4, 26.10.2026; audit S02-26: the tile
+        // looked live and its press answered "Nothing here can be done right now." alone). Its rows are the two rests
+        // and, since E93, the room's actions; until fix line 113f (13.11.2026) the tile read the rests alone and was
+        // struck through while a GM's room action or a project's stood open (the owner's report at a table on 1.2.112).
+        // One list for both: action-facilities.mjs `facilitiesRows`.
+        if (key === "rest") return facilitiesShutReason(actor);
 
         // Only the five actions whose subject lives in the room can be blocked
         // by the room. Move and the rest are about the actor. Not Projects (E16 part 2 C4; audit S03-24): it

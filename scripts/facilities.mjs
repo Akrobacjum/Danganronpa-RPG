@@ -266,10 +266,20 @@ function toldFacility(projectId) {
  * The completed projects' actions standing where `place` is (movement.mjs `locateActor`'s `{ room, scene }`) for `user`:
  * each project complete, in that room on that scene (projects.mjs `standsAtProject`), seen by `user` (`canSee`), not an
  * indirect murder, with an action whose lifetime runs at `clock`. `[{ project, facility, completedAt, timesLeft }]`.
+ * Reaches projects.mjs by `import()`: it imports this file, so a static import here would close a cycle.
  */
 export async function projectActionsAt(place, user = game.user, clock = getClock()) {
     if (!place?.room || !place.scene) return [];
-    const { allProjects, standsAtProject, canSee } = await import("./projects.mjs");
+    return projectActionsWith(await import("./projects.mjs"), place, user, clock);
+}
+
+/**
+ * `projectActionsAt` with projects.mjs's three readers handed in (`{ allProjects, standsAtProject, canSee }`), so a file
+ * that imports projects.mjs statically reads the same rows without waiting (action-facilities.mjs `facilityRows`, which
+ * the sheet's Facilities tile reads as it draws; fix line 113f, 13.11.2026). Every one of the three is synchronous.
+ */
+export function projectActionsWith({ allProjects, standsAtProject, canSee }, place, user = game.user, clock = getClock()) {
+    if (!place?.room || !place.scene) return [];
     const out = [];
     for (const project of allProjects()) {
         if (!project.complete || project.indirectMurder || !standsAtProject(place, project.id) || !canSee(project.id, user)) continue;
