@@ -22606,6 +22606,7 @@ const INVARIANTS = [
          * and `lookFrom`'s one argument for the source's look, which change nothing): the look carries the GM's two effects with no
          * macro, a player holding them is left, and `canonicalLook` reads the GM's list. The `canonicalLook` reads, written in H82
          * fix r1, red against that commit's planted `specialEffects` road (the finding's own mutant), green without it.
+         * E108 (Q-E108-2, 13.11.2026): the look carries the source's role looks too (`roleAppearance`, R5467), none here.
          */
         const S = await import("./dice-sync.mjs");
         const J = v => stableJson(v);
@@ -22635,7 +22636,7 @@ const INVARIANTS = [
         const users = [holding("R940P1", CONST.USER_ROLES.PLAYER, asWritten), holding("R940P2", CONST.USER_ROLES.PLAYER),
             holding("R940P3", CONST.USER_ROLES.TRUSTED, own), holding("R940A1", CONST.USER_ROLES.ASSISTANT, asWritten)];
         equal(J({ look, copy: [J(copy.appearance) === J(appearance), J(copy.sfxList) === J(effects), copy.color], gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
-            J({ look: { appearance: owned, sfxList: [] }, copy: [true, true, "#aa0000"], gm: true }),
+            J({ look: { appearance: owned, sfxList: [], roleAppearance: {} }, copy: [true, true, "#aa0000"], gm: true }),
             "the look a forced user is held to is not the GM's appearance with no effect, or the GM's own copy lost an effect or its appearance, or building the look changed the GM's flags (look: { appearance, sfxList }; copy: [its appearance the GM's, its effects all three, its colour]; gm: the GM's flags as found)");
         equal(J(users.map(user => [S.isForced(user), S.holdsTableLook(user, look)])), J([[true, false], [true, true], [true, false], [true, false]]),
             "a player or an Assistant holding the GM's effects or its own is not put back to none, or one holding none is written again ([forced, holds the table's look] for: a player with the GM's effects as 1.2.80 wrote them, a player with none, a trusted player with its own, an Assistant with the GM's)");
@@ -22654,7 +22655,7 @@ const INVARIANTS = [
         });
         const flagLook = viaDsn(null);
         equal(J({ dsnLook, flagLook, asked, gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
-            J({ dsnLook: { appearance: owned, sfxList: [] }, flagLook: { appearance: owned, sfxList: [] }, asked: [[GM, true]], gm: true }),
+            J({ dsnLook: { appearance: owned, sfxList: [], roleAppearance: {} }, flagLook: { appearance: owned, sfxList: [], roleAppearance: {} }, asked: [[GM, true]], gm: true }),
             "`canonicalLook`, the look every sweep, put-back, connect and message holds a forced user to while the source holds the copy, is not the GM's appearance with no effect: with Dice So Nice's own `ALL_CUSTOMIZATION` answering the GM's three effects (dsnLook), or with none, from the GM's flags (flagLook); or it did not ask Dice So Nice for the GM's look once, or changed the GM's flags ([the look from Dice So Nice, the look from the flags, [whose look it asked, with a DiceFactory], the GM's flags as found])");
         const src = stripComments(new Map(await otherSources()).get("dice-sync.mjs") ?? "");
         const reads = text => (text.match(/getFlag\(\s*DSN\s*,\s*"sfxList"\s*\)/g) ?? []).length;
@@ -22678,7 +22679,8 @@ const INVARIANTS = [
         const S = await import("./dice-sync.mjs");
         const J = v => stableJson(v);
         const DSN = "dice-so-nice";
-        const look = { appearance: { global: { colorset: "fire" } }, sfxList: [] };
+        // The look's role looks since E108 (Q-E108-2, R5467): none here, an empty one, as `lookFrom` builds it.
+        const look = { appearance: { global: { colorset: "fire" } }, sfxList: [], roleAppearance: {} };
         const stub = flags => ({ id: "R3603P", name: "R3603P", role: CONST.USER_ROLES.PLAYER, getFlag: (scope, key) => (scope === DSN ? flags[key] : undefined) });
         const held = saved => S.holdsTableLook(stub({ ...foundry.utils.deepClone(look), ...(saved === undefined ? {} : { saved }) }), look);
         equal(J([held({ appearance: true, sfx: true }), held(undefined), held({ appearance: true }), held({ sfx: true }),

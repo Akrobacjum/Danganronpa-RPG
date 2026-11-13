@@ -71,7 +71,7 @@ settings-window.mjs:90) is one Boolean: on, every user below full Gamemaster hol
 So the owner's "only Dice So Nice's dice" is accurate: on 2.12.8 the switch can only force the GM's Dice So Nice look,
 and there is no way to choose Daggerheart's.
 
-A gap found on the way (**read**, not reported by the owner): with the switch on, a player's own look for a role -
+A gap found on the way (**read**, not reported by the owner; closed for 1.2.113, "Q-E108-2 built" below): with the switch on, a player's own look for a role -
 `roleAppearance` on its User or its actor - is never written or put back. The module's write replaces `appearance`,
 `sfxList` and DSN 6.4's `saved` marker (dice-sync.mjs:1095); `roleAppearance` appears nowhere in scripts/. So today a
 player who sets a Hope die of its own in Dice So Nice 6.4's Dice Roles throws it, forced look or not. Whether any player
@@ -94,7 +94,7 @@ One choice, three values, in the game's settings, Rolls and privacy, where the s
 | Value | Basic dice of users below full GM | Hope, Fear, advantage, disadvantage dice |
 | --- | --- | --- |
 | Each player's own | their own (nothing written; today's off) | their own |
-| Everyone: Dice So Nice | the source GM's DSN look (today's on) | as today: Daggerheart 2.9 and older the source GM's preset; 2.10 and later DSN's roles, each thrower's own role look where it set one (the gap above) |
+| Everyone: Dice So Nice | the source GM's DSN look (today's on) | as today: Daggerheart 2.9 and older the source GM's preset; 2.10 and later DSN's roles, the source GM's role looks since 1.2.113 (Q-E108-2), each thrower's own until then |
 | Everyone: Daggerheart | the source GM's DSN look, as the value above (Daggerheart has none for them) | Daggerheart's own colorsets, on every screen, whoever throws - a GM too |
 
 **How the Daggerheart value is applied.** Display only, as E60 C5d laid the 2.9 preset: at `diceSoNiceRollStart` each
@@ -144,8 +144,16 @@ cannot draw Dice So Nice's 3D dice, so the page lists Daggerheart's four colorse
 
 - What the throw looks like at a table, on each screen, in each value: LIVE-E108-01 (audit/AUDIT-1.2.42.md 9.2, row 508).
 - The registry stamps R5460-R5466 with stage E93, not E108: tools/stages.json has no E108 (`registry.mjs --write --stage E108` refuses), and this stage may not edit stages.json. The coordinator's to add.
+## Q-E108-2 built (13.11.2026, for 1.2.113; the coordinator's default, owner to confirm)
+
+The forced look now carries the source full Gamemaster's `roleAppearance` too (dice-sync.mjs `lookFrom`, "THE ROLE
+LOOKS"): written on every user below full Gamemaster with the appearance, compared, put back, and the source's own held to
+the GMs' copy as its appearance is. An actor's role looks are a second field of its row in the GMs' store (`roles`,
+beside `look`; "AN ACTOR'S ROLE LOOKS"), taken from a full Gamemaster's write and put back after anyone else's. A row
+from before has no `roles` and is filled weakly at the comparison at load, by the unseen actor's rule; until then that
+actor's role looks are not judged. Tests: R5467 (tier 1) and two named tier-2 tests, red at 3a841287; R940 and R3603 read
+the look's new shape (an empty `roleAppearance`).
+
 - Q-E108-1 (owner): in the Daggerheart value, should the basic dice stay the GM's DSN look (built), or be each player's
   own?
-- Q-E108-2 (owner): close the `roleAppearance` gap in the Dice So Nice value (force the GM's role looks on users and
-  actors too)? Not built: it changes what today's "on" does, and the actor overlays' store (gm-stores.mjs
-  `diceLookStore`) would need a second field.
+- Q-E108-2: built (above), on the coordinator's default "yes"; the owner may still say otherwise.

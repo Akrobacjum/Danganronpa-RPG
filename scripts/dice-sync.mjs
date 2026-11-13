@@ -11,7 +11,8 @@
  *
  * WHAT IS FORCED. With `forceDiceLook` on (world, default on: the owner's Q1), every User below full
  * Gamemaster - players, trusted players and Assistant GMs (Q3: "Tak") - holds the appearance of the full Gamemaster
- * `diceLookSource` names, and no special effects of its own (H82 C1, below). A full Gamemaster's own look is never
+ * `diceLookSource` names, its Dice So Nice role looks included since E108 (`lookFrom`, "THE ROLE LOOKS"; an actor's
+ * too, "AN ACTOR'S ROLE LOOKS"), and no special effects of its own (H82 C1, below). A full Gamemaster's own look is never
  * written. Off, nothing is written and nothing restored (Q4).
  *
  * NO EFFECTS OF THEIR OWN (H82 C1, 23.10.2026; H82-01, the owner's 21.10 "Jest tez delay przy rzucaniu koscmi czego nie
@@ -585,9 +586,10 @@ function colourOf(user) {
     return typeof colour === "string" ? colour : String(colour.css ?? colour);
 }
 
-/** What of the source's makes the table's look: its two flags as they are (null for none) and its colour. */
+/** What of the source's makes the table's look: its three flags as they are (null for none) and its colour. */
 export function sourceLookOf(user) {
-    return { appearance: plain(user?.getFlag(DSN, "appearance")), sfxList: plain(user?.getFlag(DSN, "sfxList")), color: colourOf(user) };
+    return { appearance: plain(user?.getFlag(DSN, "appearance")), sfxList: plain(user?.getFlag(DSN, "sfxList")),
+        roleAppearance: plain(user?.getFlag(DSN, "roleAppearance")), color: colourOf(user) };
 }
 
 /** The source's look as it stands taken as this browser's copy. */
@@ -613,13 +615,14 @@ async function holdSource(source) {
     const whole = value => (value === null ? forcedDeletion() : forcedReplacement(foundry.utils.deepClone(value)));
     const colour = look.color !== null && look.color !== colourOf(source) ? { color: look.color } : {};
     try {
-        const appearance = whole(look.appearance), sfxList = whole(look.sfxList);
-        if (appearance !== null && sfxList !== null) {
-            await source.update({ [`flags.${DSN}.appearance`]: appearance, [`flags.${DSN}.sfxList`]: sfxList, ...colour });
+        const appearance = whole(look.appearance), sfxList = whole(look.sfxList), roleAppearance = whole(look.roleAppearance ?? null);
+        if (appearance !== null && sfxList !== null && roleAppearance !== null) {
+            await source.update({ [`flags.${DSN}.appearance`]: appearance, [`flags.${DSN}.sfxList`]: sfxList,
+                [`flags.${DSN}.roleAppearance`]: roleAppearance, ...colour });
         } else {
-            for (const key of ["appearance", "sfxList"]) {
+            for (const key of ["appearance", "sfxList", "roleAppearance"]) {
                 await source.unsetFlag(DSN, key);
-                if (look[key] !== null) await source.setFlag(DSN, key, foundry.utils.deepClone(look[key]));
+                if ((look[key] ?? null) !== null) await source.setFlag(DSN, key, foundry.utils.deepClone(look[key]));
             }
             if (colour.color) await source.update(colour);
         }
@@ -649,19 +652,30 @@ export function canonicalLook(source = lookSource()) {
         try { appearance = plain(all.call(game.dice3d.constructor, source, game.dice3d.DiceFactory)?.appearance); }
         catch (err) { error("Could not read the GM's dice look from Dice So Nice", err); }
     }
-    return lookFrom(source, { appearance: appearance ?? source.getFlag(DSN, "appearance") });
+    return lookFrom(source, { appearance: appearance ?? source.getFlag(DSN, "appearance"), roleAppearance: source.getFlag(DSN, "roleAppearance") });
 }
 
 /**
- * A look as forced users hold it, from the source's (`{ appearance }`, its effects aside): the appearance, library dice
- * owned by the source, and no special effect at all (H82 C1, the header). The source's effects stay the source's.
+ * A look as forced users hold it, from the source's (`{ appearance, roleAppearance }`, its effects aside): the
+ * appearance, the role looks, library dice owned by the source, and no special effect at all (H82 C1, the header). The
+ * source's effects stay the source's.
+ *
+ * THE ROLE LOOKS (E108, Q-E108-2, 13.11.2026; R5467). Dice So Nice 6.4.5 draws a die of a role - Daggerheart's Hope,
+ * Fear, advantage and disadvantage, a damage type - from the role's defaults, the world's role scopes and then the
+ * thrower's own `flags.dice-so-nice.roleAppearance`, its actor's laid over it (module/settings/DsnSettings.js:208-246;
+ * engine/DiceRoleRegistry.js:245-279, read in its source, not tried at a table). Until E108 the forced look was the
+ * appearance and the effects alone, so a player's own Hope die stood. Now the source's role looks are the table's
+ * too, each role's scopes as its appearance's are, a missing one an empty one; a library die a scope names with no
+ * owner is the source's, as `resolveRoleSlot` would take the thrower's otherwise. LIVE-E108-01 reads it at a table.
  */
 export function lookFrom(source, held) {
     const appearance = plain(held?.appearance) ?? {};
-    for (const scope of Object.values(appearance)) {
+    const roleAppearance = plain(held?.roleAppearance) ?? {};
+    const scopes = [...Object.values(appearance), ...Object.values(roleAppearance).flatMap(role => (role && typeof role === "object" ? Object.values(role) : []))];
+    for (const scope of scopes) {
         if (scope && typeof scope === "object" && scope.libraryDieId && !scope.libraryDieOwner) scope.libraryDieOwner = source.id;
     }
-    return { appearance, sfxList: [] };
+    return { appearance, sfxList: [], roleAppearance };
 }
 
 /**
@@ -682,7 +696,8 @@ function tableLook(source) {
 
 /** A user's look as its flags hold it; a missing flag reads as an empty one, as DSN's own default does. */
 function lookOf(user) {
-    return { appearance: plain(user?.getFlag(DSN, "appearance")) ?? {}, sfxList: plain(user?.getFlag(DSN, "sfxList")) ?? [] };
+    return { appearance: plain(user?.getFlag(DSN, "appearance")) ?? {}, sfxList: plain(user?.getFlag(DSN, "sfxList")) ?? [],
+        roleAppearance: plain(user?.getFlag(DSN, "roleAppearance")) ?? {} };
 }
 
 /** Equal whatever the order of the keys (the harness's `foundry.utils` has no `objectsEqual`). */
@@ -916,6 +931,24 @@ function heldOverlay(actorId) {
     return plain(diceLookStore.get(actorId)?.look);
 }
 
+/*
+ * AN ACTOR'S ROLE LOOKS (E108, Q-E108-2, 13.11.2026). Dice So Nice 6.4.5 lays an actor's own
+ * `flags.dice-so-nice.roleAppearance` over its thrower's (DsnSettings.js `ROLE_APPEARANCE`), as it lays the actor's
+ * `appearance` over the user's. So the GMs' copy of an actor is two fields of its row: `look`, the appearance overlay
+ * as before, and `roles`, the role looks, taken, held and put back the same way. A row written before E108 has no
+ * `roles`: it is filled weakly at the comparison at load (`takeUnseenOverlays`, by the same rule as an unseen actor's
+ * overlay), and until then that actor's role looks are not judged (`heldRoles` answers undefined).
+ */
+function rolesOf(actor) {
+    return plain(actor?.flags?.[DSN]?.roleAppearance);
+}
+
+/** The GMs' copy of an actor's role looks: null for none, undefined where the row holds no `roles` field yet. */
+function heldRoles(actorId) {
+    const row = diceLookStore.get(actorId);
+    return row && Object.hasOwn(row, "roles") ? plain(row.roles) : undefined;
+}
+
 /**
  * An actor created, or its flags updated, as every browser hears it. On the primary, a full Gamemaster's write of
  * the overlay (or a creation) is the GMs' copy from then on, written to their store; a creation by anyone else
@@ -933,12 +966,12 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
     }
     if (isFullGm(game.users.get(userId))) {
         if (!touched) return;
-        void diceLookStore.patch(actor.id, { look: overlayOf(actor) });
+        void diceLookStore.patch(actor.id, { look: overlayOf(actor), roles: rolesOf(actor) });
         // Kept in the world too (E16 fix r1c-G1): a creation only where it carries an overlay, so a new actor writes nothing.
-        if (!created || overlayOf(actor) !== null) keepWorldCopy();
+        if (!created || overlayOf(actor) !== null || rolesOf(actor) !== null) keepWorldCopy();
         return;
     }
-    if (created) void diceLookStore.patch(actor.id, { look: null });
+    if (created) void diceLookStore.patch(actor.id, { look: null, roles: null });
     afterSwitchesHeld(() => schedule(ACTOR + actor.id));
 }
 
@@ -948,9 +981,10 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
  * meet. Called by `compareOverlays`, which asks for the hydration itself.
  */
 function takeUnseenOverlays() {
-    const unseen = (game.actors?.contents ?? []).filter(actor => !diceLookStore.has(actor.id));
+    // Since E108 a row's role looks too, also for a row the store holds without them (written before E108).
+    const unseen = (game.actors?.contents ?? []).filter(actor => !diceLookStore.has(actor.id) || heldRoles(actor.id) === undefined);
     if (!unseen.length) return Promise.resolve();
-    const rows = unseen.map(actor => [actor.id, { look: ownedBelowGm(actor) ? null : overlayOf(actor) }]);
+    const rows = unseen.map(actor => [actor.id, ownedBelowGm(actor) ? { look: null, roles: null } : { look: overlayOf(actor), roles: rolesOf(actor) }]);
     return diceLookStore.patchMany(Object.fromEntries(rows), { weak: true, fillOnly: true });
 }
 
@@ -1029,17 +1063,22 @@ async function putBackOverlay(actor, key, { count = true } = {}) {
     if (!actor || !enforcing() || stopped(key) || !diceLookStore.isHydrated()) return false;
     // A world with no full Gamemaster forces nothing (the stage's rule; `lookSource` says so once).
     if (!lookSource()) return false;
-    const held = heldOverlay(actor.id);
-    if (sameLook(overlayOf(actor), held)) return false;
+    // The appearance overlay and, since E108, the role looks (`heldRoles`; undefined: a row not filled yet, not judged).
+    const held = heldOverlay(actor.id), roles = heldRoles(actor.id);
+    const moved = [["appearance", held, overlayOf(actor)], ["roleAppearance", roles, rolesOf(actor)]]
+        .filter(([, copy, now]) => copy !== undefined && !sameLook(now, copy));
+    if (!moved.length) return false;
     if (count && !fuseHolds(key, actor.name)) return false;
-    const path = `flags.${DSN}.appearance`;
     try {
-        const replaced = held === null ? null : forcedReplacement(foundry.utils.deepClone(held));
-        if (held === null) await actor.update({ [path]: forcedDeletion() });
-        else if (replaced !== null) await actor.update({ [path]: replaced });
-        else {
-            await actor.unsetFlag(DSN, "appearance");
-            await actor.setFlag(DSN, "appearance", foundry.utils.deepClone(held));
+        for (const [flag, copy] of moved) {
+            const path = `flags.${DSN}.${flag}`;
+            const replaced = copy === null ? null : forcedReplacement(foundry.utils.deepClone(copy));
+            if (copy === null) await actor.update({ [path]: forcedDeletion() });
+            else if (replaced !== null) await actor.update({ [path]: replaced });
+            else {
+                await actor.unsetFlag(DSN, flag);
+                await actor.setFlag(DSN, flag, foundry.utils.deepClone(copy));
+            }
         }
         return true;
     } catch (err) {
@@ -1093,7 +1132,7 @@ async function rollerOf(message) {
 }
 
 /**
- * Both flags, and DSN 6.4's saved marker (`SAVED_MARK`), replaced whole: in one `updateDocuments` of the User class where v14's ForcedReplacement is there, else unset
+ * The three flags (the role looks since E108), and DSN 6.4's saved marker (`SAVED_MARK`), replaced whole: in one `updateDocuments` of the User class where v14's ForcedReplacement is there, else unset
  * and set one user at a time, as utils.mjs `replaceFlag` does in the module's own scope. A write refused (an
  * Assistant primary writing another Assistant's User may be, on v14: LIVE-E16-04) is tried user by user and
  * said once.
@@ -1103,7 +1142,7 @@ async function writeLooks(users, look) {
     if (!isPrimaryGm() || !users.length) return;
     const replaced = value => forcedReplacement(foundry.utils.deepClone(value));
     const updates = users.map(u => ({ _id: u.id, flags: { [DSN]: { appearance: replaced(look.appearance), sfxList: replaced(look.sfxList),
-        saved: replaced(SAVED_MARK) } } }));
+        roleAppearance: replaced(look.roleAppearance ?? {}), saved: replaced(SAVED_MARK) } } }));
     if (updates[0].flags[DSN].appearance !== null) {
         try { return void await CONFIG.User.documentClass.updateDocuments(updates); }
         catch (err) { if (users.length === 1) return refused(users[0], err); }
@@ -1117,8 +1156,10 @@ async function writeLooks(users, look) {
         try {
             await user.unsetFlag(DSN, "appearance");
             await user.unsetFlag(DSN, "sfxList");
+            await user.unsetFlag(DSN, "roleAppearance");
             await user.setFlag(DSN, "appearance", foundry.utils.deepClone(look.appearance));
             await user.setFlag(DSN, "sfxList", foundry.utils.deepClone(look.sfxList));
+            await user.setFlag(DSN, "roleAppearance", foundry.utils.deepClone(look.roleAppearance ?? {}));
             await user.setFlag(DSN, "saved", { ...SAVED_MARK });
         } catch (err) { refused(user, err); }
     }
