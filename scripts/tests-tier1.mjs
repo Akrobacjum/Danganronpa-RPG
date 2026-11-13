@@ -8511,7 +8511,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
             "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
     }],
-    ["R3967 - the Investigation bar after the owner's pick (E64-inv; the Investigation review of 12.11.2026, \"Na reszte sie zgadzam\"): the drawn dashboard's footer is Save, New Remnant, Issue Autopsy Truth Bullet, Body found, Realization preview and Cancel - no evidence log, no Clear Faint, no Sweep, no Undo realization; and every road those buttons took is still reachable where it remains: End the chapter's Collect and Clear Faint boxes, the trial console's evidence log, and Undo in the realization's preview while a run's marks stand", async () => {
+    ["R3967 - the Investigation bar after the owner's pick (E64-inv; the Investigation review of 12.11.2026, \"Na reszte sie zgadzam\"): the drawn dashboard's footer is Save, New Remnant, Issue Autopsy Truth Bullet, Body found, Realization preview and Close - no evidence log, no Clear Faint, no Sweep, no Undo realization; and every road those buttons took is still reachable where it remains: End the chapter's Collect and Clear Faint boxes, the trial console's evidence log, and Undo in the realization's preview while a run's marks stand", async () => {
         /*
          * E64-inv, 12.11.2026. The owner's verdict on the Investigation review (STATUS): remove Clear Faint and Sweep from
          * the bar (End the chapter keeps them), remove the evidence log (the trial console keeps it), tuck Undo realization
@@ -8548,8 +8548,10 @@ const INVARIANTS = [
             trialLog: /data-drpg-console="log"/.test(consoleSource) && /openObjectionLog\(\)/.test(consoleSource),
             undo: [footerOf(0), footerOf(2), /picks === "undo"\)\s*return confirmUndoRealization\(/.test(realizeSource)]
         }), stableJson({
-            // Cancel's action "discard" since the planner's review for 1.2.111 (13.11.2026; investigation.mjs, the footer).
-            bar: ["autopsy", "bodyFound", "discard", "newTrace", "realize", "save"],
+            // The closing word's action "close": the owner's 13.11.2026 ("Nie, ma zapisywac") made it the kit's Close, which
+            // keeps an open node's text (bc3445c9; investigation.mjs, the footer). From the planner's review until then it
+            // was a Cancel answering "discard" (8d049f99).
+            bar: ["autopsy", "bodyFound", "close", "newTrace", "realize", "save"],
             endChapter: [true, true],
             trialLog: true,
             undo: [[], ["undo"], true]
