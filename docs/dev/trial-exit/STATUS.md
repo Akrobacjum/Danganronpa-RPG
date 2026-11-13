@@ -102,3 +102,22 @@ Stained Glass 2-4, unchanged.
 Not measured: every other place the pixel face sets a Polish capital (the HUD, tabs, dialogs). The mark now rises
 0.25 em above the ascent instead of 0.125 em, so a box that clips at one line of the face's height could cut it; not
 checked beyond the sequences' title and line.
+
+## 4. The chapter's line on the closed Stained Glass curtain (the owner's review of the shots, 13.11.2026)
+
+The line under the title stood over the glass harness's open window: its words and a lead line read through the closed
+curtain's panes, across the line. Measured with `node audit/glass-sweep.mjs --title-contrast` (both themes, the
+entry and the exit played on a held clock to the closed title at 1800 ms, 1366x768; the line's glyph pixels from a shot
+with and without it, what stands under and within 5 px of them from a shot with its ink transparent, WCAG contrast with
+the line's computed colour; fails under 4.5 at the glyphs' 5th percentile or their surround's 1st; control: the line in
+#6a6a6a must fail, and does).
+
+Before: Stained Glass entry surround min 2.50, 1st percentile 3.94; exit min 2.08, 1st percentile 4.24 (the glyphs
+themselves 10.5 and 15.6 at the 5th, the shadow's glow under them). Legacy 12.75 (its lids are opaque).
+
+Fix, the smaller of the two: under Stained Glass the line stands on its own dark shard (inline-block, 90 % of the
+sequence's ink, a slanted cut like the title's band); the windows under the closed curtain are left as they are.
+After: Stained Glass entry 17.12 / 16.02 min / 16.43 1st; exit 17.29 / 15.43 / 16.24. Legacy unchanged. The entry and
+the exit share the line, so both have it.
+
+Not measured: other sizes than 1366x768, a real table's windows (the harness's dialog stands for one), deviceScaleFactor 2.

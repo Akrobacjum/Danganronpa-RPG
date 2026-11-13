@@ -5196,6 +5196,16 @@ body.drpg-theme-stained-glass #drpg-sequence {
     --drpg-seq-text-size: 26;
 }
 body.drpg-theme-stained-glass #drpg-sequence :is(.drpg-seq-title-sub, .drpg-seq-name, .drpg-seq-vrow, .drpg-seq-votes h4, .drpg-seq-sentence) { font-family: var(--drpg-font-chrome); }
+/* the chapter's line under the title stands on its own dark shard (the trial's exit, 13.11.2026; the owner's review of its
+   shots): the closed curtain's panes are glass, and an open window's words and a lead line read through them, across
+   the line - its surround read 2.1 to 4.2 against the line's colour at 1366x768, 1st percentile (glass-sweep.mjs
+   `--title-contrast`). Legacy's lids are opaque and need none (12.7). The entry and the exit share the line. */
+body.drpg-theme-stained-glass #drpg-sequence .drpg-seq-title-sub {
+    display: inline-block;
+    padding: calc(6 * var(--drpg-seq-u)) calc(26 * var(--drpg-seq-u));
+    background: color-mix(in srgb, var(--drpg-seq-dark) 90%, transparent);
+    clip-path: polygon(1% 0, 100% 10%, 99% 100%, 0 90%);
+}
 
 
 /* THE FLICKER (E62 C2, C4; transitions.mjs `flicker`): for one flash of the Investigation's entry or the body's

@@ -490,6 +490,90 @@ if (args.includes("--accents")) {
     process.exit(bad ? 1 : 0);
 }
 
+/* THE SEQUENCES' CHAPTER LINE ON THE CLOSED CURTAIN (the trial's exit, 13.11.2026; the owner's review of its shots: under
+   Stained Glass the line stood over an open window's words showing through the panes, and a lead line ran through it).
+   `--title-contrast` runs this instead of the sweep: in each theme, the trial's entry and its exit are played on the page
+   on a held clock (Playwright's, every Web Animation paused and set to it) to the closed title, 1800 ms in, at 1366x768,
+   and the frame is shot three times - as drawn, the line hidden, the line's ink transparent with its shadow kept - and the line's colour read with the page put back (read under
+   the third shot it was the transparent ink's, and every run read 1.05). The line's glyph pixels are those the first two differ on; what stands under them and within 5 px of them is read from the
+   third, and its contrast with the line's computed colour is WCAG's. A run fails when the glyphs' 5th percentile or
+   their surround's 1st is under 4.5 (the surround is what an open window's words and the lead lines reach). Its
+   control, once a theme: the line's colour set to #6a6a6a must fail. Exit 1 on a failure or a control that passed. */
+async function titleLineReading([a, b, c]) {
+    const dec = async s => { const bm = await createImageBitmap(await (await fetch(`data:image/png;base64,${s}`)).blob()); const cv = new OffscreenCanvas(bm.width, bm.height); const g = cv.getContext("2d"); g.drawImage(bm, 0, 0); return { d: g.getImageData(0, 0, bm.width, bm.height).data, w: bm.width, h: bm.height }; };
+    const [{ d: F, w: W, h: Hh }, { d: H }, { d: C }] = [await dec(a), await dec(b), await dec(c)];
+    const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const sub = document.querySelector("#drpg-sequence .drpg-seq-title-sub");
+    if (!sub) return null;
+    const col = getComputedStyle(sub).color.match(/[\d.]+/g).map(Number);
+    const Lt = 0.2126 * lin(col[0]) + 0.7152 * lin(col[1]) + 0.0722 * lin(col[2]);
+    const kOf = i => { const Lb = 0.2126 * lin(C[i]) + 0.7152 * lin(C[i + 1]) + 0.0722 * lin(C[i + 2]); return (Math.max(Lt, Lb) + 0.05) / (Math.min(Lt, Lb) + 0.05); };
+    const box = sub.getBoundingClientRect(), R = 5;
+    const y0 = Math.max(0, Math.floor(box.top) - 20), y1 = Math.min(Hh, Math.ceil(box.bottom) + 20), x0 = Math.max(0, Math.floor(box.left) - 20), x1 = Math.min(W, Math.ceil(box.right) + 20);
+    const glyph = new Uint8Array(W * Hh), on = [], near = [];
+    const diff = (P, Q, i) => Math.abs(P[i] - Q[i]) + Math.abs(P[i + 1] - Q[i + 1]) + Math.abs(P[i + 2] - Q[i + 2]);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * W + x) * 4; if (diff(F, H, i) > 60 && diff(F, C, i) > 150) glyph[y * W + x] = 1; }
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const i = (y * W + x) * 4;
+        if (glyph[y * W + x]) { on.push(kOf(i)); continue; }
+        let hit = false;
+        for (let dy = -R; dy <= R && !hit; dy++) for (let dx = -R; dx <= R; dx++) { const yy = y + dy, xx = x + dx; if (yy >= 0 && yy < Hh && xx >= 0 && xx < W && glyph[yy * W + xx]) { hit = true; break; } }
+        if (hit) near.push(kOf(i));
+    }
+    const q = (v, f) => { v.sort((p, r) => p - r); return v.length ? Math.round(v[Math.floor(f * (v.length - 1))] * 100) / 100 : 0; };
+    return { text: sub.textContent, colour: getComputedStyle(sub).color, glyphs: on.length, p5: q(on, 0.05), min: q(near, 0), p1: q(near, 0.01) };
+}
+if (args.includes("--title-contrast")) {
+    let bad = 0;
+    try {
+        for (const theme of themes) for (const kind of ["trialEntry", "trialExit"]) for (const ctl of kind === "trialExit" ? [false, true] : [false]) {
+            const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+            await page.goto(`${base}/${page0}${theme === "legacy" ? (page0.includes("?") ? "&" : "?") + "theme=legacy" : ""}`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            await page.evaluate(async () => {
+                const words = await fetch("/lang/pl.json").then(r => r.json());
+                const at = k => k.split(".").reduce((o, p) => (o && typeof o === "object" ? o[p] : undefined), words);
+                const { i18n } = window.game;
+                i18n.localize = k => (typeof at(k) === "string" ? at(k) : k.split(".").pop());
+                i18n.format = (k, d = {}) => String(i18n.localize(k)).replace(/\{(\w+)\}/g, (_, n) => d[n] ?? "");
+                document.body.dataset.drpgPhase = "classTrial";
+            });
+            await page.waitForTimeout(3000);
+            await page.clock.install();
+            await page.clock.pauseAt(new Date(Date.now() + 1000));
+            await page.evaluate(() => {
+                window.__anims = [];
+                const own = Element.prototype.animate;
+                Element.prototype.animate = function (...a) { const x = own.apply(this, a); x.pause(); window.__anims.push([x, performance.now()]); return x; };
+            });
+            await page.evaluate(async kind => {
+                const S = await import("/scripts/sequence.mjs");
+                S.registerSequences();
+                const clock = kind === "trialExit" ? { phase: "dailyLife", chapter: 2, timeOfDay: "afternoon", trialEndedAt: Date.now() } : { phase: "classTrial", chapter: 2, timeOfDayStartedAt: Date.now() };
+                window.__seq = kind === "trialExit" ? S.playTrialExit(clock, { on: true }) : S.playTrialEntry(clock);
+            }, kind);
+            await page.clock.runFor(1800);
+            await page.evaluate(() => { const t = performance.now(); for (const [a, at] of window.__anims) { try { if (a.playState !== "finished" && a.playState !== "idle") a.currentTime = t - at; } catch { /* a finished one */ } } });
+            const shot = async css => {
+                await page.evaluate(css => { let s = document.getElementById("drpg-sweep-line"); if (!s) { s = document.createElement("style"); s.id = "drpg-sweep-line"; document.head.append(s); } s.textContent = css; }, css);
+                await page.waitForTimeout(80);
+                return (await page.screenshot()).toString("base64");
+            };
+            const own = ctl ? "#drpg-sequence .drpg-seq-title-sub { color: #6a6a6a !important; }" : "";
+            const frames = [await shot(own), await shot(`${own} #drpg-sequence .drpg-seq-title-sub { visibility: hidden !important; }`), await shot(`${own} #drpg-sequence .drpg-seq-title-sub { color: transparent !important; }`)];
+            await shot(own);   // the line's colour is read as drawn, not under the third shot's transparent ink
+            const r = await page.evaluate(titleLineReading, frames);
+            const ok = !!r && r.glyphs > 200 && r.p5 >= 4.5 && r.p1 >= 4.5;
+            if (ctl ? ok : !ok) bad++;
+            console.log(`${theme.padEnd(7)} ${kind.padEnd(10)}${ctl ? " control" : ""} ${r ? `"${r.text}" ${r.colour}: ${r.glyphs} glyph px, glyphs' 5th pct ${r.p5}, surround (5 px) min ${r.min}, 1st pct ${r.p1}` : "no line drawn"}${ctl ? (ok ? "  - FAIL: the control passed" : "  - reads under 4.5, as it must") : ok ? "" : "  - FAIL: under 4.5"}`);
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    console.log(`TITLE CONTRAST ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), the trial's entry and exit, the closed title at 1366x768`);
+    process.exit(bad ? 1 : 0);
+}
+
 /* THE CURTAIN'S PRICE (E88 C0, 27.10.2026; E88-04): `--frame-cost` runs this instead of the sweep. At each size (by
    default 1920x1080 and 1366x768) in each theme, the page is loaded once and the mean ms per frame over `--frames`
    frames (30) is read as the page stands and with each of the theme's per-frame costs held alone: the blur
