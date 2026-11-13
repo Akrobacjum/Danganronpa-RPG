@@ -4,7 +4,7 @@ export const layers = ["ci"];
    after the seeded GM's, so the primary GM stays the seeded one while it is connected. */
 export const accounts = [{ who: "gmoff", id: "USERGX0000000000", name: "GM Without LiveKit", role: 4, character: null, color: "#444444", late: true }];
 
-export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect, disconnect, bootInfo, permissionDenials, legacyKeys, IDS, environment }) {
+export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect, disconnect, bootInfo, permissionDenials, legacyKeys, IDS, environment, repoUrl }) {
     for (const [who, info] of bootInfo) {
         check(`${who}: boot completed`, info.t === "ready", info.error ?? "");
         if (info.t === "ready") {
@@ -252,6 +252,24 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
     await disconnect("gmoff");
     check("E20-T3 - a GM whose world has Dice So Nice switched off: the module stops, leaves none of its stylesheets on the page, and a window drawn throws nothing",
         noDice.stopped === true && noDice.dice === false && noDice.sheets === 0 && noDice.booted === 0 && noDice.thrown.length === 0, JSON.stringify(noDice));
+
+    /* THE SHIM'S AUTO-ANSWER OF A DEFAULT CLOSE (13.11.2026; docs/dev/gaps/SURVEY-close-action.md). A window that is not
+       drawn is answered with its default button, and a footer with no primary makes its Close the default
+       (ui-kit.mjs `footerButtons`). At a table Enter presses that button and Foundry's own close takes it, so the wait
+       answers null - the shim's assumption for v14, still open as LIVE-E21-06 (shim.mjs `DialogV2.wait`). R4673 holds
+       the drawn road; this holds the other one, on p1 with its windows auto-answered for the two calls and put back
+       after. OK as the default is the control: it answers its action. */
+    const auto = await p1.eval(`
+        const was = { auto: globalThis.__dialogAuto, windows: globalThis.__dialogWindows };
+        globalThis.__dialogAuto = true; globalThis.__dialogWindows = false;
+        try {
+            const K = await import("${repoUrl}/scripts/ui-kit.mjs");
+            const closeOnly = await K.drpgWindow({ title: "00-boot: Close alone", body: "<p>x</p>", footer: { close: "close" } });
+            const withOk = await K.drpgWindow({ title: "00-boot: OK and Close", body: "<p>x</p>", footer: { primary: { action: "ok", label: "OK" }, close: "close" } });
+            return { closeOnly, withOk };
+        } finally { globalThis.__dialogAuto = was.auto; globalThis.__dialogWindows = was.windows; }`);
+    check("p1: a window whose default is its Close auto-answers null, as a closed window (the shim's model of v14, LIVE-E21-06); one whose default is OK answers \"ok\"",
+        auto?.closeOnly === null && auto?.withOk === "ok", JSON.stringify(auto));
 
     await settle(300);
 }

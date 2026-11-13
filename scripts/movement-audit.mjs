@@ -20,7 +20,8 @@
  * with a GM on another scene and with floors, is LIVE-E79-02. E17
  * extends `auditMove` rather than writing a second audit: since E17 C1 the doors' rules put a token back
  * from it too, in either mode (`RULE_CODES`). The default stays "log" for the walls and floors (session 0:
- * "tylko log" at the table of 26.10; the default after it is E82's).
+ * "tylko log" at the table of 26.10). No stage holds the default after it: E82, which this said would, is not a
+ * row of tools/stages.json (read 12.11.2026, E64 C8; the orphan D193), so "log" stays until the owner chooses.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -31,7 +32,7 @@ import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
 import { actsAsMastermind, secretDoorHeldShut } from "./passages-gm.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -45,7 +46,9 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
  * Since E17 C2 a crossing the primary sees past the Eclipse's allowance too (`eclipseSpent`; movement.mjs
  * `eclipseSighting`). movement.mjs reads this list (it imports this file, R161).
  */
-export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked", "eclipseSpent"]);
+export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked", "eclipseSpent",
+    // E74 C1: a barricaded room (movement.mjs `barricadedFrom`); C6: a watcher off the post (movement.mjs `watchHolds`).
+    "barricaded", "onWatch"]);
 
 /** The codes a `move.sentBack` may carry: a wall, and since E80 C2 a floor the doors' rules do not join, and since E17 C1
  *  the rules' codes (`RULE_CODES`) - the things the audit sends a token back for, one packet for all of them. */
@@ -330,6 +333,8 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             return { verdict: "refused", rule: refused.code, back: refused.back };
         };
         if (isMonokuma((ctx.held ?? (a => a))(actor))) return exempt("Monokuma");
+        // A Spectator walks through walls, as the GMs hold its flag (E92 C3): its moves are a ghost's, judged by no rule.
+        if (isSpectator((ctx.held ?? (a => a))(actor))) return exempt("Spectator");
         if (!isPlaceScene(scene)) return { verdict: "skip", why: "no rooms" };
         if (!was) return rules({ verdict: "skip", why: "never seen" });
         if (options?.[REVERT] || options?.[SENT_BACK]) {

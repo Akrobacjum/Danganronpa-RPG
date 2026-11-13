@@ -63,8 +63,10 @@
 
 export const FLOWS = Object.freeze([
     // E18 C1 (19.10.2026): a Dynamic answer goes by the primary (`dynamic.answer`), which 40 drives from the card's button.
+    // E39 C2 (13.11.2026): 99-actions drives every row of ACTIONS from p1's page, its price and its bands; still partial: the
+    // Dynamic action's difficulty is driven to the GM's card and no further there (40 and 88 answer it).
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
-        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length"], status: "partial", stage: "E39" },
+        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length", "99-actions"], status: "partial", stage: "E39" },
     // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
@@ -78,6 +80,38 @@ export const FLOWS = Object.freeze([
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // Covered at 1.2.111 (the release that shipped E93, E69 and E74, 13.11.2026), by 1.2.110's rule: door-pick, door-knock,
+    // door-shut, tail, dash and facility are driven end to end by 33-bridge-paths (E74-C, E74-B, E74-A, E69-B, E69-A,
+    // E93-A) and forged by 30-security. keep-watch and door-force have no legal control in 33 (Aiko's room has no
+    // neighbour to force; no watch is kept there), so they stay partial, moved to E39, the movement rules end to end.
+    // E74 C6 (12.11.2026): 30 forges the packet; the tier-2 test E74-T4 keeps a watch through an Eclipse.
+    { id: "keep-watch", what: "Keep Watch: the Body roll drawn on the GM, the watch kept by the GM and its cards through the Eclipse",
+        entry: { bridge: ["watch.declare"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+    // E74 C4 (12.11.2026): 30 forges the packet; the tier-2 test E74-T3 picks a lock and a seal.
+    // E74 (DA9 as the plan has it, 12.11.2026): an open is a pass, kept by the GMs and copied to its owner (lockpick-gm.mjs's
+    // socket), until the picker leaves the room; scenario 33 E74-C walks the picker in on it from the player's page.
+    { id: "door-pick", what: "Pick the Lock: the Hand and its cover drawn on the GM, a pass for the picker alone on an open, its owner's copy",
+        entry: { bridge: ["door.pick"], sockets: ["lockpick-gm.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E74 C3 (12.11.2026): 30 forges the packet; the tier-2 test E74-T2 forces a barricade, a lock and a seal.
+    { id: "door-force", what: "Force the Door: the Body roll drawn on the GM against everything that holds the door, read on the GM",
+        entry: { bridge: ["door.force"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+    // E74 (12.11.2026): 33 walks into a barricaded room from p1's page (E74-B); 30 forges the packet.
+    { id: "door-knock", what: "Someone at a barricaded door: the walker's veto asks the GM to tell the barricade's author",
+        entry: { bridge: ["door.knock"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E74 C2 (12.11.2026): 33 shuts a door from p1's page (E74-A); 30 forges the packet.
+    { id: "door-shut", what: "Shut the Door: the Body roll drawn on the GM, the barricade kept by the GM and its public flag set",
+        entry: { bridge: ["door.shut"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E69 C3 (12.11.2026): 33 tails from p1's page (E69-B); 30 forges the packet.
+    { id: "tail", what: "Tail Someone: the Shadow and the effect drawn on the GM, the tail kept and its cards sent by the GM",
+        entry: { bridge: ["tail.start"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E69 C5 (12.11.2026): 33 dashes from p1's page (E69-A); 30 forges the packet.
+    { id: "dash", what: "A Dash: the Leg roll drawn on the GM, the free crossings its band earns granted by the GM",
+        entry: { bridge: ["dash.settle"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
+    // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
+    // socket), which the owner's sheet reads.
+    { id: "facility", what: "A room action of the Facilities tile: a GM's rolled and drawn on the GM, a completed project's paid by the GM, each limited there; its timed effects copied to their owner",
+        entry: { bridge: ["facility.use"], sockets: ["timed-effects.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
     // E10 C0 (09.10.2026): 63 drives the trial from Start to a correct verdict's Level Up - a late joiner, a GM's reload
     // in the vote, the verdict's window - as it is at 1e9871c; each of its checks names the E10 commit that changes it.
     // E10 C1 (1.2.71): every step of the vote runs on the primary GM, asked through `vote.run`.
@@ -105,12 +139,14 @@ export const FLOWS = Object.freeze([
     // 30 a forged one.
     // E70 C10 (1.2.90): a Present posted by the primary with its copies, through `trial.present` (trial.mjs `presentDialog`);
     // tier 2 E70-T12 from a player's owner and from another's.
+    // E73 C2, C5: a participant with no hall token picking a side (`trial.side`, trial-zones-ui.mjs `offerSidePick`) and a
+    // Scrum speaker's thesis (`trial.keyword`); 68-trial-zones drives both from the players.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, an Objection raised, proved and re-pointed, and a round's turns",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
-            "trial.claim", "trial.present"],
+            "trial.claim", "trial.present", "trial.side", "trial.keyword"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "88-flow-length"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
     // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
     // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
     // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the
@@ -124,8 +160,10 @@ export const FLOWS = Object.freeze([
         status: "covered", stage: "1.2.97" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
+    // E39 C1 (13.11.2026): 70-movement drives a player's crossings past the budget, ten at once, and the GM's Refund at its
+    // exact price; partial still: no scenario drives the GMs' send-back of a player's ask (`token.sendBack`) beyond 66 and 76.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
-        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
+        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length", "70-movement"], status: "partial", stage: "E39" },
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a
@@ -140,8 +178,10 @@ export const FLOWS = Object.freeze([
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
+    // E39 C1 (13.11.2026): 70-movement drives an Eclipse's crossings allowed and the one past them refused on the mover and,
+    // from a console past its own veto, put back; partial still: the free-placement Eclipse and Darkness are tier 2's.
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
-        entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths", "70-movement"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part E presses a body's Take on a player's page.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
@@ -221,8 +261,27 @@ export const FLOWS = Object.freeze([
     // the sheet's own button, then sheet.mjs `meddleButton`, which E33 C10 folded into the table); E45 shipped without
     // it, and no scenario or tier-1 test clicks the sheet's Monocub tile - 40 and 83 call `performCubAbility` from
     // p2's console, 71's part C reads the tile turn affordable. Moved to E72, the Monocub's stage.
+    // E72 C6 (12.11.2026): the invitation, answered from the dead student's player's window (monocub.mjs `openInvitation`)
+    // as `monocub.answer`; tier 2 judges a player's packet, 33-bridge-paths A20 drives the window's yes, and
+    // 30-security sends the packet from consoles.
+    // Covered at 1.2.110 (the release that shipped E72 and E91, 13.11.2026): monocub-invite, monocub-bribe and
+    // mastermind-door are driven end to end by 33-bridge-paths A20-A22 and forged by 30-security; monocub-meddle by
+    // 40-flow's "a Monocub's own ask, end to end" and 30-security.
+    { id: "monocub-invite", what: "A dead student's player answers the GMs' invitation to become a Monocub",
+        entry: { bridge: ["monocub.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.110" },
+    // E72 C15 (12.11.2026): a living student's Bribe to a Monocub, offered and answered as `bribe.offer` and `bribe.answer`;
+    // tier 2 judges both on the GM, 33-bridge-paths A21 drives the offer and the window's yes, 30-security forges both.
+    { id: "monocub-bribe", what: "A living student offers a Monocub a Bribe, which its player accepts or refuses",
+        entry: { bridge: ["bribe.offer", "bribe.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.110" },
+    // E91 C4, C5 (D038, 12.11.2026): the Mastermind's player locks or opens their room with the GM's lock and seals a
+    // passage at their door, as `mastermind.lairLock` and `passage.lairSeal`; tier 2 "D038 lair lock" and "D038 lair seal"
+    // judge both on the GM, 33-bridge-paths A22 asks both from the Mastermind's player, 30-security forges both.
+    { id: "mastermind-door", what: "The Mastermind locks or opens their room, and seals a secret passage at their door",
+        entry: { bridge: ["mastermind.lairLock", "passage.lairSeal"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.110" },
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E72" },
+    // E72 C2 (12.11.2026): the Monocubs' record (gm-stores.mjs `cubStore`, the crime witness's mark) is the GMs' with its
+    // owner's copy, whose ask and answer are monocub.mjs's socket (`registerCubCopy`).
+        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs", "monocub.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "covered", stage: "1.2.110" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening
@@ -255,8 +314,9 @@ export const FLOWS = Object.freeze([
     // with this flow and now named.
     // E36 C1 (25.10.2026): another GM's change of a project, made by the primary (`project.change`): 33's A7, 30's forgery.
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
-        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage", "project.change"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms"], status: "partial", stage: "E39" },
+        // E101's review of S17-31, R2 (13.11.2026): a player's ask for their sight of the secret projects (projects.mjs's socket); 72 reads it.
+        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage", "project.change"], sockets: ["projects.mjs"] },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms", "72-canary"], status: "partial", stage: "E39" },
     // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
     // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of
     // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.

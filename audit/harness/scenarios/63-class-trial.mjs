@@ -63,7 +63,7 @@
  *   I  a second vote names Chie and the verdict is correct: one Level Up window for the class on
  *      gm2, a row per survivor, answered "All: the players pick" - no picker opens, and every
  *      survivor a player owns holds one offer (C7; one picker per survivor before it); p1's sheet
- *      sees Aiko's, p1 picks +1 Health through the bridge and Aiko's `advances` rise by one (C6-C8
+ *      sees Aiko's, p1 picks a point in Body (+1 Health with it since E64 C6) through the bridge and Aiko's `advances` rise by one (C6-C8
  *      read it again).
  *      Then (C6) gm2 offers Aiko two: p1's copy holds both, p1 spends the older and the other stays
  *      lit; gm2's own Level Up menu takes it back, and p1's copy empties and its lit button goes out.
@@ -149,6 +149,12 @@
  * and an empty floor, no floor was left, and gm3 was told nothing.
  * E41 fix FG1 added K1 (from 69f8f661's 69): 70 checks in 102.9 s (one run alone, 02.11.2026). Red at 69f8f661's
  * verdict.mjs: gm3 read no lock in 3 s, gave its own verdict, and p1 held two banners.
+ * E61 C6 (1.2.109) added A3, C2 and G4 (from 8675f81's 71): the trial's entry played once on each of the GM, p1, p2 and
+ * p3 from the one Start, none on p4 loaded after it, and the verdict's cut-in once on each of gm2 and the four players
+ * (the engine's per-kind counter, sequence.mjs `playSequence`). 74 checks in 98.5 s (one run alone, 12.11.2026). Red
+ * at 8675f81: no per-kind counter, A3 read [0,0,0,0] and G4 [0,0,0,0,0]; C2 read 0 there too, which says nothing until
+ * A3 shows the counter counts. Not held here, from the plan's C6: a reload during the entry or the cut-in, and End the
+ * trial during a cut-in.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -193,6 +199,9 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             ballots: globalThis.__dialogLog.slice(globalThis.__s63d ?? 0).filter(d => d.title === ballotTitle).length,
             confirmed: ${text("DRPG.Vote.castConfirmed")} };`);
     const text = key => `game.i18n.localize(${J(key)})`;
+    /* How many sequences of `kind` this client has started (E61 C6, 1.2.109): the engine's per-kind counter
+       (sequence.mjs `playSequence`, perf-counters.mjs), read on the client's own page - nothing written anywhere. */
+    const seqCount = (client, kind) => client.eval(`return (await import("${repoUrl}/scripts/perf-counters.mjs")).snapshot()["sequence.${kind}"] ?? 0;`);
     /* How many times `client` has been told `key` since its `mark` (a fresh client: since it loaded), read
        once it has been told it at least once or `ms` has passed - 0 reads it now. */
     const toldOf = (client, key, ms = 5000) => client.eval(`${until} const words = ${text(key)};
@@ -216,6 +225,8 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("setup: the victim is dead, the register names Chie for the trial, and the class is five",
         setup.dead && J(setup.known) === J([IDS.chie]) && setup.students.length === 5 && setup.students.includes(victimId), J(setup));
     for (const c of [p1, p2, p3]) await mark(c);
+    const entries0 = [];
+    for (const c of [gm, p1, p2, p3]) entries0.push(await seqCount(c, "trialEntry"));
     const opened = await gm.eval(`globalThis.__dialogAnswers.push("ok");
         const { startClassTrial } = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
         const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
@@ -226,6 +237,10 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         return game.messages.filter(m => !globalThis.__s63m.has(m.id) && String(m.content ?? "").includes(words)).length;`));
     verdict("Start the Class Trial moves the phase, and p1, p2 and p3 each hold the trial's card",
         opened.started === true && opened.phase === "classTrial" && J(cards) === J([1, 1, 1]), J({ opened, cards }));
+    const entries = [];
+    for (const [i, c] of [gm, p1, p2, p3].entries()) entries.push((await seqCount(c, "trialEntry")) - entries0[i]);
+    verdict("each connected browser - the GM, p1, p2, p3 - plays the trial's entry once from the one Start (E61 C6; E61 C1's one event)",
+        J(entries) === J([1, 1, 1, 1]), J(entries));
 
     /* ------------------------------ B. the ballots ------------------------------ */
 
@@ -309,6 +324,11 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     p4Late.issued = await gm.eval(`${V} return V.trialProgress().vote?.issued ?? null;`);
     verdict("p4, Daichi's owner, asks at load and is handed a ballot: one window, and the world's record issues it a fourth (C2); the harness's default press dismisses it, and p4 is warned once",
         p4Late.owner && p4Late.ballots === 1 && p4Late.warned === 1 && (p4Late.issued ?? []).length === 4 && p4Late.issued.includes(P4), J(p4Late));
+    const lateEntry = await seqCount(p4, "trialEntry");
+    /* E61 C6 held Q-E61-1's default here, a late browser playing nothing (0); the owner answered "Przez 10 minut" on
+       13.11.2026 (gaps-111, sequence.mjs `catchUpSequences`): p4 loads about a minute after the trial began, so it plays
+       the entry once, by the late road. Red at 7695476c's sequence.mjs: 0. */
+    verdict("p4, loaded within 10 minutes of the trial's start, plays its entry once (the owner's answer to Q-E61-1, 13.11.2026: \"Przez 10 minut\")", lateEntry === 1, J({ lateEntry }));
     await mark(p4);
     await p4.eval(ballot(IDS.botan));
     // Read as a type first: before C2 there is no `askForBallot`, and the checks below say so rather than the eval throwing.
@@ -456,6 +476,8 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
        line saying so; H's End the trial carries the sentence out. Before E70 C4 G read Botan executed by the verdict. */
     begin("G", "a wrong verdict sentences Botan while p2's forged death waits for the audit");
     for (const c of [p1, p2, p3, p4]) await mark(c);
+    const cuts0 = [];
+    for (const c of [gm2, p1, p2, p3, p4]) cuts0.push(await seqCount(c, "verdictCut"));
     const held = await gm2.eval(`${until} const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
         await A.sheetAuditIdle();
         globalThis.__s63hold = null;
@@ -493,6 +515,10 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     }
     verdict("every player holds the verdict's one public card: Botan executed when the trial ends, and the class got it wrong (C5; E70 C4)",
         J(verdictCards) === J([1, 1, 1, 1]), J(verdictCards));
+    const cuts = [];
+    for (const [i, c] of [gm2, p1, p2, p3, p4].entries()) cuts.push((await seqCount(c, "verdictCut")) - cuts0[i]);
+    verdict("each connected browser - gm2, p1, p2, p3, p4 - plays the verdict's cut-in once, from its card (E61 C6; E61 C5)",
+        J(cuts) === J([1, 1, 1, 1, 1]), J(cuts));
     verdict("nothing new on p1, p2 or p4 names Chie, the Blackened the wrong verdict spared", J(namesChie) === J([0, 0, 0]), J(namesChie));
 
     /* ------------------------------ H. a second trial in the chapter ------------------------------ */
@@ -657,7 +683,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             form.innerHTML = (cfg.content?.innerHTML ?? String(cfg.content ?? ""));
             shown = { classes: [...new Set(cfg.classes)].sort(), legends: form.querySelectorAll("legend").length, forLine: Boolean(form.querySelector(".drpg-advance-for")),
                 intro: form.querySelector("form > p")?.textContent ?? "", reason: game.i18n.localize("DRPG.Advance.reason.standard") };
-            return [{ option: "hp" }];
+            return [{ option: "trait", trait: "strength" }];
         });
         let sent = null;
         try {
@@ -694,7 +720,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const before = aiko.getFlag("${MOD}", "advances") ?? 0;
         globalThis.__dialogAnswers.push(async function advance(cfg) {
             if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
-            return [{ option: "hp" }];
+            return [{ option: "trait", trait: "strength" }];
         });
         const sent = await L.openAdvancement(aiko, "standard");
         await until(() => heldOn(aiko).length < both ? true : null, 10000);
@@ -775,6 +801,57 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     for (const letter of ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
+
+    /* ------------------------------ S. the case's ticks and summary (E99) ------------------------------ */
+
+    /* E99 C3, C7, C8 (12.11.2026), run after the phases above are counted. The verdict of I was correct and stands. The
+       primary GM (gm2 since D) writes this chapter's case - two deductions and the solution - and ticks one deduction;
+       gm3, connected for this part, reads that tick and ticks the other, which gm2 reads back (the GMs' store, any GM).
+       gm2 then sends the summary: p1's
+       card holds both ticked deductions and, the vote being right, the solution. The schema is dropped after. */
+    begin("S", "the case's ticks on two GMs, and the summary after the correct verdict with its solution (E99)");
+    await connect("gm3");
+    await settle(1000);
+    const CS = `const CS = await import("${repoUrl}/scripts/case-schema.mjs"); const ch = (await import("${repoUrl}/scripts/clock.mjs")).getClock().chapter;`;
+    const caseText = { d1: "The door was locked from inside", d2: "The key never left the office", s1: "It was done before the lights went out" };
+    await gm2.eval(`${CS}
+        await CS.setCaseNode(ch, "s63-d1", { kind: "deduction", label: "${caseText.d1}" });
+        await CS.setCaseNode(ch, "s63-d2", { kind: "deduction", label: "${caseText.d2}" });
+        await CS.setCaseNode(ch, "s63-s1", { kind: "solution", label: "${caseText.s1}", inputs: ["s63-d1", "s63-d2"] });
+        await CS.setCaseTick(ch, "s63-d1", true); return true;`, { timeout: 30000 });
+    const onGm3 = await gm3.eval(`${until} ${CS}
+        const read = Boolean(await until(() => CS.caseTicks(ch)["s63-d1"] === true || null, 8000));
+        await CS.setCaseTick(ch, "s63-d2", true); return read;`, { timeout: 30000 });
+    const onGmS = await gm2.eval(`${until} ${CS} return Boolean(await until(() => CS.caseTicks(ch)["s63-d2"] === true || null, 8000));`, { timeout: 30000 });
+    verdict("a tick on gm2, the primary now, reaches gm3, and gm3's reaches gm2 (C3; any GM ticks)", onGm3 === true && onGmS === true, J({ onGm3, onGmS }));
+    const sentS = await gm2.eval(`globalThis.__dialogAnswers.push(async function summary(cfg) {
+            if (!(cfg.classes ?? []).includes("drpg-window-case-summary")) { globalThis.__dialogAnswers.unshift(summary); return null; }
+            return "send";
+        });
+        try { return await (await import("${repoUrl}/scripts/case-summary.mjs")).showCaseSummary(); }
+        finally { const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "summary"); if (at >= 0) q.splice(at, 1); }`, { timeout: 60000 });
+    const cardS = await p1.eval(`${until} const m = await until(() => game.messages.contents.findLast(m => m.flags?.["${MOD}"]?.caseSummary === true) ?? null, 10000);
+        return m ? m.content : null;`, { timeout: 30000 });
+    verdict("gm2's Show summary reaches p1 with both ticked deductions and, the vote being right, the solution (C7)",
+        typeof sentS === "string" && typeof cardS === "string" && Object.values(caseText).every(t => cardS.includes(t)), J({ sentS, cardS: cardS?.slice(0, 600) }));
+    /* Once per trial (Q-E99-9, round 6): the trial's record holds when it went out, and a second press - here gm3's, another
+       GM - says so and sends nothing; p1 holds one summary card. */
+    const againS = await gm3.eval(`return await (await import("${repoUrl}/scripts/case-summary.mjs")).showCaseSummary();`, { timeout: 30000 });
+    await settle(800);
+    const onceS = await p1.eval(`return game.messages.contents.filter(m => m.flags?.["${MOD}"]?.caseSummary === true).length;`);
+    const shownS = await gm2.eval(`${V} return V.trialProgress().summaryShown;`);
+    verdict("the summary goes out once a trial: the record holds its time, gm3's second press sends nothing, p1 holds one card (Q-E99-9)",
+        againS === null && onceS === 1 && Number.isFinite(shownS), J({ againS, onceS, shownS }));
+    /* A second Class Trial in the chapter starts with no ticks and an unsent summary (E99 next): the entry's own reset of the
+       record (`resetTrialProgress`, as Start the Class Trial runs it) gives the trial a new stamp, so the first trial's
+       ticks are not read and `summaryShown` is blank again. */
+    const secondS = await gm2.eval(`${V} ${CS} await V.resetTrialProgress();
+        const t = CS.caseTicks(ch); return { ticks: ["s63-d1", "s63-d2"].filter(id => t[id] === true).length, shown: V.trialProgress().summaryShown };`, { timeout: 30000 });
+    verdict("a second trial in the chapter starts with none of the first trial's ticks and its summary not sent (E99 next)",
+        secondS?.ticks === 0 && secondS?.shown === null, J(secondS));
+    await gm2.eval(`${CS} for (const id of ["s63-d1", "s63-d2", "s63-s1"]) { await CS.setCaseTick(ch, id, false); await CS.dropCaseNode(ch, id); } return true;`, { timeout: 30000 });
+    await disconnect("gm3");
+    check("S0: phase S measured something", (counts.S ?? 0) > 0, J(counts));
 
     /* ------------------------------ U. a verdict on a death nobody has found ------------------------------ */
 

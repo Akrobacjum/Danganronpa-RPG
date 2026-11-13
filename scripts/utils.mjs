@@ -551,8 +551,11 @@ export function workingScene() {
  */
 export function placeRoomOptions({ room = null, sceneId = null } = {}) {
     const places = placeScenes().map(scene => ({ scene, rooms: roomNames(scene) })).filter(p => p.rooms.length);
+    /* A room given with no scene (a planned Remnant's, a Key slot's: the plan keeps a room's name) is marked on the first
+       scene that has it (13.11.2026; until then nothing was marked, and a planned Remnant's room read "- leave it -"). */
+    const at = sceneId ?? places.find(p => p.rooms.includes(room))?.scene.id ?? null;
     const option = (scene, r) => `<option value="${esc(r)}" data-scene="${esc(scene.id)}"${
-        r === room && scene.id === sceneId ? " selected" : ""}>${esc(r)}</option>`;
+        r === room && scene.id === at ? " selected" : ""}>${esc(r)}</option>`;
     if (places.length === 1) return places[0].rooms.map(r => option(places[0].scene, r)).join("");
     return places.map(({ scene, rooms }) => `<optgroup label="${esc(scene.name ?? scene.id)}">${
         rooms.map(r => option(scene, r)).join("")}</optgroup>`).join("");
@@ -568,6 +571,14 @@ export function ownerOf(actor, users = game.users) {
     return users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))
         ?? users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
         ?? null;
+}
+
+/**
+ * Whether `user` is a player who owns this actor (E91 C6; the owner's deferred item D078): any of its owners, where
+ * `ownerOf(actor)?.id === user.id` answered for the first one alone and a co-owner was no owner. A GM is not one.
+ */
+export function playerOwns(actor, user = game.user) {
+    return Boolean(actor && user && !user.isGM && actor.testUserPermission?.(user, "OWNER"));
 }
 
 /** Every non-GM user who owns this actor, by id - the plural of `ownerOf`. */
@@ -822,6 +833,21 @@ export function resolveThreshold(total, tiers) {
         if (total >= tier.min) hit = tier;
     }
     return hit;
+}
+
+/**
+ * A fair shuffle (Fisher-Yates), as a new list; `list` is left as it was (E64 C3, 12.11.2026; audit S17-29, D21).
+ * `rng` answers in [0, 1), as `Math.random` does. Every order is equally likely - which `sort(() => rng() - 0.5)`,
+ * the draw's shuffle until 1.2.105, is not: over 24,000 shuffles of four on one fixed sequence its chi-square against
+ * the 24 orders read 27967, this one's 28.1 (23 degrees of freedom; tier 1 R3953 holds it under 49.7).
+ */
+export function shuffle(list, rng = Math.random) {
+    const out = [...(list ?? [])];
+    for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
 }
 
 /** Clamp helper. */
@@ -1272,7 +1298,10 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
         const id = portrait.dataset.drpgPortrait || null;
         // `prefix` is the field's name before the id: Room Setup's picture column names its fields
         // `img:<room>`, as its other columns are `desc:<room>` and `owner:<room>` (E77 C1).
-        const hiddenSelector = id ? `[name="${prefix}${CSS.escape(id)}"]` : '[name="img"]';
+        /* or the field it names itself (E104: a planned Remnant's picture is the case schema's field `case:<chapter>:<id>:img`,
+           which no prefix and id spell) */
+        const own = portrait.dataset.drpgPortraitField || null;
+        const hiddenSelector = own ? `[name="${CSS.escape(own)}"]` : id ? `[name="${prefix}${CSS.escape(id)}"]` : '[name="img"]';
 
         /*
          * THE HIDDEN FIELD IS THE RECORD AND THE PICTURE FOLLOWS IT (F13).
@@ -1418,4 +1447,21 @@ export function tickerRuns(word) {
     const run = document.createElement("span");
     run.textContent = Array(6).fill(word).join(" · ") + " · ";
     return [run, run.cloneNode(true)];
+}
+
+/* A sentence ends at ".", "!" or "?" followed by a space or the end: "game.drpg.publicRoll" and "1.2" stay whole. Moved
+   from settings-window.mjs in the 1.2.112 tree (it re-exports both), so that sound-panel.mjs reads it without loading the
+   gear's window at boot (R4200). */
+const SENTENCE = /^(.+?[.!?])(?=\s|$)/s;
+
+/** A hint's first sentence (the line under a setting, [16]); the whole text when it has no sentence's end. */
+export function firstSentence(text) {
+    const s = String(text ?? "").trim();
+    return (SENTENCE.exec(s)?.[1] ?? s).trim();
+}
+
+/** What `firstSentence` leaves: the setting's tooltip. Empty for a hint of one sentence. */
+export function restOf(text) {
+    const s = String(text ?? "").trim();
+    return s.slice(firstSentence(s).length).trim();
 }

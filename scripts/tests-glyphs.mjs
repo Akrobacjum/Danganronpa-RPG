@@ -393,9 +393,9 @@ export const THEMES = {
  *  where it has none, the name the drawing rounds draw (10, gaps). */
 export const ELEMENTS = {
     "ACTIONS.search": "search", "ACTIONS.observe": "observe", "ACTIONS.analyze": "brain",
-    "ACTIONS.project": "hourglass", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
+    "ACTIONS.project": "hammer", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
     "ACTIONS.tamper": "broom", "ACTIONS.directMurder": "direct-murder", "ACTIONS.move": "move", "ACTIONS.sabotage": "tamper",
-    "HOPE_CALLS.support": "support", "HOPE_CALLS.experience": "cap", "HOPE_CALLS.ultimate": "star",
+    "HOPE_CALLS.support": "support", "HOPE_CALLS.experience": "cap", "HOPE_CALLS.ultimate": "star", "HOPE_CALLS.talent": "star",
     "HOPE_CALLS.contribution": "contribution", "HOPE_CALLS.reroll": "reroll", "HOPE_CALLS.sprint": "sprint",
     "HOPE_CALLS.burst": "dynamic", "HOPE_CALLS.relief": "relief", "HOPE_CALLS.determination": "fist",
     "HOPE_CALLS.freeCrit": "loaded", "DESPAIR_CALLS.obstacle": "barrier", "DESPAIR_CALLS.forTheGame": "gift",
@@ -410,7 +410,17 @@ export const ELEMENTS = {
     "CRISIS_ACTIONS.pin": "down", "CRISIS_ACTIONS.keepDistance": "swap", "CRISIS_ACTIONS.weaponAttack": "murder",
     "CRISIS_ACTIONS.finishingBlow": "finishing-blow", "CRISIS_ACTIONS.sharedEscape": "shared-escape",
     "CRISIS_ACTIONS.doubleRoleReversal": "double-role-reversal", "CRISIS_ACTIONS.crimePartners": "crime-partners",
-    "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "confusion", "TRAP_TRIGGERS.alone": "alone",
+    "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "confusion",
+    // E72 C5: the Monocub's Redeem and Ask for Hope, the inventory's rows 70 and 71 (batch 4's approved drawings).
+    "MONOCUB.abilities.redeem": "redeem", "MONOCUB.abilities.askHope": "ask-hope", "TRAP_TRIGGERS.alone": "alone",
+    // E72 C13: the Monocub's Tinker, the inventory's row 73 (batch 4's approved drawing).
+    "MONOCUB.abilities.tinker": "tinker",
+    // E72 C15: the Hope Call Bribe, the inventory's row 74.
+    "HOPE_CALLS.bribe": "bribe",
+    // E72 C16: the Despair Call Bounty, the inventory's row 75.
+    "DESPAIR_CALLS.bounty": "bounty",
+    // E72 C18: the Monocub's Ghost Bet, the inventory's row 72.
+    "MONOCUB.abilities.bet": "ghost-bet",
     "TRAP_TRIGGERS.enters": "enters", "TRAP_TRIGGERS.search": "search", "TRAP_TRIGGERS.rest": "rest",
     "TRAP_TRIGGERS.item": "item-used", "TRAP_TRIGGERS.project": "hourglass", "TRAP_TRIGGERS.sabotage": "tamper",
     "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
@@ -502,7 +512,7 @@ export const FUTURE = [
     [65, "E73", "Bar: Skip question", "skip"],
     [66, "E73", "Bar: Skip in Scrum", "skip"],
     [67, "E73", "Finding entry marks (Monokuma confirms / Class thinks)", ["finding-confirmed", "finding-thinks"]],
-    [68, "E72", "Monocub tile: Move", "move"],
+    [68, "E72", "Monocub's Move (its tile gone since E103: the header's feet wear the drawing)", "move"],
     [69, "E72", "Monocub tile: Confusion", "confusion"],
     [70, "E72", "Monocub tile: Redeem", "redeem"],
     [71, "E72", "Monocub tile: Ask for Hope", "ask-hope"],
@@ -546,11 +556,18 @@ export const SAME = [
     [["ACTIONS.rest", "TRAP_TRIGGERS.rest"], "the room trigger waits for a Rest: one Rest"],
     [["ACTIONS.sabotage", "TRAP_TRIGGERS.sabotage"], "the room trigger waits for a Sabotage: one Sabotage"],
     [["ACTIONS.listen", "F46"], "the inventory's Listen row is this action's tile"],
-    [["ACTIONS.move", "F68"], "Move, for the Monocub as for a student"],
+    [["ACTIONS.move", "F68"], "Move, for the Monocub as for a student: no tile draws it since E103 (the owner, 13.11.2026), the feet on the sheet and the strip wear it"],
     [["F20", "F65", "F66"], "Skip: one function in the mode bar, the question bar and the Scrum"],
     /* Row 8 of 10.11 (the Spectator badge = Assign Spectator) is gone: the owner split it, a state against an action. */
     [["TRAP_TRIGGERS.passage", "F14"], "the secret passage: the room trigger and Analyze's Find Passage row (batch 2, 11.11)"],
     [["MONOCUB.abilities.meddle", "F69"], "the Monocub's Confusion: today's meddle and E72's Confusion tile are one ability (config.mjs MONOCUB.abilities.meddle; the owner, 11.11)"],
+    [["MONOCUB.abilities.redeem", "F70"], "the Monocub's Redeem: the inventory's row 70 is this row of the table (config.mjs MONOCUB.abilities.redeem; E72 C5)"],
+    [["HOPE_CALLS.ultimate", "HOPE_CALLS.talent"], "Talent's tile holds Ultimate and Experience and wears Ultimate's star (E72, the owner's decision of 12.11)"],
+    [["MONOCUB.abilities.askHope", "F71"], "the Monocub's Ask for Hope: the inventory's row 71 is this row of the table (config.mjs MONOCUB.abilities.askHope; E72 C5)"],
+    [["MONOCUB.abilities.tinker", "F73"], "the Monocub's Tinker: the inventory's row 73 is this row of the table (config.mjs MONOCUB.abilities.tinker; E72 C13)"],
+    [["HOPE_CALLS.bribe", "F74"], "the Hope Call Bribe: the inventory's row 74 is this row of the table (config.mjs HOPE_CALLS.bribe; E72 C15)"],
+    [["MONOCUB.abilities.bet", "F72"], "the Monocub's Ghost Bet: the inventory's row 72 is this row of the table (config.mjs MONOCUB.abilities.bet; E72 C18)"],
+    [["DESPAIR_CALLS.bounty", "F75"], "the Despair Call Bounty: the inventory's row 75 is this row of the table (config.mjs DESPAIR_CALLS.bounty; E72 C16)"],
     [["gm.sound", "F9"], "the Sound panel: the GM's Sound tile opens it (sound-panel.mjs openSoundDialog), and the speaker the inventory gave it has no wearer of its own - read 11.11: --drpg-pix-speaker's one reader is the corner launcher, which wears the gear in both themes (stained-glass.css) and opens the Look dialog (look.mjs)"],
     [["gm.voiceReset", "F12"], "Voice reset: the inventory's row is the GM's tile (batch 2 drew it once for both)"],
     [["gm.caseWindow", "F28"], "the Case window: the GM's tile and E97's launcher open one window (gm-stores.mjs openCaseWindow)"]
@@ -618,7 +635,10 @@ export const KEY_ICONS = {
     "CRISIS_ACTIONS.keepDistance": "fa-arrows-left-right", "CRISIS_ACTIONS.weaponAttack": "fa-khanda",
     "CRISIS_ACTIONS.finishingBlow": "fa-skull-crossbones", "CRISIS_ACTIONS.sharedEscape": "fa-door-open",
     "CRISIS_ACTIONS.doubleRoleReversal": "fa-repeat", "CRISIS_ACTIONS.crimePartners": "fa-handshake",
-    "CRISIS_ACTIONS.avertedEyes": "fa-eye-slash", "MONOCUB.abilities.meddle": "fa-hand-sparkles"
+    "CRISIS_ACTIONS.avertedEyes": "fa-eye-slash", "MONOCUB.abilities.meddle": "fa-hand-sparkles",
+    "MONOCUB.abilities.redeem": "fa-ticket", "MONOCUB.abilities.askHope": "fa-hands-praying",
+    "MONOCUB.abilities.tinker": "fa-screwdriver-wrench", "HOPE_CALLS.bribe": "fa-money-bills",
+    "DESPAIR_CALLS.bounty": "fa-sack-dollar", "MONOCUB.abilities.bet": "fa-dice"
 };
 
 /** Keyed elements no markup draws an icon for, and why (read 11.11.2026): they are mapped and drawn, and nothing wears
@@ -634,7 +654,8 @@ export function glassSelectorOf(elementId) {
     if (set === "ACTIONS") return `.drpg-action-button[data-drpg-action="${key}"] .drpg-action-icon`;
     if (set === "HOPE_CALLS" || set === "DESPAIR_CALLS") return `.drpg-call-button[data-drpg-call="${key}"] .drpg-action-icon`;
     if (set === "CRISIS_ACTIONS") return `.drpg-choice:has(> input[value="${key}"]) > i.${KEY_ICONS[elementId]}`;
-    if (elementId === "MONOCUB.abilities.meddle") return `.drpg-action-button:not([data-drpg-action], [data-drpg-call]) .drpg-action-icon.${KEY_ICONS[elementId]}`;
+    // The Monocub's tiles carry no key but their icon (sheet.mjs `monocubTiles`); E72 C5 adds Redeem and Ask for Hope.
+    if (set === "MONOCUB") return `.drpg-action-button:not([data-drpg-action], [data-drpg-call]) .drpg-action-icon.${KEY_ICONS[elementId]}`;
     if (set === "gm") return `.drpg-gmp-button[data-drpg-run="${key}"] > i`;
     return null;
 }
@@ -645,12 +666,29 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 
 /** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
 export const FACE_RULES = [
+    /* gaps-108 (the owner's pick of round 2, 12.11.2026; R3988): an inventory row's Hold this ready and Hand this over
+       wore FACES's fist and palm, two hands an inch apart; each takes a drawing of its own, keyed on the row button,
+       since Strike, Resolve and Determination keep fa-hand-fist's fist and Secure a Trace and Plant fa-hand-holding's palm.
+       A row's handover that copies (a bedroom key, a Truth Bullet) wears fa-share-nodes and is left as it was. */
+    ["an inventory row's Hold this ready (its fa-hand-fist is Strike's)", ".drpg-row-equip > i.fa-hand-fist", "hold-ready"],
+    ["an inventory row's Hand this over (its fa-hand-holding is Secure a Trace's)", ".drpg-row-handover > i.fa-hand-holding", "hand-over"],
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
     ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
+    // The Infiltrate window's rows (E69, E74; E48 rows 47-55): each wears its own drawing under Stained Glass, where its FA
+    // class is another's (Move's prints, Sprint's runner, the key, Observe's eye) or Legacy's (the barrier, the fist).
+    ["Infiltrate: Tail Someone (its fa-shoe-prints is Move's)", '.drpg-choice:has(> input[value="tail"]) > i.fa-shoe-prints', "tail"],
+    ["Infiltrate: Dash (its fa-person-running is Sprint's)", '.drpg-choice:has(> input[value="dash"]) > i.fa-person-running', "dash"],
+    ["Infiltrate: Shut the Door (its fa-road-barrier is the barrier)", '.drpg-choice:has(> input[value="shut"]) > i.fa-road-barrier', "shut-door"],
+    ["Infiltrate: Force the Door (its fa-hand-fist is the fist)", '.drpg-choice:has(> input[value="force"]) > i.fa-hand-fist', "force-door"],
+    ["Infiltrate: Pick the Lock (its fa-key is the key)", '.drpg-choice:has(> input[value="pick"]) > i.fa-key', "pick-lock"],
+    ["Infiltrate: Keep Watch (its fa-eye is Observe's)", '.drpg-choice:has(> input[value="keepWatch"]) > i.fa-eye', "keep-watch"],
     /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
        projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
        gear, the corner Look launcher's gear with its sound waves. */
-    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"]
+    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"],
+    /* E93 (the owner's ask of 12.11.2026): a room action's timed effect on the sheet, a white chip beside the armed Calls
+       (sheet.mjs `pendingStack`); its fa-hourglass-half has no glass drawing, and Stained Glass's hourglass is the projects'. */
+    ["a timed effect's badge beside the Hope Calls (its fa-hourglass-half has no glass drawing)", ".drpg-pending-call.drpg-timed-badge > i.fa-hourglass-half", "timed-effect"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,
@@ -674,7 +712,8 @@ export const STATE_RULES = [
 export const STAT_GLYPHS = { eye: "stat-eye", head: "stat-head", body: "stat-body", leg: "stat-leg", hand: "stat-hand", shadow: "stat-shadow" };
 
 /** Every rule the glass section writes: [id, selector, glyph, how] - how "box" (the FA box, the slot set), "image" (an
- *  element that is a mask box already: only its image), "before" (a text button given a glyph before its label). */
+ *  element that is a mask box already: only its image), "first" (a text button given a glyph before its label: the
+ *  button a row, the glyph its ::after put first). */
 export function glassRules() {
     const out = [];
     for (const [id, glyph] of Object.entries(ELEMENTS)) {
@@ -690,8 +729,13 @@ export function glassRules() {
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */
     /* E49 A2 moved End the chapter into Edit campaign as a text button (gm-campaign.mjs, `data-drpg-end-chapter`): no
-       <i> to mask, so the glyph stands before its label, the one way to key it with no markup change (Q5). */
-    out.push(["button.end-chapter", "[data-drpg-end-chapter]::before", "end-chapter", "before"]);
+       <i> to mask, so the glyph stands before its label, the one way to key it with no markup change (Q5).
+       ON ITS ::after, NOT ITS ::before (12.11.2026; the owner's report at a real table on 1.2.109: in Season setup and
+       Edit campaign the flag covered the "E"). A module window's button under the glass has its ::before taken by the
+       brush (stained-glass.css, "the brush": absolute, inset, behind the label; 0,5,3 against this rule's 0,2,2), so the
+       flag drawn there became a 22 px box over the first letter. The button is a row now and the flag its ::after,
+       put first (`order: -1`); the ::before is the brush's. R4403. */
+    out.push(["button.end-chapter", "[data-drpg-end-chapter]", "end-chapter", "first"]);
     return out;
 }
 
@@ -755,13 +799,13 @@ export function glassCssOf(glyphs) {
     for (const [, sel, glyph, how] of rules) {
         if (how === "box") css.push(`${GLASS} ${sel} { --drpg-glyph: var(--drpg-pix-${glyph}); }`);
         else if (how === "image") css.push(`${GLASS} ${sel} { -webkit-mask-image: var(--drpg-pix-${glyph}); mask-image: var(--drpg-pix-${glyph}); }`);
-        else css.push(`${GLASS} ${sel} {
+        else css.push(`${GLASS} ${sel} { display: inline-flex; align-items: center; gap: 0.35em; }
+${GLASS} ${sel}::after {
     content: "";
-    display: inline-block;
+    order: -1;
+    flex: none;
     width: 22px;
     height: 22px;
-    margin-inline-end: 0.35em;
-    vertical-align: -0.3em;
     background-color: currentColor;
     -webkit-mask-image: var(--drpg-pix-${glyph});
     mask-image: var(--drpg-pix-${glyph});
@@ -1199,12 +1243,14 @@ export function chromeThemeProblems(glyphs, css) {
  *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind); on 12.11.2026 three
  *  came back as tiles of Season setup's row, each its reading of before, and the row's Season checklist keeps its Font
  *  Awesome icon under Legacy (`fa:fa-list-check`; the owner: Legacy keeps an FA icon - the Projects tile beside it
- *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. */
+ *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. gaps-108 (12.11.2026, R3987):
+  the owner approved the claw hammer on the Projects action in both themes, so `ACTIONS.project` reads `--drpg-pix-hammer`
+  (legacy:hammer) where it read `--drpg-pix-project`; that one reading, on purpose. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
     "ACTIONS.analyze": "--drpg-pix-analyze",
-    "ACTIONS.project": "--drpg-pix-project",
+    "ACTIONS.project": "--drpg-pix-hammer",
     "ACTIONS.rest": "--drpg-pix-rest",
     "ACTIONS.listen": "--drpg-pix-listen",
     "ACTIONS.palm": "--drpg-pix-palm-action",
@@ -1215,6 +1261,7 @@ export const LEGACY_ICONS = {
     "HOPE_CALLS.support": "--drpg-pix-support",
     "HOPE_CALLS.experience": "--drpg-pix-experience",
     "HOPE_CALLS.ultimate": "--drpg-pix-ultimate",
+    "HOPE_CALLS.talent": "--drpg-pix-ultimate",
     "HOPE_CALLS.contribution": "--drpg-pix-contribution",
     "HOPE_CALLS.reroll": "--drpg-pix-reroll",
     "HOPE_CALLS.sprint": "--drpg-pix-sprint",
@@ -1253,6 +1300,16 @@ export const LEGACY_ICONS = {
     "CRISIS_ACTIONS.crimePartners": "fa:fa-handshake",
     "CRISIS_ACTIONS.avertedEyes": "fa:fa-eye-slash",
     "MONOCUB.abilities.meddle": "--drpg-pix-confusion",
+    // E72 C5: Monokuma Legacy has no drawing of its own for these two; they wear Font Awesome's, as a crisis row does.
+    "MONOCUB.abilities.redeem": "fa:fa-ticket",
+    "MONOCUB.abilities.askHope": "fa:fa-hands-praying",
+    // E72 C13: Tinker likewise.
+    "MONOCUB.abilities.tinker": "fa:fa-screwdriver-wrench",
+    // E72 C15: Bribe wears its drawing in both themes (a Call tile is masked by key, danganronpa.css).
+    "HOPE_CALLS.bribe": "--drpg-pix-bribe",
+    "DESPAIR_CALLS.bounty": "--drpg-pix-bounty",
+    // E72 C18: Ghost Bet wears Font Awesome's under Monokuma Legacy, as Redeem does.
+    "MONOCUB.abilities.bet": "fa:fa-dice",
     "gm.whoIsAlive": "--drpg-pix-who-is-alive",
     "gm.projects": "--drpg-pix-projects",
     "gm.sound": "fa:fa-volume-high",

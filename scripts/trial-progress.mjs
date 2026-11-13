@@ -190,7 +190,7 @@ async function carryOutSentence(chapter) {
         save: (run, { key, end = false } = {}) => (end || key === STAMP || passed.has(key) ? null
             : writeExecution(chapter, { execution: { done: [...done], failed: [...failed] } }))
     });
-    if (executed.length) await postExecutionCard(executed, { final: Boolean(record.verdict?.final) });
+    if (executed.length) await postExecutionCard(executed);
     if (failed.length) {
         const names = failed.map(id => foundry.utils.escapeHTML(game.actors.get(id)?.name ?? "?")).join(", ");
         ui.notifications.error(game.i18n.format("DRPG.Vote.executionFailed", { names }));
@@ -215,25 +215,26 @@ export async function executionLines() {
 /*
  * THE EXECUTION, TOLD TO THE TABLE (E70 C4; amend 0's sound rule). The verdict's card said who was
  * executed, with the death's sound, and its owner was told in the second person (E10 C5); both come
- * here, to the moment it happens, with the execution's own sound (`SFX_EVENTS.execution`). A Final
- * Trial's execution posts no card of its own: its banner is the Mastermind's defeat, already told, and
- * a card naming who died would name the Mastermind to every console.
+ * here, to the moment it happens, with the execution's own sound (`SFX_EVENTS.execution`).
+ *
+ * THE FINAL TRIAL'S TOO (E72 C11, 12.11.2026; the owner's D102 of 31.10). Until C11 a Final Trial's
+ * execution posted no card, only the sound: its banner was the Mastermind's defeat, already told, and a
+ * card naming who died was held to name the Mastermind to every console. The owner's D102 reads the other
+ * way - the execution is the table's to see, in the Final Trial as in any - so the same card is posted,
+ * naming the executed. The defeat's banner names nobody ("THE MASTERMIND IS DEFEATED"), so this card is
+ * where the table reads the name of the student the Final verdict sentenced. Whether the owner wants the
+ * card without the name is asked in STATUS (default: the name, as an ordinary trial's card).
  */
-async function postExecutionCard(executed, { final = false } = {}) {
+async function postExecutionCard(executed) {
     const esc = foundry.utils.escapeHTML;
     try {
-        if (!final) {
-            await announce({
-                flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },
-                content: `<div class="drpg-evidence-card">
-                    <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.executionCardTitle")}</div>
-                    ${executed.map(actor => `<p>${game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) })}</p>`).join("")}
-                </div>`
-            });
-        } else {
-            const { playSfxForUsers } = await import("./sfx.mjs");
-            await playSfxForUsers(game.users.map(u => u.id), "execution");
-        }
+        await announce({
+            flags: { [MODULE_ID]: { executionCard: true, sfx: { key: "execution", gm: true } } },
+            content: `<div class="drpg-evidence-card">
+                <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.executionCardTitle")}</div>
+                ${executed.map(actor => `<p>${game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) })}</p>`).join("")}
+            </div>`
+        });
     } catch (err) {
         error("Could not tell the table of the execution", err);
     }
@@ -369,6 +370,13 @@ export const TRIAL_RECORD = Object.freeze({
     execution: row({ lives: "trial", by: "`carryOutSentence` (the execution at the trial's end)", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C8: the trial's Closing Argument, one per trial.
     closing: row({ lives: "trial", by: "trial-floor.mjs `commitFloor`", blank: fresh(null), atEntry: fresh(null) }),
+    // E73: the zone modes' Findings, the trial's own list (C6), and the last Straw Poll's count, whose split makes Scrum
+    // Debate the next step (C3).
+    findings: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`, `editFinding`", blank: fresh([]), atEntry: fresh([]) }),
+    strawPoll: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`", blank: fresh(null), atEntry: fresh(null) }),
+    // E99 C7 (Q-E99-9: once per trial): when this trial's case summary went out, a time and nothing of its content; a
+    // second trial in the chapter starts with none, so it has a summary of its own.
+    summaryShown: row({ lives: "trial", by: "case-summary.mjs `showCaseSummary`", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C5: the trial's list of the dead, written by the settle alone and taken out at the exit - in no blank, and
     // left by the entry (the settle that follows it writes it).
     mutedDead: row({ lives: "trial", by: "voice.mjs `settleTrialVoices`" })
@@ -399,6 +407,20 @@ export function trialRecordProblems(table = TRIAL_RECORD) {
 export function entryPatch(now, { seconds = TRIAL.speakSeconds } = {}) {
     return Object.fromEntries(Object.entries(TRIAL_RECORD).filter(([, field]) => typeof field.atEntry === "function")
         .map(([key, field]) => [key, field.atEntry(now, { seconds })]));
+}
+
+/**
+ * THE TRIAL'S FINDINGS ON A CARD (E73 C6; the plan's "Findings are on the vote's opening card"): the record's list
+ * (`findings`, `TRIAL_RECORD`), one line each - its text, the mode that made it, "Monokuma confirms" when a GM confirmed
+ * it - as markup for a public card, every word escaped; "" with none. Read by vote.mjs `openRound` and the GM's window.
+ */
+export function findingsHtml(findings = []) {
+    const list = (Array.isArray(findings) ? findings : []).filter(f => f && typeof f.text === "string" && f.text);
+    if (!list.length) return "";
+    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+    const line = f => `<li data-drpg-finding="${esc(f.id ?? "")}">${esc(f.text)}${f.mode ? ` <small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}${
+        f.confirmed ? ` <strong>${esc(game.i18n.localize("DRPG.Zones.findings.confirmedMark"))}</strong>` : ""}</li>`;
+    return `<div class="drpg-findings"><p><strong>${esc(game.i18n.localize("DRPG.Zones.findings.title"))}</strong></p><ul>${list.map(line).join("")}</ul></div>`;
 }
 
 /**

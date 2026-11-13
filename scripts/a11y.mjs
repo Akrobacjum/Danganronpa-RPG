@@ -71,8 +71,13 @@ const SURFACES = [
 export const CONTROLS = "button, a[href], [role=\"button\"], input:not([type=\"hidden\"]), select, textarea, "
     + "img[data-drpg-portrait]";
 
-/** Controls the sweep could not name, for the report. Keyed so one entry is one kind. */
+/** Controls the sweep could not name, for the report. Keyed so one entry is one kind; `els` holds weak references to
+ *  the elements of that kind met, so the report can tell a kind still on the page from one met only in a window since
+ *  closed (`a11yReport`). */
 const unnamed = new Map();
+/* Past this many references a kind's list drops those whose element is gone, so a window drawn again and again does not
+   grow it without end. */
+const KIND_REFS = 32;
 
 /* A FIELD IS NOT NAMED BY WHAT IS IN IT (E48 K4, 11.11.2026). A select's `textContent` is every option's words run
    together and a textarea's is the text typed into it, so a field with no label read as "own" and was never offered the
@@ -167,7 +172,12 @@ export function nameControls(root = document) {
                      * is exactly what this branch still does.
                      */
                     if (!unnamed.has(kindOf(el))) {
-                        unnamed.set(kindOf(el), { where: host.id || kindOf(host), html: el.outerHTML.slice(0, 120) });
+                        unnamed.set(kindOf(el), { where: host.id || kindOf(host), html: el.outerHTML.slice(0, 120), els: [] });
+                    }
+                    const info = unnamed.get(kindOf(el));
+                    if (typeof WeakRef === "function") {
+                        info.els.push(new WeakRef(el));
+                        if (info.els.length > KIND_REFS) info.els = info.els.filter(ref => ref.deref()?.isConnected);
                     }
                     el.dataset.drpgNamed = "none";
                 }
@@ -251,12 +261,64 @@ export function focusIntoWindow(el) {
     }
 }
 
-/** Every control the sweep met and could not name, for the GM's diagnostics. */
+/** Every control the sweep met and could not name that is still on the page, and a count of the kinds met only in windows since closed, for the GM's diagnostics. */
 export function a11yReport() {
-    const rows = [...unnamed.entries()].map(([kind, info]) => `  ${kind} in ${info.where}\n    ${info.html}`);
-    return rows.length
+    /* ON THE PAGE NOW, NOT EVER MET (gaps, 12.11.2026; the E99 line's full tier-2 run). The map remembers a kind from its
+       first sight, and a kind met only in a window since closed was reported as a control on screen - its `where` the
+       window's id, which no longer exists: R3551's three stand-in windows, closed in its `finally` and gone from the page
+       (read after it: no element with an `r3551-` id), left "input in r3551-character-..." in the report, and tier 2's
+       "every control in the module's own chrome has a name" failed after it and passed alone. A kind is listed while one
+       of its elements is still in the page (read where one of them stands now, with its html), and the
+       kinds met only in windows since closed are counted on a line of their own. Without WeakRef every kind is listed. */
+    const live = [], gone = [];
+    for (const [kind, info] of unnamed.entries()) {
+        if (typeof WeakRef !== "function") { live.push([kind, info, null]); continue; }
+        info.els = info.els.filter(ref => ref.deref()?.isConnected);
+        (info.els.length ? live : gone).push([kind, info, info.els[0]?.deref() ?? null]);
+    }
+    const whereOf = (el, info) => {
+        const host = el?.closest?.(SURFACES.join(","));
+        return host ? host.id || kindOf(host) : info.where;
+    };
+    const rows = live.map(([kind, info, el]) => `  ${kind} in ${whereOf(el, info)}\n    ${el ? el.outerHTML.slice(0, 120) : info.html}`);
+    const closed = gone.length ? `\n${gone.length} more kind(s) met without a name only in windows no longer on the page: ${gone.map(([kind]) => kind).join(", ")}` : "";
+    const shown = disclosuresOnPage(whereOf);
+    return (rows.length
         ? `${rows.length} control kinds carry no name a screen reader can read:\n${rows.join("\n")}`
-        : "every control in the module's own chrome has a name";
+        : "every control in the module's own chrome has a name") + closed
+        + (shown.length ? `\n${shown.length} disclosure(s) on the page:\n${shown.join("\n")}` : "");
+}
+
+/*
+ * THE DISCLOSURES (gaps-111, 13.11.2026; 1.2.105's Known gaps: "`game.drpg.a11y()` does not list Details yet"). A control
+ * that opens a region - `aria-expanded`, the region named by `aria-controls`: an action window's Details
+ * (action-menus.mjs `detailsHtml`), the tray's fold, the room tile, the case map's nodes - has a name, so the list
+ * above never showed it, and nothing asked whether its region is there for a screen reader. One line each, on the
+ * module's surfaces: its name, whether it is open, and its region - on the page, named (`aria-label`, or an
+ * `aria-labelledby` that points at something), and while shut out of reach (`inert`, `hidden`, or under either). What
+ * does not hold is said in capitals, as the list above says a missing name. Read headless (R4930); what a reader makes
+ * of it is a real reader's.
+ */
+function disclosuresOnPage(whereOf) {
+    const out = [];
+    for (const el of document.querySelectorAll(SURFACES.map(s => `${s} [aria-expanded]`).join(","))) {
+        if (!el.isConnected) continue;
+        const name = el.getAttribute("aria-label")?.trim() || (el.textContent ?? "").replace(/\s+/g, " ").trim() || "(no name)";
+        const open = el.getAttribute("aria-expanded") === "true";
+        const id = el.getAttribute("aria-controls");
+        const region = id ? document.getElementById(id) : null;
+        let says;
+        if (!id) says = "no region named (no aria-controls)";
+        else if (!region) says = `its region #${id} NOT on the page`;
+        else {
+            const by = region.getAttribute("aria-labelledby");
+            const named = Boolean(region.getAttribute("aria-label")?.trim() || (by && by.split(/\s+/).every(ref => document.getElementById(ref))));
+            const away = Boolean(region.closest("[inert], [hidden]"));
+            says = `its region #${id} ${named ? "named" : "NOT named"}${open ? "" : away ? " and out of reach" : " and STILL IN REACH while shut"}`;
+        }
+        out.push(`  "${name}" ${el.id ? `#${el.id}` : `(${kindOf(el)})`}: ${open ? "open" : "shut"}, ${says}, in ${whereOf(el, {})}`);
+    }
+    return out;
 }
 
 /** Called once at ready. */

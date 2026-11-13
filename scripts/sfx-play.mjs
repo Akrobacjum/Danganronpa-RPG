@@ -118,12 +118,17 @@ export function soundFor(key) {
  */
 const SOUND_SEPARATOR = "|";
 
-/** Every file mapped to this event, in the order the GM listed them. */
+/**
+ * Every file mapped to this event, in the order the GM listed them; for an event left empty that names another to fall
+ * back to (`fallsBackTo`, E62 C3b: "Death fade" plays the death's file by default), that event's files.
+ */
 export function soundsFor(key) {
-    return (soundFor(key) ?? "")
+    const own = (soundFor(key) ?? "")
         .split(SOUND_SEPARATOR)
         .map(path => path.trim())
         .filter(Boolean);
+    const fallback = SFX_EVENTS[key]?.fallsBackTo;
+    return own.length || !fallback || fallback === key ? own : soundsFor(fallback);
 }
 
 /** What each key played last, so the next pick can avoid it. Key -> path. */

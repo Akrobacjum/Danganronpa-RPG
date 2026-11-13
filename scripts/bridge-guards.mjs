@@ -162,7 +162,11 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer"
+    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer", "spectator",
+    // E72 C4: a Monocub's move on a student who has had its share (monocub.mjs `cubCapRefusal`).
+    "capReached", "capDay",
+    // E74: a barricade (movement.mjs `barricadedFrom`) and a watcher held to the post (watch-gm.mjs).
+    "barricaded", "onWatch"
 ]);
 
 /**
@@ -173,6 +177,9 @@ export const REASONS = Object.freeze([
 export const REASON_PATTERNS = Object.freeze([
     // First: a thrown error's own message follows the colon and could read like any reason below.
     ["failed", /^the handler failed: /],
+    // E92 Q-E92-7: a Spectator takes no student's action (`notSpectator`, `senderNotSpectator`).
+    ["spectator", /^that character is a Spectator$/],
+    ["spectator", /^the sender plays a Spectator$/],
     ["failed", /^the Call could not be armed$/],
     ["failed", /^the ruling card could not be posted$/],
     ["failed", /^the trace could not be placed$/],
@@ -194,6 +201,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
+    // E64: an offer of statistic points alone (the DA39 migration; bridge-runs-acts.mjs `handleAdvancement`).
+    ["badRequest", /^that offer is for statistics only$/],
     ["badRequest", /^a new experience has no name$/],
     ["badRequest", /^a pick raises a statistic that is not one$/],
     ["missing", /^a pick raises an experience the character does not have$/],
@@ -261,8 +270,13 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionLocked", /^that action is locked$/],
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
+    // E93 C3: a room action the Despair Overflow shuts (Lockdown, Power cut; facilities-gm.mjs `handleFacilityUse`).
+    ["actionBlocked", /^that room action is shut by the overflow$/],
     // E32+E07 C11a: an action the incident took away, or never gave that side (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is not open to that character now$/],
+    // E72 C4 (DC32 = 2): one Monocub move on a student per time of day, two per day (monocub.mjs `cubCapRefusal`).
+    ["capReached", /^that student has had a Monocub's move this time of day$/],
+    ["capDay", /^that student has had two Monocub moves today$/],
     // E51 C1: an action the incident took away, kept in the list struck through and refused (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is denied by the incident$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
@@ -315,6 +329,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that Frisk ask has been answered already$/],
     // E14 part 1 C4: a stash's free reach, once a time of day per thief (stash-reach.mjs `stealFromVault`).
     ["alreadyDone", /^that stash has been gone through already this time of day$/],
+    // E93 C3: a GM's room action anyone used, or a project's this character used, this time of day.
+    ["alreadyDone", /^that room action has been used already this time of day$/],
     // E17 C3: "Refund last crossing" (movement.mjs `refundLastCrossing`), a GM's ask of the primary.
     ["nothingToUndo", /^the GMs hold no crossing of that character to give back$/],
     ["alreadyDone", /^that crossing was given back already$/],
@@ -326,6 +342,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["notThere", /^the character has no token on a scene$/],
     ["notThere", /^the character is not in that room$/],
     ["notThere", /^the character is not standing in any room$/],
+    // E93 C3: a room action not in the room the GMs hold the character in.
+    ["notThere", /^that action is not in the character's room$/],
     // E32+E07 C11d: a statistic ruling for a project the sender cannot see, or the character cannot reach (guardTraitRuling).
     ["notThere", /^that project is not one the character can work on or break here$/],
     ["notThere", /^the character is not in ".*": .+$/],
@@ -355,8 +373,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollOtherAction", /^that roll was not thrown for that action$/],
     ["rollStale", /^that roll is too old to settle anything$/],
     ["rollUsed", /^that roll has already settled that action$/],
-    // E08+E28 C15: what a roll earned, read off the GMs' record of it (bridge-runs-acts.mjs `searchTheftOf`, bridge-runs-records.mjs `traceBandOf`).
-    ["rollMissed", /^that roll did not find the stash$/],
+    // E08+E28 C15: what a roll earned, read off the GMs' record of it (bridge-runs-records.mjs `traceBandOf`; a Search's theft
+    // from a stash, "that roll did not find the stash", until 1.2.112).
     ["rollMissed", /^that roll leaves no trace$/],
     // E08+E28 C16: a Work on a Project's roll that earned nothing (bridge-runs-records.mjs `progressOf`), and a frozen project (guardProjectFrozen).
     ["rollMissed", /^that roll earned no progress$/],
@@ -409,10 +427,14 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^the character's token moved while the price was taken$/],
     ["doorLocked", /^the room beyond is locked$/],
     ["roomSealed", /^the room beyond is sealed$/],
+    // E74 C2: Shut the Door in a room with more open doors than a barricade holds (doors-gm.mjs `shutRefusal`).
+    ["cannotNow", /^that room has too many doors to hold$/],
     ["chained", /^the character is chained where it stands$/],
     ["cannotLeave", /^the character is held in the incident$/],
     ["trialLocked", /^the Class Trial is in session$/],
     ["noBudget", /^the character has no Move and no action left$/],
+    // E93 C3: a project's room action whose price the character's actions do not cover.
+    ["noBudget", /^the character has not enough actions for that room action$/],
     ["eclipseSpent", /^the character's Eclipse crossings are used up$/],
     // E79 C16: an Objection raised from the trial bar and proved after, judged by the primary GM (gm-bridge.mjs
     // `trial.object`, `trial.evidence`, `floor.repoint`; trial.mjs `objectOnPrimary`, `evidenceOnPrimary`,
@@ -442,6 +464,10 @@ export const REASON_PATTERNS = Object.freeze([
     // E70 C8: a volunteer for the Closing Argument ("trial.claim", trial-modes.mjs `volunteerOnPrimary`).
     ["cannotNow", /^nobody is volunteering for the Closing Argument now$/],
     ["alreadyDone", /^that character has already volunteered$/],
+    // E73 C2, C5: a side picked from the window ("trial.side") and a Scrum speaker's thesis ("trial.keyword"; trial-zones.mjs).
+    ["floorClosed", /^no zone mode holds the floor now$/],
+    ["cannotNow", /^that character stands in the hall: their token answers$/],
+    ["alreadyDone", /^that character has already picked that side$/],
     ["cannotNow", /^a dead student does not present$/],
     ["cannotNow", /^that character may not present now$/],
     ["failed", /^the Present's card could not be posted$/],
@@ -1410,6 +1436,44 @@ export function playersOnly(why) {
     return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", [], why);
 }
 
+/*
+ * A SPECTATOR ACTS NOT (E92 Q-E92-7, 12.11.2026; the owner's "zgadzam sie, zlecaj"). A Spectator's character takes no
+ * student's action through the bridge: its sheet draws no action (sheet.mjs `sheetMode`), but its player's console can
+ * still ask the primary, and `owns` passes an owner. Every row a student's character asks through names one of these
+ * two, right after `knownSender` (tier 0's census holds every player row of the four tables to it, or to a reason it
+ * needs none):
+ *   - `notSpectator(field)`: the character the packet names in `field` (or that a function finds, as `ownsActorAt`'s
+ *     `locate`) is a Spectator as the GMs hold its flags (sheet-audit.mjs `flagsHeldNow`) - so a flag a console wrote
+ *     on its own student, which the audit puts back, does not stop that student, and a console's untick of its own
+ *     Spectator's flag does not free it;
+ *   - `senderNotSpectator`: the sender's account plays a Spectator and no student (voice.mjs `spectatorAccount`, on the
+ *     same held flags) - for the rows that act for the account, not for a character: a ballot, a readiness answer, a
+ *     card, a project shared.
+ * A GM is never refused here: a GM's road for a Spectator's character is a GM's. Which character is a Spectator is no
+ * secret (config.mjs's note on the flag), so the refusal may say so, before the owner question.
+ */
+async function heldSpectatorAt(actorId) {
+    const actor = typeof actorId === "string" && actorId ? game.actors.get(actorId) : null;
+    if (!actor) return false;
+    const [{ flagsHeldNow }, { isSpectator }] = await Promise.all([import("./sheet-audit.mjs"), import("./monokuma.mjs")]);
+    return isSpectator(flagsHeldNow(actor));
+}
+
+/** The character the packet names in `field`, or that `field(payload)` finds (maybe async), is no Spectator. */
+export function notSpectator(field, covers = []) {
+    const named = typeof field === "function" ? field : payload => payload?.[field];
+    const why = "that character is a Spectator";
+    return made(async (sender, payload, ctx) => sender?.isGM || !(await heldSpectatorAt(await named(payload))) ? null : why,
+        "notSpectator", typeof field === "function" ? covers : [field], why);
+}
+
+/** The sender's account plays no Spectator: a GM, or a player with a student of its own. */
+export async function senderNotSpectator(sender, payload, ctx) {
+    if (!sender || sender.isGM) return null;
+    const [{ flagsHeldNow }, { spectatorAccount }] = await Promise.all([import("./sheet-audit.mjs"), import("./voice.mjs")]);
+    return spectatorAccount(sender, { held: flagsHeldNow }) ? "the sender plays a Spectator" : null;
+}
+
 /** The sender may see the project the packet names in `field` (projects-secrecy.mjs `canSee`). */
 export function canSeeProject(field, why) {
     return made(async (sender, payload, ctx) => {
@@ -1503,12 +1567,11 @@ export function pick(spec) {
  * SEVERAL ROLLS, AND RESULTS THAT ARE NOT A TOTAL (E08+E28 C15, 04.10.2026; the plan's 3.5).
  * `rolled` may be a list. A Palm throws two rolls and names both (`rollId`, `unseenRollId`):
  * the second's result goes in the packet's `unseenTotal` and `unseenCritical` (`into`).
- * A theft from a stash and a trace take no total at all, but what a roll earned - whether a
- * Search found the stash and fumbled it, the band a trace is left at - so the declaration
+ * A trace takes no total at all, but what a roll earned - the band a trace is left at (and,
+ * until 1.2.112, whether a Search found a stash and fumbled it) - so the declaration
  * reads that off the record itself (`derive`, which answers the fields or why the roll
  * earned nothing of it), and a packet that said otherwise is logged in the same way. Some
- * packets of a declaration throw no roll: a stash opened from the drawer asks none of the
- * Search (`when`: only a packet that says `viaSearch`), and a trace asks one only for an
+ * packets of a declaration throw no roll (`when`): a trace asks one only for an
  * action whose roll leaves it (`kindAt`: the action the packet names, one of `kind`), so a
  * discarded item's trace still names none. A trace and the roll's own action are two things
  * one roll settles - a Sabotage freezes a project and leaves a trace - so a trace settles

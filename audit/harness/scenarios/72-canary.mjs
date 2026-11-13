@@ -42,7 +42,10 @@
  *   objection     Aiko's Objection at Daichi, pending, filled with a bullet whose GM half is planted, and a
  *                 second one withdrawn, each scanned on the players' browsers (E79 fix r4-G3);
  *   verdict       a trial naming Daichi, a wrong verdict: Chie survives, nothing is written on
- *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11).
+ *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11);
+ *   summary       the case's schema with markers where the players may not read - a deduction not
+ *                 ticked, a ticked one's GM note, the solution after the wrong vote - and Show
+ *                 summary sent; the card on p1 holds the ticked deduction and no id of Chie's (E99 C8).
  * Each later E05 commit adds its checks to the phase that shows its secret.
  * From rest to the discovery the chat of each phase's bystanders is read too (E06 C1,
  * `canary.chatScan`): what a card's document says of the cast beyond its words.
@@ -251,6 +254,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const metaP1 = await metaHolds(p1), metaP2 = await metaHolds(p2);
     check("p1 and p2: projectMeta holds no killerId, by, condition, trigger or description of the secret project, and no character id of the killer",
         Boolean(made) && [metaP1, metaP2].every(m => m.row && !m.fields.length && !m.killer), JSON.stringify({ p1: metaP1, p2: metaP2 }));
+
+    /* A SECRET PROJECT'S NAME AND WHO IS IN ON IT ARE NOT IN DAGGERHEART'S COUNTDOWNS (known leak S17-31; the coordinator's
+       task of 12.11.2026, stricter than the marker scan). Daggerheart's world setting Countdowns reaches every browser: on
+       the two that are not the killer's player's, the secret project's countdown holds neither its name (the marker) nor an
+       ownership map that tells one player apart (every player at one level; Daggerheart reads each player's own entry and
+       not `default`, so the row it draws for every player is taken out by the module's tray for those not in on it) - for
+       an indirect murder the odd entry is the killer's player. The row has to be there, or its absence measures nothing.
+       Red at 4eef965: the name, and p3 at OBSERVER where the others were at NONE, on p1 and p2. */
+    const countdownHolds = p => p.eval(`const c = game.settings.get("daggerheart", "Countdowns")?.countdowns?.["${made ?? "none"}"] ?? null;
+        const players = new Set(game.users.filter(u => !u.isGM).map(u => u.id));
+        const own = c?.ownership ?? {};
+        const levels = [...players].map(id => Number(own[id] ?? 0));
+        return { row: Boolean(c), name: String(c?.name ?? ""), levels: [...new Set(levels)],
+            apart: [...players].filter(id => Number(own[id] ?? 0) !== levels[0]) };`)
+        // The name is compared here, not on the player's page: the marker is not theirs to be sent (the canary refuses it).
+        .then(c => ({ row: c.row, named: c.name.includes(project.name), levels: c.levels, apart: c.apart }));
+    const cdP1 = await countdownHolds(p1), cdP2 = await countdownHolds(p2);
+    check("p1 and p2: Daggerheart's Countdowns holds the secret project's row with neither its name nor an ownership map that tells one player apart",
+        Boolean(made) && [cdP1, cdP2].every(c => c.row && !c.named && c.levels.length === 1), JSON.stringify({ p1: cdP1, p2: cdP2 }));
 
     /* THE PRE-SESSION NOTE IS THE GMS' (E05 C6, 26.09.2026; audit S11-03, S01-08): p3 saved it
        through the primary GM, whose store keeps it, and it is no flag of p3's User document, which
@@ -801,7 +823,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     /* The surviving Blackened's Level Up (E05 C11; audit S03-01, S06-01): until 1.2.64 the wrong
        verdict applied it at once, and p1 read Chie's new maximum Health and `advances`, and a card
        spoken by Chie with the Level Up's sound. The GM's Level Up window, if one opens, is answered
-       with every pick "+1 max Health" (the harness's own default press cannot read that form), so
+       with every pick a point in Body, +1 max Health with it since E64 C6 (the harness's own default press cannot read that form), so
        a verdict that still applied it would show on p1 as a rise; it waits in the GMs' store now. */
     const chieOnP1 = () => p1.eval(`const a = game.actors.get("${IDS.chie}");
         const fresh = game.messages.filter(m => !(globalThis.__verdictFrom ?? new Set()).has(m.id));
@@ -813,7 +835,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const verdict = await gm.eval(`globalThis.__dialogAnswers.push(async function advance(cfg) {
             if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
             const n = ((cfg.content?.innerHTML ?? String(cfg.content ?? "")).match(/name="pick\\.\\d+\\.option"/g) ?? []).length;
-            return Array.from({ length: n }, () => ({ option: "hp" }));
+            return Array.from({ length: n }, () => ({ option: "trait", trait: "strength" }));
         });
         const r = await game.drpg.closeVote();
         try {
@@ -838,6 +860,35 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("gm: Chie's Reinforced Level Up waits in the GMs' store for the class (E05 C11)",
         waiting?.kind === "reinforced" && waiting?.count === 1, JSON.stringify(waiting));
     await scanned("verdict", { ...KILLER_CHAT, who: ["p1"] });
+
+    /* summary: THE CASE'S SUMMARY AFTER A WRONG VERDICT (E99 C8, 12.11.2026; the owner's goal for E99: only what was
+       discovered, and the solution only when the class voted right). The GM writes this chapter's schema: a deduction
+       ticked (its name plain, so p1 can be read receiving it; its GM note a marker), a deduction not ticked (its name a
+       marker) and the solution (its name and words markers; the vote above was wrong). Show summary is sent from the GM;
+       then every player's browser is scanned for the markers, p1's and p2's world data and chat as after each phase, and
+       the card p1 holds is read: the ticked deduction's name on it, and no actor id of Chie's anywhere in it. */
+    phase("summary");
+    const sum = { note: canary.marker("case.note"), unticked: canary.marker("case.unticked"),
+        solution: canary.marker("case.solution"), solutionText: canary.marker("case.solutiontext") };
+    const SHOWN = "The lights went out before the scream";
+    const sent = await gm.eval(`const CS = await import("${repoUrl}/scripts/case-schema.mjs");
+        const ch = (await import("${repoUrl}/scripts/clock.mjs")).getClock().chapter;
+        await CS.setCaseNode(ch, "canary-d1", { kind: "deduction", label: "${SHOWN}", text: "${sum.note}" });
+        await CS.setCaseNode(ch, "canary-d2", { kind: "deduction", label: "${sum.unticked}" });
+        await CS.setCaseNode(ch, "canary-s1", { kind: "solution", label: "${sum.solution}", text: "${sum.solutionText}", inputs: ["canary-d1", "canary-d2"] });
+        await CS.setCaseTick(ch, "canary-d1", true);
+        globalThis.__dialogAnswers.push(async function summary(cfg) {
+            if (!(cfg.classes ?? []).includes("drpg-window-case-summary")) { globalThis.__dialogAnswers.unshift(summary); return null; }
+            return "send";
+        });
+        try { return await (await import("${repoUrl}/scripts/case-summary.mjs")).showCaseSummary(); }
+        finally { const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "summary"); if (at >= 0) q.splice(at, 1); }`, { timeout: 60000 });
+    const card = await settled("summary", () => p1.eval(`const m = game.messages.contents.findLast(m => m.flags?.["${MOD}"]?.caseSummary === true);
+        return m ? { content: m.content, doc: JSON.stringify(m.toObject?.() ?? m) } : null;`), 20000);
+    check("gm: Show summary sends the case's summary after the wrong verdict (E99 C7)", typeof sent === "string" && Boolean(card), JSON.stringify({ sent, card: Boolean(card) }));
+    check("p1: the summary's card names the ticked deduction and no actor id of Chie's (E99 C8)",
+        Boolean(card) && card.content.includes(SHOWN) && !card.doc.includes(IDS.chie), JSON.stringify({ shown: card?.content?.includes(SHOWN), chie: card?.doc?.includes(IDS.chie) }));
+    await scanned("summary", { ...KILLER_CHAT, who: ["p1", "p2"] });
 
     /* THE NOTICE HISTORY IS IN THE DUMP (E81 C4, 12.10.2026; the A7 plan's 2.3). From E81 C3 and C4 every card a
        player's browser draws - the catch-all's, the messenger's, the trial's evidence, the day summary, the safeword's,
@@ -893,4 +944,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     check("p1: once the trial has ended the trial's list of the dead is gone from p1's world data (E70-24; fix p1-G1)",
         listOut.phase !== "classTrial" && !listOut.has, JSON.stringify(listOut));
     await scanned("after the trial");
+
+    /* A SECRET PROJECT'S INSIDER KEEPS IT THROUGH A CLEARED CHAT LOG (E101's review of S17-31, R2, 13.11.2026). Since S17-31
+       the countdown every browser holds carries no name and tells no player apart, so what a player in on a secret
+       project knows of it - that they are in on it, and its name - has to reach their browser some other way. Until this
+       fix it was a GM's private card, read off the chat log (projects-secrecy.mjs `toldSight`): the GM's Clear Chat Log
+       took the project out of every insider's tray, and the GMs' record that they had been told kept it from being sent
+       again. Here p3 (Chie's player, the trap's builder, in on the project) reads it, the GM clears the log as the chat's
+       Clear button does (`deleteAll`), and p3 reads it again. The name is compared here, not on the page. Red at a6203bdc:
+       after the clear p3 held neither. */
+    const sightOn = () => p3.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const row = P.allProjects().find(p => p.id === "${made ?? "none"}");
+        return { sees: P.canSee("${made ?? "none"}"), name: String(row?.name ?? "") };`)
+        .then(r => ({ sees: r.sees, named: r.name === project.name }));
+    const sightBefore = await sightOn();
+    const cleared = await gm.eval(`await ChatMessage.deleteDocuments([], { deleteAll: true });
+        await new Promise(r => setTimeout(r, 1500)); return game.messages.size;`, { timeout: 60000 });
+    const sightAfter = await sightOn();
+    check("p3: the player in on the secret project still holds it, by its name, after the GM clears the chat log (E101's review of S17-31, R2)",
+        Boolean(made) && sightBefore.sees && sightBefore.named && cleared === 0 && sightAfter.sees && sightAfter.named,
+        JSON.stringify({ sightBefore, cleared, sightAfter }), { flow: "projects" });
 }

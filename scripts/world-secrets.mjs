@@ -18,8 +18,10 @@
  * fails R9 at every table until then, and the harness names such a secret a known
  * leak until its commit. At E05 C2 the rule holds what C1 closed - projectMeta's
  * killer, builder, condition and trigger - and R9's five answer-key names, which
- * were its whole list; E05's later commits add theirs, and E43 turns the whole
- * into SECRET_FIELDS. A field held everywhere may be let stand in one setting,
+ * were its whole list; E05's later commits add theirs. Since E43 (13.11.2026) the
+ * fields only the GMs hold are one registry, gm-store.mjs SECRET_FIELDS: everySetting's
+ * answer key below is one of its owners (registered by gm-stores.mjs), beside a secret
+ * project's fields and an incident's cast (R5203). A field held everywhere may be let stand in one setting,
  * with the reason written beside it (`except`); R190 fixtures both halves.
  *
  * IMPORTS NOTHING, so Node reads it (the harness, the tools) exactly as the
@@ -31,7 +33,8 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
 /**
  * A module world setting with no row of its own here holds nothing the rule
  * keeps out, and `everySetting` reads it still: `documentLanguage` (E66 C1) holds a
- * language code alone; `readyRound` (E37 C3) holds a readiness round's user ids, the
+ * language code alone; `sequences` (E61 C1) a boolean alone, the table's switch for the
+ * full-screen sequences; `readyRound` (E37 C3) holds a readiness round's user ids, the
  * GM who pressed and each player's Done or One moment - what the GM's window lists -
  * nothing a player may not see. `chapterEnd` (E42 C2) and `seasonReset` (E42 C4) hold
  * nothing a player may not see either, and have a row since E42 fix FG4 (the end
@@ -64,12 +67,13 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
         projectMeta: Object.freeze({
-            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold"]),
-            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2); whether a public project's proposer was told, a fact about who proposed it (H84 fix G3)",
+            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold",
+                "secretName", "viewers"]),
+            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2); whether a public project's proposer was told, a fact about who proposed it (H84 fix G3); a secret project's name and the players in on it, out of Daggerheart's Countdowns as well (S17-31)",
             /* E44 fix FG6 (05.11.2026): what a row may not hold while the project is secret - its `secret` true -, the GMs'
                then (projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET); a public project's description stands in its row. */
-            whileSecret: Object.freeze({ fields: Object.freeze(["description"]), since: "E44 fix FG6",
-                why: "a secret project's description, in its builder's or a GM's words - an indirect murder's plan among them (the end review's S-M1)" })
+            whileSecret: Object.freeze({ fields: Object.freeze(["description", "facility"]), since: "E44 fix FG6; E93 C1",
+                why: "a secret project's description, in its builder's or a GM's words - an indirect murder's plan among them (the end review's S-M1); and the room action its completion gives, a GM's words of what it makes (E93 C1)" })
         }),
         // The key before 1.2.64 (settings.mjs `legacyPendingMurders`); the declarations are a GM store.
         pendingMurders: Object.freeze({
@@ -98,9 +102,14 @@ export const WORLD_SECRET_RULES = Object.freeze({
            character's budget keyed by actor id - 72-canary found the killer's id at
            clock.lastAdvance.snapshot.actions on p1 and p2 at f7ac1e9d. A GM store since (gm-stores.mjs
            `takeBackStore`); a null one is found too, as a field the clock should not have. */
+        /* E94 C4 (12.11.2026): the school's mood rides in the clock as a word alone (sequence.mjs `MOOD_BANDS`, written by
+           a GM's advance, clock.mjs `advanceTimeOfDay`); the numbers it is worked out from - the students' and the
+           Monocubs' Hope, the Monokumas' Despair, the Overflow count (`moodInputs`) - are never written (the owner's word of
+           12.11: "Matma tajna"). Read by name: the Overflow's two names a write of its numbers beside the word would take;
+           the word itself is held to the three by R3723, and the clock a GM writes by tier 2's "E94 C4" test. */
         clock: Object.freeze({
-            fields: Object.freeze(["lastAdvance"]),
-            since: "E17 fix ci-2", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42)"
+            fields: Object.freeze(["lastAdvance", "overflowCount", "overflowThreshold"]),
+            since: "E17 fix ci-2; the mood's numbers since E94 C4", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42); and the Despair overflow's count and threshold the school's mood is read from (S01-60)"
         }),
         /* The trial's list of the dead (E70 C5; settings.mjs `isMutedDead`) names a death nobody has found: public on purpose
            while the Class Trial runs (the owner's TR30 = 2, "Tak, ona też wyciszona" - the silence tells the table), and
@@ -114,8 +123,8 @@ export const WORLD_SECRET_RULES = Object.freeze({
         /* The Closing Argument's volunteers and its draw (E70 C8; TR23 = 1): the GMs' store (gm-stores.mjs
            `closingClaimStore`); the floor says how many volunteered and whether there is somebody to confirm, never who. */
         trialQueue: Object.freeze({
-            fields: Object.freeze(["volunteers", "drawn"]),
-            since: "E70 C8", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52)"
+            fields: Object.freeze(["volunteers", "drawn", "truth"]),
+            since: "E70 C8; truth E73 C4", why: "who volunteered for the Closing Argument and whom the draw named, which the GM may change unseen (E70-52); a Logic Dive question's true answer, the GMs' store's (diveSetStore) until it is judged and never after (TR3)"
         }),
         /* E42's two records (E42 fix FG4; the end review's S-M4), each the primary GM's to write (R1259). */
         chapterEnd: Object.freeze({
@@ -160,7 +169,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // GMs' `lootTraces` store (handover.mjs `liftLootTraces`; S05-39 (3)).
         // E06 C10: an armed Call names nobody who bought it - a Monocub's Confusion named the Monocub
         // on its target (call-effects.mjs `unsigned`; S09-10). A `*` is any index of the armed list.
-        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from"]),
+        // E72 C2: which Monocub saw the crime is the row's `witness` in the GMs' `cubStore` and its owner's copy; the
+        // flag `silencedChapter` that held it goes at the update (monocub.mjs `liftCubWitness`; S18-51).
+        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from", "silencedChapter"]),
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),
@@ -210,6 +221,15 @@ export const WORLD_SECRET_RULES = Object.freeze({
             when: "secret",
             flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage", "thread", "kind", "gmAsk", "settled"]),
             since: "E06 C7a", why: "a private card's document says what it is about - its action, its roll's way, its sound, its item, a ruling asked (L16, S02-02)"
+        }),
+        /* E99 C7: the case's summary is one public card (case-summary.mjs `showCaseSummary`): what it says is the
+           allowlisted payload in its words (R3671), and its document says nothing more - it speaks under its own name,
+           never as a student, and carries its kind and its sound alone, no node id, tick or author. */
+        Object.freeze({
+            when: "caseSummary",
+            fields: Object.freeze(["speaker.actor", "speaker.token"]),
+            flagsOnly: Object.freeze(["caseSummary", "sfx"]),
+            since: "E99 C7", why: "the case summary's card holds only what its words say: no student speaks it, and no flag carries a node, a tick or who made them"
         }),
         /* E06 C8: a veiled card's document is addressed to the whole table, and a veiled thread
            card's placement - whose thread, its kind, that it asks the GM - goes with its words

@@ -953,6 +953,22 @@ export function buildDocumentClasses(ctx) {
         static get documentName() { return "ActiveEffect"; }
         get disabled() { return !!this._source.disabled; }
         get statuses() { return new Set(this._source.statuses ?? []); }
+        /* Its changes where Daggerheart reads them, `system.changes` (sheet-audit.mjs's note: 2.10.5 keeps them there;
+           2.12.8's MoveContext reads `c.system.changes.find(...)` on every applied effect as a roll is configured,
+           move-context.mjs:154-158). An effect the harness was handed with its changes at the top (the suite's
+           fixtures, a status) shows those there, not written into its source; one with `system.changes` keeps its own.
+           Without it every roll of a character holding an effect threw "Cannot read properties of undefined (reading
+           'find')" on the 2.12 copy (the 1.2.109 release's CI run 43287328954, suite shard 7). How v14 and Daggerheart
+           2.12 move changes written at the top is not read here. */
+        get system() {
+            const system = super.system;
+            if (!Object.hasOwn(system, "changes")) {
+                const source = this._source;
+                Object.defineProperty(system, "changes", { configurable: true, enumerable: false,
+                    get: () => Array.isArray(source.changes) ? source.changes : [] });
+            }
+            return system;
+        }
     }
     class RegionBehaviorImpl extends BaseDocument { static get documentName() { return "RegionBehavior"; } }
     /* A wall's floors as a region's (E12 fix r2-S2, 11.10.2026): v14's typings give a wall `levels`, the ids of the
@@ -1587,6 +1603,13 @@ export function buildApplications(ctx) {
         }
         async _replaceHTML(result, element) { if (result) element.replaceChildren(result); }
         async _onSubmit(target, event) {
+            /* A FOOTER PRESS ON "close" CLOSES THE WINDOW (13.11.2026; docs/dev/gaps/SURVEY-close-action.md, R4673).
+               ApplicationV2 dispatches `[data-action]` itself, and "close" is its own action: it closes the window
+               before DialogV2 sees the press, so the wait answers null, as for the header's X (trial-floor-ui.mjs
+               `openVoteDialog`'s note, measured 11.09; ui-kit.mjs `footerButtons`). That v14 does so is this shim's
+               assumption, not read off v14's source: it is still open as LIVE-E21-06. Until this line a press here
+               answered "close", a road no table takes. Enter on a drawn window comes here too (the form's submit). */
+            if (target?.dataset?.action === "close") return this.close();
             const button = (this.options.buttons ?? []).find(b => b.action === target?.dataset?.action);
             let result = null;
             try { result = (await button?.callback?.(event, target, this)) ?? button?.action; }
@@ -1626,6 +1649,10 @@ export function buildApplications(ctx) {
             const buttons = config.buttons ?? [];
             const def = buttons.find(b => b.default) ?? buttons[0];
             if (!def) return null;
+            /* A default closing word whose action is "close" (a footer with no primary, ui-kit.mjs `footerButtons`)
+               is what Enter presses at a table, and Foundry's own close takes it - the same assumption as `_onSubmit`
+               above, LIVE-E21-06 - so the auto-answer is a dismissal, null, not "close" (13.11.2026, the survey). */
+            if (def.action === "close") return null;
             const depth = (openDepth.get(title) ?? 0);
             if (depth >= MAX_DEPTH) return null;
             // ...and the tail-recursive shape too (window -> action -> window -> the same

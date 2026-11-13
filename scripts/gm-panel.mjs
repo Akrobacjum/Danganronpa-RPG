@@ -23,7 +23,7 @@ import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason }
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
-import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
+import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
 import { incidentAsksHtml } from "./case-map.mjs";
@@ -31,6 +31,9 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
 
@@ -98,8 +101,9 @@ export function registerGmChrome() {
  * (`drpg-gm-hotbar`) in every theme too; the owner asked for both gone again (DZ5, 12.10.2026:
  * "niepotrzebne", on a tablet under Stained Glass), so the base sheet now hides them from
  * everybody in every theme - the hotbar as in 1.2.73, and the navigation under Legacy as Stained
- * Glass already did for the GM. Scenes switch from the Scenes tab; the five macros the repository
- * carries (macros/) and a GM's own run from the Macro Directory.
+ * Glass already did for the GM. Scenes switch from the Scenes tab; a GM's macros run from the Macro
+ * Directory. The five the repository kept in macros/ left module.zip with E59 C5a and the repository
+ * itself in 1.2.111 (the owner, 13.11.2026): nothing read them, and game.drpg is what a macro calls.
  * Since E77 C5 the rail and the sidebar stand in the GM's two Foundry windows (foundry-windows.mjs). Re-read then
  * (13.10.2026): neither selector names a column of Foundry's, nor does any rule danganronpa.css keys on these
  * two classes, and `markGmChrome` searches the whole document - so both are found and styled in the windows too.
@@ -295,8 +299,9 @@ const PANEL_SECTIONS = [
             // campaign"). A chapter that ends without a verdict - stretched because nobody died, closed on a
             // confession, a one-chapter season - still has its door: the part apart at the bottom of Edit campaign
             // (gm-campaign.mjs `openClockDialog`; and of Season setup's Edit campaign block since E49 A1e), in a
-            // warning frame, asking first. After a verdict the Next line
-            // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and the trial console's button stays.
+            // warning frame, asking first. After a verdict the Next line offers it (`nextStep`'s chapterEnd,
+            // EXTRA_ACTIONS) once the case summary is sent - in an ordinary trial its `caseSummary` step comes first since
+            // E99 round 7 - and so does the trial console's footer, at that step only (the owner, 12.11.2026).
             // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
             // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).
             // RESET THE SEASON IS NO TILE SINCE E49 A1d (the owner, 11.11.2026: "Chcialbym wrzucic season reset w set
@@ -757,8 +762,18 @@ async function openFailureLog() {
         </div>`,
         footer: {
             close: { role: "close", action: "close" },
-            secondary: rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : [],
-            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : []
+            /* FOUNDRY AND MODULES (E101 item 2; the owner's yes of 12.11.2026 to the GM screens' review, #3): the lines of
+               Pre-season checks a GM cannot act on before a session - which of the module's places in Foundry hold and
+               which could not be read here, and the console command that reads another person's dice look - are this
+               section's since Pre-season checks became part of the Season checklist (season-setup.mjs `openFoundryReport`).
+               A button of the Debug log, the Diagnostics window a report of a fault starts from, not a tile of its own. */
+            secondary: [
+                ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy"),
+                    tooltip: tipText("DRPG.Tips.Gm.copyToClipboardTooltip") }] : []),
+                { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport") }
+            ],
+            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
+                tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }] : []
         },
         rejectClose: false
     });
@@ -785,6 +800,11 @@ async function openFailureLog() {
         }
         // Back to the log - the button copied, it did not mean "and close".
         return openFailureLog();
+    }
+
+    if (action === "foundry") {
+        const { openFoundryReport } = await import("./season-setup.mjs");
+        return openFoundryReport();
     }
 
     if (action === "clear") {
@@ -1027,7 +1047,7 @@ export function nextLineHtml(step) {
     const go = nextGoKey(step?.action);
     const setup = step?.setup ? `<div class="drpg-gmp-next-setup">
             <span class="drpg-gmp-next-setup-text">${step.setup.text}</span>
-            <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}">
+            <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}"${tipAttr("DRPG.Tips.Gm.openTooltip")}>
                 ${game.i18n.localize("DRPG.Season.openIt")}</button>
         </div>` : "";
     return `<div class="drpg-gmp-next">
@@ -1070,23 +1090,6 @@ function bodyWaiting(clock) {
     return id ? game.actors.get(id) ?? null : null;
 }
 
-/**
- * Whether a student holds an Autopsy Truth Bullet of `chapter`, by the GMs' answer keys (`secretOf`: the
- * real type and the chapter `createTruthBullet` wrote with it) over the items as the GMs hold them
- * (`itemsHeldNow`, the key fee's reading in `keyFeeOf`). GM-side; a player's console cannot write an answer key.
- * Of this season (E11 fix r2-H2; round 1's res R6, round 2's goal S06-42): a reset that keeps the Truth
- * Bullets starts again at chapter 1, and last season's chapter-1 autopsy read as issued, so the new
- * chapter's line never asked for one. An autopsy's answer key names its season since (truth-bullets.mjs
- * `createTruthBullet`, a copy its original's); one issued before 1.2.73 names none and is read by its chapter alone, as before (`sameSeason`; tier 2
- * "this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence").
- */
-function autopsyIssued(chapter) {
-    return studentActors().some(actor => itemsHeldNow(actor).some(item => {
-        if (!isTruthBullet(item)) return false;
-        const secret = secretOf(actor.items.get(item.id)?.uuid);
-        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter) && sameSeason(secret);
-    }));
-}
 
 /** Current standing: where the clock is and what everyone has left. */
 function buildPanelContent() {
@@ -1114,9 +1117,11 @@ function buildPanelContent() {
     return `<div class="drpg-gmp-standing">
                 ${caseLine}
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
-                <p><strong>${clockSummary(clock)}</strong>
-                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
-                   ${advance}</p>
+                <p class="drpg-gmp-clockline"><strong>${clockSummary(clock)}</strong>
+                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span></p>
+                ${/* Its own centred row since E101 F1 (the owner at a 1.2.108 table): beside the clock, Foundry's block-level
+                     button stood at the window's left edge under it (R4058). */ ""}
+                <p class="drpg-gmp-advance-row">${advance}</p>
                 ${suggestion}
                 ${incidentAsksHtml(clock.chapter)}
                 ${studentsLeftHtml()}
@@ -1145,16 +1150,15 @@ export function advanceHtml(clock = getClock(), eclipse = isEclipse()) {
  * The table that stood here - a row per acting student, its actions and its free Move - is two columns of the Students
  * window now (gm-students.mjs `aliveTableHtml`), and the panel keeps the one number a GM reads it for: how many of the
  * living cast, a Monocub included (monokuma.mjs `actingStudents`, as `nextStep` counts them), still have an action this
- * time of day, `plural()`'s words, and beside it the door to Students - the tile's own key, so the panel's delegate runs
- * it and the panel comes back after it as after any tile. ONE LINE IN EVERY STATE: nobody left, everybody left and an
- * empty cast draw the same paragraph and the same button, only the number changes (the owner's 10.11 rule: a state
+ * time of day, in `plural()`'s words (its button to Students went in E101: the Students tile is the door). ONE LINE IN
+ * EVERY STATE: nobody left, everybody left and an empty cast draw the same paragraph, only the number changes (the owner's 10.11 rule: a state
  * changes look, never layout). Exported for R3345 and the tier-2 reading.
  */
 export function studentsLeftHtml(roster = actingStudents()) {
     const n = roster.filter(a => actionsLeft(a) > 0).length;
-    return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}
-                <button type="button" class="drpg-gmp-next-go" data-drpg-run="whoIsAlive">
-                    <i class="fa-solid fa-heart-pulse" inert></i> ${esc(game.i18n.localize("DRPG.Panel.whoIsAlive"))}</button></p>`;
+    // The count alone since E101 (the owner's yes of 12.11.2026 to the GM screens' review): its Students button was the
+    // Now section's Students tile again, two rows below, and that tile stays the door (R4054).
+    return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}</p>`;
 }
 
 /** The case tile's second line (E47-C3; the Back up tile's before it): when the case was last backed up, from the world's case mark (E04). */

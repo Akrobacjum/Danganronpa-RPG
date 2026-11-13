@@ -1566,3 +1566,10 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | --- | --- | --- | --- | --- |
 | en.json | `DRPG.Cleanup.trailWho` | Frame | Who to frame | E102 prep finding: the label of Misleading Trail's list of students (action-tamper.mjs); a bare imperative read like a button |
 | pl.json | `DRPG.Cleanup.trailWho` | Wrób | Kogo wrobić | E102 prep finding: the label of Misleading Trail's list of students (action-tamper.mjs); a bare imperative read like a button |
+
+## merge 1.2.112 (2)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| en.json | `DRPG.Vault.stashesNote` | An open stash is open: anyone standing in the room can go through it for free and take one thing, once each time of day. A hidden one has to be found first, with Analyze's Find Stash (16 or more), and is open to its finder from then on. A stash in somebody else's room does NOT come with a key to it. | Anyone in the room can go through an open stash and take one thing from it, once a time of day. A hidden one must be found first, with Analyze's Find Stash (16+), and is open to its finder from then on. A stash in somebody else's room does NOT come with a key to it. | merge of origin/main ceb9e9c8 (1.2.112): main's newer behaviour (Find Stash by Analyze, open to its finder) with this pass's T29 cut re-applied |
+| pl.json | `DRPG.Vault.stashesNote` | Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, raz na porę dnia. Ukrytą trzeba najpierw znaleźć przez Find Stash w Analyze (16 lub więcej), a od tej chwili jest otwarta dla tego, kto ją znalazł. Skrytka w cudzym pokoju nie daje klucza do niego. | Otwartą skrytkę każdy w pokoju może przejrzeć i wziąć z niej jedną rzecz raz na porę dnia. Ukrytą trzeba najpierw znaleźć przez Find Stash w Analyze (16+), a od tej chwili jest otwarta dla tego, kto ją znalazł. Skrytka w cudzym pokoju nie daje klucza do niego. | merge of origin/main ceb9e9c8 (1.2.112): main's newer behaviour (Find Stash by Analyze, open to its finder) with this pass's T29 cut re-applied |

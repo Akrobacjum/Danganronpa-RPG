@@ -81,10 +81,18 @@ const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
  * the mockup round's to build, not this probe's.
  */
-const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes", "description", "fog", "scenes"];
+// No "scenes" since E101 item 5: the Scenes are Season setup's part (`season-setup`, `season-setup--zones`).
+const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes", "description", "fog"];
 /* The player's action windows (E21 C1c): `performAction` on the character p1 owns, each window dismissed. */
 const MINE = "game.actors.find(a => a.type === \"character\" && a.isOwner)";
 const ACTION_WINDOWS = ["observe", "search", "analyze", "tamper", "rest", "project", "palm", "dynamic"];
+/* gaps-radio's four (WINDOWS, at its end): Palm's one target, the ballot sent to p1, and a usable of no kind on p1's
+   student. `__P1__` in a GM's step is p1's user id, filled in by `run`. */
+const PALM_TARGET = "const C = await import(repoUrl + \"/scripts/config.mjs\"); const other = game.actors.find(a => a.type === \"character\" && !a.isOwner && !a.getFlag(\"danganronpa-rpg\", \"monokuma\"));";
+const BALLOT_TO_P1 = "game.socket.emit(\"module.danganronpa-rpg\", { action: \"vote.open\", round: 0, picks: 1, candidates: game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 4).map(a => ({ id: a.id, name: a.name, dead: false })) }, { recipients: [\"__P1__\"] });";
+const P1_STUDENT = "const p1Student = game.actors.find(a => a.type === \"character\" && a.testUserPermission(game.users.get(\"__P1__\"), \"OWNER\"));";
+const SEED_VIAL = `${P1_STUDENT} await p1Student.createEmbeddedDocuments("Item", [{ name: "Probe odd vial", type: "loot", system: { description: "", quantity: 1 }, flags: { "danganronpa-rpg": { category: "usable", tier: 1 } } }]);`;
+const DROP_VIAL = `${P1_STUDENT} const vials = p1Student.items.filter(i => i.name === "Probe odd vial").map(i => i.id); if (vials.length) await p1Student.deleteEmbeddedDocuments("Item", vials);`;
 /* 250 notices recorded on p1 before its history is opened (E21 C1c, the 11.10 amend A7): its own browser's history. */
 const NOTICES_250 = "const h = await import(`${repoUrl}/scripts/notice-history.mjs`); for (let i = 1; i <= 250; i++) h.recordNotice({ kind: \"info\", source: \"mine\", state: i > 240 ? \"unread\" : \"read\", title: `Probe notice ${i}`, text: `The probe's notice number ${i}, one of 250.` });";
 /* The seeds of the header's SEEDED (E49 A4, A5): each `before` keeps what it made on `globalThis.__probe08seed` for its
@@ -161,6 +169,119 @@ const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
         if (c.long) { const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`); await R.dropRemnantSecret(c.long).catch(() => {}); await c.long.delete().catch(() => {}); }
     }
     delete globalThis.__probe08case;`;
+/* The planner's plans (13.11.2026): a planned Prep Remnant, the planned Autopsy and a deduction planning a Straw Poll,
+   over the same case, each a capture of its own with that node open; dropped after. E104: the planned Remnant with every
+   field, a planned Final Truth and a planned Truth Bullet, in rooms the harness's school has (Storage, Gym), so their
+   room selects show the plan. */
+const SEED_PLAN = SEED_CASE + `
+    await CS.setCaseNode(ch, "incident-probe08b", { kind: "incident", label: "The torn glove under the reading table", room: "Storage", type: "prep",
+        text: "A left glove, its thumb torn, under the third reading table.", vis: "subtle", tie: "untied", reinforced: true,
+        analysis: "The tear is fresh, and the leather smells of the library's floor polish.", note: "The culprit's spare glove." });
+    /* E104: a planned Final Truth and a planned Truth Bullet, each with every field filled in */
+    await CS.setCaseNode(ch, "final-probe08", { kind: "final", label: "The second key to the library", room: "Gym", vis: "hidden",
+        text: "A brass key on a red string, the library's mark stamped on its bow.", analysis: "Cut last week: the edges are still sharp.",
+        note: "It proves the culprit planned the night." });
+    await CS.setCaseNode(ch, "bullet-probe08", { kind: "bullet", label: "The librarian's account", realType: "incident", shown: "real", vis: "evident",
+        tied: true, text: "The librarian saw the lamp still on at 23:30.", analysis: "She heard the clock fall a few minutes later.",
+        note: "Give it after the first trial debate.", recipient: game.actors.find(a => a.type === "character")?.id ?? "", tell: true });
+    await CS.setCaseNode(ch, "autopsy", { kind: "autopsy", label: "Autopsy: one stab wound", text: "One stab wound to the back, between 23:00 and 23:40.",
+        note: "The blade was the letter opener." });
+    await CS.setCaseNode(ch, "probe08-d3", { kind: "deduction", label: "Someone else was in the library", mode: "straw",
+        zoneQuestion: "Who left the library first?", zoneA: "The librarian", zoneB: "The night guard" });
+    globalThis.__probe08case.ids.push("incident-probe08b", "autopsy", "probe08-d3", "final-probe08", "bullet-probe08");`;
+/* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
+   the ticks and the modes taken back after. */
+const SEED_TRIAL = SEED_CASE + `
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-d2", { mode: "testimony" });
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-s1", { mode: "closing" });
+    await CS.setCaseTick(globalThis.__probe08case.ch, "probe08-d1", true);`;
+const DROP_TRIAL = `await (await import(\`\${repoUrl}/scripts/case-schema.mjs\`)).setCaseTick(globalThis.__probe08case.ch, "probe08-d1", false);
+    ` + DROP_CASE;
+/* E99 C5 placed, round 3b: the console in a running Class Trial - a debate's floor (the bar), then an Objection on it -
+   over the same case; the clock, the floor and the record put back after. */
+const RUN_TRIAL = `globalThis.__probe08trial = { clock: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "clock")),
+        queue: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialQueue") ?? {}),
+        progress: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {}) };
+    await game.drpg.setClock({ phase: "classTrial" });
+    await game.drpg.startFloor();`;
+const OBJECT = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    const two = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).slice(0, 2);
+    if (two.length === 2) await F.openObjection(two[0].id, two[1].id);`;
+/* E99 round 7 (the owner, 12.11.2026: the verdict and the chapter's end as steps of the flow): a running trial with no floor
+   at the vote's last stages - the count, the verdict given, the summary sent - each a patch of the trial's record. */
+const STAGE_TRIAL = patch => `globalThis.__probe08trial = { clock: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "clock")),
+        queue: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialQueue") ?? {}),
+        progress: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {}) };
+    await game.drpg.setClock({ phase: "classTrial" });
+    await (await import(\`\${repoUrl}/scripts/vote.mjs\`)).setTrialProgress(${patch});`;
+const STOP_TRIAL = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    await F.endFloor().catch(() => {});
+    const t = globalThis.__probe08trial;
+    if (t) { await game.settings.set("danganronpa-rpg", "trialQueue", t.queue); await game.settings.set("danganronpa-rpg", "trialProgress", t.progress);
+        await game.settings.set("danganronpa-rpg", "clock", t.clock); }
+    delete globalThis.__probe08trial;
+    `;
+/* E73 C7: a hall of the probe's own linked with Zone A and Zone B, three students' tokens on stands, the phase the trial's
+   (`SEED_HALL`); a Straw Poll running on it (`SEED_STRAW`); a Logic Dive set in the GMs' store (`SEED_DIVE`); two Findings
+   in the record (`SEED_FINDINGS`). Each taken back by its DROP: the floor closed, the roles, the clock and the record as
+   they were, the hall and the set gone. */
+const SEED_HALL = `const { getClock, setClock } = await import(\`\${repoUrl}/scripts/clock.mjs\`);
+    const keepRoles = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "sceneRoles") ?? {});
+    const keepProgress = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {});
+    const keepClock = foundry.utils.deepClone(getClock());
+    const hall = await Scene.create({ name: "Probe trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+    const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+        { name: "Left stands", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+        { name: "Right stands", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+    const students = game.actors.filter(a => a.type === "character" && !a.getFlag("danganronpa-rpg", "monokuma")).slice(0, 3);
+    await hall.createEmbeddedDocuments("Token", students.map((a, i) => ({ actorId: a.id, actorLink: true, name: a.name, x: i ? 1100 + i * 200 : 100, y: 100, width: 1, height: 1 })));
+    await game.settings.set("danganronpa-rpg", "sceneRoles", { ...keepRoles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+    (await import(\`\${repoUrl}/scripts/rooms.mjs\`)).forgetSceneRoles();
+    await setClock({ ...keepClock, phase: "classTrial" });
+    await game.settings.set("danganronpa-rpg", "trialQueue", {});
+    globalThis.__probe08hall = { hall: hall.id, keepRoles, keepProgress, keepClock };`;
+const DROP_HALL = `const h = globalThis.__probe08hall;
+    if (h) {
+        const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+        if (F.trialFloor()) await F.endFloor();
+        await game.settings.set("danganronpa-rpg", "trialQueue", {});
+        await game.settings.set("danganronpa-rpg", "sceneRoles", h.keepRoles);
+        (await import(\`\${repoUrl}/scripts/rooms.mjs\`)).forgetSceneRoles();
+        await game.settings.set("danganronpa-rpg", "trialProgress", h.keepProgress);
+        await (await import(\`\${repoUrl}/scripts/clock.mjs\`)).setClock(h.keepClock);
+        await game.scenes.get(h.hall)?.delete();
+        const fresh = game.messages.filter(m => m.timestamp >= (h.at ?? Date.now())).map(m => m.id);
+        if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+    }
+    delete globalThis.__probe08hall;`;
+const SEED_STRAW = SEED_HALL + `
+    globalThis.__probe08hall.at = Date.now();
+    await game.drpg.startStrawPoll({ question: "Was the library locked from inside?", a: "Inside", b: "Outside" });`;
+/* E73 round 4 (the coordinator, 12.11: shots of mockup B "in a running debate and with an Objection up"): a Nonstop Debate
+   on the probe's hall (`SEED_DEBATE`), and one of its students objecting to another (`SEED_OBJECTION`); DROP_HALL closes
+   the floor and puts the record back. */
+const SEED_DEBATE = SEED_HALL + `
+    globalThis.__probe08hall.at = Date.now();
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).startFloor({ topic: "Who locked the library?" });`;
+const SEED_OBJECTION = SEED_DEBATE + `
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).openObjection(students[0].id, students[1].id);`;
+const SEED_DIVE = `const { diveSetStore } = await import(\`\${repoUrl}/scripts/gm-stores.mjs\`);
+    await diveSetStore.patch("probe08set", { name: "The library door", conclusion: "The door was locked from inside", made: Date.now(), questions: [
+        { question: "Was the window shut?", a: "Shut", b: "Open", truth: "a" }, { question: "When was the door locked?", a: "At night", b: "In the morning", truth: "a" }] });`;
+const DROP_DIVE = `await (await import(\`\${repoUrl}/scripts/gm-stores.mjs\`)).diveSetStore.drop("probe08set");`;
+const SEED_FINDINGS = `globalThis.__probe08findings = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {});
+    await game.settings.set("danganronpa-rpg", "trialProgress", { ...globalThis.__probe08findings, findings: [
+        { id: "probe08f1", text: "Inside", question: "Was the library locked from inside?", mode: "straw", confirmed: true, at: 1 },
+        { id: "probe08f2", text: "The door was locked from inside", mode: "dive", confirmed: false, at: 2 }] });`;
+const DROP_FINDINGS = `if (globalThis.__probe08findings) await game.settings.set("danganronpa-rpg", "trialProgress", globalThis.__probe08findings);
+    delete globalThis.__probe08findings;`;
+/* E64-inv (12.11.2026): the realization preview after a run - its Undo shows only while a run's marks stand
+   (case-realize.mjs `realizationFooter`). A mark written to the case's meta row for the capture, no Remnant placed;
+   taken off before the case is dropped. */
+const SEED_MADE = SEED_CASE + `
+    { const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`); await CS.setCaseMeta(globalThis.__probe08case.ch, { made: { "probe08Scene.probe08Token": { run: "probe08", slot: 0 } }, run: "probe08" }); }`;
+const DROP_MADE = `{ const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`); await CS.setCaseMeta(globalThis.__probe08case.ch, { made: {}, run: null }); }
+    ` + DROP_CASE;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -170,15 +291,48 @@ export const WINDOWS = [
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
     // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
     { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
-    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
+    /* E101 item 2: Pre-season checks are the checklist's further checks, filled under its rows once the window stands - the
+       page keeps its id (audit/style-baseline.json and R1323's pages name it) and is the checklist with them drawn
+       (`waitFor`); their technical lines are Foundry and modules, from the Debug log. */
+    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", waitFor: "[data-drpg-season-more] [data-drpg-check-part=\"anonymity\"]" },
+    { id: "foundry-report", module: "season-setup.mjs", call: "m.openFoundryReport()" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard({ view: \"table\" })" },
     { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-trace", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--trace", call: "m.openInvestigationDashboard()" },
+    // The owner at a table, 12.11.2026: a Key Remnant slot open - its editor in its place, no read-only part above it.
+    { id: "investigation--map-slot", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node.is-planned", call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-planned", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="incident-probe08b"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-autopsy", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="autopsy"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-zone", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="probe08-d3"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-final", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="final-probe08"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-bullet", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="bullet-probe08"]', call: "m.openInvestigationDashboard()" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
+    // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
+    { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },
+    { id: "new-trace", module: "investigation.mjs", call: "m.openNewTrace({ room: \"Library\" })" },
     { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
+    // E64-inv (12.11.2026): End the chapter, as this world has it - for the fit pass, which holds it to 1366x768 unscrolled (style-sweep.mjs STILL).
+    { id: "chapter-end", module: "chapter.mjs", call: "m.openChapterEndDialog()" },
     { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
+    // E99 C5 placed: the console with the case schema in its middle (the same seeded case as case-trial's).
+    { id: "class-trial--case", module: "trial-floor-ui.mjs", before: SEED_TRIAL, after: DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-debate", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-objection", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL + "\n    " + OBJECT, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--counted", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, total: 3 }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--verdict-given", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, verdictApplied: true, verdict: { correct: true }, summaryShown: null }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--summary-sent", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, verdictApplied: true, verdict: { correct: true }, summaryShown: 1700000000000 }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    // E73 C7: the zone modes' windows - the console while a Straw Poll runs, the picker, a Logic Dive set's editor, the
+    // Findings, and Room setup's Scenes tab with the zones picked.
+    { id: "class-trial--straw", module: "trial-floor-ui.mjs", before: SEED_STRAW, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--debate", module: "trial-floor-ui.mjs", before: SEED_DEBATE, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--objection", module: "trial-floor-ui.mjs", before: SEED_OBJECTION, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "zone-picker", module: "trial-zones-ui.mjs", before: SEED_HALL + SEED_DIVE, after: DROP_DIVE + DROP_HALL, call: "m.openZonePicker({ mode: \"dive\" })" },
+    { id: "dive-editor", module: "trial-zones-ui.mjs", before: SEED_DIVE, after: DROP_DIVE, call: "m.editDiveSet(\"probe08set\")" },
+    { id: "findings", module: "trial-zones-ui.mjs", before: SEED_FINDINGS, after: DROP_FINDINGS, call: "m.openFindings()" },
+    // E101 item 5: the hall's zones in Season setup's scenes part (Room setup's Scenes tab until then, `rooms-scenes--zones`).
+    { id: "season-setup--zones", module: "season-setup.mjs", before: SEED_HALL, after: DROP_HALL, perTab: false, call: "m.openSeasonSetup()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
     { id: "reveal-confirm", module: "trial-floor-ui.mjs", call: "m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })" },
@@ -189,6 +343,11 @@ export const WINDOWS = [
     { id: "incident-tracker", module: "murder-ui.mjs", call: "m.openIncidentTracker()" },
     { id: "level-up", module: "level-up.mjs", call: "m.openAdvancementFor(game.actors.find(a => a.type === \"character\"))" },
     { id: "item-manager", module: "gm-items.mjs", call: "m.openItemManager()" },
+    // E101 F2: the Give tab's other forms, each its bars pressed in the drawn window (Give opens on Item > From the tables).
+    { id: "item-manager--item-new", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-from] button[data-drpg-mode="create"]'], call: "m.openItemManager()" },
+    { id: "item-manager--bullet", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="bullet"]'], call: "m.openItemManager()" },
+    { id: "item-manager--bullet-new", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="bullet"]', '[data-drpg-give-from] button[data-drpg-mode="create"]'], call: "m.openItemManager()" },
+    { id: "item-manager--key", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="key"]'], call: "m.openItemManager()" },
     { id: "item-tables", module: "tables-editor.mjs", call: "m.openItemTables()" },
     // E49 A4: Room pools with a room pool seeded (the header's SEEDED).
     { id: "item-tables--rooms", module: "tables-editor.mjs", before: SEED_ROOM_POOL, after: DROP_ROOM_POOL, open: "editRooms", perTab: false, call: "m.openItemTables()" },
@@ -197,7 +356,8 @@ export const WINDOWS = [
     // A1d (this browser's settings; look-gm and look-player open it too, through the gear's `openLookDialog`). The game's
     // settings are a window of their own (`game-settings`), the GM panel's Settings tile. `drpg-settings-player-voice`:
     // p1's window with a voice to set (VOICE_ON: avclient-livekit active, an audio world, two named devices of each kind,
-    // push to talk on a key), every stand-in put back after; the harness has no voice of its own outside 75-voice-tile.
+    // push to talk on a key), its Sound section shown (the voice's, REVIEW-111's L1: drawn on Look, its radios were never read),
+    // every stand-in put back after; the harness has no voice of its own outside 75-voice-tile.
     { id: "drpg-settings", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
     { id: "game-settings", module: "settings-window.mjs", call: "m.openGameSettingsWindow()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
@@ -210,14 +370,32 @@ export const WINDOWS = [
     { id: "sound-player", client: "p1", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "look-player", client: "p1", module: "look.mjs", call: "m.openLookDialog()" },
     { id: "drpg-settings-player", client: "p1", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
-    { id: "drpg-settings-player-voice", client: "p1", module: "settings-window.mjs", before: VOICE_ON, after: VOICE_OFF, call: "m.openSettingsWindow()" },
+    { id: "drpg-settings-player-voice", client: "p1", module: "settings-window.mjs", before: VOICE_ON, after: VOICE_OFF, click: '.drpg-settings-tab[data-drpg-section="sound"]', call: "m.openSettingsWindow()" },
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
     ...ACTION_WINDOWS.map(key => ({ id: `action-${key}`, client: "p1", module: "action-rolls.mjs", call: `m.performAction(${MINE}, ${JSON.stringify(key)})` })),
     { id: "notices-player-250", client: "p1", module: "notice-history-app.mjs", before: NOTICES_250, call: "m.openNotices()" },
-    { id: "room-window", client: "p1", module: "room-tile.mjs", call: "m.openRoomWindow()" }
+    { id: "room-window", client: "p1", module: "room-tile.mjs", call: "m.openRoomWindow()" },
+    /* THE FOUR RADIO WINDOWS NO OPENER REACHED (gaps-radio, 13.11.2026: audit/radio-sweep.mjs listed them as not read).
+       Palm's Frisk: performPalm returns before its window with nobody else in p1's room, so `choosePalm` draws it with
+       another student as the one target and nothing to plant, the Frisk row picked so its modes show. The ballot: drawn
+       on a player when a GM's `vote.open` packet reaches it, sent here by the GM to p1 alone (`gmDuring`, after p1's
+       capture has begun to watch) with four students as candidates - no vote is opened and nothing is written. The
+       season reset's cast: the GM's own window. Use an item's pick: asked only for a usable whose kind nothing names,
+       seeded on p1's student by the GM (`gmSeed`) and taken off after (`gmAfter`). */
+    { id: "palm-frisk", client: "p1", module: "palm.mjs", before: PALM_TARGET, click: 'input[name="variant"][value="frisk"]', call: `m.choosePalm(${MINE}, C.ACTIONS.palm, [other], [])` },
+    { id: "ballot", client: "p1", module: "vote.mjs", opener: "vote.mjs onBallotOpened (the GM's vote.open to p1)", gmDuring: BALLOT_TO_P1, call: "new Promise(r => setTimeout(() => r(null), 2500))" },
+    { id: "season-reset", module: "season-wipe.mjs", call: "m.resetSeason()" },
+    { id: "use-item-pick", client: "p1", module: "use-items.mjs", gmSeed: SEED_VIAL, gmAfter: DROP_VIAL, call: `(a => m.useItem(a, a.items.find(i => i.name === "Probe odd vial")))(${MINE})` },
+    /* THE TWO RADIO WINDOWS THE REVIEW FOUND UNREAD (REVIEW-111's M2, 13.11.2026). Level Up's queue (level-up.mjs
+       `askWhoPicks`, not exported): drawn by `runAdvancementBatch` for three students, its `onGiving` throwing, so that
+       each row the closed window would hand its player ends in the batch's catch before any write. The Rest's one pick
+       (rest.mjs `choosePicks`, not exported): a Short Rest is one pick, a radio group; the Relief Call's four switches
+       pass every gate a fresh world could stop it at, and a dismissed window answers `false` before anything is spent. */
+    { id: "level-up-queue", module: "level-up.mjs", call: "m.runAdvancementBatch(game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 3), \"standard\", { onGiving: () => { throw new Error(\"probe 08: the window is captured, nothing is given\"); } })" },
+    { id: "rest-pick", client: "p1", module: "rest.mjs", call: `m.takeRest(${MINE}, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true })` }
 ];
 
-const capture = (repoUrl, w) => `
+export const capture = (repoUrl, w) => `
     const before = new Set(foundry.applications.instances.keys());
     const keep = { windows: globalThis.__dialogWindows, answers: [...globalThis.__dialogAnswers] };
     globalThis.__dialogWindows = true;
@@ -241,12 +419,16 @@ const capture = (repoUrl, w) => `
         app.element.querySelector(\`nav.drpg-tabs > button[data-drpg-tab-key="\${open}"]\`)?.click();
         await new Promise(r => setTimeout(r, 150));
     }
-    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked). */
+    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked); a list is clicked in
+       its order (E101 F2: the item window's Give tab, a bar and then the other). */
     const click = ${JSON.stringify(w.click ?? null)};
-    if (app && click) {
-        app.element.querySelector(click)?.click();
+    for (const selector of app && click ? [].concat(click) : []) {
+        app.element.querySelector(selector)?.click();
         await new Promise(r => setTimeout(r, 300));
     }
+    /* A part the window fills after it stands (E101: the Season checklist's further checks), waited for, up to 6 s. */
+    const waitFor = ${JSON.stringify(w.waitFor ?? null)};
+    for (let i = 0; app && waitFor && i < 120 && !app.element.querySelector(waitFor); i++) await new Promise(r => setTimeout(r, 50));
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {
         const step = new Set(foundry.applications.instances.keys());
@@ -342,11 +524,26 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
     /* The module's own en dash, em dash and minus sign as character references: the same page once parsed, and no such
        character in a line the repository adds (the house rule on dashes; the line's pre-push check). */
     const keep = (id, html) => fs.writeFileSync(path.join(OUT, `${id}.html`), `${html.replace(/[\u2013\u2014\u2212]/g, c => `&#${c.codePointAt(0)};`)}\n`);
+    /* A GM's step around a window another client captures (gaps-radio): `gmSeed` awaited before, `gmDuring` begun 400 ms
+       after the capture has started to watch (so what it makes appear is new to it), `gmAfter` once the capture is over;
+       `__P1__` in each is p1's user id. */
+    const p1Id = await p1.eval("return game.user.id;");
+    const onGm = step => gm.eval(`const repoUrl = ${JSON.stringify(repoUrl)}; ${step.replaceAll("__P1__", p1Id)} return true;`);
     for (const w of list) {
         const client = clients[w.client ?? "gm"];
         let got;
+        if (w.gmSeed) {
+            try { await onGm(w.gmSeed); } catch (err) {
+                note(`${w.id} gmSeed`, `threw: ${String(err?.message ?? err).slice(0, 300)}`);
+                manifest.push({ id: w.id, client: w.client ?? "gm", opener: w.opener ?? `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }), captured: false, answered: null, threw: `gmSeed: ${String(err?.message ?? err).slice(0, 300)}` });
+                continue;
+            }
+        }
+        const during = w.gmDuring ? new Promise(r => setTimeout(r, 400)).then(() => onGm(w.gmDuring)).catch(err => String(err?.message ?? err)) : null;
         try { got = await client.eval(capture(repoUrl, w)); } catch (err) { got = { captured: false, threw: String(err?.message ?? err).slice(0, 400) }; }
-        const row = { id: w.id, client: w.client ?? "gm", opener: `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }) };
+        if (during) { const d = await during; if (d !== true) note(`${w.id} gmDuring`, `threw: ${String(d).slice(0, 300)}`); }
+        if (w.gmAfter) { try { await onGm(w.gmAfter); } catch (err) { note(`${w.id} gmAfter`, `threw: ${String(err?.message ?? err).slice(0, 300)}`); } }
+        const row = { id: w.id, client: w.client ?? "gm", opener: w.opener ?? `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }) };
         if (got?.captured) {
             keep(w.id, got.html);
             Object.assign(row, { captured: true, title: got.title, classes: got.classes, tag: got.tag, width: got.width, buttons: got.buttons, file: `${w.id}.html` });

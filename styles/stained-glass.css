@@ -728,6 +728,9 @@ body.drpg-theme-stained-glass .drpg-event[data-kind="overflow"] { --acc: var(--d
    alone; the motive is the despair pink of the trial and the overflow, as the base sheet gives all three its crimson. */
 body.drpg-theme-stained-glass .drpg-event[data-kind="safeword"] { --acc: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="assembly"] { --acc: var(--drpg-sg-evidence); }
+/* E72 C9: Redeem gives back Hope - Hope's gold. */
+body.drpg-theme-stained-glass .drpg-event[data-kind="redeemHope"] { --acc: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .drpg-event:is([data-kind="bribeHope"], [data-kind="betHope"]) { --acc: var(--drpg-sg-hope); }
 /* `.drpg-event-kicker` was here and is gone with the line it styled - the chapter,
    the day and the hour are the clock's, and the panel was printing them once per
    card (events.mjs, 16.09). The line it freed carries the motive's consequence. */
@@ -790,14 +793,17 @@ body.drpg-theme-stained-glass.drpg-reduced-motion .drpg-event.due .drpg-event-me
 
 /* ---- the pause band: a pane of the curtain, breathing slowly ------------------------------- */
 /* Foundry positions #pause itself (fixed, full width); the theme only paints it. `position` is left
-   alone on purpose: setting it made the band fall out of place on a tablet (v1.2.15). */
+   alone on purpose: setting it made the band fall out of place on a tablet (v1.2.15).
+   NO SEAM ABOVE OR BELOW (gaps, R3984). This rule drew a 1 px accent `border-top` and `border-bottom`, the
+   seams of Foundry's 180 px band mid-screen; danganronpa.css has made `#pause` the whole viewport since
+   ("The band, and the box it lived in"), so they lay on the screen's first and last rows, and the owner saw
+   a light line flash at both edges every two or three seconds while paused (12.11.2026, on 1.2.108). The
+   word's own plate keeps its seam (section 7 below). */
 body.drpg-theme-stained-glass #pause.paused {
     --acc: var(--drpg-glass-accent);
     overflow: hidden;
     isolation: isolate;
     background: rgba(5, 4, 9, 0.6);
-    border-top: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
 }
 body.drpg-theme-stained-glass #pause.paused figcaption {
     font-family: var(--drpg-font-title);
@@ -908,6 +914,11 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::befor
     clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
+/* NOTHING IN THE SHEET'S LEFT COLUMN OVERHANGS IT (E100, 12.11.2026; the owner at a table on 1.2.108: a sideways
+   scrollbar under the Experience list). The brush above overhangs its box by 5 px at each end; behind the Equipped row
+   (`li.inventory-item`) in the narrow column that made it 278 px wide in a 274 px box (Chromium, the style harness's
+   sheet parts at 1366x768). Inside the column the brush stands inside its box. R4112. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet :is(button, li.inventory-item)::before { inset: 1px 0; }
 /* HOVER IS A WHOLE BRUSH STROKE, NOT A WASH OF ONE.
    It was 45 % here, and the mockup paints hover at full opacity - the same stroke the
    selected tab wears, which is the point of "one mark for everything" (Dawid, 07.09). The
@@ -1319,9 +1330,8 @@ body.drpg-theme-stained-glass .drpg-call-button {
    an API and were never one; R2 has been reporting them since it was written. */
 body.drpg-theme-stained-glass .drpg-hope-panel .drpg-call-button { --brush: var(--drpg-sg-hope); }
 body.drpg-theme-stained-glass .drpg-despair-panel .drpg-call-button { --brush: var(--drpg-sg-despair); }
-/* `data-drpg-gm` is an attribute the module never writes - the tiles carry
-   `data-drpg-cost-kind="gm"` - so this rule matched nothing until 1.2.41. */
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] { --brush: var(--drpg-sg-gm-light); }
+/* A tile on the GM's road keeps an action tile's brush (E107, 13.11.2026): its red brush went with its red plate,
+   below; the chip alone says who it waits for (R5431). */
 body.drpg-theme-stained-glass .drpg-action-button::before,
 body.drpg-theme-stained-glass .drpg-call-button::before {
     content: "";
@@ -1348,7 +1358,7 @@ body.drpg-theme-stained-glass .drpg-call-button::before {
     clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable) {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable) {
     /* full, like every other hover in the theme since 07.09 - and with a whole stroke under
        it the label has to turn to Ink, exactly as it does when the tile is selected. Left
        bone, it was pale text on its own colour. */
@@ -1357,7 +1367,10 @@ body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:
     border-color: var(--brush) !important;
     color: var(--drpg-sg-ink);
 }
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost, .drpg-action-gm) {
+/* Not the GM's chip (E107, 13.11.2026): it stands on its own dark ground (below), so under the pointer the brush's ink
+   left it barely readable - rgb(7, 7, 10) on rgba(7, 7, 10, 0.72), Chromium at 8d7aa91f on Talent and a GM action tile.
+   It keeps its red. */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost) {
     color: var(--drpg-sg-ink);
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) {
@@ -1515,9 +1528,11 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
 }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:hover:not(.active)::before { opacity: 1; }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active::before { opacity: 1; }
-body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active,
-body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active span {
-    color: var(--drpg-sg-ink) !important;
+/* Bone on the Ink brush, the chosen tab and the one under the cursor (E100, R4110: see "THE CHOSEN TAB" below). */
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs :is(a.active, a:hover),
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs :is(a.active, a:hover) span {
+    color: var(--drpg-sg-bone) !important;
+    -webkit-text-fill-color: var(--drpg-sg-bone);
     text-shadow: none !important;
 }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:focus-visible {
@@ -1627,22 +1642,27 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
     color: var(--drpg-sg-bone);
 }
 /* the tab bar's tabs: the base sheet's border and colour give way to the brush */
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a,
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a.active {
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a {
     border: 0 !important;
     box-shadow: none !important;
     background: none !important;
     border-radius: 0 !important;
+    text-shadow: none !important;
+}
+/* Ink words on the Bone bar for the tabs that are neither chosen nor under the cursor (`:where`, so the weight is the
+   rule's as before E100); those two are Bone on the Ink brush, above. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a:not(:where(.active, :hover)),
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a:not(:where(.active, :hover)) span {
     color: var(--drpg-sg-ink) !important;
     -webkit-text-fill-color: var(--drpg-sg-ink);
     text-shadow: none !important;
 }
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a span,
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a.active span {
-    color: var(--drpg-sg-ink) !important;
-    -webkit-text-fill-color: var(--drpg-sg-ink);
-    text-shadow: none !important;
-}
+/* THE CHOSEN TAB IS INK ON THE BONE BAR (E100, 12.11.2026; the owner at a table on 1.2.108: the active tab was no longer
+   marked). E48 K2 turned the tabs' brush from the hour's colour to Bone (`--brush` above), the bar's own colour, so the
+   chosen tab's full brush drew Bone on Bone and its words stayed Ink like every other tab's (read in Chromium on
+   Daggerheart 2.12.8's markup, 1366x768). The brush is Ink now, still no hour's colour (E48 K2's D30), and the words on
+   it Bone (the chosen tab's rule, and the one under the cursor; the Ink rule above leaves both). R4110. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a { --brush: var(--drpg-sg-ink); }
 /* tile labels fit a narrow sheet: no tracking, wrapping allowed, the cost one size down */
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
     font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
@@ -1861,10 +1881,8 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
     clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
     transition: border-color var(--drpg-t-snap, 120ms), color var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode).drpg-gm-route { --kind: var(--drpg-sg-gm); }
-/* a picked row on the GM's road: its brush in the lighter red, under which the ink reads 6.46:1 (on the GM red 4.16:1,
-   below AA; audit S12-42, E22 C6b; tools/contrast-pairs.json sg-gm-row-picked) */
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode).drpg-gm-route:has(input:checked) { --kind: var(--drpg-sg-gm-light); }
+/* A row on the GM's road keeps the attention kind, picked or not (E107, 13.11.2026): until E107 its indicator was the GM
+   red and its picked brush the lighter red (E22 C6b); its chip is the red now (danganronpa.css, R5432). */
 /* the indicator: a 4 px strip along the left edge in the kind's colour */
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode)::after {
     content: "";
@@ -1902,6 +1920,8 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::before { opacity: 1; }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::after { opacity: 1; background: var(--drpg-sg-ink); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) :is(i, small, strong, span) { color: inherit; opacity: 1; }
+/* ... but the GM's chip on its own dark ground keeps its red (E107, R5432): the ink above left it grey on dark. */
+body.drpg-theme-stained-glass .drpg-choice:has(input:checked) .drpg-action-gm { color: var(--drpg-eye-light); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) > i { color: var(--kind); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) small { opacity: 0.75; }
 /* the row's control takes the row's kind (the one definition below reads `--drpg-sg-check`), and on a chosen row's
@@ -2483,16 +2503,18 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name { color: var(--dr
    Move were the base's grey, the Ultimate was a line of text where the audit page draws a
    stamp, and the name had no cap. Every mask below already exists - what was missing was the
    theme saying which one, and in what colour. */
-/* Hope is a star, not a diamond: the one glyph swap the audit page calls for by name. */
+/* Hope was a star, the one glyph swap the audit page called for by name; since gaps-111 (13.11.2026) it is E48 batch 5's
+   diamond on the 24 grid, held, and its empty diamond, spent - the owner's "E48 akcept" of 12.11 (1.2.107), and 1.2.105's
+   Known gaps ("still drawn by stained-glass.css's own stars and squares"). R4932. */
 body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value::before {
-    -webkit-mask-image: var(--drpg-pix-star);
-    mask-image: var(--drpg-pix-star);
+    -webkit-mask-image: var(--drpg-pix-diamond-empty);
+    mask-image: var(--drpg-pix-diamond-empty);
     background-color: var(--drpg-sg-hope);
     opacity: 0.25;
 }
 body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value:has(> i.fa-solid)::before {
-    -webkit-mask-image: var(--drpg-pix-star);
-    mask-image: var(--drpg-pix-star);
+    -webkit-mask-image: var(--drpg-pix-diamond);
+    mask-image: var(--drpg-pix-diamond);
     opacity: 1;
 }
 /* AND THE SAME STAR IN THE CORNER, which is the other place Hope is drawn.
@@ -2515,8 +2537,8 @@ body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value:
    the edges hard. */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip::before,
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip.filled::before {
-    -webkit-mask: var(--drpg-pix-star) center / contain no-repeat;
-    mask: var(--drpg-pix-star) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-diamond) center / contain no-repeat;
+    mask: var(--drpg-pix-diamond) center / contain no-repeat;
 }
 /* AND THE STARS ARE BIG ENOUGH TO COUNT (E23 C3a, 07.11.2026; S10-63). The slots were the base sheet's 0.72rem,
    11.5 px, and the contained 24 px star drew at 7-8 px; an empty one was the same star at the slot's 0.45 over
@@ -2528,9 +2550,10 @@ body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip {
     width: clamp(12px, calc(16px * var(--drpg-sg-scale)), 16px);
     height: clamp(12px, calc(16px * var(--drpg-sg-scale)), 16px);
 }
+/* the star and its outline until gaps-111; batch 5's diamond and empty diamond since, as on the sheet (R4932) */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip:not(.filled)::before {
-    -webkit-mask: var(--drpg-pix-star-outline) center / contain no-repeat;
-    mask: var(--drpg-pix-star-outline) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-diamond-empty) center / contain no-repeat;
+    mask: var(--drpg-pix-diamond-empty) center / contain no-repeat;
     background-color: var(--drpg-sg-bone-dim);
     opacity: 0.4;
 }
@@ -3200,7 +3223,7 @@ body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a {
    showed through the band as well. And paintBand lit the seams with an additive glow the
    curtain does not have (glass.mjs). Under the band there is now exactly what is under the
    curtain: the same 2 % white, the same backdrop filter, and nothing else. */
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
     .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header,
 body.drpg-theme-stained-glass .application.drpg-panel .window-header,
@@ -3292,7 +3315,7 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-slot:not(:has(.drpg-hud-t
    The base sheet sets every module dialog's title in 11 px uppercase chrome with `!important`,
    at a specificity the theme's title rule (Special Elite, 21 px, as the audit page's `.wtitle`)
    never reached - so every dialog opened under the theme wore a caption for a title. */
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
     .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header .window-title,
 body.drpg-theme-stained-glass .application.drpg-panel .window-header .window-title {
@@ -4002,11 +4025,12 @@ body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
 
    One declaration, and it has to shout: the radii it is overruling are `!important`
    in the base sheet, and Foundry v14 puts the system's sheet in a cascade layer
-   above the module's. Circles that are meant to be circles keep theirs by name.
+   above the module's. Circles that are meant to be circles keep theirs by name: the radio among them since
+   gaps-radio (R4650; the owner, 13.11.2026: a radio is round), its box here and its dot in its own rule.
    ========================================================================== */
 body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-messenger,
     #drpg-hud, #drpg-despair, #countdowns, #drpg-player-status, #drpg-events, #drpg-popups) :not(
-    .drpg-despair-pip):not(.drpg-action-pip):not(img):not([class*="avatar"]):not([class*="token-"]) {
+    .drpg-despair-pip):not(.drpg-action-pip):not(img):not([class*="avatar"]):not([class*="token-"]):not([type="radio"]) {
     border-radius: 0 !important;
 }
 body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-messenger) {
@@ -4061,19 +4085,10 @@ body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.char
     line-height: 1.5rem;
 }
 
-/* A GM TILE IS A RED PLATE, not a dark tile wearing a badge. On the audit page "Dynamic" and
-   "Direct Murder" are filled in the GM's red with the reason as their sub-label, and that
-   fill is what makes them readable as somebody else's decision at a glance. A tile that cannot be pressed is not
-   filled (audit S04-39, E22 C6b): the fill made a blocked Direct Murder the loudest tile on the sheet; it keeps the
-   dashed edge every disabled thing wears here. */
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(:disabled):not(.unaffordable) {
-    background: color-mix(in srgb, var(--drpg-sg-gm) 34%, rgba(7, 7, 10, 0.55)) !important;
-    border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 70%, transparent) !important;
-    --brush: var(--drpg-sg-gm-light);
-}
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(:disabled):not(.unaffordable) :is(.drpg-action-name, .drpg-action-cost) {
-    color: var(--drpg-sg-bone);
-}
+/* A GM TILE IS NO LONGER A RED PLATE (E107, 13.11.2026). From the audit page until E107 a pressable tile on the GM's
+   road was filled in the GM's red at 34 % with a red edge and brush; the owner on 1.2.110: "Kafelki wymagajace GMa niech
+   nie beda czerwone - wystarczy czerwona ramka i napis jak w hope callu". It wears an action tile's look, and the chip
+   under its cost (`.drpg-action-gm`, the Call tile's) is the one red on it. R5431. */
 
 /* ---- the checkbox and the radio: the audit page's, not Foundry's, and ONE definition --------
    The mockup draws a checkbox as a square in the state colour with a pixel tick cut out of the
@@ -4155,6 +4170,41 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
     mask: none;
 }
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):checked::before { transform: scale(1); }
+/* A RADIO IS ROUND, AND ITS DOT IS PINNED TO THE MIDDLE (gaps-radio, R4650; the owner's table on 1.2.109, 13.11.2026:
+   "a dark SQUARE box with a pink border, and the checked one shows a pink dot stuck in the box's top-left corner", the
+   zone picker's Mode). The radio wore the checkbox's square with shaved corners, and its dot was a square laid in the
+   box's flow by `place-content: center` - which holds only while nothing else positions the mark: with a stand-in for
+   core's (`::before` absolutely positioned) the dot stood 4.87 px up and left of the middle of the 22 px box, in
+   Chromium on the style harness (audit/radio-sweep.mjs), the owner's picture. Which rule v14's core writes there is not
+   read here. So the mark no longer rides the flow: the box is the containing block, the mark laid across it
+   (`inset: 0`, `margin: auto` with its own size) and grown about its centre, and no `translate`, `rotate` or `scale` of
+   anyone else's moves it; the radio's box and its dot are round, the checkbox keeps its square and its tick. */
+/* ON ITS LABEL'S LINE (gaps-radio, R4656; the review's M1, 13.11.2026): an `inline-grid` with no box in flow takes its
+   bottom edge as its baseline, so in a plain label the control stood on the words' baseline - 4.50 px above the middle
+   of the line, Reset the season's three radios and thirty checkboxes (audit/radio-sweep.mjs). Those labels are flex,
+   lined up on their baselines (`.drpg-inline-check`), where `vertical-align` does nothing and the control's baseline is
+   its bottom edge again: so `middle` in a line of text, as Legacy's radio, and `center` as a flex item. */
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]) {
+    position: relative;
+    vertical-align: middle;
+    align-self: center;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"])::before {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    transform-origin: center;
+    translate: none;
+    rotate: none;
+    scale: none;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"] {
+    border-radius: 50%;
+    clip-path: none;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input[type="radio"]::before {
+    border-radius: 50%;
+}
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) input:is([type="checkbox"], [type="radio"]):disabled {
     border-style: dashed;
     cursor: not-allowed;
@@ -4240,17 +4290,18 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .
     clip-path: none !important;
     letter-spacing: 0.1em;
 }
-/* the pip: a square, not the sprite's dot - mask off, the box IS the shape */
+/* the pip: E48 batch 5's dot on the 24 grid, held, and its empty dot, free (gaps-111, 13.11.2026: the owner's "E48 akcept"
+   of 12.11; a square with the mask off, the box the shape, until then). R4932. */
 body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip::before {
-    -webkit-mask-image: none;
-    mask-image: none;
+    -webkit-mask: var(--drpg-pix-dot) center / contain no-repeat;
+    mask: var(--drpg-pix-dot) center / contain no-repeat;
     width: 11px;
     height: 11px;
     background: var(--drpg-glass-accent);
 }
 body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip:not(.filled)::before {
-    background: none;
-    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent);
+    -webkit-mask: var(--drpg-pix-dot-empty) center / contain no-repeat;
+    mask: var(--drpg-pix-dot-empty) center / contain no-repeat;
 }
 
 /* Raising the floor for Micro 5 exposed four more containers sitting at 15 px: the clock's
@@ -4433,6 +4484,13 @@ body.drpg-theme-stained-glass .application[class] {
 }
 body.drpg-theme-stained-glass .application[class] {
     background: transparent !important;
+}
+/* AND THE DAY'S BOARDS WEAR IT (12.11.2026; the owner's report at a real table on 1.2.109: their frame was the trial
+   band's pink). The start-of-day and end-of-day boards (sequence.mjs) take this theme's window glass, the same
+   declaration, and keep their own dark ground; their one-pixel edge is danganronpa.css's list of the module's windows.
+   R4402 reads both themes. */
+body.drpg-theme-stained-glass .application[class],
+body.drpg-theme-stained-glass #drpg-sequence .drpg-seq-day {
     /* 0.45, the audit page's number. 0.28 was a guess made before the page was read. */
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),
                 inset 0 -1px 0 rgba(0, 0, 0, 0.5),
@@ -4663,16 +4721,17 @@ body.drpg-theme-stained-glass .application.sheet.actor .tab-body {
    top right corner still carried Foundry-round dots and a half-size arrow while the sheet
    two windows away had the audit page's marks. Same rules, one more scope. */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-action-pip::before {
-    -webkit-mask-image: none;
-    mask-image: none;
+    -webkit-mask: var(--drpg-pix-dot) center / contain no-repeat;
+    mask: var(--drpg-pix-dot) center / contain no-repeat;
     width: 11px;
     height: 11px;
     border-radius: 0;
     background: var(--drpg-glass-accent);
 }
+/* the sheet's dot and empty dot (gaps-111; a square and its outline until then): R4932 */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-action-pip:not(.filled)::before {
-    background: none;
-    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent);
+    -webkit-mask: var(--drpg-pix-dot-empty) center / contain no-repeat;
+    mask: var(--drpg-pix-dot-empty) center / contain no-repeat;
 }
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-pip {
     border-radius: 0 !important;
@@ -4727,10 +4786,15 @@ body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) :
    what is on screen; the `<i>` inside it was already masked to a star and was not what was
    showing. Same star on the slot's own mark, and a spent slot is the same star at a third. */
 body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value::before {
-    -webkit-mask: var(--drpg-pix-star) center / contain no-repeat;
-    mask: var(--drpg-pix-star) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-diamond-empty) center / contain no-repeat;
+    mask: var(--drpg-pix-diamond-empty) center / contain no-repeat;
     border-radius: 0 !important;
     image-rendering: pixelated;
+}
+/* batch 5's diamond held, its empty diamond spent (gaps-111; the star until then, one glyph at two weights): R4932 */
+body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value:has(> i.fa-solid)::before {
+    -webkit-mask: var(--drpg-pix-diamond) center / contain no-repeat;
+    mask: var(--drpg-pix-diamond) center / contain no-repeat;
 }
 body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value:has(> i:is(.fa-circle, .fa-regular))::before {
     opacity: 0.34;
@@ -4857,7 +4921,7 @@ body.drpg-theme-stained-glass .drpg-panel button:is(.active, .default, [aria-pre
     border-color: var(--brush) !important;
     box-shadow: 0 0 10px color-mix(in srgb, var(--brush) 34%, transparent);
 }
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable):not(.active):not(.selected) {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable):not(.active):not(.selected) {
     border-width: 1px !important;
     box-shadow: none;
 }
@@ -4986,11 +5050,18 @@ body.drpg-theme-stained-glass .application.sheet.actor :is(.hope-section, .drpg-
    of itself, and its own dark ground - `rgba(7,7,10,0.6)`. Red on red at 2.38 is
    the worst reading in the module and it is a word a GM has to pick out of a grid
    of ten tiles. `currentColor` for the edge so it needs no token of its own. */
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-gm {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button, .drpg-choice, .drpg-row-use) .drpg-action-gm {
     background: rgba(7, 7, 10, 0.72);
     border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
     padding: 0 5px;
-    line-height: 1.35;
+    /* 1.1, not 1.35 (E107): in a tile's corner it stands beside the icon, and at the grid's least tile (92 px) a chip
+       30 px tall reached a two-line name (Chromium, 5.2 px over "Direct Murder"). */
+    line-height: 1.1;
+}
+/* In an item row's Use (E107 part 2) the chip stands inside a 26 px button: at the floor's 21 px and 1.1 it was 25 px
+   tall, over the button's own edge (Chromium, the style harness's sheet); at 1 it is 23. */
+body.drpg-theme-stained-glass .drpg-row-use .drpg-action-gm {
+    line-height: 1;
 }
 
 /* ---- 5. A SCRIM UNDER RUNNING TEXT -----------------------------------------
@@ -5174,6 +5245,57 @@ body.drpg-theme-stained-glass #drpg-notices-corner::before {
     background: var(--drpg-glass-accent);
     clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
 }
+
+
+/* THE SEQUENCES (E61 C3-C5; danganronpa.css THE SEQUENCES holds the rules): the glass's tokens. The title and the
+   verdict's band are the trial's pink glass with a cut edge (MK-R1 #3, #4), the type the glass's own. The stamp and the
+   majority's mark are bone in every variant: the mockup drew a right verdict's stamp in Hope's gold, and since E48 K1
+   gold means Hope and nothing else (R3410, the lint's meaning reads), so the variant is told by its word alone. */
+body.drpg-theme-stained-glass #drpg-sequence {
+    --drpg-seq-band: color-mix(in srgb, var(--drpg-sg-despair) 95%, transparent);
+    --drpg-seq-band-cut: polygon(1% 10%, 100% 0, 99% 88%, 0 100%);
+    --drpg-seq-dark: var(--drpg-sg-ink);
+    --drpg-seq-light: var(--drpg-sg-bone);
+    --drpg-seq-mark: var(--drpg-sg-bone);
+    --drpg-seq-band-ink: var(--drpg-sg-ink);
+    --drpg-seq-font: var(--drpg-font-title);
+    --drpg-seq-weight: 400;
+    --drpg-seq-case: none;
+    --drpg-seq-title-size: 116;
+    --drpg-seq-stamp-size: 84;
+    --drpg-seq-stamp-long: 52;
+    --drpg-seq-text-size: 26;
+}
+body.drpg-theme-stained-glass #drpg-sequence :is(.drpg-seq-title-sub, .drpg-seq-name, .drpg-seq-vrow, .drpg-seq-votes h4, .drpg-seq-sentence) { font-family: var(--drpg-font-chrome); }
+
+
+/* THE FLICKER (E62 C2, C4; transitions.mjs `flicker`): for one flash of the Investigation's entry or the body's
+   discovery, the curtain's seams and pulse dim for a moment and come back - the edges and the pulse, never the whole
+   screen (the owner's 10.10), at most three times a second (transitions.mjs `flashRate`). Opacity only: the canvases are
+   already layers. The class is never set under reduced motion. */
+body.drpg-flicker #drpg-curtain > :is(canvas.seamline, canvas.pulse) { opacity: 0.3; }
+
+/* BARE GLASS (E62 C3; death-fade.mjs; SB-C3 and MK-C3, the owner's 12.11): while the player's student is dead and no
+   Monocub, the curtain's glass is a grey, darker copy of itself, the pulse off and the edges dimmed - the rest state, read
+   from the body's class so it holds whatever the curtain redraws. The glass is translucent, so the frost under it is
+   greyed too. During the fade and the return each batch is its own layer after the curtain, clipped to its panes, its
+   backdrop greyed (`.drpg-bare-layer`), and the edges dim for a flicker (`drpg-bare-seams`). Only the glass goes out (the storyboard's #5): the HUD's text, Despair and Hope keep their
+   colours. */
+.drpg-bare-layer {
+    pointer-events: none;
+    backdrop-filter: grayscale(1) brightness(0.62);
+    -webkit-backdrop-filter: grayscale(1) brightness(0.62);
+}
+body.drpg-bare-glass #drpg-curtain-frost {
+    backdrop-filter: var(--drpg-glass-backdrop) grayscale(1) brightness(0.62);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop) grayscale(1) brightness(0.62);
+}
+body.drpg-bare-glass :is(#drpg-curtain > canvas.sg, .curtain-glow) { filter: grayscale(1) brightness(0.62); }
+/* the room tile's and the voice tile's art grey with their pane's batch (the storyboard: batch 4 and batch 5) */
+body:is(.drpg-bare-glass, .drpg-bare-b4) :is(.drpg-room-tile-art, #drpg-room-art),
+body:is(.drpg-bare-glass, .drpg-bare-b5) :is(.drpg-voice-tile-art, #drpg-voice-art) { filter: grayscale(1) brightness(0.75); }
+body.drpg-bare-glass #drpg-curtain > canvas.pulse { opacity: 0; }
+body:is(.drpg-bare-glass, .drpg-bare-seams) #drpg-curtain > canvas.seamline { filter: brightness(0.42); }
 
 /* ---- the voice tile's two buttons, the notices' corner and the Projects gear: every state the module's (E105 FT-21) ----
    The survey of 11.11.2026 (Chromium, the glass harness's GM and player pages, 1366x768) read on these four buttons a

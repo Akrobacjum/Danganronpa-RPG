@@ -71,7 +71,10 @@ export function registerCriticalRule() {
 
         const result = await original.call(this, config);
 
-        if (!map || !before || !config?.roll?.isCritical) return result;
+        // Where the roll's outcome is read (E76b; R3605): Daggerheart 2.12 writes it on `config.evaluated`
+        // (dualityRoll.mjs `addDualityResourceUpdates`, 2.12.8:237-262), up to 2.10 on `config.roll`.
+        const critical = config?.evaluated ? config.evaluated.isCritical : config?.roll?.isCritical;
+        if (!map || !before || !critical) return result;
 
         /*
          * DID THE ORIGINAL ACTUALLY PAY ANYTHING?

@@ -25,6 +25,8 @@ import { drpgWindow } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /**
  * The asks this primary GM holds, by ask id (`askToFrisk` writes them): who asks whom, where (`sceneId`, `level`,
  * `room`), who answers (`answerUserIds`, `byGms`, `silent`), the snapshot's `lines`, `at`, `expiresAt`, `forceUntil`
@@ -183,14 +185,14 @@ export function knownDeath(user, target) {
  * The students who see what happens in `room` on `scene`, as the GMs read them: chapter.mjs `witnessesOf`, the rule a
  * walk-in on a body counts its witnesses by - a student's character (no Monokuma), on a token the GMs have not hidden,
  * alive for the GMs or a Monocub, standing where the witness judge reads it (movement.mjs `lawfulRoomOf`), one a
- * student however many tokens - less the ids of `except` (the two the event is about). A Monocub sees, as it sees a
- * body found. World actors, in the scene's token order. On the primary GM: the marks are its (`flagsHeldNow`).
+ * student however many tokens - less the ids of `except` (the two the event is about). A Monocub sees (`monocubs`),
+ * though since E72 C3 it finds no body (DC7). World actors, in the scene's token order. On the primary GM: the marks are its (`flagsHeldNow`).
  */
 export function roomWitnessesOnGm(room, scene, { except = [] } = {}) {
     if (!room || !scene) return [];
     const left = new Set(except);
     const students = new Set(studentActors().map(actor => actor.id));
-    return witnessesOf({ tokens: scene.tokens ?? [], room, students, held: flagsHeldNow, roomOf: lawfulRoomOf })
+    return witnessesOf({ tokens: scene.tokens ?? [], room, students, held: flagsHeldNow, roomOf: lawfulRoomOf, monocubs: true })
         .map(token => game.actors.get(token.actor?.id) ?? null).filter(actor => actor && !left.has(actor.id));
 }
 
@@ -1083,7 +1085,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
             rejectClose: false,
             footer: {
                 primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse") },
-                secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow") }]
+                secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow"), tooltip: tipText("DRPG.Tips.Actions.letThemLookTooltip") }]
             },
             render: (event, dialog) => {
                 open.dialog = dialog;
@@ -1119,7 +1121,7 @@ async function askToForce(def, forceMs) {
             body: `<p>${plural("DRPG.Frisk.forceText", { force: esc(def?.frisk?.threshold ?? ""), s: Math.round(forceMs / 1000) }, "s")}</p>`,
             rejectClose: false,
             footer: {
-                primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave") },
+                primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), tooltip: tipText("DRPG.Tips.Actions.leaveItTooltip") },
                 secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force") }]
             },
             render: (event, dialog) => {

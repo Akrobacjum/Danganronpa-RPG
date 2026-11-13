@@ -18,7 +18,7 @@ import { MODULE_ID, FLAGS, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
-import { pendingCalls, situationalAdvantage } from "./call-effects.mjs";
+import { pendingCalls, situationalAdvantage, ownHindrance } from "./call-effects.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { debug, plural, warn, listOf, esc } from "./utils.mjs";
@@ -631,8 +631,7 @@ export function lockTrait(root, app, armed) {
 // disadvantage a Monokuma just paid two Despair for.
 //
 // Two sources feed in - a Call somebody paid Hope or Despair for, and the
-// situation itself (searching a fitting room, digging through a hidden
-// stash). They are added and clamped, so they cancel rather than one
+// situation itself (searching a fitting room). They are added and clamped, so they cancel rather than one
 // silently outranking the other: a Monokuma's Obstacle against a player
 // rummaging in exactly the right place is a fair fight, not a loss for
 // whichever mechanism happens to be read second.
@@ -1048,9 +1047,8 @@ function stateGrant(actor) {
  * beyond the first was silently free: a Hope Call spent in a room that favours
  * exactly what you are looking for bought nothing the room had not already
  * given. And the arithmetic being thrown away was real - `performSearch` sums a
- * favouring room and a hindering room (a concealed stash was the third term until E06 C11;
- * since E32+E07 C11e it is the same step of disadvantage, taken on the dice once they have
- * landed - action-search.mjs `stashStep`, which reads this cap); a crisis roll sums a
+ * favouring room and a hindering room (a concealed stash was the third term until E06 C11, and
+ * a step taken on the dice after them from E32+E07 C11e until 1.2.112); a crisis roll sums a
  * weapon in hand, a second try after a miss and the guide's compensation for
  * dying alone to a trap. All of it computed, then rounded to a sign.
  *
@@ -1086,7 +1084,7 @@ function callDice(calls) {
  * @param {Actor}  actor
  * @returns {{net:number, sign:number, count:number, capped:boolean, sources:object[]}}
  */
-function advantageSources(app, actor) {
+export function advantageSources(app, actor) {
     const sources = [];
 
     // The Calls somebody paid Hope or Despair for. One die each, and they sum:
@@ -1096,9 +1094,12 @@ function advantageSources(app, actor) {
     const fromCall = callDice(windowCalls(app, actor));
     if (fromCall) sources.push({ key: "call", value: fromCall });
 
-    // The situation, already summed by whoever armed it - see armSituational.
-    const fromRoom = situationalGrant();
+    // The situation, already summed by whoever armed it - see armSituational. A hindrance die given to the roll by name
+    // (E74, DA44) is in that sum and is shown apart, as "a hindrance die", with nothing of its cause.
+    const fromHindrance = -ownHindrance();
+    const fromRoom = situationalGrant() - fromHindrance;
     if (fromRoom) sources.push({ key: "situation", value: fromRoom });
+    if (fromHindrance) sources.push({ key: "hindrance", value: fromHindrance });
 
     // The guide's "Gracz przy utracie całego stresu dostaje disadvantage na
     // każdy rzut" - a standing penalty that was declared in config and never
@@ -1106,7 +1107,7 @@ function advantageSources(app, actor) {
     const fromState = stateGrant(actor);
     if (fromState) sources.push({ key: "state", value: fromState });
 
-    const net = fromCall + fromRoom + fromState;
+    const net = fromCall + fromRoom + fromHindrance + fromState;
     const size = Math.abs(net);
     return {
         net,
@@ -1118,7 +1119,7 @@ function advantageSources(app, actor) {
 }
 
 /** What the locked chip says when the player hovers it. */
-function explainAdvantage(sign, count, capped, sources) {
+export function explainAdvantage(sign, count, capped, sources) {
     // One source, one die: the sentence that names the cause outright. Kept
     // because it reads better than a list of one, and because these three
     // strings are what a player has learned to recognise.
@@ -1127,7 +1128,9 @@ function explainAdvantage(sign, count, capped, sources) {
             ? "DRPG.RollDialog.forcedByCall"
             : sources[0].key === "situation"
                 ? "DRPG.RollDialog.forcedBySituation"
-                : "DRPG.RollDialog.forcedByState";
+                : sources[0].key === "hindrance"
+                    ? "DRPG.RollDialog.forcedByHindrance"
+                    : "DRPG.RollDialog.forcedByState";
     }
 
     const list = sources

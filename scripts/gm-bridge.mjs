@@ -50,8 +50,8 @@ export { dynamicRulingOf } from "./bridge-runs-records.mjs";
 export { BRIDGE_ACTIONS } from "./bridge-table.mjs";
 export {
     requestOpeningResult, requestOfferRecord, requestCardPost, requestBodyLoot, requestPassageShare,
-    requestPassageCross, requestRefundCrossing, requestPassageFind, requestObject, requestEvidence, requestWithdraw,
-    requestRepoint, requestTrialGm, requestClaim, requestPresent, requestTurn, requestReadyOpen, requestReadyAnswer,
+    requestPassageCross, requestLairLock, requestLairSeal, requestRefundCrossing, requestPassageFind, requestObject, requestEvidence, requestWithdraw,
+    requestRepoint, requestTrialGm, requestClaim, requestTrialSide, requestTrialKeyword, requestPresent, requestTurn, requestReadyOpen, requestReadyAnswer,
     requestReadyEnd, requestArmCall, sendDespairToPrimary, requestOverflowAdd, requestOverflowClear, requestDespairSet,
     requestDespairAll, requestDespairRoster, requestOverflowTake, requestOverflowCheck, requestSabotage,
     requestUndoSabotage, requestProjectChange, requestSendBack, requestEclipseMove, requestNoteSave, requestBallotCast,
@@ -59,7 +59,7 @@ export {
     answerHopeCall, askReshapeRuling, answerDynamic, requestHopeCallApproval, requestDynamicDifficulty,
     requestTraitRuling, requestObserveTarget, requestCleanableTraces, requestObserveResolve, requestAnalyzeResolve,
     requestAdvancement, requestShareBullet, requestGiveItem, requestCrisisResult, requestRollBookmark, requestReroll,
-    requestCleanup, requestParkMurder, requestBetrayal, requestCubAbility, requestVaultSteal, requestSteal,
+    requestCleanup, requestParkMurder, requestBetrayal, requestCubAbility, requestCubAnswer, requestBribeOffer, requestBribeAnswer, requestVaultSteal, requestSteal,
     requestFriskUnseen, requestFriskAsk, requestFriskAnswer, requestFriskFollow, requestPlant, requestStashSearch,
     requestProjectProgress, requestProjectShare, claimCard
 } from "./bridge-asks.mjs";
@@ -182,17 +182,18 @@ async function onOpeningAsk(payload, senderId) {
     if (!game.users.get(senderId)?.isGM) return;
 
     const { throwOpeningRoll } = await import("./murder.mjs");
-    await throwOpeningRoll(payload.side, payload.actorId, payload.trait ?? null);
+    // A watch's hindrance die (E74, DA44): one or none, whatever the packet says; its cause is never sent.
+    await throwOpeningRoll(payload.side, payload.actorId, payload.trait ?? null, { hindrance: payload.hindrance === 1 ? 1 : 0 });
 }
 
 /**
  * Ask a participant's own client to throw their Stage 4 roll.
  * @returns {boolean} false when nobody is there to ask, so the GM throws it.
  */
-export function askOpeningRoll({ userId, actorId, side, trait }) {
+export function askOpeningRoll({ userId, actorId, side, trait, hindrance = 0 }) {
     if (!userId || !game.users.get(userId)?.active) return false;
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_OPENING_ASK, userId, actorId, side, trait
+        action: ACTION_OPENING_ASK, userId, actorId, side, trait, ...(hindrance > 0 ? { hindrance: 1 } : {})
     }, { recipients: [userId] });
     return true;
 }

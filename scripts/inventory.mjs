@@ -10,7 +10,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
-    BEDROOM_KEY_FLAG, ACTIONS }
+    BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
@@ -331,18 +331,52 @@ export function repairRefusal(actor, item, { held = item } = {}) {
  * it was (the stage's open default). A player's own mend on the sheet is still put back (sheet-audit.mjs). Answers
  * `{ id, name, was: { broken, wear } }`, or `{ refused }` with nothing written.
  */
-export async function repairItem(actor, itemId, { ref = null } = {}) {
+export async function repairItem(actor, itemId, { ref = null, size = null, sizedByGm = null } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM mends one." };
     const item = actor?.items?.get?.(typeof itemId === "string" ? itemId : "") ?? null;
     const { itemsHeldNow } = await import("./sheet-audit.mjs");
     const held = item ? itemsHeldNow(actor).find(each => each.id === item.id) ?? item : null;
     const refused = repairRefusal(actor, item, { held });
     if (refused) return { refused };
+    /* HELD TO THE ITEM'S TIER AT THE COMPLETION (E64, D034; the owner's word of 12.11.2026). The approval sized the repair
+       by the item's tier then (passages-gm.mjs `presetScale`); a tier raised since - a GM's edit, a mark put back - asked
+       nothing more, and a Trivial repair mended a Tier 3 tool. `size` is the project's (projects.mjs, the row's `ctx`): a
+       project smaller than the item's tier asks now mends nothing, and the GMs are told why - unless the GM picked that
+       size in the approval window (`sizedByGm`, D039), whose choice stands. A caller that names no size is not held. */
+    if (Number(size) > 0 && !(Number(sizedByGm) > 0)) {
+        const [{ presetScale }, { tierOf }] = await Promise.all([import("./passages-gm.mjs"), import("./use-items.mjs")]);
+        const asks = PROJECT_SCALE[presetScale("repairItem", { tier: tierOf(held) })]?.progress ?? 0;
+        if (Number(size) < asks) return { refused: "the item's tier asks a bigger repair than this one." };
+    }
     const was = { broken: isBroken(held), wear: wearOf(held), flag: held.getFlag?.(MODULE_ID, ITEM_FLAGS.broken) ?? null };
     await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false, [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: 0 },
         { reason: "gmRuling", ref });
     log(`"${item.name}" is mended on ${actor.name}'s sheet.`);
     return { id: item.id, name: item.name, was };
+}
+
+/**
+ * A ROOM ACTION'S MENDING (the owner's answer to Q-E93-3, 12.11.2026; facilities-gm.mjs `applyEffects`): `n` points of wear
+ * off the character's most worn thing as the GMs hold it (`itemsHeldNow`), the first on the sheet among equals. A broken
+ * thing is passed by - mending it whole is a Repair project's (`repairItem`) - and the rest of `n` past that thing's wear
+ * is not spread to another. One write of the GM's (`trustedWrite`, "facility"). Answers `{ id, name, back }`, or null when
+ * nothing on the sheet is worn.
+ */
+export async function mendWear(actor, n) {
+    if (!game.user?.isGM || !(n > 0)) return null;
+    const { itemsHeldNow } = await import("./sheet-audit.mjs");
+    let best = null;
+    for (const held of itemsHeldNow(actor)) {
+        if (isBroken(held)) continue;
+        const worn = wearOf(held);
+        if (worn > 0 && worn > (best?.worn ?? 0)) best = { held, worn };
+    }
+    const item = best ? actor.items.get(best.held.id) : null;
+    if (!item) return null;
+    const back = Math.min(best.worn, n);
+    await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: best.worn - back }, { reason: "facility" });
+    log(`"${item.name}" on ${actor.name}'s sheet has ${back} point(s) of durability back.`);
+    return { id: item.id, name: item.name, back };
 }
 
 /**
@@ -888,15 +922,16 @@ export async function grantItem(actor, {
  * owner is told which - it changes what the incident engine reads as "the
  * weapon in hand" (`equippedFor`), and that is not a thing to change quietly.
  *
- * AND SO NOT AT ALL WHEN IT ARRIVED UNSEEN (`quiet`, E35 C3; audit S08-02). An unseen Plant of a knife into pockets
+ * AND NOT THE ARRIVAL WHEN IT ARRIVED UNSEEN (`quiet`, E35 C3; audit S08-02). An unseen Plant of a knife into pockets
  * holding one stowed Gear and an empty hand put the knife in the victim's hand, redrew their sheet and whispered its
- * name - the Plant told on itself, and the incident read the knife as the weapon they hold. Readying it without the
- * whisper would still be a hand the victim never moved, and what the incident reads; so the piece stays stowed, the
- * victim carrying two stowed until they ready one (read in use-items.mjs: `toggleEquipped` readies one and puts the
- * rest down, `mayStow` stops only a readied one being put away), and the GM's log says so.
- * NOT SETTLED (E35 fix e1-G3; the review's E35-R2): that shape is the one D4 forbids, and S08-02 left two options
- * open - ready it without a word, or leave it stowed. This is the second, chosen by the implementer, not the owner;
- * it is the owner's question E35 Q5 (STAGE.md), and E35-T7 holds this answer until it is given.
+ * name - the Plant told on itself, and the incident read the knife as the weapon they hold. Until E91 the piece stayed
+ * stowed, the victim carrying two stowed (the shape D4 forbids; E35 Q5 left open).
+ * ONE STOWED, NOT TWO (E91 C8, 12.11.2026; the owner's deferred item D090, the answer to E35 Q5: "under quiet a planted
+ * Gear leaves one hidden, not two"). The planted piece stays stowed, unseen; the victim's OTHER working stowed piece of
+ * the group goes into the hand, with no whisper and no redraw (`toggleEquipped`'s `render` false) - so the planted one
+ * is the one hidden, and the incident reads the victim's own tool in their hand. Default, owner may revise: which piece
+ * is readied. With no other piece that can be held ready, or a hand already holding one (never put down: E91 C8's
+ * guard), two stay stowed and the GM's log says so, as before.
  */
 /**
  * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
@@ -916,12 +951,22 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
         const group = ITEM_CATEGORIES[category]?.limitGroup;
         const max = group ? LIMIT_GROUPS[group]?.maxStowed : null;
         if (max === null || max === undefined) return false;
-        const { stowedInGroup, isEquipped, toggleEquipped } = await import("./use-items.mjs");
+        const { stowedInGroup, isEquipped, toggleEquipped, readiedItems } = await import("./use-items.mjs");
         if (isEquipped(item)) return false;
         if (stowedInGroup(actor, group).length <= max) return false;
         if (quiet) {
-            log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen: not put in a hand.`);
-            return false;
+            // `readyForShape`'s second choice, never the arrival: the first working piece of the group stowed beside it.
+            const other = (actor.items ?? []).find(piece => piece.id !== item.id && !isBroken(piece) && !isStashed(piece)
+                && ITEM_CATEGORIES[piece.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group && !piece.getFlag(MODULE_ID, "equipped")) ?? null;
+            // Never a held piece put down (E91 C8's guard; the second review's #1): `toggleEquipped` puts down whatever the
+            // hand holds, so the other piece is readied only into an empty hand, else two stay stowed.
+            if (!other || readiedItems(actor).length) {
+                log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen, and nothing else of it can be held ready.`);
+                return false;
+            }
+            if (!await toggleEquipped(actor, other, { shape: true, render: false })) return false;
+            log(`${actor.name} now carries "${item.name}" stowed, unseen; their "${other.name}" was readied without a word to keep one stowed.`);
+            return true;
         }
         // A BROKEN ARRIVAL CANNOT BE HELD READY (E14 part 1 C5, 24.10.2026; audit S08-36, D4): `toggleEquipped`
         // refuses it, and two Gear stood stowed - a broken knife taken out of the stash beside one stowed tool and an
@@ -1002,8 +1047,9 @@ export const TRANSFER_REFUSED = Object.freeze(["cannotNow", "notThere", "missing
  * Who acts: the giver of a give and a Plant, the taker of the rest. In every mode, the Eclipse and the Class Trial
  * refuse, and so does an actor dead for the GMs (settings.mjs `isDeadForGm`, as `stealFromPerson` and `verify` read at
  * Base). Then per mode:
- *   give   both in one room (movement.mjs `sameRoom`) and a living receiver - one the GMs alone hold dead refused in
- *          the words of anything else that cannot be done now (rule D, E05 C10);
+ *   give   the person gate below (since E64, D001; until then both in one room by movement.mjs `sameRoom`) and a
+ *          living receiver - one the GMs alone hold dead refused in the words of anything else that cannot be done now
+ *          (rule D, E05 C10);
  *   steal, plant  the person gate (frisk.mjs `personActionRefusal`: a Monocub, a Monokuma, a hidden token, oneself,
  *          a room of the same name on another scene, the asker a side of the running incident), and a target whose
  *          death `asker` knows refused, a body's road being the loot: one the GMs keep from that player is robbed and
@@ -1027,15 +1073,19 @@ export async function transferRefusal(from, to, { mode, asker = null } = {}) {
         return knownDeath(user, other) ? "that cannot be done now" : null;
     }
     const { isEclipse, isDeadForGm } = await import("./settings.mjs");
+    // A give through the same person gate (E64, D001; the owner's word of 12.11.2026): until E64 it asked only the Eclipse,
+    // the Class Trial, a death and movement.mjs `sameRoom`, so a give reached a token the GMs hid or a Monocub, and a
+    // Monokuma gave. The gate answers those, the room as the GMs read it, the Eclipse, the trial and the giver's incident; a
+    // dead taker is refused as before, whoever knows of the death - in the words a living one's refusal uses.
+    if (mode === "give") {
+        const why = personActionRefusal(actor, other);
+        if (why) return why;
+        return isDeadForGm(to) ? "that cannot be done now" : null;
+    }
     const { inClassTrial } = await import("./trial.mjs");
     if (isEclipse()) return "an Eclipse is running";
     if (inClassTrial()) return "that waits until the Class Trial is over";
     if (isDeadForGm(actor)) return "that cannot be done now";
-    if (mode === "give") {
-        const { sameRoom } = await import("./movement.mjs");
-        if (!sameRoom(from, to)) return "the character is not in that room";
-        if (isDeadForGm(to)) return "that cannot be done now";
-    }
     return null;
 }
 

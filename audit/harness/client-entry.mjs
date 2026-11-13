@@ -647,8 +647,19 @@ function harnessEvaluate(daggerheart) {
  * The message, as the harness wrote it before C10 (E06 C1 and its fixes, the block comment
  * above `rollTrait`): a chat card faithful enough for despair-award.readDuality - two d12
  * dice in Hope-then-Fear order, plus the actionType the reaction guard reads.
+ *
+ * ITS ROLL WRITTEN AS FOUNDRY WRITES IT (E76b's release fix, 12.11.2026). Daggerheart's `toMessage` creates the
+ * message with `rolls: [roll]` (dhRoll.mjs:197, 2.12.8), which Foundry stores as the roll's JSON, so the roll is
+ * written to JSON here first and a roll that cannot be written throws as it would there; and the options written
+ * are the roll's own (`roll.options`), not the config's - the two are one object on a roll Daggerheart builds, and
+ * not on the GM's draw since this fix (roll-draw.mjs `throwDrawn`). Until then each key of the config was copied
+ * under a try that dropped any key JSON could not write: 2.12's `buildEvaluate` hangs the Roll on the config
+ * (`evaluated`), the GM's draw's config was the roll's options, and its JSON was circular - dropped here without a
+ * word, while a table's Foundry would have refused the message (the suite's "the GM's legal roll keeps its
+ * advantage die's class through fromData" read the throw; the 1.2.109 release's CI run 43287328954, shard 3).
  */
 async function harnessMessage(roll, config) {
+    JSON.stringify(roll);
     // The harness's own `config.actor` (E30), or - for a roll the GM drew (E08+E28 C12a), whose
     // config came over the wire without it - the character its `source.actor` names, as
     // Daggerheart's `toMessage` reads the speaker off the roll's data rather than a key of ours.
@@ -661,7 +672,7 @@ async function harnessMessage(roll, config) {
         dHope: { total: hope }, dFear: { total: fear },
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
+        options: { ...configKeys(roll.options), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
             data: config.data, effects: [...(actor?.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
             experiences: [...(config.experiences ?? [])],
             // The roll's own modifiers where its options hold them, as Daggerheart's message keeps the
@@ -854,12 +865,20 @@ const game = {
         api: {
             // Daggerheart's own roll and dice, put here at boot (`installDualityRoll`, E33 C2a).
             dice: {},
-            // What Daggerheart's relay calls for a save (saveField.mjs, 2.10.5):
-            // the same one write, so the relay copied into lib/dh-relay.mjs runs as is.
-            fields: { ActionFields: { SaveField: { updateSaveMessage: async (result, message, targetId) => {
-                if (!result) return;
+            // What Daggerheart's relay calls for a save: the same one write, so the relay copied into
+            // lib/dh-relay.mjs runs as is. Two signatures (E76, 12.11.2026): up to 2.12.4
+            // `(result, message, targetId)` (saveField.mjs, 2.10.5), from 2.12.5
+            // `(saveTotal, isCritical, message, targetId)`, which returns on a null total and writes
+            // `Boolean(isCritical)` (saveField.mjs:149-156, 2.12.8, read with `git show` on the tag). Told
+            // apart by the first argument: an object is the old result, anything else the new total.
+            fields: { ActionFields: { SaveField: { updateSaveMessage: async (...args) => {
+                const old = args[0] !== null && typeof args[0] === "object";
+                const [value, isCritical, message, targetId] = old
+                    ? [args[0]?.roll?.total, args[0]?.roll?.isCritical, args[1], args[2]]
+                    : [args[0], Boolean(args[1]), args[2], args[3]];
+                if (old ? !args[0] : value === null || value === undefined) return;
                 await game.messages.get(message?._id ?? message?.id)?.update({
-                    [`system.targetSaves.${targetId}`]: { value: result.roll.total, isCritical: result.roll.isCritical }
+                    [`system.targetSaves.${targetId}`]: { value, isCritical }
                 });
             } } } }
         },
@@ -1103,42 +1122,58 @@ globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
  * actorRoll.mjs's `roll` getter (:64), which finds the roll among the message's rolls and is
  * no field of the source - despair-award and private-rolls read it.
  */
+/*
+ * 2.12'S ROAD (E76 C3c, 12.11.2026; the dice copied from 2.12.8 in C3b). From 2.12 `rollTrait` builds its config with
+ * Daggerheart's own `MoveContext.build({ title, headerTitle, roll: { type: "trait", trait }, actionType: "action",
+ * ...options, actor: this })` (actor.mjs:727-743, 2.12.8) and `diceRoll` hands a MoveContext of this actor to its roll
+ * class's `build` (:719-724), building one when it was given a plain config; the copy of move-context.mjs runs here
+ * (lib/dh-dice/data/action/move-context.mjs), so what its constructor keeps of the caller's options - and drops - is
+ * Daggerheart's, not a model's. The harness's own keys are given to it as data: the experiences a test names in
+ * `__forceExperiences` (MoveContext keeps `data.experiences`). `MoveContext` is set below, once the dice classes stand.
+ */
+let MoveContext = null;
 classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options = {}) {
-    return this.diceRoll({ title: `${traitKey} Check`, headerTitle: `Duality Roll: ${this.name}`,
-        roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
+    const config = await MoveContext.build({ title: `${traitKey} Check`, headerTitle: `Duality Roll: ${this.name}`,
+        roll: { type: "trait", trait: traitKey }, actionType: "action", ...options, actor: this });
+    return this.diceRoll(config);
 };
 
 /* actor.mjs `modifyResource` (lib/daggerheart.mjs): a GM writes, a player asks the GM relay (E30, G9). */
 classes.Actor.prototype.modifyResource = function (resources) { return modifyResource(this, resources); };
 
-/* The config's keys as its roll's options carry them: a JSON copy, less what the harness hangs on it. */
+/* The config's keys as its roll's options carry them: a JSON copy, less what the harness hangs on it.
+   A 2.12 MoveContext is read as its own `toJSON` gives it (move-context.mjs:237-241, 2.12.8: without the actor, item,
+   action, effects, event and `evaluated`), the view Foundry's JSON of the roll takes of its options. Read off its keys
+   instead (E76 C3c to 12.11.2026), the config's `evaluated` - the Roll 2.12's `buildEvaluate` hangs on it
+   (dhRoll.mjs:98-106) - reached the message with its own options inside, the character's uuid, the action's title and
+   the experiences among them: four suite tests of a roll's document read the character there, a key Daggerheart's own
+   `toJSON` leaves out (the 1.2.109 release's CI run 43287328954, suite shards 4-7). */
 function configKeys(config) {
     const out = {};
-    for (const [key, value] of Object.entries(config ?? {})) {
+    const view = typeof config?.toJSON === "function" ? config.toJSON() : config;
+    for (const [key, value] of Object.entries(view ?? {})) {
         if (["roll", "actor", "message"].includes(key) || value === undefined || typeof value === "function") continue;
-        try { out[key] = JSON.parse(JSON.stringify(value)); } catch { /* not JSON, so not on a message either */ }
+        // Not caught: a key JSON cannot write is a message Foundry cannot write (see `harnessMessage`).
+        out[key] = JSON.parse(JSON.stringify(value));
     }
     return out;
 }
 
 classes.Actor.prototype.diceRoll = async function diceRoll(config) {
-    config.source = { ...(config.source ?? {}), actor: this.uuid };
-    config.data = this.getRollData();
-    config.resourceUpdates = new ResourceUpdateMap(this);
+    // actor.mjs `diceRoll` (:719-724, 2.12.8): this actor's MoveContext, built when the caller gave a plain config.
+    if (!(config instanceof MoveContext && config.actor === this)) {
+        const data = { ...config, experiences: config.experiences ?? globalThis.__forceExperiences };
+        config = await MoveContext.build(data, { actor: this });
+    }
     // The experiences the roll dialog would have picked (d20RollDialog.mjs keeps them on the
     // config): none, unless a test names them in globalThis.__forceExperiences, as __forceRoll
     // names the dice (E06 fix r1-G1: the Reroll's bookmark keeps them). Where the window opens
     // (E33 C2b) they are the chips its stand-in clicks: the window empties the list it is given
     // (d20RollDialog.mjs:12), and a chip the module locked refuses the click.
-    config.experiences = [...(config.experiences ?? globalThis.__forceExperiences ?? [])];
-
-    // The harness's own keys since E30, on the config before the roll is built as they were
-    // before C10, so the message's options carry them as they did: the character, and costs.
-    config.actor = this;
-    config.costs = config.costs ?? [];
-    // actor.mjs `diceRoll` (:649-655, 2.10.5): the actor's roll class builds the roll, through
-    // the class the module finds, so a wrap of its `build` is what runs (E08+E28 C10).
-    return game.system.api.dice.DualityRoll.build(config);
+    if (!config.experiences?.length && globalThis.__forceExperiences) config.experiences = [...globalThis.__forceExperiences];
+    // The roll class the module finds, so a wrap of its `build` is what runs (E08+E28 C10): `config.rollClass` is
+    // CONFIG.Dice.daggerheart's entry for the actor's class, the same class object as game.system.api.dice's.
+    return config.rollClass.build(config);
 };
 
 /*
@@ -1676,6 +1711,29 @@ Number.isNumeric = n => !Array.isArray(n) && ![null, ""].includes(n) && +n === +
 const { default: DaggerheartDualityRoll } = await import("./lib/dh-dice/dice/dualityRoll.mjs");
 const { diceTypes: daggerheartDice } = await import("./lib/dh-dice/dice/die/_module.mjs");
 installDualityRoll(DaggerheartDualityRoll, daggerheartDice);
+/* Daggerheart 2.12's MoveContext and the roll classes it names (E76 C3c): `game.system.api.data.actions.MoveContext`
+   (daggerheart.mjs:137-145 puts `data` on the api; data/_module.mjs exports `actions`, which exports MoveContext),
+   `CONFIG.Dice.daggerheart` (daggerheart.mjs:34-37), the actor's `rollClass` (actor.mjs:67-69) and the effects a
+   MoveContext asks of the actor (`allApplicableEffects`, actor.mjs:1308): none here, as the harness's roll carried none
+   before 2.12 (the module's effects are judged by its own code, not by Daggerheart's roll-phase conditionals). */
+/* `_loc`, a global Daggerheart 2.12 calls 171 times (git grep on the tag; its eslint.config.mjs declares it readonly, and
+   no file of the system defines it), with a key and at times a data object: read here as v14's shorthand for
+   `game.i18n.localize`, or `format` with data. Read off those calls, not off Foundry's source (not reachable here). */
+globalThis._loc ??= (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
+({ MoveContext } = await import("./lib/dh-dice/data/action/move-context.mjs"));
+{
+    const { default: DaggerheartDHRoll } = await import("./lib/dh-dice/dice/dhRoll.mjs");
+    const { default: DaggerheartD20Roll } = await import("./lib/dh-dice/dice/d20Roll.mjs");
+    game.system.api.data = { ...(game.system.api.data ?? {}), actions: { ...(game.system.api.data?.actions ?? {}), MoveContext } };
+    globalThis.CONFIG.Dice.daggerheart = { DHRoll: DaggerheartDHRoll, DualityRoll: DaggerheartDualityRoll, D20Roll: DaggerheartD20Roll };
+    if (!("rollClass" in classes.Actor.prototype)) {
+        Object.defineProperty(classes.Actor.prototype, "rollClass", { configurable: true,
+            get() { return globalThis.CONFIG.Dice.daggerheart[["character", "companion"].includes(this.type) ? "DualityRoll" : "D20Roll"]; } });
+    }
+    if (typeof classes.Actor.prototype.allApplicableEffects !== "function") {
+        classes.Actor.prototype.allApplicableEffects = function* allApplicableEffects() { /* none: see above */ };
+    }
+}
 globalThis.Handlebars = { compile: () => () => "", registerHelper() {}, registerPartial() {} };
 globalThis.TextEditor = { enrichHTML: async s => s };
 globalThis.renderTemplate = async () => "";

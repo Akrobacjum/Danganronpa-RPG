@@ -27,8 +27,8 @@ wider than its head under Legacy. Before C2: 1241 px wide at 1366x768, the size 
 
 ## Next
 
-C9 (the Map by default: the owner has the shots, page below - default taken per the brief, owner to confirm), C13
-(handbooks, glossary), E98's remainder (the 60-Remnant measurement), then E99.
+E99 goes on in docs/dev/e99/STATUS.md (C4 hints and C5 the trial's Case schema window next). E98's remainder (the
+60-Remnant measurement) is still open.
 
 ## Not done, and why
 
@@ -78,6 +78,11 @@ None.
   86-88): 29 green, 61-gmstore-case 112/113 (F9, the murder opening's pick kept on the primary and re-asked by a second
   GM) while three scenarios ran on four cores - alone on the same commit 113/113 green. Not touched by this stage's
   files as far as read; recorded as seen once under load, not explained.
+
+- Pre-push batch on 9290ce0 (E99 C2/C3/C6/C7): tiers 0-1 1176 passed, **2 failed (R1322, R173)**, fixed in the next
+  commit; tier 2 by name ("E97 C", "dashboard", "trial console", "verdict") 125 passed; 14 scenarios (00, 30, 33, 41,
+  50, 61, 62, 63, 65, 67, 72, 81, 86, 88) green. The fix (lang and CSS only) was written while the last six of those
+  ran from the same tree. On the fix: tiers 0-1 1178 passed, 0 failed, 16 skipped, 1 red (R3339, E48's); 50-lang green.
 
 ## Screenshot pages
 

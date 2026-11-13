@@ -35,6 +35,8 @@ import { LANGUAGES } from "./i18n.mjs";
 import { error, esc, isPrimaryGm, listOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
+import { tipAttr } from "./ui-kit.mjs";
+
 /** Every module the manifest marks as required, whatever their state. */
 function required() {
     const rel = game.modules.get(MODULE_ID)?.relationships?.requires;
@@ -395,7 +397,7 @@ export async function announceNewerSystem() {
                 <p>${game.i18n.format("DRPG.Requirements.newerSystemIntro",
                     { system: esc(system), found: esc(found), verified: esc(verified) })}</p>
                 ${probe}
-                <label class="drpg-inline-check"><input type="checkbox" name="silence" />
+                <label class="drpg-inline-check"><input type="checkbox" name="silence"${tipAttr("DRPG.Tips.Gm.doNotMentionFoundTooltip")} />
                     ${game.i18n.format("DRPG.Requirements.newerSystemSilence", { found: esc(found) })}</label>
             </form>`,
             footer: {

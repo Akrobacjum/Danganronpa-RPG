@@ -33,6 +33,8 @@ import { RECORD } from "./gm-store.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
  * ========================================================================== */
@@ -1035,6 +1037,51 @@ export function overflowBlocksFreeMove() {
     return overflowIs("fog");
 }
 
+/*
+ * THE ROOM ACTIONS' FIVE (E93 C6, 12.11.2026). Each reader comes twice: `...For(drawn)`, pure on the key drawn (the
+ * suite's R3753 reads them so), and the one its callers ask, on `overflowEffect()`.
+ */
+
+/** Which room actions the drawn darkening shuts: `{ lockdown, powercut }` (facilities.mjs `facilityShut`). Pure. */
+export function facilityStatesFor(drawn) {
+    return { lockdown: drawn === "lockdown", powercut: drawn === "powercut" };
+}
+
+/** The actions a room action costs more under the drawn darkening: the Toll's size, else 0. Pure but for `rules`. */
+export function facilityTollFor(drawn, rules = overflowRules()) {
+    return drawn === "toll" ? Math.max(0, Number(rules?.effects?.toll?.by) || 0) : 0;
+}
+
+/** Whether the drawn darkening bars the Short rest (Insomnia). Pure. */
+export function shortRestBarredBy(drawn) {
+    return drawn === "insomnia";
+}
+
+/** The die a GM's room action's roll takes under the drawn darkening: -1 under Jitters, else 0. Pure. */
+export function jittersFor(drawn) {
+    return drawn === "jitters" ? -1 : 0;
+}
+
+/** Lockdown and Power cut now (facilities.mjs, facilities-gm.mjs, action-facilities.mjs). */
+export function overflowFacilityStates() {
+    return facilityStatesFor(overflowEffect());
+}
+
+/** The Toll now: how many actions more a room action costs. */
+export function overflowFacilityToll() {
+    return facilityTollFor(overflowEffect());
+}
+
+/** Insomnia now: no Short rest (rest.mjs `restVariants`, `takeRest`; sheet-audit.mjs `restCovers`). */
+export function overflowBlocksShortRest() {
+    return shortRestBarredBy(overflowEffect());
+}
+
+/** Jitters now: the die a GM's room action's roll takes (roll-draw.mjs `situationReading`, the roller's window). */
+export function overflowFacilityDie() {
+    return jittersFor(overflowEffect());
+}
+
 /** The lowest a number this overflow reduced is allowed to go. */
 export function overflowFloor(key) {
     return overflowRules().effects[key]?.floor ?? 1;
@@ -1154,7 +1201,7 @@ export function overflowSection({ suggestion = "" } = {}) {
             const name = L(`DRPG.Overflow.name.${key}`);
             return {
                 key,
-                on: toggle({ name: `ovf-${key}-on`, checked: Boolean(rule.on), label: name }),
+                on: toggle({ name: `ovf-${key}-on`, checked: Boolean(rule.on), label: name, attrs: { "data-tooltip": tipText("DRPG.Tips.Actions.onPerRuleTooltip") } }),
                 what: `<strong>${esc(name)}</strong>`,
                 by: rule.by === undefined ? "" : stepper({ name: `ovf-${key}-by`, value: rule.by, min: 0, max: BY_MAX, compact: true,
                     attrs: { "aria-label": `${L("DRPG.Overflow.amount")}: ${name}` } }),
@@ -1182,7 +1229,7 @@ export function overflowSection({ suggestion = "" } = {}) {
     // H84-06: the GM's Clear, beside the count it clears; wired by gm-team-dialog.mjs (`clearOverflowFromTab`).
     return `<p>${esc(L("DRPG.Overflow.setupIntro"))}</p>
         <p class="drpg-overflow-now">${esc(nowLine)}</p>
-        <p><button type="button" data-drpg-overflow-clear>${esc(L("DRPG.Overflow.clear"))}</button></p>
+        <p><button type="button" data-drpg-overflow-clear${tipAttr("DRPG.Tips.Actions.clearTheOverflowTooltip")}>${esc(L("DRPG.Overflow.clear"))}</button></p>
         ${formGrid([{
             label: L("DRPG.Overflow.threshold"), id: thresholdId,
             field: stepper({ name: "ovf-threshold", value: status.threshold, min, max, id: thresholdId })

@@ -9,7 +9,8 @@
  * - Level Up (level-up.mjs `openAdvancementFor`, the player's own character): the window whole on the screen;
  * - Set the season up (season-setup.mjs `openSeasonSetup`) on the GM: its top on the screen (the window opens from the
  *   top, its header at y >= 0) and its foot in view;
- * - the season's checks (`runPreSessionChecks`) on the GM: the CAST part (`[data-drpg-check-part="cast"]`) on the screen;
+ * - the season's checks on the GM: the Season checklist's cast row (`openSeasonChecklist`, `li[data-drpg-key="cast"]`) on the
+ *   screen - Pre-season checks' cast part until E101 item 2 made the two windows one (changed by reading, not run here);
  * - and the layout the module chose against settings.mjs `BREAKPOINTS`: `narrowScreen()` is true exactly when the
  *   viewport is under `BREAKPOINTS.narrow` wide.
  *
@@ -104,16 +105,16 @@ export async function run({ gm, p1, check, note, phase, settle, repoUrl }) {
                     footIn: inside(foot?.getBoundingClientRect()), at: box(season) };
                 await closeNew(before);
                 before = ids();
-                M.runPreSessionChecks().catch(() => {});
+                M.openSeasonChecklist().catch(() => {});
                 await settle(1000);
-                const cast = document.querySelector('[data-drpg-check-part="cast"]');
+                const cast = document.querySelector('.drpg-window-season-checklist li[data-drpg-key="cast"]');
                 const castRead = { found: Boolean(cast), in: inside(cast?.getBoundingClientRect()), at: box(cast) };
                 await closeNew(before);
                 return { width: innerWidth, narrowSaid: S.narrowScreen(), narrowAt: S.BREAKPOINTS.narrow, season: seasonRead, cast: castRead };
             `, { timeout: 120000 });
             check(`${at}: the layout the module chose matches BREAKPOINTS on the GM`, master.narrowSaid === (master.width < master.narrowAt), JSON.stringify(master));
             check(`${at}: Set the season up opens from the top, its foot in view`, master.season.open && master.season.topIn && master.season.footIn, JSON.stringify(master.season));
-            check(`${at}: the checks' CAST part is on the screen`, master.cast.found && master.cast.in, JSON.stringify(master.cast));
+            check(`${at}: the Season checklist's cast row is on the screen`, master.cast.found && master.cast.in, JSON.stringify(master.cast));
         }
     }
     await p1.viewport(1366, 768);

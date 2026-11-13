@@ -33,9 +33,12 @@ import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 // The scale option's count (E71, 12.11.2026): its own line, so the utils import above stays as other lines edit it.
 import { plural } from "./utils.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
+    leaveIconOnly, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
 
 export function registerProjectsUi() {
@@ -89,6 +92,8 @@ function onRenderCountdowns(app, element) {
 
         localiseRawKeys(root);
         hideUndiscovered(root);
+        // A secret project's name written back on its row for whoever may know it (S17-31: the countdown carries none).
+        nameSecretRows(root);
         // after the rows the player has not found are gone: they count as none (E79 C12, U1)
         showTrayToPlayer(root);
         paintProgress(root);
@@ -329,9 +334,9 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
             room: `<select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
                 roomSelectOptions(rooms, roomOf(p.id) ?? "")}</select>`,
             murder: `<input type="checkbox" name="murder.${p.id}" aria-label="${rowName("DRPG.Project.indirect", p)}"
-                       ${isIndirectMurder(p.id) ? "checked" : ""} />`,
+                       ${isIndirectMurder(p.id) ? "checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderAProjectTooltip")} />`,
             secret: `<input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
-                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""} />`,
+                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip", null, { title: true })} />`,
             edit: `<button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
                         data-tooltip="${t("DRPG.Project.editTitle")}">
                     <i class="fa-solid fa-pen-to-square" inert></i>
@@ -339,7 +344,11 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
                         aria-label="${rowName("DRPG.Project.showOnMap", p)}"
                         data-tooltip="${t("DRPG.Project.showOnMap")}">
                     <i class="fa-solid fa-map-location-dot" inert></i>
-                </button>` : ""}`,
+                </button>` : ""}${/* E93 C2: the project's room action (facility-editor.mjs `editProjectFacility`) - what its completion
+                gives in its room, for how long, and whether it costs an action - written in the project's step on the editor's
+                Save. In the Edit cell beside the pen, not a column of its own: the manager's columns are the owner's card M16. */
+                iconButton({ icon: "fa-solid fa-mug-hot", label: `${t("DRPG.Facility.editor.projectButton")}: ${p.name}`,
+                    attrs: { "data-drpg-project-facility": p.id } })}`,
             delete: iconButton({ icon: "fa-solid fa-trash-can", label: `${t("DRPG.Project.delete")}: ${p.name}`, cls: "drpg-role-destructive",
                 attrs: { "data-drpg-delete": p.id } })
         };
@@ -451,12 +460,13 @@ export function wireManagerDeletes(root, projects = []) {
 /**
  * THE WIDTH OF THE CREATE, EDIT AND PROPOSE WINDOWS (E47-C6; the owner's O4, 09.11.2026: "O4a i b. Moze jako ustawienie
  * w panelu ustawien?", and its scope "Kazdy dla siebie" - each person their own): the client setting
- * `wideProjectWindows`, off by default. Off, the windows open at the width they had (no `width`: the module's popup
- * rules); on, at the kit's `wide` (ui-kit.mjs WINDOW_WIDTHS, 44rem). Read when a window opens.
+ * `wideProjectWindows`, on by default since 1.2.110 (the owner, 13.11.2026), and wide too when it cannot be read. Off,
+ * the windows open at the width they had (no `width`: the module's popup rules); on, at the kit's `wide` (ui-kit.mjs
+ * WINDOW_WIDTHS, 44rem). Read when a window opens.
  */
 export function projectWindowWidth() {
-    let wide = false;
-    try { wide = Boolean(game.settings.get(MODULE_ID, SETTINGS.wideProjectWindows)); } catch { wide = false; }
+    let wide = true;
+    try { wide = Boolean(game.settings.get(MODULE_ID, SETTINGS.wideProjectWindows)); } catch { wide = true; }
     return wide ? "wide" : null;
 }
 
@@ -504,6 +514,16 @@ function wireProjectManager(dialog, projects, rooms) {
         },
         watch: { settingKeys: ["daggerheart.Countdowns"] }
     });
+
+    for (const btn of dialog.element.querySelectorAll("[data-drpg-project-facility]")) {
+        btn.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const project = projects.find(p => p.id === btn.dataset.drpgProjectFacility);
+            if (!project) return;
+            const { editProjectFacility } = await import("./facility-editor.mjs");
+            await editProjectFacility(project);
+        });
+    }
 
     for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
         btn.addEventListener("click", async ev => {
@@ -631,7 +651,7 @@ export async function openProjectManager() {
             primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), callback: (e, b, d) => readManager(d, projects) },
             secondary: [
                 { action: "new", label: game.i18n.localize("DRPG.Project.createButton") },
-                { action: "share", label: game.i18n.localize("DRPG.Project.shareButton") }
+                { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.shareTooltip") }
             ],
             close: { role: "cancel", action: "cancel" }
         },
@@ -968,12 +988,12 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             field: `<select name="triggerTarget" id="${idOf("trigger-target")}">${emptyOption("DRPG.Trap.noProject")}${targetOptions}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="afterDark"${
-                    startTrigger?.afterDark ? " checked" : ""} /> ${
+                    startTrigger?.afterDark ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.onlyAfterDarkTooltip")} /> ${
                     t("DRPG.Trap.afterDark")}</label>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="notBuilder"${
                     (startTrigger?.notBuilder ?? TRAP_MODIFIERS.notBuilder.default)
-                        ? " checked" : ""} /> ${
+                        ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.notTheOneWhoTooltip")} /> ${
                     t("DRPG.Trap.notBuilder")}</label>` },
         { label: t("DRPG.Project.condition"), id: idOf("condition"),
             field: `<input type="text" name="condition" id="${idOf("condition")}"
@@ -992,18 +1012,18 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         descriptionField(start?.description ?? ""),
         { full: glyphGrid(start?.glyph ?? null) },
         { label: t("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${offScale}${scaleOptions}</select>` },
-        { label: t("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}">${roomOptions}</select>` },
-        { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required>${traitOptions}</select>` },
+        { label: t("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.room2Tooltip")}>${roomOptions}</select>` },
+        { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWork2Tooltip")}>${traitOptions}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder"${
-                    start?.indirectMurder ? " checked" : ""} /> ${
+                    start?.indirectMurder ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderWindowTooltip")} /> ${
                     t("DRPG.Project.indirect")}</label>` },
         { full: `<div class="drpg-trap-fields" data-drpg-when-murder>${trapRows}</div>` },
         ...(passageOf ? [{ full: passageFieldset(passageOf) }] : []),
         ...(ownedOf ? [{ full: ownedFieldset(ownedOf) }] : []),
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
-                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""} /> ${
+                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip", null, { title: true })} /> ${
                     t("DRPG.Project.secret")}</label>` },
         ...(players.length ? [{ full: `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${t("DRPG.Project.visibleTo")}</legend>
@@ -1068,7 +1088,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         body: content,
         footer: {
             primary: save,
-            destructive: editing ? [{ action: "delete", label: game.i18n.localize("DRPG.Project.delete") }] : [],
+            destructive: editing ? [{ action: "delete", label: game.i18n.localize("DRPG.Project.delete"), tooltip: tipText("DRPG.Tips.Actions.deleteTooltip") }] : [],
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
         },
         // DialogV2 discards `content` and rebuilds it from a string, so the
@@ -1189,7 +1209,13 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             ui.notifications.warn(game.i18n.format("DRPG.Project.presetRefused", { why: (await import("./passages-gm.mjs")).whyText(again.refused) }));
             return null;
         }
-        passageFields = { presetTarget: again.target, passage: null };
+        /* THE SIZE THE GM PICKED IS RECORDED (E64, D039; the owner's word of 12.11.2026). The window opens a Repair an item on
+           the size its item's tier asks (`presetApproval`'s `scale`), and the completion holds the project to that tier
+           (inventory.mjs `repairItem`, D034) - unless the GM chose another size here, which the GMs' half keeps
+           (`sizedByGm`, projects.mjs `presetTargetOf`) so the completion holds the GM's choice instead. */
+        const tierSize = again.preset === "repairItem" ? PROJECT_SCALE[again.scale]?.progress ?? null : null;
+        const sizedByGm = tierSize !== null && Number(result.target) !== tierSize ? Number(result.target) : null;
+        passageFields = { presetTarget: sizedByGm ? { ...again.target, sizedByGm } : again.target, passage: null };
     }
 
     const created = await createProject({
@@ -1343,7 +1369,7 @@ async function repickApproval(held) {
 }
 
 /** The owner's three presets of 15.10 (E15 part 2 C5), whose card names its target by id. */
-const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem"]);
+const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem", "repairLock"]);
 
 /**
  * The approval of Seal the passage, Close the breach or Repair an item, read on the GM's browser (E15 part 2 C5; the
@@ -1353,7 +1379,7 @@ const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem"]
  * judges the completion asks again on the primary (passages-gm.mjs `sealRefusal`, `closeBreachRefusal`; inventory.mjs
  * `repairRefusal`).
  */
-async function presetApproval(start) {
+export async function presetApproval(start) {
     const preset = start?.preset, id = typeof start?.to === "string" ? start.to : "", builderId = start?.by ?? null;
     /* THE ROOM AND THE SCENE WHERE THE GMS READ THE BUILDER (fix e1-G3; finding SEC-3), not the card's: a Seal the passage
        or a Close the breach names a passage or a breach with a side in that room on that scene (`presetSideRefusal`, which
@@ -1370,6 +1396,13 @@ async function presetApproval(start) {
             state: game.i18n.localize(isBroken(held) ? "DRPG.Project.repairBroken" : wearOf(held) ? "DRPG.Project.repairWorn" : "DRPG.Project.repairWhole") }) : "-";
         return { preset, label, target: { preset, room, itemId: id }, refused: repairRefusal(builder, item, { held }),
             scale: (await import("./passages-gm.mjs")).presetScale(preset, { tier: held ? tierOf(held) : 0 }) };
+    }
+    // Repair the Lock (E74 C5): the lock's room the card names, a door of the builder's room as the GMs read it, broken, no
+    // other project on it (doors-gm.mjs `repairLockRefusal`).
+    if (preset === "repairLock") {
+        const { repairLockRefusal } = await import("./doors-gm.mjs");
+        return { preset, label: id || "-", target: { preset, room, sceneId: place?.scene?.id ?? null, lockRoom: id },
+            refused: await repairLockRefusal({ scene: place?.scene ?? null, room: id, from: room }) };
     }
     const P = await import("./passages-gm.mjs");
     if (preset === "sealPassage") {
@@ -1552,7 +1585,7 @@ function viewerTicks(players, checked, project, { locked = false } = {}) {
     const known = new Set(checked);
     const lock = locked ? ` disabled data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Project.everyone"))}"` : "";
     return Object.fromEntries(players.map(user => [`viewer-${user.id}`,
-        `<input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${lock}
+        `<input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${lock}${locked ? "" : tipAttr("DRPG.Tips.Actions.aPlayerSOnTooltip")}
                aria-label="${foundry.utils.escapeHTML(`${user.name}: ${project.name}`)}" />`]));
 }
 
@@ -1621,8 +1654,8 @@ export async function openShareDialog(preselectId = null) {
                 <select name="player">${playerOptions}</select></label>
         </form>`,
         footer: {
-            primary: { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), callback: (e, b, d) => read(d, false) },
-            destructive: [{ action: "revoke", label: game.i18n.localize("DRPG.Project.revokeButton"), callback: (e, b, d) => read(d, true) }],
+            primary: { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.share2Tooltip"), callback: (e, b, d) => read(d, false) },
+            destructive: [{ action: "revoke", label: game.i18n.localize("DRPG.Project.revokeButton"), tooltip: tipText("DRPG.Tips.Actions.revokeAccessTooltip"), callback: (e, b, d) => read(d, true) }],
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
         },
         rejectClose: false

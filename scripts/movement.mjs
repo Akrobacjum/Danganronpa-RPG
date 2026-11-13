@@ -24,7 +24,7 @@
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, ACTIONS_RESOURCE } from "./config.mjs";
 import {
-    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
+    SETTINGS, iAmTheMastermind, incidentParticipants, incidentCast, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
     isDeceased, getClock, eclipseId, eclipseCountOf, isMutedDead
 } from "./settings.mjs";
 // The key rule (E14 part 1 C2), static for the veto's sake as the imports below: a leaf of config.mjs and inventory.mjs
@@ -59,9 +59,10 @@ import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-au
 import { actsAsMastermind } from "./passages-gm.mjs";
 // The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
 // static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
-import { eclipseMoveStore, crossingStore } from "./gm-stores.mjs";
+import { eclipseMoveStore, crossingStore, watchStore, lockpickStore, lockpickCopy, timedCrossingsOf } from "./gm-stores.mjs";
 // E89 fix FG2 (G3): the waits for a token at rest counted (perf-counters.mjs; a leaf, no cycle).
 import { count } from "./perf-counters.mjs";
+import { isCubToken, isMonocubCorpse } from "./spectator.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -100,8 +101,40 @@ export const ROOM_FLAGS = {
      * it or the courtroom. Taken off when the wall is given back (passages-gm.mjs `restoreBreach`) and by the
      * season's reset. A value with no builder, user or project in it: every browser holds the scene's regions.
      */
-    broken: "drpgBroken"
+    broken: "drpgBroken",
+
+    /**
+     * A room shut from inside (E74 C2, 12.11.2026; DA25, DA47): Shut the Door's barricade, `true` on every piece of the
+     * room while it stands - no author, no strength (those are the GMs', gm-stores.mjs `barricadeStore`). Written by
+     * `setRoomBarricaded` alone, read by `roomBarricaded` alone; stops a walk in through a door (`barricadedFrom`), never a
+     * passage, a breach or a tunnel (A10), and never the GM. The one public trace a barricade leaves (DA47: the accepted
+     * leak, audit/harness/known-leaks.json).
+     */
+    barricaded: "drpgBarricaded"
 };
+
+/** Is this room barricaded from inside, on this scene (`ROOM_FLAGS.barricaded`)? The one reader of the flag (E74 C2). */
+export function roomBarricaded(scene, room) {
+    if (!room) return false;
+    return Boolean(roomFlag(scene, room, ROOM_FLAGS.barricaded));
+}
+
+/**
+ * Barricade a room, or take the barricade down (`on` false): the flag on every piece of the room on `scene`, a GM's write
+ * (the primary's, doors-gm.mjs). The one writer of `ROOM_FLAGS.barricaded`; taken off with `unsetFlag`. Answers how many
+ * pieces were written.
+ */
+export async function setRoomBarricaded(scene, room, on = true) {
+    if (!game.user?.isGM || !scene || !room) return 0;
+    let wrote = 0;
+    for (const piece of roomRegions(scene, room)) {
+        if (Boolean(piece.getFlag(MODULE_ID, ROOM_FLAGS.barricaded)) === Boolean(on)) continue;
+        if (on) await piece.setFlag(MODULE_ID, ROOM_FLAGS.barricaded, true);
+        else await piece.unsetFlag(MODULE_ID, ROOM_FLAGS.barricaded);
+        wrote++;
+    }
+    return wrote;
+}
 
 /**
  * Has this room been forced open, on this scene (`ROOM_FLAGS.broken`)? The one reader of the flag (R981): a room
@@ -932,7 +965,8 @@ function standingHere(tokenDoc, { lawful = true, last = null, told = false, reas
  * one write reads as a jump between two rooms that do not touch.
  */
 function ruleOf(verdict) {
-    if (verdict?.rule === "bedroomShut" || verdict?.rule === "corpse") return "cannotNow";
+    // "murderRoom": a Monocub refused a running murder's room (`restrictedFrom`, the 1.2.110 review's V1), put back as the Seal it read as until then.
+    if (verdict?.rule === "bedroomShut" || verdict?.rule === "corpse" || verdict?.rule === "murderRoom") return "cannotNow";
     return verdict?.code !== "cannotNow" && RULE_CODES.includes(verdict?.code) ? verdict.code : null;
 }
 
@@ -1104,7 +1138,8 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
  * which the veto asks before them). Pure but for the settings those rules read.
  */
 function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
-    if (isCorpse(student)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead"), rule: "corpse" };
+    // A Monocub's corpse beside the token it walks too (E62 C3b fix): the GMs' judge holds the body where the veto does.
+    if (isCorpse(student) || isCorpseToken(tokenDoc)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead"), rule: "corpse" };
     // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
     // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
     // Scenario 41 b1 read it on 12.10.2026: the hall linked after its tokens were recorded in its
@@ -1142,12 +1177,33 @@ function eclipseSighting(student, from, tokenDoc, { adjacent = true } = {}) {
     if (clock?.eclipse !== true || !isPlaceScene(tokenDoc.parent) || student.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
     const to = roomOfToken(tokenDoc), id = eclipseId(clock);
     if (!from || !to || from === to || !id) return null;
-    const allowance = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
+    // A watcher keeps to the post through the Eclipse (E74 C6; DA34, the plan's "judgeEclipseCrossing refuses the watcher"):
+    // a walk out of it is put back here, on the primary, where the watch is known (watch-gm.mjs takes the post at the start).
+    if (watchHolds(student, from)) return { spent: { code: "onWatch", text: game.i18n.localize("DRPG.Bridge.why.onWatch") } };
+    const base = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
+    // A room action's extra crossings are this student's alone (Q-E93-3; gm-stores.mjs `timedCrossingsOf`).
+    const allowance = base === null ? null : base + timedCrossingsOf(student.id);
     const tally = seenTally.get(student.id);
     const seen = Math.max(eclipseCountOf(eclipseMoveStore.get(student.id), id).seen, tally?.eclipse === id ? tally.seen : 0);
     const crossings = adjacent ? 1 : roomsApart(tokenDoc.parent, from, to);
     if (allowance !== null && seen + crossings > allowance) return { spent: { code: "eclipseSpent", text: game.i18n.localize("DRPG.Eclipse.noMovesLeft") } };
     return { actorId: student.id, eclipse: id, seen: seen + crossings };
+}
+
+/**
+ * Whether `actor` holds Pick the Lock's pass to `room` on `scene` (E74, DA9; lockpick-gm.mjs): a GM reads the GMs' store,
+ * the owner's browser its copy of its own characters' passes (gm-stores.mjs `lockpickCopy`). Asked by `restrictedFrom`.
+ */
+export function holdsPass(actor, scene, room) {
+    if (!actor?.id || !scene?.id || !room) return false;
+    const row = game.user?.isGM ? lockpickStore.get(actor.id) : (lockpickCopy.read() ?? {})[actor.id];
+    return Boolean(row) && row.sceneId === scene.id && row.room === room;
+}
+
+/** Whether `student` keeps watch over `from` through the running Eclipse, as the GMs hold it (gm-stores.mjs `watchStore`). */
+export function watchHolds(student, from) {
+    const row = student?.id ? watchStore.get(student.id) : null;
+    return Boolean(row?.post) && row.post === from;
 }
 
 /**
@@ -1266,6 +1322,10 @@ export async function recordCrossingInStep(actor, tokenDoc, { id = null, from = 
     if (awaitingPrice.get(actor.id)?.id !== row.id) awaitingPrice.delete(actor.id);
     await crossingStore.whenHydrated();
     await crossingStore.patch(actor.id, row);
+    // The crossing settles once the token has stood in `to` a while (E69 C2, crossing-settle.mjs): the one event every
+    // notice of another character's move comes from.
+    const { scheduleSettle } = await import("./crossing-settle.mjs");
+    scheduleSettle(actor.id, tokenDoc, { from, to, via, eclipse: row.eclipse }, { roomNow: roomOfToken });
     return true;
 }
 
@@ -1342,7 +1402,10 @@ export async function refundLastCrossing(actorId) {
         await crossingStore.patch(actor.id, { refunded: true });
         awaitingPrice.delete(actor.id);
         // An Eclipse's count only in the Eclipse it was counted in: another's count is not this crossing's.
-        const kind = row.kind === "eclipse" && (!row.eclipse || row.eclipse !== eclipseId()) ? null : row.kind ?? null;
+        // And the free Move only in the time of day it was taken (E64, D059; the owner's default, confirmed 12.11.2026): it is
+        // a time of day's, refilled at each boundary, so one taken before a boundary given back after it was a second one.
+        const kind = row.kind === "eclipse" && (!row.eclipse || row.eclipse !== eclipseId()) ? null
+            : row.kind === "free" && row.mark !== timeOfDayMark() ? null : row.kind ?? null;
         const given = kind ? await refundCrossingOnGm(actor, kind) !== false : false;
         const token = game.scenes?.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null;
         let back = false;
@@ -1452,8 +1515,8 @@ export function gmSpotWhy(tokenDoc, was = null) {
  * Passage's searcher and a show's two students here, where it read the token's document, which the player's own
  * browser writes - a console's jump through a wall found the passage beyond it. On the primary GM.
  */
-export function gmPlaceOf(actor, { sceneId = null } = {}) {
-    const place = locateActor(actor, { sceneId });
+export function gmPlaceOf(actor, { sceneId = null, body = false } = {}) {
+    const place = locateActor(actor, { sceneId, body });
     const spot = place ? gmSpotOf(place.tokenDoc) : null;
     if (!spot) return null;
     return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomAtSpot(place.tokenDoc, spot), level: spot.level ?? levelOf(place.tokenDoc) };
@@ -1497,7 +1560,8 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         // carry `deceased` for the rules that count the living, and `monocub`
         // for everything about being a person on the map - the same pair the
         // sheet's own action panels test.
-        if (isCorpse(actor)) {
+        // And a Monocub's corpse beside the token it walks (E62 C3b fix): the body stays where it fell.
+        if (isCorpseToken(tokenDoc)) {
             ui.notifications.warn(game.i18n.localize("DRPG.Move.dead"));
             return false;
         }
@@ -1526,6 +1590,10 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
+        // A barricade (E74): its author is told somebody tries the door, through the primary (doors-gm.mjs `knockDoor`).
+        if (to && roomBarricaded(tokenDoc.parent, to) && allowed === game.i18n.localize("DRPG.Bridge.why.barricaded")) {
+            import("./bridge-asks.mjs").then(m => m.requestDoorKnock({ actorId: actor.id, room: to })).catch(() => {});
+        }
         return false;                                  // the move does not happen
     } catch {
         // Never block a move because our own check failed.
@@ -1541,6 +1609,16 @@ function onPreUpdateToken(tokenDoc, changes, options) {
  * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
  * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
  */
+/**
+ * Whether this token is a body that does not walk (E62 C3b fix; the e93 review's F3): its actor a corpse (`isCorpse`), or
+ * a Monocub's corpse beside the token it walks (spectator.mjs `isMonocubCorpse`). The veto, the GMs' judge and the body
+ * tile's follow (body-tile.mjs `followBody`) ask it.
+ */
+export function isCorpseToken(tokenDoc) {
+    const actor = tokenDoc?.actor ?? null;
+    return Boolean(actor && isCorpse(actor)) || isMonocubCorpse(tokenDoc);
+}
+
 export function isCorpse(actor) {
     try {
         if (!isDeadForGm(actor) && !isMutedDead(actor)) return false;
@@ -1601,8 +1679,10 @@ export function isCorpse(actor) {
  * @returns {true|string|{code: string, text: string}} true, or the reason it is refused.
  */
 export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known, joined = false, keyed = false, elevation = null } = {}) {
-    // Monokumas are not bound by any of this.
-    if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
+    // Monokumas are not bound by any of this - nor is a Spectator, a ghost (E92 C3), before the incident's and the trial's
+    // locks: it is in no incident and no trial, and it goes everywhere at no price. On the primary's judge the flag is
+    // the GMs' (`judgeArrival` hands the actor as they hold it), so a console's forged flag is judged as a student.
+    if (actor.getFlag(MODULE_ID, FLAGS.monokuma) || actor.getFlag(MODULE_ID, FLAGS.spectator)) return true;
 
     // You are in a murder. You do not walk out of it.
     //
@@ -1619,6 +1699,10 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known, elevation });
     const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null, keyed });
     if (blocked) return blocked;
+    // A barricade (E74 C1): read here and by the GMs' audit through this verdict, never by the passages' glow, which asks
+    // `restrictedFrom` alone - so no surface shows a barricade before a pull on its door (the plan's risk 2).
+    const barred = barricadedFrom(actor, to, scene, mover, { via: passage ? "passage" : via, keyed });
+    if (barred) return barred;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
 
@@ -1660,7 +1744,14 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
      * gate and `judgeEclipseCrossing` skipped every check whenever the clock
      * said Morning or Night, and `freeBecomes` was a number nothing read.
      */
-    const allowance = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
+    const base = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
+    // A room action's extra crossings are this character's alone (Q-E93-3; gm-stores.mjs `timedCrossingsOf`): the GMs' rows
+    // on a GM, the owner's copy on the walker's browser.
+    const allowance = base === null ? null : base + timedCrossingsOf(actor.id);
+
+    // A Monocub pays nothing and counts no Eclipse crossing (E72 C10): only the connected rooms hold it, as a free
+    // placement holds nobody.
+    if (isMonocubActor(actor)) return cubStep(scene, from, to, floors, { free: eclipse && allowance === null, passage, keyed });
 
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.
@@ -1831,6 +1922,39 @@ export function roomsKnownToMe(scene = null) {
 }
 
 /**
+ * A Monocub's step (E72 C10): the connected rooms' rule alone (`crossingRefused`, a known passage joining two rooms as a
+ * door does), none in a free-placement Eclipse. Its own function, so the verdict keeps its two readings of the rule
+ * where R387, R431 and R558 read them.
+ */
+function cubStep(scene, from, to, floors, { free = false, passage = false, keyed = false } = {}) {
+    if (free) return true;
+    const refused = passage ? false : crossingRefused(scene, from, to, floors);
+    return refused ? refusal(keyed, "cannotNow", refused) : true;
+}
+
+/** A Monocub, by its flag (the veto is synchronous: no import of monocub.mjs here). */
+function isMonocubActor(actor) {
+    return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.monocub));
+}
+
+/**
+ * The room a running incident happens in, as a GM holds it (E72 C10): the victim's (the cast's `victimId`, a GM's
+ * record), on `scene`, while the world half says the incident runs; null on a player's browser or with none running.
+ */
+function incidentRoomForGm(scene) {
+    try {
+        if (!game.user?.isGM) return null;
+        const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        if (!state.active || !["openingRoll", "incident"].includes(state.stage)) return null;
+        const victim = game.actors.get(incidentCast()?.victimId ?? "");
+        const place = victim ? locateActor(victim) : null;
+        return place?.room && (!scene || place.scene?.id === scene.id) ? place.room : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Is this character pinned into a murder that is happening right now?
  *
  * Read straight off the world setting rather than through `murder.mjs`: this
@@ -1909,9 +2033,24 @@ function lockedInIncident(actor, keyed = false) {
 function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
     try {
         if (isChained(actor)) return refusal(keyed, "chained", game.i18n.localize("DRPG.Calls.chainedBlocked"));
-        if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
+        // Pick the Lock's pass (E74, DA9): its holder walks into that one room past a lock, a bedroom and a seal.
+        if (to && !(mover ? mover.mastermind : iAmTheMastermind()) && !holdsPass(actor, scene, to)) {
             if (isLocked(scene, to)) return refusal(keyed, "doorLocked", game.i18n.localize("DRPG.Move.locked"));
             if (isSealed(to)) return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
+            /* A MURDER'S ROOM SHUTS TO A MONOCUB, IN THE NEUTRAL WORDS (E72 C10, 12.11.2026; the owner's amendment of 06.11;
+               the 1.2.110 review's V1, 13.11.2026). Judged where the incident's room is known - a GM's browser, judging a
+               player's step (`mover`) - and never a GM's own move; a Monocub already inside is not crossing into it. It read as
+               a Seal until the review, so that a Monocub could not tell a running murder from one; but Seals are the world
+               setting `sealedRooms`, which every browser holds, and "sealed" for a room that list does not hold named the
+               murder's room. So it is `cannotNow` with that code's own sentence, which a crossing also gets for a room not
+               connected, a bedroom without its key and a dead character: nothing the world shows is contradicted by it.
+               What stays: the refusal itself says the room is shut to this Monocub now, which the rule (no Monocub into a
+               running murder's room) cannot avoid while it refuses. */
+            if (isMonocubActor(actor) && game.user?.isGM && !(mover ? mover.gm : true) && to === incidentRoomForGm(scene)) {
+                // Marked, so the primary still puts the token back as for a door's rule (`ruleOf`); the mark stays on the GM
+                // (movement-audit.mjs `markOf` sends a player only a bedroom's and a body's).
+                return refusal(keyed, "cannotNow", game.i18n.localize("DRPG.Bridge.why.cannotNow"), "murderRoom");
+            }
             // Somebody's bedroom. The owner walks in; anybody else needs the
             // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
@@ -1922,6 +2061,24 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
         }
     } catch {
         // A restriction we cannot read must not block an ordinary move.
+    }
+    return false;
+}
+
+/**
+ * THE BARRICADE'S PART OF THE DOORS' RULES (E74 C1, 12.11.2026; A10). Apart from `restrictedFrom`, the fixed part - a lock,
+ * a seal, a bedroom, the chain - which the passages' glow reads too: a barricade is shown by no surface before somebody
+ * pulls on its door. A walk in through a door is refused for everyone but a GM moving a token and a Monokuma (the
+ * verdict's first line); a passage, a breach or a tunnel (`via`) goes through. The words say only that the door does not
+ * give.
+ */
+function barricadedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
+    try {
+        if (!to || ["passage", "breach", "tunnel"].includes(via)) return false;
+        if (mover ? mover.gm : game.user?.isGM) return false;
+        if (roomBarricaded(scene, to)) return refusal(keyed, "barricaded", game.i18n.localize("DRPG.Bridge.why.barricaded"));
+    } catch {
+        // A barricade we cannot read must not block an ordinary move.
     }
     return false;
 }
@@ -1958,7 +2115,7 @@ export function isLocked(scene, room) {
  * the mover's browser, and on the primary the student `judgeArrival` hands in, its items as the GMs' mark holds them
  * (`itemsHeldNow`), so a key's room or place a player's browser wrote and the audit has not let stand opens nothing there.
  */
-function bedroomShut(actor, scene, to) {
+export function bedroomShut(actor, scene, to) {
     // A bedroom a breach forced (E15 part 2 C4; E14's Q1 of 18.10: "bez klucza tunelem i breach") opens to everyone.
     if (roomBroken(scene, to)) return false;
     const owner = to ? roomFlag(scene, to, ROOM_OWNER_FLAG) : null;
@@ -2564,6 +2721,13 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
 
 /** `settleRoute`'s charge, on the browser that pays it; `record` is the primary's count inside its step of the key. */
 async function chargeRoute(tokenDoc, actor, { before, previous, crossings }, { record = null } = {}) {
+    /* A MONOCUB MOVES FREE (E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11, Q-E72-5's default): no Move, no
+       action and no Eclipse count, the Eclipse too. The veto (`crossingVerdict`) still holds the walls, the stairs, a seal,
+       the courtroom and a murder's room. */
+    if (isMonocubActor(actor)) {
+        if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        return true;
+    }
     // During an Eclipse the action economy is suspended: two free crossings
     // instead, judged by eclipse.mjs.
     //
@@ -2823,8 +2987,9 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // Monokumas walk where they like. The guide has them moving around the
     // map freely between interventions; they have no action economy to
     // spend and no walls to respect.
-    const { isMonokuma } = await import("./monokuma.mjs");
-    if (isMonokuma(actor)) {
+    // Nor does a Spectator (E92 C3): no fee, no crossing recorded, no trap told - a ghost.
+    const { isMonokuma, isSpectator } = await import("./monokuma.mjs");
+    if (isMonokuma(actor) || isSpectator(actor)) {
         lastRoom.set(tokenDoc.id, after);
         lastPosition.set(tokenDoc.id, landed);
         return true;
@@ -3365,7 +3530,7 @@ export function roomOfActor(actor) {
  * @param {string|null} [options.sceneId]  The scene to prefer, among the character's own.
  * @returns {{tokenDoc: TokenDocument, scene: Scene, room: string|null, level: *}|null}
  */
-export function locateActor(actor, { sceneId = null } = {}) {
+export function locateActor(actor, { sceneId = null, body = false } = {}) {
     if (!actor) return null;
     const places = [];
     for (const scene of game.scenes ?? []) {
@@ -3374,9 +3539,21 @@ export function locateActor(actor, { sceneId = null } = {}) {
             if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene });
         }
     }
-    const place = chosenPlace(places, sceneId);
+    const place = chosenPlace(walkerOrBody(places, body), sceneId);
     if (!place) return null;
     return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomOfToken(place.tokenDoc), level: levelOf(place.tokenDoc) };
+}
+
+/*
+ * A MONOCUB WALKS ITS OWN TOKEN, AND ITS BODY LIES (E62 C3b fix, 13.11.2026; the coordinator's 7). A Monocub made from a
+ * dead student's Spectator holds two tokens (scripts/spectator.mjs `isCubToken`, `isMonocubCorpse`): where it stands is
+ * the token it walks, where its body lies the other. `body` asks for the body; otherwise the walker. A character with no
+ * marked token keeps every token, as before.
+ */
+function walkerOrBody(places, body = false) {
+    if (!places.some(place => isCubToken(place.tokenDoc))) return places;
+    const kept = places.filter(place => isCubToken(place.tokenDoc) !== body);
+    return kept.length ? kept : places;
 }
 
 /** `locateActor`'s choice among several tokens, in the order its comment gives. */
@@ -3415,7 +3592,8 @@ export function placesOf(actor) {
             if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene, room: roomOfToken(tokenDoc) });
         }
     }
-    return places;
+    // A Monocub's places are where it walks, not where its body lies (`walkerOrBody`).
+    return walkerOrBody(places);
 }
 
 /**
@@ -3454,7 +3632,7 @@ const levelKey = level => level?.id ?? level ?? null;
  * corpse in the next room (a free answer to "where is the body") and the
  * Monokuma who happened to be walking through it.
  *
- * Three exclusions, each for its own reason:
+ * Three exclusions, each for its own reason (and a Spectator since E92 C1, which watches and is nobody in the room):
  *
  *   Monokuma  the GM standing on the map, not a witness who could testify.
  *             Counting one made a murder impossible to open in any room a GM
@@ -3472,6 +3650,8 @@ function countsAsPresent(token) {
     const actor = doc?.actor;
     if (!actor || actor.type !== "character") return false;
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
+    // A Spectator watches and is nobody in the room (E92 C1): no witness, no target, nobody overheard, no company.
+    if (actor.getFlag(MODULE_ID, FLAGS.spectator)) return false;
     if (isDeadForGm(actor)) return false;
     return !doc.hidden;
 }

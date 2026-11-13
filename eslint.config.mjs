@@ -140,10 +140,13 @@ const LANG = { ecmaVersion: "latest", sourceType: "module" };
 export default [
     { ignores: ["**/node_modules/**", "audit/harness/results/**", "audit/gate/evidence/**", "audit/gate/.work/**",
         "docs/**",                         // design papers (docs/design/glass-recipe.js), not code that runs
-        "macros/**",                       // Foundry macro bodies: top-level return and await, which a module parser refuses
         "audit/handoff/**",                // a temporary hand-over folder, deleted in the 1.2.61 release commit
         "audit/harness/lib/dh-relay.mjs",  // Daggerheart's relay, copied verbatim and never edited (CLAUDE.md)
         "audit/harness/lib/dh-dice/dice/**", // Daggerheart's dice, copied verbatim and never edited (audit/harness/README.md)
+        // Two more of Daggerheart's files, copied verbatim from 2.12.8 beside the glue (E76 C3b): 2.12's roll config and
+        // the helpers it imports. They read Daggerheart's globals (`_loc`) as the dice do.
+        "audit/harness/lib/dh-dice/data/action/move-context.mjs",
+        "audit/harness/lib/dh-dice/helpers/functional.mjs",
         "audit/harness/lint-fixtures/**"]  // planted violations, linted by run-all's lint part as a file of scripts/
     },
     { files: ["scripts/**/*.mjs"], languageOptions: { ...LANG, globals: { ...BROWSER, ...FOUNDRY } },
@@ -161,6 +164,8 @@ export default [
     { files: ["audit/live/**/*.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
     // The glass sweep's page.evaluate functions run inside audit/glass-harness.html.
     { files: ["audit/glass-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
+    // The float sweep (float-text line): its page.evaluate bodies run in audit/style-harness.html.
+    { files: ["audit/float-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     // the case map sweep (E97 fix): its page.evaluate bodies run in the page
     { files: ["audit/case-map-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     { files: ["audit/live/page-hooks.js"], languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: { ...BROWSER, ...FOUNDRY } }, rules: RULES }

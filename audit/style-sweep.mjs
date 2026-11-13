@@ -94,9 +94,22 @@ const THEMES = ["glass", "legacy"];
 /* --fit (E21 C1c): the plan's four sizes for every page, and a phone's for every window a player opens and the sheet. */
 const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
+/* THE GM'S TABLES FROM THE SMALLEST DESK UP (fit-110, 13.11.2026; the owner's [17], "1280x720, the smallest desk supported",
+   which E49 A5 sized Room setup's Passages for - components.css, the Passages tab's columns - and the coordinator's
+   default of that day, put to the owner as such). These pages are read at FIT_SIZES from 1280 wide up, not at 1024x768:
+   there the Passages table's eight columns (1162 px) stood in a 929 px body, and the Students window's eleven (1104 px
+   under the glass, 1039 under Legacy) the same - 20 readings red, every one at 1024x768. A player's window and every
+   other page keep 1024x768 and the phone. */
+const DESK_FROM_1280 = new Set(["rooms-passages--rows", "students"]);
 /* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"); every action
    window probe 08 captures since E68 C12 (one layout for every action, the owner's Q1 and Q4 of round M). */
-const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic"];
+const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic",
+    /* E64-inv (12.11.2026; the owner's pick of the Investigation review): End the chapter shows its clock options and the
+       case's backup without a scroll. Red at 235c321: its body scrolled at 1366x768 in both themes. */
+    "chapter-end",
+    /* E64-inv's second round (12.11.2026): New Remnant (61 px under the glass at 1366x768) and the realization preview
+       after a run (its footer on two rows in Polish under the glass, 12 px). */
+    "new-trace", "case-realize--made"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 
@@ -225,6 +238,13 @@ function fitPages() {
    own: on that card the box is the demo's, not a second region of a window, and it read "a second scroller" at every
    desk size. Skipped there only, by the card's id and the box's name; every other window still fails on it. */
 const DEMO_SCROLLERS = { "kit-table-scroll": ["div.drpg-data-table-box"] };
+/* A WINDOW WHOSE ONE SCROLLER IS NOT THE KIT'S BODY (E64-inv, 12.11.2026). The Investigation dashboard's frame is fixed
+   (components.css, "THE CASE PANEL'S FIXED FRAME", E97 C2, the owner's Q-C and Q-D of 11.11.2026): its body does not
+   scroll (`overflow: hidden`) and holds a toolbar of a stated height over the view's box (`.drpg-case-view`), the one box
+   that scrolls, both ways. So in that window the view takes the body's place: counted as its one scroller, and anything
+   else that scrolls beside it - the body included - is still a second one (until E64-inv the Legacy table's own box was:
+   44732a2 reads it). */
+const OWN_SCROLLER = { investigation: "div.drpg-case-live.drpg-case-view" };
 
 /** What is wrong with one window's state, as words; [] when it fits. */
 function misfits(win, state, still) {
@@ -236,7 +256,11 @@ function misfits(win, state, still) {
     if (state.labelsOff?.length) out.push(`label off its field: ${state.labelsOff.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
     const demo = DEMO_SCROLLERS[win?.window] ?? [];
-    const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
+    /* By the window, not its capture: probe 08 writes a window's other tabs and states as `<id>--<tab>` (`investigation--key`,
+       `investigation--final`), the same window, whose view is its one scroller too (fit-110, 13.11.2026: 44 readings of
+       those two read "a second scroller: div.drpg-case-live.drpg-case-view", the view the window is built on). */
+    const own = OWN_SCROLLER[win?.window] ?? OWN_SCROLLER[String(win?.window ?? "").replace(/--.*$/, "")];
+    const others = state.scrollers.filter(s => (own ? s !== own : s !== "kit-body") && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
     // E47-FB: a body or footer wider than its box, cut sideways (the 1.2.102 clip) or scrolled (style-harness.html `wide`)
@@ -359,6 +383,7 @@ async function fitPass(browser) {
             const page = await browser.newPage({ viewport: { width: w, height: h } });
             for (const p of list) {
                 if (phone && !p.phone) continue;
+                if (w < 1280 && DESK_FROM_1280.has(p.id)) continue;
                 await load(page, withTheme(p.url, theme));
                 const at = `${p.id} ${w}x${h} ${theme}`;
                 if (p.a8) {
@@ -393,6 +418,8 @@ async function fitPass(browser) {
     }
     for (const p of problems) console.log(`style-sweep: ${p}`);
     console.log(`style-sweep: --fit outside the kit (E21's list, ${outside.size}): ${[...outside].sort().join(", ") || "none"}`);
+    const fromDesk = list.filter(p => DESK_FROM_1280.has(p.id)).map(p => p.id);
+    if (fromDesk.length) console.log(`style-sweep: --fit read from 1280 wide up only (the owner's [17]), not at 1024x768: ${fromDesk.join(", ")}`);
     console.log(`style-sweep: --fit ${rows.length} reading(s) of ${list.length} page(s); ${fits} fit, ${failed} failed, ${rows.filter(r => r.words[0] === "outside").length} outside; ${problems.length ? "RED" : "green"}`);
     return problems.length ? 1 : 0;
 }
@@ -1378,8 +1405,17 @@ async function tablesRead(page, id) {
         }
         const cellsPast = cells.filter(td => td.getBoundingClientRect().right > right + 0.5).length;
         const rows = cells.length ? new Set(cells.map(td => td.parentElement)).size : 0;
+        /* A column's head wider than its cell (gaps, 13.11.2026; 1.2.105's known gap: Legacy's Polish "Pochodzenie" cut in
+           Origin): each head's words read by a range against the cell's width less its padding. */
+        const headsCut = [...win.querySelectorAll("[data-drpg-passages] th")].filter(th => th.getClientRects().length).map(th => {
+            const range = globalThis.document.createRange();
+            range.selectNodeContents(th);
+            const s = globalThis.getComputedStyle(th), c = th.getBoundingClientRect(), t = range.getBoundingClientRect();
+            const inner = c.width - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+            return t.width > inner + 0.5 ? `"${th.textContent.trim()}" ${r1(t.width)} in ${r1(inner)}` : null;
+        }).filter(Boolean);
         return { rows, buttons: cells.filter(c => c.classList.contains("drpg-data-col-actions")).reduce((n, td) => n + td.querySelectorAll("button").length, 0),
-            outside, cellsPast, past: pastOf(win.querySelector("[data-drpg-passages]") ?? win), size: size() };
+            outside, cellsPast, headsCut, past: pastOf(win.querySelector("[data-drpg-passages]") ?? win), size: size() };
     }, id);
 }
 
@@ -1444,7 +1480,8 @@ async function tablesPass(browser) {
                         if (r.rows !== 4) bad.push(`${r.rows} row(s) drawn (4 seeded)`);
                         if (r.outside.length) bad.push(`${r.outside.length} of ${r.buttons} button(s) past their cell (${r.outside.slice(0, 4).join(", ")})`);
                         if (r.cellsPast) bad.push(`${r.cellsPast} cell(s) past the window's body`);
-                        console.log(`style-sweep: --tables ${where}: ${r.rows} row(s), ${r.buttons} button(s), ${r.outside.length} past their cell, ${r.cellsPast} cell(s) past the body, window ${r.size.join("x")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                        if (r.headsCut.length) bad.push(`${r.headsCut.length} column head(s) cut (${r.headsCut.join(", ")})`);
+                        console.log(`style-sweep: --tables ${where}: ${r.rows} row(s), ${r.buttons} button(s), ${r.outside.length} past their cell, ${r.cellsPast} cell(s) past the body, ${r.headsCut.length} head(s) cut, window ${r.size.join("x")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
                     }
                     problems.push(...bad.map(b => `${where}: ${b}`));
                     if (SHOTS && w === 1366) {

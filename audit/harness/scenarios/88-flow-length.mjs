@@ -181,7 +181,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
     await settle(600);
     const sheets = { p1: await p1.eval(SHEET(IDS.aiko), { timeout: 30000 }), p2: await p2.eval(SHEET(IDS.botan), { timeout: 30000 }) };
     check("setup: Aiko's sheet on p1 and Botan's on p2 draw the action tiles and the Calls",
-        sheets.p1.tiles.includes("search") && sheets.p2.calls.includes("ultimate"), J(sheets));
+        sheets.p1.tiles.includes("search") && sheets.p2.calls.includes("talent"), J(sheets));
 
     /* ---------------------------------------------------------------- Search, Observe, Analyze */
     for (const [name, key, flowId, faces] of [["search", "search", "search-observe", { hope: 9, fear: 5 }],
@@ -202,8 +202,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
     await gm.eval(`await game.actors.get("${IDS.botan}").update({ "system.resources.hope.value": 3 }); return true;`);
     await settle(400);
     const hope0 = await p2.eval(`return game.actors.get("${IDS.botan}").system.resources.hope.value;`);
-    await flow("hopeCall", { plans: { p2: [{ title: "", fill: { '[name="callNote"]': "S88 I am the Ultimate Locksmith and this is a lock." } }] }, drive: async () => {
-        await p2.eval(PRESS(IDS.botan, '[data-drpg-call="ultimate"]'));
+    // Since E72 (12.11.2026) Ultimate is chosen in Talent's tile, and since R3818 in its one window, as an action's: the
+    // row "ultimate" picked, the note written, Send.
+    await flow("hopeCall", { plans: { p2: [{ title: "Talent", same: true, click: ['input[name="call"][value="ultimate"]'],
+        fill: { '[name="callNote"]': "S88 I am the Ultimate Locksmith and this is a lock." }, button: "spend" }] }, drive: async () => {
+        await p2.eval(PRESS(IDS.botan, '[data-drpg-call="talent"]'));
         await settle(1500);
         details.hopeCallCard = await gm.eval(CARD("approveCall"), { timeout: 30000 });
         await settle(1500);
@@ -305,20 +308,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, IDS }
     const floorMode = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); return F.trialFloor()?.mode ?? null;`;
     const HOLD_ALL = [{ title: "", hold: true }];
 
-    /* The mode bar, a mode at a time: the console's footer starts it, its own window answered, and the bar's
-       End this mode ends it. The players' turn windows are counted and left as they stand. */
+    /* The mode bar, a mode at a time: the console's mode picker starts it (its footer did until mockup B, E73), its own
+       window answered, and the bar's End this mode ends it. The players' turn windows are counted and left as they stand. */
     for (const [mode, action] of [["testimony", "startTestimony"], ["panic", "startPanic"], ["closing", "startClosing"]]) {
         phase(`the mode bar: ${mode}`, { flow: "class-trial" });
         const name = `modeBar.${mode}`;
         await flow(name, { plans: { gm: [{ title: T.trial, same: true, hold: true }], p1: HOLD_ALL, p2: HOLD_ALL, p3: HOLD_ALL }, drive: async () => {
-            await gm.eval(inWindow(T.trial, `footer button[data-action="${action}"]`), { timeout: 30000 });
+            await gm.eval(inWindow(T.trial, `[data-drpg-console="mode"][data-drpg-mode-action="${action}"]`), { timeout: 30000 });
             details[`${name}.ran`] = await gm.eval(`${until} const F = await import("${repoUrl}/scripts/trial-floor.mjs");
                 return await until(() => F.trialFloor()?.mode ?? null, 8000);`, { timeout: 30000 });
             await settle(1500);
             await gm.eval(inWindow(T.trial, '[data-drpg-bar="endMode"]'), { timeout: 30000 });
             await settle(1500);
         }, done: async () => ({ ran: details[`${name}.ran`], after: await gm.eval(floorMode) }) });
-        check(`${name}: the console's footer started the mode and the bar ended it`,
+        check(`${name}: the console's mode picker started the mode and the bar ended it`,
             Boolean(details[name].did?.ran) && details[name].did.ran !== "debate" && details[name].did.after === null, J(details[name].did));
         for (const who of ["p1", "p2", "p3"]) await clients[who].eval(`for (const app of [...foundry.applications.instances.values()])
             if (app instanceof foundry.applications.api.DialogV2 && app.rendered) await app.close(); return true;`, { timeout: 30000 });

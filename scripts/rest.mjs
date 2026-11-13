@@ -17,7 +17,7 @@ import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { locateActor, roomsKnownToMe, sceneOfActor } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
-import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
+import { whisperToOwner, log, error, plural, cardHead, forcedDeletion, isPrimaryGm } from "./utils.mjs";
 // One room map for the whole module (audit C3): rooms.mjs, rooms only and on the scene it is
 // handed (E12 C2a). The scene is the caller's, with no default (E12 C6): a rest is judged on
 // the scene the character stands on, Room Setup writes the scene it shows. Until 1.2.74 these
@@ -27,6 +27,9 @@ import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
 import { drpgWindow } from "./ui-kit.mjs";
+import { overflowBlocksShortRest } from "./overflow.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /** Flags set on a Scene Region. */
 export const REST_FLAGS = {
@@ -63,6 +66,10 @@ export function restRooms(kind, scene) {
  * sentence the list goes into, `data` its other fields, `scene` the scene whose rest rooms
  * are listed (the character's) and whose found rooms filter them - the camera's did until
  * E12 fix r1-G4; `known` is a parameter for the suite, which runs on a GM's browser.
+ *
+ * THE REST'S NAME FROM `kind`, NOT ONLY FROM `data` (gaps, the owner's 12.11.2026): the Rest window's hints ask with no
+ * `kind` in `data` (`restVariants`, whose "allowedIn" has none), and on a map with no rest room the fallback said "marked
+ * for a  yet" / "oznaczony pod ." - now it names the rest by `kindLabel`, as the refusal's road does. R3980.
  */
 export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe(scene)) {
     const rooms = restRooms(kind, scene);
@@ -70,7 +77,7 @@ export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe
     if (shown.length) return game.i18n.format(key, { ...data, rooms: shown.join(", ") });
     return rooms.length
         ? game.i18n.localize("DRPG.Rest.noKnownRooms")
-        : game.i18n.format("DRPG.Rest.noRooms", { kind: data?.kind ?? "" });
+        : game.i18n.format("DRPG.Rest.noRooms", { kind: data?.kind ?? kindLabel(kind) });
 }
 
 /**
@@ -147,6 +154,51 @@ export function legacyRestStamp(kind, clock) {
     return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
+/**
+ * THE OLD STAMPS, MIGRATED ONCE (E91 C8, 12.11.2026; the owner's deferred item D068; default, owner may revise). Pure:
+ * of `rests` (a character's `restsTaken`), what a migration writes - `set`, the old-shape stamps (`legacyRestStamp`'s,
+ * no chapter) of the window `clock` reads now, given that clock's chapter (`restStamp`), which is how they were read
+ * until now; `drop`, every other old-shape stamp, which could only refuse a rest of an earlier chapter by mistake (the
+ * cost `legacyRestStamp` names). A stamp with a chapter is left as it is.
+ */
+export function migratedRests(rests, clock) {
+    const set = {}, drop = [];
+    for (const [kind, taken] of Object.entries(rests ?? {})) {
+        if (typeof taken !== "string" || /^c/.test(taken)) continue;
+        if (taken === legacyRestStamp(kind, clock)) set[kind] = restStamp(kind, clock);
+        else drop.push(kind);
+    }
+    return { set, drop };
+}
+
+/**
+ * The migration step `chapterRestStamps` (migrate.mjs): every character's old rest stamps by `migratedRests` against the
+ * clock now, on the primary GM, one update a character (a key dropped with `forcedDeletion`, else `unsetFlag` and the
+ * stamps written again). Answers how many characters changed, or null for none.
+ */
+export async function migrateRestStamps({ actors = game.actors, clock = getClock() } = {}) {
+    if (!isPrimaryGm()) return { notPrimary: true };
+    let changed = 0;
+    for (const actor of actors ?? []) {
+        if (actor?.type !== "character") continue;
+        const rests = restsTaken(actor);
+        const { set, drop } = migratedRests(rests, clock);
+        if (!Object.keys(set).length && !drop.length) continue;
+        const gone = forcedDeletion();
+        const path = `flags.${MODULE_ID}.${FLAGS.restsTaken}`;
+        if (gone) {
+            await actor.update({ ...Object.fromEntries(Object.entries(set).map(([k, v]) => [`${path}.${k}`, v])),
+                ...Object.fromEntries(drop.map(k => [`${path}.${k}`, gone])) });
+        } else {
+            const kept = Object.fromEntries(Object.entries(rests).filter(([k]) => !drop.includes(k)));
+            await actor.unsetFlag(MODULE_ID, FLAGS.restsTaken);
+            await actor.setFlag(MODULE_ID, FLAGS.restsTaken, { ...kept, ...set });
+        }
+        changed++;
+    }
+    return changed ? { changed } : null;
+}
+
 /** The "used up" stamp for this rest, as a path of the one write that also carries its benefits. */
 function restTakenUpdate(actor, kind, clock) {
     return { [`flags.${MODULE_ID}.${FLAGS.restsTaken}`]: { ...restsTaken(actor), [kind]: restStamp(kind, clock) } };
@@ -179,9 +231,12 @@ function currentClock() {
 export function restVariants(actor) {
     const place = locateActor(actor);
     const room = place?.room ?? null;
+    // Insomnia (E93 C6): the Despair Overflow's darkening that bars the Short rest this time of day; the Long stays.
+    const sleepless = overflowBlocksShortRest();
     return ["short", "long"].map(kind => {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
+        const barred = kind === "short" && sleepless;
         // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
         // character's scene, the school's for one with no token (E12 fix r1-G4).
         const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
@@ -194,8 +249,8 @@ export function restVariants(actor) {
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
                     : elsewhere}`,
-            disabled: spent || !allowed,
-            why: spent
+            disabled: spent || !allowed || barred,
+            why: barred ? game.i18n.localize("DRPG.Rest.insomnia") : spent
                 ? game.i18n.localize(kind === "long"
                     ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
                 : elsewhere
@@ -242,6 +297,12 @@ export async function takeRest(actor, kind = "short", {
         if (!actor || !rules) return null;
 
         const clock = currentClock();
+        // Insomnia bars the Short rest; a Relief's free rest (`ignoreLimit`, a Call paid in Hope) is not barred by it
+        // (E93 C6; default taken, the owner to confirm).
+        if (kind === "short" && !ignoreLimit && overflowBlocksShortRest()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Rest.insomnia"));
+            return null;
+        }
         if (!ignoreLimit && restSpent(actor, kind, clock)) {
             ui.notifications.warn(game.i18n.format(
                 kind === "long" ? "DRPG.Rest.alreadyThisSession" : "DRPG.Rest.alreadyThisTimeOfDay",
@@ -268,7 +329,7 @@ export async function takeRest(actor, kind = "short", {
 
         // `false`, not null: a player who backed out is not a rest that failed,
         // and Relief refunds the two differently (review, 17.09).
-        const picks = await choosePicks(kind, rules.picks);
+        const picks = await choosePicks(kind, rules.picks, cost, { relief: free });
         if (!picks) return false;
 
         if (cost > 0 && !await spendAction(actor, cost)) return null;
@@ -297,8 +358,12 @@ export async function takeRest(actor, kind = "short", {
     }
 }
 
-/** Ask which benefits to take. A long rest takes two, a short one takes one. */
-async function choosePicks(kind, count) {
+/**
+ * Ask which benefits to take. A long rest takes two, a short one takes one. `cost` is the actions the rest spends after
+ * this window (0 for a Relief's free rest), and Do it's tooltip says it (REVIEW-102 T8: the button pays a price).
+ * `relief`: a Relief's free rest, whose Breath is greyed (`BREATH_REFUSED`).
+ */
+async function choosePicks(kind, count, cost = 0, { relief = false } = {}) {
     /*
      * THE COUNT IS ENFORCED IN THE WINDOW, NOT AFTER IT.
      *
@@ -320,16 +385,17 @@ async function choosePicks(kind, count) {
     // Breath is Hope, and under the Despair darkening no Hope is earned - so it
     // is offered greyed with the reason rather than taken and turned into
     // nothing (CALL-05).
+    // And a Relief's rest greys it with its own reason (`BREATH_REFUSED`, 1.2.112).
     const { overflowBlocksHope } = await import("./overflow.mjs");
-    const noBreath = overflowBlocksHope();
+    const noBreath = relief ? "relief" : overflowBlocksHope() ? "overflow" : null;
     const options = Object.entries(REST.options)
         .map(([key, opt]) => {
-            const off = key === "breath" && noBreath;
+            const off = key === "breath" ? noBreath : null;
             return `<label class="drpg-rest-option"${off
-                ? ` title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Overflow.noHopeNow"))}"` : ""}>
+                ? ` title="${foundry.utils.escapeHTML(game.i18n.localize(off === "overflow" ? "DRPG.Overflow.noHopeNow" : BREATH_REFUSED.relief))}"` : ""}>
                 <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}"${off ? " disabled data-drpg-blocked" : ""} />
                 <span><strong>${opt.label}</strong> - ${off
-                    ? game.i18n.localize("DRPG.Overflow.noHopeNow")
+                    ? game.i18n.localize(BREATH_REFUSED[off])
                     : (kind === "long" ? opt.long : opt.short)}</span>
             </label>`;
         }).join("");
@@ -367,8 +433,9 @@ async function choosePicks(kind, count) {
         },
         footer: {
             primary: {
+                tooltip: cost > 0 ? plural("DRPG.Tips.Actions.doItCostTooltip", { n: cost }) : tipText("DRPG.Tips.Actions.doItTooltip"),
                 action: "ok",
-                label: game.i18n.localize("DRPG.Action.proceed"),
+                label: game.i18n.localize("DRPG.Action.restNow"),
                 callback: (e, b, d) => Array.from(d.element.querySelectorAll("[name=pick]:checked")).map(i => i.value)
             },
             close: "cancel"
@@ -388,6 +455,16 @@ async function choosePicks(kind, count) {
     }
     return picks;
 }
+
+/*
+ * WHY BREATH IS NOT OFFERED, BY CASE (1.2.112). Under the Despair darkening no Hope is earned (CALL-05). And a Relief's
+ * rest gives none (the owner's decision of 13.11.2026): Relief costs 4 Hope (config.mjs `HOPE_CALLS.relief`), and its
+ * Breath gave back 1 - three Hope lost for nothing, a pick no one would make on purpose. Greyed with the reason in the
+ * picker (`choosePicks`) and refused by `applyRest`, and the GMs' audit covers no Hope on a Relief's rest (sheet-audit.mjs
+ * `restCovers`). Tier 2's "Relief's rest offers Breath greyed ..." and "a Relief rest's Hope is put back ..." read them.
+ * Written out, so each key is a literal the lang check can find.
+ */
+const BREATH_REFUSED = Object.freeze({ overflow: "DRPG.Overflow.noHopeNow", relief: "DRPG.Rest.reliefNoBreath" });
 
 /**
  * Apply the chosen benefits.
@@ -426,10 +503,10 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
                 applied.push(`${opt.label}: ${cleared} Sanity cleared`);
             }
 
-            if (pick === "breath" && hopeBlocked) {
-                // The picker greys Breath under the Despair darkening; this is the
-                // authority for a pick that got past it (CALL-05).
-                applied.push(`${opt.label}: ${game.i18n.localize("DRPG.Overflow.noHopeNow")}`);
+            if (pick === "breath" && (relief || hopeBlocked)) {
+                // The picker greys Breath under the Despair darkening (CALL-05) and on a
+                // Relief's rest (1.2.112); this is the authority for a pick that got past it.
+                applied.push(`${opt.label}: ${game.i18n.localize(relief ? BREATH_REFUSED.relief : BREATH_REFUSED.overflow)}`);
             } else if (pick === "breath") {
                 const gain = full ? 2 : 1;
                 const max = maxOf("hope") || STARTING.hopeMax;

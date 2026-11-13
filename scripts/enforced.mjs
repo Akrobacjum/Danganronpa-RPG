@@ -677,7 +677,7 @@ export const FOUNDRY_WRITES = [
     { id: "rtcDock", text: "DRPG.GiveBack.what.rtcDock" },
     { id: "sceneVision", text: "DRPG.GiveBack.what.sceneVision" },
     /* The one dice look (dice-sync.mjs, E20 fix round, the goal review's G-7): forced on every player and Assistant GM
-       while "One dice look for the table" is on, as that setting says, and not given back by this window - the looks
+       while "Dice look for the table" holds one look for the table, as that setting says, and not given back by this window - the looks
        it replaced were never kept, so the row says so instead. */
     { id: "diceLook", text: "DRPG.GiveBack.what.diceLook",
       reach: { kind: "flag", owner: "dice-so-nice", key: "appearance", file: "dice-sync.mjs", symbol: "holdSource",
@@ -992,7 +992,9 @@ export async function offerHoldAgain({ user = game.user, givenBack = foundryGive
 
 /** The question `offerHoldAgain` asks: Hold them again, or Not now. */
 async function askHoldAgain() {
-    // "Not now" is the question withdrawn: Cancel, the role's word (E21 rule 3), the answer still "close".
+    // "Not now" is the question withdrawn: Cancel, the role's word (E21 rule 3), its action still "close" - so at a table
+    // Foundry's own close takes the press and the wait answers null, as a closed window (ui-kit.mjs `footerButtons`;
+    // LIVE-E21-06). `offerHoldAgain` reads only "hold", so either answer is Not now.
     return drpgWindow({
         title: game.i18n.localize("DRPG.GiveBack.title"),
         classes: ["drpg-panel", "drpg-window-give-back"],

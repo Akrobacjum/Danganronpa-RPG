@@ -19,14 +19,80 @@
  */
 
 import { MODES } from "./floor-machine.mjs";
-import { caseSchemaStore, keyPlanStore } from "./gm-stores.mjs";
+import { caseSchemaStore, keyPlanStore, caseTickStore } from "./gm-stores.mjs";
 import { remnantsOn, remnantData, keyOf } from "./remnants.mjs";
 import { getClock } from "./clock.mjs";
-import { sameSeason } from "./settings.mjs";
+import { sameSeason, SETTINGS } from "./settings.mjs";
+import { MODULE_ID, REMNANT_VISIBILITY, TRUTH_BULLET_TYPES } from "./config.mjs";
 
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
-export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident"]);
+/* E104: and "final", a planned Final Truth Remnant: the Final Truth form's fields, kept until it is placed from its node;
+   and "bullet", a planned Truth Bullet made by hand: the Give Truth Bullet window's Write new fields, given from its node */
+export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident", "autopsy", "final", "bullet"]);
+/* THE PLANNED AUTOPSY (the owner, 13.11.2026: "Dodajmy tez opcje zaplanowania autopsy truth bullet zamiast wysylania go od
+   razu. Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa"): one row a
+   chapter, kind "autopsy", under this id - its name (`label`), the players' words (`text`) and the GM's note (`note`).
+   case-realize.mjs `sendPlannedAutopsy` sends it at the body's discovery.
+   SEVERAL A CHAPTER (the owner, 13.11.2026: "zaplanowane autopsy moga byc wiecej niz 1. Ogolnie cel jest taki by gm mial
+   preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce"): the first under this id, the n-th
+   under `autopsy-<n>` (`autopsyId`), up to AUTOPSY_MAX. How many the chapter plans is its meta row's `autopsies`, or
+   the preset where none is written (investigation.mjs `autopsyCount`); each goes out when the chapter's `atBody`-th
+   body is found (its own number by default; `autopsiesDue`), and its meta row's `autopsySent` marks it gone. */
+export const AUTOPSY_NODE = "autopsy";
+export const AUTOPSY_MAX = 9;
+
+/** The node id of a chapter's `n`-th planned Autopsy (1 is AUTOPSY_NODE), and an id's number, or null for no Autopsy's. */
+export function autopsyId(n) {
+    return n === 1 ? AUTOPSY_NODE : `${AUTOPSY_NODE}-${n}`;
+}
+export function autopsyNumber(id) {
+    const m = /^autopsy(?:-([2-9]))?$/.exec(String(id ?? ""));
+    return m ? (m[1] ? Number(m[1]) : 1) : null;
+}
+
+/** A chapter's bodies in the order they were found: the victims of its discovery stamps (settings.mjs `bodiesFoundIn`),
+ *  each once, the stamps by their `at` (a stamp's own order kept). Pure. */
+export function bodiesInOrder(stamps = []) {
+    const out = [];
+    const rows = (Array.isArray(stamps) ? stamps : []).map((row, i) => ({ row, i }))
+        .sort((a, b) => ((Number(a.row?.at) || 0) - (Number(b.row?.at) || 0)) || a.i - b.i);
+    for (const { row } of rows) for (const id of row?.victimIds ?? []) if (id && !out.includes(String(id))) out.push(String(id));
+    return out;
+}
+
+/** The planned Autopsies' preset: one a body - the bodies found and the open incident's victim not found yet - and one
+ *  where the chapter has none yet (the case plans one murder a chapter); at most AUTOPSY_MAX. Pure. */
+export function autopsyPresetOf({ found = [], victimId = null } = {}) {
+    const bodies = new Set((found ?? []).filter(Boolean).map(String));
+    if (victimId) bodies.add(String(victimId));
+    return Math.min(AUTOPSY_MAX, Math.max(1, bodies.size));
+}
+
+/**
+ * The planned Autopsies that go out now: of the first `count`, each with a name or words written, not marked sent
+ * (`sent`, the meta row's `autopsySent`), whose body has been found (`atBody`, its own number where none is written,
+ * at most `bodies`, the chapter's bodies found). In their order. Answers `[{ id, n, atBody }]`. Pure.
+ */
+export function autopsiesDue({ count = 1, rows = {}, sent = {}, bodies = 0 } = {}) {
+    const out = [];
+    for (let n = 1; n <= Math.min(AUTOPSY_MAX, count); n++) {
+        const id = autopsyId(n);
+        const plan = caseNodeOf(rows?.[id]);
+        if (plan?.kind !== "autopsy" || !(plan.label || plan.text) || sent?.[id]) continue;
+        const atBody = plan.atBody ?? n;
+        if (atBody <= bodies) out.push({ id, n, atBody });
+    }
+    return out;
+}
+/** The kinds a trial mode stands on, and a planned minigame's fields on them (13.11.2026, `caseNodeOf`). */
+const SCHEMA_KINDS = Object.freeze(["deduction", "counter", "solution"]);
+export const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
+/* A PLANNED REMNANT'S TYPE (the owner, 13.11.2026: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz
+   incident i keys"): an "incident" row plans a Remnant of one of these, Incident by default (every row before this).
+   Not a Key Remnant (the Key plan's slots plan those), a Final Truth Remnant (the Final Truth form places it) or an
+   Autopsy Remnant (handed over from the GM panel, never found: Observe has no number for it, New Remnant offers none). */
+export const PLANNED_TYPES = Object.freeze(["incident", "prep", "neutral", "faint", "resolution"]);
 /** The column orders (STAGE C4): by the GM's arrows, by kind, by room, by state, and with the fewest crossings. */
 export const CASE_SORTS = Object.freeze(["manual", "kind", "room", "state", "uncrossed"]);
 const META = "meta";
@@ -43,17 +109,65 @@ export function newCaseNodeId(kind, random = () => foundry.utils.randomID(10)) {
     return `${CASE_KINDS.includes(kind) ? kind : "node"}-${random()}`;
 }
 
-/** The trial's modes a node may name (E99 draws one minigame per node): floor-machine.mjs `MODES`, as it lists them. */
+/* NOT A NODE'S (the owner, 13.11.2026: "usuwamy objection i rebuttal"): a player starts an Objection and its Rebuttal
+   follows, so no node plans one; a node stored with either reads as no mode (`caseNodeOf`), and its next Save writes what
+   its select then holds. */
+const PLAYER_MODES = Object.freeze([MODES.objection, MODES.rebuttal]);
+
+/** The trial's modes a node may name (E99 draws one minigame per node): floor-machine.mjs `MODES`, as it lists them,
+ *  less the two a player starts. */
 export function caseModes() {
-    return Object.values(MODES);
+    return Object.values(MODES).filter(m => !PLAYER_MODES.includes(m));
 }
 
+const TIES = Object.freeze(["", "tied", "untied"]);
+function incidentFields(raw) {
+    // a planned Remnant's and a planned Final Truth's (E104); the Final Truth is tied and reinforced by its kind
+    const on = raw.kind === "incident" || raw.kind === "final";
+    const own = raw.kind === "incident";
+    // a planned Truth Bullet (E104) has a visibility and an analysis too
+    const bullet = raw.kind === "bullet";
+    const str = v => (on ? (typeof v === "string" ? v : "") : null);
+    return {
+        scene: on ? (typeof raw.scene === "string" && raw.scene ? raw.scene : null) : null,
+        author: str(raw.author),
+        vis: on || bullet ? (REMNANT_VISIBILITY.includes(raw.vis) ? raw.vis : "evident") : null,
+        tie: own ? (TIES.includes(raw.tie) ? raw.tie : ((PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") === "incident" ? "tied" : "")) : null,
+        reinforced: own ? raw.reinforced === true : null,
+        analysis: on || bullet ? (typeof raw.analysis === "string" ? raw.analysis : "") : null,
+        img: str(raw.img),
+        ...bulletFields(raw)
+    };
+}
+
+/* A PLANNED TRUTH BULLET MADE BY HAND (E104): the rest of the Write new tab (gm-items.mjs `bulletCreatePane`) and the
+   window's recipient rows - who gets it, whether the player is told (ticked, as the window draws it), its real type
+   (Neutral, as there), how it shows (auto, as there), Faint and tied - and `given`, when it went out from its node. */
+const SHOWN = Object.freeze(["auto", "neutral", "real"]);
+function bulletFields(raw) {
+    const on = raw.kind === "bullet";
+    return {
+        recipient: on ? (typeof raw.recipient === "string" ? raw.recipient : "") : null,
+        tell: on ? raw.tell !== false : null,
+        realType: on ? (TRUTH_BULLET_TYPES[raw.realType] ? raw.realType : "neutral") : null,
+        shown: on ? (SHOWN.includes(raw.shown) ? raw.shown : "auto") : null,
+        faint: on ? raw.faint === true : null,
+        tied: on ? raw.tied === true : null,
+        given: on && Number.isFinite(raw.given) ? raw.given : null
+    };
+}
+
+const atBodyOf = v => {
+    const n = typeof v === "string" && v.trim() ? Number(v) : v;
+    return Number.isInteger(n) && n >= 1 && n <= AUTOPSY_MAX ? n : null;
+};
 const ids = list => [...new Set((Array.isArray(list) ? list : []).filter(v => typeof v === "string" && v))];
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
 /**
  * A schema row as the map reads it, or null for a row of no kind of `CASE_KINDS`. Every field has its empty value; a
- * `mode` is kept as written, known or not (C8's consistency check names one `caseModes` lacks). Pure.
+ * `mode` is kept as written, known or not (C8's consistency check names one `caseModes` lacks), but for an Objection or a
+ * Rebuttal, read as none (13.11.2026). Pure.
  */
 export function caseNodeOf(raw) {
     if (!isPlain(raw) || !CASE_KINDS.includes(raw.kind)) return null;
@@ -63,12 +177,30 @@ export function caseNodeOf(raw) {
         text: typeof raw.text === "string" ? raw.text : "",
         inputs: ids(raw.inputs),
         refutes: ids(raw.refutes),
-        mode: typeof raw.mode === "string" && raw.mode ? raw.mode : null,
+        mode: typeof raw.mode === "string" && raw.mode && !PLAYER_MODES.includes(raw.mode) ? raw.mode : null,
         order: Number.isFinite(raw.order) ? raw.order : null,
         made: typeof raw.made === "string" && raw.made ? raw.made : null,
         // E97 C12: a planned Incident Remnant's room, and the Remnant that stands for it once placed
         room: typeof raw.room === "string" && raw.room ? raw.room : null,
-        trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null
+        trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null,
+        // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
+        type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
+        // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; a planned Remnant's (E104) too
+        note: ["autopsy", "incident", "final", "bullet"].includes(raw.kind) ? (typeof raw.note === "string" ? raw.note : "") : null,
+        /* E104 (the owner, 13.11.2026: "niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry kazdemu
+           zaplanowanemu remnantowi"): a planned Remnant holds every field New Remnant asks (investigation.mjs
+           `openNewTrace`) and the Table's picture - its room's scene, who left it, its band (with its type, its Observe
+           DC), the tie (open, tied, not tied; an Incident's reads tied where none is written), reinforced, the
+           analysis and the picture. Null on every other kind. */
+        ...incidentFields(raw),
+        // 13.11.2026: which of the chapter's bodies, in the order found, sends a planned Autopsy; null is its own number
+        atBody: raw.kind === "autopsy" ? atBodyOf(raw.atBody) : null,
+        /* THE PLANNED MINIGAME (the owner, 13.11.2026: "mozliwosc zaplanowania logic dive i innych minigier class triala z
+           poziomu planera sprawy"): what the zones' window asks for the node's zone mode - a Straw Poll's or a Scrum Debate's
+           question and two answers (a Scrum's thesis too), a Logic Dive's saved set (the GMs' `diveSetStore`, its truths
+           there). The GMs' store, as every row; the console's node button fills the window in (case-trial.mjs
+           `startFromNode`). Strings on the three kinds a trial mode stands on, null on the rest. */
+        ...Object.fromEntries(ZONE_FIELDS.map(f => [f, SCHEMA_KINDS.includes(raw.kind) ? (typeof raw[f] === "string" ? raw[f] : "") : null]))
     };
 }
 
@@ -83,7 +215,11 @@ export function caseMetaOf(raw) {
         askedAt: Number.isFinite(row.askedAt) ? row.askedAt : null,
         // E97 C10: what a realization placed, by the Remnant's key: `{ run, slot }`
         made: Object.fromEntries(Object.entries(isPlain(row.made) ? row.made : {})
-            .filter(([, v]) => isPlain(v) && typeof v.run === "string" && v.run && Number.isInteger(v.slot)).map(([k, v]) => [k, { run: v.run, slot: v.slot }]))
+            .filter(([, v]) => isPlain(v) && typeof v.run === "string" && v.run && Number.isInteger(v.slot)).map(([k, v]) => [k, { run: v.run, slot: v.slot }])),
+        // 13.11.2026: how many Autopsies the chapter plans (null: the preset), and when each planned one went out
+        autopsies: atBodyOf(row.autopsies),
+        autopsySent: Object.fromEntries(Object.entries(isPlain(row.autopsySent) ? row.autopsySent : {})
+            .filter(([k, v]) => autopsyNumber(k) !== null && Number.isFinite(v)))
     };
 }
 
@@ -96,8 +232,12 @@ export function caseMetaOf(raw) {
  * schema's nodes in row order. Edges: an input to its node ("input"), a counter to what it refutes ("refutes").
  * A reference to no node is named in `missing`, never dropped. Answers `{ chapter, meta, nodes, edges, missing }`.
  */
-export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], slots = [] } = {}) {
+export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], slots = [], autopsy = false } = {}) {
     const nodes = [];
+    /* `autopsy`: how many planned Autopsies the Map draws (true is one, as before 13.11's several); a written one past
+       that count is drawn only when it went out (its mark), so a lowered count hides nothing that was sent */
+    const autopsies = autopsy === true ? 1 : Number.isInteger(autopsy) ? Math.min(AUTOPSY_MAX, Math.max(0, autopsy)) : 0;
+    const sentMarks = caseMetaOf(meta).autopsySent;
     const alias = new Map();
     const bySlot = new Map();
     for (const s of slots ?? []) {
@@ -112,15 +252,19 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
             id: t.key, kind: t.type === "final" ? "final" : (t.type === "key" || s ? "key" : "trace"), evidence: true, planned: false,
             slot: s ? s.slot : null, trace: t.key, type: t.type ?? null, label: t.name || t.label || "", tied: t.tiedToCrime === true,
             faint: Boolean(t.faint), room: t.room ?? null, chapter: t.chapter ?? null, foundAt: t.foundAt ?? null,
-            // its description (the player's words), drawn whole on its node since the E97 fix
-            text: typeof t.text === "string" ? t.text : ""
+            // its description (the player's words): drawn whole on its node since the E97 fix, and E99 C6's summary words
+            text: typeof t.text === "string" ? t.text : typeof t.playerText === "string" ? t.playerText : ""
         });
     }
     for (const s of slots ?? []) {
         if (!Number.isInteger(s?.slot) || placed.has(s.slot)) continue;
+        /* a slot not yet placed needs a room to be placed by (E104; `checkCase`'s "incomplete"): Place and the realization
+           ask for one, and the Map says so beforehand */
+        const room = s.room || s.createIn || null;
         nodes.push({ id: `${SLOT}${s.slot}`, kind: "key", evidence: true, planned: true, slot: s.slot, trace: null, type: "key",
-            label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null,
-            text: s.name && typeof s.text === "string" ? s.text : "" });
+            label: s.name || s.text || "", tied: true, faint: false, room, chapter, foundAt: null, scale: s.scale ?? null,
+            text: s.name && typeof s.text === "string" ? s.text : "", scene: s.scene ?? null, vis: s.vis ?? null, author: s.author ?? "",
+            img: s.img ?? "", needs: room ? [] : ["room"] });
     }
     const traceKeys = new Set(nodes.filter(n => n.trace).map(n => n.trace));
     for (const [id, raw] of Object.entries(rows ?? {})) {
@@ -135,12 +279,50 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
                 if (t) t.incident = id;
                 continue;
             }
-            nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: "incident", label: node.label,
-                tied: true, faint: false, room: node.room, chapter, foundAt: null, incident: id, text: node.text });
+            /* every field it plans (E104), and in `needs` what New Remnant cannot place it without - a room - so the Map
+               says so (`checkCase`'s "incomplete") and placing asks for it (investigation.mjs `placeIncident`) */
+            nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: node.type, label: node.label,
+                tied: node.tie === "tied", faint: node.type === "faint", room: node.room, chapter, foundAt: null, incident: id, text: node.text,
+                scene: node.scene, author: node.author, vis: node.vis, tie: node.tie, reinforced: node.reinforced, analysis: node.analysis,
+                note: node.note, img: node.img, needs: node.room ? [] : ["room"] });
+            continue;
+        }
+        /* A PLANNED FINAL TRUTH (E104) is evidence as a planned Remnant is: placed, its Remnant (`trace`); not yet, a planned
+           node holding the Final Truth form's fields, needing a room to be placed by */
+        if (node.kind === "final") {
+            if (node.trace && traceKeys.has(node.trace)) {
+                alias.set(id, node.trace);
+                const t = nodes.find(n => n.id === node.trace);
+                if (t) t.finalPlan = id;
+                continue;
+            }
+            nodes.push({ id, kind: "final", evidence: true, planned: true, slot: null, trace: null, type: "final", label: node.label, tied: true,
+                faint: false, room: node.room, chapter, foundAt: null, finalPlan: id, text: node.text, scene: node.scene, author: node.author,
+                vis: node.vis, analysis: node.analysis, note: node.note, img: node.img, needs: node.room ? [] : ["room"] });
+            continue;
+        }
+        /* A PLANNED TRUTH BULLET (E104) is evidence: planned until given, then marked sent (`given`), as an Autopsy is; it
+           needs a name (the window refuses one without) and a recipient to be given by */
+        if (node.kind === "bullet") {
+            nodes.push({ id, kind: "bullet", evidence: true, planned: true, slot: null, trace: null, type: node.realType, label: node.label,
+                tied: node.tied === true, faint: node.faint === true, room: null, chapter, foundAt: null, text: node.text, recipient: node.recipient,
+                tell: node.tell, realType: node.realType, shown: node.shown, vis: node.vis, analysis: node.analysis, note: node.note,
+                given: node.given, sent: node.given !== null, needs: [...(node.label ? [] : ["name"]), ...(node.recipient ? [] : ["recipient"])] });
+            continue;
+        }
+        // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)
+        if (node.kind === "autopsy") {
+            const n = autopsyNumber(id);
+            if (n === null || (n > autopsies && !sentMarks[id])) continue;
+            nodes.push(autopsyNode(chapter, n, node, Boolean(sentMarks[id])));
             continue;
         }
         nodes.push({ id, evidence: false, planned: false, ...node });
     }
+    for (let n = 1; n <= autopsies; n++) if (!nodes.some(x => x.id === autopsyId(n))) nodes.push(autopsyNode(chapter, n, null, Boolean(sentMarks[autopsyId(n)])));
+    // the Autopsies in their order, where the evidence column draws them
+    const order = nodes.filter(x => x.kind === "autopsy").sort((a, b) => a.n - b.n);
+    if (order.length > 1) { let i = 0; for (let k = 0; k < nodes.length; k++) if (nodes[k].kind === "autopsy") nodes[k] = order[i++]; }
     const known = new Set(nodes.map(n => n.id));
     const edges = [];
     const missing = [];
@@ -183,7 +365,7 @@ export function caseRows(chapter) {
  * with `chapters: "all"`), the Key plan's slots of the chapter that a GM wrote (or `slots`, as given), the schema's rows. `{}`-shaped and
  * empty on any other browser, which holds none of the three.
  */
-export function caseGraph(chapter = getClock().chapter, { chapters = "this", slots: given = null } = {}) {
+export function caseGraph(chapter = getClock().chapter, { chapters = "this", slots: given = null, autopsy = false } = {}) {
     if (!game.user?.isGM) return graphOf({ chapter });
     const traces = [];
     for (const scene of game.scenes ?? []) {
@@ -204,11 +386,21 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
     const { rows, meta } = caseRows(chapter);
     /* `slots` given (E97 C6): the Key plan's every slot as investigation.mjs `keyPlan` reads it, a slot no GM wrote among
        them, so the Map has a node - and the Table's fields - for each slot the Table draws a row for. */
-    return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots });
+    return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots, autopsy });
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace"]);
-const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made"]);
+/** The chapter's `n`-th planned Autopsy's evidence node, from its row or, unwritten, empty (the Map draws it as the Key plan's
+ *  slots are); `sent` its meta row's mark. */
+function autopsyNode(chapter, n = 1, node = null, sent = false) {
+    return { id: autopsyId(n), n, kind: "autopsy", evidence: true, planned: true, slot: null, trace: null, type: "autopsy",
+        label: node?.label ?? "", text: node?.text ?? "", note: node?.note ?? "", atBody: node?.atBody ?? null, sent, tied: true,
+        faint: false, room: null, chapter, foundAt: null, written: Boolean(node), inputs: [], refutes: [], mode: null };
+}
+
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note", "atBody", "scene", "author", "vis", "tie", "reinforced", "analysis", "img",
+    "recipient", "tell", "realType", "shown", "faint", "tied", "given",
+    "zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
+const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made", "autopsies", "autopsySent"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /**
@@ -304,7 +496,7 @@ export function reachability(graph, holders = {}, { culpritId = null, living = n
 }
 
 /** The codes `checkCase` names, in the order it reads them. */
-export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noTarget", "noSolution", "twoSolutions", "solutionUnreached", "badMode", "culpritOnly", "tooManyKeys"]);
+export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noTarget", "noSolution", "twoSolutions", "solutionUnreached", "badMode", "culpritOnly", "tooManyKeys", "incomplete"]);
 
 /**
  * THE CASE'S CONSISTENCY (E97 C8; STAGE C8, Q-E97-7's default: warnings that block nothing). Pure: `graph` of `graphOf`,
@@ -318,7 +510,9 @@ export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noT
  * - solutionUnreached: a solution that names inputs none of which is on the map (every one gone), so nothing leads to it;
  * - badMode: a trial mode the trial does not have (a stage that renamed or dropped one);
  * - culpritOnly: a deduction an input of which only the culprit holds (B: it does not count until someone else does);
- * - tooManyKeys: more Key Remnant nodes than a chapter prepares.
+ * - tooManyKeys: more Key Remnant nodes than a chapter prepares;
+ * - incomplete (E104): a planned item lacking a field its real road cannot place or give it without (`ref` the field,
+ *   one problem a field; the node's `needs`, `graphOf`).
  */
 export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), keyMax = Infinity } = {}) {
     const nodes = graph?.nodes ?? [];
@@ -342,5 +536,54 @@ export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), 
     }
     const keys = nodes.filter(n => n.evidence && n.kind === "key").length;
     if (keys > keyMax) out.push({ code: "tooManyKeys", node: null, ref: String(keys) });
+    for (const n of nodes) for (const field of n.needs ?? []) out.push({ code: "incomplete", node: n.id, ref: field });
     return out;
+}
+
+/*
+ * THE TICKS ARE A TRIAL'S (E99 next, 12.11.2026; the plan's Q-E99-9 and C3: "a second trial in the chapter starts with
+ * none"). Each row carries the trial it was ticked in - the trial record's `trialStartedAt`, which every trial's entry
+ * writes afresh (trial-progress.mjs `TRIAL_RECORD`) - and only the rows of the chapter's current trial are read, so a
+ * second Class Trial in the chapter starts with no ticks and the first trial's stay where they were, unread, until the
+ * season's reset cuts the store. Read off the record's world setting here, not through trial-progress.mjs, which this
+ * leaf does not import. A row ticked before this stamp existed carries none and reads under a record with none.
+ *
+ * AND A ROW WITH NO STAMP, WRITTEN IN THE RUNNING TRIAL (the planner's review for 1.2.111, minor 1; 13.11.2026; R4455).
+ * 1.2.108 and 1.2.109 wrote `{ ticked, by, at }` while their record already stamped every trial's entry, so a trial
+ * entered before the update and continued after it read every tick unticked. A row with no `trial` is read as the
+ * running trial's where its `at` is at or after `trialStartedAt`, an earlier trial's before it; so a second trial still
+ * starts with none. `at` is the ticking GM's clock and the stamp the server's (`serverNow`): a tick in the first moments
+ * of a trial can read either way by their difference.
+ */
+function tickTrialOf(row, trial) {
+    if (row?.trial !== undefined && row?.trial !== null) return row.trial;
+    return trial !== null && Number(row?.at) >= Number(trial) ? trial : null;
+}
+function trialStamp(chapter) {
+    try {
+        const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        return stored.chapter === chapter ? (stored.trialStartedAt ?? null) : null;
+    } catch {
+        return null;
+    }
+}
+
+/** The chapter's ticks at its current trial (E99 C3; a trial's since E99 next): node id -> true, on a GM; empty on any other browser. */
+export function caseTicks(chapter) {
+    if (!game.user?.isGM) return {};
+    const prefix = `${chapter}:`;
+    const trial = trialStamp(chapter);
+    const out = {};
+    for (const [key, row] of Object.entries(caseTickStore.entries() ?? {})) {
+        if (key.startsWith(prefix) && row?.ticked === true && tickTrialOf(row, trial) === trial) out[key.slice(prefix.length)] = true;
+    }
+    return out;
+}
+
+/** Tick or untick one node at the trial, on a GM (E99 C3): `{ ticked, by, at, trial }`. Answers the row, or null. */
+export async function setCaseTick(chapter, nodeId, ticked) {
+    if (!game.user?.isGM || !Number.isInteger(chapter) || !validNodeId(nodeId)) return null;
+    const key = caseKeyOf(chapter, nodeId);
+    await caseTickStore.patch(key, { ticked: Boolean(ticked), by: game.user.id, at: Date.now(), trial: trialStamp(chapter) });
+    return caseTickStore.get(key) ?? null;
 }

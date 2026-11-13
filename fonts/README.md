@@ -4,11 +4,22 @@
 the *Pixel font* setting.
 
     pixel.woff2       latin       (12.5 KB)
-    pixel-ext.woff2   latin-ext   (9.9 KB)
+    pixel-ext.woff2   latin-ext   (9.4 KB)
 
 Split the same way Google Fonts serves it, so Polish letters in a campaign name
 (ą, ę, ł, ś, ż…) resolve from the latin-ext file instead of falling back to a
 different typeface part-way through a word.
+
+## Polish capitals
+
+A capital's mark sits above the letter with one empty font pixel between them:
+the acute of Ó (pixel.woff2) and of Ć Ń Ś Ź, and the dot of Ż (pixel-ext.woff2),
+from y 1125 to 1250 on a letter that ends at 1000. Before 13.11.2026 the mark sat
+straight on the letter's top row, and at the trial's subtitle (24 px, one font
+pixel 3 px) Ó read as O. `node audit/glass-sweep.mjs --accents` fails when any of
+Ą Ć Ę Ł Ń Ó Ś Ź Ż reads like its base letter in the sequences' title or line, in
+both themes. A redraw changes the `?v=` query on the `@font-face` rules in
+`styles/danganronpa.css`, or browsers keep the old file.
 
 ## Licence
 

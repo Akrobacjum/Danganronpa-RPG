@@ -21,12 +21,14 @@
  * row still names its own run - the later writer of the field wins on every GM (gm-store.mjs, a stamp per field), so
  * one of two runs stops before it places anything. Not a lock across a slow network: LIVE-E97-04.
  */
-import { esc, error, placeRoomOptions, primaryGmId } from "./utils.mjs";
+import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
+import { bodiesFoundIn } from "./settings.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
-import { caseRows, caseMetaOf, setCaseMeta } from "./case-schema.mjs";
-import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord } from "./investigation.mjs";
+import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, autopsiesDue, bodiesInOrder } from "./case-schema.mjs";
+import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyCount } from "./investigation.mjs";
 import { remnantById, dropRemnantSecret } from "./remnants.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
+import { placeScenes, roomNames } from "./rooms.mjs";
 
 const L = key => game.i18n.localize(key);
 const F = (key, data) => game.i18n.format(key, data);
@@ -51,10 +53,10 @@ export function madeOf(chapter) {
 }
 
 /** The preview's body: a table of the lines, a room picker on each line a run would create. */
-function previewHtml(lines) {
+function previewHtml(lines, plan = null) {
     /* Named by its column and its slot (E97 fix, 12.11.2026): a select in a table cell has no label of its own, and
        tier 2's "every control ... has a name to be read out" read it nameless once the preview had been opened. */
-    const room = slot => `<select name="room:${slot}" aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions()}</select>`;
+    const room = slot => `<select name="room:${slot}" aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: plan?.entries?.[slot]?.room || null, sceneId: plan?.entries?.[slot]?.scene || null })}</select>`;
     const rows = lines.map(l => `<tr data-drpg-line="${l.action}"><td>${esc(L(`DRPG.CaseRealize.action.${l.action}`))}</td>`
         + `<td>${esc(F("DRPG.CaseMap.slotNumber", { n: l.slot + 1 }))}</td><td>${esc(l.name || L("DRPG.CaseMap.noName"))}</td>`
         + `<td>${l.action === "create" ? room(l.slot) : ""}</td></tr>`).join("");
@@ -64,29 +66,58 @@ function previewHtml(lines) {
         + `<p class="notes">${esc(L("DRPG.CaseRealize.undoNote"))}</p>`;
 }
 
+/* The preview's width (E64-inv round 2): its table and a footer of three in one row, measured in Chromium (the fit pass). */
+const REALIZE_WIDTH = 720;
+
 /**
- * THE PREVIEW (C10; Q7: Close, the default and Enter's, and "Run realization", a state change never under Enter). It
- * writes nothing; Run hands the rooms picked to `runRealization`. Answers what was said, for the panel's line.
+ * THE PREVIEW'S FOOTER (C10; Q7: Close, the default and Enter's, and "Run realization", a state change never under
+ * Enter). UNDO LIVES HERE (E64-inv, 12.11.2026; the owner's pick of the Investigation review): it was a destructive
+ * button of the Investigation bar, pressed rarely and only after a run; it is this window's, shown only while a run's
+ * marks stand (`made`, the count of `madeOf`), and asks first as before (`confirmUndoRealization`). Pure over its
+ * arguments; exported for R3967.
+ */
+export function realizationFooter({ made = 0, run = null } = {}) {
+    return {
+        close: { role: "close", action: "close" },
+        secondary: [{ action: "run", label: L("DRPG.CaseRealize.run"), class: "drpg-state-change", callback: run }],
+        ...(made > 0 ? { destructive: [{ action: "undo", label: L("DRPG.CaseRealize.undo") }] } : {}),
+        default: "close"
+    };
+}
+
+/**
+ * THE PREVIEW (C10). It writes nothing; Run hands the rooms picked to `runRealization`, Undo goes to its question.
+ * Answers what was said, for the panel's line.
  */
 export async function openRealization({ chapter = keyPlan().chapter } = {}) {
     if (!game.user?.isGM) return null;
     const plan = keyPlan();
     const lines = realizationLines({ plan, status: keyPlanStatus(), limit: caseKeyCount(plan.chapter) });
+    /* A slot's planned room (13.11.2026) is its line's first choice; one no place scene has any more is said in one line,
+       and its line starts on "leave it", as before. */
+    const known = new Set(placeScenes().flatMap(scene => roomNames(scene)));
+    for (const l of lines) {
+        const room = l.action === "create" ? plan.entries[l.slot]?.room : "";
+        if (room && !known.has(room)) ui.notifications.warn(F("DRPG.Investigation.plannedRoomGone", { room }));
+    }
     const picks = await drpgWindow({
         title: F("DRPG.CaseRealize.title", { chapter }),
         classes: ["drpg-panel", "drpg-window-case-realize"],
-        body: previewHtml(lines),
-        footer: {
-            close: { role: "close", action: "close" },
-            secondary: [{ action: "run", label: L("DRPG.CaseRealize.run"), class: "drpg-state-change",
-                callback: (event, button, dialog) => lines.filter(l => l.action === "create").map(l => {
-                    const select = dialog.element.querySelector(`[name="room:${l.slot}"]`);
-                    return { slot: l.slot, room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
-                }).filter(p => p.room) }],
-            default: "close"
-        },
+        /* A stated width (E64-inv round 2, 12.11.2026): at the kit's default its table ran 521 px in a 510 px body under
+           Monokuma Legacy, and with Undo its footer went to two rows and its body scrolled 12 px in Polish under Stained
+           Glass at 1366x768 (audit/style-sweep.mjs `--fit`, STILL `case-realize--made`). */
+        width: REALIZE_WIDTH,
+        body: previewHtml(lines, plan),
+        footer: realizationFooter({
+            made: Object.keys(madeOf(chapter)).length,
+            run: (event, button, dialog) => lines.filter(l => l.action === "create").map(l => {
+                const select = dialog.element.querySelector(`[name="room:${l.slot}"]`);
+                return { slot: l.slot, room: select?.value ?? "", sceneId: select?.selectedOptions?.[0]?.dataset.scene ?? "" };
+            }).filter(p => p.room)
+        }),
         rejectClose: false
     });
+    if (picks === "undo") return confirmUndoRealization({ chapter });
     if (!Array.isArray(picks)) return null;
     const ran = await runRealization(chapter, picks);
     return ran ? F("DRPG.CaseRealize.ran", { n: ran.placed }) : L("DRPG.CaseRealize.notRun");
@@ -107,8 +138,9 @@ export async function runRealization(chapter, picks = []) {
         if (!entry || entry.tokenId) continue;
         const scene = game.scenes.get(pick.sceneId) ?? null;
         try {
-            const token = await placeInSlot(plan, scene, { slot: pick.slot, room: pick.room, visibility: "evident",
-                name: entry.name, text: entry.text, analysis: entry.analysis ?? "", note: entry.note });
+            /* the slot's planned visibility, author and picture (E104), where "evident" stood for every one until then */
+            const token = await placeInSlot(plan, scene, { slot: pick.slot, room: pick.room, visibility: entry.vis || "evident",
+                name: entry.name, text: entry.text, analysis: entry.analysis ?? "", note: entry.note, author: entry.author ?? "", img: entry.img ?? "" });
             if (!token) continue;
             made[`${token.parent?.id ?? scene?.id}.${token.id}`] = { run, slot: pick.slot };
             placed++;
@@ -145,7 +177,7 @@ export async function undoRealization(chapter = keyPlan().chapter) {
     return { removed, kept };
 }
 
-/** Undo, asked first (the panel's footer, destructive): answers what was said. */
+/** Undo, asked first (the preview's footer, destructive, since E64-inv): answers what was said. */
 export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {}) {
     if (!game.user?.isGM) return null;
     const { drpgConfirm } = await import("./ui-kit.mjs");
@@ -169,6 +201,13 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
  * nothing.
  */
 export function registerCaseAsk() {
+    /* the planned Autopsy goes out first, with no window (13.11.2026; `sendPlannedAutopsy`). On the primary GM alone,
+       not on the discovery's writer: every discovery stamps on the primary today, but one stamped on another GM would
+       then go out from nobody (perf-open's review for 1.2.111, section 2). `sending` and each one's sent mark keep it once. */
+    Hooks.on(BODY_ANNOUNCED_HOOK, payload => {
+        if (payload?.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
+        sendPlannedAutopsy(payload.chapter).catch(err => error("The planned Autopsy could not be sent", err));
+    });
     Hooks.on(BODY_ANNOUNCED_HOOK, payload => {
         if (!payload?.writer || payload.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
         setTimeout(() => { askAtBody(payload.chapter).catch(err => error("The case's question at a body failed", err)); }, 0);
@@ -198,4 +237,45 @@ export async function askAtBody(chapter) {
     });
     if (answer === "preview") return openRealization({ chapter });
     return null;
+}
+
+/**
+ * THE PLANNED AUTOPSIES, SENT AT THE BODIES (the owner, 13.11.2026: "gracze dostaja od razu po odkryciu ciala. Bez kliku
+ * GMa"; and "zaplanowane autopsy moga byc wiecej niz 1"). On the primary GM's browser, from the discovery's hook
+ * (`registerCaseAsk`): each of the chapter's planned Autopsies that is due (case-schema.mjs `autopsiesDue`: of the
+ * chapter's count, `autopsyCount`; with a name or words written; not sent; its body - the `atBody`-th found, its own
+ * number by default - found, the bodies read off the chapter's stamps, `bodiesInOrder`), in order, goes to every
+ * student not dead - the GM panel's window's own default (gm-items.mjs `issueAutopsyDialog`) - by the same road
+ * (truth-bullets.mjs `issueAutopsy`: the answer key and the GM's note stay the GMs'), marked sent on the meta row
+ * (`autopsySent`), and the GM told how many got it. A discovery of two bodies sends the two due. An Autopsy sent by
+ * hand blocks none: the planned ones go out on their own bodies, and the GM may send more by hand whenever (the GM
+ * panel's window fills in the next one planned and marks it sent, gm-items.mjs). Two calls at once send once
+ * (`sending`). Answers how many students got one, over all sent.
+ */
+const sending = new Set();
+export async function sendPlannedAutopsy(chapter) {
+    if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter) || sending.has(chapter)) return 0;
+    const { rows, meta } = caseRows(chapter);
+    const due = autopsiesDue({ count: autopsyCount(chapter), rows, sent: caseMetaOf(meta).autopsySent,
+        bodies: bodiesInOrder(bodiesFoundIn(chapter)).length });
+    if (!due.length) return 0;
+    sending.add(chapter);
+    let total = 0;
+    try {
+        const [{ studentActors }, { isDeadForGm }, { issueAutopsy }, { TRUTH_BULLET_TYPES }] = await Promise.all([
+            import("./monokuma.mjs"), import("./chapter.mjs"), import("./truth-bullets.mjs"), import("./config.mjs")]);
+        for (const { id } of due) {
+            const plan = caseNodeOf(caseRows(chapter).rows[id]);
+            const living = studentActors().filter(a => !isDeadForGm(a));
+            if (!plan || !living.length) break;
+            const issued = await issueAutopsy(living, { name: plan.label || TRUTH_BULLET_TYPES.autopsy.label, playerText: plan.text, gmNote: plan.note ?? "" });
+            if (!issued) continue;
+            await setCaseMeta(chapter, { autopsySent: { ...caseMetaOf(caseRows(chapter).meta).autopsySent, [id]: Date.now() } });
+            ui.notifications.info(plural("DRPG.CaseMap.autopsyWentOut", { n: issued }));
+            total += issued;
+        }
+        return total;
+    } finally {
+        sending.delete(chapter);
+    }
 }

@@ -137,7 +137,7 @@ export async function choosePalm(actor, def, targets, mine) {
                 // unseen Frisk opens one window" threw no dice (CI run 42850906186, shard 5). `field` stands in the
                 // form's slot under the rows, the picked row's alone shown, as the crisis menu's proposal does.
                 field: friskModes(def),
-                confirm: root => friskModeOf(root) === "unseen" ? game.i18n.localize("DRPG.Action.roll") : game.i18n.localize("DRPG.Action.proceed")
+                confirm: root => friskModeOf(root) === "unseen" ? game.i18n.localize("DRPG.Action.roll") : game.i18n.localize("DRPG.Action.askThem")
             }
         ],
         extra: `<label class="drpg-specific-note">

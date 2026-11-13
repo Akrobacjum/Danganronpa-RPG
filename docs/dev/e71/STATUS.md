@@ -117,6 +117,25 @@ edited unless the row says so.
 | lang/en.json, lang/pl.json | `DRPG.Chapter.bodyTitle` twice (the coordinator's note of 13.11, as on main) | Already one key in each file on this branch: the dead first value went in 90ec7ae7 (the owner's answer (1), 12.11). Not frozen. | Done. |
 | scripts/projects-ui.mjs:27 | the utils import | A new branch, e102, edits the import line beside it (ui-kit.mjs); this pass had added `plural` to the utils import for `DRPG.Project.scaleOption` (d640019e). `plural` now comes in on a line of its own after the live.mjs import, so the two merge cleanly; lint green. | Done. |
 
+## Merge of origin/main (ceb9e9c8, 1.2.112), 13.11
+
+A merge commit, as the coordinator asked (no rebase, no force). 16 conflict hunks in six files (lang 5 + 4, handbooks 2 + 2 + 2 + 1); in each, main's newer behaviour won, and this pass's edits were carried onto main's sentence only where its words still stood (a word-level carry, read line by line against main's after it).
+
+| File | Key / line | Main's change | Resolved as |
+| --- | --- | --- | --- |
+| lang/en.json, pl.json | `Settings.forceDiceLook` | the setting became a choice, "Dice look for the table" with `choices` (own, Dice So Nice, Daggerheart), its hint rewritten | main's whole; the T29 cut was of the old hint |
+| lang/en.json | `Actions.moveLegend` (+ main's new `cubMovesFree`) | `cubMovesFree` added beside it | main's new key, this pass's "color" (EN1) |
+| lang/pl.json | `Actions.allSpent` (+ `cubMovesFree`) | the same new key | main's new key, this pass's `allSpent` |
+| lang/en.json, pl.json | `Vault.overflowed`, `stole` (+ `foundInStash`, `handFirst`, `noBullets`, `full` in pl) | `foundInStash` removed: a Search no longer reaches a stash | `foundInStash` gone, as main; this pass's item quotes (DB31) and Polish edits kept on the rest |
+| lang/en.json, pl.json | `Vault.stashesIntro`, `stashesNote` | the note: a hidden stash is found by Analyze's Find Stash and is open to its finder from then on | `stashesIntro` this pass's (main had not changed it); `stashesNote` main's facts, cut again (T29) |
+| lang/en.json | `FoundrySettings.*.sceneVision`, `diceLook` | `diceLook` names the new choice | `diceLook` main's; `sceneVision` this pass's Oxford comma |
+| docs/handbooks/gm-handbook.en.md, .pl.md:79 | the settings list | "Dice look for the table" / "wygląd kości przy stole" | main's line, with this pass's renamed settings ("Lock players' resources on the sheet", "Players' statistics without approval", "Separate voice in each room"; Polish the same), "Search Tokens" and the Polish GM-a forms carried |
+| docs/handbooks/gm-handbook.en.md:91, .pl.md:91-92 | who created a roll | the roller's look named by the new choice | main's lines, with "colors" (EN) and the GM-a forms and "Remnantu" (PL) carried |
+| docs/handbooks/player-handbook.en.md:232 | Search and stashes | a Search draws from the room alone, never a stash | main's sentence, with "favors" carried; the old stash sentence is gone |
+| docs/handbooks/player-handbook.en.md:913, .pl.md:913 | the sheet's Actions | a Monocub's own tiles, no Move tile | main's line, with this pass's cut of the version note "(since 1.2.101)" carried |
+
+Main's texts that merged without a conflict are main's as they stand (its spellings and Polish forms included); this pass's rules reach them only in a later round.
+
 ## Merge check (12.11, 16:10; again before the review commit)
 
 `git merge-tree` of this branch with each open branch, against the same merge of the base it started from (235c3210): no file conflicts that this branch adds, for any of the nine. With origin/main at 4dfac3a9 (1.2.108): a clean merge. Before the screen-review commit, against every remote claude/* branch and origin/main: no conflict this branch adds, once the keys e64-inv now edits were put back, `Assign.footnote` stayed at B01a's after, R1157 and R1160 were left as they are, and R4000 was folded into R2077 (its registry row conflicted).

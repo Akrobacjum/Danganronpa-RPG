@@ -76,6 +76,7 @@ import {
     diagnoseWindows, diagnoseCharacters, traceClicks, fileSizes, perfReport, whySlow, frameCost, countersNow, diagnose
 } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
+import { openTimes } from "./open-cost.mjs";
 import { diagnoseDiceLook } from "./dice-look.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
@@ -154,8 +155,7 @@ import { sheetWrites } from "./sheet-audit.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isCrimeSilenced,
-    cubTargets, performCubAbility, cubAbilityOnGm, cubAbilityDialog,
-    openMonocubDialog
+    cubTargets, performCubAbility, cubAbilityOnGm, cubAbilityDialog
 } from "./monocub.mjs";
 import { isCallSilenced } from "./call-effects.mjs";
 import {
@@ -251,7 +251,8 @@ import {
     log,
     plural
 } from "./utils.mjs";
-import { createPassage, grantPassage, revokePassage, closePassage, openPassage, deletePassage, listPassages, passageLog } from "./passages-gm.mjs";
+import { createPassage, grantPassage, revokePassage, closePassage, openPassage, makePassagePublic, makePassageSecret, deletePassage, listPassages,
+    passageLog } from "./passages-gm.mjs";
 import { auditRows } from "./movement-audit.mjs";
 
 /*
@@ -802,12 +803,13 @@ export const DrpgApi = {
      *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's
      *  "Show the hall" and "Back to school"; GM only. `trialSceneReport()` answers the linked scenes, the
      *  active one, the cast's hall tokens shown now, the tokens the module made there (E81 DZ6) and the
-     *  Scenes tab's warnings (GM only, else null);
-     *  `openTrialCast()` opens Room Setup on its Scenes tab, where the cast is chosen. */
+     *  scenes part's warnings (GM only, else null);
+     *  `openTrialCast()` opens Season setup, whose scenes part chooses the cast (Room Setup's Scenes tab until E101). */
     showCourtroom: (...a) => import("./trial-scene.mjs").then(m => m.showCourtroom(...a)),
     showSchool: (...a) => import("./trial-scene.mjs").then(m => m.showSchool(...a)),
     trialSceneReport: () => import("./trial-scene.mjs").then(m => m.trialSceneReport()),
-    openTrialCast: () => import("./vault.mjs").then(m => m.openRoomSetupDialog({ tab: "scenes" })),
+    // Season setup's scenes part since E101 item 5 (Room setup's Scenes tab until then).
+    openTrialCast: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()),
 
     /* ---- the chapter's life -----------------------------------------------
      * None of these fire on a clock tick. Two of them delete things that do not
@@ -1006,7 +1008,8 @@ export const DrpgApi = {
     performCubAbility,
     cubAbilityOnGm,
 
-    monocubDialog: openMonocubDialog,
+    // The old Monocubs window is retired (E72 C6): its rows are the Students window's, which invites where it ticked.
+    monocubDialog: () => import("./gm-panel.mjs").then(m => m.openWhoIsAliveDialog()),
 
     /* ---- the Mastermind -----------------------------------------------------
      * The one secret this module treats as more sensitive than a Truth
@@ -1106,6 +1109,30 @@ export const DrpgApi = {
        has none, and past the Despair the fee charged for only with `beyondPaid`. Each said why when refused. */
     missingKeys: (...a) => import("./trial-modes.mjs").then(m => m.missingKeys(...a)),
     revealMissingKey: (...a) => import("./trial-modes.mjs").then(m => m.revealMissingKey(...a)),
+    /* The trial hall's zone modes (E73), on any GM, each said why when refused: `startStrawPoll({ question, a, b })` 45 s
+       and one count; `startLogicDive(setId, { from })` a set of the GMs' from its question `from` (from 1), else where it
+       stopped; `startScrumDebate({ question, a, b, thesis })` the camps' 45 s, then the turns; `countNow()` a Straw Poll
+       or a Logic Dive question counted at once; `skipQuestion()` the next question, no answer kept; `openZonePicker(mode)`
+       the console's window; `openDiveSets()` and `editDiveSet(id)` the sets' editor (the truth the GMs' alone); `zoneSides()`
+       who stands on which side now. Skip, -30 s, +30 s and End this mode are the bar's, above. */
+    startStrawPoll: (...a) => import("./trial-zones.mjs").then(m => m.startStrawPoll(...a)),
+    startLogicDive: (...a) => import("./trial-zones.mjs").then(m => m.startLogicDive(...a)),
+    startScrumDebate: (...a) => import("./trial-zones.mjs").then(m => m.startScrumDebate(...a)),
+    countNow: (...a) => import("./trial-zones.mjs").then(m => m.countNow(...a)),
+    skipQuestion: (...a) => import("./trial-zones.mjs").then(m => m.skipQuestion(...a)),
+    zoneSides: (...a) => import("./trial-zones.mjs").then(m => m.sidesNow(...a)),
+    openZonePicker: (mode = null) => import("./trial-zones-ui.mjs").then(m => m.openZonePicker({ mode })),
+    openDiveSets: (...a) => import("./trial-zones-ui.mjs").then(m => m.openDiveSets(...a)),
+    editDiveSet: (...a) => import("./trial-zones-ui.mjs").then(m => m.editDiveSet(...a)),
+    /* The trial's Findings (E73 C6; TR28 = 1), on any GM, each press told on a public card: `findings()` the list,
+       `addFinding(text)`, `editFinding(id, text)`, `deleteFinding(id)`, `confirmFinding(id)` ("Monokuma confirms"),
+       `openFindings()` the window. */
+    findings: (...a) => import("./trial-zones.mjs").then(m => m.findingsNow(...a)),
+    addFinding: (...a) => import("./trial-zones.mjs").then(m => m.addFinding(...a)),
+    editFinding: (...a) => import("./trial-zones.mjs").then(m => m.editFinding(...a)),
+    deleteFinding: (...a) => import("./trial-zones.mjs").then(m => m.deleteFinding(...a)),
+    confirmFinding: (...a) => import("./trial-zones.mjs").then(m => m.confirmFinding(...a)),
+    openFindings: (...a) => import("./trial-zones-ui.mjs").then(m => m.openFindings(...a)),
 
     openVote,
     closeVote,
@@ -1162,7 +1189,7 @@ export const DrpgApi = {
     diagnoseDespair,
 
     /** Who is still missing the guide's starting resources - run before a session
-     *  zero. Also a line of Season setup's pre-session checks and of `diagnose()`. */
+     *  zero. Also a line of `diagnose()`; the Season checklist's rows check the same since E101. */
     diagnoseCharacters,
 
     /** Why does the sheet look different here than on another install? */
@@ -1222,6 +1249,12 @@ export const DrpgApi = {
      * on demand like the suite below: it is a table, not a feature.
      */
     diagnosePatches: () => import("./patches.mjs").then(m => m.diagnosePatches()),
+
+    /** The private cards this browser holds and whether any card in the world still carries its words (secret.mjs, E04);
+     *  the traps watching now, the plants and the ledger (traps.mjs, E04) - GM only, as the diagnostics window's part. Both
+     *  ran only as parts of that window until E43 (13.11.2026) gave them a name at the console. */
+    diagnoseSecrets: () => import("./secret.mjs").then(m => m.diagnoseSecrets()),
+    diagnoseTraps: () => game.user.isGM ? import("./traps.mjs").then(m => m.diagnoseTraps()) : (ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly")), null),
 
     /**
      * Every diagnose* this browser may run, the data migration, the contract and this session's failures as
@@ -1468,6 +1501,11 @@ export const DrpgApi = {
     /** The module's counters as they stand and the filters on the canvas now (E88 C0, perf-counters.mjs);
      *  `game.drpg.counters({ reset: true })` reads them, then zeroes them. */
     counters: countersNow,
+    /** Each window opened on THIS page (perf-open line, open-cost.mjs): its first open against the middle of its later
+     *  ones, in ms from the click to the window built and to the frame that shows it, and what the warming at idle
+     *  fetched ahead of them (the files reached by import(), Daggerheart's templates, the fonts' subsets).
+     *  `game.drpg.openTimes()` after opening each window twice; `{ reset: true }` forgets the opens read. */
+    openTimes,
     /** The GM's two Foundry windows, 'Foundry tools' (the sidebar) and 'Map tools' (the scene
      *  controls), opened together, or closed together when either is open (E77 C5; the corner's
      *  launcher, `#drpg-foundry-tools`, since C6). `game.drpg.toggleFoundryTools()`; `true` or `false` asks for one state. */
@@ -1541,7 +1579,7 @@ export const DrpgApi = {
      *  shape: "tunnel", ends: [{ x, y, level }, { x, y, level }], rooms, startAccess })` makes a tunnel or stairs, its
      *  ends refused as the tab's pick refuses them (passages-gm.mjs `tunnelRowFor`). The rest answer whether it was
      *  done, and a refusal says why in the console. Kept by the GMs alone and sent to a player only as the
-     *  passages their own characters know. `audit()` (E79 fix r1-G1, 1.2.79) answers the rows of the moves through a
+     *  passages their own characters know. `makePublic(id)` and `makeSecret(id)` are the tab's buttons (E91 C3). `audit()` (E79 fix r1-G1, 1.2.79) answers the rows of the moves through a
      *  wall the audit judged on this browser since it loaded - the primary GM's (movement-audit.mjs `auditRows`). */
     passages: {
         create: params => createPassage(params),
@@ -1549,6 +1587,9 @@ export const DrpgApi = {
         revoke: (passageId, actorId) => revokePassage(passageId, actorId),
         close: passageId => closePassage(passageId),
         open: passageId => openPassage(passageId),
+        // The tab's Make public and Make secret (E91 C3, D117): the same write as its buttons.
+        makePublic: passageId => makePassagePublic(passageId),
+        makeSecret: passageId => makePassageSecret(passageId),
         delete: passageId => deletePassage(passageId),
         list: () => listPassages(),
         log: () => passageLog(),

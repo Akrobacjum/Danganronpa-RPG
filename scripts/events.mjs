@@ -19,7 +19,7 @@
  * rows, so that theme stays exactly the look it was.
  */
 
-import { MODULE_ID, TRIAL } from "./config.mjs";
+import { MODULE_ID, TRIAL, MONOCUB } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { pairOf, reserveLine } from "./murder-ui.mjs";
@@ -36,6 +36,7 @@ import { overflowEffect, overflowStatus, overflowRules, overflowWhat } from "./o
 import { SAFEWORD_FLAG } from "./safeword.mjs";
 import { trialProgress, votesIn, pendingVoters, ballotInHere } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
+import { isMonocub, cubBlockSaid, cubPanelLines } from "./monocub.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -593,7 +594,8 @@ export function bodyCard(clock) {
     if (!victims.length && !room) return null;
     if (!room && victims.length) {
         // A room's name: `roomOfToken` answers the name, not the region (65-season B1 compares it with the hold's `room`).
-        try { room = roomOfActor(victims[0]) ?? null; } catch { /* a victim outside every room */ }
+        // Where the body lies (E62 C3b fix; the e93 review's F4): a victim made a Monocub walks another token.
+        try { room = locateActor(victims[0], { body: true })?.room ?? null; } catch { /* a victim outside every room */ }
     }
     const names = victims.map(a => a.name).join(", ");
 
@@ -667,6 +669,90 @@ function overflowCard() {
         error("Could not read the overflow for the Event panel", err);
         return null;
     }
+}
+
+/**
+ * REDEEM IS WAITING (E72 C9, 12.11.2026; audit S18-62, the plan's C9). A Monocub's Redeem comes back once a day, and
+ * only the sheet's tile said whether it had. The card is for the Monocub's own player: the Monocubs `user` owns whose
+ * Redeem none of its blocks shuts, read as the tile reads them (monocub.mjs `cubBlockSaid`, from the owner's copy of the
+ * Monocubs' record). A GM's screen draws none: the Students window carries the Monocubs for the GMs. One card, the
+ * first such Monocub's name on it; a player who plays two Monocubs is not a case the rules name.
+ */
+export function redeemCard(user = game.user) {
+    if (!user || user.isGM) return null;
+    const row = MONOCUB.abilities?.redeem;
+    if (!row) return null;
+    const cub = game.actors?.find(a => isMonocub(a) && a.testUserPermission(user, "OWNER") && !cubBlockSaid(a, row));
+    if (!cub) return null;
+    return {
+        kind: "redeemHope",
+        title: game.i18n.localize("DRPG.Events.redeemTitle"),
+        sub: cub.name,
+        meta: game.i18n.localize("DRPG.Events.redeemMeta"),
+        // Its line when another state leads the Monocub's card (`cubCardOf`).
+        line: game.i18n.localize("DRPG.Events.redeemLine")
+    };
+}
+
+/**
+ * PART B ON THE PANEL (E72 C19, 12.11.2026; the owner's option A, relayed by the coordinator): a Monocub's own player is
+ * told, as the Redeem card tells it, while a Bribe waits for its answer and while its Ghost Bet stands - read off the
+ * owner's copy of the Monocubs' record as the sheet's panel reads it (monocub.mjs `cubPanelLines`). Both are secret to
+ * their parties (DC39), so a GM's screen and every other player's draws neither; the GMs have the Students window. The
+ * first such Monocub of the user's; a player who plays two Monocubs is not a case the rules name.
+ */
+function cubLineFor(user, kind) {
+    if (!user || user.isGM) return null;
+    for (const cub of game.actors?.filter(a => isMonocub(a) && a.testUserPermission(user, "OWNER")) ?? []) {
+        const line = cubPanelLines(cub).find(l => l.kind === kind);
+        if (line) return { cub, line };
+    }
+    return null;
+}
+
+/** A Bribe waits for this Monocub's player's answer (E72 C19): who offers it. */
+export function bribeWaitCard(user = game.user) {
+    const found = cubLineFor(user, "offer");
+    if (!found) return null;
+    return {
+        kind: "bribeHope",
+        title: game.i18n.localize("DRPG.Events.bribeWaitTitle"),
+        sub: found.cub.name,
+        meta: game.i18n.format("DRPG.Events.bribeWaitMeta", { name: found.line.name || "?" }),
+        line: game.i18n.format("DRPG.Events.bribeWaitLine", { name: found.line.name || "?" })
+    };
+}
+
+/** This Monocub's Ghost Bet stands (E72 C19): whom it names. */
+export function betCard(user = game.user) {
+    const found = cubLineFor(user, "bet");
+    if (!found) return null;
+    return {
+        kind: "betHope",
+        title: game.i18n.localize("DRPG.Events.betTitle"),
+        sub: found.cub.name,
+        meta: game.i18n.format("DRPG.Events.betMeta", { name: found.line.name || "?" }),
+        line: game.i18n.format("DRPG.Events.betLine", { name: found.line.name || "?" })
+    };
+}
+
+/**
+ * ONE CARD FOR A MONOCUB (E72 C19 fix, 12.11.2026; the owner: the cards were cut off at the bottom). The panel's box is
+ * capped (`--drpg-events-h`: 192 px under Monokuma Legacy at 1366x768, measured in Chromium on the glass harness, where
+ * one card is 101 px), so Redeem, a Bribe and a Ghost Bet as three cards put the second and third below its fold. The
+ * states are one card: the first state's kind (its glyph), title and Monocub, its own line, and each other state's line
+ * under it. audit/events-fit.mjs measures it whole at three sizes in both themes; R3824 holds the shape. Pure.
+ */
+export function cubCardOf(states = []) {
+    const [first, ...rest] = (states ?? []).filter(Boolean);
+    if (!first) return null;
+    const { line, ...card } = first;
+    return { ...card, meta: [first.meta, ...rest.map(s => s.line)] };
+}
+
+/** The Monocub's one card for `user` (`cubCardOf` over `redeemCard`, `bribeWaitCard` and `betCard`), or null. */
+export function cubCard(user = game.user) {
+    return cubCardOf([redeemCard(user), bribeWaitCard(user), betCard(user)]);
 }
 
 /* ---- the panel ------------------------------------------------------------ */
@@ -866,7 +952,7 @@ export function renderEvents() {
         /* The safeword is first because it outranks everything: while the scene
            is stopped, nothing else on this panel is happening. */
         const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
-            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), cubCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

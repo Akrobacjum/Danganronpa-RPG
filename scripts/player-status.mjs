@@ -20,17 +20,21 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getClock } from "./settings.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, actingStudents } from "./monokuma.mjs";
 import { sheetMode, moveSlots, moveFeetHtml, moveLegend } from "./sheet.mjs";
+import { isMonocub, purseOf } from "./monocub.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural, markLanguage } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+// The r112 review's P2 (13.11.2026): Move's drag sentence only where Move is a drag. Its own line, so the import above
+// merges with the e72 line's next to it.
+import { moveDragSaid } from "./sheet.mjs";
 
 const WIDGET_ID = "drpg-player-status";
 
@@ -471,6 +475,18 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
         // places as the sheet (sheet.mjs `moveSlots`): the free Move, and the Eclipse's second crossing, dimmed outside one.
         safeRow(() => {
             const foot = document.createElement("span");
+            /* A MONOCUB'S FEET ARE LIT, AS ON ITS SHEET (E103, 13.11.2026; sheet.mjs `moveSlots`, `freeMovePip`): its
+               crossings cost nothing, in an Eclipse too (movement.mjs `cubStep`), so neither the free Move's flag nor the
+               Eclipse's count dims the row, nothing flashes, and the tooltip is the Monocub's sentence. Until E103 the
+               strip drew a Monocub's feet as a student's. */
+            if (mode.monocub) {
+                const moves = eclipse ? ("moves" in options ? options.moves : eclipseMovesLeft(actor)) : null;
+                foot.className = "drpg-status-pips drpg-free-move available";
+                foot.innerHTML = moveFeetHtml(moveSlots({ eclipse, moves, cub: true }));
+                const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot, null, false);
+                row.dataset.tooltip = `${game.i18n.localize("DRPG.Actions.cubMovesFree")} ${moveLegend()}`;
+                return row;
+            }
             if (eclipse) {
                 // One footprint per crossing the Eclipse still allows. This is
                 // the whole of what a player can do right now, so it is the one
@@ -508,7 +524,10 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
             const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
                 free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent",
                 !free);
-            row.dataset.tooltip = `${row.dataset.tooltip} ${moveLegend()}`;
+            // What to do first (E100 item 1: the Move window that said it is gone), then the state and the feet. Not in a
+            // Class Trial or an incident the character is in, where the drag is refused (the r112 review's P2).
+            const lead = moveDragSaid(actor) ? `${game.i18n.localize("DRPG.Move.drag")} ` : "";
+            row.dataset.tooltip = `${lead}${row.dataset.tooltip} ${moveLegend()}`;
             return row;
         }),
 
@@ -524,7 +543,8 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
         // A plainly dead student reaches none of these rows since E17 C8: the
         // strip is their state alone (`showsDeathOnly`, above).
         safeRow(() => {
-            const held = hopeHeld(actor);
+            // A Monocub's purse counts (E72 C14; DC37): the Hope it can spend is the sheet's and the purse's.
+            const held = hopeHeld(actor) + (isMonocub(actor) ? purseOf(actor) : 0);
             const hopeMax = Number(actor.system?.resources?.hope?.max ?? held);
             return marks("is-hope", game.i18n.localize("DAGGERHEART.GENERAL.hope") || "Hope",
                 pips("drpg-status-pip drpg-status-hope-pip", held, hopeMax,
@@ -577,9 +597,14 @@ function field(className, label, value, tooltipKey, spent) {
  * "Still to act 3 / 3", and fell to "2 / 2" at an execution, a count that moved for something that was not running,
  * beside the incident's turns the GM was there to follow. `quietActions` says when it is left out; the clock and the
  * incident's state are both settings the strip already redraws for (`STRIP_SETTINGS`). R1392.
+ *
+ * THE CLASS TRIAL TOOK IT BACK (E100, 12.11.2026). With the row gone the GM's strip had no row left outside an Eclipse,
+ * so the whole box above the Projects tray went for the trial - the owner, at a table: "W trialu usunięto tackę
+ * actions/move/hope, która jest nad projects. Przywróćmy ją." The trial no longer quiets the row; a running incident
+ * still does (Q-E23-3 for that half stands).
  */
 function quietActions() {
-    return getClock().phase === "classTrial" || game.settings.get(MODULE_ID, SETTINGS.murderState)?.active === true;
+    return game.settings.get(MODULE_ID, SETTINGS.murderState)?.active === true;
 }
 
 function buildTableView() {

@@ -133,9 +133,13 @@ import { reducedMotion, TURN } from "./motion.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { tile as kitTile, launcher, launcherState, pixelGlyph, sliderList, slider as kitSlider } from "./ui-kit.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
+import { spectatorViewer, talkSwitchOn } from "./spectator.mjs";
+import { toggleSpectatorTalk } from "./spectator-ui.mjs";
 import { tileRow } from "./narrow.mjs";
 import { objectionControl, renderHud } from "./hud.mjs";
 import { trialFloor } from "./trial-floor.mjs";
+
+import { setTip } from "./ui-kit.mjs";
 
 const TILE_ID = "drpg-voice-tile";
 
@@ -1043,6 +1047,7 @@ export function paintControls(watch = live, gone = null) {
         paintWord(watch, painted.get(watch.tile)?.face === true);
         paintSpeakerButton(watch.tile, { count: channelCount(watch, gone), muteAll: watch.muteAll() });
         paintObjection(watch.tile);
+        paintSpectatorTalk(watch.tile);
         paintFloorMark(watch.tile, watch.shown ? watch.userOf(watch.shown) : null);
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
@@ -1082,6 +1087,53 @@ export function paintObjection(tile, given = {}) {
     else controls.append(next);
     return next;
 }
+
+/**
+ * "TALK WITH THE SPECTATORS" ON THE TILE (E92 round 3, 12.11.2026; the owner's: "przycisk przenoszenia sie miedzy czatem
+ * spectatorow a sluchaniem dajemy w panelu livekit po prawej stronie ekranu, tam gdzie reszta przyciskow"). A mini button
+ * after the microphone and the speaker, on a Spectator's browser alone (scripts/spectator.mjs `spectatorViewer`): its
+ * name, for a screen reader and the tooltip, says where a press takes the player - DRPG.Spectator.talk while the switch
+ * is off, DRPG.Spectator.talkBack while it is on, `aria-pressed` with it - and a press writes the switch, the player's own
+ * User flag (spectator-ui.mjs `toggleSpectatorTalk`), whose change repaints the tile (`registerVoiceTile`'s `updateUser`).
+ * Until round 3 the switch stood in a line under the clock. A Spectator has no OBJECTION! (hud.mjs `objectionControl`
+ * draws it for a student alone), so the tile holds three buttons at most, as a student's; the stylesheets' third-button
+ * rules read either. Written only where it differs, so a repaint swaps no button under the pointer or the focus.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} [given]  the suite's: `watching`, `talking` and the click's `onToggle`; left out, read here
+ * @returns {HTMLElement|null} the button the tile shows, or `null`
+ */
+export function paintSpectatorTalk(tile, { watching = spectatorViewer(), talking = talkSwitchOn(game.user), onToggle = toggleSpectatorTalk } = {}) {
+    const controls = tile?.querySelector(".drpg-voice-tile-controls");
+    if (!controls) return null;
+    let button = controls.querySelector(".drpg-voice-spectator-talk");
+    if (!watching) {
+        button?.remove();
+        return null;
+    }
+    if (!button) {
+        button = miniButton("drpg-voice-spectator-talk", "team", "");
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => spectatorToggles.get(button)?.()).catch(err => error("Could not change the Spectator talk switch", err));
+        });
+        const speaker = controls.querySelector(".drpg-voice-speaker");
+        if (speaker) speaker.after(button);
+        else controls.append(button);
+    }
+    spectatorToggles.set(button, onToggle);
+    const label = game.i18n.localize(talking ? "DRPG.Spectator.talkBack" : "DRPG.Spectator.talk");
+    if (button.getAttribute("aria-label") !== label) {
+        button.setAttribute("aria-label", label);
+        button.dataset.tooltipText = label;
+    }
+    if (button.getAttribute("aria-pressed") !== String(talking)) button.setAttribute("aria-pressed", String(talking));
+    return button;
+}
+
+/* What a press of a tile's Spectator switch calls: the suite's spy or `toggleSpectatorTalk`, kept per button. */
+const spectatorToggles = new WeakMap();
 
 /**
  * The plate's "has the floor" (E70 C11; the stage's amend 3): shown while the speaker the tile draws is the student the
@@ -1301,6 +1353,7 @@ function listRow(watch, userId) {
     const dot = textNode("span", "drpg-voice-row-dot", "");
     dot.setAttribute("aria-hidden", "true");
     const slider = kitSlider({ className: "drpg-voice-row-volume", min: 0, max: 1, step: VOLUME_STEP });
+    setTip(slider, "DRPG.Tips.More.volumeTooltip", null, { text: true });
     slider.addEventListener("input", () => {
         const volume = volumeOfSlider(slider.value);
         setPeerVolume(watch, userId, volume, { save: false }).catch(err => error("Could not change a volume", err));

@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.107. If a later version and a handbook ever disagree,
+They describe version 1.2.112. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -226,7 +226,7 @@ checks that a LiveKit server answers.
 | Needs | Version |
 |---|---|
 | Foundry VTT | 14.364 or newer (verified on 14.365) |
-| [Daggerheart (Foundryborne)](https://foundryvtt.com/packages/daggerheart) | 2.6.5 or newer (verified on 2.6.5; a newer version loads, and the GM is told once per version that it has not been measured) |
+| [Daggerheart (Foundryborne)](https://foundryvtt.com/packages/daggerheart) | 2.6.5 or newer (verified on 2.12.8; a newer version loads, and the GM is told once per version that it has not been measured) |
 
 | Module | What it is for | |
 |---|---|---|
@@ -291,7 +291,11 @@ a token that goes through a tunnel or up its stairs leave one end and land at
 the other. <!-- leak:foundry-passage-tunnel --> Foundry's own secret doors are
 walls on every browser's map, and a player's console can open one; the GM's
 browser shuts it again, and Convert to passages turns them into secret
-passages. <!-- leak:foundry-secret-door-type --> It is a curtain, not a
+passages. <!-- leak:foundry-secret-door-type --> A Monocub's purse is
+hidden, but a move paid from it shows on the sheet as actions spent and no
+Hope. <!-- leak:foundry-cub-purse --> In a Class Trial every dead student's
+microphone is off, a body nobody has found yet among them, and every browser
+holds that list while the trial runs. <!-- leak:TR30 --> It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The

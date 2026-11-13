@@ -150,15 +150,19 @@ import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 import { box, roleButton } from "./ui-kit.mjs";
+import { readSpectatorsWith } from "./spectator.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
  * E11 C11 (1.2.73): the Level Up's experiences the season reset deletes - a player who unset it would keep them.
  * `notInClass` since E24 C3a (08.11.2026; R1454, 30-security's forgery): a player who set it on their own student
- * would leave every ballot, Level Up and incident's cast the GMs build from monokuma.mjs `studentActors`.
+ * would leave every ballot, Level Up and incident's cast the GMs build from monokuma.mjs `studentActors`. `spectator`
+ * since E92 C1 (R3851): the same, and its account's microphone held and its token hidden from the other players.
  */
-const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
-    "swungWeapon", "betrayalWindow", "monokuma", "notInClass"].map(key => FLAGS[key]),
+const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "da39Rises", "lootTrace",
+    "swungWeapon", "betrayalWindow", "monokuma", "notInClass", "spectator", "watcherOf"].map(key => FLAGS[key]),
     /* The stashes a student has found (vault-store.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
        part 2 C3 (design-notes D10): its owner could write it, no judgement read it (`kindOf` answered null), and
        `stealFromVault` opened a concealed stash on it. Spelt here, not imported: this file reaches nothing that imports
@@ -1779,7 +1783,8 @@ async function coverOf(actor, mark, credit, gains, moves, stamp, user, seen) {
  * and not yet taken back; each gain is within its pick (all marks for a long rest, half rounded up
  * for a short; Breath 2 or 1 Hope) and no more picks than the kind allows. A Relief's free rest
  * (`ref` "relief") moves no stamp and is paid by that Call's price instead of the room and the
- * action. Answers what it covers, or null - and then its stamp goes back too.
+ * action, and covers no Hope: its Breath is refused (rest.mjs `BREATH_REFUSED`, 1.2.112). Answers
+ * what it covers, or null - and then its stamp goes back too.
  */
 async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     const { restStamp, roomAllows } = await import("./rest.mjs");
@@ -1791,6 +1796,8 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!relief) {
         kind = moved[0];
         if (!REST[kind] || now[kind] !== restStamp(kind, getClock())) return null;
+        // Insomnia (E93 C6): no Short rest this time of day, so none is covered.
+        if (kind === "short" && (await import("./overflow.mjs")).overflowBlocksShortRest()) return null;
         const { locateActor } = await import("./movement.mjs");
         const place = locateActor(actor);
         if (!roomAllows(place?.room ?? null, kind, place?.scene)) return null;
@@ -1799,7 +1806,7 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!rules) return null;
     const full = kind === "long";
     const marks = key => moves[key]?.base ?? 0;
-    const allowed = { hope: full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
+    const allowed = { hope: relief ? 0 : full ? 2 : 1, hitPoints: full ? marks("hitPoints") : Math.ceil(marks("hitPoints") / 2),
         stress: full ? marks("stress") : Math.ceil(marks("stress") / 2) };
     const picked = Object.keys(gains);
     if (picked.length > rules.picks || picked.some(key => !(gains[key] <= (allowed[key] ?? 0)))) return null;
@@ -2280,18 +2287,17 @@ async function placeStands(actor, item, before, now) {
  * A SEARCH'S FIND (the plan's 2.6): an item created `searchFind`, its `ref` the GMs' record of a
  * Search (roll-draw.mjs `rollRecord`; action-search.mjs `grantDrawn` names it) of this student by
  * this player that hit, not used for a find before, and the item's tier at most what the record's
- * total - with the hidden stash's step the GM drew - earns on the Search's table (action-search.mjs
- * `searchTier`, the reading the Search itself makes). Answers the student's finds with this one in
+ * total earns on the Search's table (action-search.mjs `searchTier`, the reading the Search itself
+ * makes; with the hidden stash's step the GM drew, until 1.2.112). Answers the student's finds with this one in
  * them, or null. A find whose record is swept is forgotten with it: a record past a Reroll's reach
  * names no find any more.
  *
  * NOT A SEARCH THAT ENDED WITHOUT A DRAW (round 1's m6, 05.10.2026). A hit asked of the GM ("something
- * specific", action-search.mjs `searchSpecific`) or taken from a stash (`searchStash`) creates nothing
+ * specific", action-search.mjs `searchSpecific`) - or, until 1.2.112, taken from a stash - creates nothing
  * through `grantDrawn`, so its record stayed unused and a console's item named after it stood - a
- * second item for one Search. The record now keeps the Search's goal as the roller sent it (roll-draw.mjs
- * `CONTEXT_SENT`, the roller's word like the category beside it), and a stash's theft settles the
- * record's "search" (bridge-guards.mjs `rollsFor`); a find on either is refused. The other way round,
- * a theft named after a record a find already stood on is refused by bridge-runs-acts.mjs `searchTheftOf`.
+ * second item for one Search. The record keeps the Search's goal as the roller sent it (roll-draw.mjs
+ * `CONTEXT_SENT`, the roller's word like the category beside it), and a find on it is refused, as on a
+ * record whose "search" something else settled (bridge-guards.mjs `rollsFor`).
  *
  * NOR A SEARCH WHOSE TOKEN THE GM NEVER SPENT (E29 fix r2-H11, 06.10.2026). A Search spends its
  * room's token after its roll, and a refused spend settles the record (search-tokens.mjs
@@ -2309,7 +2315,7 @@ async function searchFind(actor, mark, data, stamp, user) {
     if (!record.tokenSpentAt) return null;
     if (record.goal === "specific" || (Array.isArray(record.resolved) && record.resolved.includes("search"))) return null;
     const { searchTier } = await import("./action-rolls.mjs");
-    const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical }, record.used?.stash?.change ?? 0);
+    const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical });
     const found = foundry.utils.getProperty(data, `flags.${MODULE_ID}.${ITEM_FLAGS.tier}`);
     if ((!hit && !record.isCritical) || !Number.isInteger(found) || found > tier) return null;
     const kept = Object.entries(mark.finds ?? {}).filter(([rollId]) => rollStore.has(rollId));
@@ -2799,7 +2805,8 @@ export function flaggedCard(row) {
  */
 function auditButton(attr, how, key, id = null) {
     // the kit's `roleButton` since E47-KFa (written by hand from BUTTON_ROLES before it), the same attributes in the same order
-    return roleButton({ role: how === "undo" ? "gmRoute" : "secondary", attrs: { [`data-drpg-${attr}`]: how, "data-drpg-row": id || null },
+    return roleButton({ role: how === "undo" ? "gmRoute" : "secondary", attrs: { [`data-drpg-${attr}`]: how, "data-drpg-row": id || null,
+        "data-tooltip": attr === "audit" && how === "undo" ? tipText("DRPG.Tips.Gm.undoKeepTooltip") : null },
         label: game.i18n.localize(key) });
 }
 
@@ -3302,6 +3309,9 @@ function primaryLeft(user, connected) {
 
 /** On every browser; each hook stands aside unless this is the primary GM. At `init`, so the hydration below is not missed. */
 export function registerSheetAudit() {
+    /* Who is a Spectator, as the GMs hold it, for the roads that give one more than a student (E92 DRPG-D1, scripts/spectator.mjs).
+       Registered at init, before a user is known: on a player's browser `flagsHeldNow` finds no mark and reads the document. */
+    readSpectatorsWith(flagsHeldNow);
     Hooks.on("updateActor", (actor, changes, options, userId) => { onSheetWrite("updateActor", actor, changes, options, userId); });
     Hooks.on("createActiveEffect", (effect, options, userId) => { onSheetWrite("createActiveEffect", effect, {}, options, userId); });
     Hooks.on("updateActiveEffect", (effect, changes, options, userId) => { onSheetWrite("updateActiveEffect", effect, changes, options, userId); });

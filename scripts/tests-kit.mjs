@@ -286,7 +286,7 @@ function apiSurfaceProblems({ live = {}, same = [], surface = null, version = "0
 
 /** What is wrong with a red marker before anything is run, or null. */
 function markerProblem(red, ledger) {
-    if (red?.[RED] !== true || !/^E\d{2}$/.test(red.stage ?? "") || !red.why) {
+    if (red?.[RED] !== true || !/^E\d{2,3}$/.test(red.stage ?? "") || !red.why) {
         return `expectedRed is malformed (a stage "E" and two digits, and a reason): ${describe(red)}`;
     }
     if (!ledger) return null;
@@ -303,7 +303,7 @@ function untilProblem(rule, ledger) {
     if (!String(rule?.why ?? "").trim()) return "a dump rule with no reason";
     const until = String(rule?.until ?? "");
     if (until === "never" || until === "1.3.x (D27)") return null;
-    if (!/^E\d{2}$/.test(until)) return `until "${until}" is not a stage, "1.3.x (D27)" or "never"`;
+    if (!/^E\d{2,3}$/.test(until)) return `until "${until}" is not a stage, "1.3.x (D27)" or "never"`;
     if (!ledger) return null;
     const row = ledger.get(until);
     if (!row) return `until names "${until}", which tools/stages.json does not know`;
@@ -569,6 +569,11 @@ const env = Object.freeze({
     desk: () => probe("env.desk", !narrowScreen(), "a stacked screen, narrower than BREAKPOINTS.narrow"),
     canvas: () => probe("env.canvas", canvasAvailable(), "no canvas renderer here"),
     systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
+    /* Daggerheart's MoveContext (E76b, 12.11.2026): the config 2.12's `actor.rollTrait` builds its roll from
+       (game.system.api.data.actions.MoveContext, daggerheart.mjs:137-145, 2.12.8). Up to 2.10.x there is none, and a
+       test of what the module carries through it skips there; the harness runs 2.12.8's copy since E76 C3c. */
+    moveContext: () => probe("env.moveContext", typeof game.system?.api?.data?.actions?.MoveContext === "function",
+        "this Daggerheart builds no MoveContext (before 2.12)"),
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
     unprepared: () => probe("env.unprepared", sourceUnprepared(), "Foundry prepares a character's data here, so a test cannot stand in for the preparation"),
     markdown: () => probe("env.markdown", Boolean(globalThis.showdown?.Converter), "no Markdown converter here"),
@@ -1284,7 +1289,15 @@ async function bridgeTables() {
  */
 const BRIDGE_TABLE_FILES = Object.freeze([
     ["bridge-table.mjs", "BRIDGE_ACTIONS", [
-        "call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs"
+        "call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs",
+        // E93 C3: what the Facilities' run (`facility.use`, bridge-runs-acts.mjs `handleFacilityUse`) reaches into.
+        "facilities-gm.mjs",
+        // E69 C3: Tail Someone's GM half, whose `startTail` answers the refusals `tail.start`'s run hands back.
+        "tail-gm.mjs",
+        // E74 C2: the doors' GM half, whose `shutDoor` answers the refusals `door.shut`'s run hands back.
+        "doors-gm.mjs",
+        // E74 C6: Keep Watch's GM half, whose `declareWatch` answers the refusals `watch.declare`'s run hands back.
+        "watch-gm.mjs"
     ]],
     ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []], ["private-rolls.mjs", "ROLL_ACTIONS", []]
 ]);
@@ -1659,7 +1672,7 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
     let actions = 0, withIds = 0, byGuardClaim = 0, inWords = 0;
     const source = fn => String(fn ?? "");
     const exported = new Set(Object.values(guards).filter(value => typeof value === "function"));
-    const FACTORIES = ["owns", "ownsActorAt", "gmOnly", "playersOnly", "canSeeProject", "inRange"];
+    const FACTORIES = ["owns", "ownsActorAt", "notSpectator", "gmOnly", "playersOnly", "canSeeProject", "inRange"];
     // Past the parameter list: every guard takes `sender`, and only a body can be said to read it.
     const readsSender = fn => /\bsender\b/.test(source(fn).replace(/^[^)]*\)/, ""));
     const readsField = (fn, field) => new RegExp(`\\bpayload\\??\\.${field}\\b`).test(source(fn));
@@ -2065,7 +2078,7 @@ const STANDING = [
     "openSoundDialog", "openInvestigationDashboard", "manageClassTrial",
     "openProjectManager", "openRoomSetupDialog", "openVaultInspector",
     "openItemTables", "openSeasonSetup", "openSeasonChecklist", "openMastermindDialog",
-    "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
+    "openRulesManager", "openGmTeamDialog",
     "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
     "openFailureLog", "openClockDialog", "openIncidentTracker",
     "openObjectionLog", "resetSeason"

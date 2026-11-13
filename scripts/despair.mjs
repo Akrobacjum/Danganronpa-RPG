@@ -27,6 +27,8 @@ import { narrowColumn } from "./narrow.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 const WIDGET_ID = "drpg-despair";
 
 export function registerDespair() {
@@ -619,6 +621,16 @@ async function recordOwed(userId, n) {
     await despairOwedStore.patch(`${userId}:${game.user.id}:${Date.now()}`, { owed: n, since: timeOfDayMark() });
 }
 
+/**
+ * A Despair this GM's pool owes from now, paid at the next time of day (E72 C16: a Bounty's price, DC40 "through the
+ * debt buffer"): `recordOwed`, for a caller outside this file. GM-side; answers whether it was written.
+ */
+export async function oweDespair(userId, n) {
+    if (!game.user?.isGM || !(n > 0)) return false;
+    await recordOwed(userId, Math.trunc(n));
+    return true;
+}
+
 /*
  * INCOME INTO A FULL POOL PAYS WHAT IT OWES FIRST. `before` is the pool before the income
  * and `n` the income; what is left over after the debt goes to the overflow. Both roads that
@@ -819,8 +831,12 @@ export async function creditHopeFromDespair(actor, amount, { payer = null, owes 
         return { granted: 0, blocked: "darkening" };
     }
     const { meansWrite } = await import("./sheet-audit.mjs");
+    // A Monocub's purse counts toward its limit (E72 fix round, review #5; the owner's DC37): the sheet takes only the
+    // maximum less the purse.
+    const { isMonocub, purseOf } = await import("./monocub.mjs");
+    const purse = isMonocub(actor) ? purseOf(actor) : 0;
     const { held, granted } = await meansWrite(actor, async ({ hope }, maxOf) => {
-        const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - hope);
+        const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - purse - hope);
         if (room <= 0) return { held: hope, granted: 0 };
         if (owes) await recordOwed(owes, room);
         // A reason of the closed list, a literal each (tests-tier0.mjs R220): the Call's, or a GM's ruling.
@@ -1228,16 +1244,16 @@ function buildRow(user) {
     const ghost = !isGM;
     row.append(
         stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0, ghost,
-            game.i18n.localize("DRPG.Look.stepDown")),
+            game.i18n.localize("DRPG.Look.stepDown"), tipText("DRPG.Tips.Gm.minusTooltip")),
         stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max, ghost,
-            game.i18n.localize("DRPG.Look.stepUp"))
+            game.i18n.localize("DRPG.Look.stepUp"), tipText("DRPG.Tips.Gm.plusTooltip"))
     );
     if (isGM && isOwnPool) row.classList.add("own");
 
     return row;
 }
 
-function stepper(icon, handler, disabled, ghost = false, label = "") {
+function stepper(icon, handler, disabled, ghost = false, label = "", tip = "") {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `drpg-despair-button${ghost ? " is-ghost" : ""}`;
@@ -1248,7 +1264,7 @@ function stepper(icon, handler, disabled, ghost = false, label = "") {
        Monokuma's count, which is a number a GM changes under time pressure. The two
        strings already existed for the Look window's own steppers. */
     if (label) {
-        button.dataset.tooltip = label;
+        button.dataset.tooltip = tip || label;
         button.setAttribute("aria-label", label);
     }
 

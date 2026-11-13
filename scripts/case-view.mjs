@@ -29,8 +29,12 @@
  * is its least height (so the gap between two nodes of a column is `pitch - nodeH`), the margin around the graph and the
  * room the column heads take above it. Read by `mapPlace` and by the stylesheet's node rule (components.css "THE CASE
  * MAP", whose least width and height and open width are these three numbers).
+ *
+ * THE COLUMNS 80 PX APART (the owner, 13.11.2026: "Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko
+ * siebie. Chodzi o odstep miedzy kolumnami"): 48 px until then. Measured in Chromium at 1366x768 (STATUS): the Map's
+ * three columns 840 -> 904 px in its 972 px viewport, with a node open 952 -> 1016 px (dragged to, as a tall node is).
  */
-export const MAP_GEOMETRY = Object.freeze({ nodeW: 240, nodeH: 54, openW: 352, colGap: 48, pitch: 66, pad: 12, head: 28 });
+export const MAP_GEOMETRY = Object.freeze({ nodeW: 240, nodeH: 54, openW: 352, colGap: 80, pitch: 66, pad: 12, head: 28 });
 
 /** A node's size from `sizes` (a Map or an object of id to `{ w, h }`); a size not read, or read as 0 (jsdom), is the least. */
 function sizeOf(sizes, id, g) {
@@ -42,10 +46,12 @@ function sizeOf(sizes, id, g) {
 /**
  * Where each node of `layout` stands, in pixels: `{ at: { id: { x, y, w, h } }, cols: [{ x, w }], width, height, gapY }` -
  * `gapY` the middle of the empty row before the unrelated evidence (null without any). Each column a stack of its nodes
- * in row order, `pitch - nodeH` apart; an empty row (the gap before the unrelated evidence) takes one `pitch`. `sizes`
- * (optional) the measured `{ w, h }` of each node. Pure.
+ * in row order, `pitch - nodeH` apart; an empty row (the gap before the unrelated evidence) takes one `pitch`, or in
+ * the first column, where the gap's line and fold stand from its middle down, as much as the gap's measured height
+ * `gapH` needs (E99 round 5: under glass the fold took two lines, 60 px, of the 39 the row left under the line, and lay
+ * over the first unrelated Remnant). `sizes` (optional) the measured `{ w, h }` of each node. Pure.
  */
-export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null) {
+export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0 } = {}) {
     const at = {};
     const rowGap = g.pitch - g.nodeH;
     const byCol = [];
@@ -69,7 +75,11 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null) {
         let y = top, row = 0;
         const skipTo = target => {
             for (; row < target; row++) {
-                if (c === 0 && row === gapRow) gapY = y + Math.round(g.nodeH / 2);
+                if (c === 0 && row === gapRow) {
+                    gapY = y + Math.round(g.nodeH / 2);
+                    y += Math.max(g.pitch, Math.round(g.nodeH / 2) + (Number(gapH) > 0 ? Math.ceil(gapH) : 0) + rowGap);
+                    continue;
+                }
                 y += g.pitch;
             }
         };
@@ -201,8 +211,9 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         const f = edits.get(id);
         sizes.set(id, { w: Math.max(b.offsetWidth || 0, f?.offsetWidth || 0), h: (b.offsetHeight || 0) + (f ? f.offsetHeight || 0 : 0) });
     }
-    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes);
-    if (data.fold && place.gapY !== null) place.height = Math.max(place.height, place.gapY + g.pitch);
+    const gap = canvas.querySelector(":scope > .drpg-case-gap");
+    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes, { gapH: gap?.offsetHeight || 0 });
+    if (data.fold && place.gapY !== null) place.height = Math.max(place.height, place.gapY + Math.max(g.pitch, (gap?.offsetHeight || 0) + g.pad));
     for (const [id, b] of buttons) {
         const p = place.at[id];
         if (!p) continue;
@@ -211,14 +222,14 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         const f = edits.get(id);
         if (f) {
             f.style.left = `${p.x}px`;
-            f.style.top = `${p.y + (b.offsetHeight || g.nodeH)}px`;
+            // the open node's fields stand in its place, its face hidden (`is-editing`, the owner, 12.11.2026)
+            f.style.top = `${p.y + (b.classList.contains("is-editing") ? 0 : (b.offsetHeight || g.nodeH))}px`;
         }
     }
     for (const head of canvas.querySelectorAll(":scope > [data-drpg-col-head]")) {
         const col = place.cols[Number(head.dataset.drpgColHead)];
         if (col) head.style.left = `${col.x}px`;
     }
-    const gap = canvas.querySelector(":scope > .drpg-case-gap");
     if (gap && place.gapY !== null) { gap.style.top = `${place.gapY}px`; gap.style.width = `${place.cols[0]?.w ?? g.nodeW}px`; }
     canvas.style.width = `${place.width}px`;
     canvas.style.height = `${place.height}px`;
@@ -338,4 +349,23 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
     /* THE FOCUS IS NEVER OFF SCREEN: a node the arrows reach, or a field Tab reaches in an open node, is brought into view. */
     graph.addEventListener("focusin", event => reveal(event.target));
     return { apply, zoomBy, fit, reveal };
+}
+
+/** The right-hand gutter a tile keeps for its trial controls (E99 round 4), in px: the controls' width and their margin. */
+export const TILE_GUTTER = 30;
+
+/**
+ * The trial's controls placed on their tiles as drawn now (E99 round 4): after `relayoutCaseMap` has moved
+ * and sized the nodes, each tick and start goes to its tile's right-hand gutter - the tick at the top, the start under
+ * it. In jsdom a tile measures 0 wide and the drawn width (`MAP_GEOMETRY.nodeW`) stands.
+ */
+export function placeTileControls(canvas) {
+    for (const el of canvas?.querySelectorAll?.(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]") ?? []) {
+        const id = el.dataset.drpgCaseTick ?? el.dataset.drpgCaseStartNode;
+        const tile = canvas.querySelector(`:scope > button[data-drpg-node="${CSS.escape(id)}"]`);
+        if (!tile) continue;
+        const x = (parseFloat(tile.style.left) || 0) + (tile.offsetWidth || MAP_GEOMETRY.nodeW) - TILE_GUTTER;
+        el.style.left = `${x}px`;
+        el.style.top = `${(parseFloat(tile.style.top) || 0) + (el.dataset.drpgCaseTick !== undefined ? 4 : 28)}px`;
+    }
 }

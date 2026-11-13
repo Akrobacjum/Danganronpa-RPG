@@ -35,6 +35,7 @@ import {
 } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
+import { carryMarks, fillRollFacts } from "./roll-marks.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
 
 /** What a readied Tool takes off a threshold. 0 for bare hands. Exported for the GM's band of a Sabotage's trace (bridge-runs-records.mjs `traceBandOf`). */
@@ -54,10 +55,10 @@ export const DRPG_ACTION_ROLL = "drpgActionRoll";
 
 /**
  * The roll was drawn by the primary GM (E08+E28 C12a; roll-draw.mjs): `{ rollId, messageId,
- * stash, loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
+ * loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
  * the message, settled the roll's resources and spent the Calls it applied, so
- * `commitResources` commits nothing for it and `throwDice` spends nothing; `stash` is the
- * hidden stash's step the GM drew (`stashStepOf`), `loaded` whether it loaded the die (C12b).
+ * `commitResources` commits nothing for it and `throwDice` spends nothing; `loaded` is whether
+ * it loaded the die (C12b). A hidden stash's step (`stash`) rode beside them until 1.2.112.
  * Never sent: it is put on the config after the roll has left for the GM.
  */
 export const DRAWN_ROLL = "drpgDrawn";
@@ -126,6 +127,8 @@ function suiteRolling() {
  * @param {number} [options.situational]  This roll's own advantage (+) or disadvantage
  *   (-) in dice, which a supporting roll's shield does not hide (call-effects.mjs
  *   `armOwnSituational`): the Night's die on a murder's opening roll, its one caller.
+ * @param {number} [options.hindrance]  Hindrance dice given to this roll by name, its cause not said (call-effects.mjs
+ *   `armOwnHindrance`): a watch's die on the killer's opening roll (E74, DA44), its one caller.
  *
  * Exported because the murder engine rolls through it too: a crisis action and
  * an opening roll are ordinary trait rolls that must commit resources, honour
@@ -135,7 +138,7 @@ function suiteRolling() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0, titled = false } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0, hindrance = 0, titled = false } = {}) {
     // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
     // or a ladder written as text ("12 / 18"); a window with no title of its
     // own takes the action's label so the number has something to hang on.
@@ -155,6 +158,7 @@ export async function rollTrait(actor, drpgTrait,
     const supporting = !remember;
     if (supporting) calls.shieldCalls();
     if (situational) calls.armOwnSituational(situational);
+    if (hindrance) calls.armOwnHindrance(hindrance);
     try {
         /* THE NUMBER RIDES ON THE ROLL TO ITS CARD (E51 C1; the owner's amendment of 14.10: "modul w zaden sposob nie
            informuje ani gracza, ani gma o thresholdach akcji"). The window said "beat N" and the card said the total
@@ -166,6 +170,7 @@ export async function rollTrait(actor, drpgTrait,
         return outcome;
     } finally {
         if (situational) calls.clearOwnSituational();
+        if (hindrance) calls.clearOwnHindrance();
         if (supporting) calls.unshieldCalls();
     }
 }
@@ -203,7 +208,10 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // trait rolled straight off the sheet keeps Daggerheart's card, even
     // while this roll's window is open: the claim takes the message whose
     // roll carries its nonce (`ROLL_NONCE`, E08+E28 C11), not the first one.
-    const result = await supersedingRoll(nonce => actor.rollTrait(dhTrait, {
+    // The options' marks carried on their own event (roll-marks.mjs, E76b): Daggerheart 2.12's MoveContext keeps the
+    // event and none of the module's keys, and the build puts them back from it (roll-draw.mjs `drawnBuild`, the
+    // `daggerheart.preRollDuality` hook). Up to 2.10 the keys reach the build on the options as they always did.
+    const result = await supersedingRoll(nonce => actor.rollTrait(dhTrait, carryMarks({
         event: { shiftKey: false, altKey: false, ctrlKey: false },
         /*
          * ALWAYS OPEN THE WINDOW - except for the regression suite, which
@@ -255,7 +263,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
         ...(title ? { title, headerTitle: title } : {})
-    }), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context } });
+    })), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context } });
     if (!result) return null;
     // Which character the roll is about: told to the primary GM as the message
     // was created (the claim's `subject`, E06 fix r1-G2), because the Despair
@@ -263,6 +271,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // again here for a roll the claim did not see created; a repeat says nothing.
     reportRollSubject(result.message ?? result.raw?.message, actor);
 
+    // On Daggerheart 2.12 the outcome is the evaluated Roll, not `config.roll` (roll-marks.mjs `fillRollFacts`, E76b).
+    fillRollFacts(result);
     const roll = result.roll ?? result;
     const total = roll?.total ?? result?.total;
     if (typeof total !== "number") return null;
@@ -282,6 +292,13 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // threw, it counts only where the die held (forced-roll.mjs `loadedDieHeld`; E16 part 2 C5, audit S02-44): a d12
     // drawn by another dice method shows an honest face, and the roll was told "freeCritUsed" all the same.
     const loaded = drawn ? drawn.loaded === true : free && loadedDieHeld(result);
+    // One that did not hold gives its Call back (E64, D052; call-effects.mjs `giveBackLoadedDie`): here only where this
+    // browser threw the dice, which with a Loaded Die armed is a GM's - a player's roll is drawn, and the GM that drew it
+    // gave it back there (roll-draw.mjs `throwDrawn`).
+    if (free && !drawn && !loaded) {
+        const { giveBackLoadedDie } = await import("./call-effects.mjs");
+        await giveBackLoadedDie(actor, armed);
+    }
 
     const outcome = {
         total,
@@ -510,7 +527,7 @@ export async function noteRollContext(actor, data) {
  * not listed claims nothing.
  */
 export const ROLL_CLAIMS = Object.freeze({
-    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", stashDie: "bool", claimed: "bool", fromVault: "bool",
+    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", claimed: "bool",
         gmRuled: "bool", label: "text", request: "text" }),
     project: Object.freeze({ relief: "num", bonus: "num", refunded: "bool", burst: "bool" }),
     sabotage: Object.freeze({ penalty: "num", relief: "num" }),

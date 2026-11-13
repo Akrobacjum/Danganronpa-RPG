@@ -38,6 +38,8 @@ import {
     tableForRoom, moduleTables, ROOM_GROUP_ORDER, groupKeyOf, groupLabel, classifyEntryName
 } from "./tables-pools.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 
 /**
  * Every table this module knows how to build: crime tools, cleaning tools, and
@@ -339,13 +341,13 @@ function tableRowHtml(table, r, { home = null, tier = NaN, badge = "" } = {}) {
                    aria-label="${esc(game.i18n.localize("DRPG.Items.name"))}"
                    data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
                    data-drpg-initial="${esc(name)}"
-                   value="${esc(name)}" />${badge}</span>`,
+                   value="${esc(name)}"${tipAttr("DRPG.Tips.Setup.nameInATableTooltip")} />${badge}</span>`,
             note: `<input type="text" class="drpg-table-item-note notes" data-drpg-field="description"
                    aria-label="${esc(game.i18n.localize("DRPG.Items.description"))}: ${esc(name)}"
                    data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
                    data-drpg-initial="${esc(note)}"
                    value="${esc(note)}"
-                   placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}" />`,
+                   placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}"${tipAttr("DRPG.Tips.Setup.nameInATableTooltip")} />`,
             act: `<button type="button" class="drpg-mini-button" data-drpg-place="${r.id}"
                 data-drpg-place-table="${table.id}" title="${
                     esc(game.i18n.localize("DRPG.Tables.placeTooltip"))}">⇄</button>
@@ -960,7 +962,7 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
                     <textarea name="newText" rows="2"
                         placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}"></textarea></label>
                 <label>${game.i18n.localize("DRPG.Items.category")}
-                    <select name="newCategory">${categories}</select></label>
+                    <select name="newCategory"${tipAttr("DRPG.Tips.Setup.categoryTooltip")}>${categories}</select></label>
                 <label>${game.i18n.localize("DRPG.Items.tier")}
                     <select name="newTier">${tiers}</select></label>
                 <div data-drpg-tier-target></div>
@@ -1034,6 +1036,11 @@ function poolListHtml(family, mine, first) {
 
 export function poolPaneHtml(family, mine, selected, refusal = null) {
     const first = mine.find(t => t.id === selected?.id) ?? mine[0] ?? null;
+    /* THE TIER POOLS TAB MAKES NO POOL AND RENAMES NONE (E101; the owner's yes of 12.11.2026 to the GM screens' review,
+       Item tables): Install builds every tier pool, and a tier pool's name has one shape ("DRPG Tools - Tier 2",
+       `poolNameRefusal`), so its New Tier pool field and its Rename were a way to do by hand what Install does, or nothing.
+       Delete stays. The Room pools pane keeps both (R4057). */
+    const tiers = family === "tiers";
     const list = mine.length
         ? `<div class="drpg-tables-list">${poolListHtml(family, mine, first)}</div>`
         : `<p class="notes">${esc(game.i18n.localize(family === "tiers"
@@ -1049,8 +1056,8 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
             <div class="drpg-tables-right">
                 <div class="drpg-table-heading">
                     <h4 data-drpg-table-name title="${esc(first?.name ?? "")}">${esc(shortPoolName(first?.name))}</h4>
-                    <span class="drpg-table-actions" role="group"><button type="button" class="drpg-mini-button" data-drpg-rename-table>${
-                        esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button><button type="button" class="drpg-mini-button" data-drpg-delete-table>${
+                    <span class="drpg-table-actions" role="group">${tiers ? "" : `<button type="button" class="drpg-mini-button" data-drpg-rename-table>${
+                        esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>`}<button type="button" class="drpg-mini-button" data-drpg-delete-table${tipAttr("DRPG.Tips.Setup.deleteTableTooltip")}>${
                         esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button></span>
                 </div>
                 <div data-drpg-table-body>${
@@ -1059,16 +1066,12 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
                 }</div>
             </div>
         </div>
-        <fieldset class="drpg-tables-new">
-            <legend>${esc(game.i18n.localize(family === "tiers"
-                ? "DRPG.Tables.newTierPool" : "DRPG.Tables.newPool"))}</legend>
+        ${tiers ? "" : `<fieldset class="drpg-tables-new">
+            <legend>${esc(game.i18n.localize("DRPG.Tables.newPool"))}</legend>
             ${nameFieldHtml({ name: `newPool:${family}`, value: refusal?.name ?? "",
-                placeholder: game.i18n.localize(family === "tiers"
-                    ? "DRPG.Tables.newTierPoolPlaceholder" : "DRPG.Tables.newPoolPlaceholder"),
-                error: refusal?.text })}
-            <p class="notes">${game.i18n.localize(family === "tiers"
-                ? "DRPG.Tables.newTierPoolNote" : "DRPG.Tables.newPoolNote")}</p>
-        </fieldset>
+                placeholder: game.i18n.localize("DRPG.Tables.newPoolPlaceholder"), error: refusal?.text })}
+            <p class="notes">${game.i18n.localize("DRPG.Tables.newPoolNote")}</p>
+        </fieldset>`}
         ${family === "tiers" ? `
         <p class="notes">${game.i18n.localize("DRPG.Tables.whereNote")} ${
             game.i18n.localize("DRPG.Tables.installTabNote")}</p>` : ""}
@@ -1095,23 +1098,11 @@ function readNewItemForm(d, roomTablesList) {
     };
 }
 
-/** What the Create-table button hands back: the name typed on the pane that is showing, and which pane. */
+/** What the Create-table button hands back: the name typed on the Room pools pane, the one pane with the field since E101
+ *  (`poolPaneHtml`; until then both editing tabs carried it, and the pane on screen answered first). */
 function readNewPoolName(d) {
-    // The pane on screen answers first. Both editing tabs carry
-    // this field and both keep their value while the other tab
-    // is showing, so "whichever is not empty" would hand the
-    // tier pane's leftover text to a GM looking at the room one.
-    const open = d.element
-        .querySelector(".drpg-tab-pane:not([hidden]) [data-drpg-pool-pane]")
-        ?.dataset.drpgPoolPane;
-    const families = open ? [open, ...["tiers", "rooms"].filter(f => f !== open)]
-        : ["tiers", "rooms"];
-    for (const family of families) {
-        const value = d.element
-            .querySelector(`[name="newPool:${family}"]`)?.value.trim() ?? "";
-        if (value) return { newPool: value, family };
-    }
-    return { newPool: "", family: open ?? "rooms" };
+    const value = d.element.querySelector('[name="newPool:rooms"]')?.value.trim() ?? "";
+    return { newPool: value, family: "rooms" };
 }
 
 /** The new-item form's own rules: the tier pool it resolves to, said out loud, and roles gated by tier. */
@@ -1651,7 +1642,7 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
         // A preset opens on Add an item, where its name and tier are (C6, S08-21): it
         // opened on Tier pools, with Create table and Install in the footer.
         body: `<form>${kitTabs([
-            { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"),
+            { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"), tooltip: tipText("DRPG.Tips.Setup.tabsTierPoolsRoomTooltip"),
               html: poolPaneHtml("tiers", tierTables, selected, poolError?.family === "tiers" ? poolError : null) },
             { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"),
               html: poolPaneHtml("rooms", roomTablesList, selected, poolError?.family === "rooms" ? poolError : null) },
@@ -1662,21 +1653,21 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
            destructive (it rebuilds the default set: never the default); Close, since every row saves itself. */
         footer: {
             primary: {
-                action: "add", label: game.i18n.localize("DRPG.Tables.addItem"),
+                action: "add", label: game.i18n.localize("DRPG.Tables.addItem"), tooltip: tipText("DRPG.Tips.Setup.addAnItemTooltip"),
                 callback: (e, b, d) => readNewItemForm(d, roomTablesList)
             },
             secondary: [{
                 // "Create table", not "New room table": the tab is called that
                 // already, and a button repeating its tab's name says nothing
                 // about what pressing it does.
-                action: "newPool", label: game.i18n.localize("DRPG.Tables.createTable"),
+                action: "newPool", label: game.i18n.localize("DRPG.Tables.createTable"), tooltip: tipText("DRPG.Tips.Setup.createTableTooltip"),
                 // Each pane has its own field, and the one with something in it
                 // is the one that was meant - a GM types in the tab they are
                 // looking at. The family travels with the name because it
                 // decides what the name is allowed to be.
                 callback: (e, b, d) => readNewPoolName(d)
             }],
-            destructive: [{ action: "install", label: game.i18n.localize("DRPG.Tables.installAction") }],
+            destructive: [{ action: "install", label: game.i18n.localize("DRPG.Tables.installAction"), tooltip: tipText("DRPG.Tips.Setup.installReinstallTooltip") }],
             close: { role: "close", action: "close" }
         },
         render: (event, dialog) => {
@@ -1715,7 +1706,8 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
                     // rather than on a tab of its own (E10): the whole Install
                     // tab was two sentences and this button, and the sentences
                     // are about the tier tables the tab already shows.
-                    editTiers: ["newPool", "install"],
+                    // E101: the Tier pools tab makes no pool (`poolPaneHtml`), so Create table is the Room pools tab's alone.
+                    editTiers: ["install"],
                     editRooms: ["newPool"],
                     newItem: ["add"]
                 },
