@@ -7,9 +7,11 @@ oknami, napis i jego tlo na otwartych oknach."
 
 ## State
 
-- Done: the reading below; R5380, R5381 red then green; sequence.mjs and danganronpa.css changed; LIVE-E105-01.
-- In progress: the quick gate, the scenarios, the shots.
-- Blockers: none.
+- Done: the reading below; R5380, R5381, R5382 red then green; sequence.mjs and danganronpa.css changed; LIVE-E105-01;
+  the shots (section 6); the quick gate and scenarios 63, 74, 93 (section 5).
+- Commits (local, not pushed): 6ea64bac (the two layers), bb2a8a49 (the title's grounds whole over the windows), and this
+  file's last numbers.
+- Blockers: none. Not done: no review page (the coordinator's override); tools/stages.json left alone.
 
 ## 1. What the stacking was (58e0fd06)
 
@@ -71,6 +73,10 @@ owner to confirm).
   notice stack 99 - windows 101+ - title 99980 - raised objection 99989 - Legacy notices 99990 - stacked roster 99991.
 - Both themes, desk and stacked (the glass and the lids alike), motion and still: one rule set; reduced motion changes no
   layer (R5381 reads the still frame).
+- In the title layer the chapter line's dark shard (90 % until now) and the glass's band (Despair pink at 95 %) are whole
+  (bb2a8a49, R5382): the first shots showed a window's title and words through both, across the line, once the title
+  stood over the windows. On the closed curtain the difference is 5-10 % of the ground; outside the trial's edges the
+  tokens are as they were.
 
 ## 4. Defaults taken, owner to confirm
 
@@ -86,7 +92,9 @@ owner to confirm).
    99990, over the windows, before); under Monokuma Legacy over both, as before.
 6. The verdict's cut-in and the day's boards are unchanged: one host at 99980 over the windows (they close no curtain).
 7. Escape still ends the sequence first (its capture listener), so the first Escape does not close a window; the next does.
-8. float-text.mjs still drops a floating field when a sequence starts (its rule "a sequence stands over everything");
+8. The title's band and the chapter line's shard are opaque over the windows (they were 95 % and 90 %); the gap between
+   the band and the line, which showed the curtain, now shows what stands there - a window's header in the 393x852 shot.
+9. float-text.mjs still drops a floating field when a sequence starts (its rule "a sequence stands over everything");
    with the windows over the curtain that is no longer needed for the trial's edges, left as it is (no change asked).
 
 ## 5. Tests and numbers
@@ -96,6 +104,46 @@ owner to confirm).
 - R5381 (tier 1): the DOM of the entry (glass in motion, lids in motion and still) and the exit: two layers, the curtain's
   children, the title in the top layer alone, the fades' targets. Red at 58e0fd06: the host's children were the panes,
   the lids and the title; the fades in and out were the host's (`["host"]`).
-- Green on the edited tree: R5380, R5381 with R3704, R3705, R4420, R4422, R4402: 8 passed, 0 failed (34.3 s).
+- R5382 (tier 1): over the windows the band's and the shard's grounds are opaque, both themes. Red at 6ea64bac:
+  `{"glass":{"band":true,"sub":true},"legacy":{"band":false,"sub":true}}` (see-through).
+- Green on the edited tree: R5380, R5381 with R3704, R3705, R4420, R4422, R4402: 8 passed, 0 failed (34.3 s); then
+  R5380-R5382 with R4402: 5 passed, 0 failed.
+- `node audit/glass-sweep.mjs --title-contrast` (Chromium, the glass harness): TITLE CONTRAST GREEN, the chapter line's
+  glyphs and their 5 px surround 12.74-17.49 at the 1st percentile, both themes, entry and exit, 1366x768 and 393x852;
+  the controls read 3.15-3.72, under 4.5 as they must. Its harness window has no z-index (z auto), so there it stands
+  under the curtain: this run reads the line over the curtain, not over a window. The plain sweep was not run: quick.sh
+  runs it for glass.mjs, glass-harness.html, glass-sweep.mjs or narrow.css, and none of them changed.
+- QUICK at bb2a8a49 (quick.sh, QUICK_MAX_SCEN=3): lint/check/gate ok; prose ok; own(8) ok - the tier-2 tests that read
+  sequence.mjs or the curtain, by name ("the trial's entry and exit play from Start and End the trial", "the trial's exits
+  say what happened", "E94 C4: the school's mood", "E110 day boards A", "E110 day boards B", "the curtain is recut when
+  the tab comes back", "E48-K5 - switching theme", "a phone is told apart from a desk"): 12 passed, 0 failed; scenario
+  63-class-trial 79/79 (122.8 s), 74-room-tile 44/44 (85.5 s), 93-spectator 17/17 (28.7 s) - the three that
+  `git grep` finds naming sequence.mjs, drpg-seq, drpg-curtain or data-drpg-sequence in audit/harness/scenarios; t01 RED:
+  1406 passed, 1 failed (R3712), 16 skipped, 519.1 s wall, under another line's load. R3712 read a write of
+  `gmClockBeat` (the primary GM's clock beat, gm-stores.mjs) inside its window - a setting neither this stage nor its
+  test touches; alone it passed twice (2 passed, 0 failed each), and tiers 0-1 whole again at bb2a8a49 (this file aside):
+  1422 tests ran, 1407 passed, 0 failed, 16 skipped, 0 red, 507.4 s wall. Read as the beat's timing under load, not
+  measured further.
 - What jsdom cannot measure: layout, painting, compositing, z-order as drawn, backdrop filters, hit testing. Those are
   the shots below (Chromium, the glass harness: no real Foundry) and LIVE-E105-01.
+
+## 6. The shots
+
+Folder: `shots-e105/` in the session's scratchpad, beside the worktrees (outside the repository; its full path is in
+the coordinator's report), made by `shoot.mjs` there: the glass harness (audit/glass-harness.html, the module's real sheets and the
+real sequence.mjs, played on a held clock with every Web Animation paused at its time), deviceScaleFactor 2, both themes,
+1366x768 for the entry and the exit and 393x852 for the entry; the harness's window raised to 101 as Foundry's counter
+would, a second window (z 102) opened 500 ms in, while the curtain closes. Two frames each: `-1-closing` (500 ms) and
+`-2-closed-title` (1800 ms, the title in). `before-*` are the same at 58e0fd06 (a throwaway worktree, removed), `after-*`
+at bb2a8a49, `r1-see-through/` at 6ea64bac (the band and shard still see-through). Looked at, each:
+- before: the closing panes and the lids cover both windows (the second window too); the title over the curtain.
+- after: both windows stand over the closing panes and the lids for the whole span; the band, its ground and the chapter
+  line stand over the windows; Legacy's lids and Stained Glass's panes alike; the notice button stays on the curtain.
+- Hit tests (`after-hits.json`, `elementFromPoint`): a window's footer -> the window; a point of the band over a window ->
+  the window (the title lets clicks through); a point with no window -> the curtain layer. Before: the closed curtain or a
+  lid at the window, the band at the band. z read: curtain 98, title 99980, notices 99 under Stained Glass, 29 (the empty
+  Legacy tile, as before) or 99990 under Monokuma Legacy.
+What the shots are NOT: no real Foundry (the harness's stand-in DOM and no Foundry sheet: its window layer is set by hand
+to 101 and 102, not by v14's counter), no real sheet or module window (the harness's dialog markup), no canvas board, no
+GPU compositing of a real table; the 393x852 run drew the glass's panes, so the flat-glass lids under Stained Glass were
+not shot (the same layer rules as Legacy's lids, read by R5380).
