@@ -29,6 +29,7 @@
  * hiding things; drinking what you already found is not one of the ten.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, USABLE_EFFECTS, USABLE_KINDS, EQUIPPABLE, STARTING, BROKEN_ITEMS,
     ITEM_CATEGORIES, LIMIT_GROUPS }
     from "./config.mjs";
@@ -43,7 +44,7 @@ import { bodyDiscovery, bodyFoundSinceTrial, isDeadForGm, getClock } from "./set
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 
 
 /** Flag marking the one item of its category the character is holding ready. */

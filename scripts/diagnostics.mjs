@@ -10,6 +10,7 @@
  *     game.drpg.diagnose()            all of them as one report, with Copy report
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, STALE_SILENCES, staleSilencesCleared, pixelFontOn } from "./settings.mjs";
 import { glassOn } from "./motion.mjs";
@@ -23,7 +24,7 @@ import { listExperiences, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { isPrimaryGm, log, debug, error, esc, gmReport, plural, sessionFailures } from "./utils.mjs";
-import { drpgWindow, tipText } from "./ui-kit.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";

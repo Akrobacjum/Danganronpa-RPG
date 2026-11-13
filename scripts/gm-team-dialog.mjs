@@ -19,6 +19,7 @@
  * Merged into one screen: setup you do once per season, not mid-session upkeep.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import {
     monokumas, poolLabel, setPoolLabel, poolCandidates, extraPoolUserIds, addPool, removePool,
     getDespair
@@ -27,7 +28,7 @@ import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./mon
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";

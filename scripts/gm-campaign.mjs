@@ -18,13 +18,14 @@
  * .claude/rules/code.md).
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 

@@ -23,10 +23,11 @@
  * for the finale.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY, ECLIPSE_MOVES } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, debug, error, esc, isPrimaryGm, primaryGmId, serialWrite, plural, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, dataTable, formGrid, toggle, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { stepper, stepperId, dataTable, formGrid, toggle, box } from "./ui-kit.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";

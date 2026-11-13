@@ -11,6 +11,7 @@
  * the parts that need real behaviour live here.
  */
 
+import { tipAttr } from "./ui-kit.mjs";
 import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES, TIMES_OF_DAY,
@@ -75,7 +76,7 @@ import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
-import { drpgConfirm, tipAttr } from "./ui-kit.mjs";
+import { drpgConfirm } from "./ui-kit.mjs";
 import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";

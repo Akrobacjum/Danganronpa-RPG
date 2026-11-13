@@ -11,6 +11,7 @@
  * imports this file as before.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
 import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft } from "./actions.mjs";
@@ -18,7 +19,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
-import { launcher, drpgWindow, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { launcher, drpgWindow, box } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";

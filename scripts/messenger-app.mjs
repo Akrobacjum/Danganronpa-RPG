@@ -18,10 +18,11 @@
  * reason - one way of building markup, not two.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
-import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId, tipText } from "./ui-kit.mjs";
+import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,

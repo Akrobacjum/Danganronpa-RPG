@@ -12,6 +12,7 @@
  * the sheet groups on, which is exactly what the old hand-rolled macro did not.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import {
     MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
     USABLE_KIND_EFFECTS, EQUIPPABLE, itemIcon,
@@ -39,7 +40,7 @@ function recipientOptions(students, selectedId) {
         .join("");
 }
 import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
-import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, tipAttr, tipText } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 

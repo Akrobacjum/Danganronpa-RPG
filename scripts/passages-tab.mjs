@@ -40,8 +40,9 @@
  * line, and the footnote a sentence, saying it gives the passage at the next season's reset and nothing now.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { error } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips, tipAttr, tipText } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,

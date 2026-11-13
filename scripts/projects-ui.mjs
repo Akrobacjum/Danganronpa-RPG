@@ -15,6 +15,7 @@
  * what the tray draws on every render into projects-tray.mjs.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import {
     MODULE_ID, PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS, PROJECT_DESCRIPTION_MAX, projectDescriptionProblem
 } from "./config.mjs";
@@ -25,7 +26,7 @@ import {
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { error, markFired, markLanguage, serialWrite } from "./utils.mjs";
-import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode, tipAttr, tipText } from "./ui-kit.mjs";
+import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";

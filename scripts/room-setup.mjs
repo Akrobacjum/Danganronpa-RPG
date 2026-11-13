@@ -25,6 +25,7 @@
  * vault-store.mjs that made the store a file of its own.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
@@ -38,7 +39,7 @@ import {
     dialogContent, announce, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton, tipText } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,

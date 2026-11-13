@@ -37,6 +37,7 @@
  * the whisper was addressed to, which is almost always what was meant.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG, plural, debug, markLanguage } from "./utils.mjs";
@@ -44,7 +45,6 @@ import { play, BEAT, ARRIVE, SNAP, reducedMotion } from "./motion.mjs";
 import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
 import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
-import { tipText } from "./ui-kit.mjs";
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
 const CORNER_ID = "drpg-notices-corner";

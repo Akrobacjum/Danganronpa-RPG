@@ -24,6 +24,7 @@
  * the difficulty.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, OBSERVE_FAIL_STRESS, PROJECT_OBSERVE, TIMES_OF_DAY, TIMING } from "./config.mjs";
 import { rankForObserve, tieForCopy } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
@@ -37,7 +38,7 @@ import {
 import { SETTINGS } from "./settings.mjs";
 import { observeStore } from "./gm-stores.mjs";
 import { stableJson } from "./gm-store.mjs";
-import { drpgWindow, tipText } from "./ui-kit.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 /** How the player said they were looking. */
 export const DECLARATIONS = {

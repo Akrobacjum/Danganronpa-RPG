@@ -24,10 +24,11 @@
  * imports music.mjs by no road (the facade rule, .claude/rules/code.md).
  */
 
+import { tipAttr } from "./ui-kit.mjs";
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
-import { emptyOption, box, dataTable, tipAttr } from "./ui-kit.mjs";
+import { emptyOption, box, dataTable } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";

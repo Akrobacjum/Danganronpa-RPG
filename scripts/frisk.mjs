@@ -12,6 +12,7 @@
  * end for every ask (`askToFrisk`, `answerFrisk`, `followFrisk`, `sweepFriskAsks`, `friskRouteSettled`).
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { SETTINGS, getSetting, getClock, isEclipse, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, TIMING } from "./config.mjs";
 import { gmPlaceOf, lawfulRoomOf } from "./movement.mjs";
@@ -21,7 +22,7 @@ import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
-import { drpgWindow, tipText } from "./ui-kit.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 

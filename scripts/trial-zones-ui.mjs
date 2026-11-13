@@ -13,6 +13,7 @@
  * the truth of a Logic Dive question is the GMs' store's and is drawn only in the GM's set editor, never in the console.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
@@ -22,7 +23,7 @@ import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDeba
     deleteFinding, confirmFinding } from "./trial-zones.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { drpgWindow, drpgConfirm, formGrid, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, formGrid, box } from "./ui-kit.mjs";
 import { esc, error, serverNow, localeFormat } from "./utils.mjs";
 
 /** A name of `actorId`, escaped. */

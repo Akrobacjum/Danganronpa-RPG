@@ -17,6 +17,7 @@
  * shared layer alone.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, TRAITS, DYNAMIC_THRESHOLDS } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
@@ -26,7 +27,7 @@ import { traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 export function dynamicDef() {
     return {

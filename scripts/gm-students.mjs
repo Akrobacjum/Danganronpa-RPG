@@ -25,9 +25,10 @@
  * header's - with its own row's actor; the window adds no road.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
-import { stepper, drpgWindow, dataTable, iconButton, roleButton, tipAttr, tipText } from "./ui-kit.mjs";
+import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";

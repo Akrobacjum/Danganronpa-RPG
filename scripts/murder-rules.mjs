@@ -63,6 +63,7 @@
  * because `writeState` arms it.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import {
     MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, TIMING,
     USABLE_EFFECTS
@@ -85,7 +86,7 @@ import {
     ownerIdsOf, gmIds, isPrimaryGm, log, warn, error, plural, listOf, proseOf, debug, esc, cardHead, markFired
 } from "./utils.mjs";
 // The kit's frame (E21 C3a): the fight's questions and the checklists after it, answering as before.
-import { drpgWindow, drpgConfirm, tipText } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import {
     readCast, murderState, writeCast, incidentWrite, stillHolds, restoreState, incidentAudienceIds, writeState,
     sweepBetrayalWindows, sideOf, killerIds, participantIds, castHeldHere, registerIncidentCastSync,

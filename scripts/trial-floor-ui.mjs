@@ -6,6 +6,7 @@
  * console for it, loaded only when they open it.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
@@ -23,7 +24,7 @@ import { keyRevealRecord } from "./investigation.mjs";
 import { closingClaimStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { placeRoomOptions, plural, error, esc, serverNow, listOf, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box } from "./ui-kit.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 

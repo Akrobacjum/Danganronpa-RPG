@@ -27,6 +27,7 @@
  *                         is verdict.mjs's since E41 C10b, re-exported here
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, myMastermindLair, sameSeason } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
@@ -36,7 +37,7 @@ import { studentActors } from "./monokuma.mjs";
 // static imports do not include this file.
 import { feedsNobody } from "./assignments.mjs";
 import { announce, ownerOf, primaryGmId, isPrimaryGm, log, error, wholeNumber } from "./utils.mjs";
-import { stepper, emptyOption, drpgWindow, drpgConfirm, tipAttr, tipText } from "./ui-kit.mjs";
+import { stepper, emptyOption, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";

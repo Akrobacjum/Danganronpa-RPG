@@ -29,6 +29,7 @@
  * truth-bullets.mjs), and only a GM may write to another player's sheet.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { getClock, phaseLabel } from "./clock.mjs";
@@ -44,7 +45,7 @@ import { studentActors } from "./monokuma.mjs";
 import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
-import { drpgWindow, drpgConfirm, emptyOption, box, tipAttr, tipText } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, emptyOption, box } from "./ui-kit.mjs";
 // A leaf (utils.mjs alone): the one runner of the procedures that cannot be taken back, and its report (E42 C2).
 import { runSteps, stepsReport } from "./steps.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).

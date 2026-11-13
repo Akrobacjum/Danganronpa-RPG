@@ -65,13 +65,14 @@
  * eclipse.mjs; the bridge and the GM stores by `import()` as well, where a static import would close a cycle.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, timeOfDayLabel, boundaryStamp, advanceTimeOfDay } from "./clock.mjs";
 import { isEclipse, incomingTimeOfDay, startEclipse, endEclipse, startRefusal, placementStatus, eclipseLabel } from "./eclipse.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { serialWrite, isPrimaryGm, serverNow, listOf, plural, esc, error, debug } from "./utils.mjs";
-import { drpgWindow, tipText } from "./ui-kit.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 

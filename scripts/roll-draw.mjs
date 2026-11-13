@@ -48,6 +48,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS, LOOT } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
@@ -65,7 +66,7 @@ import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
-import { box, roleButton, tipText } from "./ui-kit.mjs";
+import { box, roleButton } from "./ui-kit.mjs";
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");

@@ -20,10 +20,11 @@
  * it from the registry.
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, whisperToGms, localeFormat } from "./utils.mjs";
-import { emptyOption, drpgWindow, drpgConfirm, box, checkList, tipText } from "./ui-kit.mjs";
+import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,

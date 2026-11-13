@@ -58,6 +58,7 @@
  * on this side against the ledger the sender cannot read.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { PRICE_CHAINS, ACTIONS } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 // The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
@@ -86,7 +87,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
     log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
-import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.

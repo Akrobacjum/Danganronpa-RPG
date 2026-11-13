@@ -59,10 +59,11 @@
  * `data-drpg-pool-pane` for the same reason, E44 C4a), so a window of the kit's with tabs would hide them.
  */
 
+import { tipAttr } from "./ui-kit.mjs";
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { esc, error, wholeNumber } from "./utils.mjs";
-import { toggle, stepper, stepperId, tipAttr } from "./ui-kit.mjs";
+import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { themeOnlyKeys, scaleNote, systemWantsContrast } from "./look.mjs";

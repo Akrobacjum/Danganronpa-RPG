@@ -59,6 +59,7 @@
  * roads); module.mjs builds the tile at `ready` (`ensureRoomTile`, `registerRoomTile`).
  */
 
+import { tipText } from "./ui-kit.mjs";
 import { viewerActor, trialSlot } from "./hud.mjs";
 import { sheetMode } from "./sheet.mjs";
 import { locateActor, settledSpot, roomAt } from "./movement.mjs";
@@ -69,7 +70,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { DrpgApp, tile as kitTile, tipText } from "./ui-kit.mjs";
+import { DrpgApp, tile as kitTile } from "./ui-kit.mjs";
 import { error, markFired, plural } from "./utils.mjs";
 import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";

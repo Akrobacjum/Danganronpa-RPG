@@ -31,6 +31,7 @@
 // `ROOMS_PER_PLAYER` is not read here any more: the ratio and its rounding
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
+import { tipText } from "./ui-kit.mjs";
 import {
     MODULE_ID, STARTING, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS
 } from "./config.mjs";
@@ -58,7 +59,7 @@ import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
-import { stepperId, drpgWindow, checkList, formGrid, tipText } from "./ui-kit.mjs";
+import { stepperId, drpgWindow, checkList, formGrid } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
 import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";

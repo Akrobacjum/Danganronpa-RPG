@@ -44,6 +44,7 @@
  * simply what talking looks like.
  */
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
@@ -51,7 +52,7 @@ import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld, unanal
 import { showPopup, OVERRULED_FLAG, overruledStamp } from "./popup.mjs";
 import { announce, isPrimaryGm, log, error,
     whisperToOwner, serialWrite, serverNow, esc, localeFormat, plural } from "./utils.mjs";
-import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
+import { drpgWindow } from "./ui-kit.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
