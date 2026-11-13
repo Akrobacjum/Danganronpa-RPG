@@ -53,8 +53,8 @@ import { detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
  * and the description is right there while you make the choice it describes
  * rather than one dismissal earlier.
  *
- * `briefing()` below still exists for Move, which asks nothing and therefore has
- * no window of its own to fold into.
+ * Move has no window since E100 item 1: its sentence is on the Monocub's tile and
+ * the HUD's Move row.
  */
 export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
     /* A FACT IS A LINE, OR A LINE BOUND TO A ROW (E21 C5b, 06.11.2026; audit S02-07, S02-06), AND EVERY ONE STANDS IN

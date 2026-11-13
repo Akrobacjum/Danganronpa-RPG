@@ -137,7 +137,7 @@ Ustawienia sezonu otwierają się na górze, na nazwie kampanii, widocznej u gó
 
 Raport **Sprawdź pokoje na tej scenie** raz, nad listą, mówi, co znaczy każdy rodzaj znaleziska, a potem podaje przy każdym pokoju krótki fakt - ile kratek jego granicy nie ma ściany, ile kratek podłogi dzielą dwa pokoje - i **Pokaż na mapie**, który przenosi mapę w to miejsce i je zaznacza. Bez sceny na płótnie mówi *Na płótnie nie ma sceny*, a na scenie bez pokoi *Na tej scenie nie ma pokoi*, nigdy, że mapa jest czysta.
 
-**Kontrola przed sezonem** (przycisk na dole Listy kontrolnej sezonu) otwiera jedno okno raportów w języku stołu. Liczą pokoje i uczniów według tych samych reguł co lista powyżej:
+**Dalsze sprawdzenia** pod wierszami Listy kontrolnej sezonu (do E101 przycisk Kontrola przed sezonem) to raporty w języku stołu. Liczą pokoje i uczniów według tych samych reguł co lista powyżej:
 
 - **Obsada**: ilu jest uczniów; komu jeszcze brakuje zasobów startowych (jak to naprawić: otwórz arkusz i naciśnij różdżkę obok imienia), Ultimate, doświadczeń, przedmiotu startowego albo puli Despair przypisanej ręcznie. Bez uczniów mówi, żeby najpierw utworzyć obsadę.
 - **Sceny i pokoje**: jedna linia na scenę z pokojami - ptaszek, gdy jest gotowa, krzyżyk, gdy nie jest - z jej wspólnymi pokojami, częścią mapy, która nie należy do żadnego pokoju (własna powierzchnia sceny, bez marginesu), regionami, które nie są pokojami, i błędami jej ostatniej kontroli pokoi.
@@ -494,7 +494,7 @@ Pokój to **nazwany region sceny, który GM oznaczył jako pokój** (Ustawienia 
 | Mgła | Macierz odkryć - które pokoje każda postać już widziała na tej scenie - z Odkryj wszystko / Ukryj wszystko nad nią (zaznaczają albo czyszczą każde pole; nic się nie zmienia przed Zastosuj), procentem sceny nienależącym do żadnego pokoju i kontrolą regionów |
 | Sceny | Dwie sceny sezonu, podpinane raz: **Szkoła** i **Sala rozpraw** (osobna scena; muszą być dwie różne, a Zastosuj czeka, aż będą), obsada sali - tabela z przełącznikiem na postać w kolumnie **Bierze udział** i z kolumną **Token w sali** tam, gdzie stoi twój token - **Nazwa**, **Zdjęcie** i **Opis** sali na kafelek pokoju w rozprawie oraz **Przygotuj salę** (sekcja 15.1). To ostatnia karta i na każdej scenie ta sama: Ustawienia pokoi otwarte na scenie bez nazwanego regionu otwierają się na niej |
 
-Zakładka **Drzwi** ma też kolumnę **Bez prywatności**: zaznacz ją dla korytarzy, klatek schodowych i każdego miejsca, gdzie nikt nie porozmawia na osobności, a region przestaje się liczyć do liczby pokoi - linii proporcji na karcie Drzwi, wierszy pokoi na Liście kontrolnej sezonu i Kontroli przed sezonem - i do niczego więcej. Zamknięty pokój dalej się liczy.
+Zakładka **Pokoje** ma też kolumnę **Bez prywatności** (do E101 na karcie Drzwi): zaznacz ją dla korytarzy, klatek schodowych i każdego miejsca, gdzie nikt nie porozmawia na osobności, a region przestaje się liczyć do liczby pokoi - linii proporcji na karcie Pokoje oraz wierszy pokoi i dalszych sprawdzeń na Liście kontrolnej sezonu - i do niczego więcej. Zamknięty pokój dalej się liczy.
 
 Kolumna **Zepsute** na karcie Drzwi (od E74) jest zaznaczona przy pokoju, którego zamek wyważono - przez Force the Door albo wyłom (sekcja 9.6). Póki jest zaznaczona, zamek pokoju i klucz do sypialni nikogo nie zatrzymują. Odznacz ją i zastosuj, by naprawić zamek ręcznie; kolumna Zamknięte zostaje bez zmian. Shut the Door gracza barykaduje pokój od środka: GMowie wiedzą, kto ją postawił i jak jest mocna, każda przeglądarka widzi tylko, że pokój jest zabarykadowany, a barykada znika, gdy autor wychodzi, z następną porą dnia, na początku Eclipse i przy resecie sezonu. Repair the Lock jako gotowy projekt nie jest jeszcze zrobiony.
 
@@ -1027,7 +1027,7 @@ Jeszcze niesprawdzone przy stole: czy Foundry v14 pozwala graczowi zmienić, czy
 
 ### 15.2 Strefy sali: Straw Poll, Logic Dive i Scrum Debate
 
-**Strefa A i Strefa B.** Karta **Sceny** w Ustawieniach pokoi wybiera dwa regiony sali rozpraw jako **Strefę A** i **Strefę B** (regiony nieoznaczone jako pokoje). Karta, raport scen i Sprawdzenie przed sezonem ostrzegają, gdy sala nie ma stref, gdy wybrano tylko jedną albo jej region zniknął, gdy obie wskazują ten sam region, gdy strefy nachodzą na siebie i gdy nie pokrywają części sali; sala bez siatki, której nie da się sprawdzić na czas, mówi o tym. Strefy czytają tylko trzy tryby stref: poza nimi sala dalej nie jest niczyim miejscem, a ruch tokenu między strefami nigdy nie jest przejściem - bez weta, opłaty, mgły ani śladu.
+**Strefa A i Strefa B.** Część scen w Ustawieniach sezonu (do E101 karta **Sceny** w Ustawieniach pokoi) wybiera dwa regiony sali rozpraw jako **Strefę A** i **Strefę B** (regiony nieoznaczone jako pokoje). Część scen, raport scen i dalsze sprawdzenia Listy kontrolnej sezonu ostrzegają, gdy sala nie ma stref, gdy wybrano tylko jedną albo jej region zniknął, gdy obie wskazują ten sam region, gdy strefy nachodzą na siebie i gdy nie pokrywają części sali; sala bez siatki, której nie da się sprawdzić na czas, mówi o tym. Strefy czytają tylko trzy tryby stref: poza nimi sala dalej nie jest niczyim miejscem, a ruch tokenu między strefami nigdy nie jest przejściem - bez weta, opłaty, mgły ani śladu.
 
 **Kto gdzie stoi.** Każdy uczestnik (jeden uczeń na połączonego gracza, bez Monocuba, bez zmarłych) jest po tej stronie, której strefa zawiera środek jego tokenu w sali. Token na linii, którą obejmują obie strefy, albo poza obiema nie jest po żadnej stronie. Uczestnik bez tokenu w sali dostaje okno wyboru strony. Tokeny zaczynają na swoich stanowiskach, a **gracz, który się nie ruszy, odpowiada strefą, w której leży jego stanowisko** - powiedz to przed liczeniem. Gdy tryb stref się kończy, każdy token wraca na stanowisko.
 
@@ -1359,7 +1359,7 @@ Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurde
 ## 21. Lista kontrolna sesji
 
 **Przed sesją**
-- Otwórz **Ustawienia sezonu > Lista kontrolna sezonu**: każdy nieopcjonalny wiersz zaptaszkowany; uruchom **Kontrolę przed sezonem** (żadnych scen z czarnym ekranem, żadnych czytelnych arkuszy).
+- Otwórz **Ustawienia sezonu > Lista kontrolna sezonu**: każdy nieopcjonalny wiersz zaptaszkowany i nic w dalszych sprawdzeniach (żadnych scen z czarnym ekranem, żadnych czytelnych arkuszy).
 - Ustawienia pokoi: sypialnie przypisane, drzwi jak trzeba, pokoje odpoczynku oflagowane, tabele i sprzyjanie ustawione, żetony uzupełnione.
 - Despair Flow: każdy uczeń pilnowany; pule nazwane; próg overflow i kapelusz takie, jak chcesz.
 - Tabele przedmiotów zainstalowane; przedmioty startowe w każdej torbie.

@@ -714,9 +714,11 @@ rzucie go nie zrobisz.” w B18 (wpis `reroll` w glosariuszu).
 ### E100: słowa przycisków i teksty ekranów gracza (12.11.2026)
 
 Teksty nowe i zmienione przez E100 (porządki ekranów gracza; sześć punktów przeglądu zatwierdzonych przez właściciela
-12.11.2026). Przyciski według O11 i jednej reguły punktu 6: przycisk, który rzuca, mówi „Rzuć”; przycisk, po którym
-decyduje GM, „Wyślij do GM-a”; przycisk, który tylko prowadzi do następnego okna, „Dalej”. Lista okien jest w
-`docs/dev/e100/STATUS.md`.
+12.11.2026). Przyciski według reguły punktu 6, która dla przycisków okien akcji zastępuje O11: jedno słowo na rodzaj
+przycisku, bez dopełnienia. Przycisk, który rzuca, mówi „Rzuć”; przycisk, po którym decyduje GM, „Wyślij do GM-a”;
+przycisk, który tylko prowadzi do następnego okna, „Dalej”. Okno Infiltrate (przegląd r112, G1, 13.11.2026): „Rzuć” na
+wierszach, które rzucają od razu (Dash, Shut the Door, Keep Watch), „Dalej” na tych, po których jest okno (Listen, Tail,
+Force, Pick). Lista okien jest w `docs/dev/e100/STATUS.md`.
 
 | Klucz | Gdzie | EN | PL | Zmiana |
 | --- | --- | --- | --- | --- |

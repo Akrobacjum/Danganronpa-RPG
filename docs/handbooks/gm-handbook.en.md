@@ -137,7 +137,7 @@ Season setup opens at its top, on the campaign name, which is shown at the top o
 
 The report of **Check the rooms on this scene** says once, above the list, what each kind of finding means, then gives each room a short fact - how many squares of its border have no wall, how many squares of floor two rooms share - and **Show on map**, which takes the map to the spot and marks it. With no scene on the canvas it says *No scene on the canvas*, and on a scene with no rooms *No rooms on this scene*, never that the map is clean.
 
-**Pre-season checks** (the button at the foot of the Season checklist) opens one window of reports in the table's language. They count rooms and students by the same rules as the checklist above:
+The **further checks**, under the Season checklist's rows (the Pre-season checks button until E101), are reports in the table's language. They count rooms and students by the same rules as the checklist above:
 
 - **Cast**: how many students; who still lacks the starting resources (to fix it, open the sheet and press the wand beside the name), an Ultimate, the experiences, the opening item, or a Despair pool assigned by hand. With no students it says to create the cast first.
 - **Scenes and rooms**: one line per scene with rooms - a tick when it is ready, a cross when it is not - with its shared rooms, the share of the map that belongs to no room (the scene's own area, without the padding), the regions that are not rooms, and the errors of its last room check.
@@ -494,7 +494,7 @@ A room is a **named Scene Region a GM has marked as one** (Room Setup > Doors, *
 | Fog | The discovery matrix - which rooms each character has already seen on this scene - with Discover all / Hide all over it (they tick or clear every box; nothing changes until Apply), the percentage of the scene that belongs to no room, and the region check |
 | Scenes | The season's two scenes, linked once: the **School** and the **Trial hall** (a scene of its own; the two must differ, and Apply waits until they do), the hall's cast - a table with a switch per character under **Takes part**, and **Token in the hall** where a token of yours stands there - the hall's **Name**, **Picture** and **Description** for the room tile in a trial, and **Prepare the hall** (section 15.1). It is the last tab and the same on every scene: Room Setup opened on a scene with no named region opens on it |
 
-The **Doors** tab also carries a **No privacy** column: tick it for corridors, stairwells and anywhere nobody can talk privately, and the region stops counting in the room count - the Doors tab's ratio line, the Season checklist's room rows and Pre-season checks - and in nothing else. A locked room still counts.
+The **Rooms** tab also carries a **No privacy** column (the Doors tab's until E101): tick it for corridors, stairwells and anywhere nobody can talk privately, and the region stops counting in the room count - the Rooms tab's ratio line and the Season checklist's room rows and further checks - and in nothing else. A locked room still counts.
 
 The Doors tab's **Broken** column (since E74) is ticked for a room whose lock was forced open - by Force the Door, or by a breach (section 9.6). While it is ticked the room's lock and its bedroom key stop nobody. Untick it and Apply to repair the lock by hand; the Locked column is left as it was. A player's Shut the Door barricades a room from inside: the GMs keep who put it up and how strong it is, every browser sees only that the room is barricaded, and it comes down when its author leaves, at the next time of day, at an Eclipse's start and at the season reset. Repair the Lock as a project preset is not built yet.
 
@@ -1027,7 +1027,7 @@ Not yet tried at a table: whether Foundry v14 lets a player change whether their
 
 ### 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate
 
-**Zone A and Zone B.** Room Setup's **Scenes** tab picks two regions of the trial hall as **Zone A** and **Zone B** (regions not marked as rooms). The tab, the Scenes report and the Pre-season check warn when the hall has no zones, when only one is picked or its region is gone, when both name one region, when the zones overlap and when they leave part of the hall uncovered; a hall with no grid that cannot be checked in time says so. The zones are read only by the three zone modes: outside them the hall is still a place for nobody, and a token's move between zones is never a crossing - no veto, charge, fog or trace.
+**Zone A and Zone B.** Season setup's scenes part (Room Setup's **Scenes** tab until E101) picks two regions of the trial hall as **Zone A** and **Zone B** (regions not marked as rooms). The scenes part, the Scenes report and the Season checklist's further checks warn when the hall has no zones, when only one is picked or its region is gone, when both name one region, when the zones overlap and when they leave part of the hall uncovered; a hall with no grid that cannot be checked in time says so. The zones are read only by the three zone modes: outside them the hall is still a place for nobody, and a token's move between zones is never a crossing - no veto, charge, fog or trace.
 
 **Who stands where.** Every participant (one student per connected player, no Monocub, nobody dead) is on the side whose zone holds their hall token's centre. A token on the line both zones hold, or outside both, is on neither side. A participant with no token in the hall gets a window to pick a side. Tokens start on their stands, and **a player who does not move answers with the zone their stand lies in** - say so before the count. When a zone mode ends, every token goes back to its stand.
 
@@ -1359,7 +1359,7 @@ Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId
 ## 21. Session checklist
 
 **Before the session**
-- Open **Season setup > Season checklist**: every non-optional row ticked; run **Pre-season checks** (no black-screen scenes, no readable sheets).
+- Open **Season setup > Season checklist**: every non-optional row ticked, and nothing in its further checks (no black-screen scenes, no readable sheets).
 - Room Setup: bedrooms owned, doors as intended, rest rooms flagged, tables and favours set, tokens restocked.
 - Despair Flow: every student watched; pools named; overflow threshold and hat as you want them.
 - Item tables installed; opening items in every bag.
