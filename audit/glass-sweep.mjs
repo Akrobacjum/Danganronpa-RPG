@@ -418,6 +418,78 @@ catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--
     };
 }
 
+/* THE POLISH CAPITALS ON THE SEQUENCES' TITLE (the trial's exit, 13.11.2026; the owner's review of its shots: the Legacy
+   subtitle read "POWROT"). `--accents` runs this instead of the sweep: in each theme, the trial's title and its
+   chapter's line are laid as sequence.mjs lays them (`#drpg-sequence .drpg-seq-title`, the band and the line), and each
+   of the nine capitals with a mark - Ą Ć Ę Ł Ń Ó Ś Ź Ż - is drawn on a canvas in the face and size the element computes,
+   beside its base letter. Each fails when it reads like its base letter: a mark above with no empty row between it and
+   the letter (pixel.woff2's Ó and pixel-ext.woff2's Ć Ń Ś Ź Ż set one font-pixel on the letter's top row, which at the
+   line's 24 px at 1366x768 is a 3 px bump: read here 0 empty rows before the fix), a tail below with no ink below the
+   base's, or fewer differing pixels than one of the face's pixels. Its control, once a run: O drawn for Ó must fail.
+   Exit 1 on a failure or a control that passed. */
+async function accentProbe() {
+    await document.fonts.ready;
+    const host = document.createElement("div");
+    host.id = "drpg-sequence";
+    host.style.cssText = "visibility:hidden";
+    host.innerHTML = '<div class="drpg-seq-title"><div class="drpg-seq-title-band">X</div><div class="drpg-seq-title-sub">X</div></div>';
+    document.body.append(host);
+    const PAIRS = [["Ą", "A", "below"], ["Ć", "C", "above"], ["Ę", "E", "below"], ["Ł", "L", "inside"], ["Ń", "N", "above"], ["Ó", "O", "above"], ["Ś", "S", "above"], ["Ź", "Z", "above"], ["Ż", "Z", "above"]];
+    const out = { parts: [] };
+    try {
+        for (const part of ["band", "sub"]) {
+            const el = host.querySelector(`.drpg-seq-title-${part}`), cs = getComputedStyle(el);
+            const size = parseFloat(cs.fontSize), font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+            for (const ch of "ĄĆĘŁŃÓŚŹŻAOCELNSZ") await document.fonts.load(font, ch).catch(() => null);
+            const W = Math.ceil(size * 2), H = Math.ceil(size * 3), c = document.createElement("canvas"); c.width = W; c.height = H;
+            const g = c.getContext("2d", { willReadFrequently: true });
+            const ink = ch => {
+                g.clearRect(0, 0, W, H); g.font = font; g.fillStyle = "#000"; g.textBaseline = "alphabetic"; g.fillText(ch, size * 0.3, size * 2);
+                const d = g.getImageData(0, 0, W, H).data, on = new Uint8Array(W * H);
+                for (let i = 0; i < W * H; i++) on[i] = d[i * 4 + 3] > 127 ? 1 : 0;
+                const rows = []; for (let y = 0; y < H; y++) { let n = 0; for (let x = 0; x < W; x++) n += on[y * W + x]; rows.push(n); }
+                const lit = rows.map((n, y) => (n ? y : -1)).filter(y => y >= 0);
+                return { on, rows, top: lit[0] ?? -1, bot: lit[lit.length - 1] ?? -1 };
+            };
+            const px = Math.max(1, size / 16);   // the least mark that reads: a sixteenth of the size, squared
+            const judge = (acc, base, where) => {
+                const a = ink(acc), b = ink(base);
+                let differ = 0; for (let i = 0; i < a.on.length; i++) differ += a.on[i] !== b.on[i];
+                let gap = null, ok = differ >= px * px;
+                if (where === "above") {
+                    // the empty rows between the mark's lowest ink and the letter's top, read in the accented glyph
+                    gap = 0; for (let y = b.top - 1; y > a.top && !a.rows[y]; y--) gap++;
+                    ok = ok && a.top < b.top && gap >= 1;
+                } else if (where === "below") ok = ok && a.bot > b.bot;
+                return { acc, base, where, differ, gap, above: b.top - a.top, below: a.bot - b.bot, ok };
+            };
+            const rows = PAIRS.map(([a, b, w]) => judge(a, b, w));
+            out.parts.push({ part, font: cs.fontFamily.split(",")[0], size: Math.round(size * 10) / 10, rows, control: judge("O", "O", "above").ok });
+        }
+    } finally { host.remove(); }
+    return out;
+}
+if (args.includes("--accents")) {
+    let bad = 0;
+    try {
+        for (const theme of themes) {
+            const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+            await page.goto(`${base}/${page0}${theme === "legacy" ? (page0.includes("?") ? "&" : "?") + "theme=legacy" : ""}`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(accentProbe);
+            for (const p of r.parts) {
+                const fails = p.rows.filter(x => !x.ok);
+                bad += fails.length + (p.control ? 1 : 0);
+                console.log(`${theme.padEnd(7)} ${p.part.padEnd(4)} ${p.font} ${p.size}px: ${p.rows.map(x => `${x.acc}${x.ok ? "" : "!"}${x.gap == null ? "" : `(gap ${x.gap})`}`).join(" ")}${fails.length ? `  - FAIL: ${fails.map(x => `${x.acc} reads like ${x.base} (${x.differ} px differ, ${x.where === "above" ? `${x.above} rows above, gap ${x.gap}` : `${x.below} rows below`})`).join(", ")}` : ""}${p.control ? "  - FAIL: the control (O for Ó) passed" : ""}`);
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    console.log(`ACCENTS ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), the sequences' title and line, 9 Polish capitals each`);
+    process.exit(bad ? 1 : 0);
+}
+
 /* THE CURTAIN'S PRICE (E88 C0, 27.10.2026; E88-04): `--frame-cost` runs this instead of the sweep. At each size (by
    default 1920x1080 and 1366x768) in each theme, the page is loaded once and the mean ms per frame over `--frames`
    frames (30) is read as the page stands and with each of the theme's per-frame costs held alone: the blur

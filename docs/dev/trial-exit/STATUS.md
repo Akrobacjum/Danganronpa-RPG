@@ -81,3 +81,24 @@ the end +1.9 a frame, 1.7 per 100 ms.
 
 Not measured: a real Foundry table (the trial's scene loading under the closed curtain, the hall's tokens; LIVE-E61-01's
 kind), two GMs, a player's browser in Chromium, deviceScaleFactor 2.
+
+## 3. The Polish capitals in the pixel face (the owner's review of the shots, 13.11.2026)
+
+The Legacy subtitle read "POWROT". Cause, measured: the Ó was there, neither absent nor clipped - pixel.woff2's Oacute
+set its acute as one font pixel (y 1000-1125) straight on the O's top row (125-1000, ascent 1000), with no empty row
+between; at the line's 23.9 px a font pixel is 3 px, so the mark was a 3x3 bump on the O's edge. pixel-ext.woff2's
+Ć Ń Ś Ź Ż were drawn the same way; Ą Ę Ł were fine. Stained Glass (Special Elite, VT323) was fine.
+
+Fix: the mark's contour of those six glyphs moved up 125 units (y 1125-1250), one empty font pixel between mark and
+letter; no other glyph, table, advance or cmap changed (compared with fontTools). The `@font-face` queries go to
+pixel.woff2?v=3 and pixel-ext.woff2?v=4.
+
+Check: `node audit/glass-sweep.mjs --accents` lays the sequences' title and line in each theme and draws each of the
+nine capitals beside its base letter in the face and size the element computes; a mark above needs at least one empty
+row, a tail below ink below the base, and each at least (size/16)^2 differing pixels; the control (O for Ó) must fail.
+Red before: Legacy band (75.1 px) and line (23.9 px) Ć Ń Ó Ś Ź Ż gap 0. Green after: Legacy gap 7 (band) and 3 (line);
+Stained Glass 2-4, unchanged.
+
+Not measured: every other place the pixel face sets a Polish capital (the HUD, tabs, dialogs). The mark now rises
+0.25 em above the ascent instead of 0.125 em, so a box that clips at one line of the face's height could cut it; not
+checked beyond the sequences' title and line.
