@@ -20,9 +20,10 @@
  *             `--release`, the tag is "v" + that version. These were three
  *             shell steps of release.yml and R125; the handbooks said 1.2.55
  *             under a 1.2.56 module once (audit S14-16). And (E59 C4, 13.11)
- *             the Foundry and Daggerheart rows of README's and the two GM
- *             handbooks' "needs" tables name module.json's minimum and
- *             verified versions, after a planted table with three faults.
+ *             the Foundry and Daggerheart rows of the two GM handbooks'
+ *             "needs" tables name module.json's minimum and verified
+ *             versions, after a planted table with three faults. README's
+ *             rows are not held: the owner's rule, beside COMPAT_FILES.
  *   notes     .github/release-notes/v<version>.md exists and is not empty;
  *             and (E59 C5) CHANGELOG.md is what tools/changelog.mjs writes
  *             from that folder, after a planted pair of notes.
@@ -291,13 +292,18 @@ function stamps() {
 
 /*
  * THE VERSIONS THE MODULE NEEDS, SAID ONE WAY (E59 C4's check, 13.11.2026; M12 of the E59 plan). module.json's
- * `compatibility` (Foundry) and its Daggerheart relationship's are the truth; README's "Needs" table and the GM
- * handbook's, in English and in Polish, each have a row for Foundry VTT and one for Daggerheart, whose first version is
- * the minimum and whose second the verified one ("14.364 or newer (verified on 14.365)", "14.364 lub nowsza
- * (sprawdzone na 14.365)"). A row missing, or either number not module.json's, is red. On 421f2395 the three files'
- * six rows agreed with module.json.
+ * `compatibility` (Foundry) and its Daggerheart relationship's are the truth; the GM handbook's "needs" table, in
+ * English and in Polish, has a row for Foundry VTT and one for Daggerheart, whose first version is the minimum and whose
+ * second the verified one ("14.364 or newer (verified on 14.365)", "14.364 lub nowsza (sprawdzone na 14.365)"). A row
+ * missing, or either number not module.json's, is red. On 421f2395 the two files' four rows agreed with module.json.
+ *
+ * README.md IS NOT ONE OF THEM (REVIEW-111-e59 finding 2, 13.11.2026). The owner's rule is that the root README changes
+ * only in its version line ("They describe version X.", which `stamps` holds above); its own Foundry and Daggerheart
+ * rows (README.md:228-229 on c066123e) are the owner's to keep. Held here, a release that writes a newly verified
+ * Foundry or Daggerheart into module.json could not pass `stamps` without a second README edit: with module.json's
+ * verified versions planted as 14.366 and 2.12.9, README.md:228 and :229 were two of the six problems.
  */
-const COMPAT_FILES = ["README.md", "docs/handbooks/gm-handbook.en.md", "docs/handbooks/gm-handbook.pl.md"];
+const COMPAT_FILES = ["docs/handbooks/gm-handbook.en.md", "docs/handbooks/gm-handbook.pl.md"];
 
 function compatibilityProblems(manifest, texts) {
     const daggerheart = (manifest.relationships?.systems ?? []).find(s => s.id === "daggerheart")?.compatibility ?? {};

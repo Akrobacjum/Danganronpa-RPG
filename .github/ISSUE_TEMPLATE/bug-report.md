@@ -31,4 +31,7 @@ text the console prints. Paste it here:
 
 ```
 
+The report names your Foundry user and the time, the world's id on a GM's browser, and your server's address in
+the lines of any error it lists. Cut or change them before you paste if you'd rather not show them.
+
 A screenshot, and the console's red lines from the moment it happened, help as well.

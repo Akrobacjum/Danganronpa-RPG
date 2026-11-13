@@ -34,3 +34,6 @@ holds more than a player's; either helps. Paste it here:
 ```text
 
 ```
+
+The report names your Foundry user and the time, the world's id on a GM's browser, and your server's address in
+the lines of any error it lists. Cut or change them before you paste if you'd rather not show them.
