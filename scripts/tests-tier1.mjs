@@ -19068,6 +19068,37 @@ const INVARIANTS = [
             again: { same: true, cards: true, marked: false, name }
         }), "{empty: the panel once its last card went - the same element, on the page, its role, aria-live, name, cards, marked empty; again: the next card's panel}");
     }],
+    ["R4932 - under Stained Glass the sheet's and the status strip's Hope and Action marks are E48 batch 5's drawings (gaps-111; 1.2.105's Known gaps, the owner's \"E48 akcept\" of 12.11): a held Hope slot wears the diamond and an empty one the empty diamond, a held action the dot and a free one the empty dot, on the sheet's header and on the strip alike", async () => {
+        /*
+         * gaps-111, 13.11.2026. 1.2.105's Known gaps: "under Stained Glass the sheet's Hope and Action marks are still drawn
+         * by stained-glass.css's own stars and squares, so the new diamond and dot show only where a rule reads the
+         * variable (the wear pips)". The owner took E48 batch 5's drawings on 12.11 (recorded in 1.2.107). The strip wears
+         * the sheet's marks (stained-glass.css, "THE PLAYER'S STATUS STRIP GETS THE SAME MARKS AS THE SHEET", 07.09, and
+         * the owner's 11.09 on a corner that did not match), so both change together. Read: the sheets' cascade on a body
+         * of its own under the glass, which variable each mark's `::before` mask names. Red at efbe35a3: the stars
+         * (--drpg-pix-star, --drpg-pix-star-outline, Hope on the sheet both --drpg-pix-star) and no mask on an action pip.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        const pip = (cls, held) => `<span class="drpg-status-pip ${cls}${held ? " filled" : ""}"></span>`;
+        body.innerHTML = `<div class="application sheet actor"><div class="character-header-sheet"><div class="character-row">`
+            + `<div class="drpg-actions"><h4>Actions</h4><span class="drpg-action-pip filled"><i class="fa-solid fa-circle"></i></span><span class="drpg-action-pip"><i class="fa-regular fa-circle"></i></span></div>`
+            + `<div class="hope-section"><h4>Hope</h4><div class="hope-values"><span class="hope-value"><i class="fa-solid fa-diamond"></i></span><span class="hope-value"><i class="fa-regular fa-circle"></i></span></div></div>`
+            + `</div></div></div><div id="drpg-player-status"><div class="drpg-status"><div class="drpg-status-field is-actions"><span class="drpg-status-pips">${pip("drpg-action-pip", true)}${pip("drpg-action-pip", false)}</span></div>`
+            + `<div class="drpg-status-field is-hope"><span class="drpg-status-pips">${pip("drpg-status-hope-pip", true)}${pip("drpg-status-hope-pip", false)}</span></div></div></div>`;
+        const MASK = ["mask", "-webkit-mask", "mask-image", "-webkit-mask-image"];
+        const wears = el => /var\((--drpg-pix-[a-z-]+)\)/.exec(C.winner(el, MASK, "::before")?.value ?? "")?.[1] ?? null;
+        const two = sel => [...body.querySelectorAll(sel)].map(wears);
+        const read = {
+            sheetHope: two(".character-header-sheet .hope-value"), sheetActions: two(".character-header-sheet .drpg-action-pip"),
+            stripHope: two("#drpg-player-status .drpg-status-hope-pip"), stripActions: two("#drpg-player-status .drpg-action-pip")
+        };
+        const HOPE = ["--drpg-pix-diamond", "--drpg-pix-diamond-empty"], DOT = ["--drpg-pix-dot", "--drpg-pix-dot-empty"];
+        equal(stableJson(read), stableJson({ sheetHope: HOPE, sheetActions: DOT, stripHope: HOPE, stripActions: DOT }),
+            "{the mask variable each mark's ::before wears under Stained Glass: [held, empty], on the sheet and on the strip}");
+    }],
     ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
         /*
          * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground
@@ -41118,7 +41149,7 @@ const INVARIANTS = [
             cap: "calc(360px * var(--drpg-legacy-scale, 1))" }),
             "under Monokuma Legacy: {content: [display, flex-direction, align-items]; name: [flex, min-width, white-space, text-overflow]; tools: flex; cap: the tray's max-width}");
     }],
-    ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the star's outline in Bone Dim at 40 %, a held one the solid star; the table's strip leaves \"Still to act\" out in a Class Trial and while an incident runs, and keeps it in Daily Life", async () => {
+    ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the empty diamond in Bone Dim at 40 %, a held one the diamond (E48 batch 5's, since gaps-111: the star and its outline until then); the table's strip leaves \"Still to act\" out in a Class Trial and while an incident runs, and keeps it in Daily Life", async () => {
         /*
          * E23 C3a, 07.11.2026. S10-63: the slots were 0.72rem (11.5 px), the contained star drew at 7-8 px, an empty one the
          * same star at the slot's 0.45 over bone at 0.3. S12-54 (the owner's Q-E23-3, hidden): the GM's strip read "Still
@@ -41142,8 +41173,8 @@ const INVARIANTS = [
         const MASK = ["mask", "-webkit-mask", "mask-image", "-webkit-mask-image"];
         const slot = el => { const [lo, hi] = [band(value(el, "width")), band(value(el, "height"))].map(b => (Array.isArray(b) && b[0] >= 12 && b[1] <= 16 ? "12-16" : b)); return [lo, hi]; };
         const look = {
-            held: { slot: slot(held), mask: /--drpg-pix-star\)/.test(value(held, MASK, "::before") ?? "") },
-            empty: { slot: slot(empty), mask: /--drpg-pix-star-outline\)/.test(value(empty, MASK, "::before") ?? ""), colour: value(empty, ["background-color", "background"], "::before"),
+            held: { slot: slot(held), mask: /--drpg-pix-diamond\)/.test(value(held, MASK, "::before") ?? "") },
+            empty: { slot: slot(empty), mask: /--drpg-pix-diamond-empty\)/.test(value(empty, MASK, "::before") ?? ""), colour: value(empty, ["background-color", "background"], "::before"),
                 opacity: value(empty, "opacity", "::before"), slotOpacity: value(empty, "opacity") }
         };
         const PS = await import("./player-status.mjs");
