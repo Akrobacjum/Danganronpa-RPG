@@ -1330,9 +1330,8 @@ body.drpg-theme-stained-glass .drpg-call-button {
    an API and were never one; R2 has been reporting them since it was written. */
 body.drpg-theme-stained-glass .drpg-hope-panel .drpg-call-button { --brush: var(--drpg-sg-hope); }
 body.drpg-theme-stained-glass .drpg-despair-panel .drpg-call-button { --brush: var(--drpg-sg-despair); }
-/* `data-drpg-gm` is an attribute the module never writes - the tiles carry
-   `data-drpg-cost-kind="gm"` - so this rule matched nothing until 1.2.41. */
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] { --brush: var(--drpg-sg-gm-light); }
+/* A tile on the GM's road keeps an action tile's brush (E107, 13.11.2026): its red brush went with its red plate,
+   below; the chip alone says who it waits for (R5431). */
 body.drpg-theme-stained-glass .drpg-action-button::before,
 body.drpg-theme-stained-glass .drpg-call-button::before {
     content: "";
@@ -1368,7 +1367,10 @@ body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:
     border-color: var(--brush) !important;
     color: var(--drpg-sg-ink);
 }
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost, .drpg-action-gm) {
+/* Not the GM's chip (E107, 13.11.2026): it stands on its own dark ground (below), so under the pointer the brush's ink
+   left it barely readable - rgb(7, 7, 10) on rgba(7, 7, 10, 0.72), Chromium at 8d7aa91f on Talent and a GM action tile.
+   It keeps its red. */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost) {
     color: var(--drpg-sg-ink);
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) {
@@ -1879,10 +1881,8 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
     clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
     transition: border-color var(--drpg-t-snap, 120ms), color var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode).drpg-gm-route { --kind: var(--drpg-sg-gm); }
-/* a picked row on the GM's road: its brush in the lighter red, under which the ink reads 6.46:1 (on the GM red 4.16:1,
-   below AA; audit S12-42, E22 C6b; tools/contrast-pairs.json sg-gm-row-picked) */
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode).drpg-gm-route:has(input:checked) { --kind: var(--drpg-sg-gm-light); }
+/* A row on the GM's road keeps the attention kind, picked or not (E107, 13.11.2026): until E107 its indicator was the GM
+   red and its picked brush the lighter red (E22 C6b); its chip is the red now (danganronpa.css, R5432). */
 /* the indicator: a 4 px strip along the left edge in the kind's colour */
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode)::after {
     content: "";
@@ -1920,6 +1920,8 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::before { opacity: 1; }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::after { opacity: 1; background: var(--drpg-sg-ink); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) :is(i, small, strong, span) { color: inherit; opacity: 1; }
+/* ... but the GM's chip on its own dark ground keeps its red (E107, R5432): the ink above left it grey on dark. */
+body.drpg-theme-stained-glass .drpg-choice:has(input:checked) .drpg-action-gm { color: var(--drpg-eye-light); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) > i { color: var(--kind); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) small { opacity: 0.75; }
 /* the row's control takes the row's kind (the one definition below reads `--drpg-sg-check`), and on a chosen row's
@@ -4079,19 +4081,10 @@ body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.char
     line-height: 1.5rem;
 }
 
-/* A GM TILE IS A RED PLATE, not a dark tile wearing a badge. On the audit page "Dynamic" and
-   "Direct Murder" are filled in the GM's red with the reason as their sub-label, and that
-   fill is what makes them readable as somebody else's decision at a glance. A tile that cannot be pressed is not
-   filled (audit S04-39, E22 C6b): the fill made a blocked Direct Murder the loudest tile on the sheet; it keeps the
-   dashed edge every disabled thing wears here. */
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(:disabled):not(.unaffordable) {
-    background: color-mix(in srgb, var(--drpg-sg-gm) 34%, rgba(7, 7, 10, 0.55)) !important;
-    border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 70%, transparent) !important;
-    --brush: var(--drpg-sg-gm-light);
-}
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"]:not(:disabled):not(.unaffordable) :is(.drpg-action-name, .drpg-action-cost) {
-    color: var(--drpg-sg-bone);
-}
+/* A GM TILE IS NO LONGER A RED PLATE (E107, 13.11.2026). From the audit page until E107 a pressable tile on the GM's
+   road was filled in the GM's red at 34 % with a red edge and brush; the owner on 1.2.110: "Kafelki wymagajace GMa niech
+   nie beda czerwone - wystarczy czerwona ramka i napis jak w hope callu". It wears an action tile's look, and the chip
+   under its cost (`.drpg-action-gm`, the Call tile's) is the one red on it. R5431. */
 
 /* ---- the checkbox and the radio: the audit page's, not Foundry's, and ONE definition --------
    The mockup draws a checkbox as a square in the state colour with a pixel tick cut out of the
@@ -5011,11 +5004,18 @@ body.drpg-theme-stained-glass .application.sheet.actor :is(.hope-section, .drpg-
    of itself, and its own dark ground - `rgba(7,7,10,0.6)`. Red on red at 2.38 is
    the worst reading in the module and it is a word a GM has to pick out of a grid
    of ten tiles. `currentColor` for the edge so it needs no token of its own. */
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-gm {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button, .drpg-choice, .drpg-row-use) .drpg-action-gm {
     background: rgba(7, 7, 10, 0.72);
     border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
     padding: 0 5px;
-    line-height: 1.35;
+    /* 1.1, not 1.35 (E107): in a tile's corner it stands beside the icon, and at the grid's least tile (92 px) a chip
+       30 px tall reached a two-line name (Chromium, 5.2 px over "Direct Murder"). */
+    line-height: 1.1;
+}
+/* In an item row's Use (E107 part 2) the chip stands inside a 26 px button: at the floor's 21 px and 1.1 it was 25 px
+   tall, over the button's own edge (Chromium, the style harness's sheet); at 1 it is 23. */
+body.drpg-theme-stained-glass .drpg-row-use .drpg-action-gm {
+    line-height: 1;
 }
 
 /* ---- 5. A SCRIM UNDER RUNNING TEXT -----------------------------------------

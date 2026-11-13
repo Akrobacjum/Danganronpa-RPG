@@ -41276,7 +41276,7 @@ const INVARIANTS = [
         }), "[askDeclaration leaves the columns on; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
             + "the popup measure on .dialog-content (null: none reaches it), the columns' display and wrap, the hints' display (picked, unpicked, unavailable; null: no rule hides it)]");
     }],
-    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, a crisis row that asks a GM for the statistic and a project's statistic proposal (E68 C4), Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
+    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, a crisis row that asks a GM for the statistic and a project's statistic proposal (E68 C4), Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use carry the GM's red chip (since E107 part 2 read off the cascade, not the class alone), by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
         /*
          * E22 C5c, 07.11.2026; A4 (the owner's, confirmed live), D11. The Reshape row and its buttons were not red though a
          * GM approves a reshape since N-3, and their texts promised the change at once; `GM_ROUTE_CLASS` was a const of
@@ -41294,6 +41294,9 @@ const INVARIANTS = [
          * Find Passage too, which no GM judges. Read: Analyze's briefing for a living student, the lines carrying the
          * sentence and the row each is bound to, and the stash row's mark. Red on dd87f9f7: the sentence unbound, or
          * absent where the student held a bullet.
+         * E107 part 2, 13.11.2026: this test read the Use's class and called it red; nothing painted the class on that
+         * button (Chromium, both themes: as a plain Use). It now reads the chip in `addUseButton` and `callButton`, and the
+         * cascade (`styleCascade`) on each: the chip's ink red in both themes (`look`). Red at b9dab19d: the Use has no chip.
          */
         needs(world.atLeast("livingStudents", 1), "the Dynamic action's briefing is built for a living student");
         const sources = new Map(await otherSources());
@@ -41383,10 +41386,24 @@ const INVARIANTS = [
             asksGm: await import("./calls.mjs").then(C => typeof C.callAsksGm === "function"
                 ? Object.keys(HOPE_CALLS).filter(key => C.callAsksGm(HOPE_CALLS[key], "hope")).sort() : "calls.mjs exports no callAsksGm"),
             use: /const askGm = !broken && usedCreatively\(item\) && !inCrisis\(app\.document\);/.test(use) && /"DRPG\.Items\.useTier0Tooltip"/.test(use)
-                && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(use),
+                && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(use)
+                && /askGm \? `<span class="drpg-action-gm">\$\{game\.i18n\.localize\("DRPG\.Action\.waitsForGm"\)\}<\/span>` : ""/.test(use),
             useItem: /if \(usedCreatively\(held\)\) return/.test(fnSource(src("use-items.mjs"), "useItem")),
             words: [namesGm("DRPG.Action.waitsForGm"), namesGm("DRPG.Items.useTier0Tooltip")]
         };
+        // The look (E107 part 2): the chip's ink on a Call tile a GM rules and on a Use a GM rules, per theme.
+        const C = await styleCascade();
+        read.look = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const root = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            root.append(body);
+            const chip = `<span class="drpg-action-gm">GM</span>`;
+            body.innerHTML = `<div class="application sheet actor"><div class="drpg-action-grid"><button type="button" class="drpg-action-button drpg-call-button drpg-gm-route" `
+                + `data-drpg-call="talent"><span class="drpg-action-name">T</span><span class="drpg-action-cost">1</span>${chip}</button></div>`
+                + `<ul class="drpg-inventory-list"><li><button type="button" class="drpg-row-button drpg-row-use drpg-gm-route"><i class="fa-solid fa-flask" inert></i>${chip}</button></li></ul></div>`;
+            read.look[theme] = [...body.querySelectorAll(".drpg-action-gm")].map(el => /--drpg-(?:eye|crimson|sg-gm)/.test(C.winner(el, "color")?.value ?? ""));
+        }
         const { usedCreatively } = await import("./use-items.mjs");
         read.creative = typeof usedCreatively === "function" ? [0, 1, 2, 3].map(tier => usedCreatively({ getFlag: () => tier })) : "use-items.mjs exports no usedCreatively";
         const { stripeKindFor } = await import("./price.mjs");
@@ -41399,11 +41416,12 @@ const INVARIANTS = [
             analyze: { note: ["hint"], stash: true },
             tiles: { call: true, needsGm: ["experience", "ultimate"], asksGm: ["experience", "talent", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
             creative: [true, false, false, false],
-            stripe: ["gm", "stress", "gm", "free"]
+            stripe: ["gm", "stress", "gm", "free"],
+            look: { legacy: [true, true], glass: [true, true] }
         }), "[the GM's road: marks with no census row, rows whose mark is gone, rows whose mark is not the road's, sentences naming no GM (EN, PL); "
             + "the Reshape's sentences with no refusal's price; Erase plain; the class, the kit's face, other declarations; the Dynamic's flag, its "
             + "briefing's sentence, its reads; Analyze's sentence by its rows, its stash row plain; the Call tile, the Calls a GM rules, the Tier 0 Use, useItem's road, their words; usedCreatively by "
-            + "tier; the stripe for a Sanity step on the GM's road, on an action, a Hope step, a free one]");
+            + "tier; the stripe for a Sanity step on the GM's road, on an action, a Hope step, a free one; per theme the chip's ink red on [the Call tile, the Use]]");
     }],
     ["R1370 - the proposal sends once (E22 C5c; audit S10-31, Q-E21-5): action-project.mjs `startProject` opens one window - its form with the request field, its one Send on the GM's road and Cancel - and hands `callGm` what `promptAndCallGm` handed it (the title, no roll, the form's words, the room, the GM's body and buttons, nothing spent), with no second window; closed, it says nothing was sent and posts nothing", async () => {
         /*
@@ -41641,7 +41659,7 @@ const INVARIANTS = [
             + "pick a secondary); the project's window, its Delete question, its answer closed and no project made; the notices' Clear question, the history kept, "
             + "the classes of a role on Mark all as read and in Open conversation's builder; Level Up's window and its answer closed; the messages posted]");
     }],
-    ["R1373 - the colours' rule, both themes (E22 C6b; E22-07; audit S06-59, S12-59, S12-58, S12-42, S10-33, S04-39): a warning line is red and an information box is not; the Doors room count, the missing Situational playlist and the missing Final Truth Remnant are information; Legacy's default footer button is not red; the GM's road is one red on a footer button, a button in a window and a choice row; a footer button of the destructive role wears the destructive face with no other class; table headers and group headings carry no GM red; a GM tile that cannot be pressed is not filled; a selected GM row's ink reads 4.5:1 on its brush", async () => {
+    ["R1373 - the colours' rule, both themes (E22 C6b; E22-07; audit S06-59, S12-59, S12-58, S12-42, S10-33, S04-39): a warning line is red and an information box is not; the Doors room count, the missing Situational playlist and the missing Final Truth Remnant are information; Legacy's default footer button is not red; the GM's road is one red on a footer button and a button in a window, and since E107 a choice row on it is not red (its chip is, R5432); a footer button of the destructive role wears the destructive face with no other class; table headers and group headings carry no GM red; a GM tile that cannot be pressed is not filled; a selected GM row's ink reads 4.5:1 on its brush", async () => {
         /*
          * E22 C6b, 07.11.2026; E22-07 (D11: red means the GM's road for a player, the destructive face an action that
          * cannot be undone; a warning stays red, information is neutral). Read on the module's sheets as a cascade read
@@ -41656,6 +41674,9 @@ const INVARIANTS = [
          * selected GM row read ink on the GM red, 4.16:1, its note at 0.75 (S12-42); the three information lines were
          * `drpg-warning` (S06-59, S12-59). Not read here: a hover or a press (jsdom matches no `:hover`), Legacy's
          * selected row, and how any of it looks - the style sweep's screenshots and LIVE-E22-02.
+         * E107 (13.11.2026, the owner: a tile that waits for a GM is not red, its chip is): the choice row left `gmRoad` -
+         * its edge and kind are a plain row's, read here as `gmRow` [unpicked, picked], and the chip is R5432's. Red at
+         * 8d7aa91f: both read the GM's red.
          */
         const C = await styleCascade();
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
@@ -41733,9 +41754,10 @@ const INVARIANTS = [
                 warning: red(theme, q(plain, ".drpg-warning"), EDGE),
                 info: red(theme, q(plain, ".drpg-box"), EDGE),
                 defaultButton: [["background", "background-color"], "color", EDGE].map(p => isRed(theme, q(plain, "[data-action=go]"), p)),
-                gmRoad: [...new Set([final(q(plain, "[data-action=ask]"), EDGE), final(q(plain, "[data-r1373-body]"), EDGE),
-                    theme === "legacy" ? final(q(plain, "[data-r1373-row]"), ["border-left-color", "border-left", "border-color", "border"]) : final(q(plain, "[data-r1373-row]"), "--kind")]
+                gmRoad: [...new Set([final(q(plain, "[data-action=ask]"), EDGE), final(q(plain, "[data-r1373-body]"), EDGE)]
                     .map(text => (text.match(/#[0-9a-f]{6}\b/i)?.[0] ?? text).toLowerCase()))],
+                gmRow: [q(plain, "[data-r1373-row]"), q(plain, "[data-r1373-picked]")].map(row => isRed(theme, row, theme === "legacy"
+                    ? ["border-left-color", "border-left", "border-color", "border"] : "--kind")),
                 destructive: {
                     raster: /gradient/.test(reading(theme, destructive, ["background-image", "background"])?.text ?? ""),
                     edge: red(theme, destructive, EDGE)
@@ -41766,18 +41788,18 @@ const INVARIANTS = [
         };
         equal(stableJson({ ...out, glassRow, notes }), stableJson({
             legacy: {
-                warning: true, info: false, defaultButton: [false, false, false], gmRoad: ["#e0182f"],
+                warning: true, info: false, defaultButton: [false, false, false], gmRoad: ["#e0182f"], gmRow: [false, false],
                 destructive: { raster: true, edge: true }, headers: [false, false, false, false], gmTileDisabled: false
             },
             glass: {
-                warning: true, info: false, defaultButton: [false, false, false], gmRoad: ["#e0182f"],
+                warning: true, info: false, defaultButton: [false, false, false], gmRoad: ["#e0182f"], gmRow: [false, false],
                 destructive: { raster: true, edge: true }, headers: [false, false, false, false], gmTileDisabled: false
             },
             glassRow: { ratio: true, note: "1" },
             notes: { finalTruth: [false, "info"], situational: [false, true], roomCount: [false, true] }
-        }), "[per theme: a warning's edge red, an information box's; the default button's background, its colour and its edge red; the GM's road's colours on a footer button, a button in a window and a choice row; a destructive role's raster and red edge; red on a table head, the GM Team window's, an Effects group and the GM Team window's heading; a disabled GM tile's fill red; the glass's selected GM row: ink on its brush at 4.5:1, its note's opacity; the three information lines as warnings and on box(\"info\")]");
+        }), "[per theme: a warning's edge red, an information box's; the default button's background, its colour and its edge red; the GM's road's colours on a footer button and a button in a window; a choice row on it red [unpicked, picked]; a destructive role's raster and red edge; red on a table head, the GM Team window's, an Effects group and the GM Team window's heading; a disabled GM tile's fill red; the glass's selected GM row: ink on its brush at 4.5:1, its note's opacity; the three information lines as warnings and on box(\"info\")]");
     }],
-    ["R1580 - the faces under the pointer and the GM's road as the default, both themes (E22 fix G1; E22-07; the end review's SCREENS M1-M3, m6; Open 81): under Monokuma Legacy a footer button under the pointer takes no red unless it is the GM's road or a destructive answer, each of those brightens its own token and a destructive one keeps its raster, a choice row under the pointer gets no red edge, the GM's row keeps its red left edge under the pointer and once picked; under Stained Glass every role under the pointer and the GM's road as the default read 4.5:1 or more, and a destructive answer under the pointer keeps its raster and brightens its edge with no full brush", async () => {
+    ["R1580 - the faces under the pointer and the GM's road as the default, both themes (E22 fix G1; E22-07; the end review's SCREENS M1-M3, m6; Open 81): under Monokuma Legacy a footer button under the pointer takes no red unless it is the GM's road or a destructive answer, each of those brightens its own token and a destructive one keeps its raster, a choice row under the pointer gets no red edge, and since E107 neither does the GM's row, under the pointer or once picked (its chip is the red, R5432); under Stained Glass every role under the pointer and the GM's road as the default read 4.5:1 or more, and a destructive answer under the pointer keeps its raster and brightens its edge with no full brush", async () => {
         /*
          * E22 fix G1, 07.11.2026 (the end review's SCREENS lens, review/screens.md M1-M3 and m6, seen there in Chromium).
          * R1373's way: the module's sheets as a cascade read from their text (`styleCascade`), on markup built on a body
@@ -41793,6 +41815,9 @@ const INVARIANTS = [
          * pointer Bone on it, 4.18:1; a destructive answer under the pointer the full GM-red brush under its pink ink,
          * 1.55:1, its raster gone. Not read here: a press, a focus ring, and how any of it looks - the review's shots
          * and the hover rows the review proposed for LIVE (review/screens.md).
+         * E107 (13.11.2026, the owner: a tile that waits for a GM is not red, its chip is): the GM's row lost its red left
+         * edge, under the pointer and once picked; `gmRowHover` and `gmRowPicked` read false now. Red at E107's first cut
+         * (this test unchanged): both read false where the test asked true.
          */
         const C = await styleCascade();
         const HOVER = "drpg-r1580-hover";
@@ -41909,14 +41934,14 @@ const INVARIANTS = [
                 plainHover: [["cancel", false, false], ["secondary", false, false], ["primary", false, false]],
                 gmRouteHover: { red: true, brighter: true },
                 destructiveHover: { red: true, brighter: true, raster: true },
-                rowHover: false, gmRowHover: true, gmRowPicked: true
+                rowHover: false, gmRowHover: false, gmRowPicked: false
             },
             glass: {
                 hoverRatios: ROLES.map(role => [role, true]),
                 gmRouteDefault: true,
                 destructiveHover: { brush: "0", raster: true, edge: [GM, GM_LIGHT] }
             }
-        }), "[Legacy: each plain role under the pointer - its wash red, its edge red; the GM's road and a destructive answer under the pointer - red, and another value than at rest; the destructive one's raster; a plain row's edge red under the pointer, the GM row's left edge under the pointer and once picked. The glass: each role's ink under the pointer at 4.5:1 or more on what it stands on; the GM's road as the default; a destructive answer under the pointer - its brush, its raster, its edge at rest and under the pointer]");
+        }), "[Legacy: each plain role under the pointer - its wash red, its edge red; the GM's road and a destructive answer under the pointer - red, and another value than at rest; the destructive one's raster; a plain row's edge red under the pointer, the GM row's left edge red under the pointer and once picked. The glass: each role's ink under the pointer at 4.5:1 or more on what it stands on; the GM's road as the default; a destructive answer under the pointer - its brush, its raster, its edge at rest and under the pointer]");
     }],
     ["R1581 - Sound > Music's \"no playlists\" line is information, in the kit's information box and not on the warning's red (E22 fix G1; E22-07; the end review's SCREENS m2; Open 83)", async () => {
         /*
@@ -51157,6 +51182,197 @@ const INVARIANTS = [
             return [dress, [C.winner(range, "min-width")?.value ?? null, C.winner(range, "flex")?.value ?? null]];
         }));
         equal(stableJson(read), stableJson({ glass: ["0", "1 1 8rem"], legacy: ["0", "1 1 8rem"] }), "{each theme: [a volume's range's min-width, its flex]}");
+    }],
+
+    /* ======================================================================
+     * E107 - A TILE THAT WAITS FOR A GM WEARS THE CHIP, NOT THE RED (the owner, 13.11.2026: "Layout hope calla z GM
+     * rozni sie od reszty. Kafelki wymagajace GMa niech nie beda czerwone - wystarczy czerwona ramka i napis jak w
+     * hope callu.")
+     * ==================================================================== */
+    ["R5430 - a GM chip stands out of its tile's flow (E107): on a sheet's action tile on the GM's road and on a Call's tile a GM rules, in both themes, the tile is positioned and the chip (`.drpg-action-gm`) absolute, so the icon, the name and the cost stand where they stand on a tile with no chip", async () => {
+        /*
+         * E107, 13.11.2026. The owner's shot of the Hope Calls on 1.2.110 (Stained Glass): Talent's chip stood under its
+         * cost in the tile's flow, and a tile centres its content, so Talent's icon, name and cost stood higher than on
+         * the nine others. Measured in Chromium at a4afcaad's CSS (the style harness's sheet, the module's sheets, 1366
+         * and 1920 wide, scratch e107/tiles.mjs): the icon 4.7 px from the tile's top on Talent and 21.4 on Support
+         * under the glass, 13.7 and 22.2 under Legacy; an action tile on the GM's road the same. Read here: the cascade
+         * (`styleCascade`) on a GM action tile and a GM Call tile per theme - the winning `position` of the tile and of
+         * its chip. jsdom lays nothing out: the offsets themselves are the Chromium reading in docs/dev/e107/STATUS.md.
+         * Red at 8d7aa91f: the chip's position no rule (in flow), the Call tile's static.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const root = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            root.append(body);
+            const face = `<i class="fa-solid fa-star drpg-action-icon" inert></i><span class="drpg-action-name">Name</span><span class="drpg-action-cost">1</span>`
+                + `<span class="drpg-action-gm">GM</span>`;
+            body.innerHTML = `<div class="application sheet actor"><div class="drpg-action-grid">`
+                + `<button type="button" class="drpg-action-button" data-drpg-action="project" data-drpg-cost-kind="gm">${face}</button>`
+                + `<button type="button" class="drpg-action-button drpg-call-button drpg-gm-route" data-drpg-call="talent" data-drpg-call-kind="hope">${face}</button>`
+                + `</div></div>`;
+            const v = (el, prop) => C.winner(el, prop)?.value?.trim() ?? null;
+            read[theme] = [...body.querySelectorAll(".drpg-action-button")].map(tile => [v(tile, "position"), v(tile.querySelector(".drpg-action-gm"), "position")]);
+        }
+        equal(stableJson(read), stableJson({ legacy: [["relative", "absolute"], ["relative", "absolute"]], glass: [["relative", "absolute"], ["relative", "absolute"]] }),
+            "{per theme: [an action tile on the GM's road, a Call tile a GM rules] as [the tile's position, its chip's]}");
+    }],
+    ["R5431 - a sheet's tile on the GM's road wears an ordinary tile's look and the chip alone is red (E107): under both themes an action tile with `data-drpg-cost-kind=\"gm\"` that can be pressed takes the same background, edge and brush as one with \"action\", and its chip's edge and ink are the GM's red, as a Call tile a GM rules already did; and no rule of the glass gives the chip the brush's ink, which on its own dark ground left it barely readable under the pointer", async () => {
+        /*
+         * E107, 13.11.2026; the owner: "Kafelki wymagajace GMa niech nie beda czerwone - wystarczy czerwona ramka i napis
+         * jak w hope callu." Under the glass a pressable GM tile was filled with the GM's red at 34 % with a red edge and a
+         * red brush (stained-glass.css, E22 C6b), while Talent's tile was a Hope tile with the chip. Read: the cascade per
+         * theme on an action tile and a GM tile side by side - the winning `background`, `border-color` and `--brush`
+         * (the declaration's text) - and the chip's `border` / `border-color` and `color`, red when they name the eye, the
+         * crimson or the glass's GM red (an edge of `currentColor` over a red ink counts). Red at 8d7aa91f: the glass GM tile's three its own red.
+         * The pointer: jsdom matches no `:hover`, so that half is read off stained-glass.css's text - every rule whose
+         * selector names `.drpg-action-gm` and sets its `color`, none of them to `--drpg-sg-ink`. Measured in Chromium at
+         * 8d7aa91f (scratch e107/hover.mjs): under the pointer Talent's chip and a GM action tile's read rgb(7, 7, 10) on
+         * rgba(7, 7, 10, 0.72) - "GM" dark grey on dark, barely readable. Red at 8d7aa91f: the tile's hover rule lists the chip.
+         */
+        const C = await styleCascade();
+        const RED = /--drpg-(?:eye|crimson|sg-gm)/;
+        const read = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const root = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            root.append(body);
+            const tile = kind => `<button type="button" class="drpg-action-button" data-drpg-action="r5431${kind}" data-drpg-cost-kind="${kind}">`
+                + `<i class="fa-solid fa-star drpg-action-icon" inert></i><span class="drpg-action-name">Name</span><span class="drpg-action-cost">1</span>`
+                + `${kind === "gm" ? `<span class="drpg-action-gm">GM</span>` : ""}</button>`;
+            body.innerHTML = `<div class="application sheet actor"><div class="drpg-action-grid">${tile("action")}${tile("gm")}</div></div>`;
+            const [plain, gm] = body.querySelectorAll(".drpg-action-button");
+            const v = (el, props) => C.winner(el, [props].flat())?.value?.trim() ?? null;
+            /* the chip's edge is red when it names a red, or is `currentColor` mixed over a red ink (the glass's chip) */
+            const edgeRed = el => { const edge = v(el, ["border-color", "border"]) ?? ""; return RED.test(edge) || (/currentColor/i.test(edge) && RED.test(v(el, "color") ?? "")); };
+            const look = el => [v(el, ["background", "background-color"]), v(el, ["border-color", "border"]), v(el, "--brush")];
+            const chip = gm.querySelector(".drpg-action-gm");
+            read[theme] = { same: stableJson(look(gm)) === stableJson(look(plain)) || `${stableJson(look(gm))} against ${stableJson(look(plain))}`,
+                chip: [edgeRed(chip), RED.test(v(chip, "color") ?? "")] };
+        }
+        const glass = await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`, { cache: "no-cache" }).then(lfText);
+        must(glass.length > 100000, "stained-glass.css was not read");
+        const { stripCssComments } = await import("./tests-css.mjs");
+        read.inkOnChip = [...stripCssComments(glass).matchAll(/([^{}]*\.drpg-action-gm[^{}]*)\{([^{}]*)\}/g)]
+            .filter(([, , body]) => /(?:^|;)\s*color\s*:\s*var\(--drpg-sg-ink\)/.test(body)).map(([, sel]) => sel.replace(/\s+/g, " ").trim().slice(0, 120));
+        equal(stableJson(read), stableJson({ legacy: { same: true, chip: [true, true] }, glass: { same: true, chip: [true, true] }, inkOnChip: [] }),
+            "{per theme: the GM tile's [background, edge, brush] the action tile's; its chip's [edge, ink] red; the glass's rules giving the chip the ink}");
+    }],
+    ["R5432 - a pick row on the GM's road keeps an ordinary row's look and carries the chip (E107): ui-columns.mjs `choiceRowHtml` draws a `gmRoute` row with `drpg-gm-route` (R121's mark) and the GM chip (`.drpg-action-gm`, DRPG.Action.waitsForGm), a plain row with none; under both themes the GM row's edge and its glass kind, picked or not, are the plain row's, and the chip is red and stands out of the row's flow", async () => {
+        /*
+         * E107, 13.11.2026. The rows an action window, a crisis menu and a Call window pick from (Analyze's hint, Observe's
+         * two, Tamper's Reshape, Search's specific, a project's proposal, a crisis row a GM approves) wore the GM's red
+         * on the row: a 3 px red left edge under Legacy, the glass's indicator in the GM red and, once picked, the whole
+         * row brushed in the lighter GM red (the shot of Analyze's window on E100's review page). Read: the row's markup
+         * as `choiceRowHtml` builds it, and the cascade per theme on a plain row and a GM row, unpicked and picked - the
+         * winning edge (`border-left-color` / `border-left` / `border-color` / `border`) and `--kind` (the declaration's
+         * text), the chip's edge, ink and position, and its ink on the picked row (the glass gives every `span` of a
+         * picked row the brush's ink: Chromium on E107's first cut, the chip grey on Analyze's picked hint). Red at
+         * 8d7aa91f: no chip; the GM row's edge and kind its own red. Red at E107's first cut: the picked chip's ink.
+         */
+        const { choiceRowHtml } = await import("./ui-columns.mjs");
+        const C = await styleCascade();
+        const RED = /--drpg-(?:eye|crimson|sg-gm|kit-role-gm-route)/;
+        const word = game.i18n.localize("DRPG.Action.waitsForGm");
+        const row = (gmRoute, checked) => choiceRowHtml({ value: gmRoute ? "gm" : "plain", label: "Row", hint: "Hint", icon: "fa-star", gmRoute }, { checked, name: "r5432" });
+        const markup = document.createElement("div");
+        markup.innerHTML = row(true, false) + row(false, false);
+        const [gmRow, plainRow] = markup.querySelectorAll(".drpg-choice");
+        const read = {
+            markup: [gmRow.classList.contains("drpg-gm-route"), gmRow.querySelector(".drpg-action-gm")?.textContent?.trim() === word, plainRow.querySelector(".drpg-action-gm") === null]
+        };
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const root = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            root.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel"><section class="window-content"><div class="dialog-content">`
+                + row(false, false) + row(true, false) + `</div><div class="dialog-content">` + row(false, true) + row(true, true) + `</div></section></div>`;
+            const [plain, gm, plainPicked, gmPicked] = body.querySelectorAll(".drpg-choice");
+            const v = (el, props) => C.winner(el, [props].flat())?.value?.trim() ?? null;
+            /* the chip's edge is red when it names a red, or is `currentColor` mixed over a red ink (the glass's chip) */
+            const edgeRed = el => { const edge = v(el, ["border-color", "border"]) ?? ""; return RED.test(edge) || (/currentColor/i.test(edge) && RED.test(v(el, "color") ?? "")); };
+            const look = el => [v(el, ["border-left-color", "border-left", "border-color", "border"]), v(el, "--kind")];
+            const chip = gm.querySelector(".drpg-action-gm");
+            const pickedChip = gmPicked.querySelector(".drpg-action-gm");
+            read[theme] = {
+                pickedInk: pickedChip ? RED.test(v(pickedChip, "color") ?? "") : "no chip",
+                same: [[gm, plain], [gmPicked, plainPicked]].map(([a, b]) => stableJson(look(a)) === stableJson(look(b)) || `${stableJson(look(a))} against ${stableJson(look(b))}`),
+                chip: chip ? [edgeRed(chip), RED.test(v(chip, "color") ?? ""), v(chip, "position")] : "no chip"
+            };
+        }
+        equal(stableJson(read), stableJson({
+            markup: [true, true, true],
+            legacy: { pickedInk: true, same: [true, true], chip: [true, true, "absolute"] },
+            glass: { pickedInk: true, same: [true, true], chip: [true, true, "absolute"] }
+        }), "{markup: [the GM row's drpg-gm-route, its chip's word, a plain row's no chip]; per theme: the picked row's chip's ink red; the GM row's [edge, kind] the plain "
+            + "row's [unpicked, picked]; its chip's [edge red, ink red, position]}");
+    }],
+
+    ["R5433 - a sheet tile's cost stripe takes its kind's colour under Monokuma Legacy (E107 part 2): free Bone, an action Dim, Sanity Blood, and a tile on the GM's road the action's Dim (its chip is its red, R5431); under Stained Glass the same pseudo-element is the tile's brush whatever the kind", async () => {
+        /*
+         * E107 part 2, 13.11.2026. Found by E107: under Legacy every stripe computed rgba(228, 222, 216, 0.34) (Chromium,
+         * the style harness's sheet), the base rule's `--drpg-line-strong`. Until ab9957d2 (10.09.2026) the base rule was
+         * `.drpg-action-button[data-drpg-cost-kind]::before` (0,2,1), written before the four kinds' rules of the same
+         * weight, so each kind won: free Bone, action Dim, gm the eye, stress Blood. ab9957d2 scoped the base to Legacy
+         * (`body.drpg-theme-monokuma-legacy ...`, 0,3,2) and from then on it outranked every kind. The GM's red is not put
+         * back: since E107 (the owner, 13.11.2026: a GM's tile is an ordinary tile with only the red chip) a tile on the
+         * GM's road takes the action's stripe. Read: the cascade per theme on one tile per kind - the winning `background`
+         * / `background-color` of `::before` (the declaration's text). Red at b9dab19d: every kind under Legacy read
+         * `var(--drpg-line-strong)`.
+         */
+        const C = await styleCascade();
+        const KINDS = ["free", "action", "gm", "stress"];
+        const read = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const root = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            root.append(body);
+            body.innerHTML = `<div class="application sheet actor"><div class="drpg-action-grid">${KINDS.map(kind => `<button type="button" class="drpg-action-button" `
+                + `data-drpg-action="r5433${kind}" data-drpg-cost-kind="${kind}"><span class="drpg-action-name">Name</span><span class="drpg-action-cost">1</span></button>`).join("")}</div></div>`;
+            read[theme] = Object.fromEntries([...body.querySelectorAll(".drpg-action-button")].map((tile, i) =>
+                [KINDS[i], C.winner(tile, ["background", "background-color"], "::before")?.value?.trim() ?? null]));
+        }
+        equal(stableJson(read), stableJson({
+            legacy: { free: "var(--drpg-bone)", action: "var(--drpg-dim)", gm: "var(--drpg-dim)", stress: "var(--drpg-blood)" },
+            glass: { free: "var(--brush)", action: "var(--brush)", gm: "var(--brush)", stress: "var(--brush)" }
+        }), "{per theme: the winning background of the stripe's ::before per cost kind}");
+    }],
+    ["R5434 - a Tier 0 item's Use on the GM's road wears the GM chip (E107 part 2): sheet.mjs `addUseButton` writes the chip (`.drpg-action-gm`, DRPG.Action.waitsForGm) beside the flask when a GM rules the use and not otherwise; under both themes the button takes a plain Use's background, edge and glyph colour, and the chip's edge and ink are red", async () => {
+        /*
+         * E107 part 2, 13.11.2026. Found by E107: the button carried `drpg-gm-route` and nothing painted it - measured on the
+         * style harness's sheet in Chromium, a Use on the GM's road computed exactly as a plain one in both themes - so only
+         * its tooltip said a GM rules it, while R121 read the class and called it red. Read: `addUseButton`'s source
+         * (comments stripped) for the chip under `askGm`, and the cascade per theme on a plain Use and a GM Use in an
+         * inventory row - the winning background, edge and the glyph's colour, and the chip's edge and ink (red when they
+         * name the eye, the crimson or the glass's GM red, or an edge of `currentColor` over a red ink). Red at b9dab19d: no chip.
+         */
+        const src = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        must(src.length > 10000, "sheet.mjs was not read");
+        const use = fnSource(src, "addUseButton");
+        const C = await styleCascade();
+        const RED = /--drpg-(?:eye|crimson|sg-gm)/;
+        const word = game.i18n.localize("DRPG.Action.waitsForGm");
+        const read = {
+            markup: /askGm \? `<span class="drpg-action-gm">\$\{game\.i18n\.localize\("DRPG\.Action\.waitsForGm"\)\}<\/span>` : ""/.test(use)
+        };
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const root = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            root.append(body);
+            const button = gm => `<button type="button" class="drpg-row-button drpg-row-use${gm ? " drpg-gm-route" : ""}" data-drpg-row-action="use">`
+                + `<i class="fa-solid fa-flask" inert></i>${gm ? `<span class="drpg-action-gm">${word}</span>` : ""}</button>`;
+            body.innerHTML = `<div class="application sheet actor"><ul class="drpg-inventory-list"><li><span class="drpg-item-name">Thing</span>${button(false)}${button(true)}</li></ul></div>`;
+            const [plain, gm] = body.querySelectorAll(".drpg-row-use");
+            const v = (el, props) => C.winner(el, [props].flat())?.value?.trim() ?? null;
+            const edgeRed = el => { const edge = v(el, ["border-color", "border"]) ?? ""; return RED.test(edge) || (/currentColor/i.test(edge) && RED.test(v(el, "color") ?? "")); };
+            const look = el => [v(el, ["background", "background-color"]), v(el, ["border-color", "border"]), v(el.querySelector("i"), "color")];
+            const chip = gm.querySelector(".drpg-action-gm");
+            read[theme] = { same: stableJson(look(gm)) === stableJson(look(plain)) || `${stableJson(look(gm))} against ${stableJson(look(plain))}`,
+                chip: [edgeRed(chip), RED.test(v(chip, "color") ?? "")] };
+        }
+        equal(stableJson(read), stableJson({ markup: true, legacy: { same: true, chip: [true, true] }, glass: { same: true, chip: [true, true] } }),
+            "{markup: addUseButton writes the chip under askGm; per theme: the GM Use's [background, edge, glyph] a plain Use's; its chip's [edge, ink] red}");
     }],
 
     /* ======================================================================

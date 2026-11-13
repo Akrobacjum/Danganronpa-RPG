@@ -3854,7 +3854,8 @@ function addUseButton(li, item, app) {
     // Hiding it would read as the item having changed into something else.
     const broken = isBroken(item);
     /* A TIER 0 THING'S USE IS A REQUEST TO THE GM (E22 C5c; A4, audit S03-26): it has no table row, so a GM rules on
-       what the player writes (use-items.mjs `useCreatively`) - red, with the GM's word in its tooltip, where "Use this
+       what the player writes (use-items.mjs `useCreatively`) - the GM's chip beside the flask (E107 part 2; until then a
+       `drpg-gm-route` class that painted nothing on this button) and the GM's word in its tooltip, where "Use this
        item." promised the item would simply work. In a fight it is a crisis action, which no GM rules (below), so it
        is the plain Use there. */
     const askGm = !broken && usedCreatively(item) && !inCrisis(app.document);
@@ -3868,7 +3869,8 @@ function addUseButton(li, item, app) {
     button.disabled = broken;
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-flask" inert></i>`;
+    // The GM's chip beside the flask (E107 part 2, R5434): the class alone painted nothing on this button.
+    button.innerHTML = `<i class="fa-solid fa-flask" inert></i>${askGm ? `<span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>` : ""}`;
 
     button.addEventListener("click", async () => {
         /*
