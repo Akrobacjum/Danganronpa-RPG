@@ -47,7 +47,7 @@ function zoneLine(side, zone, sides) {
  * The console's middle for a zone floor (`ZONE_PANELS`' `panel`): `view.floor` the floor, `view.sides` the sides
  * (`sidesNow`) - read here when not handed in.
  */
-export function zonePanelHtml({ floor, sides = null } = {}) {
+function zonePanelHtml({ floor, sides = null } = {}) {
     const zone = zoneOf(floor);
     if (!zone) return "";
     const s = sides ?? sidesNow({ floor });
@@ -117,7 +117,7 @@ export function namesIn(text, names = game.actors?.filter?.(a => a.type === "cha
 }
 
 /** Why a set as typed cannot be saved, in the GM's words, or null: a name; 1-5 questions, each with two answers and a truth. */
-export function setRefusal(set) {
+function setRefusal(set) {
     if (!String(set?.name ?? "").trim()) return game.i18n.localize("DRPG.Zones.dive.editor.noName");
     const qs = Array.isArray(set?.questions) ? set.questions : [];
     const max = Number(TRIAL.modes.zones.dive.maxQuestions) || 5;
@@ -130,7 +130,7 @@ export function setRefusal(set) {
 }
 
 /** Save a set (any GM): `id` null for a new one. Answers its id, or null when refused (told). */
-export async function saveDiveSet(id, set) {
+async function saveDiveSet(id, set) {
     if (!game.user.isGM) return null;
     const refused = setRefusal(set);
     if (refused) {
@@ -217,7 +217,7 @@ export async function editDiveSet(id = null) {
 }
 
 /** A set deleted, after the GM's yes. */
-export async function deleteDiveSet(id) {
+async function deleteDiveSet(id) {
     if (!game.user.isGM || !diveSetStore.get(id)) return false;
     const yes = await drpgConfirm({ title: game.i18n.localize("DRPG.Zones.dive.editor.deleteTitle"),
         body: `<p>${esc(game.i18n.format("DRPG.Zones.dive.editor.deleteBody", { name: diveSetStore.get(id)?.name ?? "-" }))}</p>`,
@@ -232,7 +232,7 @@ export async function deleteDiveSet(id) {
  * ========================================================================== */
 
 /** The picker's body: a mode each, its fields; a Logic Dive's set list with each set's replay warning. */
-export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = null } = {}) {
+function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = null } = {}) {
     // a node's planned minigame (case-trial.mjs `startFromNode`, 13.11.2026): its fields filled in, its set picked
     const p = key => esc(plan?.[key] ?? "");
     const L = key => game.i18n.localize(key);
@@ -360,7 +360,7 @@ export async function openDiveSets() {
  * ========================================================================== */
 
 /** The Findings window's list: each Finding with Edit, Delete and "Monokuma confirms" (greyed once confirmed). */
-export function findingsListHtml(list) {
+function findingsListHtml(list) {
     if (!list.length) return `<p>${esc(game.i18n.localize("DRPG.Zones.findings.none"))}</p>`;
     const L = key => esc(game.i18n.localize(key));
     return `<ul class="drpg-findings-list">${list.map(f => `<li data-drpg-finding="${esc(f.id)}"><span>${esc(f.text)}</span>
@@ -425,7 +425,7 @@ let pickOpenFor = null;
  * A zone mode on the floor and this player's student taking part with no token in the hall: a window to pick Zone A or
  * Zone B (bridge "trial.side"), once per mode's opening. Called from trial-floor.mjs `renderTrialFloor` on every client.
  */
-export async function offerSidePick(floor) {
+async function offerSidePick(floor) {
     const zone = zoneOf(floor);
     if (!zone || game.user.isGM) return;
     const key = `${floor.mode}|${zone.openedAt}`;
@@ -468,7 +468,7 @@ function lineColour() {
 }
 
 /** Take the drawing down. */
-export function clearZoneDrawing() {
+function clearZoneDrawing() {
     try {
         drawn?.destroy?.({ children: true });
     } catch (err) {

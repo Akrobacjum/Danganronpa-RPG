@@ -1228,7 +1228,7 @@ export function spectatorAccount(user, { actors = null, held = actor => actor } 
  * Whether a Spectator's account talks in the Spectators' room (E92 C6): its own switch (scripts/spectator.mjs
  * `talkSwitchOn`), honoured for a Spectator's account alone. The flag is the player's own to write.
  */
-export function spectatorTalks(user, { actors = null, held = actor => actor } = {}) {
+function spectatorTalks(user, { actors = null, held = actor => actor } = {}) {
     return talkSwitchOn(user) && spectatorAccount(user, { actors, held });
 }
 
@@ -1282,7 +1282,7 @@ function accountRow(user, { actors, eclipse = false, trial = false, silenced, li
 
 /** The facts the trial's lines are read from on this browser, or null outside a Class Trial: the clock, the floor
  *  (`active` only, as trial-floor.mjs `trialFloor` reads it), the stored record and the season. */
-export function trialFacts() {
+function trialFacts() {
     const clock = getClock();
     if (clock?.phase !== "classTrial") return null;
     const floor = getSetting(SETTINGS.trialQueue) ?? {};
@@ -1531,7 +1531,7 @@ function scheduleTrialVoices() {
         settleTrialVoices().catch(err => error("Could not settle the trial's voices", err));
     }, 250);
 }
-export function registerTrialVoices() {
+function registerTrialVoices() {
     Hooks.on("drpgDeathsChanged", scheduleTrialVoices);
     Hooks.on("updateActor", (_actor, changes) => {
         // Any of the module's flags (a death, a revival, a Monocub's) or the ownership; the settle reads what stands.
@@ -1953,7 +1953,7 @@ export function contestedWarning(userId, list, chosen) {
  * @param {{main: string, dead: string}} words
  * @returns {string}
  */
-export function placeName(row, { main, dead }) {
+function placeName(row, { main, dead }) {
     if (isDeadRoom(row?.target)) return dead;
     return row?.room ?? main;
 }

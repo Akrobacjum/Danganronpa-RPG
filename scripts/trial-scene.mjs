@@ -206,7 +206,7 @@ export function isCastToken(tokenDoc) {
 }
 
 /** The hall's cast: its tokens whose actor is a "character". */
-export function castTokens(scene) {
+function castTokens(scene) {
     return scene?.tokens?.filter?.(isCastToken) ?? [];
 }
 
@@ -373,7 +373,7 @@ export function castDiff(cast, { reveal, sceneId, rows = {}, epoch = seasonEpoch
  * its actor (E81 DZ6; the token's own 1.2.74 row as `castRow`'s fallback, this being the actor's first
  * token), else `defaultReveal` - and a second token of one actor never by a row. Pure: `castDiff` asks it.
  */
-export function castShows(token, { sceneId, rows = {}, epoch = seasonEpoch() } = {}) {
+function castShows(token, { sceneId, rows = {}, epoch = seasonEpoch() } = {}) {
     const row = token.second ? null : castRow(rows, sceneId, token.actorId, epoch, token.id);
     return row ? row.reveal : defaultReveal(token);
 }
@@ -1627,7 +1627,7 @@ export function hallPreparePatch(scene, { playlist = false, voice = false,
 }
 
 /** "Prepare the hall" on a GM: one update of `hallPreparePatch`'s fields, told to this GM. Answers the fields written. */
-export async function prepareTrialScene(scene, { playlist = false, voice = false } = {}) {
+async function prepareTrialScene(scene, { playlist = false, voice = false } = {}) {
     if (!game.user?.isGM || !scene) return null;
     const update = hallPreparePatch(scene, { playlist, voice });
     if (Object.keys(update).length) await scene.update(update);

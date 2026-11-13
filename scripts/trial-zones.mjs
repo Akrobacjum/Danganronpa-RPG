@@ -126,7 +126,7 @@ export function snapshotStands(hall = trialScene(), participants = trialParticip
  * The hall's tokens back on their stands, in one write of the hall on the primary GM (`stands` as `snapshotStands`
  * kept them): only a token still there and not on its stand. Answers how many it moved.
  */
-export async function returnToStands(stands, hall = trialScene()) {
+async function returnToStands(stands, hall = trialScene()) {
     if (!isPrimaryGm() || !hall || !stands || typeof stands !== "object") return 0;
     const rows = Object.entries(stands).flatMap(([id, at]) => {
         const token = hall.tokens?.get?.(id);

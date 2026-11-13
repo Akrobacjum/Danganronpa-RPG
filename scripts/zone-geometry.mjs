@@ -22,7 +22,7 @@ import { MODULE_ID } from "./config.mjs";
 import { sceneRoles, trialScene } from "./rooms.mjs";
 
 /** The two zones' keys, in the order they are named: Zone A, Zone B. */
-export const ZONE_SIDES = Object.freeze(["a", "b"]);
+const ZONE_SIDES = Object.freeze(["a", "b"]);
 
 /** The zones as stored in `roles` (`sceneRoles`): `{ a, b }`, each a region id or null. Pure. */
 export function storedZones(roles = sceneRoles()) {
@@ -64,7 +64,7 @@ function boxOf(region) {
  * Whether `region` holds the point (`x`, `y`) at `elevation`: `testPoint` where the region can be asked, else its
  * polygon tree, else its box (the module's own chain, movement.mjs `piecesAt`; a region asked that says no is outside).
  */
-export function regionHolds(region, x, y, elevation = 0) {
+function regionHolds(region, x, y, elevation = 0) {
     if (!region) return false;
     if (typeof region.testPoint === "function") {
         try {
@@ -91,7 +91,7 @@ export function zoneAt(regions, x, y, elevation = 0) {
 }
 
 /** A token's centre on its scene: its own `center` where it has one, else from its size and the scene's grid. */
-export function tokenCentre(tokenDoc) {
+function tokenCentre(tokenDoc) {
     const c = tokenDoc?.center;
     if (c && Number.isFinite(c.x) && Number.isFinite(c.y)) return { x: c.x, y: c.y };
     const size = tokenDoc?.parent?.grid?.size ?? 100;
@@ -123,7 +123,7 @@ export function tokenZone(regions, tokenDoc) {
  * missed, and the warning says "part of the hall", never how much. A gridded hall is sampled whole, whatever it costs:
  * a 100 x 100 grid is 10 000 points, measured at 9-14 ms headless on 12.11 (R3901's planted hall).
  */
-export const COVERAGE = Object.freeze({ gridlessStep: 50, budgetMs: 200 });
+const COVERAGE = Object.freeze({ gridlessStep: 50, budgetMs: 200 });
 
 /** `{ checked, gap, overlap, samples }` for the two zones on `scene`. Null when either zone is missing. */
 export function zoneCoverage(scene, regions = zoneRegions(scene), { budgetMs = COVERAGE.budgetMs, now = () => performance.now() } = {}) {

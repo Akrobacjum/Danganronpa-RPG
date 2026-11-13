@@ -46,7 +46,7 @@ export function panicSuggest(participants = 0) {
  * Why a round of `mode` cannot start with a turn of `seconds`, in the GM's words, or null: the machine's own range
  * (floor-machine.mjs `turnRange`), so the window, the API and the primary hold the same numbers.
  */
-export function roundRefusal(mode, seconds) {
+function roundRefusal(mode, seconds) {
     const range = turnRange(mode);
     if (!range) return game.i18n.localize("DRPG.Floor.bar.noMode");
     const s = Math.round(Number(seconds) || 0);
