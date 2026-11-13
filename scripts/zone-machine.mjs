@@ -21,8 +21,14 @@
  *          the count on the floor, then the judgement against the truth the step hands in (`ctx.truth`, never on the
  *          floor): right -> the next question (`ctx.next`) or, after the last, the set's Finding; wrong, or a tie (0:0
  *          too), ends the set and shows no truth (TR3, TR27). Skip question goes on with no answer kept.
- *   scrum  Scrum Debate. `setup` 45 s for the camps to form; then `speak`: 2 x the larger camp's turns, the smaller camp
- *          first, the camps in turn and each camp's speakers in rotation, `scrumTurnSeconds` each; anybody may cross
+ *   scrum  Scrum Debate, three phases in the owner's order (13.11.2026, after a table on 1.2.112: "a moment to pick
+ *          sides, a moment for each side to confer in separate LiveKit rooms, and then a moment for both sides to
+ *          debate"). `setup` (Sides) 45 s for the camps to form; its end - the clock, or the GM's Skip ("Sides set") -
+ *          keeps the camps as they stand then on the floor (`zone.camps`, actor ids) and opens `confer` (Camps confer)
+ *          for `conferSeconds` (120), in which each camp talks in a voice room of its own (voice.mjs `placeVoices`,
+ *          `conferCamps`); an empty camp at the Sides' end ends it as before. Confer's end - the clock or Skip - opens
+ *          `speak`: 2 x the larger camp's turns, the smaller camp first, the camps in turn and each camp's speakers in
+ *          rotation, `scrumTurnSeconds` each, counted from the camps as they stand at Confer's end; anybody may cross
  *          (each turn's speaker is taken from the camp as it stands then); an empty camp ends it, the other camp's
  *          answer a Finding; after the last turn the camps are told and no Finding is made (TR3 = 2).
  * Every end - its own, End this mode, the vote's opening - leaves no floor; the trial's discussion follows, and the
@@ -253,7 +259,57 @@ function scrumEmpty(floor, empty, counts, cards = []) {
         { zoneRecord: { finding: { text, question: zone.question, mode: floor.mode, side: won, ...counts } } });
 }
 
-/** Scrum Debate's setup over: the camps as they stand fix the turns and their length; the smaller camp speaks first. */
+/**
+ * THE CAMPS CONFERRING NOW: `{ a: [ids], b: [ids] }` while a Scrum Debate's floor is in its `confer` phase, else null.
+ * Pure over the stored floor, so the primary's voice pass (voice.mjs `voiceTargets`), the HUD and the console read one
+ * answer (R5912).
+ */
+export function conferCamps(floor) {
+    const zone = zoneOf(floor);
+    if (!zone || floor.mode !== ZONE_MODES.scrum || zone.phase !== "confer" || !floor.active) return null;
+    const ids = side => (Array.isArray(zone.camps?.[side]) ? zone.camps[side].filter(id => typeof id === "string" && id) : []);
+    return { a: ids("a"), b: ids("b") };
+}
+
+/**
+ * The camp a viewer confers with: "a" or "b" for the first camp holding an actor `owns(actorId)` answers true for, null
+ * when no camp confers or the viewer has nobody in one (a GM, the dead, a late joiner). Pure: the HUD and the trial's
+ * card hand in the ownership (R5915).
+ */
+export function conferCampOf(floor, owns = () => false) {
+    const camps = conferCamps(floor);
+    if (!camps) return null;
+    return camps.a.some(id => owns(id)) ? "a" : camps.b.some(id => owns(id)) ? "b" : null;
+}
+
+/**
+ * The line a viewer's HUD and trial card say under the mode while the camps confer, as an i18n key and its words, or
+ * null outside Confer: "You confer with Zone {zone}." for a player in a camp, "Zone A and Zone B confer apart." for a
+ * GM, "You are in neither camp..." for a player outside both.
+ */
+export function conferLineOf(floor, { owns = () => false, gm = false } = {}) {
+    if (!conferCamps(floor)) return null;
+    if (gm) return { key: "DRPG.Zones.confer.apart", words: {} };
+    const camp = conferCampOf(floor, owns);
+    return camp ? { key: "DRPG.Zones.confer.mine", words: { zone: camp.toUpperCase() } } : { key: "DRPG.Zones.confer.none", words: {} };
+}
+
+/**
+ * Scrum Debate's Sides over (the clock, or the GM's "Sides set"): an empty camp ends it, as before E73's confer; else the
+ * camps as they stand are kept on the floor and confer apart for `conferSeconds`. `conferBegun` tells the step to say so
+ * to the GMs when the voices cannot be split (trial-zones.mjs `conferNotice`).
+ */
+function scrumConfer(floor, ctx, now) {
+    const counts = countsOf(ctx.sides);
+    const empty = ["a", "b"].find(side => counts[side] === 0);
+    if (empty) return scrumEmpty(floor, empty, counts);
+    const seconds = Number(cfg().scrum?.conferSeconds) || 120;
+    const camps = { a: [...ctx.sides.a], b: [...ctx.sides.b] };
+    const told = card(floor.mode, "DRPG.Zones.scrum.confer", { a: String(counts.a), b: String(counts.b), seconds: String(seconds) });
+    return { floor: phase(floor, "confer", seconds, now, { camps }), cards: [told], conferBegun: true };
+}
+
+/** Scrum Debate's Confer over: the camps as they stand fix the turns and their length; the smaller camp speaks first. */
 function scrumBegin(floor, ctx, now) {
     const counts = countsOf(ctx.sides);
     const empty = ["a", "b"].find(side => counts[side] === 0);
@@ -271,7 +327,8 @@ function zoneDue(floor, ctx, now, { skip = false } = {}) {
     const zone = zoneOf(floor);
     if (floor.mode === ZONE_MODES.straw) return strawCount(floor, ctx);
     if (floor.mode === ZONE_MODES.dive) return zone.phase === "vote" ? diveCount(floor, ctx, now) : diveJudge(floor, ctx, now);
-    if (zone.phase === "setup") return scrumBegin(floor, ctx, now);
+    if (zone.phase === "setup") return scrumConfer(floor, ctx, now);
+    if (zone.phase === "confer") return scrumBegin(floor, ctx, now);
     const skipped = skip && floor.holderId ? [{ key: "DRPG.Floor.turnSkipped", actorId: floor.holderId }] : [];
     return scrumTurn(floor, ctx, now, skipped);
 }

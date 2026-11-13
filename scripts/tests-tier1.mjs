@@ -9433,10 +9433,13 @@ const INVARIANTS = [
         must(M && typeof M.scrumTurnSeconds === "function", "there is no zone-machine.mjs scrumTurnSeconds");
         const start = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "In", b: "Out" } }, { now: 0 });
         const camps = { a: ["x1", "x2", "x3"], b: ["y1", "y2"] };
+        // The setup's end opens the camps' Confer since the owner's 13.11.2026 (R5910), and the Confer's end the turns:
+        // changed on purpose, the turns read from the second step.
         let r = M.zoneStep(start.floor, { type: "due" }, { now: 46_000, sides: camps });
+        r = M.zoneStep(r.floor, { type: "due" }, { now: 167_000, sides: camps });
         const speakers = [r.floor.holderId];
         const first = { turns: r.floor.zone.turns, seconds: r.floor.seconds, side: r.floor.zone.side };
-        let now = 46_000;
+        let now = 167_000;
         for (let i = 0; i < 5; i++) {
             now += 41_000;
             r = M.zoneStep(r.floor, { type: "due" }, { now, sides: camps });
@@ -9451,6 +9454,152 @@ const INVARIANTS = [
             seconds: [40, 37.5, 20, 20, 0], turns: 8, first: { turns: 6, seconds: 40, side: "b" }, speakers: ["y1", "x1", "y2", "x2", "y1", "x3"],
             last: [null, ["DRPG.Zones.scrum.over"], false], emptied: [null, "In", "DRPG.Zones.scrum.empty"]
         }), "{seconds: 3:2, 4:3, 8:7, 10:5, 0:0; turns of 4:3; first: [turns, seconds, the smaller camp]; speakers in order; last: [floor, cards, a Finding]; emptied: [floor, Finding, card]}");
+    }],
+    ["R5910 - Scrum Debate's three phases in the owner's order (13.11.2026: \"a moment to pick sides, a moment for each side to confer in separate LiveKit rooms, and then a moment for both sides to debate\"): Sides (`setup`, 45 s), Camps confer (`confer`, config.mjs `conferSeconds` 120) with the camps kept on the floor as they stood at the Sides' end, then the turns (`speak`) counted from the camps as they stand at Confer's end; Skip ends either phase early (\"Sides set\", \"End the confer\") and +30 s extends it; no early end in Confer; an empty camp at either end ends it with the other camp's answer", async () => {
+        /* Pure (zone-machine.mjs). Red at ceb9e9c8: the Sides' end opened the turns at once - no `confer` phase, no camps kept. */
+        const { TRIAL } = await import("./config.mjs");
+        const M = await import("./zone-machine.mjs");
+        const camps = { a: ["x1", "x2", "x3"], b: ["y1", "y2"] };
+        const start = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "In", b: "Out" } }, { now: 0 }).floor;
+        const confer = M.zoneStep(start, { type: "due" }, { now: 46_000, sides: camps });
+        const early = M.zoneStep(confer.floor ?? start, { type: "due" }, { now: 106_000, sides: { a: camps.a, b: [] } });
+        const plus = M.zoneStep(confer.floor ?? start, { type: "adjust", seconds: 30 }, { now: 106_000, sides: camps });
+        const sidesSet = M.zoneStep(start, { type: "skip" }, { now: 10_000, sides: camps });
+        const over = M.zoneStep(confer.floor ?? start, { type: "skip" }, { now: 60_000, sides: camps });
+        const clock = M.zoneStep(confer.floor ?? start, { type: "due" }, { now: 167_000, sides: { a: ["x1", "x2"], b: ["y1", "y2", "x3"] } });
+        const emptied = M.zoneStep(confer.floor ?? start, { type: "due" }, { now: 167_000, sides: { a: camps.a, b: [] } });
+        const emptyAtSides = M.zoneStep(start, { type: "due" }, { now: 46_000, sides: { a: ["x1"], b: [] } });
+        const read = r => (r?.floor ? { phase: r.floor.zone.phase, seconds: r.floor.seconds, camps: r.floor.zone.camps ?? null, holder: r.floor.holderId ?? null,
+            side: r.floor.zone.side ?? null, turns: r.floor.zone.turns ?? 0 } : { floor: r && "floor" in r ? r.floor : "refused", refused: r?.refused ?? null, finding: r?.zoneRecord?.finding?.text ?? null });
+        equal(stableJson({
+            config: TRIAL.modes.zones.scrum.conferSeconds, start: [start.zone.phase, start.seconds],
+            confer: { ...read(confer), cards: (confer.cards ?? []).map(c => c.key), begun: confer.conferBegun === true },
+            early: read(early), plus: plus.floor ? Math.round(((plus.floor.seconds) - (106_000 - plus.floor.startedAt) / 1000)) : null,
+            sidesSet: read(sidesSet).phase ?? null, over: read(over), clock: read(clock), emptied: read(emptied), emptyAtSides: read(emptyAtSides)
+        }), stableJson({
+            config: 120, start: ["setup", 45],
+            confer: { phase: "confer", seconds: 120, camps, holder: null, side: null, turns: 0, cards: ["DRPG.Zones.scrum.confer"], begun: true },
+            early: { floor: "refused", refused: "DRPG.Floor.round.notDue", finding: null }, plus: 90,
+            sidesSet: "confer", over: { phase: "speak", seconds: 40, camps, holder: "y1", side: "b", turns: 6 },
+            clock: { phase: "speak", seconds: 40, camps, holder: "x1", side: "a", turns: 6 },
+            emptied: { floor: null, refused: null, finding: "In" }, emptyAtSides: { floor: null, refused: null, finding: "In" }
+        }), "{config: conferSeconds; start: [phase, s]; confer: the Sides' end; early: Confer's due before its clock with a camp gone; plus: seconds left after +30 s at 60 s in; sidesSet: Skip in Sides; over: Skip in Confer; clock: Confer's clock with Zone B now the larger; emptied: Zone B empty at Confer's end; emptyAtSides}");
+    }],
+    ["R5911 - the camps' voice rooms (the owner's 13.11.2026): while the camps confer, voice.mjs `placeVoices` sends each camp member's account to its camp's LiveKit room (voice-client.mjs `SCRUM_ROOMS`) and never the other camp's; a GM, a Monokuma's GM, an account with no character and a player in neither camp (the dead, a latecomer) stay in the trial's room; with no camps (Confer over) or outside the trial nobody is moved by them; `voiceTargets` hands the floor's `conferCamps` only in the trial", async () => {
+        /* Plain objects, nothing written or sent (as R815). Red at ceb9e9c8: no `camps` fact, no SCRUM_ROOMS. */
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        const Z = await import("./zone-machine.mjs");
+        must(VC.SCRUM_ROOMS && typeof Z.conferCamps === "function", "no camp rooms (voice-client.mjs SCRUM_ROOMS) or no zone-machine.mjs conferCamps");
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const actor = id => ({ id, name: id, type: "character", getFlag: () => undefined });
+        const U = { a1: account("R5911UA1"), a2: account("R5911UA2"), b1: account("R5911UB1"), dead: account("R5911UDEAD"), late: account("R5911ULATE"),
+            gm: account("R5911UGM", true), bare: account("R5911UBARE"), gm2: account("R5911UGM2", true) };
+        const A = { a1: actor("R5911AA1"), a2: actor("R5911AA2"), b1: actor("R5911AB1"), dead: actor("R5911ADEAD"), late: actor("R5911ALATE"), monokuma: actor("R5911AMK") };
+        const owner = new Map([[A.a1, U.a1], [A.a2, U.a2], [A.b1, U.b1], [A.dead, U.dead], [A.late, U.late], [A.monokuma, U.gm]]);
+        const camps = { a: [A.a1.id, A.a2.id], b: [A.b1.id] };
+        const place = async ({ trial = true, given = camps } = {}) => {
+            const { byUser } = await V.placeVoices({ actors: Object.values(A), eclipse: false, trial, camps: given, death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                locate: () => null, userOf: a => owner.get(a) ?? null, dead: a => a === A.dead, monokumaOf: a => a === A.monokuma, users: Object.values(U) });
+            const label = t => (t === null || t === undefined ? "hall" : t === VC.SCRUM_ROOMS.a ? "A" : t === VC.SCRUM_ROOMS.b ? "B" : t === VC.SPECTATOR_ROOM ? "spectators" : `?${t}`);
+            return Object.fromEntries(Object.entries(U).map(([k, u]) => [k, label(byUser.get(u.id)?.target)]));
+        };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson({ rooms: VC.SCRUM_ROOMS, confer: await place(), over: await place({ given: null }), outside: await place({ trial: false }),
+            fed: /camps:\s*trial\s*\?\s*conferCamps\(getSetting\(SETTINGS\.trialQueue\)\)\s*:\s*null/.test(fnSource(src, "voiceTargets")) }), stableJson({
+            rooms: { a: "drpg-scrum-a", b: "drpg-scrum-b" },
+            confer: { a1: "A", a2: "A", b1: "B", dead: "hall", late: "hall", gm: "hall", bare: "hall", gm2: "hall" },
+            over: { a1: "hall", a2: "hall", b1: "hall", dead: "hall", late: "hall", gm: "hall", bare: "hall", gm2: "hall" },
+            // Outside the trial the ordinary rules hold: the dead student talks with the Spectators (E62 C3b), nobody in a camp.
+            outside: { a1: "hall", a2: "hall", b1: "hall", dead: "spectators", late: "hall", gm: "hall", bare: "hall", gm2: "hall" },
+            fed: true
+        }), "{rooms; confer: each account's room while the camps confer; over: no camps; outside: camps handed outside the trial; fed: voiceTargets reads the floor's camps in the trial only}");
+    }],
+    ["R5912 - zone-machine.mjs `conferCamps`: the camps only on an active Scrum Debate floor in its Confer phase - null with no floor, in Sides, in the turns, on another zone mode's floor or an ended one; ids that are not strings dropped", async () => {
+        /* Pure. Red at ceb9e9c8: no conferCamps. */
+        const M = await import("./zone-machine.mjs");
+        must(typeof M.conferCamps === "function", "no zone-machine.mjs conferCamps");
+        const scrum = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "A", b: "B" } }, { now: 0 }).floor;
+        const straw = M.zoneStart(null, { type: "zone", mode: "straw", question: "Q", answers: { a: "A", b: "B" } }, { now: 0 }).floor;
+        const confer = { ...scrum, zone: { ...scrum.zone, phase: "confer", camps: { a: ["p", 7, null], b: ["q"] } } };
+        equal(stableJson([null, scrum, { ...scrum, zone: { ...scrum.zone, phase: "speak", camps: { a: ["p"], b: ["q"] } } }, { ...straw, zone: { ...straw.zone, phase: "confer", camps: { a: ["p"], b: [] } } },
+            { ...confer, active: false }, confer].map(f => M.conferCamps(f))), stableJson([null, null, null, null, null, { a: ["p"], b: ["q"] }]),
+            "[no floor, Sides, the turns, a Straw Poll, an ended floor, Confer]");
+    }],
+    ["R5913 - no one is left in a camp room: from Sides, Confer and the turns, End this mode and the trial's end leave no floor, and Skip and the clock out of Confer open the turns - every road leaves `conferCamps` null; voice.mjs `conferTurn` asks the voice pass when the camps begin or stop conferring by any road and not on a write that leaves them as they were", async () => {
+        /* Pure. Red at ceb9e9c8: no confer phase, no conferTurn. */
+        const M = await import("./zone-machine.mjs");
+        const V = await import("./voice.mjs");
+        must(typeof M.conferCamps === "function" && typeof V.conferTurn === "function", "no conferCamps or no voice.mjs conferTurn");
+        const camps = { a: ["x1"], b: ["y1"] };
+        const start = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "A", b: "B" } }, { now: 0 }).floor;
+        const confer = M.zoneStep(start, { type: "skip" }, { now: 1000, sides: camps }).floor;
+        const speak = M.zoneStep(confer, { type: "skip" }, { now: 2000, sides: camps }).floor;
+        const roads = {};
+        for (const [name, floor] of Object.entries({ setup: start, confer, speak })) {
+            for (const type of ["endMode", "end", "skip", "due"]) {
+                const r = M.zoneStep(floor, { type }, { now: 999_000, sides: camps });
+                roads[`${name}.${type}`] = r.refused ? r.refused : M.conferCamps(r.floor) ? "camps" : r.floor ? r.floor.zone.phase : "none";
+            }
+        }
+        const t1 = V.conferTurn("", confer);
+        const t2 = V.conferTurn(t1.key, { ...confer, startedAt: 5 });
+        const t3 = V.conferTurn(t1.key, speak);
+        const t4 = V.conferTurn(t1.key, {});
+        const t5 = V.conferTurn("", speak);
+        equal(stableJson({ roads, turns: [t1.changed, t1.key !== "", t2.changed, t3.changed, t3.key, t4.changed, t5.changed] }), stableJson({
+            roads: { "setup.endMode": "none", "setup.end": "none", "setup.skip": "camps", "setup.due": "camps", "confer.endMode": "none", "confer.end": "none",
+                "confer.skip": "speak", "confer.due": "speak", "speak.endMode": "none", "speak.end": "none", "speak.skip": "speak", "speak.due": "speak" },
+            turns: [true, true, false, true, "", true, false]
+        }), "{roads: what each road leaves from each phase (camps = still conferring); turns: [Confer begun asks, its key, the same camps rewritten, Confer over, its key, the floor cleared, the turns with nothing seen]}");
+    }],
+    ["R5914 - Camps confer without split voices (the owner's 13.11.2026): trial-zones.mjs `voicesSplit` is true only with regional voice on and avclient-livekit active; `conferNotice` tells nothing where they split; the machine marks only the step into Confer (`conferBegun`), and trial-floor.mjs `commitFloor` asks the notice on it, so the GMs are told once per Confer", async () => {
+        /* Facts handed in; nothing whispered here (scenario 68 C reads the whisper). Red at ceb9e9c8: none of it. */
+        const Z = await import("./trial-zones.mjs");
+        const M = await import("./zone-machine.mjs");
+        must(typeof Z.voicesSplit === "function" && typeof Z.conferNotice === "function", "no trial-zones.mjs voicesSplit or conferNotice");
+        const camps = { a: ["x1"], b: ["y1"] };
+        const start = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "A", b: "B" } }, { now: 0 }).floor;
+        const into = M.zoneStep(start, { type: "skip" }, { now: 1000, sides: camps });
+        const plus = M.zoneStep(into.floor, { type: "adjust", seconds: 30 }, { now: 2000, sides: camps });
+        const out = M.zoneStep(into.floor, { type: "skip" }, { now: 3000, sides: camps });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        equal(stableJson({
+            split: [await Z.voicesSplit({ enabled: false, active: true }), await Z.voicesSplit({ enabled: true, active: false }), await Z.voicesSplit({ enabled: true, active: true })],
+            quiet: await Z.conferNotice({ split: true }), begun: [into.conferBegun === true, plus.conferBegun === true, out.conferBegun === true],
+            asked: /if \(result\.conferBegun\) await conferNotice\(\);/.test(fnSource(src, "commitFloor"))
+        }), stableJson({ split: [false, false, true], quiet: false, begun: [true, false, false], asked: true }),
+        "{split: [voice off, no LiveKit, both]; quiet: the notice where voices split; begun: [into Confer, +30 s in it, out of it]; asked: commitFloor asks the notice}");
+    }],
+    ["R5915 - Camps confer on screen (the owner's 13.11.2026): zone-machine.mjs `conferLineOf` says \"You confer with Zone {zone}.\" to a player in a camp, \"Zone A and Zone B confer apart.\" to a GM and \"You are in neither camp...\" to a player outside both, nothing outside Confer; the console's panel names the phase and the camps as kept; the bar's Skip reads \"Sides set\" in Sides and \"End the confer\" in Confer, and Skip elsewhere; each key in English and Polish", async () => {
+        /* Pure lines and markup, nothing drawn on the page. Red at ceb9e9c8: no Confer, no lines, no labels. */
+        const M = await import("./zone-machine.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const ZU = await import("./trial-zones-ui.mjs");
+        must(typeof M.conferLineOf === "function", "no zone-machine.mjs conferLineOf");
+        const camps = { a: ["x1", "x2"], b: ["y1"] };
+        const start = M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "A", b: "B" } }, { now: 0 }).floor;
+        const confer = M.zoneStep(start, { type: "skip" }, { now: 1000, sides: camps }).floor;
+        const speak = M.zoneStep(confer, { type: "skip" }, { now: 2000, sides: camps }).floor;
+        const line = (floor, opts) => { const l = M.conferLineOf(floor, opts); return l ? game.i18n.format(l.key, l.words) : null; };
+        const L = key => game.i18n.localize(key);
+        const box = document.createElement("div");
+        box.innerHTML = ZU.zonePanelHtml({ floor: confer });
+        const keys = ["confer.name", "confer.mine", "confer.apart", "confer.none", "confer.sidesSet", "confer.conferOver", "scrum.confer", "scrum.noVoice", "panel.scrum.confer"];
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())));
+        const has = (json, key) => typeof `DRPG.Zones.${key}`.split(".").reduce((o, k) => o?.[k], json) === "string";
+        equal(stableJson({
+            lines: [line(confer, { owns: id => id === "x2" }), line(confer, { owns: id => id === "y1" }), line(confer, { gm: true }), line(confer, {}), line(speak, { owns: id => id === "x2" })],
+            panel: [box.querySelector("[data-drpg-zone-panel]")?.textContent.includes(game.i18n.format("DRPG.Zones.panel.scrum.confer", { seconds: 0 }).split(" - ")[0]) ?? false,
+                [...box.querySelectorAll(".drpg-zone-count")].map(n => n.textContent)],
+            skip: [UI.barLabel("skip", 30, start), UI.barLabel("skip", 30, confer), UI.barLabel("skip", 30, speak)],
+            missing: keys.filter(k => !has(en, k) || !has(pl, k))
+        }), stableJson({
+            lines: [game.i18n.format("DRPG.Zones.confer.mine", { zone: "A" }), game.i18n.format("DRPG.Zones.confer.mine", { zone: "B" }), L("DRPG.Zones.confer.apart"), L("DRPG.Zones.confer.none"), null],
+            panel: [true, ["(2)", "(1)"]],
+            skip: [L("DRPG.Zones.confer.sidesSet"), L("DRPG.Zones.confer.conferOver"), L("DRPG.Floor.bar.skip")],
+            missing: []
+        }), "{lines: [a player in A, in B, a GM, nobody's, in the turns]; panel: [the phase named, the camps' counts]; skip: [Sides, Confer, the turns]; missing keys in en or pl}");
     }],
     ["R3909 - the zone modes' bar and its API agree (E73 C6; TR21: every GM intervention public and an API function): on a Straw Poll, a Logic Dive question and its pause, and a Scrum turn, trial-floor.mjs `barRefusal` lets Count now, Skip, -30 s, +30 s and End this mode be pressed where they move the floor and greys the rest with a reason - Count now outside a vote, Skip question outside Logic Dive, Back, Overrule and Re-point everywhere; each op the console draws there is a game.drpg function; and the vote's opening card carries the Findings (trial-progress.mjs `findingsHtml`, escaped, a confirmed one marked)", async () => {
         /* E73 C6, 12.11.2026. Planted floors at a fixed `now`, an empty record of receipts. Red at 4077664: no zone modes, no findingsHtml. */

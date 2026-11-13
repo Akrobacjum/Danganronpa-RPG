@@ -4366,7 +4366,9 @@ export const TRIAL = {
          * in a zone, then one count, a Finding at two thirds. Logic Dive: `seconds` a question, closed early once everybody
          * stands on one side after `earlyAfterSeconds` (chosen here, so stands left in one zone do not close a question at
          * its first second), then `pauseSeconds` with the count shown before the judgement; a set holds 1 to
-         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form, then 2 x the larger camp's turns of
+         * `maxQuestions`. Scrum Debate: `setupSeconds` for the camps to form (Sides), `conferSeconds` for each camp to talk
+         * apart in a voice room of its own (Camps confer; the owner's 13.11.2026 order, 120 s the coordinator's default),
+         * then 2 x the larger camp's turns of
          * `budgetSeconds` / turns, held to `minTurn`-`maxTurn` (3:2 40 s, 4:3 37.5 s, 8:7 20 s); a thesis up to
          * `thesisLength`. The texts' lengths: `questionLength`, `answerLength`. Chosen from the plan, not measured at a
          * table (LIVE-E73-02).
@@ -4374,7 +4376,7 @@ export const TRIAL = {
         zones: {
             straw: { seconds: 45 },
             dive: { seconds: 60, pauseSeconds: 5, earlyAfterSeconds: 10, maxQuestions: 5 },
-            scrum: { setupSeconds: 45, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
+            scrum: { setupSeconds: 45, conferSeconds: 120, budgetSeconds: 300, minTurn: 20, maxTurn: 40, thesisLength: 120 },
             questionLength: 200, answerLength: 80
         }
     },

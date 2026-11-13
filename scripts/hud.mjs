@@ -57,6 +57,7 @@ import { renderEvents } from "./events.mjs";
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
+import { conferLineOf } from "./zone-machine.mjs";
 import { trialVoiceLine } from "./voice.mjs";
 import { narrowColumn, narrowLayout } from "./narrow.mjs";
 import {
@@ -1156,6 +1157,13 @@ export function trialSlot() {
     }
 }
 
+/** The HUD's Confer line for this viewer, or null outside a Scrum Debate's Confer (zone-machine.mjs `conferLineOf`). */
+export function conferHudLine(isGM = game.user?.isGM === true, floor = trialFloor()) {
+    const line = conferLineOf(floor, { gm: isGM, owns: id => game.actors?.get?.(id ?? "")?.isOwner === true });
+    if (!line) return null;
+    return `${game.i18n.localize("DRPG.Zones.confer.name")}: ${game.i18n.format(line.key, line.words)}`;
+}
+
 function buildTimeRow(clock, isGM) {
     const row = document.createElement("div");
     row.className = "drpg-hud-time-row";
@@ -1191,6 +1199,16 @@ function buildTimeRow(clock, isGM) {
             const line = document.createElement("div");
             line.className = "drpg-hud-trial-voice";
             line.textContent = game.i18n.format(`DRPG.Voice.held.${voice.reason}`, voice.data ?? {});
+            slot.append(line);
+        }
+        /* A SCRUM DEBATE'S CAMPS CONFER (the owner's 13.11.2026): the phase and which camp this player confers with -
+           "Camps confer: You confer with Zone A." - and the GM's "Zone A and Zone B confer apart.", under the mode, while
+           the camps talk in their own rooms (voice.mjs `placeVoices`). Its clock is the trial card's (events.mjs). */
+        const camp = conferHudLine(isGM);
+        if (camp) {
+            const line = document.createElement("div");
+            line.className = "drpg-hud-trial-voice drpg-hud-trial-camp";
+            line.textContent = camp;
             slot.append(line);
         }
         return row;

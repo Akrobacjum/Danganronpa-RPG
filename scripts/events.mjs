@@ -28,6 +28,7 @@ import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor, locateActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
+import { conferLineOf } from "./zone-machine.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
     incidentWitness, isDeceased } from "./settings.mjs";
@@ -517,6 +518,13 @@ export function trialCard(clock) {
             // The Closing Argument (E70 C8): the speaker, or nobody, and the phase's line for the table.
             speaker = floor.holderId ? (floorHolder(floor)?.name ?? unknown) : null;
             meta = closingLine(floor) ?? meta;
+        }
+        /* A SCRUM DEBATE'S CAMPS CONFER (the owner's 13.11.2026): "Camps confer" under the mode, and which camp this
+           player talks with, or the GM's "Zone A and Zone B confer apart."; the clock below counts the Confer down. */
+        const confer = conferLineOf(floor, { gm: game.user.isGM, owns: id => game.actors?.get?.(id ?? "")?.isOwner === true });
+        if (confer) {
+            speaker = game.i18n.localize("DRPG.Zones.confer.name");
+            meta = game.i18n.format(confer.key, confer.words);
         }
         return {
             kind: "trial",

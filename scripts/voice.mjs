@@ -51,9 +51,11 @@ import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } fro
 import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore } from "./gm-stores.mjs";
-import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, SCRUM_ROOMS, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
+// A Scrum Debate's camps while they confer (the owner's 13.11.2026): zone-machine.mjs is pure and imports config.mjs alone.
+import { conferCamps } from "./zone-machine.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 
@@ -317,6 +319,16 @@ export function registerVoice() {
     // mid-conversation is a placement window everybody can hear - and ending it
     // puts them all back in a single pass.
     Hooks.on("drpgEclipseChanged", () => scheduleReconcile({ immediate: true, force: true }));
+    // A Scrum Debate's camps begin or stop conferring (the owner's 13.11.2026): the floor is a world setting every
+    // browser hears; a pass is asked at once only when the camps' rooms change (`conferTurn`), not on every floor write.
+    for (const hook of ["createSetting", "updateSetting"]) {
+        Hooks.on(hook, setting => {
+            if (setting?.key !== `${MODULE_ID}.${SETTINGS.trialQueue}`) return;
+            const turn = conferTurn(conferSeen, getSetting(SETTINGS.trialQueue));
+            conferSeen = turn.key;
+            if (turn.changed) scheduleReconcile({ immediate: true });
+        });
+    }
 
     Hooks.once("ready", () => {
         game.socket.on(SOCKET_EVENT, onVoiceSocket);
@@ -330,6 +342,21 @@ export function registerVoice() {
                 .catch(err => error("Could not place the voices once the cast arrived", err));
         }
     });
+}
+
+/** The camps this browser last saw conferring (`conferTurn`'s key), "" for none. */
+let conferSeen = "";
+
+/**
+ * Whether the Scrum Debate's conferring camps changed with a write of the floor (the owner's 13.11.2026; R5913): `seen`
+ * the key the browser held, `floor` the floor as stored now. `{ key, changed }`, the key "" when no camp confers - so the
+ * Confer's start, its end by any road (the clock, Skip, End this mode, the trial's end clearing the floor) and nothing
+ * else asks the voice pass. Pure.
+ */
+export function conferTurn(seen, floor) {
+    const camps = conferCamps(floor);
+    const key = camps ? JSON.stringify([camps.a, camps.b]) : "";
+    return { key, changed: key !== (seen ?? "") };
 }
 
 /** The document hooks `reconcileTrigger` answers. */
@@ -868,6 +895,7 @@ export async function voiceTargets() {
     const { rows, byUser, claims, waits, held } = await placeVoices({
         actors: game.actors.filter(a => a.type === "character" && !watchesForTheDead(a)), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
+        camps: trial ? conferCamps(getSetting(SETTINGS.trialQueue)) : null,
         locate: gaps.locate,
         users: game.users.filter(u => u.active)
     });
@@ -936,10 +964,12 @@ export function contestedOf(claims) {
  * @param {Function} [facts.dead]        the GMs' record (`isDeadForGm`)
  * @param {Function} [facts.monokumaOf]  `isMonokuma`
  * @param {User[]} [facts.users]         the connected accounts, each given a row of its own when no character gives one
+ * @param {{a: string[], b: string[]}|null} [facts.camps]  a Scrum Debate's camps while they confer (zone-machine.mjs
+ *   `conferCamps`), read only in the trial
  * @returns {Promise<{rows: Array, byUser: Map<string, object>, claims: Map<string, Array>, waits: Map<string, string[]>,
  *   held: Set<string>}>}  `held`: the players' accounts sent nothing while the cast is unknown (a kept account's room)
  */
-export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null,
+export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null, camps = null,
     userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma, users = [] } = {}) {
     // Nobody's death is asked in an Eclipse or the trial (`voiceClaim`; R117), so nor are the facts of one.
     const asked = !eclipse && !trial;
@@ -989,6 +1019,26 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
         const row = { actor: null, monokuma: false, user, ...voiceClaim({ user, eclipse, trial }) };
         if (asked) row.why = "no character - the main room";
         byUser.set(user.id, row);
+    }
+
+    /* THE SCRUM DEBATE'S CAMPS CONFER APART (the owner's 13.11.2026, after a table on 1.2.112: "a moment for each side
+       to confer in separate LiveKit rooms"). While the floor's Scrum Debate is in its Confer phase (zone-machine.mjs
+       `conferCamps`: the camps as they stood at the Sides' end, the trial's participants alone), a player's account
+       whose character is in a camp goes to that camp's room (voice-client.mjs `SCRUM_ROOMS`), so Zone A's members hear
+       only Zone A and Zone B's only Zone B. Nobody else moves: a GM (and a Monokuma, a GM's voice) stays in the trial's
+       room, as does every account the camps do not name - the dead on the trial's list, a Monocub, a late joiner. A
+       Spectator talking goes to the Spectators' room below, whatever it is. The claim stays the trial's. One rule of
+       this decision, so the reconcile, its retries, the who-am-I answer to a reload and the heartbeat all apply it; the
+       floor leaving Confer by any road gives every camp back to the trial's room on the next pass (`conferTurn`). */
+    if (trial && camps) {
+        const sideOf = new Map([...(camps.a ?? []).map(id => [id, "a"]), ...(camps.b ?? []).map(id => [id, "b"])]);
+        for (const [userId, row] of byUser) {
+            if (!row.user || row.user.isGM || row.monokuma) continue;
+            const side = (claims.get(userId) ?? []).map(r => sideOf.get(r.actor?.id)).find(Boolean) ?? null;
+            if (!side) continue;
+            byUser.set(userId, { ...row, target: SCRUM_ROOMS[side], camp: side,
+                why: `Scrum Debate - Zone ${side.toUpperCase()} confers in its own room` });
+        }
     }
 
     /* THE SPECTATORS' ROOM (E92 C6, 12.11.2026; the owner's 04.11 amend: "if one connection cannot listen in one room and

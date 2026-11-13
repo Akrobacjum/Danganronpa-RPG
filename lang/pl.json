@@ -1498,8 +1498,10 @@
         }
       },
       "scrum": {
-        "opened": "{question} Obozy się ustawiają: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Tury zaczną się za {seconds} s.",
-        "openedBare": "Obozy się ustawiają: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Tury zaczną się za {seconds} s.",
+        "opened": "{question} Wybierzcie stronę: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Obozy naradzą się za {seconds} s.",
+        "openedBare": "Wybierzcie stronę: Strefa A, jeśli {a}, Strefa B, jeśli {b}. Obozy naradzą się za {seconds} s.",
+        "confer": "Strony wybrane: Strefa A {a}, Strefa B {b}. Każdy obóz naradza się osobno przez {seconds} s, potem debata.",
+        "noVoice": "Głosy obozów nie są rozdzielone: głos w pokojach jest wyłączony albo LiveKit nie działa. Obozy naradzają się tak, jak pozwala stół.",
         "begins": "Pierwsza mówi Strefa {zone}; obozy mówią na zmianę po {seconds} s, do tury {turns}.",
         "over": "Scrum Debate dobiegła końca: Strefa A {a}, Strefa B {b}.",
         "empty": "Strefa {zone} jest pusta. Klasa uważa: {answer}.",
@@ -1518,9 +1520,18 @@
           "pause": "Pytanie {n} z {total} policzone - odpowiedź za {seconds} s."
         },
         "scrum": {
-          "setup": "Obozy się ustawiają - {seconds} s.",
+          "setup": "Strony: obozy się ustawiają - {seconds} s.",
+          "confer": "Narada obozów: każdy obóz w swoim pokoju głosowym - {seconds} s.",
           "speak": "Tura {turn} z {turns}: {who} mówi za Strefę {zone} - {seconds} s."
         }
+      },
+      "confer": {
+        "name": "Narada obozów",
+        "mine": "Naradzasz się ze Strefą {zone}.",
+        "apart": "Strefa A i Strefa B naradzają się osobno.",
+        "none": "Nie jesteś w żadnym obozie: zostajesz w głosie sali rozpraw.",
+        "sidesSet": "Strony wybrane",
+        "conferOver": "Zakończ naradę"
       },
       "picker": {
         "title": "Strefy sali",
@@ -1536,7 +1547,7 @@
         "hint": {
           "straw": "45 s, żeby każdy stanął w strefie, potem jedno liczenie. Dwie trzecie po jednej stronie to Finding.",
           "dive": "Pytania zestawu po kolei, po 60 s. Większość idzie dalej; zła odpowiedź albo remis kończą zestaw.",
-          "scrum": "45 s na ustawienie obozów, potem obozy mówią na zmianę, mniejszy pierwszy."
+          "scrum": "45 s na wybór stron, 120 s na osobną naradę obozów, potem obozy mówią na zmianę, mniejszy pierwszy."
         }
       },
       "pick": {
