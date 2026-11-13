@@ -95292,6 +95292,53 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ despair: [false, 1], hope: [false, 1], keptDespair: [true, 1] }),
             "Keep Watch's Sanity ([kept, Sanity marked after]: a miss with Despair, then a miss with Hope, then a kept watch with Despair)");
     }],
+    ["1.2.113 a Wounded student and the Long Rest - with no Health left and its one action, a Long Rest (two actions) is refused and nothing is spent or restored; with a banked Burst it is taken, the Burst paying the whole rest (rest.mjs `takeRest`, actions.mjs `canPayFor`, `spendAction`; the handbooks' Wounded, Rest and Burst rows)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. The handbooks: Wounded gives one action a time of day in Daily Life and the Investigation,
+         * the Long Rest costs two, a Burst makes "your next action cost nothing - the whole action, however many it would
+         * have cost". Neither book says in so many words whether a Wounded student may take a Long Rest; this measures
+         * what the code does. A cast student in Daily Life, every point of Health marked (Wounded), one action and no Burst,
+         * then one action and a Burst; the rest asked as `performRest` asks it, outside the room and the session's limit
+         * (`ignoreRoom`, `ignoreLimit`), its picker answered Sleep and Meal. Read: the answer, the actions, the Bursts and
+         * the Health marks after each. Not red first: it pins what a2b233d2 does.
+         */
+        const A = await import("./actions.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [student] = cast(1);
+        const clock = getClock() ?? {};
+        const R = "system.resources", ACTS = `${R}.actions.value`, HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        const putBack = sheetAsFound(student, [ACTS, HP, GRANTS]);
+        const hpMax = Number(foundry.utils.getProperty(student, HP_MAX)) || 0;
+        must(hpMax >= 1, `${student.name} has no Health maximum to mark full - this would measure nothing`);
+        const Dialog = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(Dialog, "wait");
+        const state = () => [A.actionsLeft(student), A.freeActionsLeft(student), Number(foundry.utils.getProperty(student, HP)) || 0];
+        const read = {};
+        try {
+            if (clock.phase !== "dailyLife" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            Dialog.wait = async () => ["sleep", "meal"];
+            await trustedWrite(student, { [HP]: hpMax, [ACTS]: 1, [GRANTS]: 0 }, { reason: "gmRuling" });
+            await settle();
+            read.wounded = [A.actionBudget(student).wounded, A.actionBudget(student).total];
+            const refused = await takeRest(student, "long", { ignoreRoom: true, ignoreLimit: true, quiet: true });
+            await settle();
+            read.noBurst = [refused === null, ...state()];
+            await trustedWrite(student, { [HP]: hpMax, [ACTS]: 1, [GRANTS]: 1 }, { reason: "gmRuling" });
+            await settle();
+            const taken = await takeRest(student, "long", { ignoreRoom: true, ignoreLimit: true, quiet: true });
+            await settle();
+            read.burst = [taken?.kind ?? null, ...state()];
+        } finally {
+            if (ownWait) Object.defineProperty(Dialog, "wait", ownWait); else delete Dialog.wait;
+            await putBack();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ wounded: [true, 1], noBurst: [true, 1, 0, hpMax], burst: ["long", 1, 0, 0] }),
+            "a Wounded student's Long Rest ([wounded, the budget]; with no Burst [refused, actions, Bursts, Health marked]; with a Burst [the rest taken, actions, Bursts, Health marked])");
+    }],
+
     ["E74-T5 - Room setup's Broken column shows a forced lock and mends it (scripts/room-setup.mjs, movement.mjs `roomBroken`, `setRoomBroken`; E74 C5, Q-E74-4): a room broken open draws its Broken box ticked and a room not broken unticked; an Apply with the box unticked mends the lock (the flag off on every piece), and the room's GM lock is left as it was", async () => {
         /*
          * E74 C5, 12.11.2026. Room setup is answered as E46-T1 answers it: `DialogV2.wait` stood in for, the form drawn from
