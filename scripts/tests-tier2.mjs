@@ -68973,7 +68973,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(J(read?.gone), J([3, "string", 3, 0, false]),
             "[the walls with the wall deleted, the close's refusal, the walls after it, the breach's rows, the Lab forced] - a close with its wall gone rebuilds or deletes something, or leaves the room beyond forced");
     }],
-    ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner gets the room's card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
+    ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner standing in it no second card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
         /*
          * E15 part 2 C4 (25.10.2026; A10's S16-17, step 15; the stage's E15-50 to E15-54, its write roads "a room's lock,
          * bedroom" and "a room's seal", and E14's Q1 of 18.10: "bez klucza tunelem i breach"). The harms: a breach that
@@ -69168,12 +69168,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[Botan's built passage open to him, to Hana; Botan through it into Kenta's Den, Botan into the Den by the door] - a built passage into a bedroom asks a key, or another's bedroom opens with none");
         equal(J(read?.cut), J([true, open, true]),
             "[crossed; the Lab forced on both pieces, its seal lifted, its lock lifted, Kenta walks in, the bedroom open to him here and anywhere, the Den still shut; the Despair as before] - the breach does not force the room beyond, or pays Despair back");
-        equal(J(read?.cards1), J([[[], ["thereNamed wallBreached"], ["heard wallBreached"]], [[], ["bedroom unsealed"], []]]),
-            "[the cards to Hana's, Botan's and Kenta's players: the builder's own none, Botan in the Lab named, Kenta in the Bath a crash; the room's card to its owner, with the lifted seal] - the wrong people told of a breach");
+        // Botan stands in his own Lab, the room beyond: he saw it done and gets that room's card alone - the bedroom's card
+        // with the lifted seal, which went to its owner wherever he stood until privacy line 1 (the owner's rule #1,
+        // 13.11.2026; doors-gm.mjs `noteBedroom`), is no second card (PV-DOORS-T3 holds the owner away).
+        equal(J(read?.cards1), J([[[], ["thereNamed wallBreached"], ["heard wallBreached"]], [[], [], []]]),
+            "[the cards to Hana's, Botan's and Kenta's players: the builder's own none, Botan in the Lab named, Kenta in the Bath a crash; no bedroom card to its owner, who stood in it] - the wrong people told of a breach");
         equal(J([read?.chained, read?.trial]), J(["chained", "trialLocked"]), "[a chained Kenta into the forced Lab, anyone into it in a Class Trial] - a breach frees a chained student or opens the courtroom");
         equal(J(read?.undone), J(shut), "[the Lab after the Reroll's undo in the same time of day] - the undo leaves the room forced, unlocked or unsealed");
-        equal(J(read?.cards2), J([[[], ["bedroom unsealed", "there wallBreached"], ["here wallBreached"]], false]),
-            "[the cards of a secret breach finished with Hana in the Yard: hers none, Botan in the Lab nameless with his room's card (the seal the undo put back, lifted again), Kenta in the Hall nameless; Hana's name in any card to them] - a builder who was not there is named");
+        equal(J(read?.cards2), J([[[], ["there wallBreached"], ["here wallBreached"]], false]),
+            "[the cards of a secret breach finished with Hana in the Yard: hers none, Botan in the Lab nameless and no second bedroom card (privacy line 1: he stood in it), Kenta in the Hall nameless; Hana's name in any card to them] - a builder who was not there is named");
         equal(J(read?.sealedAgain), J([true, "roomSealed"]), "[the Lab still forced, Kenta into it after a new seal] - a breach unseals a seal set after it");
         equal(J(read?.nextUndone), J({ ...shut, sealed: false, move: "doorLocked" }), "[the Lab after the undo in the next time of day] - a seal put back into a time of day it was not lifted in");
         equal(J(read?.reset), J([true, false, [null, null]]), "[the Lab forced again, after the reset, its pieces] - the reset leaves a room forced");
@@ -95935,6 +95938,156 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ gm: [[true, "armedForYouBy"]], player: ["bridge.done", [true, "armedForYouBy"]],
             monokuma: [[false, "armedByMonokuma"]], meddle: [[false, "armedByNobody"]] }),
             "{road: [[the buyer's name on the card, the sentence]]} - who a Call's card names");
+    }],
+    ["PV-DOORS-T3 - a bedroom's owner hears of their door forced, its lock picked carelessly, a wall breached into it or its lock repaired when they next walk into that bedroom, once, in one card; never at once from elsewhere, and never twice where they saw it done (scripts/doors-gm.mjs `noteBedroom`, `tellBedroomNotes`, `forceDoor`, `pickLock`, `repairLockDone`; passages-gm.mjs `tellBreach`; gm-stores.mjs `bedroomNoteStore`; traps.mjs `onCrossed`; the owner's rule #1, 13.11.2026): with the owner in a room apart, a careless pick, a forced door, a breach and a repair send the owner nothing; their crossing into the bedroom sends one card with the four sentences in that order, a second crossing none; with the owner beside the picker they get the named card and nothing on entering; with the owner inside the bedroom, a careless pick under cover is told at once, unnamed, and a forced door only by its named card", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026, built on the stash notice's mechanism (1.2.112: a GMs' pending mark, delivered
+         * on the owner's crossing into the room on the primary). Judged as the primary judges the player's packets
+         * (`G.judge`), each roll a message of the character's with the GMs' record of it (`recordFor`); the breach's card
+         * asked as its completion asks it (`tellBreach`), the repair's as its completion (`repairLockDone`), the owner's
+         * crossing as the relay hands it to the primary (`drpgRoomCrossed`). Rooms: the character's A, the owner's bedroom
+         * B next to it (Room Setup's neighbours and owner, written and put back), C beyond B, and one apart where the owner
+         * first stands. What the owner's player was sent is read off the packets (`wordsSent`), each card by its sentences.
+         * Put back: the records, the messages, the flags, the pass, the broken lock, the notes, the Remnants, the tokens.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const P = await import("./lockpick-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { tellBreach } = await import("./passages-gm.mjs");
+        const { esc, isPrimaryGm } = await import("./utils.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const { player, actor } = await playerInRoom();
+        const scene = canvas.scene;
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owner = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a) && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        must(owner, "no living student of another player with a token on the scene on screen - this would measure nothing");
+        const tokens = [actor, owner].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 4, `the scene on screen has ${rooms.length} rooms - too few for A, B, C and one apart`);
+        const [A, B, C, far] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B], [far]: [] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { requestId: `PVD3${foundry.utils.randomID(8)}`, actorId: actor.id, room: B, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+        };
+        const rollOf = async (key, total, withHope = true) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, withHope });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const pick = async (hand, cover) => {
+            const out = await ask({ action: "door.pick", rollId: await rollOf("pick", hand), coverRollId: await rollOf("pickCover", cover) });
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            return out;
+        };
+        const force = async total => ask({ action: "door.force", rollId: await rollOf("force", total) });
+        const stand = async (i, room) => { await tokens[i].update(M.positionIn(room, tokens[i]), PLACE); await settle(); };
+        const cross = async () => {
+            Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: B, tokenDoc: tokens[1] });
+            await settle();
+            await until(() => false, 400);
+            await settle();
+        };
+        const TEXTS = {
+            warned: () => esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room: B })),
+            yourDoor: () => esc(game.i18n.format("DRPG.Infiltrate.force.yourDoor", { room: B })),
+            breached: () => game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(B) }),
+            mended: () => esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room: B })),
+            picking: () => esc(game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room: B })),
+            forcedBy: () => esc(game.i18n.format("DRPG.Infiltrate.force.forcedBy", { name: actor.name, room: B }))
+        };
+        // Each card the owner's player was sent since the last read: the sentences it holds, in the order they stand in it.
+        let packets = [], seen = 0;
+        const cards = () => {
+            const all = packets.filter(w => w.to.some(id => readers(owner).includes(id)));
+            const fresh = all.slice(seen);
+            seen = all.length;
+            return fresh.map(w => Object.entries(TEXTS).map(([k, text]) => [k, w.html.indexOf(text())]).filter(([, at]) => at >= 0)
+                .sort((a, b) => a[1] - b[1]).map(([k]) => k));
+        };
+        const noteKeys = () => Object.keys(S.bedroomNoteStore?.entries?.() ?? {}).filter(k => k.startsWith(`${owner.id}:`));
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) {
+                keep(piece, M.ROOM_FLAGS.locked); keep(piece, ROOM_OWNER_FLAG);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+                await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+            }
+            await stand(0, A);
+            await stand(1, far);
+            cards();
+            // Away: a careless pick (an open below 18, covered), a forced door, a breach into it, the lock repaired.
+            const away = [await pick(15, 16), cards()];
+            away.push(await force(18), cards());
+            away.push(await tellBreach({ id: "PVD3breach", sceneId: scene.id, builderId: actor.id, forced: { room: B, from: A } }) >= 0, cards());
+            away.push(Boolean((await D.repairLockDone("PVD3project", { sceneId: scene.id, lockRoom: B }))?.mended), cards());
+            read.away = away;
+            await cross();
+            read.entered = cards();
+            await cross();
+            read.again = [cards(), noteKeys().length];
+            // Beside the picker: the named card (rule #8), and nothing waits.
+            await stand(1, A);
+            read.beside = [await pick(15, 16), cards()];
+            await stand(1, far);
+            await cross();
+            read.besideEntered = cards();
+            // Inside the bedroom: a covered careless pick told at once, unnamed; a forced door by its named card alone.
+            await stand(1, B);
+            read.inside = [await pick(15, 16), cards()];
+            read.inside.push(await force(18), cards());
+            await M.setRoomBroken(scene, B, false);
+            await cross();
+            read.insideEntered = [cards(), noteKeys().length];
+          });
+        } finally {
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            await M.setRoomBroken(scene, B, false);
+            for (const key of noteKeys()) await S.bedroomNoteStore.drop(key);
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            // Every card this test made: the doors', the breach's to the rooms and the GMs, the notes.
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ away: ["done", [], "done", [], true, [], true, []], entered: [["warned", "yourDoor", "breached", "mended"]],
+            again: [[], 0], beside: ["done", [["picking"]]], besideEntered: [], inside: ["done", [["warned"]], "done", [["forcedBy"]]], insideEntered: [[], 0] }),
+            "{away: [answer, the owner's cards] for a careless pick, a forced door, a breach, a repair, the owner in a room apart; entered: the cards on walking into the bedroom, each by its sentences in order; again: [a second crossing's, notes left]; beside: a pick with the owner in the picker's room; besideEntered; inside: a covered careless pick and a forced door with the owner in the bedroom; insideEntered: [cards, notes left]} - a bedroom's owner told on walking in");
     }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*

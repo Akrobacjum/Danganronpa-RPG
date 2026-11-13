@@ -24,13 +24,14 @@
  * `liftSeal`, no Despair back). Never in a Class Trial, never into the trial hall, never by a Chained character. On a
  * pass and on a miss with Despair (DA30), the students in the rooms next to either room hear "A banging from: {room}", no name
  * (DA43 = 1), and those in the two rooms are told who forced which door; on a miss with Hope only the character's own room
- * is told who tried (the owner's rule #8, 13.11.2026). A bedroom's owner is told their door was forced, wherever they are.
+ * is told who tried (the owner's rule #8, 13.11.2026). A bedroom's owner who did not see it is told their door was forced on
+ * walking back into it, or at once in it (the owner's rule #1, 13.11.2026; `noteBedroom`, below).
  *
  * PICK THE LOCK (E74 C4; DA9, DA29, DA30, DA31 = 2). At a door to a neighbouring room held by a lock (a GM's or a bedroom's)
  * or a seal, never a barricade: Hand at `INFILTRATE.pick.dc` (15) opens it, a critical too, and the picker holds a pass to
  * that room until they leave it (lockpick-gm.mjs; DA9 as the plan has it, the owner's "Wole zgodnie z planem" of
  * 12.11.2026, which replaced the walk-through at once this file did before). The lock stays locked for everyone else. The owner of a bedroom is warned on an open below `clean` (18) and on a miss with Despair
- * (DA30). The character's own room always sees who it was (the owner's rule #8, 13.11.2026); the Shadow cover below its
+ * (DA30), on walking back into it, at once in it, and not where they saw who it was (`noteBedroom`). The character's own room always sees who it was (the owner's rule #8, 13.11.2026); the Shadow cover below its
  * threshold (16) lets the room beyond see it too.
  *
  * WHO SEES A DOOR WORKED (the owner's rules #8 and #9, 13.11.2026: a player learns what their character could know in the
@@ -46,7 +47,7 @@
 import { MODULE_ID, FLAGS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { isDeceased, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, error } from "./utils.mjs";
-import { barricadeStore } from "./gm-stores.mjs";
+import { barricadeStore, bedroomNoteStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { roomFlag } from "./rooms.mjs";
 
@@ -121,9 +122,9 @@ async function whatHolds(actor, scene, room) {
 
 /**
  * Whisper `text` to the owners of every living student standing in one of `rooms` on `scene` but `skip`'s, and to `also`'s
- * when it was not among them. Answers how many students were told.
+ * when it was not among them. Answers how many students were told; their ids are added to `into` when given.
  */
-async function tellRooms(scene, rooms, text, skip = new Set(), { also = null } = {}) {
+async function tellRooms(scene, rooms, text, skip = new Set(), { also = null, into = null } = {}) {
     const { roomOfToken } = await import("./movement.mjs");
     const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
     const told = new Set();
@@ -138,6 +139,7 @@ async function tellRooms(scene, rooms, text, skip = new Set(), { also = null } =
         told.add(also.id);
         await whisperToOwnerOnly(also, `<p>${esc(text)}</p>`);
     }
+    for (const id of told) into?.add(id);
     return told.size;
 }
 
@@ -169,6 +171,7 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
     // Who sees it (the owner's rule #8, 13.11.2026): the character's own room always, by name; the room beyond, by name, and
     // the rooms next to either, as a banging with no name, only when it was loud - a pass, or a miss with Despair (DA30).
     let heard = 0;
+    const saw = new Set();
     const loud = forced || !withHope;
     if (loud) {
         const near = [...new Set([...M.neighbouringRooms(place.scene, place.room), ...M.neighbouringRooms(place.scene, room)])]
@@ -176,14 +179,11 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
         heard = await tellRooms(place.scene, near, game.i18n.format("DRPG.Infiltrate.force.banging", { room }), new Set([actor.id]));
     }
     await tellRooms(place.scene, loud ? [place.room, room] : [place.room], game.i18n.format(forced ? "DRPG.Infiltrate.force.forcedBy" : "DRPG.Infiltrate.force.triedBy",
-        { name: actor.name, room }), new Set([actor.id]));
+        { name: actor.name, room }), new Set([actor.id]), { into: saw });
     // Every attempt leaves a Remnant: evident where it was heard (a pass, a miss with Despair), subtle otherwise.
     if (held.length) await leaveDoorTrace(actor, forced || !withHope ? "evident" : "subtle", "force", room);
-    const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
-    if (forced && holds.lock && owner && owner !== actor.id && game.actors.get(owner)) {
-        const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
-        await whisperToOwnerOnly(game.actors.get(owner), `<p>${esc(game.i18n.format("DRPG.Infiltrate.force.yourDoor", { room }))}</p>`);
-    }
+    // A bedroom's owner: told on walking back in, or at once where they stand in it; nothing more where they saw it forced.
+    if (forced && holds.lock) await noteBedroom({ scene: place.scene, room, kind: "forced", told: saw, by: actor });
     log(`${actor.name} ${forced ? "forced" : "failed to force"} the door to ${room} (${sum}; held by ${held.join(", ") || "nothing"}).`);
     return { forced, held, heard };
 }
@@ -218,16 +218,22 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
     // `tell` false: a Reroll's replay (infiltrate-reroll.mjs), whose cover the two rooms were told of by the first throw.
     // The character's own room sees who it is whatever the cover (the owner's rule #8, 13.11.2026); the cover hides the
     // picker from the room beyond alone.
+    const saw = new Set();
     if (tell && lockish) {
-        await tellRooms(place.scene, seen ? [place.room, room] : [place.room], game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room }), new Set([actor.id]));
+        await tellRooms(place.scene, seen ? [place.room, room] : [place.room], game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room }), new Set([actor.id]), { into: saw });
     }
     // Every attempt at a lock leaves a Remnant by its band (DA30); a Reroll's replay leaves none of its own.
     if (tell && lockish) await leaveDoorTrace(actor, pickTrace({ opened, total: sum, isCritical, withHope }), "pick", room);
-    const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
     const careless = lockish && ((opened && !isCritical && sum < rule.clean) || (!opened && !withHope));
-    if (careless && owner && owner !== actor.id && game.actors.get(owner)) {
-        const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
-        await whisperToOwnerOnly(game.actors.get(owner), `<p>${esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room }))}</p>`);
+    if (careless) {
+        // A Reroll's replay told nobody: where the owner stood when the first throw named the picker is read again here.
+        if (!tell) {
+            const ownerId = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
+            const at = ownerId ? M.gmPlaceOf(game.actors.get(ownerId)) : null;
+            if (at?.scene?.id === place.scene.id && (at.room === place.room || (seen && at.room === room))) saw.add(ownerId);
+        }
+        // A bedroom's owner: told on walking back in, or at once where they stand in it; nothing more where they saw who.
+        await noteBedroom({ scene: place.scene, room, kind: "picked", told: saw, by: actor });
     }
     log(`${actor.name} ${opened ? "picked" : "failed to pick"} the lock of ${room} (${sum}; held by ${held.join(", ") || "nothing"}).`);
     return { opened, held };
@@ -238,7 +244,7 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
  * `COMPLETION_EFFECTS`' "repairsLock"). A project at Trivial on a lock Force the Door or a breach broke, offered in Start New
  * only where a door of the builder's room has one (the room itself or a neighbour), once a door: a lock a project repairs
  * already is refused. Judged at the approval and again at the completion, as the owner's three of 15.10 are. Finished, the
- * lock holds again for everyone and the room's owner is told; taken back (a Reroll), it is broken again. A GM's repair by hand
+ * lock holds again for everyone and the room's owner is told (on walking back in, `noteBedroom`); taken back (a Reroll), it is broken again. A GM's repair by hand
  * in Room Setup's Broken column removes the project with a note to the GMs (`dropLockRepairs`).
  * ----------------------------------------------------------------------------------------------------------------- */
 
@@ -265,17 +271,14 @@ export async function repairLockRefusal({ scene, room, from, ignore = null }) {
     return null;
 }
 
-/** A finished Repair the Lock (the row "repairsLock"): the lock holds again, its owner told. Answers `{ refused }` or `{ mended }`. */
+/** A finished Repair the Lock (the row "repairsLock"): the lock holds again, its owner told on walking back in (`noteBedroom`). Answers `{ refused }` or `{ mended }`. */
 export async function repairLockDone(projectId, { sceneId = null, lockRoom = null } = {}) {
     const M = await import("./movement.mjs");
     const scene = game.scenes.get(sceneId ?? "");
     if (!scene || !lockRoom || !M.roomBroken(scene, lockRoom)) return { refused: "that lock is not broken." };
     await M.setRoomBroken(scene, lockRoom, false);
-    const owner = game.actors.get(roomFlag(scene, lockRoom, ROOM_OWNER_FLAG) ?? "");
-    if (owner) {
-        const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
-        await whisperToOwnerOnly(owner, `<p>${esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room: lockRoom }))}</p>`);
-    }
+    // Its owner: told on walking back in, or at once where they stand in the bedroom (the owner's rule #1, 13.11.2026).
+    await noteBedroom({ scene, room: lockRoom, kind: "mended" });
     log(`The lock of ${lockRoom} is repaired (project ${projectId}).`);
     return { mended: true };
 }
@@ -302,6 +305,91 @@ export async function dropLockRepairs(scene, room) {
         }
     }
     return n;
+}
+
+/* ----------------------------------------------------------------------------------------------------------------- *
+ * THE BEDROOM'S OWNER IS TOLD ON WALKING BACK IN (privacy line 1, 13.11.2026; the owner's rule #1: a player learns what
+ * their character could know in the fiction, when they could know it). Until then the owner of a bedroom was whispered at
+ * once, wherever they stood, when its door was forced, its lock picked carelessly, a wall breached into it or its lock
+ * repaired. Now: an owner who saw it done - who was sent the card naming the one who did it, in the room of the deed or
+ * the bedroom - is told nothing more; an owner standing in the bedroom is told at once (they are where they would find
+ * it); any other owner's note is held on the GMs' side (gm-stores.mjs `bedroomNoteStore`, a row per bedroom) and told
+ * when they next cross into that bedroom, on the primary (traps.mjs `onCrossed`, the road the stash notice of 1.2.112
+ * takes). Several things before the owner's return are one card, each sentence once, in the order they last happened.
+ * Dropped unsaid when the owner is dead by then or the room is no longer theirs.
+ * ----------------------------------------------------------------------------------------------------------------- */
+
+/** A bedroom note's key in the GMs' store: the owner, the scene and the room. */
+export const bedroomNoteKey = (ownerId, sceneId, room) => `${ownerId}:${sceneId}:${room}`;
+
+/** What a note can say, in the order two that happened at once are told. */
+const NOTE_KINDS = Object.freeze(["picked", "forced", "breached", "mended"]);
+
+/** The card of `kinds` about `room`: each sentence a paragraph, a breach's lifted seal said while that seal's time lasts. */
+async function bedroomCard(room, kinds, { unsealed = null } = {}) {
+    const { esc } = await import("./utils.mjs");
+    const { sealPeriod } = await import("./call-world.mjs");
+    const line = {
+        picked: () => esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room })),
+        forced: () => esc(game.i18n.format("DRPG.Infiltrate.force.yourDoor", { room })),
+        breached: () => `${game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(room) })}${
+            unsealed && unsealed === sealPeriod() ? ` ${game.i18n.localize("DRPG.Passage.card.breachUnsealed")}` : ""}`,
+        mended: () => esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room }))
+    };
+    return kinds.map(kind => `<p>${line[kind]()}</p>`).join("");
+}
+
+/**
+ * Something `kind` happened to the door or a wall of `room` on `scene`: its bedroom's owner, if it has one who is alive and
+ * is not `by`, is told now when they stand in it, nothing when `told` holds them (they were sent the named card), and
+ * otherwise on walking back in. `unsealed` a breach's lifted seal's period. Answers "told", "held", "seen" or null.
+ */
+export async function noteBedroom({ scene, room, kind, told = new Set(), by = null, unsealed = null }) {
+    if (!scene || !room || !NOTE_KINDS.includes(kind)) return null;
+    const owner = game.actors.get(roomFlag(scene, room, ROOM_OWNER_FLAG) ?? "");
+    if (!owner || owner.id === by?.id || isDeadForGm(owner)) return null;
+    if (told.has(owner.id)) return "seen";
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const at = gmPlaceOf(owner);
+    if (at?.scene?.id === scene.id && at.room === room) {
+        const { whisperToOwnerOnly } = await import("./utils.mjs");
+        await whisperToOwnerOnly(owner, await bedroomCard(room, [kind], { unsealed }));
+        return "told";
+    }
+    await bedroomNoteStore.whenHydrated();
+    await bedroomNoteStore.patch(bedroomNoteKey(owner.id, scene.id, room), { ownerId: owner.id, sceneId: scene.id, room,
+        [kind]: Date.now(), ...(unsealed ? { unsealed } : {}) });
+    log(`A note for ${owner.name} waits until they walk back into ${room} (${kind}).`);
+    return "held";
+}
+
+/** Whether the GMs hold a bedroom note waiting for `actor` (`tellBedroomNotes`). */
+export async function hasPendingBedroomNote(actor) {
+    if (!actor) return false;
+    await bedroomNoteStore.whenHydrated();
+    return Object.values(bedroomNoteStore.entries() ?? {}).some(row => row?.ownerId === actor.id);
+}
+
+/**
+ * `owner` has just crossed into `room` on `scene` (traps.mjs `onCrossed`, on the primary): the note waiting for that
+ * bedroom is dropped and told, one card. Dropped unsaid when the owner is dead or the room is no longer theirs. Answers
+ * whether a card went.
+ */
+export async function tellBedroomNotes(owner, room, scene) {
+    if (!owner || !room || !scene || !game.user?.isGM) return false;
+    await bedroomNoteStore.whenHydrated();
+    const key = bedroomNoteKey(owner.id, scene.id, room);
+    const row = bedroomNoteStore.get(key);
+    if (!row) return false;
+    await bedroomNoteStore.drop(key);
+    if (isDeadForGm(owner) || roomFlag(scene, room, ROOM_OWNER_FLAG) !== owner.id) return false;
+    const kinds = NOTE_KINDS.filter(kind => Number(row[kind]) > 0)
+        .sort((a, b) => (Number(row[a]) - Number(row[b])) || NOTE_KINDS.indexOf(a) - NOTE_KINDS.indexOf(b));
+    if (!kinds.length) return false;
+    const { whisperToOwnerOnly } = await import("./utils.mjs");
+    await whisperToOwnerOnly(owner, await bedroomCard(room, kinds, { unsealed: row.unsealed ?? null }));
+    log(`${owner.name} was told what happened to ${room} while they were away (${kinds.join(", ")}).`);
+    return true;
 }
 
 /** When the room behind each barricade was last told of somebody at the door, by key: one card a quarter minute. */

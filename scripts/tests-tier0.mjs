@@ -22865,7 +22865,7 @@ const REGRESSIONS = [
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
             "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
             "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
-            "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"line": 6}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
+            "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"built": 2, "line": 3}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
@@ -22878,7 +22878,7 @@ const REGRESSIONS = [
             "monocub.mjs": {"built": 3, "line": 18, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
             "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
             "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
-            "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 5},
+            "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 4},
             "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
             // S17-31's three sight cards (522cd601, 12 lines) are a player's copy of the GMs' sight since E101's review, R2: 9.
             "projects.mjs": {"built": 3, "card": 1, "line": 9, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},

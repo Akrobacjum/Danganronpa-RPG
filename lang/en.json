@@ -6474,6 +6474,7 @@
         "facilityUses": "Which room actions each character used, and in which time of day",
         "tails": "Who is tailing whom today, and how well",
         "barricades": "Which rooms are barricaded, by whom and how strongly",
+        "bedroomNotes": "What happened to each bedroom while its owner was away, told when they walk back in",
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "lockpicks": "Who may walk through a lock they picked, into which room",
         "timedEffects": "What room actions gave each character for a while, and when it ends",

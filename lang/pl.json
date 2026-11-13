@@ -8262,6 +8262,7 @@
         "facilityUses": "Których akcji w pokojach użyła każda postać, i o jakiej porze dnia",
         "tails": "Kto dziś śledzi kogo, i jak dobrze",
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
+        "bedroomNotes": "Co działo się z każdą sypialnią pod nieobecność jej właściciela, powiedziane, gdy do niej wróci",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",

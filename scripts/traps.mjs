@@ -949,6 +949,16 @@ async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
             await (await import("./stash-reach.mjs")).tellStashDisturbed(actor, to, scene)
                 .catch(err => error("A stash's owner could not be told on entering", err));
         }
+        /* And a bedroom's owner (privacy line 1, 13.11.2026; the owner's rule #1): what happened to its door or a wall while
+           they were away - forced, picked carelessly, breached, repaired - is told on walking back in (doors-gm.mjs
+           `tellBedroomNotes`), by the same road. */
+        if (actor) {
+            const D = await import("./doors-gm.mjs");
+            if (await D.hasPendingBedroomNote(actor)) {
+                const scene = await sceneOfEvent(actor, { tokenDoc, sceneId });
+                await D.tellBedroomNotes(actor, to, scene).catch(err => error("A bedroom's owner could not be told on entering", err));
+            }
+        }
         if (!armed().byRoom.has(to)) return;
         const scene = await sceneOfEvent(actor, { tokenDoc, sceneId });
         const here = armedIn(to, scene);
