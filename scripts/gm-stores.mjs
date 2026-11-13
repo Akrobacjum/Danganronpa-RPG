@@ -642,8 +642,21 @@ export const trapPlantStore = defineGmStore({
 export const projectSecretStore = defineGmStore({
     name: "projectSecrets", key: SETTINGS.projectSecrets,
     kind: "ledger", split: ["trigger"], resetGroup: "projects", backup: true, sync: true,
+    afterRestore: () => import("./projects.mjs").then(m => m.retellSights()),
     exists: id => Object.hasOwn(getSetting(SETTINGS.projectMeta) ?? {}, id)
         || Boolean(game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id])
+});
+
+/**
+ * A PLAYER'S SIGHT OF THE SECRET PROJECTS (E101's review of S17-31, R2, 13.11.2026): `{ countdownId: { in, name } }` for
+ * each secret project this user sees as the GMs' rows say - in on it (`viewers`), or a Spectator watching it (E92) - and
+ * its name (`secretName`), sent by the primary (projects.mjs `sendSightTo`) after every change and on the player's ask.
+ * The user's whole set each time, taken by the offers' rule (`offersCombine`): a project it no longer names goes with
+ * it. Until then a GM's private card, read off the chat log: a cleared log took the project out of every insider's tray.
+ */
+export const projectSightCopy = defineGmCopy({
+    name: "projectSight", key: SETTINGS.mineProjectSight, from: "projectSecrets", resetGroup: "projects", fallback: {},
+    combine: offersCombine
 });
 
 /**

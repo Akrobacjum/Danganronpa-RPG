@@ -340,7 +340,7 @@ Work out who is in a neighbouring room. No GM needed. You pick the room before y
 
 A neighbouring room you have never been in is listed as *Unexplored room 1*, *Unexplored room 2* and so on, in the picker and in the answer: Listen tells you who is behind a door, not what the room behind it is.
 
-The tile is called **Infiltrate**: its window lists its actions one under another - Listen first, then Tail Someone and Dash (more come later). In a room with no neighbouring room Listen is greyed with the reason.
+The tile is called **Infiltrate**: its window lists its actions one under another - Listen first, then Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock and Keep Watch. In a room with no neighbouring room Listen is greyed with the reason.
 
 ### Tail Someone - Shadow, then Leg or Shadow, 1 action
 

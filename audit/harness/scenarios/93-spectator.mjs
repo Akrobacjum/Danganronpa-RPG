@@ -120,7 +120,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
            nobody here found, and a secret one there with words of its own, shared with nobody. p3 (the Spectator) knows
            both - their names and progress - but not the secret one's words, which stay the GMs' (the coordinator's 12.11:
            "secret projects stay secret (GMs' half untouched)"); p1 (a student) knows neither and holds no words; the
-           countdown's ownership names p3 an observer and p1 not. */
+           countdown's ownership names p3 an observer and, since S17-31 (1.2.111), p1 as well: the map tells no player
+           apart, and what keeps p1 out is the module (canSee, read below). */
         const made = await gm.eval(`const P = ${imp("projects.mjs")};
             const pub = await P.createProject({ name: "E92 public work", target: 6, room: "Gym", secret: false });
             const sec = await P.createProject({ name: "E92 secret work", target: 6, room: "Gym", secret: true, description: "E92 secret words" });
@@ -140,7 +141,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         check("projects: the Spectator knows every project in a room nobody found, the secret one too but not its words; a student knows neither",
             sight.p3?.pub === true && sight.p3.sec === true && sight.p3.seeSec === true && sight.p3.words === false
             && sight.p1?.pub === false && sight.p1.sec === false && sight.p1.seeSec === false && sight.p1.words === false
-            && own?.p3 === 2 && own.p1 === 0, JSON.stringify(sight));
+            && own?.p3 === 2 && own.p1 === 2, JSON.stringify(sight));
         // And a student's browser holds nothing more for it: p1's world data read against world-secrets.mjs.
         await canary.worldScan({ who: ["p1"], ids: [IDS.botan] });
 

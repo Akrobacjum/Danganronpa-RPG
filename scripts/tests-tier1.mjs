@@ -7062,8 +7062,10 @@ const INVARIANTS = [
         const FIXTURES = [
             // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage; E15 part 2 C2 a Secret
             // Passage's `passage` and `target` and a project's Observe finders, `foundBy`; E18 C7 the request a player's
-            // Sabotage came under, `sabotageAsk`; H84 fix G3 whether a public project's proposer was told, `proposerTold`.
-            ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold"].map(f => [`projectMeta.${f}`,
+            // Sabotage came under, `sabotageAsk`; H84 fix G3 whether a public project's proposer was told, `proposerTold`;
+            // S17-31 a secret project's name and the players in on it, `secretName` and `viewers`.
+            ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold",
+                "secretName", "viewers"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
@@ -52060,7 +52062,9 @@ const INVARIANTS = [
             actor("C1", "R3867c", { spectator: true }), actor("C2", "R3867c", {}), actor("D1", "R3867d", { monokuma: true })];
         equal(stableJson({ viewer: map[viewer], watcher: map[watcher], other: map[other], gms: game.users.filter(u => u.isGM).some(u => u.id in map),
             accounts: [...spectatorUserIds(users, actors)].sort() }),
-            stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: 0, gms: false, accounts: ["R3867a"] }),
+            // `other` at OBSERVER since S17-31 (13.11.2026): the map gives every player one level and tells nobody apart;
+            // who sees the row is `canSee`'s - a Spectator by E92's rule there, a player in on it by the GMs' card.
+            stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: S.OBSERVER, gms: false, accounts: ["R3867a"] }),
             "[the map's entry for a viewer, a Spectator and another player; a GM in it; the accounts that play a Spectator]");
     }],
     ["R3868 - a Spectator's end-of-day board holds the day's heading and the school's mood, and nothing else (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `dayEndBoardFor`, `playDayEnd`; scripts/spectator.mjs `spectatorViewer`; E92 with E94, the owner's word of 12.11.2026: \"Dostaje tylko koniec dnia i nastroj szkoly\"): on a Spectator's browser the board names the day that ends and the mood's word, and holds no row, no tally or quiet day, no public card and no chapter line, and the day's rows and cards handed to it are not used; a player's board, handed the same, is as before - its chapter, its rows, its cards and its mood", async () => {
@@ -52331,6 +52335,43 @@ const INVARIANTS = [
         };
         equal(JSON.stringify(read), JSON.stringify({ price: [1, 2], size: [1, 2, true], covers: [false, true, true, true, true] }),
             "{price: a GM's room action without Toll and under it; size: one action taken, two, a Burst; covers: one for two, two for two, a Burst for two, one for one, a ticket of no size for one}");
+    }],
+    ["R4620 - a secret project's countdown tells no player apart (scripts/projects-secrecy.mjs `ownershipMap`, `HIDDEN_NAME`; known leak S17-31, 13.11.2026): the map it writes gives every player of this world one level, OBSERVER, and `default` NONE, whatever it is handed, and names no GM; the neutral name names nothing", async () => {
+        /*
+         * Pure readings, so tier 1 changes nothing. Until S17-31 `ownershipMap(viewerIds)` gave the viewers OBSERVER and the
+         * rest NONE, in a world setting every browser holds: for an indirect murder, the killer's player. Red with the body it
+         * had before S17-31 put back on the fixed tree (measured 13.11.2026; 4eef965's whole file does not load with the fix's
+         * importers): levels [OBSERVER, NONE].
+         */
+        const S = await import("./projects-secrecy.mjs");
+        const { OBSERVER, NONE } = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const players = game.users.filter(u => !u.isGM);
+        const map = S.ownershipMap([players[0]?.id].filter(Boolean));
+        const read = {
+            levels: [...new Set(players.map(u => map[u.id]))],
+            gms: game.users.filter(u => u.isGM && Object.hasOwn(map, u.id)).length,
+            default: map.default,
+            hidden: typeof S.HIDDEN_NAME === "string" && S.HIDDEN_NAME.length > 0 && !/[A-Za-z]/.test(S.HIDDEN_NAME)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ levels: players.length ? [OBSERVER] : [], gms: 0, default: NONE, hidden: true }),
+            "{levels: the levels the map gives the players; gms: GMs it names; default; hidden: the neutral name has no letters}");
+    }],
+    ["R4621 - the reseal at load and at a new user waits for the GMs' copies of the project secrets (scripts/projects.mjs `resealSecretProjects`; E101's review of S17-31, R1, 13.11.2026): it asks `projectSecretStore.whenHydrated()` before it reads a project's name or list, and writes nothing when the copies timed out, as `sealOldRepairs` does", async () => {
+        /*
+         * Since S17-31 a secret project's name and the players in on it are the GMs' store's (`secretName`, `viewers`), and
+         * the countdown carries "???" and one level for every player. module.mjs `sealProjects` runs the reseal on the primary
+         * at load and on every `createUser`; a primary whose browser had not yet been sent another GM's row read "???" and
+         * no list, and wrote both with fresh stamps that won the exchange (E101 R1). The other load passes over this store
+         * wait (`sealOldRepairs`, `tellProposers`). Read off the source: the wait cannot be staged in tier 1, and tier 2's
+         * S17-31-T3 holds what the step does without the row. Red at 9f052871: no wait.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects.mjs`).then(lfText));
+        const body = fnSource(src, "resealSecretProjects");
+        const waits = body.search(/await\s+projectSecretStore\.whenHydrated\(\)\s*===\s*["']timedOut["']\s*\)\s*return\s+0/);
+        const reads = body.search(/allProjects\(\)/);
+        must(reads >= 0, "resealSecretProjects no longer reads allProjects() - this test is pointed at the wrong code");
+        equal(JSON.stringify({ waits: waits >= 0, first: waits >= 0 && waits < reads }), JSON.stringify({ waits: true, first: true }),
+            "{waits: it awaits the store's hydration and returns 0 on a time-out; first: before it reads the projects}");
     }],
     ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
         /*

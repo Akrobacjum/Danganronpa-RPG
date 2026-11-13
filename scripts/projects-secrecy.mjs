@@ -53,7 +53,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { log, ownerIdsOf, isPrimaryGm, serialWrite } from "./utils.mjs";
-import { projectSecretStore } from "./gm-stores.mjs";
+import { projectSecretStore, projectSightCopy } from "./gm-stores.mjs";
 import { spectatorUserIds } from "./spectator.mjs";
 
 export const DH = "daggerheart";
@@ -108,7 +108,46 @@ export function metaFor(countdownId) {
  * fact about `by`, so it is the GMs' as `by` is: a public mark of it would say which projects a player proposed.
  */
 export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy",
-    "proposerTold"]);
+    "proposerTold", "secretName", "viewers"]);
+
+/*
+ * A SECRET PROJECT'S NAME AND WHO IS IN ON IT ARE THE GMS' (known leak S17-31; the coordinator's task of 12.11.2026).
+ * Daggerheart's world setting Countdowns reaches every browser, and a secret project's countdown carried its name and an
+ * ownership map with each player's own level - OBSERVER for those in on it, NONE for the rest: any console read the plan's
+ * name and, for an indirect murder, the killer's player (72-canary, red at 4eef965 on both bystanders). Since S17-31 the
+ * countdown carries `HIDDEN_NAME` and a map that gives every player one level (`ownershipMap`): Daggerheart reads each
+ * player's own entry and not `default`, so it draws the row for every player, and the module's tray takes it out for
+ * whoever is not in on it (projects-tray.mjs `hideUndiscovered`) and writes the name back for whoever is
+ * (`nameSecretRows`). The name is the GMs' store's (`secretName`), and so is the list of players in on it (`viewers`);
+ * a player in on it holds both from a GM's private card to them alone (projects.mjs `tellSight`, `toldSight` below).
+ * Both fields go through `setProjectMeta` with the other secret ones; the change entry moves the name between the
+ * countdown and the store as a project is sealed or revealed (projects.mjs `applyProjectChange`).
+ */
+export const HIDDEN_NAME = "???";
+
+/**
+ * Whether this browser's player is in on a secret project, and its name, as the GMs sent it (gm-stores.mjs
+ * `projectSightCopy`, sent by projects.mjs `sendSightTo`): `{ in, name }`, or null when this user's copy does not name
+ * the project. Until E101's review of S17-31 (R2, 13.11.2026) it read the newest of the GMs' private cards to this
+ * player, so a cleared chat log took the project out of the tray; the copy is the player's own client setting, which
+ * no chat action touches, and is asked again at every load.
+ */
+export function toldSight(countdownId) {
+    const held = projectSightCopy.read()?.[countdownId];
+    if (!held || typeof held !== "object") return null;
+    return { in: held.in === true, name: typeof held.name === "string" ? held.name : null };
+}
+
+/**
+ * A project's name as this browser may hold it (S17-31): the countdown's for a public project; for a secret one the GMs'
+ * store on a GM, this player's copy of the GMs' sight on a player's (`toldSight`), and `HIDDEN_NAME` failing those.
+ */
+export function shownName(countdownId, countdown = rawCountdown(countdownId)) {
+    const name = countdown?.name ?? "";
+    if (!isSecret(countdownId)) return name;
+    if (game.user?.isGM) return secretsOf(countdownId).secretName ?? name;
+    return toldSight(countdownId)?.name ?? name;
+}
 
 /**
  * A SECRET PROJECT'S DESCRIPTION IS THE GMS' (E44 fix FG6, 05.11.2026; the end review's S-M1, the owner's option (a), the
@@ -209,6 +248,8 @@ export function canSee(countdownId, user = game.user) {
     if (!isSecret(countdownId)) return true;
     // A Spectator sees every project, the secret ones too (E92, the owner's DRPG-D1 of 12.11.2026; `ownershipMap`).
     if (user && spectatorUserIds().has(user.id)) return true;
+    // A player's browser knows its own player's place alone, from the GMs' card (S17-31); a GM reads the store.
+    if (!game.user?.isGM) return user?.id === game.user?.id && toldSight(countdownId)?.in === true;
     return viewersOf(countdownId).some(u => u.id === user?.id);
 }
 
@@ -242,17 +283,16 @@ export const ownerIdsOfId = actorId => ownerIdsOf(game.actors.get(actorId ?? "")
  * included. Secrecy has to be spelled out per user: an explicit NONE for every
  * player who is not a viewer.
  */
-export function ownershipMap(viewerIds = [], watching = spectatorUserIds()) {
-    const viewers = new Set(viewerIds.filter(Boolean));
-    /* EVERY SPECTATOR OBSERVES (E92, the owner's DRPG-D1 of 12.11.2026: "Widzi wszystkie projekty w tym prywatne"). A
-       Spectator's account is an observer of every secret project, so Daggerheart draws it on that browser's tray; it is
-       no viewer (`viewersOf`, `sharedIds` leave it out), so no share, seal or card counts it in, and it leaves the map
-       when it stops being one (projects.mjs `seeAsSpectators`). Read as the GMs hold the flag (scripts/spectator.mjs); the
-       suite hands its own (R3867). */
-    const map = { default: NONE };          // kept for our own isSecret() read
+export function ownershipMap() {
+    /* ONE LEVEL FOR EVERY PLAYER (S17-31): who is in on a secret project is the GMs' store's (`viewers`), not this map's,
+       which every browser holds. Each player at OBSERVER, as Daggerheart reads each player's own entry and not `default`:
+       it draws the row for every player and the module's tray takes it out for those not in on it. `default` stays NONE,
+       kept for our own `isSecret` read of a countdown with no meta. A Spectator, a player, is at OBSERVER with the rest:
+       E92's "sees every project, private ones too" (`canSee` lets it in; its name comes on a card, projects.mjs `tellSight`). */
+    const map = { default: NONE };
     for (const user of game.users) {
         if (user.isGM) continue;            // GMs are owners unconditionally
-        map[user.id] = viewers.has(user.id) || watching.has(user.id) ? OBSERVER : NONE;
+        map[user.id] = OBSERVER;
     }
     return map;
 }
@@ -262,14 +302,10 @@ export function insidersOf(countdownId) {
     return Array.from(new Set([...viewersOf(countdownId).map(u => u.id), ...builderIds(countdownId)]));
 }
 
-/** Users who can currently see a secret project (excluding GMs). */
+/** Users who can currently see a secret project (excluding GMs): the GMs' list on a GM (S17-31), this player on theirs when a card says so. */
 export function viewersOf(countdownId) {
-    const ownership = rawCountdown(countdownId)?.ownership ?? {};
-    const watching = spectatorUserIds();
-    return Object.entries(ownership)
-        .filter(([key, level]) => key !== "default" && level >= OBSERVER && !watching.has(key))
-        .map(([userId]) => game.users.get(userId))
-        .filter(u => u && !u.isGM);
+    const ids = game.user?.isGM ? (sharedIds(countdownId) ?? []) : (toldSight(countdownId)?.in ? [game.user.id] : []);
+    return ids.map(userId => game.users.get(userId)).filter(u => u && !u.isGM);
 }
 
 /*
@@ -282,16 +318,37 @@ export function viewersOf(countdownId) {
 
 /** Sealed to these users alone - normally just the killer. */
 export function secretChange(countdownId, viewerIds = []) {
-    return { ownership: ownershipMap(viewerIds), meta: { secret: true } };
+    return { ownership: ownershipMap(), meta: { secret: true, viewers: [...new Set(viewerIds.filter(Boolean))] } };
 }
 
-/** The users who see a secret project now, read from its ownership map. */
+/**
+ * The users who see a secret project now: the GMs' list (`viewers`, S17-31); for a project sealed before it, the
+ * countdown's old per-player map, read until a reseal lifts it into the list (`sightChange`'s `reseal`); null when
+ * neither is here - a countdown S17-31 already lifted ("???", one level for everyone) whose row this browser has not
+ * been sent yet.
+ *
+ * WHICH OF THE TWO A COUNTDOWN IS, BY ITS NAME (E101's review of S17-31, R1 and R3, 13.11.2026). Until this fix a map
+ * with every player at one level read as "nobody", for S17-31's own map. It caught two more: an older seal a GM had
+ * shared with every player, a share at a time (the migration then lifted it into an empty list, every insider out -
+ * S17-31-T2's second project); and a lifted project on a primary GM that loaded before another GM's row reached it
+ * (the reseal and every change step wrote "???" and an empty list with fresh stamps, which won the exchange -
+ * S17-31-T3). The countdown's name tells them apart: only a lift writes `HIDDEN_NAME` there, so a countdown still
+ * named holds an older seal's map, read as written; one named `HIDDEN_NAME` holds no list at all, and without the
+ * GMs' row nothing about who sees it is known here. A Spectator observes every secret project and is no viewer (E92).
+ */
 function sharedIds(countdownId) {
+    const held = secretsOf(countdownId).viewers;
+    if (Array.isArray(held)) return held.filter(id => typeof id === "string");
+    const countdown = rawCountdown(countdownId);
+    if (countdown?.name === HIDDEN_NAME) return null;
     const watching = spectatorUserIds();
-    return Object.entries(rawCountdown(countdownId)?.ownership ?? {})
-        .filter(([key, level]) => key !== "default" && level >= OBSERVER && !watching.has(key))
+    return Object.entries(countdown?.ownership ?? {})
+        .filter(([key, level]) => key !== "default" && level >= OBSERVER && game.users.get(key) && !game.users.get(key).isGM && !watching.has(key))
         .map(([id]) => id);
 }
+
+/** Said when a share or a revoke would be worked out on a list this browser does not hold (`sharedIds` null). */
+const LIST_NOT_HERE = "the GMs' list of who sees it has not reached this browser yet";
 
 /**
  * One more player in on a secret project. Only a SECRET project has a guest list (E03; audit S09-02): sharing a
@@ -300,13 +357,17 @@ function sharedIds(countdownId) {
  */
 export function shareChange(countdownId, userId) {
     if (!isSecret(countdownId)) return null;
-    return { ownership: ownershipMap([...sharedIds(countdownId), userId]) };
+    const ids = sharedIds(countdownId);
+    if (!ids) return { refused: LIST_NOT_HERE };
+    return { ownership: ownershipMap(), meta: { viewers: [...new Set([...ids, userId])] } };
 }
 
-/** A player taken back off a secret project: the same map, written the same way, for the same reason. */
+/** A player taken back off a secret project: the GMs' list without them (S17-31), the map the same for everyone. */
 export function unshareChange(countdownId, userId) {
     if (!isSecret(countdownId)) return null;
-    return { ownership: ownershipMap(sharedIds(countdownId).filter(id => id !== userId)) };
+    const ids = sharedIds(countdownId);
+    if (!ids) return { refused: LIST_NOT_HERE };
+    return { ownership: ownershipMap(), meta: { viewers: ids.filter(id => id !== userId) } };
 }
 
 /*
@@ -358,10 +419,16 @@ export function sightChange(countdownId, op = {}) {
     if (op.reseal) {
         if (!isSecret(countdownId)) return null;
         const current = rawCountdown(countdownId)?.ownership ?? {};
-        const wanted = ownershipMap(sharedIds(countdownId));
+        const wanted = ownershipMap();
         // `equals`, not the deprecated `objectsEqual`, and neither: a redundant write, never a missed reseal.
         const same = foundry.utils.equals?.(current, wanted) ?? foundry.utils.objectsEqual?.(current, wanted) ?? false;
-        return same ? null : { ownership: wanted };
+        // S17-31: sealed only once the list is the GMs' and the countdown carries no name; a project sealed before it lifts both.
+        const lifted = Array.isArray(secretsOf(countdownId).viewers) && rawCountdown(countdownId)?.name === HIDDEN_NAME;
+        if (same && lifted) return null;
+        // A lifted countdown whose row is not here (E101 R1): its map only, if it needs one - no list is known to write.
+        const ids = sharedIds(countdownId);
+        if (!ids) return same ? null : { ownership: wanted };
+        return { ownership: wanted, meta: { viewers: ids } };
     }
     return null;
 }
@@ -384,7 +451,7 @@ export function revealChange(countdownId) {
         if (user.isGM) continue;
         cleared[user.id] = OBSERVER;
     }
-    return { ownership: cleared, meta: { secret: false, sealedViewers: insiders } };
+    return { ownership: cleared, meta: { secret: false, sealedViewers: insiders, viewers: null } };
 }
 
 /**
