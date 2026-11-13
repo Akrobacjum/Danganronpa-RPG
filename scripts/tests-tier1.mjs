@@ -56992,6 +56992,32 @@ const INVARIANTS = [
         tile.destroy({ children: true });
     }],
 
+    ["R5470 - a stylesheet colour the canvas cannot read draws the caller's fallback, never NaN: fog-doorways.mjs `colourOf` and gm-overlay.mjs `overlayColour` answer the fallback for a token set to no colour, as `accentColour` beside them already does, and the colour for one set to a colour (E56 C9)", async () => {
+        /*
+         * E56 C9, 13.11.2026 (the E56 inventory 2.1: two copies of one reading, and the third, `accentColour`, the only one
+         * with the check). Both read `getComputedStyle(document.documentElement)` and hand the text to Foundry's
+         * `Color.from`, whose answer for a text that is no colour is a Color of NaN (the harness's Color the same); a NaN
+         * reaches PIXI as a tint or a line colour. Read here on two tokens of this test's own, set on the root's inline
+         * style and taken off after. Red before C9: both answered NaN for the token set to "no-colour".
+         */
+        const D = await import("./fog-doorways.mjs"), O = await import("./gm-overlay.mjs");
+        const root = document.documentElement, BAD = "--drpg-e56-not-a-colour", GOOD = "--drpg-e56-a-colour";
+        root.style.setProperty(BAD, "no-colour");
+        root.style.setProperty(GOOD, "#123456");
+        try {
+            const css = getComputedStyle(root);
+            must(css.getPropertyValue(BAD).trim() === "no-colour" && css.getPropertyValue(GOOD).trim() === "#123456",
+                "the root's inline custom properties were not read back - this would measure nothing");
+            const read = fn => [fn(BAD, 0xabcdef), fn(GOOD, 0xabcdef)].map(v => (Number.isNaN(v) ? "NaN" : v));
+            equal(stableJson({ colourOf: read(D.colourOf), overlayColour: read(O.overlayColour) }),
+                stableJson({ colourOf: [0xabcdef, 0x123456], overlayColour: [0xabcdef, 0x123456] }),
+                "{reading: [a token set to no colour, a token set to #123456]}, each with the fallback 0xabcdef");
+        } finally {
+            root.style.removeProperty(BAD);
+            root.style.removeProperty(GOOD);
+        }
+    }],
+
     ["R5200 - the private cards' and the traps' diagnoses are on game.drpg (E43; the plan's item 4): `game.drpg.diagnoseSecrets()` answers secret.mjs `diagnoseSecrets`, and `game.drpg.diagnoseTraps()` answers traps.mjs `diagnoseTraps` on a GM and warns and answers null on a player (read in its line), as the diagnostics window's part runs it for the GMs alone", async () => {
         /*
          * E43, 13.11.2026. Both ran only as parts of the diagnostics window (diagnostics.mjs `part("secrets")`,
