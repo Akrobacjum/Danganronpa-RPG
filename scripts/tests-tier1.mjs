@@ -9123,6 +9123,42 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R4900 - several planned Autopsies a chapter (the owner, 13.11.2026: \"zaplanowane autopsy moga byc wiecej niz 1 ... preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce\"): the n-th under autopsy-<n>, the first under autopsy; the preset one a body, the bodies found and the open incident's victim, one where there is none, at most 9; the bodies in the order found, each once; due: of the count, with words, not sent, its body found - its atBody, else its own number; atBody and the meta row's count and sent marks as the store reads them; the Map draws the count's Autopsies and one past it only where it went out", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~09:20. case-schema.mjs `autopsyId`, `autopsyNumber`,
+         * `autopsyPresetOf`, `bodiesInOrder`, `autopsiesDue`, `caseNodeOf`'s atBody, `caseMetaOf`'s autopsies and
+         * autopsySent, `graphOf`'s count. The sending is tier 2's "planned Autopsies: ...". Red at bc3445c: one planned
+         * Autopsy a chapter, none of these.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.autopsiesDue === "function", "case-schema.mjs plans one Autopsy a chapter - nothing here reads several");
+        const rows = { autopsy: { kind: "autopsy", label: "A1" }, "autopsy-2": { kind: "autopsy", text: "A2 words", atBody: 3 },
+            "autopsy-3": { kind: "autopsy" }, "autopsy-4": { kind: "autopsy", label: "A4" } };
+        const graph = S.graphOf({ chapter: 1, rows, meta: { autopsySent: { "autopsy-4": 7 } }, autopsy: 2 });
+        equal(stableJson({
+            ids: [1, 2, 9].map(S.autopsyId),
+            numbers: ["autopsy", "autopsy-2", "autopsy-9", "autopsy-10", "autopsy-1", "autopsyx", null].map(S.autopsyNumber),
+            preset: [S.autopsyPresetOf({}), S.autopsyPresetOf({ found: ["a", "b"] }), S.autopsyPresetOf({ found: ["a"], victimId: "a" }),
+                S.autopsyPresetOf({ found: ["a"], victimId: "b" }), S.autopsyPresetOf({ found: Array.from({ length: 12 }, (_, i) => `v${i}`) })],
+            order: S.bodiesInOrder([{ at: 20, victimIds: ["c"] }, { at: 10, victimIds: ["a", "b"] }, { at: 30, victimIds: ["a", "d"] }]),
+            due: [0, 1, 2, 3].map(bodies => S.autopsiesDue({ count: 3, rows, sent: {}, bodies }).map(d => d.id)),
+            dueSent: S.autopsiesDue({ count: 4, rows, sent: { autopsy: 1 }, bodies: 9 }).map(d => d.id),
+            atBody: [S.caseNodeOf({ kind: "autopsy", atBody: "2" }).atBody, S.caseNodeOf({ kind: "autopsy", atBody: 0 }).atBody,
+                S.caseNodeOf({ kind: "autopsy", atBody: 12 }).atBody, S.caseNodeOf({ kind: "deduction", atBody: 2 }).atBody],
+            meta: (m => [m.autopsies, m.autopsySent])(S.caseMetaOf({ autopsies: "3", autopsySent: { autopsy: 5, "autopsy-2": "x", other: 3 } })),
+            graph: graph.nodes.filter(n => n.kind === "autopsy").map(n => [n.id, n.n, n.sent, n.written])
+        }), stableJson({
+            ids: ["autopsy", "autopsy-2", "autopsy-9"],
+            numbers: [1, 2, 9, null, null, null, null],
+            preset: [1, 2, 1, 2, 9],
+            order: ["a", "b", "c", "d"],
+            due: [[], ["autopsy"], ["autopsy"], ["autopsy", "autopsy-2"]],
+            dueSent: ["autopsy-2", "autopsy-4"],
+            atBody: [2, null, null, null],
+            meta: [3, { autopsy: 5 }],
+            graph: [["autopsy", 1, false, true], ["autopsy-2", 2, false, true], ["autopsy-4", 4, true, true]]
+        }), "{ids of 1, 2, 9; numbers of ids; presets: none, two found, one found that is the victim, one found and another victim, twelve; the bodies in order; due at 0-3 bodies; due with the first sent; atBody read from \"2\", 0, 12 and on a deduction; the meta row's count and marks; the Map's Autopsies at a count of 2: id, number, sent, written}");
+    }],
     ["R4455 - a tick written before ticks carried their trial is read as the running trial's when it was written in it (the planner's review for 1.2.111, minor 1; 13.11.2026): `caseTicks` reads a row with no `trial` as the current trial's where its `at` is at or after the record's `trialStartedAt`, and as an earlier trial's before it; a row that names its trial is read only in that trial; with no record every row with no `trial` reads, as before", async () => {
         /*
          * 1.2.108 and 1.2.109 write a tick as `{ ticked, by, at }` (case-schema.mjs `setCaseTick`), and the trial record's

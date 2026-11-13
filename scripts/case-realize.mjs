@@ -22,9 +22,10 @@
  * one of two runs stops before it places anything. Not a lock across a slow network: LIVE-E97-04.
  */
 import { esc, error, placeRoomOptions, primaryGmId, plural } from "./utils.mjs";
+import { bodiesFoundIn } from "./settings.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
-import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, AUTOPSY_NODE } from "./case-schema.mjs";
-import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyIssued } from "./investigation.mjs";
+import { caseRows, caseMetaOf, setCaseMeta, caseNodeOf, autopsiesDue, bodiesInOrder } from "./case-schema.mjs";
+import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord, autopsyCount } from "./investigation.mjs";
 import { remnantById, dropRemnantSecret } from "./remnants.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { placeScenes, roomNames } from "./rooms.mjs";
@@ -201,7 +202,7 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
 export function registerCaseAsk() {
     /* the planned Autopsy goes out first, with no window (13.11.2026; `sendPlannedAutopsy`). On the primary GM alone,
        not on the discovery's writer: every discovery stamps on the primary today, but one stamped on another GM would
-       then go out from nobody (perf-open's review for 1.2.111, section 2). `sending` and `autopsyIssued` keep it once. */
+       then go out from nobody (perf-open's review for 1.2.111, section 2). `sending` and each one's sent mark keep it once. */
     Hooks.on(BODY_ANNOUNCED_HOOK, payload => {
         if (payload?.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
         sendPlannedAutopsy(payload.chapter).catch(err => error("The planned Autopsy could not be sent", err));
@@ -238,29 +239,41 @@ export async function askAtBody(chapter) {
 }
 
 /**
- * THE PLANNED AUTOPSY, SENT AT THE BODY (the owner, 13.11.2026: "gracze dostaja od razu po odkryciu ciala. Bez kliku
- * GMa"). On the primary GM's browser, from the discovery's hook (`registerCaseAsk`): the chapter's planned Autopsy
- * (case-schema.mjs AUTOPSY_NODE), with a name or words written, goes to every student not dead - the GM panel's window's
- * own default (gm-items.mjs `issueAutopsyDialog`) - by the same road (truth-bullets.mjs `issueAutopsy`: the answer key
- * and the GM's note stay the GMs'), and the GM is told how many. Once a chapter: an Autopsy of the chapter held already
- * (sent by hand, or at an earlier body; investigation.mjs `autopsyIssued`) sends nothing, and two calls at once send
- * once (`sending`). A body never found sends nothing; a discovery runs on the primary GM's browser, so there is no
- * discovery with no GM to send it. Answers how many went out.
+ * THE PLANNED AUTOPSIES, SENT AT THE BODIES (the owner, 13.11.2026: "gracze dostaja od razu po odkryciu ciala. Bez kliku
+ * GMa"; and "zaplanowane autopsy moga byc wiecej niz 1"). On the primary GM's browser, from the discovery's hook
+ * (`registerCaseAsk`): each of the chapter's planned Autopsies that is due (case-schema.mjs `autopsiesDue`: of the
+ * chapter's count, `autopsyCount`; with a name or words written; not sent; its body - the `atBody`-th found, its own
+ * number by default - found, the bodies read off the chapter's stamps, `bodiesInOrder`), in order, goes to every
+ * student not dead - the GM panel's window's own default (gm-items.mjs `issueAutopsyDialog`) - by the same road
+ * (truth-bullets.mjs `issueAutopsy`: the answer key and the GM's note stay the GMs'), marked sent on the meta row
+ * (`autopsySent`), and the GM told how many got it. A discovery of two bodies sends the two due. An Autopsy sent by
+ * hand blocks none: the planned ones go out on their own bodies, and the GM may send more by hand whenever (the GM
+ * panel's window fills in the next one planned and marks it sent, gm-items.mjs). Two calls at once send once
+ * (`sending`). Answers how many students got one, over all sent.
  */
 const sending = new Set();
 export async function sendPlannedAutopsy(chapter) {
     if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter) || sending.has(chapter)) return 0;
-    const plan = caseNodeOf(caseRows(chapter).rows[AUTOPSY_NODE]);
-    if (plan?.kind !== "autopsy" || !(plan.label || plan.text) || autopsyIssued(chapter)) return 0;
+    const { rows, meta } = caseRows(chapter);
+    const due = autopsiesDue({ count: autopsyCount(chapter), rows, sent: caseMetaOf(meta).autopsySent,
+        bodies: bodiesInOrder(bodiesFoundIn(chapter)).length });
+    if (!due.length) return 0;
     sending.add(chapter);
+    let total = 0;
     try {
         const [{ studentActors }, { isDeadForGm }, { issueAutopsy }, { TRUTH_BULLET_TYPES }] = await Promise.all([
             import("./monokuma.mjs"), import("./chapter.mjs"), import("./truth-bullets.mjs"), import("./config.mjs")]);
-        const living = studentActors().filter(a => !isDeadForGm(a));
-        if (!living.length) return 0;
-        const issued = await issueAutopsy(living, { name: plan.label || TRUTH_BULLET_TYPES.autopsy.label, playerText: plan.text, gmNote: plan.note ?? "" });
-        if (issued) ui.notifications.info(plural("DRPG.CaseMap.autopsyWentOut", { n: issued }));
-        return issued;
+        for (const { id } of due) {
+            const plan = caseNodeOf(caseRows(chapter).rows[id]);
+            const living = studentActors().filter(a => !isDeadForGm(a));
+            if (!plan || !living.length) break;
+            const issued = await issueAutopsy(living, { name: plan.label || TRUTH_BULLET_TYPES.autopsy.label, playerText: plan.text, gmNote: plan.note ?? "" });
+            if (!issued) continue;
+            await setCaseMeta(chapter, { autopsySent: { ...caseMetaOf(caseRows(chapter).meta).autopsySent, [id]: Date.now() } });
+            ui.notifications.info(plural("DRPG.CaseMap.autopsyWentOut", { n: issued }));
+            total += issued;
+        }
+        return total;
     } finally {
         sending.delete(chapter);
     }

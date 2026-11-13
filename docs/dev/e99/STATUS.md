@@ -612,3 +612,46 @@ Defaults, as built (the owner may revise):
 - Red, then green: tier 2 "planner autosave: a node's write that fails ..." (at da352a8 the footer had a Cancel,
   action "discard", and the typed name stayed unwritten) and R1358's row for the window (the closing word `close`).
 - GM handbook EN/PL: "**Close** saves them too." / "**Zamknij** też je zapisuje." in place of the Cancel sentence.
+
+## Several planned Autopsies a chapter (13.11.2026; the owner through the coordinator: "zaplanowane autopsy moga byc wiecej niz 1. Ogolnie cel jest taki by gm mial preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce")
+
+- **Shape.** The n-th planned Autopsy of a chapter is the case row `autopsy-<n>` (the first stays `autopsy`), up to 9
+  (case-schema.mjs `autopsyId`, `autopsyNumber`, AUTOPSY_MAX). The chapter's count is its meta row's `autopsies`, or
+  the preset where none is written (investigation.mjs `autopsyCount`). The first Autopsy's fields hold the count as a
+  select, with the preset named under it; the Map draws that many Autopsy nodes, numbered on their face when there is
+  more than one. A written Autopsy past the count is kept and not drawn, unless it went out.
+- **The preset** (`autopsyPreset`, `autopsyPresetOf`): one for each body the chapter has, read as this season's bodies
+  found in the chapter (its discovery stamps, `bodiesFoundIn`) together with the open incident's victim where that
+  incident is the chapter's (`murderState().victimId`), each body once; one where the chapter has none yet, because
+  the case plans one murder a chapter. The case schema itself plans no bodies, so this is the reading of "the bodies
+  the case plans". Q-P111-1 below.
+- **The trigger.** Each planned Autopsy has **Sent at** / **Wysyłany przy**: "Body n found", its own number by default
+  (`atBody`, null meaning its number). At each discovery, on the primary GM, every planned Autopsy that is due goes out
+  in order (case-schema.mjs `autopsiesDue`): within the count, with a name or words, not marked sent, and its body
+  found. "The k-th body" is read off the chapter's stamps in the order found (`bodiesInOrder`), so a discovery of two
+  bodies sends the two due, and a GM who comes back after a missed hook sends the overdue ones at the next one. A sent
+  Autopsy is marked on the meta row (`autopsySent`). It goes to every living student, as before.
+- **By hand.** Nothing refuses the GM another Autopsy. An Autopsy held already no longer stops the planned ones (before,
+  `autopsyIssued` blocked the one planned Autopsy). The GM panel's Autopsy window fills in the next planned one not
+  sent and, sent from there, marks it sent, so its body sends it no second time. Q-P111-2 below.
+- **Removed:** the probe `world.noAutopsyHeld` (da352a8). A held Autopsy no longer changes what the planned ones do,
+  so the test skips no world for one.
+- **Tests.** R4900 (tier 1; the ids, preset, order, due, atBody, the meta row's fields and the Map's nodes): red at
+  bc3445c (none of the functions). Tier 2 "planned Autopsies: ..." (two planned; the first goes out at the first
+  body's stamp, nothing more at the same bodies, the second at the second body; not to the dead; a rehearsal sends
+  nothing): red at bc3445c (the second never went out). Tier 2 "planned Autopsies on the Map: ..." (the count drawn
+  with its preset, a count of 2 written at the node's close draws a second node, its body written at its own close;
+  the GM panel's window fills in the next one not sent and marks it sent): red at bc3445c.
+- GM handbook EN/PL: the planned Autopsy's paragraph rewritten.
+
+### Questions for the owner, each built on its default
+
+- **Q-P111-1. Where the preset's bodies come from.** Default: the bodies found in the chapter plus the open incident's
+  victim not yet found, at least one. The case planner has no "bodies" of its own; a body that dies off the incident
+  (not the incident's victim) counts only once it is found. An alternative would be a planned "body" row in the case.
+- **Q-P111-2. A hand-sent Autopsy and the plan.** Default: sent from the GM panel's window while it is filled in from
+  a planned one, that planned one is marked sent. An Autopsy sent by hand with the window filled in from nothing
+  planned (or every planned one already sent) marks nothing. The GM's text edits in the window do not matter: the
+  planned one it was filled from is the one marked.
+- **Q-P111-3. Lowering the count.** Default: the Autopsies past the new count are kept and neither drawn nor sent;
+  raising the count again brings them back as they were. One already sent stays drawn, marked sent.
