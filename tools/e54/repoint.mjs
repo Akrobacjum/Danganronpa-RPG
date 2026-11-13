@@ -83,7 +83,16 @@ for (const t of manifest.targets) for (const [name, kind] of Object.entries(t.na
     if (kind.endsWith("?") && !holderOf.has(name)) continue;   // a declaration a line adds, not in this tree
     if (holderOf.get(name) !== path.basename(t.file)) refuse(`${name} is the manifest's for ${path.basename(t.file)} and stands in ${holderOf.get(name) ?? "no file of the family"} - run tools/e54/split.mjs first, on this manifest`);
 }
+/* `repoint.stays`: names a row pairs with the source that are no declaration and stay with it - settings.mjs's rows
+   `"settings.mjs", "voiceTile"` name a key of its SETTINGS table (E54 W3). Each must stand in the facade as `name:`
+   or `"name"`, so a name mistyped here refuses rather than passes. */
+const STAYS = new Set(RP.stays ?? []);
+{
+    const facadeText = fs.readFileSync(path.join(REPO, "scripts", SOURCE), "utf8");
+    for (const name of STAYS) if (!new RegExp(`(?<![\\w$])${name}\\s*:|"${name}"`).test(facadeText)) refuse(`repoint.stays: "${name}" is no key or name in ${SOURCE}`);
+}
 const holder = (name, where) => {
+    if (!holderOf.has(name) && STAYS.has(name)) return SOURCE;
     const file = holderOf.get(name);
     if (!file) refuse(`${where}: "${name}" is named beside ${SOURCE} and is no declaration the manifest places - repoint it by a row of its own`);
     return file ?? SOURCE;
