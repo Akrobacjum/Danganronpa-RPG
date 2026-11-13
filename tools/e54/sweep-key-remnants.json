@@ -1,158 +1,180 @@
 {
-  "about": "The comment sweep's rows for the key-remnants cut (docs/dev/E54/COMMENT-SWEEP.md), applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line on 421f2395 (base), the file it stands in after the cut (file), its text there (old, found exactly once or the row refuses) and what it reads instead (new).",
+  "about": "The comment sweep's rows for the key-remnants cut (docs/dev/E54/COMMENT-SWEEP.md), built by tools/e54/sweep-build.mjs from 421f2395 and applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line at the base (base), the file it stands in after the cut (file), the changed fragment of it there (old), what the fragment reads instead (new), and the whole line at the base (line): sweep.mjs applies a fragment that stands once in the file, or else the one that stands in a line equal to `line`, and refuses the row otherwise.",
   "rows": [
     {
       "base": "scripts/bridge-runs-records.mjs:731",
       "file": "scripts/bridge-runs-records.mjs",
-      "old": "/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (investigation.mjs `chargeForUnfoundKeys`), what was paid or null. */",
-      "new": "/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (key-remnants.mjs `chargeForUnfoundKeys`), what was paid or null. */",
+      "old": "(investigation.mjs",
+      "new": "(key-remnants.mjs",
+      "line": "/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (investigation.mjs `chargeForUnfoundKeys`), what was paid or null. */",
       "why": "`chargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/bridge-table.mjs:950",
       "file": "scripts/bridge-table.mjs",
-      "old": "     * primary's, so another GM asks it here (investigation.mjs `askToChargeForUnfoundKeys`).",
-      "new": "     * primary's, so another GM asks it here (key-remnants.mjs `askToChargeForUnfoundKeys`).",
+      "old": "(investigation.mjs",
+      "new": "(key-remnants.mjs",
+      "line": "     * primary's, so another GM asks it here (investigation.mjs `askToChargeForUnfoundKeys`).",
       "why": "`askToChargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/bridge-wire.mjs:55",
       "file": "scripts/bridge-wire.mjs",
-      "old": "/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */",
-      "new": "/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; key-remnants.mjs `askToChargeForUnfoundKeys`). */",
+      "old": "r1-G3; investigation.mjs",
+      "new": "r1-G3; key-remnants.mjs",
+      "line": "/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */",
       "why": "`askToChargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/case-schema.mjs:205",
       "file": "scripts/case-schema.mjs",
-      "old": "    /* `slots` given (E97 C6): the Key plan's every slot as investigation.mjs `keyPlan` reads it, a slot no GM wrote among",
-      "new": "    /* `slots` given (E97 C6): the Key plan's every slot as key-remnants.mjs `keyPlan` reads it, a slot no GM wrote among",
+      "old": "as investigation.mjs",
+      "new": "as key-remnants.mjs",
+      "line": "    /* `slots` given (E97 C6): the Key plan's every slot as investigation.mjs `keyPlan` reads it, a slot no GM wrote among",
       "why": "`keyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/case-schema.mjs:217",
       "file": "scripts/case-schema.mjs",
-      "old": " * of a field this GM did not touch (the Key plan's rule, investigation.mjs `setKeyPlan`).",
-      "new": " * of a field this GM did not touch (the Key plan's rule, key-remnants.mjs `setKeyPlan`).",
+      "old": "rule, investigation.mjs",
+      "new": "rule, key-remnants.mjs",
+      "line": " * of a field this GM did not touch (the Key plan's rule, investigation.mjs `setKeyPlan`).",
       "why": "`setKeyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/config.mjs:1381",
       "file": "scripts/config.mjs",
-      "old": "     * investigation.mjs `keyFeeOf`, which also says what counts as found.",
-      "new": "     * key-remnants.mjs `keyFeeOf`, which also says what counts as found.",
+      "old": " * investigation.mjs `keyFeeOf`,",
+      "new": " * key-remnants.mjs `keyFeeOf`,",
+      "line": "     * investigation.mjs `keyFeeOf`, which also says what counts as found.",
       "why": "`keyFeeOf` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/gm-stores.mjs:1298",
       "file": "scripts/gm-stores.mjs",
-      "old": " * nothing is filed when the chapter ends (investigation.mjs `keyPlan`), and a stamp per",
-      "new": " * nothing is filed when the chapter ends (key-remnants.mjs `keyPlan`), and a stamp per",
+      "old": "ends (investigation.mjs `keyPlan`),",
+      "new": "ends (key-remnants.mjs `keyPlan`),",
+      "line": " * nothing is filed when the chapter ends (investigation.mjs `keyPlan`), and a stamp per",
       "why": "`keyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/gm-stores.mjs:1303",
       "file": "scripts/gm-stores.mjs",
-      "old": " * investigation.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)",
-      "new": " * key-remnants.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)",
+      "old": "* investigation.mjs's",
+      "new": "* key-remnants.mjs's",
+      "line": " * investigation.mjs's `keepOnlyKeyPlanChapter`, which the reset calls (the keyPlan entry's keep, `keepSeasonKeyPlan`)",
       "why": "`keepOnlyKeyPlanChapter` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/gm-stores.mjs:1311",
       "file": "scripts/gm-stores.mjs",
-      "old": " * (investigation.mjs `recordCaseKeys`), which no slot reader takes - kept under the",
-      "new": " * (key-remnants.mjs `recordCaseKeys`), which no slot reader takes - kept under the",
+      "old": "* (investigation.mjs `recordCaseKeys`),",
+      "new": "* (key-remnants.mjs `recordCaseKeys`),",
+      "line": " * (investigation.mjs `recordCaseKeys`), which no slot reader takes - kept under the",
       "why": "`recordCaseKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/investigation.mjs:2479",
       "file": "scripts/investigation.mjs",
-      "old": "/** Two field values the same: both blank, or equal as JSON (the Key plan's `same`, investigation.mjs `setKeyPlan`). */",
-      "new": "/** Two field values the same: both blank, or equal as JSON (the Key plan's `same`, key-remnants.mjs `setKeyPlan`). */",
+      "old": "`same`, investigation.mjs",
+      "new": "`same`, key-remnants.mjs",
+      "line": "/** Two field values the same: both blank, or equal as JSON (the Key plan's `same`, investigation.mjs `setKeyPlan`). */",
       "why": "`setKeyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/settings.mjs:590",
       "file": "scripts/settings.mjs",
-      "old": "     * sceneId } (investigation.mjs `keyPlan`, `setKeyPlan`).",
-      "new": "     * sceneId } (key-remnants.mjs `keyPlan`, `setKeyPlan`).",
-      "why": "`keyPlan` goes to key-remnants.mjs"
+      "old": "(investigation.mjs",
+      "new": "(key-remnants.mjs",
+      "line": "     * sceneId } (investigation.mjs `keyPlan`, `setKeyPlan`).",
+      "why": "`keyPlan` goes to key-remnants.mjs; `setKeyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier0.mjs:20425",
       "file": "scripts/tests-tier0.mjs",
-      "old": "         * `markBodyDisturbed`, investigation.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs",
-      "new": "         * `markBodyDisturbed`, key-remnants.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs",
+      "old": "`markBodyDisturbed`, investigation.mjs",
+      "new": "`markBodyDisturbed`, key-remnants.mjs",
+      "line": "         * `markBodyDisturbed`, investigation.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs",
       "why": "`saveKeyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier1.mjs:9656",
       "file": "scripts/tests-tier1.mjs",
-      "old": "         * (investigation.mjs `askToChargeForUnfoundKeys`). Red before the fix: no such request,",
-      "new": "         * (key-remnants.mjs `askToChargeForUnfoundKeys`). Red before the fix: no such request,",
+      "old": "* (investigation.mjs `askToChargeForUnfoundKeys`).",
+      "new": "* (key-remnants.mjs `askToChargeForUnfoundKeys`).",
+      "line": "         * (investigation.mjs `askToChargeForUnfoundKeys`). Red before the fix: no such request,",
       "why": "`askToChargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier1.mjs:29918",
       "file": "scripts/tests-tier1.mjs",
-      "old": "         * (`paid`, investigation.mjs `chargeForUnfoundKeys`) and the rows revealed; the window is read through",
-      "new": "         * (`paid`, key-remnants.mjs `chargeForUnfoundKeys`) and the rows revealed; the window is read through",
+      "old": "(`paid`, investigation.mjs",
+      "new": "(`paid`, key-remnants.mjs",
+      "line": "         * (`paid`, investigation.mjs `chargeForUnfoundKeys`) and the rows revealed; the window is read through",
       "why": "`chargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier2.mjs:1125",
       "file": "scripts/tests-tier2.mjs",
-      "old": " * asked as a trial's opening asks it on the primary GM (investigation.mjs `chargeForUnfoundKeys`),",
-      "new": " * asked as a trial's opening asks it on the primary GM (key-remnants.mjs `chargeForUnfoundKeys`),",
+      "old": "GM (investigation.mjs `chargeForUnfoundKeys`),",
+      "new": "GM (key-remnants.mjs `chargeForUnfoundKeys`),",
+      "line": " * asked as a trial's opening asks it on the primary GM (investigation.mjs `chargeForUnfoundKeys`),",
       "why": "`chargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier2.mjs:18779",
       "file": "scripts/tests-tier2.mjs",
-      "old": "         * E09 fix r2-G5, 08.10.2026 (sec S2-2); the Key tab's road (investigation.mjs `saveKeyPlan`), the",
-      "new": "         * E09 fix r2-G5, 08.10.2026 (sec S2-2); the Key tab's road (key-remnants.mjs `saveKeyPlan`), the",
+      "old": "road (investigation.mjs `saveKeyPlan`),",
+      "new": "road (key-remnants.mjs `saveKeyPlan`),",
+      "line": "         * E09 fix r2-G5, 08.10.2026 (sec S2-2); the Key tab's road (investigation.mjs `saveKeyPlan`), the",
       "why": "`saveKeyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier2.mjs:25413",
       "file": "scripts/tests-tier2.mjs",
-      "old": "         * what the reset (season-wipe.mjs `wipeSeason`; investigation.mjs `keepSeasonKeyPlan`, the",
-      "new": "         * what the reset (season-wipe.mjs `wipeSeason`; key-remnants.mjs `keepSeasonKeyPlan`, the",
+      "old": "`wipeSeason`; investigation.mjs",
+      "new": "`wipeSeason`; key-remnants.mjs",
+      "line": "         * what the reset (season-wipe.mjs `wipeSeason`; investigation.mjs `keepSeasonKeyPlan`, the",
       "why": "`keepSeasonKeyPlan` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier2.mjs:25691",
       "file": "scripts/tests-tier2.mjs",
-      "old": "         * Remnants the investigation did not turn up (investigation.mjs `chargeForUnfoundKeys`), and refused as too",
-      "new": "         * Remnants the investigation did not turn up (key-remnants.mjs `chargeForUnfoundKeys`), and refused as too",
+      "old": "up (investigation.mjs `chargeForUnfoundKeys`),",
+      "new": "up (key-remnants.mjs `chargeForUnfoundKeys`),",
+      "line": "         * Remnants the investigation did not turn up (investigation.mjs `chargeForUnfoundKeys`), and refused as too",
       "why": "`chargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/tests-tier2.mjs:58109",
       "file": "scripts/tests-tier2.mjs",
-      "old": "            // The new season's own case: a reset drops the old one's row (investigation.mjs `keepOnlyKeyPlanChapter`).",
-      "new": "            // The new season's own case: a reset drops the old one's row (key-remnants.mjs `keepOnlyKeyPlanChapter`).",
+      "old": "row (investigation.mjs `keepOnlyKeyPlanChapter`).",
+      "new": "row (key-remnants.mjs `keepOnlyKeyPlanChapter`).",
+      "line": "            // The new season's own case: a reset drops the old one's row (investigation.mjs `keepOnlyKeyPlanChapter`).",
       "why": "`keepOnlyKeyPlanChapter` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/trial-modes.mjs:337",
       "file": "scripts/trial-modes.mjs",
-      "old": " * trial's opening (investigation.mjs `chargeForUnfoundKeys`). The guide's Monokuma shows it: \"trafia do kazdego",
-      "new": " * trial's opening (key-remnants.mjs `chargeForUnfoundKeys`). The guide's Monokuma shows it: \"trafia do kazdego",
+      "old": "opening (investigation.mjs `chargeForUnfoundKeys`).",
+      "new": "opening (key-remnants.mjs `chargeForUnfoundKeys`).",
+      "line": " * trial's opening (investigation.mjs `chargeForUnfoundKeys`). The guide's Monokuma shows it: \"trafia do kazdego",
       "why": "`chargeForUnfoundKeys` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/trial-modes.mjs:356",
       "file": "scripts/trial-modes.mjs",
-      "old": "/** `game.drpg.missingKeys()`: this chapter's Key Remnants nobody found and the Reveal has not shown (investigation.mjs `missingKeyRows`), on a GM. */",
-      "new": "/** `game.drpg.missingKeys()`: this chapter's Key Remnants nobody found and the Reveal has not shown (key-remnants.mjs `missingKeyRows`), on a GM. */",
+      "old": "shown (investigation.mjs `missingKeyRows`),",
+      "new": "shown (key-remnants.mjs `missingKeyRows`),",
+      "line": "/** `game.drpg.missingKeys()`: this chapter's Key Remnants nobody found and the Reveal has not shown (investigation.mjs `missingKeyRows`), on a GM. */",
       "why": "`missingKeyRows` goes to key-remnants.mjs"
     },
     {
       "base": "scripts/voice.mjs:1504",
       "file": "scripts/voice.mjs",
-      "old": " * the shape investigation.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.",
-      "new": " * the shape key-remnants.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.",
+      "old": "shape investigation.mjs",
+      "new": "shape key-remnants.mjs",
+      "line": " * the shape investigation.mjs `askToChargeForUnfoundKeys` gives the Key fee. Answers the primary's answer, or null.",
       "why": "`askToChargeForUnfoundKeys` goes to key-remnants.mjs"
     }
   ]

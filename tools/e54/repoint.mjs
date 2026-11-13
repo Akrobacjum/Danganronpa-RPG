@@ -79,7 +79,8 @@ for (const file of FAMILY) {
         for (const n of names) holderOf.set(n, file);
     }
 }
-for (const t of manifest.targets) for (const name of Object.keys(t.names)) {
+for (const t of manifest.targets) for (const [name, kind] of Object.entries(t.names)) {
+    if (kind.endsWith("?") && !holderOf.has(name)) continue;   // a declaration a line adds, not in this tree
     if (holderOf.get(name) !== path.basename(t.file)) refuse(`${name} is the manifest's for ${path.basename(t.file)} and stands in ${holderOf.get(name) ?? "no file of the family"} - run tools/e54/split.mjs first, on this manifest`);
 }
 const holder = (name, where) => {

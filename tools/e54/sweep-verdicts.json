@@ -1,0 +1,193 @@
+{
+  "about": "The comment sweep's hand-read verdicts (docs/dev/E54/COMMENT-SWEEP.md, 13.11.2026): a comment line is found by its file and the start of its text (`line`, as it stood on 421f2395), not by its number, so the verdict follows the line to another base. `from`/`to`: the replacement of a false one, as the inventory wrote it.",
+  "verdicts": [
+    {
+      "file": "scripts/chapter.mjs",
+      "line": "* Async because sheet-audit.mjs is imported where it is needed, as everywhere in this file.",
+      "verdict": "true",
+      "why": "body.mjs imports sheet-audit.mjs by `import()` only, as chapter.mjs did"
+    },
+    {
+      "file": "scripts/chapter.mjs",
+      "line": "* announcement belongs to `discoverBody`, not here. The card goes to the GMs",
+      "verdict": "true",
+      "why": "\"not here\" is the function, not the file: the announcement is discoverBody's"
+    },
+    {
+      "file": "scripts/chapter.mjs",
+      "line": "holds it up: sheet-audit.mjs imports nothing of this file, so no judgement waits for a discovery",
+      "verdict": "true",
+      "why": "sheet-audit.mjs imports none of chapter.mjs, body.mjs or death.mjs"
+    },
+    {
+      "file": "scripts/investigation.mjs",
+      "line": "* nothing is not written at all - a slot nobody has written here is not one this GM",
+      "verdict": "true",
+      "why": "\"here\" is this GM's browser, not the file"
+    },
+    {
+      "file": "scripts/player-status.mjs",
+      "line": "// counts them. Until E37 this was chapter.mjs `livingStudents()`, with no Monocub: a Monocub holdin",
+      "verdict": "true",
+      "why": "history: what the count was until E37, in the file it was in then"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* Is every key in this update a resource this file can repaint itself?",
+      "verdict": "true",
+      "why": "the same"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* PRICE's own refusal is not here at all: `actionButton` has the quote.",
+      "verdict": "true",
+      "why": "\"not here\" is the function: actionButton, in the same file after the cut, has the quote"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* The groups above are drawn by category, and the stylesheet hides Daggerheart's own inventory lists",
+      "verdict": "false",
+      "why": "`INVENTORY_GROUPS` goes to sheet-sidebar.mjs; CARRIED_TYPES to sheet-inventory.mjs",
+      "from": "The groups above are drawn by category",
+      "to": "The groups of sheet-sidebar.mjs `INVENTORY_GROUPS` are drawn by category"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* The resources this file can redraw in place - see the note above.",
+      "verdict": "true",
+      "why": "the repaint (`repaintInPlace`) is sheet-repaint.mjs's"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* advance, which is the rule this file has applied to the Eclipse since it",
+      "verdict": "false",
+      "why": "the rule is the sheet's tiles', and actionButton now stands in sheet-actions.mjs",
+      "from": "which is the rule this file has applied to the Eclipse since it",
+      "to": "which is the rule the sheet's tiles have applied to the Eclipse since they"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* and to plant a throwing step in (R1456); E54 moves it into the thin sheet.mjs.",
+      "verdict": "false",
+      "why": "a plan the cut carries out",
+      "from": "E54 moves it into the thin sheet.mjs.",
+      "to": "E54 moved it into the thin sheet.mjs."
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* header. Actions are drawn by this file's own action panel and again by the",
+      "verdict": "false",
+      "why": "the action panel is sheet-actions.mjs's",
+      "from": "Actions are drawn by this file's own action panel",
+      "to": "Actions are drawn by the sheet's own action panel (sheet-actions.mjs `injectActionPanel`)"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* moves, and nothing draws it then: of this file's hooks (`registerSheetTweaks`) none draws the list",
+      "verdict": "false",
+      "why": "`registerSheetTweaks` stays in sheet.mjs",
+      "from": "of this file's hooks (`registerSheetTweaks`)",
+      "to": "of sheet.mjs's hooks (`registerSheetTweaks`)"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* own inner lists only (`.items-section`, `.features-sections`). Each tab's `scrollTop` is kept here",
+      "verdict": "true",
+      "why": "`tabScrolls` moves with it into sheet-fit.mjs"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* resource inputs, and everything this file does to a freshly rendered sheet",
+      "verdict": "false",
+      "why": "what a render does to the sheet is the family's, not sheet-repaint.mjs's",
+      "from": "everything this file does to a freshly rendered sheet",
+      "to": "everything the sheet's family (sheet.mjs `SHEET_STEPS`) does to a freshly rendered sheet"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* resource-guard.mjs cut the write in their own `preUpdateActor` (this file's",
+      "verdict": "false",
+      "why": "the hook was sheet.mjs's (`registerSheetTweaks`, which the facade keeps)",
+      "from": "(this file's",
+      "to": "(sheet.mjs's"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* separate `isCleaner` test in this file that had to be kept in step by hand.",
+      "verdict": "false",
+      "why": "the old test was sheet.mjs's, before the split",
+      "from": "separate `isCleaner` test in this file that had to be kept in step by hand",
+      "to": "separate `isCleaner` test in sheet.mjs (before E54) that had to be kept in step by hand"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* tabs this file already cuts: it is a place to keep rules text about an item",
+      "verdict": "true",
+      "why": "ITEM_TABS_CUT moves with it into sheet-item.mjs"
+    },
+    {
+      "file": "scripts/sheet.mjs",
+      "line": "* tagged with our own class, and styled off that. A class this file puts there",
+      "verdict": "true",
+      "why": "the class is put there by sheet-header.mjs's own functions"
+    },
+    {
+      "file": "scripts/tests-tier0.mjs",
+      "line": "* player-status.mjs `trackedStudents()`, which was chapter.mjs `livingStudents()` and left the Monoc",
+      "verdict": "true",
+      "why": "history: what `trackedStudents` was before, in the file it was in then"
+    },
+    {
+      "file": "scripts/tests-tier0.mjs",
+      "line": "// sheet.mjs#addPresentButton struck in E45 C1: the dead's Present is the sheet's mode (`sheetMode`'",
+      "verdict": "true",
+      "why": "a history note: the census row as E45 C1 struck it, keyed by the file it stood in then"
+    },
+    {
+      "file": "scripts/utils.mjs",
+      "line": "* back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, wh",
+      "verdict": "false",
+      "why": "it stands in windows.mjs now",
+      "from": "Here and not in ui-kit.mjs",
+      "to": "In windows.mjs and not in ui-kit.mjs"
+    },
+    {
+      "file": "scripts/utils.mjs",
+      "line": "* it. The absolute cap is read from the stylesheet rather than written here",
+      "verdict": "true",
+      "why": "\"written here\" is the code, not the file"
+    },
+    {
+      "file": "scripts/utils.mjs",
+      "line": "* measures with it (`fitKitWidth`, E21 C2a; this file's `fitWindowToTabs` until then), because utils",
+      "verdict": "false",
+      "why": "the old function was utils.mjs's; the rule binds windows.mjs as it bound utils.mjs",
+      "from": "this file's `fitWindowToTabs` until then), because utils.mjs may not import",
+      "to": "utils.mjs's `fitWindowToTabs` until then), because windows.mjs, like utils.mjs, may not import"
+    },
+    {
+      "file": "scripts/utils.mjs",
+      "line": "* the kit (R161: the kit imports this file). Nothing is painted in between: a caller runs it inside ",
+      "verdict": "false",
+      "why": "the kit imports utils.mjs, which re-exports windows.mjs",
+      "from": "the kit (R161: the kit imports this file).",
+      "to": "the kit (R161: the kit imports utils.mjs, which re-exports this file)."
+    },
+    {
+      "file": "scripts/utils.mjs",
+      "line": "* the kit because R168 reads it here, and the kit may import this file (R161).",
+      "verdict": "false",
+      "why": "R168 imports it from utils.mjs, which re-exports it; the kit imports utils.mjs",
+      "from": "the kit because R168 reads it here, and the kit may import this file (R161).",
+      "to": "the kit because the kit imports utils.mjs, which re-exports it (R161 holds no cycle); R168 imports it from there."
+    },
+    {
+      "file": "scripts/utils.mjs",
+      "line": "* window (E21 C2a; this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). ",
+      "verdict": "false",
+      "why": "the three were utils.mjs's",
+      "from": "this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and not in",
+      "to": "utils.mjs's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). In windows.mjs and not in"
+    }
+  ]
+}

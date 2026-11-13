@@ -181,6 +181,8 @@
         "noteStepStart": "function",
         "onTunnelStep": "async function",
         "knownPassageItem": "function",
+        "lairLocked": "function?",
+        "lairBlock": "function?",
         "injectKnownPassages": "function",
         "redrawPassageSheets": "function",
         "injectSafeword": "function",
@@ -246,6 +248,8 @@
         "buildRulesPanel": "function",
         "injectActionPanel": "function",
         "injectMonocubPanel": "function",
+        "monocubMoveNote": "function?",
+        "moveDragSaid": "function?",
         "monocubTiles": "function",
         "abilityButton": "function",
         "budgetLine": "function",
@@ -264,6 +268,7 @@
         "askTamper": "async function",
         "paintTamper": "function",
         "actionButton": "function",
+        "stillMoveTile": "function?",
         "callsGmFor": "function",
         "costOf": "function",
         "directMurderIsFree": "function",
@@ -335,5 +340,6 @@
         "why": "the guard is against an empty read: the sheet's family is read file by file now, and its smallest file (sheet-mode.mjs, about 9700 characters, strings blanked) is under the 20000 the whole sheet.mjs cleared"
       }
     ]
-  }
+  },
+  "optionalWhy": "A kind ending in \"?\" is a declaration an open line adds (13.11.2026: e72's lairLocked and lairBlock, in 1.2.110; r112's monocubMoveNote, moveDragSaid and stillMoveTile), placed where its line wrote it - beside the declaration before it there - so the cut applies on main and on the line's shape alike"
 }

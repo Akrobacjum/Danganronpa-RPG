@@ -1,46 +1,52 @@
 {
-  "about": "The comment sweep's rows for the windows cut (docs/dev/E54/COMMENT-SWEEP.md), applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line on 421f2395 (base), the file it stands in after the cut (file), its text there (old, found exactly once or the row refuses) and what it reads instead (new).",
+  "about": "The comment sweep's rows for the windows cut (docs/dev/E54/COMMENT-SWEEP.md), built by tools/e54/sweep-build.mjs from 421f2395 and applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line at the base (base), the file it stands in after the cut (file), the changed fragment of it there (old), what the fragment reads instead (new), and the whole line at the base (line): sweep.mjs applies a fragment that stands once in the file, or else the one that stands in a line equal to `line`, and refuses the row otherwise.",
   "rows": [
     {
       "base": "scripts/tests-tier0.mjs:14718",
       "file": "scripts/tests-tier0.mjs",
-      "old": "         * window can be: utils.mjs `windowWidthFor` caps Room Setup at 94% of the screen and `--drpg-window-max`, 1284 px",
-      "new": "         * window can be: windows.mjs `windowWidthFor` caps Room Setup at 94% of the screen and `--drpg-window-max`, 1284 px",
+      "old": "be: utils.mjs",
+      "new": "be: windows.mjs",
+      "line": "         * window can be: utils.mjs `windowWidthFor` caps Room Setup at 94% of the screen and `--drpg-window-max`, 1284 px",
       "why": "`windowWidthFor` goes to windows.mjs"
     },
     {
       "base": "scripts/utils.mjs:1144",
       "file": "scripts/windows.mjs",
-      "old": " * window (E21 C2a; this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and not in",
-      "new": " * window (E21 C2a; utils.mjs's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). In windows.mjs and not in",
+      "old": "C2a; this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and",
+      "new": "C2a; utils.mjs's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). In windows.mjs and",
+      "line": " * window (E21 C2a; this file's `tableDialog`, `fitWindowToTable` and `fitWindowToTabs` until then). Here and not in",
       "why": "the three were utils.mjs's"
     },
     {
       "base": "scripts/utils.mjs:1145",
       "file": "scripts/windows.mjs",
-      "old": " * the kit because R168 reads it here, and the kit may import this file (R161).",
-      "new": " * the kit because the kit imports utils.mjs, which re-exports it (R161 holds no cycle); R168 imports it from there.",
+      "old": "because R168 reads it here, and the kit may import this file (R161).",
+      "new": "because the kit imports utils.mjs, which re-exports it (R161 holds no cycle); R168 imports it from there.",
+      "line": " * the kit because R168 reads it here, and the kit may import this file (R161).",
       "why": "R168 imports it from utils.mjs, which re-exports it; the kit imports utils.mjs"
     },
     {
       "base": "scripts/utils.mjs:1383",
       "file": "scripts/windows.mjs",
-      "old": " * back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, which hands it on and",
-      "new": " * back as it was; answers what each call answered, by the pane's key. In windows.mjs and not in ui-kit.mjs, which hands it on and",
+      "old": "key. Here and",
+      "new": "key. In windows.mjs and",
+      "line": " * back as it was; answers what each call answered, by the pane's key. Here and not in ui-kit.mjs, which hands it on and",
       "why": "it stands in windows.mjs now"
     },
     {
       "base": "scripts/utils.mjs:1384",
       "file": "scripts/windows.mjs",
-      "old": " * measures with it (`fitKitWidth`, E21 C2a; this file's `fitWindowToTabs` until then), because utils.mjs may not import",
-      "new": " * measures with it (`fitKitWidth`, E21 C2a; utils.mjs's `fitWindowToTabs` until then), because windows.mjs, like utils.mjs, may not import",
+      "old": "C2a; this file's `fitWindowToTabs` until then), because utils.mjs may",
+      "new": "C2a; utils.mjs's `fitWindowToTabs` until then), because windows.mjs, like utils.mjs, may",
+      "line": " * measures with it (`fitKitWidth`, E21 C2a; this file's `fitWindowToTabs` until then), because utils.mjs may not import",
       "why": "the old function was utils.mjs's; the rule binds windows.mjs as it bound utils.mjs"
     },
     {
       "base": "scripts/utils.mjs:1385",
       "file": "scripts/windows.mjs",
-      "old": " * the kit (R161: the kit imports this file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.",
-      "new": " * the kit (R161: the kit imports utils.mjs, which re-exports this file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.",
+      "old": "imports this",
+      "new": "imports utils.mjs, which re-exports this",
+      "line": " * the kit (R161: the kit imports this file). Nothing is painted in between: a caller runs it inside one task, and the browser paints after it.",
       "why": "the kit imports utils.mjs, which re-exports windows.mjs"
     }
   ]

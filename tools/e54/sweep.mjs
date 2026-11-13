@@ -9,9 +9,10 @@
  * that says where the code stands now (`new`). The table is the inventory's, written once from it; nothing here
  * decides a wording.
  *
- * A row's `old` must stand exactly once: in the file the row names, or, where that file holds it no more (a line moved
- * by another cut applied first), exactly once in all of scripts/, styles/, tools/ and audit/. Otherwise the row is
- * refused, and so is the run - exit 1, nothing written - so a branch that changed a line the table knows is told which
+ * A row's `old` (the changed fragment of its line) must stand exactly once: in the file the row names, or, where that
+ * file holds it no more (a line moved by another cut applied first), exactly once in all of scripts/, styles/, tools/
+ * and audit/ - or, where the file holds it more than once, in exactly one line equal to the row's `line` (the whole line
+ * at the base the table was built on). Otherwise the row is refused, and so is the run - exit 1, nothing written - so a branch that changed a line the table knows is told which
  * row and why, rather than swept around it. `--dry` lists every refusal and writes nothing.
  *
  * A row marked `test` changes a test's name, which is the key of its row in docs/dev/R-REGISTRY.md: after writing, the
@@ -72,7 +73,18 @@ for (const row of rows) {
         if (total === 1) { where = found[0][0]; n = 1; }
         else { refused.push(`${row.base} (${row.file}): its text is found ${total} time(s)${total ? ` (${found.map(([f, k]) => `${f} ${k}`).join(", ")})` : ""}, not once - the line changed; read it and write its row again`); continue; }
     }
-    if (n !== 1) { refused.push(`${row.base} (${row.file}): its text is found ${n} times in ${where}, not once`); continue; }
+    if (n !== 1 && row.line) {
+        // the fragment stands more than once (a line repeated it): the one in a line that is still the base's whole line
+        const L = textOf(where).split("\n");
+        const at = L.map((l, i) => (l === row.line ? i : -1)).filter(i => i >= 0);
+        if (at.length === 1 && times(L[at[0]], row.old) === 1) {
+            L[at[0]] = L[at[0]].replace(row.old, row.new);
+            texts.set(where, L.join("\n"));
+            applied.push({ row, where, byLine: true });
+            continue;
+        }
+    }
+    if (n !== 1) { refused.push(`${row.base} (${row.file}): its text is found ${n} times in ${where}, and its whole line ${row.line ? "is not there once" : "is not in the row"} - read it and write its row again`); continue; }
     texts.set(where, textOf(where).replace(row.old, row.new));
     applied.push({ row, where });
 }
@@ -83,7 +95,7 @@ if (refused.length) {
     process.exit(1);
 }
 const moved = applied.filter(a => a.where !== a.row.file);
-say(`${applied.length} row(s) apply (${applied.filter(a => a.row.test).length} of them test names)${moved.length ? `; ${moved.length} found outside the file the row names: ${moved.map(a => `${a.row.base} in ${a.where}`).join(", ")}` : ""}`);
+say(`${applied.length} row(s) apply (${applied.filter(a => a.row.test).length} of them test names, ${applied.filter(a => a.byLine).length} found by their whole line)${moved.length ? `; ${moved.length} found outside the file the row names: ${moved.map(a => `${a.row.base} in ${a.where}`).join(", ")}` : ""}`);
 if (DRY) { say("dry run: nothing written"); process.exit(0); }
 const touched = new Set(applied.map(a => a.where));
 for (const rel of touched) fs.writeFileSync(path.join(REPO, rel), texts.get(rel));

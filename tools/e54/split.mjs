@@ -91,13 +91,17 @@ for (const t of manifest.targets) for (const head of t.statements ?? []) {
 /* ---- the manifest against the source ---- */
 const groupOf = new Map();
 const want = new Map();
+const optional = new Set();
 if (!KEEP_REST) for (const [name, kind] of Object.entries(manifest.keep)) { groupOf.set(name, "facade"); want.set(name, kind); }
 // `stay`, with `"keep": "*"`: a declaration that stands inside a moved section and stays in the facade by decision.
 for (const [name, kind] of Object.entries(manifest.stay ?? {})) { groupOf.set(name, "facade"); want.set(name, kind); }
 for (const t of manifest.targets) {
     for (const [name, kind] of Object.entries(t.names)) {
         if (groupOf.has(name)) refuse(`the manifest lists ${name} twice`);
-        groupOf.set(name, t.file); want.set(name, kind);
+        groupOf.set(name, t.file); want.set(name, kind.replace(/\?$/, ""));
+        // A kind that ends in "?" names a declaration a line adds and the tree may not hold yet (e72's, r112's): placed
+        // where it is, and no refusal where it is not.
+        if (kind.endsWith("?")) optional.add(name);
     }
     if (fs.existsSync(path.join(REPO, t.file))) refuse(`${t.file} already exists - this cut was made, or another file took the name`);
 }
@@ -126,7 +130,7 @@ if (KEEP_REST) {
         }
     });
 }
-for (const n of want.keys()) if (!declared.has(n)) refuse(`${n} (${want.get(n)}) is not a top-level declaration of ${manifest.source} any more - it was removed or renamed`);
+for (const n of want.keys()) if (!declared.has(n) && !optional.has(n)) refuse(`${n} (${want.get(n)}) is not a top-level declaration of ${manifest.source} any more - it was removed or renamed`);
 
 /* The manifest does not describe this tree: say so before anything below reads a declaration with no file. */
 function stopIfRefused(where) {
