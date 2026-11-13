@@ -90,6 +90,8 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- Before the push of item 5 batch 2 (13.11.2026): its 6 tests by name, 0 failed (25 s); `node tools/check.mjs` 19/19;
+  lint 0 problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 1 and the R3712 fix (13.11.2026): the 27 tests holding batch 1's sites by name, 31
   passed, 0 failed (80 s); `node tools/check.mjs` 19/19; lint 346 files, 0 problems; tiers 0-1 whole 1420 ran, 1405
   passed, 0 failed, 16 skipped, 0 red (433 s). No scenario reads tests-tier1.mjs or tests-tier2.mjs by name (`git grep`).
@@ -168,6 +170,12 @@ The plan's items 2-6, in its order, with what each would take:
   read inside a hook's own window keeps the settle alone. So no test gets shorter, and none can pass sooner on a card
   that has not arrived yet.
   - Batch 1: 12 sites (11 tests and the reshape helper `F.reshape`, which 15 tests call).
+  - Batch 2: the next 25 sites in file order, read one by one: 6 expect a card and got the wait (5 tests that read a
+    card or a refusal's words, and one that waits for the hook's ruling); 19 are clean-ups, hook windows or absences and
+    were left alone.
+  - Each new wait found its card: `until()` returns false at its deadline and fails nothing, so a wrong predicate would
+    only make a test slower. Measured on a copy where every wait right after a settle throws on a timeout (47 such
+    pairs in the file, batches 1 and 2 among them): the 33 tests holding batch 1's and 2's sites, 0 failed.
   - Left: the rest of the chat-card group (found again after each batch by a script over the file, not by stale line
     numbers), and the 194 hook and notice sites, not started.
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its

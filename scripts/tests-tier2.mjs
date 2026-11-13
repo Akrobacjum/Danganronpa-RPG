@@ -5791,6 +5791,7 @@ const SCENARIOS = [
                     const from = new Set(game.messages.map(m => m.id));
                     const handled = await R.recoverRerollJournal();
                     await settle();
+                    await until(() => game.messages.filter(m => !from.has(m.id)).length >= (cut === "replaying" && ownerOf(who) ? 2 : 1));
                     // The words of a card this GM receives; a card to the player alone is read by its addressee.
                     const cards = game.messages.filter(m => !from.has(m.id));
                     const said = (await Promise.all(cards.map(m => wordsOf(m, 2000)))).map(text);
@@ -14475,6 +14476,7 @@ const SCENARIOS = [
                 return true;
             }, () => performAction(actor, "palm", { free: true }));
             await settle();
+            await until(() => game.messages.some(m => !before.has(m.id) && String(SH.secretHtml(m) ?? m.content ?? "").includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Frisk.sent", { name: RENAMED })))));
             const sent = foundry.utils.escapeHTML(game.i18n.format("DRPG.Frisk.sent", { name: RENAMED }));
             // The card's words as the GMs hold them (a veiled card's content is a stub).
             const cards = game.messages.filter(m => !before.has(m.id)).map(m => String(SH.secretHtml(m) ?? m.content ?? ""));
@@ -17071,6 +17073,7 @@ const SCENARIOS = [
                 } });
             CONFIG.Dice.randomUniform = real;
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal)));
             toldCub = game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal));
         } finally {
             CONFIG.Dice.randomUniform = real;
@@ -17115,6 +17118,7 @@ const SCENARIOS = [
             out = await M.performCubAbility(cub, "meddle", { targetId: target.id, choice: "help" });
             CONFIG.Dice.randomUniform = real;
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && (m.rolls?.length ?? 0) > 0));
             armed = pendingCalls(target).find(entry => entry.key === "meddle" && !nonces.has(entry.nonce)) ?? null;
             paid = [cub.system.resources.actions.value, cub.system.resources.hope.value];
             cards = game.messages.contents.filter(m => !had.has(m.id) && (m.rolls?.length ?? 0) > 0)
@@ -17257,6 +17261,7 @@ const SCENARIOS = [
                 } });
             CONFIG.Dice.randomUniform = real;
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal)));
             hope = cub.system.resources.hope.value;
             toldCub = game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal));
         } finally {
@@ -21017,6 +21022,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
             await F.scrub(30, { mode: "transform", change });
             await settle();
+            await until(() => rulings.length > 0);
             Hooks.off("createChatMessage", hook);
             must(rulings.length === 1, "no card was posted for the hook to rule on - this would measure nothing");
             const first = await rulings[0];
