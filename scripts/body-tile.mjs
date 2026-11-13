@@ -35,7 +35,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { deathRecord } from "./settings.mjs";
-import { gmPlaceOf, roomAt, isCorpse } from "./movement.mjs";
+import { gmPlaceOf, roomAt, isCorpseToken } from "./movement.mjs";
 
 /** A floor as an id: a Level document's, an id as it is, null for none. */
 const floorId = level => level?.id ?? level ?? null;
@@ -141,7 +141,7 @@ export function bodyTileOf(actor, { scenes = game.scenes ?? [], held = null } = 
  * no tile there and the greying reads the token's room instead, so a Take beside the token shows open and the gate
  * refuses it on the press. Headless, the harness sends every tile to every client.
  */
-export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = gmPlaceOf, held = null } = {}) {
+export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = a => gmPlaceOf(a, { body: true }), held = null } = {}) {
     const body = bodyTileOf(actor, { scenes, held });
     if (body) {
         const { doc, scene, mark } = body;
@@ -215,7 +215,8 @@ export async function leaveBody(actor, { record: handed = null, at = Date.now() 
     if (!isBodyDeath(record)) return null;
     const deathId = record.deathId ?? null;
     if (bodyTilesOf(actor.id).some(({ mark }) => (mark.deathId ?? null) === deathId)) return null;
-    const place = gmPlaceOf(actor);
+    // Where the body lies (E62 C3b fix): a Monocub's corpse, never the token it walks.
+    const place = gmPlaceOf(actor, { body: true });
     if (!place?.tokenDoc || !place.scene) {
         if (noTokenWarns(record)) ui.notifications?.warn(game.i18n.format("DRPG.Body.noToken", { name: actor.name }));
         return null;
@@ -313,7 +314,9 @@ export async function followBody(tokenDoc, changes, options, userId) {
     if (!game.user?.isGM || userId !== game.user.id) return null;
     if (!MOVED.some(key => key in (changes ?? {}))) return null;
     const actor = tokenDoc?.actor ?? null;
-    if (!actor || !isCorpse(actor)) return null;
+    // A Monocub's corpse beside the token it walks is a body too (E62 C3b fix; the e93 review's F3): a GM's move skips the
+    // owner's veto (movement.mjs `onPreUpdateToken` returns for a GM first), so its tile follows it as any corpse's.
+    if (!actor || !isCorpseToken(tokenDoc)) return null;
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
     const body = bodyTileOf(actor, { held: flagsHeldNow });
     if (!body || body.scene?.id !== tokenDoc.parent?.id) return null;
@@ -386,6 +389,12 @@ export function drawBodyMark(tile, { actors = game.actors, gm = Boolean(game.use
     if (kept) return kept;
     group.name = BODY_MARK_NAME;
     group.drpgKey = key;
+    /* NO CLICK (E106, 13.11.2026; the owner: the Monocub's token "nie pozwala odpalic karty postaci"). The mark stands over
+       the tile laid where the token stood, and every other drawing the module lays on the map takes no pointer
+       (gm-overlay.mjs, own-ring.mjs, remnant-ring.mjs); whether v14 hands a token's double-click to a tile's child was not
+       read (LIVE-E106-01), so the mark takes none whatever it does. Tier 1 R5402. */
+    group.eventMode = "none";
+    group.interactiveChildren = false;
     const sign = PIXI.Sprite.from(icon);
     const side = Math.round(Math.min(width, height) * 0.6);
     sign.width = side;

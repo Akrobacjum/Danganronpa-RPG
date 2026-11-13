@@ -86,8 +86,7 @@ export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
  * Advantage that nobody paid Hope for.
  *
  * Some advantage comes from the situation rather than from a Call: looking for
- * bandages in the medic's office, digging through a stash somebody has taken
- * pains to hide. It is armed around one roll and cleared straight after, and it
+ * bandages in the medic's office. It is armed around one roll and cleared straight after, and it
  * hides behind the same shield as a Call so a supporting roll cannot eat it.
  *
  * A module-level value for the same reason `shielded` is one: the roll dialog
@@ -96,8 +95,8 @@ export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
  * IT IS A COUNT, NOT A SIGN (E7). This used to store `Math.sign(value)`, and
  * the arithmetic it flattened was already being done: `performSearch` adds a
  * favouring room, a hindering room and (until E06 C11 moved it after the roll,
- * `searchOdds`) somebody's concealed stash, whose disadvantage die is taken on the
- * dice once they have landed since E32+E07 C11e (`stashStep`); a crisis
+ * `searchOdds`) somebody's concealed stash, whose die went with the Search's
+ * reach into a stash in 1.2.112; a crisis
  * roll adds a weapon in hand, a second try after a miss and the guide's
  * "the victim gets advantage on every roll" for dying alone to a trap. All of
  * that was summed, carefully, and then thrown away at this line. A victim with

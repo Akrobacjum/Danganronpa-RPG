@@ -12,13 +12,13 @@
  */
 
 import {
-    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
-    ECLIPSE_MOVES, TIMES_OF_DAY,
+    MODULE_ID, FLAGS, ACTIONS, ACTION_GRID, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
+    TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
 import { SETTINGS, isMutedDead, myMastermindLair } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
-    canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
+    canPayFor, freeActionsLeft, freeMovesLeft, nextCrossingPrice } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
     from "./character.mjs";
 import { standingOffers, advanceKindName } from "./level-up.mjs";
@@ -67,7 +67,7 @@ import { isMoveChange, levelOf, roomRegions } from "./rooms.mjs";
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
 import { passagesKnownBy, passageSpot, viewPassage, tunnelEndsFor } from "./passages.mjs";
 import { isMastermindActor } from "./passages-gm.mjs";
-import { listenLabels } from "./action-rolls.mjs";
+import { listenLabels, moveLine } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
 // exists; the question is asked in action-rolls.mjs now, where the menu is.
@@ -82,6 +82,8 @@ import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 import { stateHeld } from "./states.mjs";
 import { effectBadges as timedBadges } from "./timed-effects.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
@@ -937,15 +939,14 @@ function refreshCallsPanels(actor, element) {
 
 /**
  * A Monocub's grid rebuilt from what it now holds (E45 C2): the tiles `injectMonocubPanel` draws, from the same
- * `monocubTiles`. A tile in flight - `disabled` by the delegate while its action runs, as `refreshPricedTiles` reads
- * it - is kept as it is, so a second click cannot fire it again.
+ * `monocubTiles`. Until E103 a tile in flight was kept as it was: the Move, the one tile the delegate disables while its
+ * action runs (`[data-drpg-action]`, as `refreshPricedTiles` reads it). The ability tiles carry no action key and open
+ * their own window (`cubAbilityDialog`), so with the Move gone there is nothing in flight to keep.
  */
 function refreshMonocubTiles(actor, element) {
-    for (const grid of element.querySelectorAll(".drpg-monocub-panel .drpg-action-grid")) {
-        const busy = new Map([...grid.querySelectorAll("[data-drpg-action]")]
-            .filter(node => node.disabled).map(node => [node.dataset.drpgAction, node]));
-        grid.replaceChildren(...monocubTiles(actor).map(tile => busy.get(tile.dataset?.drpgAction) ?? tile));
-    }
+    for (const grid of element.querySelectorAll(".drpg-monocub-panel .drpg-action-grid")) grid.replaceChildren(...monocubTiles(actor));
+    // Move's line follows the Free Move (the r112 review's P2).
+    for (const note of element.querySelectorAll(".drpg-monocub-panel .drpg-monocub-move")) note.replaceWith(monocubMoveNote(actor));
 }
 
 /**
@@ -1658,10 +1659,22 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false, sti
  * `movesLeft`; a Call that grants a third shows two lit and says the number in the tooltip), and a free placement
  * (`null`, D197) is `anywhere` on both. Nothing appears, vanishes or moves when the Eclipse starts or ends.
  *
- * @param {{eclipse?: boolean, moves?: number|null, free?: boolean, fog?: boolean}} state
+ * A MONOCUB'S FEET ARE ALWAYS THERE TO TAKE (E103, 13.11.2026; the owner: "u monocuba zawsze zaznaczamy ruch w karcie
+ * postaci, ze jest dostepny (chodzi o glif)"). A Monocub pays nothing for a crossing and counts no Eclipse crossing
+ * (movement.mjs `cubStep`, `chargeRoute`, E72 C10), so `cub` reads neither `free`, `fog` nor a count: out of an Eclipse
+ * the first foot `available` and the second `off`, as everyone's (the stable layout); in one both `available`, and
+ * `anywhere` in free placement, where nothing holds a Monocub to the connected rooms either. Both of the Eclipse's
+ * defaults are the stage's, owner to confirm. Until E103 a Monocub's feet were a student's.
+ *
+ * @param {{eclipse?: boolean, moves?: number|null, free?: boolean, fog?: boolean, cub?: boolean}} state
  * @returns {{slot: "free"|"eclipse", state: "available"|"spent"|"fogged"|"off"|"anywhere"}[]}
  */
-export function moveSlots({ eclipse = false, moves = null, free = false, fog = false } = {}) {
+export function moveSlots({ eclipse = false, moves = null, free = false, fog = false, cub = false } = {}) {
+    if (cub) {
+        if (!eclipse) return [{ slot: "free", state: "available" }, { slot: "eclipse", state: "off" }];
+        const state = moves === null ? "anywhere" : "available";
+        return [{ slot: "free", state }, { slot: "eclipse", state }];
+    }
     if (!eclipse) return [{ slot: "free", state: free ? "available" : fog ? "fogged" : "spent" }, { slot: "eclipse", state: "off" }];
     if (moves === null) return [{ slot: "free", state: "anywhere" }, { slot: "eclipse", state: "anywhere" }];
     const n = Math.max(0, Number(moves) || 0);
@@ -1678,23 +1691,28 @@ export function moveLegend() {
     return game.i18n.localize("DRPG.Actions.moveLegend");
 }
 
-function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false }) {
+function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false, cub = false }) {
     const move = document.createElement("span");
+    // A Monocub's crossings cost nothing (E103; `moveSlots`): its feet are lit whatever the flag, Fog or the Eclipse's
+    // count. `cub` is the sheet mode's answer (`mode.monocub`, R1470: no mode predicate outside `sheetMode`).
     const freeMove = hasFreeMove(actor);
     /* FOG IS A THIRD STATE (E24 C3b, 08.11.2026; E24-24, audit S03-13). `hasFreeMove` answers no under the Overflow's
        Fog, and the pip said "Free Move used" of a Move nobody spent. Drawn as a spent one (it is not there to take),
-       with `drpg-fogged` and Fog's reason in the tooltip. */
-    const fog = !freeMove && overflowBlocksFreeMove();
+       with `drpg-fogged` and Fog's reason in the tooltip. Fog takes no Monocub's Move: its crossing never paid one. */
+    const fog = !cub && !freeMove && overflowBlocksFreeMove();
     const eclipse = isEclipse();
     const moves = eclipse ? eclipseMovesLeft(actor) : null;
-    const slots = moveSlots({ eclipse, moves, free: freeMove, fog: fog && !eclipse });
+    const slots = moveSlots({ eclipse, moves, free: freeMove, fog: fog && !eclipse, cub });
     const lit = slots.some(({ state }) => state === "available" || state === "anywhere");
     move.className = `drpg-free-move${lit ? " available" : " spent"}${fog && !eclipse ? " drpg-fogged" : ""}`;
-    markSpent(move, fresh || still ? null : spentMove);
+    // Nothing of a Monocub's goes out on a crossing, so nothing flashes: a flag reset under it is not a spend.
+    markSpent(move, fresh || still || cub ? null : spentMove);
     if (!viewer && !still) {
-        const says = eclipse
-            ? `${moves === null ? game.i18n.localize("DRPG.Actions.eclipseFreePlacement") : plural("DRPG.Actions.eclipseMovesLeft", { n: moves })}.`
-            : game.i18n.localize(freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent");
+        const says = cub
+            ? game.i18n.localize("DRPG.Actions.cubMovesFree")
+            : eclipse
+                ? `${moves === null ? game.i18n.localize("DRPG.Actions.eclipseFreePlacement") : plural("DRPG.Actions.eclipseMovesLeft", { n: moves })}.`
+                : game.i18n.localize(freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent");
         move.dataset.tooltip = `${says} ${moveLegend()}`;
     }
     // Solid while it is there, OUTLINED once it is gone - the same pair the
@@ -1834,7 +1852,7 @@ function injectActionBar(app, element, fresh = false, mode = modeOf(app)) {
 
     for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer, still, gm })) actions.append(pip);
 
-    actions.append(freeMovePip(actor, { spentMove, fresh, viewer, still }));
+    actions.append(freeMovePip(actor, { spentMove, fresh, viewer, still, cub: mode.monocub }));
 
     section.append(actions);
 
@@ -2951,8 +2969,8 @@ export function knownPassageItem(row) {
         : `<span class="drpg-passage-note" data-drpg-passage-note="walk">${t("DRPG.Passage.list.walk")}</span>`;
     li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
         foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
-        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`
+        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross"${tipAttr("DRPG.Tips.Setup.goThroughTooltip")}>${t("DRPG.Passage.list.cross")}</button>` : "")
+        + `<button type="button" class="drpg-mini-button drpg-passage-show"${tipAttr("DRPG.Tips.Setup.showThePassageTooltip")}>${t("DRPG.Passage.show.button")}</button>`
         // The Mastermind's Seal on a passage at their door (E91 C5, D038; `injectKnownPassages` marks the row).
         + (row.seal ? `<button type="button" class="drpg-mini-button drpg-passage-seal" data-tooltip="${t("DRPG.Passage.list.sealTip")}">${
             t("DRPG.Passage.list.seal")}</button>` : "");
@@ -3102,10 +3120,10 @@ function injectSafeword(app, element, mode = modeOf(app)) {
      * every open sheet - otherwise the button would keep offering the old word
      * to everyone who has not reopened their character since it changed.
      */
-    // The table's word, and above it what the button is (E49 B2, S03-31: "the safeword shows the table's word alone" -
-    // a word nobody has met reads as a name, not as the Stop).
+    // The table's word alone (E100, 12.11.2026; the owner at a table on 1.2.108: "SAFEWO RD MISIUBOMBO" wrapped across
+    // two lines in the narrow button - only the safeword's own name, as it was before E49 B2 put the caption above it).
+    // What the button is stays in its tooltip and its aria-label.
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
-        <span class="drpg-safeword-caption">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Safeword.title"))}</span>
         <span class="drpg-safeword-word">${foundry.utils.escapeHTML(safeword())}</span>`;
 
     button.addEventListener("click", async event => {
@@ -3836,7 +3854,8 @@ function addUseButton(li, item, app) {
     // Hiding it would read as the item having changed into something else.
     const broken = isBroken(item);
     /* A TIER 0 THING'S USE IS A REQUEST TO THE GM (E22 C5c; A4, audit S03-26): it has no table row, so a GM rules on
-       what the player writes (use-items.mjs `useCreatively`) - red, with the GM's word in its tooltip, where "Use this
+       what the player writes (use-items.mjs `useCreatively`) - the GM's chip beside the flask (E107 part 2; until then a
+       `drpg-gm-route` class that painted nothing on this button) and the GM's word in its tooltip, where "Use this
        item." promised the item would simply work. In a fight it is a crisis action, which no GM rules (below), so it
        is the plain Use there. */
     const askGm = !broken && usedCreatively(item) && !inCrisis(app.document);
@@ -3850,7 +3869,8 @@ function addUseButton(li, item, app) {
     button.disabled = broken;
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-flask" inert></i>`;
+    // The GM's chip beside the flask (E107 part 2, R5434): the class alone painted nothing on this button.
+    button.innerHTML = `<i class="fa-solid fa-flask" inert></i>${askGm ? `<span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>` : ""}`;
 
     button.addEventListener("click", async () => {
         /*
@@ -4764,11 +4784,15 @@ function injectActionPanel(app, element, mode = modeOf(app)) {
         callsGm: true
     };
 
-    // ONE LOOP, AND THE TABLE IS THE LAYOUT. The dynamic tile used to be
+    // ONE LOOP, AND ONE LIST IS THE LAYOUT. The dynamic tile used to be
     // appended after this, which is why it sat last whatever config.mjs said -
-    // and "last" is a position somebody has to be able to choose.
-    for (const [key, def] of Object.entries(ACTIONS)) {
-        if (def.kind !== "universal") continue;
+    // and "last" is a position somebody has to be able to choose. Since E103
+    // the place is config.mjs `ACTION_GRID`'s (the owner's order of 13.11.2026),
+    // not ACTIONS' key order; a key it names that is no universal entry draws
+    // nothing.
+    for (const key of ACTION_GRID) {
+        const def = ACTIONS[key];
+        if (def?.kind !== "universal") continue;
         grid.append(actionButton(actor, key, def.deferred ? dynamic : def));
     }
 
@@ -4781,11 +4805,10 @@ function injectActionPanel(app, element, mode = modeOf(app)) {
 }
 
 /**
- * Move and Meddle. Move reuses the normal action button and the generic
- * delegate - its click just shows the same briefing every player gets, since
- * the guide's Move is applied when a token crosses a room, not when a button
- * is pressed. Meddle is bespoke: it needs a target and a Help/Hinder choice
- * before there is anything to roll.
+ * The Monocub's abilities, one tile each (`monocubTiles`): bespoke, because Confusion needs a target and a Help/Hinder
+ * choice before there is anything to roll. No Move tile since E103 (the owner, 13.11.2026: "kafel move u monocuba
+ * usuwamy"): its click only showed the Move's briefing, and a Monocub's Move is its token crossing a room, which costs
+ * it nothing (movement.mjs `cubStep`, E72 C10) - the header's two feet say so (`freeMovePip`).
  */
 function injectMonocubPanel(tab, actor) {
     const panel = document.createElement("div");
@@ -4852,14 +4875,45 @@ function injectMonocubPanel(tab, actor) {
         panel.append(note);
     }
 
+    // Move's line, on screen (E100, R4107): its window is gone; the owner wants "Free" here, not the whole description.
+    panel.append(monocubMoveNote(actor));
+
     tab.prepend(panel);
 }
 
-/* A Monocub's tiles: the Move, then one tile per row of its table (E33 C10): Confusion today, a second ability a row.
-   The panel's build and the repaint's (`refreshMonocubTiles`, E45 C2) both draw these. */
+/*
+ * MOVE'S DESCRIPTION STAYS ON SCREEN (E100, 12.11.2026; the owner's rule on E100's review: an action's description is
+ * never hidden, folded or collapsed - "nie chowajmy w oknach akcji ... opisu akcji NIGDY"). Item 1 took Move's window
+ * away, the one place its description stood; the tile says the name, the price and "Drag your token", its tooltip the
+ * hint. The description is a line of the Monocub's panel under its tiles, as the silenced note is. R4107.
+ * CUT DOWN THE SAME DAY: the owner, passed on by the coordinator - on the Monocub's panel Move needs only "za darmo",
+ * not the whole description. The line reads `DRPG.Move.free` ("Free" / "Za darmo"), still a line of its own, not folded.
+ */
+export function monocubMoveNote(actor = null) {
+    const note = document.createElement("p");
+    note.className = "notes drpg-monocub-move";
+    /* "Free" while it is (the r112 review's P2, 13.11.2026): a Monocub pays its crossings as a student does (actions.mjs
+       `takeMove`), so once the Free Move is spent the line says what the next crossing takes (action-briefing.mjs
+       `moveLine`), and the panel's repaint draws it again (`refreshMonocubTiles`). With no character, the owner's word. */
+    note.textContent = !actor || nextCrossingPrice(actor) === "free" ? game.i18n.localize("DRPG.Move.free") : moveLine(actor);
+    return note;
+}
+
+/**
+ * Whether Move's "drag your token" is true for this character now (the r112 review's P2, 13.11.2026): not in a Class
+ * Trial, where the drag is refused (movement.mjs `trialLocked`), nor in an incident the character is in
+ * (`lockedInIncident`); the tile is locked in both (`actionButton`). The HUD's Move row and the Monocub's Move tile ask
+ * it. `trial` and `incident` are for the suite (R4472).
+ */
+export function moveDragSaid(actor, { trial = inClassTrial(), incident = Boolean(murderState()?.stage === "incident" && sideOf(actor)) } = {}) {
+    return !trial && !incident;
+}
+
+/* A Monocub's tiles: one per row of its table (E33 C10), in the table's order - Confusion, Redeem, Ask for Hope,
+   Tinker, Ghost Bet. The Move drawn first until E103 is gone (the owner, 13.11.2026). The panel's build and the
+   repaint's (`refreshMonocubTiles`, E45 C2) both draw these. */
 function monocubTiles(actor) {
-    return [actionButton(actor, "move", ACTIONS.move),
-        ...Object.entries(MONOCUB.abilities).map(([key, def]) => abilityButton(actor, key, def))];
+    return Object.entries(MONOCUB.abilities).map(([key, def]) => abilityButton(actor, key, def));
 }
 
 function abilityButton(actor, key, def) {
@@ -5640,8 +5694,8 @@ export function actionButton(actor, key, def) {
     // WHICH TILES ARE OUT, AND WHY EACH ONE IS.
     //
     // The Eclipse is placement-only - see the guard in action-rolls.mjs's
-    // `performAction`. Move is exempt there and stays exempt here, since it is
-    // the one thing the Eclipse actually is for.
+    // `performAction`. Move is exempt there; it was exempt here too while the
+    // Monocub's panel drew a Move tile, and no tile draws it since E103.
     //
     // Direct Murder is exempt the other way round, and this tile is the reason
     // the rule needs stating twice: the guard refuses the action, but a tile
@@ -5681,7 +5735,7 @@ export function actionButton(actor, key, def) {
 
     const locked = key === "directMurder"
         ? (!eclipse && !inIncident && !canBetray)
-        : (inIncident || (key !== "move" && eclipse) || (inTrial && key !== "analyze"));
+        : (inIncident || eclipse || (inTrial && key !== "analyze"));
 
     /*
      * AND THE OTHER HALF: WHICH TILE IS THE MOVE (D12, Dawid 29.08).
@@ -5836,7 +5890,36 @@ export function actionButton(actor, key, def) {
         fightTile ? "" : `
         <span class="drpg-action-cost">${costLabel}</span>`}${gmMark}`;
 
-    return button;
+    return key === "move" ? stillMoveTile(button, locked) : button;
+}
+
+/*
+ * THE MOVE TILE OPENS NOTHING (E100 item 1, 12.11.2026; the owner on the player-screens review, #2: the Move window had
+ * one button, Got it, and only said "drag your token"). The tile a Monocub's panel draws keeps its price and its
+ * tooltip, and says on its face what to do (`DRPG.Move.dragShort`); it is a `div`, not a button, with no
+ * `data-drpg-action`, so the delegate (`attachActionDelegate`) has nothing to press and the stylesheets' hover, which
+ * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R4100.
+ */
+export function stillMoveTile(button, locked = false) {
+    const tile = document.createElement("div");
+    tile.className = button.className;
+    tile.classList.add("drpg-action-still");
+    for (const [k, v] of Object.entries(button.dataset)) if (k !== "drpgAction") tile.dataset[k] = v;
+    tile.dataset.drpgTile = "move";
+    tile.innerHTML = button.innerHTML;
+    // No "Drag your token" where the tile is locked: a Class Trial or an incident refuses the drag (the r112 review's P2).
+    if (!locked) {
+        const line = document.createElement("span");
+        line.className = "drpg-action-cost";
+        line.textContent = game.i18n.localize("DRPG.Move.dragShort");
+        tile.append(line);
+    }
+    /* Reached by the keyboard (the r112 review's P4): a `div` takes no focus, and Foundry shows `data-tooltip` on focus, so
+       the hint and a lock's reason were the mouse's alone. Its words as its label, for a screen reader. Exported for R4472. */
+    tile.tabIndex = 0;
+    tile.setAttribute("role", "note");
+    tile.setAttribute("aria-label", [tile.textContent.replace(/\s+/g, " ").trim(), button.dataset.tooltip ?? ""].filter(Boolean).join(". "));
+    return tile;
 }
 
 /**
@@ -5868,9 +5951,10 @@ function callsGmFor(actor, def) {
 /**
  * What this action would cost right now.
  *
- * During an Eclipse the action economy is suspended entirely - crossings come
- * out of the two the placement window grants, not out of actions - so Move is
- * free regardless of whether the ordinary free Move has been spent.
+ * Until E103 a Move tile (the Monocub's) read its price here too - free in an
+ * Eclipse, else the free Move or an action. No tile draws the Move since
+ * (the owner, 13.11.2026), so every tile's price is its definition's, a chain's
+ * quote or Direct Murder's free cases.
  */
 function costOf(actor, key, def) {
     /*
@@ -5889,9 +5973,7 @@ function costOf(actor, key, def) {
     }
 
     if (key === "directMurder" && directMurderIsFree(actor)) return 0;
-    if (key !== "move") return def.cost ?? 1;
-    if (isEclipse()) return 0;
-    return hasFreeMove(actor) ? 0 : 1;
+    return def.cost ?? 1;
 }
 
 /**
@@ -5918,11 +6000,11 @@ function priceQuoteFor(actor, key) {
 }
 
 /**
- * Move shows its live state; everything else shows a flat price.
+ * A tile's price in words: a chain's step that will pay, else a flat price.
  *
- * In an Eclipse "Free" is true but useless - the number that decides whether
- * you can still get where you are going is how many of the two crossings are
- * left, and it was only visible in a whisper after each one.
+ * Until E103 the Monocub's Move tile showed its live state here, an Eclipse's
+ * crossings left ("1 / 2 crossings", "any room"); the header's two feet say that
+ * now (`freeMovePip`), and no tile draws the Move (the owner, 13.11.2026).
  */
 function costLabelFor(actor, key, def) {
     // The step that will pay, in words: "1 action", "1 Hope", "1 Sanity" (T-1).
@@ -5931,13 +6013,6 @@ function costLabelFor(actor, key, def) {
         return quote.blocked
             ? game.i18n.localize("DRPG.Action.costFree")
             : priceLabel(quote);
-    }
-
-    if (key === "move" && isEclipse()) {
-        const left = eclipseMovesLeft(actor);
-        return left === null
-            ? game.i18n.localize("DRPG.Action.costAnyRoom")
-            : plural("DRPG.Action.costCrossings", { left, max: ECLIPSE_MOVES }, "max");
     }
 
     const cost = costOf(actor, key, def);

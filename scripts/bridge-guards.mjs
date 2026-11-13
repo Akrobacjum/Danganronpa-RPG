@@ -373,8 +373,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollOtherAction", /^that roll was not thrown for that action$/],
     ["rollStale", /^that roll is too old to settle anything$/],
     ["rollUsed", /^that roll has already settled that action$/],
-    // E08+E28 C15: what a roll earned, read off the GMs' record of it (bridge-runs-acts.mjs `searchTheftOf`, bridge-runs-records.mjs `traceBandOf`).
-    ["rollMissed", /^that roll did not find the stash$/],
+    // E08+E28 C15: what a roll earned, read off the GMs' record of it (bridge-runs-records.mjs `traceBandOf`; a Search's theft
+    // from a stash, "that roll did not find the stash", until 1.2.112).
     ["rollMissed", /^that roll leaves no trace$/],
     // E08+E28 C16: a Work on a Project's roll that earned nothing (bridge-runs-records.mjs `progressOf`), and a frozen project (guardProjectFrozen).
     ["rollMissed", /^that roll earned no progress$/],
@@ -1567,12 +1567,11 @@ export function pick(spec) {
  * SEVERAL ROLLS, AND RESULTS THAT ARE NOT A TOTAL (E08+E28 C15, 04.10.2026; the plan's 3.5).
  * `rolled` may be a list. A Palm throws two rolls and names both (`rollId`, `unseenRollId`):
  * the second's result goes in the packet's `unseenTotal` and `unseenCritical` (`into`).
- * A theft from a stash and a trace take no total at all, but what a roll earned - whether a
- * Search found the stash and fumbled it, the band a trace is left at - so the declaration
+ * A trace takes no total at all, but what a roll earned - the band a trace is left at (and,
+ * until 1.2.112, whether a Search found a stash and fumbled it) - so the declaration
  * reads that off the record itself (`derive`, which answers the fields or why the roll
  * earned nothing of it), and a packet that said otherwise is logged in the same way. Some
- * packets of a declaration throw no roll: a stash opened from the drawer asks none of the
- * Search (`when`: only a packet that says `viaSearch`), and a trace asks one only for an
+ * packets of a declaration throw no roll (`when`): a trace asks one only for an
  * action whose roll leaves it (`kindAt`: the action the packet names, one of `kind`), so a
  * discarded item's trace still names none. A trace and the roll's own action are two things
  * one roll settles - a Sabotage freezes a project and leaves a trace - so a trace settles

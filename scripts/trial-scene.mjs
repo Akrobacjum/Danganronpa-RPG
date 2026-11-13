@@ -147,6 +147,8 @@ import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "
 import { formGrid, dataTable, toggle, box } from "./ui-kit.mjs";
 import { storedZones, zoneCandidates, zoneWarnings } from "./zone-geometry.mjs";
 
+import { tipAttr } from "./ui-kit.mjs";
+
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
 export const TRIAL_RETURN_FLAG = "trialReturnTo";
 
@@ -706,7 +708,7 @@ export async function enterTrialScene(hall = trialScene()) {
     const left = game.scenes?.active ?? null;
     if (left && left.id !== hall.id) await hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG, left.id);
     const cast = await stageHall(hall, { into: true });
-    if (hallIsDark(hall)) await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`);
+    if (hallIsDark(hall)) await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.hallDarkLine")}</p>`);
     const activated = !hall.active;
     if (activated) await hall.activate();
     return { hall: hall.id, left: left?.id ?? null, cast, activated };
@@ -911,7 +913,7 @@ export async function nameUnfinishedCarries() {
 export function startTrialLines({ hall = null } = {}) {
     return {
         table: hall ? game.i18n.format("DRPG.Floor.startTrialHall", { hall: esc(hall.name ?? "") })
-            : game.i18n.localize("DRPG.Floor.startTrialNoHall"),
+            : game.i18n.localize("DRPG.TrialScene.noHallLine"),
         rule: game.i18n.localize("DRPG.Floor.tableRuleDead"),
         // E70 C5 (DC4, DC19, TR30, DC36): what the module holds of that rule now, beside it.
         voices: game.i18n.localize("DRPG.Floor.tableRuleVoices")
@@ -934,7 +936,7 @@ export function tableDoor({ running = false, hall = null, active = null, back = 
 function trialDoorOpen(hall) {
     const why = !game.user?.isGM ? "DRPG.Panel.gmOnly"
         : getClock().phase !== "classTrial" ? "DRPG.Floor.lead.start"
-            : !hall ? "DRPG.Floor.startTrialNoHall" : null;
+            : !hall ? "DRPG.TrialScene.noHallLine" : null;
     if (why) ui.notifications.warn(game.i18n.localize(why));
     return !why;
 }
@@ -953,7 +955,7 @@ export async function showCourtroom(hall = trialScene()) {
 export async function showSchool(hall = trialScene()) {
     if (!trialDoorOpen(hall)) return null;
     if (!leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })) {
-        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.noWayBack"));
+        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.noWayBackLine"));
         return null;
     }
     return leaveTrialScene(hall);
@@ -1224,7 +1226,7 @@ export function sceneReport({ school = null, hall = null, rooms = [], cast = [],
     if (seconds.length) row("duplicateInHall", game.i18n.format("DRPG.TrialScene.duplicateInHall", { names: names(seconds) }));
     const unlinked = cast.filter(token => token.linked === false).map(token => token.name);
     if (unlinked.length) row("unlinkedToken", game.i18n.format("DRPG.TrialScene.unlinkedToken", { names: names(unlinked) }));
-    if (dark) row("hallDark", game.i18n.localize("DRPG.TrialScene.hallDark"));
+    if (dark) row("hallDark", game.i18n.localize("DRPG.TrialScene.hallDarkLine"));
     // The two zones' warnings (E73 C1; zone-geometry.mjs `zoneWarnings`): a key each, never a block - the zones are
     // read only by the zone modes, which say again what they lack when one is started.
     for (const key of Array.isArray(zones) ? zones : []) row(key, game.i18n.localize(`DRPG.TrialScene.zones.${key}`));
@@ -1419,7 +1421,7 @@ export function scenesZoneRows(roles = sceneRoles(), hall = null) {
     return ["a", "b"].map(side => {
         const key = side === "a" ? "zoneA" : "zoneB";
         const id = scenesFieldId(key);
-        const field = `<select id="${id}" name="scenes:${key}" data-drawn="${esc(drawn(side))}"${hall ? "" : " disabled"}>
+        const field = `<select id="${id}" name="scenes:${key}" data-drawn="${esc(drawn(side))}"${hall ? "" : " disabled"}${tipAttr("DRPG.Tips.Trial.zoneAZoneBTooltip", null, { title: true })}>
         ${zoneOptions(regions, drawn(side))}
     </select>`;
         return { label: game.i18n.localize(`DRPG.TrialScene.${key}`), id, field };
@@ -1441,13 +1443,14 @@ export function scenesTabRows(roles = sceneRoles()) {
     const drawn = { school: drawnRole(roles, "school"), trial: drawnRole(roles, "trial") };
     const scenes = Array.from(game.scenes ?? []).sort((a, b) => a.name.localeCompare(b.name));
     const ids = { school: scenesFieldId("school"), trial: scenesFieldId("trial") };
-    const select = role => `<select id="${ids[role]}" name="scenes:${role}" data-drawn="${esc(drawn[role])}">
+    const select = role => `<select id="${ids[role]}" name="scenes:${role}" data-drawn="${esc(drawn[role])}"${role === "school" ? tipAttr("DRPG.Tips.Trial.schoolTrialHallTooltip") : ""}>
         <option value="">${game.i18n.localize("DRPG.TrialScene.noScene")}</option>
         ${scenes.map(scene => `<option value="${esc(scene.id)}"${scene.id === drawn[role] ? " selected" : ""}>${esc(scene.name)}</option>`).join("")}
     </select>`;
     const [school, hall] = [drawn.school, drawn.trial].map(id => (id ? game.scenes.get(id) : null) ?? null);
     const prepare = ["prepare", "preparePlaylist", ...(game.modules?.get?.(PROXIMITY_VOICE)?.active ? ["prepareVoice"] : [])]
-        .map(key => toggle({ name: `scenes:${key}`, label: game.i18n.localize(`DRPG.TrialScene.${key}`) })).join("");
+        // "Prepare the hall on Save" since E101 item 5: the part stands in Season setup, whose button is Save, not Apply.
+        .map(key => toggle({ name: `scenes:${key}`, label: game.i18n.localize(key === "prepare" ? "DRPG.TrialScene.prepareOnSave" : `DRPG.TrialScene.${key}`) })).join("");
     return [
         { label: game.i18n.localize("DRPG.TrialScene.school"), id: ids.school, field: select("school") },
         { label: game.i18n.localize("DRPG.TrialScene.hall"), id: ids.trial, field: select("trial") },
@@ -1459,9 +1462,11 @@ export function scenesTabRows(roles = sceneRoles()) {
     ];
 }
 
-/** The Scenes tab's panel: its intro and `scenesTabRows` in a kit `formGrid`, a slot's rows where it stands. */
-export function scenesTabHtml(roles = sceneRoles()) {
-    return `<p>${game.i18n.localize("DRPG.TrialScene.scenesIntro")}</p>
+/** The Scenes tab's panel: its intro and `scenesTabRows` in a kit `formGrid`, a slot's rows where it stands. `lead`, a
+ * line of its own in the intro's place: Season setup's one sentence since E101 item 5 (`data-drpg-scenes-line`). */
+export function scenesTabHtml(roles = sceneRoles(), { lead = null } = {}) {
+    const intro = lead === null ? `<p>${game.i18n.localize("DRPG.TrialScene.scenesIntro")}</p>` : `<p data-drpg-scenes-line>${esc(lead)}</p>`;
+    return `${intro}
         ${formGrid(scenesTabRows(roles).flatMap(row => (Array.isArray(row) ? row : [row])))}`;
 }
 

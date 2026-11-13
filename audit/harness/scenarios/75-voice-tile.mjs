@@ -63,7 +63,7 @@
  *   read without a layout - no recut on the screen - is the sweep's.
  * E (C7; since E19 C3 the dead channel, A9): p2's character, standing in the Cafeteria's room, killed in secret
  *   (`killCharacter`, revived quietly after) with no incident running: `voiceTargets` sends p2 to the dead channel
- *   (`drpg-dead`; since E72 C8 p2's own, `drpg-dead-<p2's id>`) at once, not to the main room; p1, there with the roster's next Room, has no p2 in the list 'Who
+ *   (`drpg-dead`; since E72 C8 p2's own, `drpg-dead-<p2's id>`; since E62 C3b the Spectators' room, `drpg-spectators`) at once, not to the main room; p1, there with the roster's next Room, has no p2 in the list 'Who
  *   you hear' or its count, and (E78 fix r2-H3, review round 2's O7) no p2 on the voice tile while p2 speaks. Then the
  *   in-incident variant: p2's character the victim and p3's the killer of an incident opened for the phase
  *   (incident-store.mjs `restoreState`, closed with `restoreState({})` and the setting put back), killed in secret
@@ -753,8 +753,9 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             if (actor) await C.reviveCharacter(actor, { quiet: true });
             return true;`, { timeout: 15000 });
     }
-    // The account's own dead room since E72 C8 (voice-client.mjs `deadRoomFor`); one room for every secret death before it.
-    const DEAD = `drpg-dead-${IDS.p2}`;
+    // The Spectators' room since E62 C3b (voice-client.mjs `SPECTATOR_ROOM`; the owner's Q-C3b-5), changed on purpose: the
+    // account's own dead room from E72 C8 (`deadRoomFor`), one room for every secret death before it.
+    const DEAD = "drpg-spectators";
     const stoodInRoom = typeof victim.before?.p2?.target === "string" && victim.before.p2.target !== DEAD;
     check("E: a character killed in secret talks in the dead channel at once, never in the main room, where nobody hears them in the list 'Who you hear' or its count or sees them speak on the voice tile; in an incident the room they stood in is kept until it closes",
         victim.actor === true && victim.killer === true && victim.idle === true && victim.secret === true && stoodInRoom

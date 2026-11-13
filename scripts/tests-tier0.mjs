@@ -1046,7 +1046,8 @@ const REGRESSIONS = [
         read.frame = [/\bclass NoticeHistoryApp extends DrpgApp\(\)/.test(src), /scrollRegion:\s*"\.drpg-notices-list"/.test(src)];
         read.foot = footer === null ? null : [/destructive:\s*\[\{\s*action:\s*"clear"/.test(footer), /close:\s*\{\s*role:\s*"close",\s*side:\s*"right"\s*\}/.test(footer),
             /\bdefault\s*:/.test(footer), /\bprimary\s*:/.test(footer)];
-        read.chips = /\bchips\(FILTERS\.map\(/.test(render);
+        // The chips are the three on top since E100 item 4 (R4103: the other four are a menu), still through the kit.
+        read.chips = /\bchips\(ON_TOP\.map\(/.test(render);
         read.empty = (src.match(/\bemptyState\("DRPG\.Notices\.(empty|noMatch)"\)/g) ?? []).length;
         read.live = [(src.match(/\bkeepLive\(/g) ?? []).length, /\bkeepLive\(this,\s*\{\s*region:\s*"\.drpg-notices-list",\s*build:/.test(src),
             /\bkeepLive\(this,[^\n]*\bwatch\s*:/.test(src), /\bonNoticeHistoryChange\(\(\) => this\.changed\(\)\)/.test(src)];
@@ -3965,6 +3966,20 @@ const REGRESSIONS = [
             + "net, and the table is built out of several settings");
     }],
 
+    ["R4560 - the body card's room, when the hold names none, is where the body lies: events.mjs `bodyCard` falls back to `locateActor(victim, { body: true })`, never to the walking Monocub's room (the e93 review's F4, 13.11.2026)", async () => {
+        /*
+         * E62 C3b fix, 13.11.2026; docs/dev/e93/REVIEW-E62-C3b.md F4. A victim made a Monocub holds two tokens, and
+         * `roomOfActor` answers the one it walks. Read off the source (the card needs a discovery's whole state to draw),
+         * with the kit's cut. Red at 12d0a57c: `roomOfActor(victims[0])`.
+         */
+        const sources = new Map(await otherSources());
+        const events = stripComments(sources.get("events.mjs") ?? "");
+        const card = bodyOf(events, "export function bodyCard", { until: "\nexport function " });
+        ok(card.length > 400, "bodyCard has moved or gone");
+        equal(JSON.stringify([/locateActor\(victims\[0\],\s*\{\s*body:\s*true\s*\}\)/.test(card), /roomOfActor\(victims\[0\]\)/.test(card)]), JSON.stringify([true, false]),
+            "the body card's fallback room ([asks for the body, asks for the walker])");
+    }],
+
     ["R67 - a repair moves the flags and says nothing", async () => {
         /* TEXT GUARD (E40 item 4, 13.11.2026): what stays here is an order inside killCharacter and incidentVictimDied
            with no outcome a call can see apart from a running incident's Stage 6 (the bullets perish while the items
@@ -3995,8 +4010,9 @@ const REGRESSIONS = [
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
         // The caller's phase rides along since E11 fix r1-G1 (a verdict after End the trial is the trial's), and the
-        // cause and the trial's chapter since E70 C4 (an execution at the trial's end).
-        ok(/await markDeceased\(actor(?:, \{ phase(?:, cause, chapter)? \})?\)/.test(kill),
+        // cause and the trial's chapter since E70 C4 (an execution at the trial's end), and whether the death fades since
+        // E62 C3b (`silent`, the dead's Spectator).
+        ok(/await markDeceased\(actor(?:, \{ phase(?:, cause, chapter(?:, silent)?)? \})?\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
         /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
@@ -4333,9 +4349,11 @@ const REGRESSIONS = [
         ok(/handOff\(dialog, \(\) => reopen\(\{ draft(, [^}]*)? \}\)\)/.test(rows)
             && /wireSetupSteps\(dialog, trip => \{ roundTrip = trip; \}, openSeasonChecklist\)/.test(season),
             "the row still closes and reopens on its own, so the close answers the caller");
+        // E101 F4 (changed on purpose): a tile of Season setup opens its window and leaves Season setup as it stands - no
+        // close and no reopen at all, so there is no round trip to answer the caller with (tier 2 E101-T4).
         const tiles = bodyOf(season, "function wireSeasonTiles(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(tiles) && !/await dialog\.close\(\)/.test(tiles),
-            "a tile of Season setup's row closes and reopens on its own, so the close answers the caller");
+        ok(tiles.length > 0 && !/handOff\(/.test(tiles) && !/dialog\.close\(\)/.test(tiles),
+            "a tile of Season setup's row closes Season setup, which the owner saw as the window refreshing");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
@@ -4345,7 +4363,7 @@ const REGRESSIONS = [
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        for (const name of ["openSeasonSetup", "openSeasonChecklist"]) {
+        for (const name of ["openSeasonChecklist"]) {
             const opener = bodyOf(season, `export async function ${name}(`);
             const tail = bodyOf(opener, "rejectClose: false");
             ok(/if \(roundTrip\) return roundTrip;/.test(tail),
@@ -6396,8 +6414,9 @@ const REGRESSIONS = [
             rerollOnGm: "refused", makeReroll: "refused", rerollRefusal: "why", replayRefusal: "returns",
             // E08+E28 C14: the roll a result is read from, asked by the runner after the guards.
             rollRefusal: "returns",
-            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive` (C16: a Work on a Project's).
-            searchTheftOf: "why", traceBandOf: "why", progressOf: "why",
+            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive` (C16: a Work on a Project's;
+            // a Search's reach into a stash, `searchTheftOf`, until 1.2.112).
+            traceBandOf: "why", progressOf: "why",
             // E08+E28 fix r2-H1: the draw of a player's roll, held to the action it is for before it is thrown.
             drawOnGm: "refused", drawRefusal: "returns",
             // E29 C8: a Call on the buyer's own character, the other half of `guardArmPlayerCall`.
@@ -7723,68 +7742,38 @@ const REGRESSIONS = [
             "a Dynamic action does not ask the player's proposal, or its GM editor does not read it");
     }],
 
-    ["R214 - the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw", async () => {
+    ["R5468 - a Search reaches into no stash (1.2.112, the owner's decision of 13.11.2026: a roll to discover, no roll to take): action-search.mjs reads no stash and asks no theft, its odds are the room's alone, no Search's roll carries or is drawn a stash's step (roll-draw.mjs, the GMs' roll list), and `vault.steal` takes no Search's word - `viaSearch`, `clumsy` or a roll - so a concealed stash opens to Find Stash alone", async () => {
         /*
-         * E32+E07 C11e, 02.10.2026; the owner's decision of 28.09.2026 (the hidden stash's
-         * disadvantage die, back, and still out of the roll window). Until 1.2.64 a hidden stash
-         * was -1 in the count the window turns into dice, and Daggerheart's `applyAdvantage`
-         * (dualityRoll.mjs:146-160, 2.6.5) throws |n| dice of one kind, keeps the highest above
-         * one (`kh`), and adds it for advantage or takes it off for disadvantage; roll-dialog.mjs
-         * caps |n| at ADVANTAGE_CAP. Since E06 C11 the window arms the room's count alone and the
-         * stash is a step on the dice it threw (action-search.mjs `stashStep`). For every window
-         * count n from -3 to 3, every face of its d6s and every value each `draw(m)` may give
-         * (1 to m, each branch weighted 1/m), the distribution of what the dice put on the total
-         * after the step is compared, exactly - counts over a common denominator, not samples -
-         * with that of the old count's n - 1. Red until C11e (no `stashStep`). This body, run
-         * outside the suite on 02.10.2026 against stand-ins: E06 C11's flat -1 differs at every
-         * n; a d6 simply taken off after the roll (the first proposal of 28.09) at every n but 0;
-         * setting aside the lowest bonus die instead of a drawn one, at n = 2 and 3.
+         * Until 1.2.112 a successful Search in a room where somebody else kept a stash took a random thing out of it
+         * (action-search.mjs `searchStash`), a hidden one at one more step of disadvantage (`stashStep`, which R214 held to
+         * the old count's die; R214 went with it), and `vault.steal` opened a concealed stash to a packet saying a Search
+         * paid for it (`viaSearch`, read off that Search's record by bridge-runs-acts.mjs `searchTheftOf`). Read here, comments
+         * stripped: action-search.mjs's source, the GMs' roll list, the context a drawn roll sends, and `vault.steal` as
+         * the bridge declares it, its whitelist asked with a packet carrying the old fields. Tier 2's "a Search where
+         * somebody keeps a stash, hidden or open, draws from the room ..." drives the Search itself.
          */
-        const R = await import("./action-rolls.mjs");
-        ok(typeof R.stashStep === "function", "action-rolls.mjs has no stashStep");
-        if (typeof R.stashStep !== "function") return;
-        const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
-        must(Number.isInteger(ADVANTAGE_CAP), "roll-dialog.mjs exports no ADVANTAGE_CAP");
-        const FACES = 6, SCALE = FACES ** 4, STOP = Symbol("draw");
-        const throws = k => Array.from({ length: FACES ** k }, (_, i) =>
-            Array.from({ length: k }, (__, j) => 1 + Math.floor(i / FACES ** j) % FACES));
-        const kept = (sign, faces) => faces.length ? sign * Math.max(...faces) : 0;
-        const add = (map, value, weight) => map.set(value, (map.get(value) ?? 0) + weight);
-        const stepped = n => {
-            const k = Math.min(ADVANTAGE_CAP, Math.abs(n)), sign = Math.sign(n), out = new Map();
-            for (const results of throws(k)) {
-                const walk = (script, weight) => {
-                    let used = 0, asked = 0;
-                    const draw = m => {
-                        if (used < script.length) return script[used++];
-                        asked = m;
-                        throw STOP;
-                    };
-                    try {
-                        const step = R.stashStep({ sign, results, faces: FACES, cap: ADVANTAGE_CAP }, draw);
-                        add(out, kept(sign, results) + step.change, weight);
-                    } catch (err) {
-                        if (err !== STOP) throw err;
-                        for (let face = 1; face <= asked; face++) walk([...script, face], weight / asked);
-                    }
-                };
-                walk([], SCALE);
-            }
-            return { out, den: FACES ** k * SCALE };
-        };
-        const counted = n => {
-            const m = Math.min(ADVANTAGE_CAP, Math.abs(n)), out = new Map();
-            for (const results of throws(m)) add(out, kept(Math.sign(n), results), 1);
-            return { out, den: FACES ** m };
-        };
-        const differs = [];
-        for (let n = -3; n <= 3; n++) {
-            const now = stepped(n), then = counted(n - 1);
-            const values = [...new Set([...now.out.keys(), ...then.out.keys()])].sort((a, b) => a - b);
-            const off = values.filter(v => (now.out.get(v) ?? 0) * then.den !== (then.out.get(v) ?? 0) * now.den);
-            if (off.length || ![...now.out.values()].every(Number.isInteger)) differs.push(`${n}: ${off.join(" ")}`);
-        }
-        equal(differs.join("; "), "", "the step does not land where the old count's dice did (window count: the values whose odds differ)");
+        const sources = new Map(await moduleSources());
+        const search = stripComments(sources.get("action-search.mjs") ?? "");
+        const draw = stripComments(sources.get("roll-draw.mjs") ?? "");
+        must(search.length > 5000 && draw.length > 5000, "action-search.mjs or roll-draw.mjs was not read - this would measure nothing");
+        const { LEGAL_ROLL_MODIFIERS } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const steal = BRIDGE_ACTIONS["vault.steal"] ?? null;
+        must(steal?.sanitize?.fields, "vault.steal is no declaration of the bridge's - this would measure nothing");
+        const taken = steal.sanitize.fields;
+        const sent = bodyOf(draw, "const CONTEXT_SENT = ", { until: "});" });
+        must(sent.length > 20, "roll-draw.mjs's CONTEXT_SENT was not found - this would measure nothing");
+        equal(JSON.stringify({
+            reads: ["stashesIn", "stashItemsIn", "requestVaultSteal", "stashStep", "stashDie", "fromVault"].filter(name => search.includes(name)),
+            odds: /\{ situational \} = searchOdds\(/.test(search),
+            list: LEGAL_ROLL_MODIFIERS.map(row => row.key).filter(key => /stash/i.test(key)),
+            sent: /stashDie/.test(sent),
+            drawn: /stashStepFor|stashStep\b/.test(draw),
+            steal: [Object.keys(taken).sort(), steal.rolled ?? null]
+        }), JSON.stringify({ reads: [], odds: true, list: [], sent: false, drawn: false, steal: [["itemId", "ownerId", "thiefId"], null] }),
+        "a Search still reads a stash, arms more than the room's odds, a stash step is still on the GMs' roll list, sent with a drawn roll or "
+            + "drawn, or vault.steal still takes a Search's word or names a roll (names read, the odds' shape, the list's stash rows, sent, "
+            + "drawn, [the fields vault.steal takes, its rolled row])");
     }],
 
     ["R215 - no player packet carries an undo", async () => {
@@ -7875,8 +7864,8 @@ const REGRESSIONS = [
          * as a declaration that takes nothing it has to name a roll for.
          */
         const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
-        const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
-            "vault.steal": ["viaSearch", "clumsy"] };
+        // `vault.steal` derived `viaSearch` and `clumsy` from a Search's record until 1.2.112, when a Search stopped reaching into stashes.
+        const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"] };
         const WAITING = [];
         // A Facilities roll (E93 C3) is thrown from the tile whose key is still `rest` (the Facilities tile).
         // A Dash (E69 C5) and a tail's two rolls (E69 C3) are thrown from the Infiltrate tile, whose key is still `listen`.
@@ -7953,7 +7942,7 @@ const REGRESSIONS = [
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
             + `${WAITING.length} wait for a later commit; monocub.ability takes ${JSON.stringify(takes("monocub.ability", all["monocub.ability"] ?? {}))} from its packet`);
         equal(JSON.stringify(["action.friskFollow", "action.friskUnseen", "action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
-            "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
+            "project.progress", "project.sabotage", "remnant.place", "vault.findStash"].filter(action => !rolled.includes(action))), "[]",
             "Observe, Analyze, the search for a hidden stash, a Palm, an unseen Frisk, an open Frisk's force, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
         equal(JSON.stringify([Boolean(all["monocub.ability"]?.sanitize), takes("monocub.ability", all["monocub.ability"] ?? {})]), JSON.stringify([true, []]),
             "monocub.ability is no declaration of the bridge's, or a Monocub ability's packet carries a result the GM would read");
@@ -9712,9 +9701,6 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#vault.steal#thiefId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#ownerId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#itemId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#vault.steal#viaSearch", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#vault.steal#clumsy", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#vault.steal#rollId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.progress#countdownId", "judged on the primary: knownSender + owns; `guardProjectRoom` (bridge-guards.mjs) holds the character in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` (projects.mjs: the token's scene, else `sceneOfRoom`) by `standsAtProject` since E12 fix r1-G3; a trait ruling for a project (`guardTraitRuling`'s `projectWithinReach`) is held by the same pickers"],
             ["PACKET gm-bridge.mjs#project.progress#amount", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.progress#actorId", "judged on the primary: knownSender + owns; `guardProjectRoom` (bridge-guards.mjs) holds the character in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` (projects.mjs: the token's scene, else `sceneOfRoom`) by `standsAtProject` since E12 fix r1-G3; a trait ruling for a project (`guardTraitRuling`'s `projectWithinReach`) is held by the same pickers"],
@@ -9802,6 +9788,9 @@ const REGRESSIONS = [
             ["HOOK trial-scene.mjs#registerTrialScene#updateToken:watchCast", "put back on the primary: a non-GM's change to a hall cast token's `hidden` is put back to the `hidden` a GM last wrote, only when the token holds another, and told to the GMs (`castPutBack`, `castHeld`, R434; E13 fix r1-F2); every GM's client notes a GM's write; it reads no position, so a move in the hall is not its"],
             ["HOOK trial-floor.mjs#registerTrialFloor#updateToken:watchZoneEntry", "reads, writes nothing (E73 C2): a hall token's move during a zone mode plays its zone's outline and `zoneEntered` on the owner's browser (trial-zones-ui.mjs `onZoneEntered`); the hall holds no room, so no room or scene road runs from it"],
             ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, and a player's is not one; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
+            // E62 C3b: the dead's Spectator token, read on its owner's browser.
+            ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
+            ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken:inline", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK visibility.mjs#registerVisibility#createRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
             ["HOOK visibility.mjs#registerVisibility#updateRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
             ["HOOK visibility.mjs#registerVisibility#deleteRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
@@ -10064,6 +10053,9 @@ const REGRESSIONS = [
             ["HOOK trial-floor.mjs#updateToken#watchZoneEntry", "reads, writes nothing (E73 C2): the owner's own browser marks a zone entered - an outline's pulse and a sound; creates and deletes nothing in the hall"],
             ["HOOK trial-scene.mjs#createToken#watchCastCreated", "hidden, not deleted: on the primary, a cast token a non-GM `userId` creates in the hall is hidden if it was made shown and whispered to the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, `trialSeats`, and a player's is not one; E13 fix r1-F2, 41 a5); it joins the cast as a token the GMs placed would, and the next entry names a second token of one actor"],
             ["HOOK trial-scene.mjs#deleteToken#watchCastDeleted", "told, not made again at once: on the primary, a hall cast token a non-GM `userId` deleted is whispered to the GMs (E13 fix r2-H2, review r2 sec S2-4, 41 a7); a token the module made is made again by the next entry's stage, one the GMs placed is not (E81 DZ6); it reads no position"],
+            ["HOOK spectator-dead.mjs#createToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
+            ["HOOK spectator-dead.mjs#deleteToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
+            ["HOOK spectator-dead.mjs#updateToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK visibility.mjs#updateToken#arrow1", "out of scope: recomputes this client's draw on `hidden` or a move (visibility.mjs:51-56); C2's reveal and hide fire it on every client, expected"],
             ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -10293,6 +10285,7 @@ const REGRESSIONS = [
             ["SURFACE action-dynamic.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE roll-draw.mjs#drawSignNotice#showWaiting", "the roller's sign that the GM is throwing a drawn roll's late dice (DH212 3, R3990): the module's own i18n (`DRPG.Rolls.gmThrowing`), taken down as the dice start or the draw ends; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE day-summary.mjs#keepDayEndCard", "this client's own end-of-day board as one card (E94 C3), drawn by sequence.mjs `dayEndElement` from this browser's own rows, the public cards' text and the names escaped there, under the board's i18n title; kept as a summary (`source: \"summary\"`, R297) in place of the Night's summary it folds (`nightFoldsIntoBoard`), and cleaned at save like every snapshot"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "on a GM, a thread card that asks the GMs (`gmAsk`): the player's words in a card (`cardPreview`), kept as the thread's entry - its message and the conversation it opens - under the thread's player only when a GM's session wrote the card, else under its writer (`cardWriter`; a `thread` flag is the writer's to set, E81 fix r2-H1), an author that is no user of this world dropped (R297), and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
@@ -10613,6 +10606,7 @@ const REGRESSIONS = [
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
             ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
+            ["WHO explain.mjs#openStateExplainer#subjectActor -> which", "the same actor's own action count in Daily Life's paragraph (E100 item 7, R4106); no room text - the room is `roomBlock`'s row above"],
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else of several the controlled one, else the first by name (E51 C4, monokuma.mjs `chooseOwnStudent`, R1117), and the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
@@ -11170,6 +11164,8 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
             ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
+            ["HOOK spectator-dead.mjs#registerDeadSpectator#createToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook and the Death fade on the dead student's browser; E79 adds no road through it"],
+            ["HOOK spectator-dead.mjs#registerDeadSpectator#updateToken/inline -> judge", "this file's own (E62 C3b): the curtain's hook on the dead student's browser when its Spectator token becomes the Monocub's; E79 adds no road through it"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -12518,7 +12514,8 @@ const REGRESSIONS = [
             "cleanup.mjs": [1, "a reshaped trace's text (a kit window)"],
             "gm-campaign.mjs": [1, "Edit campaign's morning line"],
             "gm-items.mjs": [4, "Give's description, a Truth Bullet's texts, the autopsy's two"],
-            "investigation.mjs": [7, "the Remnants table's text and analysis, the Key tab's two, the case map's node text, a planned Autopsy node's player text and GM note (the dashboard)"],
+            // 16 since E104 (the 1.2.112 tree): a planned Remnant's, Final Truth's and Truth Bullet's three each, the case map's node editor.
+            "investigation.mjs": [16, "the Remnants table's text and analysis, the Key tab's two, the case map's node text, a planned Autopsy node's player text and GM note, a planned Remnant's, Final Truth's and Truth Bullet's words, analysis and note (the dashboard)"],
             "messenger-app.mjs": [3, "the messenger's input and note, a GM's ruling reply"],
             "observe.mjs": [3, "a critical's hint, a find's description and its analysed text (Observe's kit window)"],
             "projects-ui.mjs": [1, "a project's description"],
@@ -13201,7 +13198,8 @@ const REGRESSIONS = [
         const situations = keysIn(fixtures, /^\s*\{ key: "situation", situation: "(\w+)"/gm);
         // To the function's closing brace: `fnSource` runs on to the next declaration, through the readers' table.
         const branches = keysIn(bodyOf(stripComments(sources.get("roll-draw.mjs") ?? ""), "function situationReading(", { until: "\n}\n" }), /\bkey === "(\w+)"/g);
-        ok(rows.length >= 14 && fixed.length > 0 && branches.length >= 6,
+        // 13 rows since 1.2.112, when the hidden stash's step (`stashStep`) left the list with the Search's reach into a stash.
+        ok(rows.length >= 13 && fixed.length > 0 && branches.length >= 6,
             `R291 read ${rows.length} row(s) of the list, ${fixed.length} fixture key(s) and ${branches.length} branch(es) of its situation - this would measure nothing`);
         equal(JSON.stringify([rows.filter(key => !fixed.includes(key)), fixed.filter(key => !rows.includes(key)),
             branches.filter(key => !situations.includes(key)), situations.filter(key => !branches.includes(key))]), JSON.stringify([[], [], [], []]),
@@ -15899,6 +15897,48 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
+    }],
+
+    ["R5466 - the table's dice look is worded as three choices in both languages, the GM's handbook names the setting and each choice in its line, and no text of the module still names the switch by its old name (E108)", async () => {
+        /*
+         * E108, 13.11.2026; the coordinator's default for the owner's report of 13.11 was "Each player's own look", "One
+         * look for the table: Dice So Nice", "One look for the table: Daggerheart"; the stage's shots cut the last two at
+         * "One look for the table:" in Stained Glass, so they read "Each player's own", "Everyone: Dice So Nice",
+         * "Everyone: Daggerheart" (docs/dev/e108/STATUS.md). The GM's handbook's line on the setting (R803,
+         * R806 read the same line) names the setting in italics and each choice. The old name, "One dice look for the
+         * table" / "Jeden wygląd kości przy stole", stood in two strings (the setting's and the diagnostic's
+         * presetMissingLaid): a string that names a setting by a name it no longer has sends the GM looking for a row that
+         * is not there. Red before E108: no choices, and both old names.
+         */
+        const OLD = { en: "one dice look for the table", pl: "jeden wygląd kości przy stole" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const setting = keys.DRPG?.Settings?.forceDiceLook ?? {};
+            const choices = ["own", "dsn", "daggerheart"].map(v => setting.choices?.[v] ?? "");
+            ok(typeof setting.name === "string" && setting.name.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook.name - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
+            const book = (await lfText(res)).toLocaleLowerCase(lang);
+            const at = book.indexOf(`*${(setting.name ?? "").toLocaleLowerCase(lang)}*`);
+            const line = at >= 0 ? lineAround(book, at) : "";
+            const strings = [];
+            const walk = (node, path) => {
+                if (typeof node === "string") strings.push([path, node]);
+                else if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+            };
+            walk(keys, "");
+            measured[lang] = {
+                choices: choices.every(Boolean) && new Set(choices).size === 3,
+                named: at >= 0,
+                eachChoice: choices.map(c => Boolean(c) && line.includes(`*${c.toLocaleLowerCase(lang)}*`)),
+                old: strings.filter(([, text]) => text.toLocaleLowerCase(lang).includes(OLD[lang])).map(([path]) => path)
+            };
+            expected[lang] = { choices: true, named: true, eachChoice: [true, true, true], old: [] };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - three distinct choices worded; the GM's handbook names the setting in italics; its line names each choice in italics; "
+            + "the lang keys that still name the old switch]");
     }],
     ["R905 - a room found opens at once (H81-08): the reveal's curtain starts opening within 450 ms of the reveal and is open by 1100 ms, its sound plays as the reveal starts, and the room's name stays up for its 5.4 s", async () => {
         /*
@@ -19624,7 +19664,8 @@ const REGRESSIONS = [
                     .map(text => ["Advance.kind", text, [kind]])),
                 ...overflow.flatMap(what => ["DRPG.Overflow.gmHintQueued", "DRPG.Overflow.currentDrawn", "DRPG.Overflow.currentWaiting"]
                     .map(host => ["Overflow.name", fmt(host, { count: 4, max: 10, what }), [what]])),
-                ...["trait", "pick", "modifier", "dice", "advantage", "stash"].map(kind => ["Rolls.flagKind", D.flagText({ kind, claimed: "3", expected: "1" }), [loc(`DRPG.Rolls.flagKind.${kind}`)]]),
+                // The hidden stash's die ("stash") left the kinds in 1.2.112, with the Search's reach into a stash.
+                ...["trait", "pick", "modifier", "dice", "advantage"].map(kind => ["Rolls.flagKind", D.flagText({ kind, claimed: "3", expected: "1" }), [loc(`DRPG.Rolls.flagKind.${kind}`)]]),
                 ...HINDERING.flatMap(def => {
                     const names = def.hinders.actions.map(label);
                     return [["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.hinderedActions", { turns: def.hinders.turns, actions: U.listOf(names) }, "turns"), names],
@@ -19691,7 +19732,7 @@ const REGRESSIONS = [
         const sources = await moduleSources();
         const reading = re => [...new Set([...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => censusFile(file)))].sort();
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
-        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2 + 2 * ECLIPSE_HOSTS.length;
+        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 5 + HINDERING.length * 2 + 2 * ECLIPSE_HOSTS.length;
         read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),
             joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog),
             away: /return listOf\(moves\);/.test(stripComments(fnSource(sources.get("roll-draw.mjs") ?? "", "awayMoves") ?? "")),
@@ -20933,8 +20974,9 @@ const REGRESSIONS = [
             // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
             // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences;
             // 38 since E64: `levelUpsMigrated`, the DA39 migration's once-a-world mark (level-up.mjs `offerDa39Migration`).
-            counts: [20, 11, 38], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 38, the clock's entry does not "
+            // 39 since E108: `diceLookKind`, which look the table's forced dice take, outlives a season as the switch does.
+            counts: [20, 11, 39], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 39, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -21838,7 +21880,8 @@ const REGRESSIONS = [
                 if (m[1] === "callWindow" && !inner.includes("footer")) wrong.push(`${file}: a callWindow call with no footer slots`);
             }
         }
-        must(calls.chooseVariant.length >= 10 && calls.callWindow.length >= 7,
+        // 9 chooseVariant calls since E101, which made Level Up's two questions one window (R4056); 10 before.
+        must(calls.chooseVariant.length >= 9 && calls.callWindow.length >= 7,
             `read ${calls.chooseVariant.length} chooseVariant and ${calls.callWindow.length} callWindow call(s) - fewer than the module's, this would measure too little`);
         const old = [...texts].filter(([, t]) => /\btableDialog\b/.test(blankLiterals(blankComments(t)))).map(([f]) => f);
         equal(JSON.stringify({ wrappers, wrong, tableDialog: old }), JSON.stringify({
@@ -22690,7 +22733,7 @@ const REGRESSIONS = [
         const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const runs = (list, i) => list.filter((k, n) => k !== list[n - 1]);
         const read = (html, buttons = []) => ({
-            keys: runs([...String(html).matchAll(/\[\[k:([^\]]+)\]\]/g)].map(m => m[1])),
+            keys: runs([...String(html).matchAll(/\[\[k:([^\]]+)\]\]/g)].map(m => m[1]).filter(k => !k.startsWith("DRPG.Tips."))),   // a tooltip (E102) is no label
             fields: runs([...String(html).matchAll(/ name="([^"]+)"/g)].map(m => m[1].replace(/\.R2077[A-Z0-9]+$/, ".<id>"))),
             footer: buttons.map(b => b.action)
         });
@@ -23329,7 +23372,7 @@ const REGRESSIONS = [
         JSON.stringify([["chapter.mjs#BODY_ANNOUNCED_HOOK"], ["chapter.mjs#callBodyAnnounced"], ["chapter.mjs#announceArrivedBodies", "chapter.mjs#announceBody"], true, true]),
         "[where the hook's name is spelt, where it is called, who calls callBodyAnnounced, the stamp before the call in announceBody, the announcement before the gather in runDiscovery]");
     }],
-    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen, Move's briefing) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
+    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen; Move's briefing until E100 item 1 took it away) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
         /*
          * E68 C12, 10.11.2026. Round M (S/stages/E68/mockups/NOTES.md) drew the actions' windows in two layouts; the owner
          * took B, Observe's columns, for every action window ("layout B for every action window"), and asked the blocks of
@@ -23364,7 +23407,7 @@ const REGRESSIONS = [
         const OPENERS = {
             "action-observe.mjs": ["askDeclaration"], "action-search.mjs": ["chooseSearchCategory"], "action-analyze.mjs": ["askWhatToAnalyze"],
             "action-tamper.mjs": ["chooseTamper"], "action-rest.mjs": ["performRest"], "action-project.mjs": ["performProject", "chooseProject"],
-            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"], "action-briefing.mjs": ["briefing"]
+            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"]
         };
         for (const file of [...Object.keys(OPENERS), "action-menus.mjs", "ui-columns.mjs", "level-up.mjs", "call-gm.mjs", "action-dynamic.mjs"]) {
             src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : ""));
@@ -23390,7 +23433,8 @@ const REGRESSIONS = [
                 /promptForRequest\(\{[^;]*?\bcolumns:\s*true\b/.test(topLevelFunction(blankComments(src["action-dynamic.mjs"]), "performDynamic") ?? "")]
         }), JSON.stringify({
             builder: [true, true, false], menu: [true, true], blocks: [], imports: ["./ui-kit.mjs", "./utils.mjs"], outside: [],
-            narrow: ["level-up.mjs#openAdvancementFor 2"], dynamic: [true, true]
+            // E101: Level Up's two questions are one window (R4056), so one chooseVariant there (changed on purpose).
+            narrow: ["level-up.mjs#openAdvancementFor 1"], dynamic: [true, true]
         }), "[actionWindow exported, opening through wideWindow and not drpgWindow; chooseVariant's columns on by default and opening through "
             + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false; "
             + "Dynamic: askForRequest opens actionWindow on columns, performDynamic asks columns]");
@@ -23436,7 +23480,8 @@ const REGRESSIONS = [
         }), JSON.stringify({
             // E49 A1e: Killing game rules left Between sessions for Season setup's row of windows (R3582).
             twice: [], moved: { rules: [], voiceReset: ["fixes"], chapterEndTile: [] },
-            standing: [false, true], line: [true, true, true, true], columns: [true, true, true], end: [true, true, true, true, true]
+            // E101 (changed on purpose): the line's door to Students went, the Now section's Students tile is the door (R4054).
+            standing: [false, true], line: [true, false, true, true], columns: [true, true, true], end: [true, true, true, true, true]
         }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
@@ -23500,7 +23545,8 @@ const REGRESSIONS = [
             hooks: [...tile.matchAll(/Hooks\.on\("(\w+)"/g)].map(m => m[1]).sort(),
             registered: /Hooks\.on\("updateToken",[^]*?followBody\(tokenDoc, changes, options, userId\)/.test(topLevelFunction(tile, "registerBodyFollow") ?? ""),
             guards: follow ? [at(/!game\.user\?\.isGM/) >= 0 && at(/!game\.user\?\.isGM/) < write, at(/userId !== game\.user\.id/) >= 0 && at(/userId !== game\.user\.id/) < write,
-                at(/isCorpse\(actor\)/) >= 0 && at(/isCorpse\(actor\)/) < write, write > 0] : null,
+                // `isCorpseToken(tokenDoc)` since E62 C3b's fix (a Monocub's corpse too; movement.mjs reads `isCorpse` in it), on purpose
+                at(/isCorpse(?:Token)?\((?:actor|tokenDoc)\)/) >= 0 && at(/isCorpse(?:Token)?\((?:actor|tokenDoc)\)/) < write, write > 0] : null,
             exported: /^export function isCorpse\(/m.test(code("movement.mjs")),
             module: /safely\("[^"]+", registerBodyFollow\)/.test(code("module.mjs"))
         }), JSON.stringify({ hooks: ["drawTile", "refreshTile", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),
@@ -23651,7 +23697,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
             "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
     }],
-    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` or the Sound window's two switches (`SOUND_WINDOW_SETTINGS`, E101) - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
          * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
@@ -23671,7 +23717,10 @@ const REGRESSIONS = [
         let W = null;
         try { W = await import("./settings-window.mjs"); } catch (err) { W = { failed: String(err?.message ?? err) }; }
         const sections = Array.isArray(W?.SETTINGS_SECTIONS) ? W.SETTINGS_SECTIONS : [];
-        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length);
+        /* E101 item 7 (12.11.2026): the music's switch and Vary the sounds are drawn in the Sound window
+           (settings-window.mjs `SOUND_WINDOW_SETTINGS`, R4050), a place as the sections are; changed on purpose. */
+        const soundWindow = Array.isArray(W?.SOUND_WINDOW_SETTINGS) ? W.SOUND_WINDOW_SETTINGS : [];
+        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length + (soundWindow.includes(k) ? 1 : 0));
         const named = sections.flatMap(s => s.keys);
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -23693,7 +23742,7 @@ const REGRESSIONS = [
             loaded: W?.failed ?? true,
             sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
             once: FROZEN.filter((k, i) => seen[i] !== 1),
-            others: named.filter(k => !FROZEN.includes(k)),
+            others: [...named, ...soundWindow].filter(k => !FROZEN.includes(k)),
             mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),
             configTrue: shown,
             menuCalls,
@@ -23705,9 +23754,10 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
-                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 5, true], ["foundry", "game", 2, true]],
+                // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
+                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 2, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
-            once: [], others: ["sfxVary", "sequences"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            once: [], others: ["sequences", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
@@ -23751,10 +23801,10 @@ const REGRESSIONS = [
             modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES).filter(m => m !== "objection" && m !== "rebuttal"))
         }), JSON.stringify({
             keys: ["2:deduction-a", "2:meta", false, false, true],
-            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null, type: null, note: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
-            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null, type: null, note: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
+            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null, type: null, note: null, scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, img: null, recipient: null, tell: null, realType: null, shown: null, faint: null, tied: null, given: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
+            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null, type: null, note: null, scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, img: null, recipient: null, tell: null, realType: null, shown: null, faint: null, tied: null, given: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
             meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {}, autopsies: null, autopsySent: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {}, autopsies: null, autopsySent: {} }],
-            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident", "autopsy"],
+            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident", "autopsy", "final", "bullet"],
             nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
                 ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
             edges: [{ from: "S1.T1", to: "deduction-a", kind: "input" }, { from: "S1.T2", to: "deduction-a", kind: "input" },
@@ -24220,7 +24270,7 @@ const REGRESSIONS = [
             drawn: {
                 aside: 0, open: [false, true, true, true, true, 0], bWarn: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "R3661 b", ref: "" })],
                 others: [["S.T1", true], ["d-b", true]], face: ["button", "true"],
-                overview: [true, 2, true], tools: [true, 4, [true, true, true]],
+                overview: [true, 2, true], tools: [true, 3, [true, true, true]],
                 names: ["case:4:d-a:label", "case:4:d-b:label", "keyOverride", "name.S__T1"], nameless: []
             },
             said: [["pick", "d-b"], ["move", "d-a", -1], ["drop", "d-a"], ["close", "d-a"], ["close", "d-a"], ["check"], ["add", "counter"]],
@@ -24471,6 +24521,34 @@ const REGRESSIONS = [
         await step;
         ok(done, "the step did not go on once the board had ended");
     }],
+    ["R5203 - gm-store.mjs exports one registry of the fields only the GMs hold, SECRET_FIELDS (E43; the plan's item 2): a secret project's fields (projects-secrecy.mjs PROJECT_SECRET_FIELDS), an incident's cast (gm-stores.mjs CAST_FIELDS) and a trace's answer key (world-secrets.mjs everySetting's fields), each registered by the file that holds its list and equal to it; and no name in it is a module world setting's key, a FLAGS name, or a flag a module file writes by its literal name (`setFlag(MODULE_ID, \"x\")`, `flags.${MODULE_ID}.x`)", async () => {
+        /*
+         * E43, 13.11.2026. world-secrets.mjs said "E43 turns the whole into SECRET_FIELDS": the fields each secret lives
+         * under were three lists in three files, and nothing said one of their names was never also a key the world sends
+         * every browser. The engine imports config.mjs alone (R161), so the lists are not imported into it: each file
+         * registers its own (`registerSecretFields`), and the registry answers its owners and names. The source read
+         * finds the literal flag names itself - asked to find "roles", which tables-editor.mjs writes by name, as its control.
+         * Red before C3: no SECRET_FIELDS.
+         */
+        const G = await import("./gm-store.mjs");
+        const [P, S, W, C] = await Promise.all([import("./projects-secrecy.mjs"), import("./gm-stores.mjs"), import("./world-secrets.mjs"), import("./config.mjs")]);
+        const reg = G.SECRET_FIELDS ?? null;
+        const owners = reg ? reg.owners() : null;
+        const lists = reg ? [reg.of("projectMeta"), reg.of("cast"), reg.of("answerKey")] : null;
+        const literal = new Set();
+        for (const [file, text] of await moduleSources()) {
+            if (file.startsWith("tests")) continue;
+            const src = stripComments(text);
+            for (const m of src.matchAll(/setFlag\((?:MODULE_ID|"danganronpa-rpg"),\s*"([^"]+)"/g)) literal.add(m[1]);
+            for (const m of src.matchAll(/flags\.\$\{MODULE_ID\}\.([A-Za-z0-9_]+)/g)) literal.add(m[1]);
+        }
+        const keys = new Set([...Object.values(SETTINGS), ...Object.values(C.FLAGS)].filter(v => typeof v === "string"));
+        const names = reg ? reg.names() : [];
+        equal(JSON.stringify([owners, lists, names.filter(n => keys.has(n) || literal.has(n)), literal.has("roles"), names.length > 30]),
+            JSON.stringify([["answerKey", "cast", "projectMeta"], [[...P.PROJECT_SECRET_FIELDS], [...S.CAST_FIELDS], [...W.WORLD_SECRET_RULES.everySetting.fields]], [], true, true]),
+            "[the registry's owners; each owner's list beside the file's own; the names that are also a setting key, a FLAGS name or a literal flag; the read finds tables-editor.mjs's literal flag; the registry holds the lists]");
+    }],
+
 ];
 
 

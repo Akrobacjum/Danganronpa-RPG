@@ -33,6 +33,8 @@ import { RECORD } from "./gm-store.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
  * ========================================================================== */
@@ -1199,7 +1201,7 @@ export function overflowSection({ suggestion = "" } = {}) {
             const name = L(`DRPG.Overflow.name.${key}`);
             return {
                 key,
-                on: toggle({ name: `ovf-${key}-on`, checked: Boolean(rule.on), label: name }),
+                on: toggle({ name: `ovf-${key}-on`, checked: Boolean(rule.on), label: name, attrs: { "data-tooltip": tipText("DRPG.Tips.Actions.onPerRuleTooltip") } }),
                 what: `<strong>${esc(name)}</strong>`,
                 by: rule.by === undefined ? "" : stepper({ name: `ovf-${key}-by`, value: rule.by, min: 0, max: BY_MAX, compact: true,
                     attrs: { "aria-label": `${L("DRPG.Overflow.amount")}: ${name}` } }),
@@ -1227,7 +1229,7 @@ export function overflowSection({ suggestion = "" } = {}) {
     // H84-06: the GM's Clear, beside the count it clears; wired by gm-team-dialog.mjs (`clearOverflowFromTab`).
     return `<p>${esc(L("DRPG.Overflow.setupIntro"))}</p>
         <p class="drpg-overflow-now">${esc(nowLine)}</p>
-        <p><button type="button" data-drpg-overflow-clear>${esc(L("DRPG.Overflow.clear"))}</button></p>
+        <p><button type="button" data-drpg-overflow-clear${tipAttr("DRPG.Tips.Actions.clearTheOverflowTooltip")}>${esc(L("DRPG.Overflow.clear"))}</button></p>
         ${formGrid([{
             label: L("DRPG.Overflow.threshold"), id: thresholdId,
             field: stepper({ name: "ovf-threshold", value: status.threshold, min, max, id: thresholdId })

@@ -1598,10 +1598,13 @@ export function recolourRoomOutline({ standing = roomOutline, colourNow = outlin
     /* A THEME CHANGE IS NOT A COLOUR CHANGE. The two themes draw different borders - Legacy
        the 26.08 pixel-art stroke, Stained Glass the curtain's hairline seam - so when the
        setting has moved the outline is drawn again from the room it was drawn from, rather
-       than re-tinted. Everything else on this path is still one computed-style read. */
+       than re-tinted. Everything else on this path is still one computed-style read.
+       QUIETLY (gaps, R4655; 1.2.105's known gap "a theme switch draws the room outline as an arrival"): the redraw played
+       as the player walking in - the old outline fading under the new, the hop and the room's name - where every other
+       redraw that is no arrival is `quiet` (E49 B4, D147). Nobody moved; the border only changed its look. */
     const glassNow = glassIs();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
-        flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null });
+        flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null, quiet: true });
         return;
     }
 

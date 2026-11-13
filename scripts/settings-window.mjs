@@ -14,7 +14,7 @@
  * wyjsciowe"). A1 drew one window of seven sections, the world rows for a GM alone, so a GM's gear and a player's
  * differed, and the Look window the gear opened (look.mjs, with the volumes and the Voice section) stood beside it.
  * Since A1d:
- *   - THIS BROWSER'S WINDOW (`openSettingsWindow`), the same for a GM and a player: every client setting of the 35
+ *   - THIS BROWSER'S WINDOW (`openSettingsWindow`), the same for a GM and a player (a GM alone has the verbose log since E100 item 3): every client setting of the 35
  *     (`CLIENT_SECTIONS`: look, effects, sound, tech) and what the Look window held besides them - the two volumes
  *     (sfx.mjs `volumeSliders`, saved as they move, as they were) and the Voice section (voice-panel.mjs
  *     `voiceFieldset`: the microphone, the output, always on or push to talk, the key and Configure Controls; only where
@@ -60,13 +60,15 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
-import { esc, error, wholeNumber } from "./utils.mjs";
+import { SETTINGS, getSetting, autoScale, diceLookChoice, diceLookWrites, DICE_LOOK_CHOICES } from "./settings.mjs";
+import { esc, error, wholeNumber, firstSentence, restOf } from "./utils.mjs";
 import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
-import { themeOnlyKeys, scaleNote, systemWantsContrast } from "./look.mjs";
+import { themeOnlyKeys, systemWantsContrast, isStainedGlass } from "./look.mjs";
 import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
+
+import { tipAttr } from "./ui-kit.mjs";
 
 /**
  * The sections of each place (Q4's seven, split by whose the setting is: E49 A1d), each `{ key, icon, place, keys }`:
@@ -74,7 +76,7 @@ import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
  * `place` "client" (this browser's window) or "game" (the game's window), `keys` its settings by SETTINGS name, in the
  * order drawn. A client section names client settings alone and a game section world ones alone (R3420); A1's Sound and
  * Technical held both, so each is two sections now: Sound (the messenger's sounds, with the volumes and the voice) and
- * Music and voice (the table's switches, and Vary the sounds), Technical (the debug log) and Foundry and the system (the
+ * Voice (the table's voice switches; the music's switch and Vary the sounds are the Sound window's since E101), Technical (the debug log) and Foundry and the system (the
  * two welcomes, and Give back). The icons are among those pixel-icons.css redraws as pixels under the glass.
  */
 const section = (place, key, icon, keys) => Object.freeze({ key, icon, place, keys: Object.freeze(keys) });
@@ -85,28 +87,30 @@ export const CLIENT_SECTIONS = Object.freeze([
     section("client", "tech", "fa-screwdriver-wrench", ["debug"])
 ]);
 export const GAME_SECTIONS = Object.freeze([
-    section("game", "audio", "fa-headset", ["musicEnabled", "voiceEnabled", "voiceTile", "liveKitInFoundry", "sfxVary"]),
-    section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "hideSystemFear"]),
+    section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile"]),
+    section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),
-    section("game", "gm", "fa-map-location-dot", ["regionFog", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield", "sequences"]),
-    section("game", "foundry", "fa-plug", ["enforceIsoWelcome", "enforceDhWelcome"])
+    /* "sequences" (1.2.109, E61-62's full-screen sequences) where 1.2.109 put it, beside the rooms' fog: kept in the r112
+       merge with E101's moves (13.11.2026). */
+    section("game", "gm", "fa-map-location-dot", ["regionFog", "sequences"]),
+    /* E101 (the owner's yes of 12.11.2026 to the GM screens' review): the five rows that patch Foundry, Daggerheart or
+       another module rather than set a rule of the game came here from audio, rules and gm - Voice in Foundry's window,
+       Replace Daggerheart's Fear, the module's windows for Foundry's tools, no file browser for players, the token
+       shield (R4053). */
+    section("game", "foundry", "fa-plug", ["liveKitInFoundry", "hideSystemFear", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield",
+        "enforceIsoWelcome", "enforceDhWelcome"])
 ]);
 export const SETTINGS_SECTIONS = Object.freeze([...CLIENT_SECTIONS, ...GAME_SECTIONS]);
 
-/* A sentence ends at ".", "!" or "?" followed by a space or the end: "game.drpg.publicRoll" and "1.2" stay whole. */
-const SENTENCE = /^(.+?[.!?])(?=\s|$)/s;
+/* The two world switches drawn in the Sound window instead (E101 item 7, the owner's yes of 12.11.2026 to the GM screens'
+   review, #8): Music follows the game state over the Music tab's map, Vary the sounds by the Effects tab's legend
+   (sound-panel.mjs `soundSettingSwitch`). Until E101 they were rows of the audio section above. */
+export const SOUND_WINDOW_SETTINGS = Object.freeze(["musicEnabled", "sfxVary"]);
 
-/** A hint's first sentence (the line under a setting, [16]); the whole text when it has no sentence's end. */
-export function firstSentence(text) {
-    const s = String(text ?? "").trim();
-    return (SENTENCE.exec(s)?.[1] ?? s).trim();
-}
-
-/** What `firstSentence` leaves: the setting's tooltip. Empty for a hint of one sentence. */
-export function restOf(text) {
-    const s = String(text ?? "").trim();
-    return s.slice(firstSentence(s).length).trim();
-}
+/* A hint's first sentence and the rest (`firstSentence`, `restOf`) are utils.mjs's since the 1.2.112 tree, re-exported here:
+   the Sound window (sound-panel.mjs, loaded at boot through music.mjs) reads the first, and a static import of this file
+   for it loaded the gear's window at boot, which open-cost.mjs warms at idle instead (R4200). */
+export { firstSentence, restOf };
 
 const localize = key => game.i18n.localize(key);
 
@@ -124,10 +128,20 @@ export function mayModifyWorld(user = game.user) {
     }
 }
 
-/** The keys of a section `user` is drawn: a client section's to everybody, a game one's to a user who may write them. */
+/*
+ * A GM'S ROWS OF THIS BROWSER'S WINDOW (E100 item 3, 12.11.2026; the owner on the player-screens review, #4: "Szczegółowe
+ * logi w konsoli" is diagnostic, a GM asks for it). Verbose console logging is still this browser's own setting
+ * (`scope: "client"`), drawn for a GM alone; a player's window has no Technical section left. No road from a GM's
+ * browser writes another browser's client setting (read on 12.11.2026: utils.mjs `debug` is its one reader, no socket
+ * or bridge row names it), so none was kept: when a GM asks a player for the log, the GM handbook's recipe gives the
+ * console line. This is the one place the gear's window differs between a GM and a player (R3530, R4102).
+ */
+const GM_ONLY_CLIENT_KEYS = Object.freeze(["debug"]);
+
+/** The keys of a section `user` is drawn: a client section's to everybody (a GM's rows to a GM), a game one's to a user who may write them. */
 export function keysFor(section, user = game.user) {
     if (section.place === "game" && !mayModifyWorld(user)) return [];
-    return section.keys.filter(key => registered(key));
+    return section.keys.filter(key => registered(key) && (user?.isGM || !GM_ONLY_CLIENT_KEYS.includes(key)));
 }
 
 /** The theme that claims `key` alone (look.mjs `themeOnlyKeys`), or null. */
@@ -138,15 +152,26 @@ function ownerTheme(key) {
 
 const THEME_WORDS = Object.freeze({ stainedGlass: "DRPG.SettingsWindow.glassOnly", monokumaLegacy: "DRPG.SettingsWindow.legacyOnly" });
 
+/*
+ * THE TABLE'S DICE LOOK (E108; settings.mjs "THE TABLE'S DICE LOOK, ONE CHOICE OF THREE"). Its row keeps the switch's key
+ * and place, and draws one select of three where the switch was: its value is `diceLookChoice`, and Save writes the two
+ * settings `diceLookWrites` names. Each choice's words, by value.
+ */
+const DICE_LOOK_WORDS = Object.freeze({ own: "DRPG.Settings.forceDiceLook.choices.own", dsn: "DRPG.Settings.forceDiceLook.choices.dsn",
+    daggerheart: "DRPG.Settings.forceDiceLook.choices.daggerheart" });
+const isDiceLook = key => (SETTINGS[key] ?? key) === SETTINGS.forceDiceLook;
+
 /** One setting's control: a switch for a Boolean, a select for choices, a stepper for a number with a range. */
 function controlHtml(key, reg, value, off) {
     const name = SETTINGS[key] ?? key;
     const label = localize(reg.name);
-    if (reg.type === Boolean) return toggle({ name, checked: value === true, label, disabled: off });
+    const diceLook = isDiceLook(key);
+    if (reg.type === Boolean && !diceLook) return toggle({ name, checked: value === true, label, disabled: off });
     const id = stepperId();
     const head = `<label class="drpg-settings-label" for="${esc(id)}">${esc(label)}</label>`;
-    if (reg.choices) {
-        const options = Object.entries(reg.choices).map(([v, words]) =>
+    const choices = diceLook ? Object.fromEntries(DICE_LOOK_CHOICES.map(v => [v, DICE_LOOK_WORDS[v]])) : reg.choices;
+    if (choices) {
+        const options = Object.entries(choices).map(([v, words]) =>
             `<option value="${esc(v)}"${String(value) === v ? " selected" : ""}>${esc(localize(words))}</option>`).join("");
         return `${head}<select id="${esc(id)}" name="${esc(name)}"${off ? " disabled" : ""}>${options}</select>`;
     }
@@ -164,8 +189,14 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
     if (!reg) return "";
     const owner = ownerTheme(key);
     const off = Boolean(owner && owner !== theme);
-    const value = game.settings.get(MODULE_ID, SETTINGS[key] ?? key);
-    const hint = reg.hint ? localize(reg.hint) : "";
+    // The dice look reads its one choice (E108, settings.mjs `diceLookChoice`), not a stored value of its own.
+    const stored = isDiceLook(key) ? diceLookChoice() : game.settings.get(MODULE_ID, SETTINGS[key] ?? key);
+    // A number as short as it is (E101 table note 5): a stored 0.9500000000000001 is drawn 0.95.
+    const value = reg.type === Number && Number.isFinite(Number(stored)) ? Number(Number(stored).toFixed(6)) : stored;
+    /* Interface scale's row says what it does in one sentence of the window's own (E101 table note 5): the setting's
+       hint explains the factors, and its rest, a tooltip, stood over the line under it at the owner's table. */
+    const own = (SETTINGS[key] ?? key) === SETTINGS.uiScale;
+    const hint = own ? localize("DRPG.SettingsWindow.uiScaleHint") : reg.hint ? localize(reg.hint) : "";
     const rest = restOf(hint);
     const world = reg.scope === "world";
     const scope = localize(world ? "DRPG.SettingsWindow.scopeWorld" : "DRPG.SettingsWindow.scopeClient");
@@ -176,12 +207,19 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
         + `<div class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</div>${scaleLine(key, value)}</div>`;
 }
 
-/* Under Interface scale, the Look window's line (look.mjs `scaleNote`): what this screen's factor and the slider make,
-   in the row itself, so it stands under the field it reads (E49 A1d's shots: as a line of the section it fell under the
-   section's last row). The window's render keeps it following the field before Save. */
+/* Under Interface scale, what the slider makes on this screen, in the row itself, so it stands under the field it reads
+   (E49 A1d's shots: as a line of the section it fell under the section's last row). The window's render keeps it
+   following the field before Save. Since E101 table note 5 the total alone (the owner: a player reads what it does, not
+   how the factors ride on each other): under Stained Glass this screen's factor times the slider, under Legacy the
+   slider; the Look window's longer line (look.mjs `scaleNote`) is not drawn here. */
+function scaleNow(slider) {
+    const total = Math.round((isStainedGlass() ? slider * autoScale() : slider) * 100);
+    return game.i18n.format("DRPG.SettingsWindow.scaleNow", { total });
+}
+
 function scaleLine(key, value) {
     if ((SETTINGS[key] ?? key) !== SETTINGS.uiScale) return "";
-    return `<div class="drpg-settings-hint drpg-settings-note" data-drpg-scale-note>${esc(scaleNote(Number(value) || 1))}</div>`;
+    return `<div class="drpg-settings-hint drpg-settings-note" data-drpg-scale-note>${esc(scaleNow(Number(value) || 1))}</div>`;
 }
 
 /* Give back Foundry's settings, in Foundry and the system (Q3; Technical until A1d): the menu's words, the button that opened it from Configure Settings. */
@@ -235,7 +273,7 @@ export function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), p
     const open = sections.find(s => s.key === picked)?.key ?? sections[0]?.key ?? null;
     const words = s => localize(`DRPG.SettingsWindow.sections.${s.key}`);
     const list = `<nav class="drpg-settings-sections" aria-label="${esc(localize("DRPG.SettingsWindow.sectionsLabel"))}">${sections.map(s =>
-        `<button type="button" class="drpg-settings-tab" data-drpg-section="${esc(s.key)}" aria-pressed="${s.key === open}">`
+        `<button type="button" class="drpg-settings-tab" data-drpg-section="${esc(s.key)}" aria-pressed="${s.key === open}"${tipAttr("DRPG.Tips.Setup.sectionTooltip")}>`
         + `<i class="fa-solid ${esc(s.icon)}" inert></i><span>${esc(words(s))}</span><b>${s.shown.length + s.extra.count}</b></button>`).join("")}</nav>`
         + (foot ? `<div class="drpg-settings-note drpg-settings-foot">${esc(foot)}</div>` : "");
     const panes = sections.map(s => `<div class="drpg-settings-pane" data-drpg-settings-pane="${esc(s.key)}"${s.key === open ? "" : " hidden"}>${
@@ -243,7 +281,7 @@ export function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), p
     return [{ cls: "drpg-settings-nav", html: list }, { cls: "drpg-settings-main", html: `<div class="drpg-settings-panes">${panes}</div>` }];
 }
 
-/** This browser's window's columns: the client sections, the same for every user (E49 A1d). */
+/** This browser's window's columns: the client sections, the same for every user (E49 A1d) but a GM's rows (`GM_ONLY_CLIENT_KEYS`, E100 item 3). */
 export function settingsWindowColumns(user = game.user, { theme = getSetting(SETTINGS.theme), picked = null, voice = false } = {}) {
     return sectionColumns(sectionsFor(CLIENT_SECTIONS, user, { voice }), { theme, picked, foot: localize("DRPG.Look.note") });
 }
@@ -262,6 +300,30 @@ export function showSection(root, key) {
     for (const p of root.querySelectorAll("[data-drpg-settings-pane]")) p.hidden = p !== pane;
     for (const b of root.querySelectorAll("[data-drpg-section]")) b.setAttribute("aria-pressed", String(b.dataset.drpgSection === key));
     return true;
+}
+
+/**
+ * ONE SIZE, WHICHEVER SECTION IS SHOWN (E101 F3, 12.11.2026; the owner at a 1.2.108 table on Foundry 14.365: the settings
+ * window changed size between sections, against the house rule that a window keeps its size). The window opens at
+ * Foundry's auto height, so a short section shrank it and a long one grew it. Each section is shown in turn, the main
+ * column's content height read (`scrollHeight`), the one shown before put back, and the column held at the tallest
+ * (`min-height`); the frame still stops at the screen's height and the body scrolls inside it (components.css). Answers
+ * the height held, in pixels. Run on render and again once the fonts are in (a line's height is the font's). R4059.
+ */
+export function holdSectionHeight(root) {
+    const main = root?.querySelector?.(".drpg-settings-main");
+    const panes = [...(root?.querySelectorAll?.("[data-drpg-settings-pane]") ?? [])];
+    if (!main || !panes.length) return 0;
+    const shown = panes.find(p => !p.hidden) ?? panes[0];
+    main.style.minHeight = "";
+    let tallest = 0;
+    for (const pane of panes) {
+        for (const p of panes) p.hidden = p !== pane;
+        tallest = Math.max(tallest, Math.ceil(main.scrollHeight || 0));
+    }
+    for (const p of panes) p.hidden = p !== shown;
+    if (tallest > 0) main.style.minHeight = `${tallest}px`;
+    return tallest;
 }
 
 /* The section list's buttons and Give back, wired on `root` (either window). */
@@ -347,6 +409,14 @@ export async function saveSettings(form, user = game.user, { reload = askReload 
         const reg = game.settings.settings.get(`${MODULE_ID}.${key}`);
         if (!reg || field.disabled || field.closest("[data-drpg-setting]")?.dataset.drpgSetting !== key) continue;
         if (reg.scope === "world" && !mayModifyWorld(user)) { refused.push(key); continue; }
+        if (isDiceLook(key)) {
+            for (const [name, value] of diceLookWrites(String(field.value))) {
+                await game.settings.set(MODULE_ID, name, value);
+                written.push(name);
+                if (game.settings.settings.get(`${MODULE_ID}.${name}`)?.requiresReload) world = true;
+            }
+            continue;
+        }
         const value = fieldValue(field, reg);
         if (value === undefined || value === game.settings.get(MODULE_ID, key)) continue;
         await game.settings.set(MODULE_ID, key, value);
@@ -393,11 +463,14 @@ export async function openSettingsWindow() {
             root.querySelector(`[name="${SETTINGS.theme}"]`)?.addEventListener("change", ev => syncTheme(root, ev.currentTarget.value));
             /* The scale's line follows the field before Save, as the Look window's followed its slider. */
             const scale = root.querySelector(`[name="${SETTINGS.uiScale}"]`), line = root.querySelector("[data-drpg-scale-note]");
-            const follow = () => { if (line) line.textContent = scaleNote(Number(scale.value) || 1); };
+            const follow = () => { if (line) line.textContent = scaleNow(Number(scale.value) || 1); };
             scale?.addEventListener("input", follow);
             scale?.addEventListener("change", follow);
             wireVolumeSliders(root);
             if (voice) placeVoice(root, voice);
+            // After the voice is placed, a section's content: now and once the fonts are in (E101 F3).
+            holdSectionHeight(root);
+            globalThis.document?.fonts?.ready?.then(() => holdSectionHeight(root)).catch(() => {});
         },
         rejectClose: false
     });
@@ -433,7 +506,13 @@ export async function openGameSettingsWindow() {
             },
             close: { role: "cancel", action: "cancel" }
         },
-        render: (event, dialog) => wireSections(dialog.element),
+        render: (event, dialog) => {
+            const root = dialog.element;
+            wireSections(root);
+            // One size whichever section is shown (E101 F3): now and once the fonts are in.
+            holdSectionHeight(root);
+            globalThis.document?.fonts?.ready?.then(() => holdSectionHeight(root)).catch(() => {});
+        },
         rejectClose: false
     });
 }

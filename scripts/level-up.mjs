@@ -19,6 +19,8 @@ import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 
 /**
  * Resolved on use, not at import time. Foundry moved FormDataExtended under
@@ -51,15 +53,30 @@ export async function openAdvancementFor(actor) {
     // Imported dynamically because this window is opened from a sheet button
     // and a GM console, neither of which is on a path that has already paid
     // for that module.
-    const { chooseVariant } = await import("./action-rolls.mjs");
+    const [{ chooseVariant }, { choiceRowHtml }] = await Promise.all([import("./action-rolls.mjs"), import("./ui-columns.mjs")]);
 
     /* WHAT STANDS, AND TAKING IT BACK (E10 C6; audit S03-17). The GM's sheet showed no offer
        and this menu had no way back from one: an offer made by mistake stood until it was
-       spent. Each standing offer is a third choice here, oldest first. */
-    const standing = standingOffers(actor).map(offer => ({
-        value: `take:${offer.id}`, icon: "fa-rotate-left",
-        label: game.i18n.format("DRPG.Advance.takeBack", { kind: advanceKindName(offer.kind) })
-    }));
+       spent. Each standing offer is a third choice here, oldest first; its button says what it does. */
+    const standing = standingOffers(actor).map(offer => {
+        const label = game.i18n.format("DRPG.Advance.takeBack", { kind: advanceKindName(offer.kind) });
+        return { value: `take:${offer.id}`, icon: "fa-rotate-left", label, confirm: label };
+    });
+
+    /*
+     * WHO PICKS (N-2, Dawid 20.09), IN THE SAME WINDOW (E101; the owner's yes of 12.11.2026 to the GM screens' review).
+     *
+     * The GM decides WHAT was earned - standard or reinforced - and who chooses the buff is a separate question, so
+     * they stay two groups of rows; until E101 they were two windows, the first one's button doing nothing but ask the
+     * second. Now the second group stands under the first, and one Grant answers both. Asked only where a player owns
+     * the character: an offer nobody would see is not made (`offerAdvancement`), the GM picks.
+     */
+    const played = ownerIdsOf(actor).length > 0;
+    const whoRows = played ? `<p>${game.i18n.format("DRPG.Advance.whoPicks", { actor: foundry.utils.escapeHTML(actor.name) })}</p>
+        <div class="drpg-choice-list drpg-advance-who">${[
+            { value: "gm", icon: "fa-user-pen", label: game.i18n.localize("DRPG.Advance.who.gm"), hint: game.i18n.localize("DRPG.Advance.who.gmHint") },
+            { value: "player", icon: "fa-paper-plane", label: game.i18n.localize("DRPG.Advance.who.player"), hint: game.i18n.localize("DRPG.Advance.who.playerHint") }
+        ].map((row, i) => choiceRowHtml(row, { checked: i === 0, name: "who" })).join("")}</div>` : "";
 
     const picked = await chooseVariant({
         actor,
@@ -69,6 +86,11 @@ export async function openAdvancementFor(actor) {
         prompt: game.i18n.format("DRPG.Advance.whichKind", {
             actor: foundry.utils.escapeHTML(actor.name)
         }),
+        /* Grant, not Next (the r112 merge of E100 into E101, 13.11.2026): E100 item 6 gave Level Up's two menus Next, one
+           leading to the other; E101 made them one window (the owner's yes to the GM screens' review), whose press grants
+           - an offer to the player, or the GM's picks. One menu, so no Next; R4105 reads Grant. */
+        confirm: game.i18n.localize("DRPG.Advance.grant"),
+        extra: whoRows,
         options: [
             { value: "standard", icon: "fa-arrow-up",
               label: advanceKindName("standard"),
@@ -83,41 +105,13 @@ export async function openAdvancementFor(actor) {
     if (!picked) return null;
     if (picked.value.startsWith("take:")) return takeBackOffer(actor, picked.value.slice("take:".length));
     // Nobody would see an offer (`offerAdvancement`): said, and the GM picks.
-    if (!ownerIdsOf(actor).length) {
+    if (!played) {
         ui.notifications.info(game.i18n.format("DRPG.Advance.nobodyPlays", { name: actor.name }));
         return openAdvancement(actor, picked.value);
     }
-
-    /*
-     * WHO PICKS (N-2, Dawid 20.09).
-     *
-     * The GM decides WHAT was earned - standard or reinforced - and that stays
-     * theirs; who chooses the buff is a separate question, and at most tables the
-     * answer is the player. Asked as a second menu rather than as four options in
-     * the first, because the two questions are not the same kind of question: the
-     * first is a ruling about what happened, the second is about who is at the
-     * keyboard next.
-     */
-    const who = await chooseVariant({
-        actor,
-        // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
-        columns: false,
-        title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
-        prompt: game.i18n.format("DRPG.Advance.whoPicks", {
-            actor: foundry.utils.escapeHTML(actor.name)
-        }),
-        options: [
-            { value: "gm", icon: "fa-user-pen",
-              label: game.i18n.localize("DRPG.Advance.who.gm"),
-              hint: game.i18n.localize("DRPG.Advance.who.gmHint") },
-            { value: "player", icon: "fa-paper-plane",
-              label: game.i18n.localize("DRPG.Advance.who.player"),
-              hint: game.i18n.localize("DRPG.Advance.who.playerHint") }
-        ]
-    });
-    if (!who) return null;
-
-    if (who.value === "player") return offerAdvancement(actor, picked.value);
+    // The who-picks row checked when Grant was pressed; the GM's when the answer carries no form (the suite's stand-ins).
+    const who = picked.form?.querySelector?.('input[name="who"]:checked')?.value ?? "gm";
+    if (who === "player") return offerAdvancement(actor, picked.value);
     return openAdvancement(actor, picked.value);
 }
 
@@ -612,6 +606,7 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
             primary: {
                 action: "apply",
                 label: game.i18n.localize("DRPG.Advance.apply"),
+                tooltip: tipText("DRPG.Tips.Setup.applyTooltip"),
                 callback: (event, button, dialog) => readForm(dialog, picks)
             },
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
@@ -1249,7 +1244,7 @@ async function askWhoPicks(rows) {
     const L = key => game.i18n.localize(key);
     const esc = foundry.utils.escapeHTML;
     const radio = (actor, value, label, checked) =>
-        `<label><input type="radio" name="who-${actor.id}" value="${value}"${checked ? " checked" : ""}> ${L(label)}</label>`;
+        `<label><input type="radio" name="who-${actor.id}" value="${value}"${checked ? " checked" : ""}${tipAttr("DRPG.Tips.Setup.iPickThePlayerTooltip")}> ${L(label)}</label>`;
     const items = rows.map(({ entry, actor, playable, here }) => `<li class="drpg-advance-queue-row" data-actor-id="${actor.id}">
             <strong>${esc(actor.name)}</strong> <span>${plural("DRPG.Advance.queuePicks", { n: entry.picks })}</span>
             ${entry.deferred ? `<small>${L("DRPG.Advance.reason.withClass")}</small>` : ""}
@@ -1269,8 +1264,8 @@ async function askWhoPicks(rows) {
         prompt: true,
         body: `<p>${L("DRPG.Advance.queueIntro")}</p><ul class="drpg-advance-queue-list">${items}</ul>`,
         footer: {
-            primary: { action: "give", label: L("DRPG.Advance.queueGive"), callback: (event, button, dialog) => read(dialog, false) },
-            secondary: [{ action: "allPlayers", label: L("DRPG.Advance.allPlayers"), callback: (event, button, dialog) => read(dialog, true) }]
+            primary: { action: "give", label: L("DRPG.Advance.queueGive"), tooltip: tipText("DRPG.Tips.Setup.handThemOutTooltip"), callback: (event, button, dialog) => read(dialog, false) },
+            secondary: [{ action: "allPlayers", label: L("DRPG.Advance.allPlayers"), tooltip: tipText("DRPG.Tips.Setup.allThePlayersPickTooltip"), callback: (event, button, dialog) => read(dialog, true) }]
         },
         rejectClose: false
     });

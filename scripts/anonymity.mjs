@@ -55,6 +55,8 @@ import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
 
+import { tipAttr, setTip } from "./ui-kit.mjs";
+
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
 
@@ -310,6 +312,7 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
         const pick = document.createElement("input");
         pick.type = "checkbox";
         pick.className = "drpg-loot-pick";
+        setTip(pick, "DRPG.Tips.Setup.onALootedItemTooltip");
         pick.value = item.id;
         pick.setAttribute("aria-label", item.name);
         row.prepend(pick);
@@ -649,8 +652,11 @@ function enforcing() {
  * without this file touching one. NONE would leave a window nobody can open and
  * a redaction with nothing to redact.
  */
-function onPreCreateActor(actor, data) {
+function onPreCreateActor(actor, data, options) {
     if (actor.type !== "character" || !enforcing()) return;
+    // A dead student's Spectator (E62 C3b, spectator-dead.mjs) is made owned by its player and seen by nobody else: a
+    // sheet the whole table could open would list a death nobody has found in every player's Actors tab.
+    if (options?.drpgDeadSpectator) return;
     if ((data.ownership?.default ?? NONE) === OBSERVER) return;
 
     actor.updateSource({ "ownership.default": OBSERVER });
@@ -818,7 +824,7 @@ export async function auditAnonymity({ toChat = true, actors = game.actors, enfo
         )));
         // A button only where somebody can press it: a whispered copy is a chat card nothing wires.
         if (!toChat) {
-            sections.push(`<p><button type="button" data-drpg-anon-fix>${escape(game.i18n.localize("DRPG.Anonymity.audit.fix"))}</button></p>`);
+            sections.push(`<p><button type="button" data-drpg-anon-fix${tipAttr("DRPG.Tips.Setup.setThemToObserverTooltip")}>${escape(game.i18n.localize("DRPG.Anonymity.audit.fix"))}</button></p>`);
         }
     }
 

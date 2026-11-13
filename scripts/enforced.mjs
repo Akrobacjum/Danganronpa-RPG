@@ -677,7 +677,7 @@ export const FOUNDRY_WRITES = [
     { id: "rtcDock", text: "DRPG.GiveBack.what.rtcDock" },
     { id: "sceneVision", text: "DRPG.GiveBack.what.sceneVision" },
     /* The one dice look (dice-sync.mjs, E20 fix round, the goal review's G-7): forced on every player and Assistant GM
-       while "One dice look for the table" is on, as that setting says, and not given back by this window - the looks
+       while "Dice look for the table" holds one look for the table, as that setting says, and not given back by this window - the looks
        it replaced were never kept, so the row says so instead. */
     { id: "diceLook", text: "DRPG.GiveBack.what.diceLook",
       reach: { kind: "flag", owner: "dice-so-nice", key: "appearance", file: "dice-sync.mjs", symbol: "holdSource",

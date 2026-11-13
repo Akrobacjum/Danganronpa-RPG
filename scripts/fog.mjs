@@ -70,7 +70,7 @@ import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection, mastermindStore } from "./gm-stores.mjs";
-import { spectatorViewer, watcherOf, flaggedSpectator } from "./spectator.mjs";
+import { spectatorViewer, watcherOf, flaggedSpectator, isMonocubCorpse } from "./spectator.mjs";
 import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
 import {
@@ -1005,11 +1005,7 @@ export function diagnoseScenes({ lastChecks = new Map(), scenes = game.scenes ??
         const { pct: uncovered, floor } = sceneUncoveredShare(scene);
         const errors = Number(lastChecks.get(scene.id)) || 0;
 
-        const off = fogDisabledValue();
-        const ready = scene.tokenVision === false
-            && scene.environment?.globalLight?.enabled === true
-            && (scene.fog?.mode === undefined || scene.fog.mode === off)
-            && uncovered <= UNCOVERED_LIMIT_PCT && !errors;
+        const ready = sceneVisionReady(scene) && uncovered <= UNCOVERED_LIMIT_PCT && !errors;
 
         // In the table's language, marked as the cast report marks its rows (E20 C2, S01-23): "ok" and "!!"
         // and "% of the map belongs to no room" were English on a Polish table.
@@ -1060,6 +1056,19 @@ export function fogOffPatch(scene) {
 
     // v13 and earlier: a boolean.
     return fog.exploration === false ? {} : { "fog.exploration": false };
+}
+
+/**
+ * Whether a scene stands as the room fog needs it: Foundry's own token vision off, its global light on and its fog
+ * exploration off - otherwise the players see black there and nothing says why. Out of `diagnoseScenes` (E101 item 2),
+ * so the Season checklist's rooms row asks the same question Pre-season's report asked before the two were one window.
+ */
+export function sceneVisionReady(scene) {
+    if (!scene) return false;
+    const off = fogDisabledValue();
+    return scene.tokenVision === false
+        && scene.environment?.globalLight?.enabled === true
+        && (scene.fog?.mode === undefined || scene.fog.mode === off);
 }
 
 /** Whichever member of Foundry's fog-mode enum means "do not explore". */
@@ -1873,7 +1882,8 @@ function isMine(token, gm = game.user.isGM) {
 
     if (gm) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
     // A Spectator stands in no room of the viewer's (E92 C4): its fog is the class's map (`fogSets`), its walk finds nothing.
-    return Boolean(token.isOwner) && actor.type === "character" && !flaggedSpectator(actor);
+    // Nor a Monocub's corpse beside the token it walks (E62 C3b fix): the body discovers nothing.
+    return Boolean(token.isOwner) && actor.type === "character" && !flaggedSpectator(actor) && !isMonocubCorpse(token.document);
 }
 
 /* ==========================================================================

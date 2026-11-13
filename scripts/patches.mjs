@@ -43,7 +43,7 @@ import { hourColour } from "./own-ring.mjs";
 import { ACTIONS_DEFINITION } from "./resources.mjs";
 import { ACTIONS_RESOURCE, DEAD_ICON, MODULE_ID } from "./config.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
-import { rollDrawState } from "./roll-draw.mjs";
+import { rollDrawState, reviewTraitRoad } from "./roll-draw.mjs";
 import { visibleGetterOf } from "./fog.mjs";
 import { levelFailure, whenLevelThrows } from "./rooms.mjs";
 import { foundryWindowsOn } from "./foundry-windows.mjs";
@@ -287,13 +287,7 @@ export const PATCHES = [
         why: "The module's own numbers on a critical - see CRITICAL in config.mjs.",
         when: "always",
         fallback: "not installed, and the console says so: a critical keeps Daggerheart's own numbers",
-        probe: () => {
-            const fn = game.system?.api?.dice?.DualityRoll?.addDualityResourceUpdates;
-            return {
-                present: typeof fn === "function",
-                ours: Boolean(fn?.[Symbol.for("drpgCriticalRule")])
-            };
-        }
+        probe: () => criticalRow()
     },
     {
         id: "roll-dialog-context",
@@ -324,6 +318,30 @@ export const PATCHES = [
         when: "always, unless the build is not the one the draw was written for (then never, and the GMs are told once per version)",
         fallback: "left alone, the GMs told once per version: rolls are thrown in the player's browser as in 1.2.66 (D1)",
         probe: () => rollDrawRow()
+    },
+    {
+        id: "roll-marks-move-context",
+        kind: "call",
+        target: "Actor.prototype.rollTrait's MoveContext (the module's roll marks ride the caller's event through it)",
+        owner: "daggerheart",
+        file: "roll-marks.mjs, roll-draw.mjs",
+        symbol: "carryMarks, registerRollDraw",
+        why: "From Daggerheart 2.12 a roll's config is a MoveContext that keeps only the properties it names: the module's marks (an action's roll, its nonce, the Loaded Die, a GM's statistic) ride the event it keeps (E76b, DH212 5).",
+        when: "always: read at load",
+        fallback: "rolls are thrown in the player's own browser and the module's marks are lost on the way: an action's roll reads as a statistic from the sheet, the Loaded Die is not loaded",
+        probe: () => moveContextRow()
+    },
+    {
+        id: "roll-outcome-evaluated",
+        kind: "call",
+        target: "DHRoll.buildEvaluate's outcome (config.evaluated from 2.12, config.roll up to 2.10)",
+        owner: "daggerheart",
+        file: "roll-marks.mjs",
+        symbol: "fillRollFacts",
+        why: "The module reads a roll's total, dice, duality and critical where 2.10 wrote them; from 2.12 they are the Roll on config.evaluated, and fillRollFacts writes them back (E76b, DH212 5).",
+        when: "always: read at load",
+        fallback: "an action's roll finds no total or duality where the module reads it, and the action is not carried out",
+        probe: () => rollOutcomeRow()
     },
     {
         id: "dice-random-uniform",
@@ -1283,6 +1301,49 @@ export function rollDrawRow(seam = rollDrawState(), build = game.system?.api?.di
         return ours ? { present, ours, state: "ok" } : { present, ours, state: "failed", note: "another function stands where the draw's wrapper was" };
     }
     return { present, ours, state: "unknown", note: "the build has not been looked at yet" };
+}
+
+/*
+ * DAGGERHEART 2.12'S ROLL ROAD, READ AT LOAD (DH212 5, 12.11.2026; docs/dev/DH212/STATUS.md rows 1, 3, 4). On 2.12.8
+ * under 1.2.108 the critical rule's row read ok while its wrapper could never fire (2.12 writes no `config.roll.isCritical`),
+ * and the two roads E76b made the module depend on had no row. Each probe reads the system's own source, as
+ * roll-draw.mjs `reviewBuild` and relay-guard.mjs `fingerprintOf` do (Daggerheart ships unminified): 2.10's shape and
+ * 2.12's are ok, anything else failed, nothing to read unknown. R3991.
+ */
+/** The critical rule: ok where Daggerheart's `addDualityResourceUpdates` reads the critical where critical.mjs looks. */
+export function criticalRow(fn = game.system?.api?.dice?.DualityRoll?.addDualityResourceUpdates) {
+    const present = typeof fn === "function";
+    const ours = Boolean(fn?.[Symbol.for("drpgCriticalRule")]);
+    if (!present || !ours) return { present, ours };
+    const original = typeof fn.original === "function" ? fn.original : fn;
+    const text = Function.prototype.toString.call(original);
+    if (/config\??\.evaluated\??\.isCritical\b/.test(text) || /config\??\.roll\??\.isCritical\b/.test(text)) return { present, ours, state: "ok" };
+    return { present, ours, state: "failed",
+        note: "Daggerheart reads a critical neither on config.evaluated nor on config.roll, where critical.mjs looks: a critical keeps Daggerheart's own numbers" };
+}
+
+/** The road the module's roll marks take through `rollTrait`: roll-draw.mjs `reviewTraitRoad`, as the draw's seam reads it. */
+export function moveContextRow(rollTrait = CONFIG.Actor?.documentClass?.prototype?.rollTrait,
+    MoveContext = game.system?.api?.data?.actions?.MoveContext ?? null) {
+    if (typeof rollTrait !== "function") return { present: null, ours: null, note: "no actor class with a rollTrait here to read" };
+    const road = reviewTraitRoad(rollTrait, MoveContext);
+    if (!road.ok) return { present: true, ours: null, state: "failed", note: road.why };
+    const via = /\bMoveContext\b/.test(Function.prototype.toString.call(rollTrait));
+    return { present: true, ours: null, state: "ok",
+        note: via ? "rollTrait builds a MoveContext that keeps the caller's event, which carries the marks" : "rollTrait hands its options on: the marks ride the config" };
+}
+
+/** Where a duality roll's `buildEvaluate` steps write its outcome, read down the class chain: config.evaluated (2.12) or config.roll (2.10). */
+export function rollOutcomeRow(cls = game.system?.api?.dice?.DualityRoll) {
+    if (typeof cls !== "function") return { present: null, ours: null, note: "no duality roll class here to read" };
+    let text = "";
+    for (let C = cls; typeof C === "function" && C !== Function.prototype; C = Object.getPrototypeOf(C)) {
+        if (Object.hasOwn(C, "buildEvaluate")) text += `${Function.prototype.toString.call(C.buildEvaluate)}\n`;
+    }
+    if (!text) return { present: false, ours: null, note: "no buildEvaluate on the duality roll's classes" };
+    if (/config\.evaluated\s*=/.test(text)) return { present: true, ours: null, state: "ok", note: "the outcome is the Roll on config.evaluated (2.12): fillRollFacts writes it where 2.10 put it" };
+    if (/config\.roll\.(?:total|isCritical|result)\s*=|\bdata\.isCritical\s*=/.test(text)) return { present: true, ours: null, state: "ok", note: "the outcome is written on config.roll (2.10)" };
+    return { present: true, ours: null, state: "failed", note: "buildEvaluate writes the outcome on neither config.evaluated nor config.roll, where the module reads it" };
 }
 
 /* "file:symbol" for each file of a row, as the notice and Pre-season name it. */

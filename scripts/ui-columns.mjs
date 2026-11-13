@@ -45,7 +45,7 @@ export function sectionHtml({ title = "", body = "", cls = "" } = {}) {
 /**
  * One row of a pick list: `{ value, label, hint, icon, gmRoute, disabled, why, struck }` (literal text), checked when
  * `checked`. An unavailable row stays on the list with its reason where the hint goes; a row that waits for a GM takes
- * `drpg-gm-route` (utils.mjs `GM_ROUTE_CLASS`, R121).
+ * `drpg-gm-route` (utils.mjs `GM_ROUTE_CLASS`, R121) and the GM's chip, the Call tile's (E107, R5432: the row itself is not red).
  */
 export function choiceRowHtml(o, { checked = false, name = "variant", type = "radio" } = {}) {
     return `
@@ -57,7 +57,7 @@ export function choiceRowHtml(o, { checked = false, name = "variant", type = "ra
             <span class="drpg-choice-text">
                 <strong>${esc(o.label)}</strong>
                 <small>${esc(o.disabled ? (o.why ?? o.hint ?? "") : (o.hint ?? ""))}</small>
-            </span>
+            </span>${o.gmRoute ? `<span class="drpg-action-gm">${esc(game.i18n.localize("DRPG.Action.waitsForGm"))}</span>` : ""}
         </label>`;
 }
 

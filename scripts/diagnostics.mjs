@@ -28,6 +28,8 @@ import { systemWarningSilence, showSystemWarningAgain } from "./requirements.mjs
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow, gmsInRoomOf, untoldMonokumas, isDrawnRoll } from "./private-rolls.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
  *
@@ -2210,7 +2212,11 @@ export async function openReport(text, { wait = config => drpgWindow(config),
             footer: {
                 secondary: [
                     { action: "copy", label: localize("DRPG.Diagnose.copy") },
-                    ...left.map(s => ({ action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain") }))
+                    ...left.map(s => {
+                        const named = { warning: s.label };
+                        return { action: `again:${s.id}`, label: localize("DRPG.Diagnose.showAgain"),
+                            tooltip: tipText("DRPG.Tips.Gm.showAgainTooltip", named) };
+                    })
                 ],
                 close: { role: "close", action: "close" }
             },

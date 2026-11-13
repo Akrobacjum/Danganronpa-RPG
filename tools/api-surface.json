@@ -376,6 +376,8 @@
     "traceClicks": "function",
     "fileSizes": "function",
     "diagnosePatches": "function",
+    "diagnoseSecrets": "function",
+    "diagnoseTraps": "function",
     "diagnose": "function",
     "runTests": "function",
     "diagnoseTruthBullets": "function",

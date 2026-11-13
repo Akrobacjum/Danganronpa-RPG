@@ -28,6 +28,26 @@ export function talkSwitchOn(user) {
     return user?.getFlag?.(MODULE_ID, SPECTATOR_TALK_FLAG) === true;
 }
 
+/*
+ * A MONOCUB'S TWO TOKENS (E62 C3b fix, 13.11.2026; the coordinator's 7). From E62 C3b a dead student's Spectator token
+ * becomes their Monocub's (spectator-dead.mjs `watcherBecomesMonocub`, `FLAGS.cubToken`), and the token they died as
+ * stays the corpse. So a Monocub can hold two tokens: the one it walks, and its body. `isCubToken` reads the first;
+ * `isMonocubCorpse` the second - a Monocub's token without the mark while another token of the same actor on the same
+ * scene has it (a Monocub with one token, from before E62 C3b or with no Spectator token made, walks that one).
+ */
+export function isCubToken(tokenDoc) {
+    return Boolean(tokenDoc?.getFlag?.(MODULE_ID, FLAGS.cubToken) ?? tokenDoc?.flags?.[MODULE_ID]?.[FLAGS.cubToken]);
+}
+
+/** Whether `tokenDoc` is a Monocub's corpse beside the token it walks (above). */
+export function isMonocubCorpse(tokenDoc) {
+    const actorId = tokenDoc?.actorId;
+    if (!actorId || isCubToken(tokenDoc)) return false;
+    const actor = tokenDoc.actor ?? game.actors?.get?.(actorId);
+    if (!actor?.getFlag?.(MODULE_ID, FLAGS.monocub)) return false;
+    return [...(tokenDoc.parent?.tokens ?? [])].some(other => other !== tokenDoc && other.actorId === actorId && isCubToken(other));
+}
+
 /** Whether `actor` carries the Spectator's flag, on the document handed. */
 export function flaggedSpectator(actor) {
     return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.spectator));

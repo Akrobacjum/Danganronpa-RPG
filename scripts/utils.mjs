@@ -1298,7 +1298,10 @@ export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." }
         const id = portrait.dataset.drpgPortrait || null;
         // `prefix` is the field's name before the id: Room Setup's picture column names its fields
         // `img:<room>`, as its other columns are `desc:<room>` and `owner:<room>` (E77 C1).
-        const hiddenSelector = id ? `[name="${prefix}${CSS.escape(id)}"]` : '[name="img"]';
+        /* or the field it names itself (E104: a planned Remnant's picture is the case schema's field `case:<chapter>:<id>:img`,
+           which no prefix and id spell) */
+        const own = portrait.dataset.drpgPortraitField || null;
+        const hiddenSelector = own ? `[name="${CSS.escape(own)}"]` : id ? `[name="${prefix}${CSS.escape(id)}"]` : '[name="img"]';
 
         /*
          * THE HIDDEN FIELD IS THE RECORD AND THE PICTURE FOLLOWS IT (F13).
@@ -1444,4 +1447,21 @@ export function tickerRuns(word) {
     const run = document.createElement("span");
     run.textContent = Array(6).fill(word).join(" · ") + " · ";
     return [run, run.cloneNode(true)];
+}
+
+/* A sentence ends at ".", "!" or "?" followed by a space or the end: "game.drpg.publicRoll" and "1.2" stay whole. Moved
+   from settings-window.mjs in the 1.2.112 tree (it re-exports both), so that sound-panel.mjs reads it without loading the
+   gear's window at boot (R4200). */
+const SENTENCE = /^(.+?[.!?])(?=\s|$)/s;
+
+/** A hint's first sentence (the line under a setting, [16]); the whole text when it has no sentence's end. */
+export function firstSentence(text) {
+    const s = String(text ?? "").trim();
+    return (SENTENCE.exec(s)?.[1] ?? s).trim();
+}
+
+/** What `firstSentence` leaves: the setting's tooltip. Empty for a hint of one sentence. */
+export function restOf(text) {
+    const s = String(text ?? "").trim();
+    return s.slice(firstSentence(s).length).trim();
 }

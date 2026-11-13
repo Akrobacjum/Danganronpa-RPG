@@ -594,7 +594,8 @@ export function bodyCard(clock) {
     if (!victims.length && !room) return null;
     if (!room && victims.length) {
         // A room's name: `roomOfToken` answers the name, not the region (65-season B1 compares it with the hold's `room`).
-        try { room = roomOfActor(victims[0]) ?? null; } catch { /* a victim outside every room */ }
+        // Where the body lies (E62 C3b fix; the e93 review's F4): a victim made a Monocub walks another token.
+        try { room = locateActor(victims[0], { body: true })?.room ?? null; } catch { /* a victim outside every room */ }
     }
     const names = victims.map(a => a.name).join(", ");
 

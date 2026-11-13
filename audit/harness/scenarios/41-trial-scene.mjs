@@ -23,7 +23,7 @@
  *      E13 C1 the GM links the Academy as the school and the hall as the trial hall once it is built, and
  *      since C2 stores that choice (trial-scene.mjs `saveTrialCast`: Chie unticked, the dead student
  *      ticked - nobody plays him - and the rest as `defaultReveal` has them) and the module shows it; since
- *      C5 (a0) both through Room Setup's Scenes tab, its window drawn on the GM; and (a3) p1 hides Aiko's
+ *      C5 (a0) both through Room Setup's Scenes tab (Season setup's scenes part since E101 item 5), its window drawn on the GM; and (a3) p1 hides Aiko's
  *      hall token from its own browser and the primary puts it back. Since E13 fix r1-F2: (a4) two changes
  *      of one player landing before the primary answers the first, twice from p1 on Aiko and once from p2
  *      on Botan the GM hid by hand; (a5) p3 drops a shown token of Chie, unticked, into the hall; since E13 fix
@@ -258,32 +258,32 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        Aiko, Botan and Monokuma as \`defaultReveal\` has them, the test student hidden. Until C5 this phase wrote the setting
        and \`saveTrialCast\` from the console. Since E81 DZ6 (12.10.2026) a box is an actor's (\`cast:\${actorId}\`) and the
        choice is stored by actor; each name below is the actor of the hall token of that name. */
-    const tab = await gm.eval(`${UNTIL} ${HALL} const V = await import("${repoUrl}/scripts/vault.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+    /* E101 item 5 (13.11.2026): the Scenes are Season setup's part, its Save their write (Room setup's last tab until then). */
+    const tab = await gm.eval(`${UNTIL} ${HALL} const SS = await import("${repoUrl}/scripts/season-setup.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
         const T = await import("${repoUrl}/scripts/trial-scene.mjs");
-        const title = game.i18n.format("DRPG.Vault.manageTitleOn", { scene: academy.name });
-        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && (a.options?.classes ?? []).includes("drpg-window-season"));
         const ACT = ${J(ACTORS)}, byName = name => ACT[name];
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         let read = null, closed = "hung";
         try {
-            const pending = V.openRoomSetupDialog();
+            const pending = SS.openSeasonSetup();
             const el = (await until(() => drawn()?.element, 8000)) ?? null;
             const field = name => el?.querySelector(\`[name="\${name}"]\`) ?? null;
             const pick = (role, id) => { const select = field("scenes:" + role); if (select) { select.value = id; select.dispatchEvent(new Event("change")); } };
             pick("school", academy.id);
             pick("trial", hall.id);
             const box = name => field("cast:" + byName(name));
-            read = { last: [...(el?.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]") ?? [])].at(-1)?.dataset.drpgTabKey ?? null,
+            read = { last: el?.querySelector("[data-drpg-season-scenes]") ? "scenes" : null,
                 warnings: [...(el?.querySelectorAll("[data-drpg-scene-warning]") ?? [])].map(p => p.dataset.drpgSceneWarning),
                 rooms: el?.querySelector('[data-drpg-scene-warning="hallHasRooms"]')?.textContent
                     === game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: "Gallery, Stand" }),
                 ticks: Object.fromEntries(["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"].map(name => [name, box(name)?.checked ?? null])),
                 placedByGm: ["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"].filter(name => box(name)?.closest("tr")?.querySelector('[data-drpg-cast-note="placedByGm"]')),
                 handPlaced: Boolean(el?.querySelector('[data-drpg-cast-note="handPlaced"]')),
-                held: Boolean(el?.querySelector('footer button[data-action="ok"]')?.disabled) };
+                held: Boolean(el?.querySelector('footer button[data-action="save"]')?.disabled) };
             if (box("Chie")) box("Chie").checked = false;
             if (box("Ghost")) box("Ghost").checked = true;
-            el?.querySelector('footer button[data-action="ok"]')?.click();
+            el?.querySelector('footer button[data-action="save"]')?.click();
             closed = await Promise.race([pending.then(() => "closed"), new Promise(r => setTimeout(() => r("hung"), 8000))]);
         } finally { globalThis.__dialogWindows = was; }
         await new Promise(r => setTimeout(r, 800));
@@ -295,7 +295,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     /* Since E13 fix r1-F3 the tab also names a hall nobody prepared (token vision, global light or exploration fog as
        Foundry leaves them; "Prepare the hall" is not ticked here): "hallDark"; and since E73 C1 "zonesNone" (no Zone A and Zone B picked). The hall is that one since E13 fix l2-L2:
        the room fog lit it when its rooms were drawn, and the scenario put it back (a00). */
-    check("a0: Room Setup's last tab, Scenes, links the Academy and the hall, names the hall's two rooms and that it is unprepared, draws the cast by actor as `defaultReveal` has it - the three the GMs placed a token of noted so, no Monokuma line (his token is there) - and stores Chie unticked and the dead student ticked (E13 C5; E81 DZ6)",
+    check("a0: Season setup's scenes part (Room Setup's last tab until E101) links the Academy and the hall, names the hall's two rooms and that it is unprepared, draws the cast by actor as `defaultReveal` has it - the three the GMs placed a token of noted so, no Monokuma line (his token is there) - and stores Chie unticked and the dead student ticked (E13 C5; E81 DZ6)",
         tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms", "hallDark", "zonesNone"]) && tab.read.rooms === true && tab.read.held === false
             && J(tab.read.placedByGm) === J(["Botan", "Monokuma", "Test"]) && tab.read.handPlaced === false
             && J(tab.read.ticks) === J({ Aiko: true, Botan: true, Chie: true, Ghost: false, Monokuma: true, Test: false }) && built.chose === true,
@@ -425,7 +425,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        and until the fix entering the trial whispered the GMs only the students the hall has no token for (none here). */
     const toldDark = await gm.eval(`${HALL} const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
         const T = await import("${repoUrl}/scripts/trial-scene.mjs");
-        const text = "<p>" + game.i18n.localize("DRPG.TrialScene.hallDark") + "</p>";
+        const text = "<p>" + game.i18n.localize("DRPG.TrialScene.hallDarkLine") + "</p>";
         const told = [];
         for (const m of game.messages) if (await wordsOf(m, 2000) === text) told.push((m.whisper ?? []).slice().sort());
         return { unprepared: Object.keys(T.hallPreparePatch(hall)).sort(), told };`, { timeout: 60000 });
@@ -520,17 +520,17 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        so the table stayed in the old hall with nobody told. Since E13 fix r1-F2 the window holds Apply with the reason,
        and an Apply that gets through anyway (the button freed here by hand) writes nothing and warns. Room Setup opens
        on the school during the trial (E13 C1), its Scenes tab drawn on the GM. */
-    const relink = await gm.eval(`${UNTIL} ${HALL} const V = await import("${repoUrl}/scripts/vault.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+    const relink = await gm.eval(`${UNTIL} ${HALL} const SS = await import("${repoUrl}/scripts/season-setup.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
         const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.('[name="scenes:trial"]'));
         const reason = game.i18n.localize("DRPG.TrialScene.hallInTrial"), told = globalThis.__notifications.length;
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         let held = null, label = null, closed = "hung";
         try {
-            const pending = V.openRoomSetupDialog({ tab: "scenes" });
+            const pending = SS.openSeasonSetup();
             const el = (await until(() => drawn()?.element, 8000)) ?? null;
             const trial = el?.querySelector('[name="scenes:trial"]');
             if (trial) { trial.value = ""; trial.dispatchEvent(new Event("change")); }
-            const ok = el?.querySelector('footer button[data-action="ok"]');
+            const ok = el?.querySelector('footer button[data-action="save"]');
             held = Boolean(ok?.disabled);
             label = ok?.getAttribute("aria-label") === reason;
             if (ok) { ok.disabled = false; ok.click(); }
@@ -561,18 +561,18 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         Object.values(tileO1).every(t => J(t) === J({ state: "roomBare", name: label, words: null, art: "", hidden: null, pips: false })),
         J({ label, tileO1 }), { flow: "trial-scene" });
     const HALL_FACTS = { name: "S41 Courtroom", picture: "worlds/s41/courtroom.webp", words: "Sixteen stands in a ring." };
-    const applyO = await gm.eval(`${UNTIL} ${HALL} const V = await import("${repoUrl}/scripts/vault.mjs");
+    const applyO = await gm.eval(`${UNTIL} ${HALL} const SS = await import("${repoUrl}/scripts/season-setup.mjs");
         const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.('[name="scenes:trial"]'));
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         const told = globalThis.__notifications.length, facts = ${J(HALL_FACTS)};
         let fields = null, closed = "hung";
         try {
-            const pending = V.openRoomSetupDialog({ tab: "scenes" });
+            const pending = SS.openSeasonSetup();
             const el = (await until(() => drawn()?.element, 8000)) ?? null;
             const field = name => el?.querySelector('[name="scenes:' + name + '"]');
             fields = ["hallName", "hallPicture", "hallWords"].map(name => Boolean(field(name) && !field(name).disabled)).concat(Boolean(el?.querySelector("[data-drpg-hall-picture]")));
             if (field("hallName")) { field("hallName").value = facts.name; field("hallPicture").value = facts.picture; field("hallWords").value = facts.words; }
-            el?.querySelector('footer button[data-action="ok"]')?.click();
+            el?.querySelector('footer button[data-action="save"]')?.click();
             closed = await Promise.race([pending.then(() => "closed"), new Promise(r => setTimeout(() => r("hung"), 8000))]);
         } finally { globalThis.__dialogWindows = was; }
         await new Promise(r => setTimeout(r, 800));
@@ -1154,7 +1154,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        reason read "A Class Trial is running in the linked trial hall", with no hall linked. The hall is unlinked through
        `applyScenesTab`, the trial opened where the table is, the hall picked in the tab drawn on the GM, the Apply pressed
        anyway; then the trial ends and the hall is linked again. */
-    const first = await gm.eval(`${UNTIL} ${HALL} ${TAB} const V = await import("${repoUrl}/scripts/vault.mjs"); const { setClock } = await import("${repoUrl}/scripts/clock.mjs");
+    const first = await gm.eval(`${UNTIL} ${HALL} ${TAB} const SS = await import("${repoUrl}/scripts/season-setup.mjs"); const { setClock } = await import("${repoUrl}/scripts/clock.mjs");
         const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.('[name="scenes:trial"]'));
         const reason = game.i18n.localize("DRPG.TrialScene.hallFirstInTrial");
         const out = { unlink: Boolean(await tab("", hall.id)) }; await wait(300);
@@ -1163,12 +1163,12 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         const told = globalThis.__notifications.length;
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         try {
-            const pending = V.openRoomSetupDialog({ tab: "scenes" });
+            const pending = SS.openSeasonSetup();
             const el = (await until(() => drawn()?.element, 8000)) ?? null;
             const trial = el?.querySelector('[name="scenes:trial"]');
             out.drawn = trial?.dataset.drawn ?? null;
             if (trial) { trial.value = hall.id; trial.dispatchEvent(new Event("change")); }
-            const ok = el?.querySelector('footer button[data-action="ok"]');
+            const ok = el?.querySelector('footer button[data-action="save"]');
             out.held = Boolean(ok?.disabled); out.label = ok?.getAttribute("aria-label") ?? null; out.labelIsFirst = out.label === reason;
             if (ok) { ok.disabled = false; ok.click(); }
             out.closed = await Promise.race([pending.then(() => "closed"), new Promise(r => setTimeout(() => r("hung"), 8000))]);
