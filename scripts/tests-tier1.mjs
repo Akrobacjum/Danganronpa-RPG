@@ -9056,16 +9056,17 @@ const INVARIANTS = [
          * as "" and "evident" on every node's close; harmless only because a final field is acted on when `finalRoom` is
          * set. A later field whose empty value means "clear" would have been wiped by any node's close. Read in the
          * source, since the node's save is not exported; tier 2's "planner autosave" runs it. Red at c598d3c: no
-         * readCaseFields.
+         * readCaseFields. Since 13.11 the node's save and the window's close share one writer, `saveFieldsIn(scope)`,
+         * handed the open node's editor or the window's form (`saveDrawnForm`).
          */
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
-        const node = fnSource(src, "saveOpenNode"), fields = fnSource(src, "readCaseFields"), dashboard = fnSource(src, "readDashboardForm");
+        const node = fnSource(src, "saveOpenNode") + fnSource(src, "saveFieldsIn"), fields = fnSource(src, "readCaseFields"), dashboard = fnSource(src, "readDashboardForm");
         equal(stableJson({
-            nodeReads: [/readCaseFields\(open\)/.test(node), /readDashboardForm/.test(node)],
+            nodeReads: [/saveFieldsIn\(root\?\.querySelector\?\.\("\.drpg-case-edit:not\(\[hidden\]\)"\)\)/.test(node) && /readCaseFields\(scope\)/.test(node), /readDashboardForm/.test(node)],
             fieldsFinal: (fields.match(/final\w*/gi) ?? []).length,
             dashboard: [/finalRoom/.test(dashboard), /\.\.\.readCaseFields\(form\)/.test(dashboard)]
         }), stableJson({ nodeReads: [true, false], fieldsFinal: 0, dashboard: [true, true] }),
-            "{the node's save: reads readCaseFields(open), reads readDashboardForm; final names in readCaseFields; Save's reader: reads finalRoom, spreads readCaseFields(form)}");
+            "{the node's save: hands the open editor to saveFieldsIn, which reads readCaseFields(scope); reads readDashboardForm; final names in readCaseFields; Save's reader: reads finalRoom, spreads readCaseFields(form)}");
     }],
     ["R4453 - a planned Remnant has a type (the owner, 13.11.2026): Incident where none is written, Prep, Neutral, Faint or Tamper as planned, never Key, Final Truth or Autopsy; no other kind of node has one; the node's face names the type", async () => {
         /*

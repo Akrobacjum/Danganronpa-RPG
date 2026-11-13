@@ -2894,10 +2894,24 @@ let nodeWrites = Promise.resolve();
 
 /** The open node's changed fields in `root`, written. Answers what `applyDashboardSave` answered, or null. */
 function saveOpenNode(root) {
-    const open = root?.querySelector?.(".drpg-case-edit:not([hidden])");
-    const fields = open ? [...open.querySelectorAll("[name]")].filter(isDirty) : [];
+    return saveFieldsIn(root?.querySelector?.(".drpg-case-edit:not([hidden])"));
+}
+
+/* AND EVERY CHANGED FIELD OF THE WINDOW AT ITS CLOSE (the owner, 13.11.2026: "Nie, ma zapisywac" - closing never loses
+   what was typed; the coordinator asked whether the Table's changes were lost without a word, and they were: a close by
+   the X, Escape or Close, or by a footer button that reopens the window, wrote the open node alone). The drawn form's
+   changed fields, the Table's rows, the Key slots' and every node's, as Save writes them (`readCaseFields`): only where
+   the GM changed them and the world still holds what was drawn, a refusal told. The Final Truth Remnant is not placed
+   here: placing it puts a token on the map, so a close with its room picked asks first (`offerFinalOnClose`). */
+function saveDrawnForm(root) {
+    return saveFieldsIn(root?.querySelector?.("form"));
+}
+
+/** The changed fields inside `scope` (a node's editor or the window's form), written one write after another. */
+function saveFieldsIn(scope) {
+    const fields = scope ? [...scope.querySelectorAll("[name]")].filter(isDirty) : [];
     if (!fields.length) return nodeWrites;
-    const result = readCaseFields(open);
+    const result = readCaseFields(scope);
     const drawn = fields.map(field => [field, keepDrawn(field)]);
     const write = () => applyDashboardSave(result, { traces: allTraces(), plan: keyPlan(), quiet: true }).catch(err => {
         for (const [field, was] of drawn) keepDrawn(field, was);
@@ -3111,6 +3125,29 @@ export async function runDashboardButton(action) {
 // the window they pressed Save on. Same order its old home kept.
 // On the scene of the option picked (E12 fix r1-G2): the placement used to look the room's
 // name up on the school first, so a GM who picked the Annex's Kitchen got the school's.
+/**
+ * A FINAL TRUTH REMNANT LEFT WITH ITS ROOM PICKED (13.11.2026). Save places it; a close that was not Save writes the
+ * window's text (`saveDrawnForm`) but does not place a token on the map unasked: where the form's Final Truth Remnant
+ * has a room, the GM is asked, "Place it" the default, and it is placed as Save places it. Answers whether it was.
+ */
+async function offerFinalOnClose(root) {
+    if (!root?.querySelector?.("form")) return false;
+    const final = readDashboardForm({ element: root });
+    if (!final.finalRoom) return false;
+    const L = key => game.i18n.localize(key);
+    const answer = await drpgWindow({
+        title: L("DRPG.Investigation.finalAskTitle"),
+        classes: ["drpg-panel", "drpg-window-final-ask"],
+        body: `<p>${esc(L("DRPG.Investigation.finalAskBody"))}</p>`,
+        footer: { primary: { action: "place", label: L("DRPG.Investigation.finalAskPlace") },
+            close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow") }, default: "place" },
+        rejectClose: false
+    });
+    if (answer !== "place") return false;
+    await placeFinalFromDashboard(final);
+    return true;
+}
+
 async function placeFinalFromDashboard(action) {
     const { placeFinalRemnant } = await import("./mastermind.mjs");
     const placedFinal = await placeFinalRemnant({
@@ -3341,9 +3378,13 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
        closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save
        hands on every changed field, the node's among them, so it writes nothing here. EVERY CLOSE WRITES IT (the owner,
        13.11.2026: "Nie, ma zapisywac"): the X, Escape and the footer's Close (null at a table, "close" headless) and
-       the footer's other buttons, which reopen the window. The Table's changed fields still wait for Save, as with
-       the X. From the planner's review until the owner's answer a Cancel discarded both (4bab7361, da352a81). */
-    if (!action || typeof action === "string") await saveOpenNode(drawnRoot);
+       the footer's other buttons, which reopen the window. And the Table's changed fields with it (`saveDrawnForm`,
+       13.11.2026): until then they waited for Save, and every other close dropped them without a word. From the
+       planner's review until the owner's answer a Cancel discarded both (4bab7361, da352a81). */
+    if (!action || typeof action === "string") {
+        await saveDrawnForm(drawnRoot);
+        await offerFinalOnClose(drawnRoot);
+    }
     if (!action || action === "close") return null;
 
     const ran = await runDashboardButton(action);
