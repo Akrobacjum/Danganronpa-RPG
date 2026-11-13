@@ -19994,6 +19994,51 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ sheetHope: HOPE, sheetActions: DOT, stripHope: HOPE, stripActions: DOT }),
             "{the mask variable each mark's ::before wears under Stained Glass: [held, empty], on the sheet and on the strip}");
     }],
+    ["R5720 - a held Hope slot is drawn held whatever glyph it carries, and a slot repainted without a render carries the glyph Daggerheart draws (13.11.2026; the owner's table on 1.2.112: held Hope looked spent): in both themes, on the sheet's header and the status strip, the spent weight is read from `fa-solid` alone, and sheet.mjs `paintHopeGlyphs` swaps fa-diamond and fa-circle with fa-solid and fa-regular", async () => {
+        /*
+         * 13.11.2026. Daggerheart draws a held Hope slot `<i class="fa-solid fa-diamond">` and an empty one `<i
+         * class="fa-regular fa-circle">`. repaintInPlace (a Hope change drawn without a render) toggled only fa-solid and
+         * fa-regular, so a slot that became held carried `fa-solid fa-circle`; stained-glass.css's spent rule read
+         * `:has(> i:is(.fa-circle, .fa-regular))` under an `:is()` with an id, which outranks the held rules, and drew it at
+         * 0.34 (measured in Chromium at 1.2.111 and 1.2.112). Read: the sheets' cascade, the `::before` opacity of each
+         * slot by its glyph, in both themes, on the sheet and the strip; then the repaint's glyphs. Red at ceb9e9c8: the
+         * `fa-solid fa-circle` slot at 0.34 under Stained Glass, and no `paintHopeGlyphs`.
+         */
+        const C = await styleCascade();
+        const shell = document.implementation.createHTMLDocument("R5720");
+        const body = shell.body;
+        const slots = `<span class="hope-value" data-value="1"><i class="fa-solid fa-diamond"></i></span>`
+            + `<span class="hope-value" data-value="2"><i class="fa-solid fa-circle"></i></span>`
+            + `<span class="hope-value" data-value="3"><i class="fa-regular fa-circle"></i></span>`;
+        body.innerHTML = `<div class="application sheet actor"><div class="character-header-sheet"><div class="hope-section"><div class="hope-values">${slots}</div></div></div></div>`
+            + `<div id="drpg-player-status"><div class="drpg-status-field is-hope"><span class="drpg-status-pips">${slots}</span></div></div>`;
+        const weight = el => { const v = C.winner(el, ["opacity"], "::before")?.value; return v === undefined ? 1 : Number.parseFloat(v); };
+        const seen = {}, want = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            body.className = `${cls} drpg-player`;
+            for (const [where, sel] of [["sheet", ".character-header-sheet .hope-value"], ["strip", "#drpg-player-status .hope-value"]]) {
+                const [diamond, circle, empty] = [...body.querySelectorAll(sel)].map(weight);
+                seen[`${theme} ${where}`] = { diamondHeld: diamond >= 0.9, circleHeld: circle >= 0.9, emptyDim: empty < 0.5 };
+                // Monokuma Legacy draws no `.hope-value` in the strip (its strip is `.drpg-status-hope-pip`): nothing dims it.
+                want[`${theme} ${where}`] = { diamondHeld: true, circleHeld: true, emptyDim: !(theme === "legacy" && where === "strip") };
+            }
+        }
+        must(Object.keys(seen).length === 4, "the four surfaces were not read");
+        equal(stableJson(seen), stableJson(want), "{theme surface: a held slot as Daggerheart draws it, a held slot repainted as fa-solid fa-circle, and an empty slot - full, full, dim}");
+
+        const S = await import("./sheet.mjs");
+        must(typeof S.paintHopeGlyphs === "function", "sheet.mjs exports no paintHopeGlyphs - the repaint's glyphs are not built");
+        const sheet = shell.createElement("div");
+        sheet.innerHTML = `<div class="hope-section">${[1, 2, 3, 4].map(n => `<span class="hope-value" data-value="${n}"><i class="fa-regular fa-circle"></i></span>`).join("")}</div>`;
+        const glyphs = () => [...sheet.querySelectorAll(".hope-value > i")].map(i => [...i.classList].sort().join(" "));
+        S.paintHopeGlyphs(sheet, 2);
+        const up = glyphs();
+        S.paintHopeGlyphs(sheet, 1);
+        const down = glyphs();
+        const H = "fa-diamond fa-solid", E = "fa-circle fa-regular";
+        equal(stableJson({ up, down }), stableJson({ up: [H, H, E, E], down: [H, E, E, E] }),
+            "{the four slots' glyphs after Hope 0 -> 2 and 2 -> 1 without a render}");
+    }],
     ["R4933 - a focused panel wears the module's own focus ring in both themes (gaps-111; 1.2.105's Known gaps: \"A focused panel has no focus ring of the module's own\"): the four panels a keyboard can focus since E48 K4 (explain.mjs PANELS: the clock, the Despair rail, the status strip, the Projects tray) each have a rule of the module's sheets that names `:focus-visible` on it and draws a solid outline", async () => {
         /*
          * gaps-111, 13.11.2026. E48 K4 made the four panels focusable (`tabindex="0"`, R3463) and left their ring to the
