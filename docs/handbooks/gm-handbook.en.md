@@ -1359,7 +1359,7 @@ Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId
 ## 21. Session checklist
 
 **Before the session**
-- Open **Season setup > Season checklist**: every non-optional row ticked, and nothing in its further checks (no black-screen scenes, no readable sheets).
+- Open **Season setup > Season checklist**: every non-optional row ticked; run **Pre-season checks** (no black-screen scenes, no readable sheets).
 - Room Setup: bedrooms owned, doors as intended, rest rooms flagged, tables and favours set, tokens restocked.
 - Despair Flow: every student watched; pools named; overflow threshold and hat as you want them.
 - Item tables installed; opening items in every bag.

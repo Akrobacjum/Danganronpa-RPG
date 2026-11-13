@@ -1359,7 +1359,7 @@ Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurde
 ## 21. Lista kontrolna sesji
 
 **Przed sesją**
-- Otwórz **Ustawienia sezonu > Lista kontrolna sezonu**: każdy nieopcjonalny wiersz zaptaszkowany i nic w dalszych sprawdzeniach (żadnych scen z czarnym ekranem, żadnych czytelnych arkuszy).
+- Otwórz **Ustawienia sezonu > Lista kontrolna sezonu**: każdy nieopcjonalny wiersz zaptaszkowany; uruchom **Kontrolę przed sezonem** (żadnych scen z czarnym ekranem, żadnych czytelnych arkuszy).
 - Ustawienia pokoi: sypialnie przypisane, drzwi jak trzeba, pokoje odpoczynku oflagowane, tabele i sprzyjanie ustawione, żetony uzupełnione.
 - Despair Flow: każdy uczeń pilnowany; pule nazwane; próg overflow i kapelusz takie, jak chcesz.
 - Tabele przedmiotów zainstalowane; przedmioty startowe w każdej torbie.

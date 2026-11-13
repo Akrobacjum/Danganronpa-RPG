@@ -117,8 +117,8 @@ first where a test can say it. One commit each, or a few lows together.
 Decided by default, as the coordinator set it: Tail keeps Roll. After the press a GM picks the statistic
 (trait-ruling.mjs `traitFor`) and the two rolls then follow on their own, so the press does more than send a request.
 
-Left for after texts-e71 (it rewrites the lines beside them): the GM handbook's section 1 step 4 (line 46) and the
-checklist table's rows; `DRPG.Season.step.hallTokens` and `hint.hallTokens` (read by no code; texts-e71 edits them);
+Left for after texts-e71 (it rewrites the lines beside them): the GM handbook's section 1 step 4 (line 46), the
+checklist table's rows and the end checklist's Season setup line (1362: merge-tree against texts-e71 686d12f5 conflicted on it); `DRPG.Season.step.hallTokens` and `hint.hallTokens` (read by no code; texts-e71 edits them);
 the old keys `Floor.startTrialNoHall`, `TrialScene.hallDark`, `noWayBack` and `Season.hint.scenes`, read by no code
 since 318935b9. R3580's title (the reviewer's S8) now says what its body holds: the footer Save and Cancel, Reset the
 season in its frame in the body since E101.
