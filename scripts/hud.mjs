@@ -50,7 +50,7 @@ import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
 // The phase stamp's name for an Eclipse (E23 C2b): eclipse.mjs's static imports, walked to the end on 07.11.2026 on
 // f26d4467, never reach this file, so the import closes no cycle (R161).
-import { eclipseLabel } from "./eclipse.mjs";
+import { eclipseLabel, startRefusalOf } from "./eclipse.mjs";
 import { renderEvents } from "./events.mjs";
 // Added when the trial's own bar was folded into this widget. Walked and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
@@ -1301,13 +1301,13 @@ function buildTimeRow(clock, isGM) {
         // `releaseControls` after the next press.
         // And over a running incident's opening or fight (E17 C7; the owner's Q3 (a)), with `startEclipse`'s words,
         // after the hold, as there; not at Stage 6, whose betrayal is declared in an Eclipse.
-        const body = !eclipseRunning && Boolean(bodyDiscovery()) && clock.phase !== "investigation";
-        const incident = !eclipseRunning && Boolean(murderState()) && murderState().stage !== "resolution";
-        const held = body || incident;
+        // Both read from the gate's own answer, eclipse.mjs `startRefusalOf` (A113-C2-7, 13.11.2026; a hand copy of its
+        // checks until then): what dims the chevron is what refuses the press, in the same order and words.
+        const refusal = eclipseRunning ? null : startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() });
+        const held = Boolean(refusal);
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
-            : body ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
-            : incident ? game.i18n.localize("DRPG.Eclipse.incidentFirst")
+            : refusal ? game.i18n.localize(refusal)
             // The two that count the crossings are plural families on {n} (E66 C3; S10-69, E66-14): the last time of
             // day's said "(2 crossings)" whatever the count was. The free Eclipse names no count.
             : free && index !== TIMES_OF_DAY.length - 1

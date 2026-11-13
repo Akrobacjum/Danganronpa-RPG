@@ -544,6 +544,44 @@ async function keepTakeBack(memory) {
     }
 }
 
+/**
+ * WHAT AN ECLIPSE'S START ENDED, KEPT FOR ITS TAKE-BACK (A113-C2-6, the coordinator's follow-up, 13.11.2026). Since C2-6
+ * the timed effects and the unused lock passes end as an Eclipse starts (timed-effects.mjs `endAtEclipseStart`,
+ * lockpick-gm.mjs `endPassesAtEclipseStart`), where before they ended only at the clock's move, so an Eclipse opened by
+ * mistake and ended without advancing cost them for good. The primary keeps each list in the GMs' take-back record
+ * (gm-stores.mjs `takeBackStore`), one field each (`eclipseTimed`, `eclipsePasses`, so neither write stamps over the
+ * other or over `lastAdvance`), named by the boundary (`boundaryStamp`); `endEclipse({ advance: false })` takes them
+ * back with the budgets, grants and seals while `takeBackFor` still answers, and the two put them back as they stood. A
+ * second start for the same boundary adds to the list. GM only; a store that cannot be written loses the put-back, never
+ * the end.
+ */
+export async function keepEndedAtStart(field, stamp, items) {
+    if (!game.user?.isGM || !items?.length) return;
+    try {
+        const [{ takeBackStore }, { RECORD }] = await Promise.all([import("./gm-stores.mjs"), import("./gm-store.mjs")]);
+        const kept = takeBackStore.record()?.[field];
+        const before = kept?.for === stamp && Array.isArray(kept.items) ? kept.items : [];
+        await takeBackStore.patch(RECORD, { [field]: { for: stamp, at: serverNow(), items: [...before, ...items] } });
+    } catch (err) {
+        error("Could not keep what the Eclipse's start ended", err);
+    }
+}
+
+/** `keepEndedAtStart`'s list for the boundary `stamp`, taken (the field emptied), or []. GM only. */
+export async function takeEndedAtStart(field, stamp) {
+    if (!game.user?.isGM) return [];
+    try {
+        const [{ takeBackStore }, { RECORD }] = await Promise.all([import("./gm-stores.mjs"), import("./gm-store.mjs")]);
+        const kept = takeBackStore.record()?.[field];
+        if (!kept) return [];
+        await takeBackStore.patch(RECORD, { [field]: null });
+        return kept.for === stamp && Array.isArray(kept.items) ? kept.items : [];
+    } catch (err) {
+        error("Could not read what the Eclipse's start ended", err);
+        return [];
+    }
+}
+
 /** `entry` and the entries under it that are younger than `TAKE_BACK_MS` at `now`, at most `depth` of them. Pure. */
 export function liveMemory(entry, now = serverNow(), depth = TAKE_BACK_DEPTH) {
     if (!entry?.snapshot || depth <= 0) return null;

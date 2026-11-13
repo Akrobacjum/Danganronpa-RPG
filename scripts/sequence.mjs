@@ -240,7 +240,8 @@ export function trialEntryKey(clock = getClock()) {
 }
 
 /* The title's words by the edge: into the trial "CLASS TRIAL" and the courtroom, out of it "TRIAL ADJOURNED" and back
-   to school (the owner's decision of 12.11.2026), each with the chapter's line when the clock has a chapter. */
+   to school (the owner's decision of 12.11.2026), each with the chapter's line when the clock has a chapter - the exit's
+   the trial's own chapter, its record's (`playTrialExit`; A113-C2-3). */
 const TITLE_KEYS = Object.freeze({
     trialEntry: ["DRPG.Sequence.trialTitle", "DRPG.Sequence.trialSubtitle", "DRPG.Sequence.trialSubtitleNoChapter"],
     trialExit: ["DRPG.Sequence.exitTitle", "DRPG.Sequence.exitSubtitle", "DRPG.Sequence.exitSubtitleNoChapter"]
@@ -526,7 +527,14 @@ export function playTrialExit(clock = getClock(), { pieces = undefined, on = seq
             document.body.dataset.drpgPhase = clock.phase ?? "dailyLife";
             try { glass = (await import("./glass.mjs")).exitPieces?.() ?? null; } catch { glass = null; }
         }
-        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, clock, "trialExit"), { on, onEnd: done });
+        /* THE TRIAL'S OWN CHAPTER (A113-C2-3, 13.11.2026; the coordinator's default, the owner may override). End of
+           chapter with "end the trial" moves the clock to chapter N+1 while the phase is still the trial, then closes it
+           (chapter.mjs's `clock` step, then `trial`), so the clock this exit is drawn from names N+1 for chapter N's
+           trial. The trial's record names the chapter it is about (trial-progress.mjs `trialProgressChapter`, stamped
+           by every write of it, the entry's among them); the clock's where it names none. */
+        let chapter = clock?.chapter ?? null;
+        try { chapter = (await import("./trial-progress.mjs")).trialProgressChapter() ?? chapter; } catch { /* the clock's */ }
+        const played = playSequence("trialExit", key, ctx => drawTrialEntry(ctx, glass, { ...clock, chapter }, "trialExit"), { on, onEnd: done });
         if (played === null || played === "off") { glass?.release?.(); done(played ?? "none"); }
         return played;
     })().catch(err => { done("failed"); console.error(`${MODULE_ID} | the trial's exit failed`, err); return null; });

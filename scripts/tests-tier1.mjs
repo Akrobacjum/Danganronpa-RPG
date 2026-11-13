@@ -35285,6 +35285,120 @@ const INVARIANTS = [
         equal(stableJson(page.map(([id, a]) => [id, a === null ? "no row" : a.present === false ? "failed on absence" : "found or unknown"])),
             stableJson(PAGE.map(id => [id, "found or unknown"])), "a page anchor not on the page is failed, or has no row");
     }],
+    ["R6000 - the character sheet in Daggerheart's pips layout reads whole: the bar layout's three places are named as drawn without, none missing, nothing said", async () => {
+        /*
+         * A113-C1-3 (audit 113, 13.11.2026). Daggerheart's client option `useResourcePips` draws Health and Sanity as
+         * slots: 2.12.8's templates/sheets/global/partials/resource-bar.hbs, its first branch, `.slot-value > .slot-bar >
+         * .slot[data-action]` and no `.status-bar`, `input.bar-input` or `progress.progress-bar` (the three occur nowhere
+         * else in the character sheet's templates). sheet.mjs `paintReserves` draws either layout, so a GM on pips was
+         * told by the contract that the sheet "has no" the bar's places and that what the module puts there "is not
+         * drawn" - a false alarm. Here the sidebar's resources are copied from that branch (Health 6 with 2 marked, Sanity
+         * 6), the rest of the sheet as R1548's, and read: nothing missing, the three bar places named as drawn without,
+         * the two pip places found, and no console line. The bar layout of R1548 still names the pips as drawn without.
+         * Red at ceb9e9c8: the three bar places missing and said.
+         */
+        const mod = await import("./patches.mjs");
+        ok(Array.isArray(mod.SHEET_ANCHORS) && typeof mod.readSheetAnchors === "function" && typeof mod.noteSheetRender === "function",
+            "patches.mjs has no SHEET_ANCHORS, readSheetAnchors or noteSheetRender");
+        if (typeof mod.noteSheetRender !== "function") return;
+        const pips = (action, label, value, max) => `<div class="slot-value"><div class="slot-bar">`
+            + Array.from({ length: max }, (_, i) => `<span class="slot ${i < value ? "filled" : ""}" data-action="${action}" data-value="${i + 1}"></span>`).join("")
+            + `</div><div class="slot-label"><span class="label">${label}</span><span class="value">${value} / ${max}</span></div></div>`;
+        const sheet = document.createElement("div");
+        sheet.innerHTML = `<div class="window-content"><nav class="sheet-tabs"></nav><div class="character-header-sheet"><div class="name-row"></div>
+            <div class="character-row"><div class="resource-section"></div></div><div class="character-details"></div>
+            <div class="hope-section"><span class="hope-value"></span></div><div class="character-traits"><div class="trait"><span class="trait-value"></span></div></div></div>
+            <div class="character-sidebar-sheet"><div class="resources-section">${pips("toggleHitPoints", "HP", 2, 6)}${pips("toggleStress", "Stress", 0, 6)}</div>
+            <div class="equipment-section"><h3></h3><div class="items-sidebar-list"></div></div><div class="loadout-section"><h3></h3></div>
+            <div class="shortcut-items-section"><div class="experience-section"></div></div></div></div>`;
+        must(sheet.querySelectorAll(".slot[data-action]").length === 12 && !sheet.querySelector(".status-bar, input.bar-input, progress"),
+            "the pips sheet is not drawn as resource-bar.hbs's first branch - this test would read nothing");
+        const state = { done: null };
+        const log = watchLog();
+        let read;
+        try {
+            read = mod.noteSheetRender({}, sheet, { state, isSheet: () => true });
+        } finally {
+            log.stop();
+        }
+        const BAR = [".character-sidebar-sheet .resources-section .status-bar", "input.bar-input", "progress.progress-bar"];
+        equal(stableJson([read?.missing ?? null, BAR.map(s => (read?.optional ?? []).some(o => o.startsWith(`${s} (`))),
+            (read?.optional ?? []).some(o => /toggle(HitPoints|Stress)/.test(o)), log.count(/The contract: the character sheet/)]),
+            stableJson([[], [true, true, true], false, 0]),
+            "the pips layout reads a missing place, does not name the bar's three as drawn without, names a pip place as absent, or says it [missing | bar named | pips absent | said]");
+    }],
+    ["R6002 - the HUD's chevron is dimmed by the Eclipse's own refusal: one function answers the chevron and `startRefusal`, over a body, an incident's stages and a trial", async () => {
+        /*
+         * A113-C2-7 (audit 113, 13.11.2026). hud.mjs `buildTimeRow` dimmed the GM's chevron by recomputing the body hold
+         * and the incident check by hand, a copy of eclipse.mjs `startRefusal` - the gate the press reaches (boundary.mjs
+         * `toggleEclipse`). The two agreed; a change to one would not have reached the other (the Facilities kind,
+         * fix-113f). Now both read `startRefusalOf(clock, { body, incident })`, synchronous, which `startRefusal` calls
+         * with the world's body record and incident. Here: the function over the states the two checked (body or none,
+         * Investigation or not, no incident or each stage, a trial), the async gate agreeing with it on the world as
+         * found, and buildTimeRow reading it with no phase or stage of its own.
+         * Red at ceb9e9c8: no startRefusalOf.
+         */
+        const E = await import("./eclipse.mjs");
+        ok(typeof E.startRefusalOf === "function", "eclipse.mjs has no startRefusalOf - the HUD and the gate answer apart");
+        if (typeof E.startRefusalOf !== "function") return;
+        const body = { at: 1 }, BODY = "DRPG.Eclipse.bodyFirst", INC = "DRPG.Eclipse.incidentFirst", TRIAL = "DRPG.Eclipse.trialFirst";
+        const cases = [
+            [{ phase: "dailyLife" }, {}, null],
+            [{ phase: "dailyLife" }, { body }, BODY],
+            [{ phase: "investigation" }, { body }, null],
+            [{ phase: "dailyLife" }, { incident: { stage: "opening" } }, INC],
+            [{ phase: "dailyLife" }, { incident: { stage: "crisis" } }, INC],
+            [{ phase: "dailyLife" }, { incident: { stage: "resolution" } }, null],
+            [{ phase: "dailyLife" }, { body, incident: { stage: "crisis" } }, BODY],
+            [{ phase: "investigation" }, { body, incident: { stage: "crisis" } }, INC],
+            [{ phase: "classTrial" }, {}, TRIAL]
+        ];
+        equal(stableJson(cases.map(([clock, world]) => E.startRefusalOf(clock, world))), stableJson(cases.map(c => c[2])),
+            "startRefusalOf does not answer the body's hold, the incident's stages and the trial as startRefusal did");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const clock = getClock();
+        equal(await E.startRefusal(clock), E.startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() }),
+            "startRefusal answers otherwise than startRefusalOf on the world as found");
+        const row = fnSource(stripComments((await moduleSources()).get("hud.mjs")), "buildTimeRow");
+        must(/\bfunction buildTimeRow\b/.test(row) && /fa-chevron-right/.test(row), "hud.mjs buildTimeRow was not found - this test would read nothing");
+        equal(stableJson([/\bstartRefusalOf\(/.test(row), /["']investigation["']/.test(row), /["']resolution["']/.test(row)]), stableJson([true, false, false]),
+            "buildTimeRow does not dim the chevron by startRefusalOf, or still judges the body's hold or the incident's stage itself [reads it | Investigation | Stage 6]");
+    }],
+    ["R6001 - a user whose Daggerheart countdown types leave out \"narrative\" has it put back on their own User, once, and the tray drawn again; a user with it, or with no flag, is not written", async () => {
+        /*
+         * A113-C1-2 (audit 113, 13.11.2026). projects-ui.mjs removes Daggerheart's type toggles for everyone, and a
+         * project is a "narrative" countdown. In 2.12.8 the user flag `daggerheart.countdown-type-modes` (flagsConfig.mjs
+         * userFlags.countdownTypeModes) decides which types the tray shows (countdowns.mjs `visibleCountdownTypes`; the
+         * category drawn `hidden` and the rows' container drawn not at all without it), and the toggles were the one
+         * control that changed it - so a user whose flag left "narrative" out saw no project and could not bring one back.
+         * projects-tray.mjs `keepNarrativeShown` reads the flag on the tray's render and, where it is an array without
+         * "narrative", adds it on that user's own User and draws the tray again; no flag (Daggerheart's default, every
+         * type) and a flag holding it are left alone, and the flag's names are read from CONFIG.DH, so a Daggerheart
+         * that renames them makes it a no-op. The harness's CONFIG.DH has no FLAGS, so a stand-in user and a 2.12.8-shaped
+         * config are handed in. Red at ceb9e9c8: no keepNarrativeShown.
+         */
+        const PT = await import("./projects-tray.mjs");
+        ok(typeof PT.keepNarrativeShown === "function", "projects-tray.mjs has no keepNarrativeShown - a user's countdown types are never read");
+        if (typeof PT.keepNarrativeShown !== "function") return;
+        const DH = { id: "daggerheart", FLAGS: { userFlags: { countdownTypeModes: "countdown-type-modes" } },
+            GENERAL: { countdownTypes: { encounter: { id: "encounter" }, narrative: { id: "narrative" }, misc: { id: "misc" } } } };
+        const run = async (flag, dh = DH) => {
+            const writes = [], renders = [];
+            const user = { getFlag: (scope, key) => (scope === "daggerheart" && key === "countdown-type-modes" ? flag : undefined),
+                setFlag: async (scope, key, value) => { writes.push([scope, key, value]); } };
+            const answer = PT.keepNarrativeShown({ render: () => renders.push(1) }, user, dh);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            return [answer, writes, renders.length];
+        };
+        const want = (flag, add) => [add, add ? [["daggerheart", "countdown-type-modes", [...flag, "narrative"]]] : [], add ? 1 : 0];
+        equal(stableJson([await run(["encounter"]), await run([]), await run(["encounter", "misc"])]),
+            stableJson([want(["encounter"], true), want([], true), want(["encounter", "misc"], true)]),
+            "a flag without narrative is not given it on the user's own User, once, with the tray drawn again [encounter | none | encounter, misc]");
+        equal(stableJson([await run(["narrative"]), await run(undefined), await run(["encounter"], { id: "daggerheart" })]),
+            stableJson([want(["narrative"], false), want([], false), want(["encounter"], false)]),
+            "a flag holding narrative, no flag, or a Daggerheart whose flag is not named is written [holds it | no flag | not named]");
+    }],
     ["R1550 - game.drpg.diagnose(): one report of every diagnose* this client may run, the data migration, the contract and this session's failures, read without a chat message; its window copies the text once per Copy report (E52 C4, E52-14; S17-51)", async () => {
         /*
          * E52 C4, 30.10.2026; audit S17-51, E52-14. The module had eighteen diagnose* commands in ten files, each
@@ -54390,7 +54504,9 @@ const INVARIANTS = [
             read.again = await S.playTrialExit(clock("m"), { on: true });
             await wait(T.title + 150);
             read.title = host?.querySelector(".drpg-seq-title-band")?.textContent === game.i18n.localize("DRPG.Sequence.exitTitle");
-            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter: 3 });
+            // the trial's record's chapter where it names one, the clock's otherwise (A113-C2-3; tier 2 "the trial's exit after End of chapter")
+            const named = (await import("./trial-progress.mjs")).trialProgressChapter() ?? 3;
+            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter: named });
             const esc1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
             window.dispatchEvent(esc1);
             read.escaped = esc1.defaultPrevented && S.sequenceNow() === null && !document.getElementById(S.SEQUENCE_HOST_ID);

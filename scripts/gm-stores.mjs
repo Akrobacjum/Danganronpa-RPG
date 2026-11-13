@@ -1164,7 +1164,7 @@ export const clockBeatStore = defineGmStore({
  */
 export const takeBackStore = defineGmStore({
     name: "takeBack", key: SETTINGS.gmTakeBack,
-    kind: "record", fields: ["lastAdvance"], resetGroup: "clock", backup: false, sync: true
+    kind: "record", fields: ["lastAdvance", "eclipseTimed", "eclipsePasses"], resetGroup: "clock", backup: false, sync: true
 });
 
 /**

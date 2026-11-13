@@ -641,7 +641,11 @@ export async function applyAliveStates(chosen = {}) {
             const living = !isDeadForGm(actor);
             let died = null;
             if (want.state === "alive") {
-                await setMonocub(actor, false);
+                /* ONE STEP (A113-C2-4, 13.11.2026): the flag cleared with no Spectator made and no toast of its own, so
+                   the revive, which takes the Monocub's token as it stands, is the one move and the one toast. Until
+                   then `setMonocub(actor, false)` made the Spectator and said "no longer a Monocub", and the revive
+                   took it away and said "revived". */
+                await setMonocub(actor, false, { quiet: true, watcher: false });
                 // A correction (E62 C3b, SB-C3 #17): the Spectator goes with no return drawn.
                 await reviveCharacter(actor, { silent: true });
             } else if (want.state === "dead") {

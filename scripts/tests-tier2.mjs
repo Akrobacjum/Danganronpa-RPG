@@ -18062,6 +18062,96 @@ const SCENARIOS = [
             "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
     }],
 
+    ["the trial's exit after End of chapter names the trial's own chapter, not the one the clock moved to (A113-C2-3)", async () => {
+        /*
+         * A113-C2-3 (audit 113, 13.11.2026). End of chapter with "end the trial" moves the clock to chapter N+1 while the
+         * phase is still the Class Trial (chapter.mjs's `clock` step), then closes the trial (`trial` step), so the exit -
+         * drawn from the clock after both writes - read "Chapter N+1 · Back to school" for chapter N's trial. The owner's
+         * decision of 12.11.2026 says the exit carries "the chapter's line when the clock has a chapter"; the default
+         * taken here (the coordinator's, the owner may override): the trial's own chapter, its record's
+         * (trial-progress.mjs `trialProgressChapter`), the clock's where the record names none. The record says chapter 1
+         * and the exit's clock chapter 2, as after the move; then the record names none. Red at ceb9e9c8: "Chapter 2".
+         */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const stamp = `A113-C2-3:${Date.now()}`, read = [];
+        const sub = async (k, record) => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, record);
+            await settle();
+            S.endSequence("cut");
+            await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 2, trialEndedAt: `${stamp}${k}`, trialCut: true }, { on: true });
+            const text = document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-title-sub`)?.textContent ?? null;
+            S.endSequence("cut");
+            return text;
+        };
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            read.push(await sub("a", { ...stored, chapter: 1 }));
+            const { chapter: _gone, ...none } = stored;
+            read.push(await sub("b", none));
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([1, 2].map(chapter => game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter }))),
+            "the exit does not name the trial's record's chapter, or the clock's where the record names none [record 1, clock 2 | no record, clock 2]");
+    }],
+
+    ["the Students window's Monocub to alive is one step: no Spectator made on the way, one toast, the student alive and no Monocub (A113-C2-4)", async () => {
+        /*
+         * A113-C2-4 (audit 113, 13.11.2026). The State list's "alive" on a Monocub ran `setMonocub(actor, false)`, which
+         * made the dead student's Spectator (spectator-dead.mjs `monocubBecomesWatcher`, a Spectator actor and, where a
+         * Monocub token or a body stands, its token) and toasted "no longer a Monocub", then `reviveCharacter`, which
+         * took that Spectator away again and toasted "revived": every browser saw a Spectator come and go, the GM read
+         * two toasts for one change. Now the flag is cleared with no Spectator and no toast of its own (`setMonocub`'s
+         * `watcher: false`, `quiet`), and the revive is the one step. A living student marked dead and a Monocub by its
+         * flags, then "alive" applied: read the actors created, the toasts, and the state after. Red at ceb9e9c8: a
+         * Spectator actor created and two toasts.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to make a Monocub");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { livingStudents, isDeceased } = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const [actor] = livingStudents();
+        const names = [FLAGS.deceased, FLAGS.monocub];
+        const flagsWas = Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(actor.getFlag(MODULE_ID, f))]));
+        const actorsHad = new Set(game.actors.contents.map(a => a.id));
+        const clock = getClock();
+        const toasts = [], made = [];
+        const info = ui.notifications.info;
+        const onActor = doc => made.push(`Actor ${doc.id}`), onToken = doc => made.push(`Token ${doc.id}`);
+        let read = null;
+        try {
+            await actor.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            await actor.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            must(M.isMonocub(actor) && isDeceased(actor), `${actor.name} was not made a Monocub by its flags - this test would read nothing`);
+            ui.notifications.info = (...args) => { toasts.push(String(args[0])); return null; };
+            Hooks.on("createActor", onActor);
+            Hooks.on("createToken", onToken);
+            const changed = await applyAliveStates({ [actor.id]: { state: "alive" } });
+            await settle();
+            read = [changed, made, toasts.length, M.isMonocub(actor), isDeceased(actor)];
+        } finally {
+            Hooks.off("createActor", onActor);
+            Hooks.off("createToken", onToken);
+            ui.notifications.info = info;
+            for (const f of names) {
+                if (flagsWas[f] === undefined || flagsWas[f] === null) await actor.unsetFlag(MODULE_ID, f);
+                else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
+            }
+            for (const a of game.actors.contents.filter(a => !actorsHad.has(a.id))) { try { await a.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([1, [], 1, false, false]),
+            "Monocub to alive made a Spectator or a token on the way, toasted more or less than once, or left a Monocub or a dead student [changed, made, toasts, a Monocub, dead]");
+    }],
+
     ["a wrong verdict tells the case's dead and the chapter's crime witnesses among the Monocubs, and no other Monocub, that the killer walks free (E72 C7)", async () => {
         /*
          * E72 C7, 12.11.2026; audit S18-58, the owner's DC16. A wrong verdict told the Monocubs nothing, and the ones who
@@ -97561,6 +97651,170 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ended: [0, 0], day: [1, 1], dayEnded: [0, 0] }),
             "{clean; given: [Body's rise, rows]; copy: [whose rows the owner's copy holds, another player's]; line: the sheet's; ended: after the next time of day; day: an effect until the day's end after the next time of day; dayEnded: after the next day} - a timed +X to a trait");
     }],
+    ["A113-C2-6 one boundary - an Eclipse's start ends the timed effects given until the time of day ends and the unused lock passes, as it ends the seals and barricades; one given until the day's end stays (but for Night's Eclipse); a new time of day with no Eclipse still ends them", async () => {
+        /*
+         * A113-C2-6 (audit 113, 13.11.2026; the coordinator's default, the owner asked: one boundary, the Eclipse's start,
+         * eclipse.mjs's "the Eclipse is the boundary, not a part of the day it follows"). Until this fix E93's timed
+         * effects and E74's passes ended at `drpgTimeOfDayChanged` alone, which with an Eclipse is its END, while grants,
+         * seals and barricades end at its start. Here, on the primary: +2 Body until the time of day ends, +1 Body until
+         * the day ends, and a pass not walked through; the Eclipse started. Read: Body's rise and the rows left, and the
+         * pass. Then the same three handed to a time of day's change with no Eclipse (`endTimedEffects` with the next
+         * clock, `passesAtNewTimeOfDay`), as E93-T5 hands it. Red at ceb9e9c8: after the start Body still +3, both rows
+         * and the pass standing.
+         */
+        needs(world.atLeast("playerCharactersInRooms", 1), "a player's character standing in a room");
+        const T = await import("./timed-effects.mjs");
+        const L = await import("./lockpick-gm.mjs");
+        const E = await import("./eclipse.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { actor, where } = await playerInRoom();
+        const body = () => Number(actor.system.traits.strength.value) || 0;
+        const was = body();
+        const passWas = foundry.utils.deepClone(L.passOf(actor.id));
+        const night = getClock().timeOfDay === TIMES_OF_DAY.at(-1);
+        const read = {};
+        try {
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 1, until: "day" });
+            await L.grantPass(actor, where.scene, where.room);
+            await settle();
+            read.given = [body() - was, T.timedEffectsOf(actor.id).map(r => r.until), Boolean(L.passOf(actor.id))];
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            read.start = [body() - was, T.timedEffectsOf(actor.id).map(r => r.until), Boolean(L.passOf(actor.id))];
+            await E.endEclipse({ advance: false });
+            await settle();
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await L.grantPass(actor, where.scene, where.room);
+            const clock = getClock(), i = TIMES_OF_DAY.indexOf(clock.timeOfDay);
+            await T.endTimedEffects({ clock: { ...clock, timeOfDay: TIMES_OF_DAY[i + 1] ?? TIMES_OF_DAY[0] } });
+            await L.passesAtNewTimeOfDay();
+            await settle();
+            read.noEclipse = [body() - was, T.timedEffectsOf(actor.id).length, Boolean(L.passOf(actor.id))];
+            // Night's Eclipse begins a new day: the boundary read on the clock it leads into ends a row of the day too.
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 1, until: "day" });
+            const ended = await T.endAtEclipseStart({ ...getClock(), timeOfDay: TIMES_OF_DAY.at(-1) });
+            await settle();
+            read.night = [ended, body() - was, T.timedEffectsOf(actor.id).length];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(actor, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (passWas) await L.grantPass(actor, game.scenes.get(passWas.sceneId), passWas.room);
+            else await L.endPass(actor.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /Body/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 120000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ given: [3, ["timeOfDay", "day"], true], start: night ? [0, [], false] : [1, ["day"], false],
+            noEclipse: [0, 0, false], night: [1, 0, 0] }),
+            "{given: [Body's rise, rows' ends, a pass]; start: the same after the Eclipse's start; noEclipse: [Body's rise, rows, a pass] after a time of day's change with no Eclipse; night: [ended, Body's rise, rows] for a row until the day's end at Night's Eclipse}");
+    }],
+
+    ["A113-C2-6 the undo - an Eclipse ended without advancing within its five minutes puts back the timed effect and the unused pass its start ended, exactly as they stood", async () => {
+        /*
+         * A113-C2-6, the coordinator's follow-up (13.11.2026): the earlier boundary must not make a misclick cost more than
+         * it did. Before C2-6 an Eclipse opened by mistake and ended without advancing left a +2 Body until the time of day
+         * ends and an unused Pick the Lock pass standing (they ended only at the clock's move); C2-6 ended them at the start
+         * and the take-back (clock.mjs `takeBackBoundary`: budgets, grants, seals) gave neither back. Now what the start
+         * ended is kept in the boundary's take-back record (gm-stores.mjs `takeBackStore`) and put back with the rest.
+         * Read: Body's rise, the row (id, kind, n, until, mark) and the pass (room, mark, entered) before the start, after
+         * it, and after "End without advancing". Red at 35a880b7: after the take-back Body +0, no row, no pass.
+         */
+        needs(world.atLeast("playerCharactersInRooms", 1), "a player's character standing in a room");
+        const T = await import("./timed-effects.mjs");
+        const L = await import("./lockpick-gm.mjs");
+        const E = await import("./eclipse.mjs");
+        const { actor, where } = await playerInRoom();
+        const body = () => Number(actor.system.traits.strength.value) || 0;
+        const was = body();
+        const passWas = foundry.utils.deepClone(L.passOf(actor.id));
+        const rows = () => T.timedEffectsOf(actor.id).map(r => [r.id, r.kind, r.n, r.until, r.mark]);
+        const pass = () => { const p = L.passOf(actor.id); return p ? [p.sceneId, p.room, p.mark, p.entered] : null; };
+        const read = {};
+        try {
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await L.grantPass(actor, where.scene, where.room);
+            await settle();
+            read.before = [body() - was, rows(), pass()];
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            read.dark = [body() - was, rows().length, pass()];
+            await E.endEclipse({ advance: false });
+            await settle();
+            read.back = [body() - was, rows(), pass()];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(actor, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (passWas) await L.grantPass(actor, game.scenes.get(passWas.sceneId), passWas.room);
+            else await L.endPass(actor.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /Body/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 120000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: read.before, dark: [0, 0, null], back: read.before }),
+            "{before: [Body's rise, rows, the pass]; dark: [Body's rise, rows, the pass] after the start; back: the same after End without advancing - expected as before}");
+        must(read.before?.[0] === 2 && read.before?.[1]?.length === 1 && read.before?.[2], "the bonus or the pass was not given - this test would read nothing");
+    }],
+
+    ["A113-C2-6 the murder at the lights - a direct murder judged at an Eclipse's end opens on the killer's sheet without a bonus given until the time of day ended", async () => {
+        /*
+         * A113-C2-6 (audit 113, 13.11.2026). At the Eclipse's end `endEclipse` advances the clock - the primary's
+         * `endTimedEffects` starts from that hook - and goes on to `judgePendingMurders`: whether a trait bonus was still
+         * on the sheet as the murder's fight opened was a race. With one boundary the bonus ended as the Eclipse began, so
+         * nothing is left to race. A killer with +2 Body until the time of day ends, alone with a victim, a declaration
+         * parked as the Eclipse runs, the Eclipse ended as the GM panel ends it (`endEclipse()`, the clock advanced and
+         * put back after), Body read as the incident stands open. Red at ceb9e9c8 with an End without advancing: Body +2
+         * (nothing ended it). Ended so since the take-back's put-back (the coordinator's follow-up): within its five
+         * minutes that End without advancing now gives the bonus back before the lights, rightly - the time of day it was
+         * given in has not ended.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./timed-effects.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const body = () => Number(killer.system.traits.strength.value) || 0;
+        const was = body();
+        const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+        let stood = null, read = null;
+        try {
+            stood = await aloneTogether(killer, victim);
+            await T.giveTimed(killer, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await settle();
+            must(body() === was + 2, "the bonus was not given - this test would read nothing");
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            must(E.isEclipse() && id, "the Eclipse did not start");
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE A113-C2-6 declared", at: 1, approved: true, eclipse: id, betrayal: null });
+            await E.endEclipse();
+            await settle();
+            const state = M.murderState();
+            read = [state?.killerId ?? null, state?.victimId ?? null, body() - was, T.timedEffectsOf(killer.id).length];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            for (const row of T.timedEffectsOf(killer.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(killer, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (stood) await stood.back();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock({ chapter, day, session, timeOfDay, phase });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([killer.id, victim.id, 0, 0]),
+            "the murder at the lights did not open, or opened on the killer's sheet with the bonus of the time of day the Eclipse closed [killer, victim, Body's rise, rows]");
+    }],
+
     ["E93-T6 - a room action's temporary Experience is on the sheet until its end and gone after (scripts/timed-effects.mjs `KINDS.experience`, facilities.mjs `cleanEffect`; the owner's answer to Q-E93-3, 12.11.2026): an Experience named by the GM, +2 until the time of day ends, is added to the character's Experiences with that name and value, its row names it, the sheet's line reads it, and the next time of day deletes it; one with no name is no effect", async () => {
         /*
          * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; the time passing handed to

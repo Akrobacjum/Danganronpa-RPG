@@ -136,7 +136,7 @@ export function eligibleForMonocub() {
  * enforcing it, the same trust the rest of the murder and trial flow already
  * places in the GM.
  */
-export async function setMonocub(actor, value = true, { quiet = false } = {}) {
+export async function setMonocub(actor, value = true, { quiet = false, watcher = true } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (value && !isDeceased(actor)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.mustBeDead"));
@@ -202,7 +202,11 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     try {
         const D = await import("./spectator-dead.mjs");
         if (value) await D.watcherBecomesMonocub(actor);
-        else if (isDeceased(actor)) await D.monocubBecomesWatcher(actor);
+        /* `watcher: false` for a caller that revives the student next (A113-C2-4: the Students window's Monocub to alive).
+           `reviveCharacter` takes a Monocub's token as it stands (spectator-dead.mjs `removeDeadSpectator`), so a
+           Spectator made here would only be taken away again in the same Apply - a token come and gone on every
+           browser and the player's curtain bare, then lit. */
+        else if (watcher && isDeceased(actor)) await D.monocubBecomesWatcher(actor);
     } catch (err) {
         error(`Could not move ${actor.name}'s Spectator token`, err);
     }

@@ -12514,8 +12514,9 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     color: var(--drpg-attention);
 }
 
-/* Folded away: the title bar stays, everything under it goes. */
-#countdowns.drpg-projects-collapsed .countdowns-container {
+/* Folded away: the title bar stays, everything under it goes - the "no projects yet" line too, which stands
+   under the header where Daggerheart 2.12.8 draws no rows' container (A113-C1-1). */
+#countdowns.drpg-projects-collapsed :is(.countdowns-container, .drpg-projects-empty) {
     display: none;
 }
 
