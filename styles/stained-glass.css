@@ -5229,6 +5229,28 @@ body.drpg-theme-stained-glass #drpg-sequence :is(.drpg-seq-title-sub, .drpg-seq-
    already layers. The class is never set under reduced motion. */
 body.drpg-flicker #drpg-curtain > :is(canvas.seamline, canvas.pulse) { opacity: 0.3; }
 
+/* BARE GLASS (E62 C3; death-fade.mjs; SB-C3 and MK-C3, the owner's 12.11): while the player's student is dead and no
+   Monocub, the curtain's glass is a grey, darker copy of itself, the pulse off and the edges dimmed - the rest state, read
+   from the body's class so it holds whatever the curtain redraws. The glass is translucent, so the frost under it is
+   greyed too. During the fade and the return each batch is its own layer after the curtain, clipped to its panes, its
+   backdrop greyed (`.drpg-bare-layer`), and the edges dim for a flicker (`drpg-bare-seams`). Only the glass goes out (the storyboard's #5): the HUD's text, Despair and Hope keep their
+   colours. */
+.drpg-bare-layer {
+    pointer-events: none;
+    backdrop-filter: grayscale(1) brightness(0.62);
+    -webkit-backdrop-filter: grayscale(1) brightness(0.62);
+}
+body.drpg-bare-glass #drpg-curtain-frost {
+    backdrop-filter: var(--drpg-glass-backdrop) grayscale(1) brightness(0.62);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop) grayscale(1) brightness(0.62);
+}
+body.drpg-bare-glass :is(#drpg-curtain > canvas.sg, .curtain-glow) { filter: grayscale(1) brightness(0.62); }
+/* the room tile's and the voice tile's art grey with their pane's batch (the storyboard: batch 4 and batch 5) */
+body:is(.drpg-bare-glass, .drpg-bare-b4) :is(.drpg-room-tile-art, #drpg-room-art),
+body:is(.drpg-bare-glass, .drpg-bare-b5) :is(.drpg-voice-tile-art, #drpg-voice-art) { filter: grayscale(1) brightness(0.75); }
+body.drpg-bare-glass #drpg-curtain > canvas.pulse { opacity: 0; }
+body:is(.drpg-bare-glass, .drpg-bare-seams) #drpg-curtain > canvas.seamline { filter: brightness(0.42); }
+
 /* ---- the voice tile's two buttons, the notices' corner and the Projects gear: every state the module's (E105 FT-21) ----
    The survey of 11.11.2026 (Chromium, the glass harness's GM and player pages, 1366x768) read on these four buttons a
    property no rule of the module's sheets sets, which a table leaves to Foundry's `button` rules:

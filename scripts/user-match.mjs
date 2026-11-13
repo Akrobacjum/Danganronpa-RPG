@@ -74,6 +74,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { isMonokuma } from "./monokuma.mjs";
+import { isDeadWatcher } from "./spectator-dead.mjs";
 import { esc, warn, isPrimaryGm, whisperToGms } from "./utils.mjs";
 
 /** One pass this long after the last event that asks for one. */
@@ -220,7 +221,8 @@ export async function matchAccounts() {
     const plan = matchPlan({
         users: game.users.map(u => ({ id: u.id, name: u.name, isGM: u.isGM, role: u.role,
             character: u.character?.id ?? null, seen: Object.hasOwn(record, u.id) ? record[u.id] : undefined })),
-        actors: game.actors.filter(a => a.type === "character")
+        // A dead student's Spectator (E62 C3b, spectator-dead.mjs) bears its student's name and is nobody's to be given.
+        actors: game.actors.filter(a => a.type === "character" && !isDeadWatcher(a))
             .map(a => ({ id: a.id, name: a.name, student: !isMonokuma(a), ownership: a.ownership ?? {} })),
         owner: ownerLevel(),
         season

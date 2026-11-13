@@ -71,6 +71,7 @@ ones.
 | sfx.mjs:299 | whether this account is in the incident | character here |
 | sheet-audit.mjs:783, 803, 927, 1215, 3226, 3320 | the audit's marks | character here: its flag is held there (C1, `GM_FLAGS`) |
 | sheet.mjs:783, 805, 2871, 2959 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
+| spectator-dead.mjs `ownStudentOf` (E62 C3b fix, 13.11.2026) | the player's own student a moment names, on that player's browser | leave it out: a Spectator's flag is read beside it |
 | spectator.mjs `watcherOf` (new in C4) | the account's own Spectator, for its map | character here |
 | states.mjs:498 | a token's reserves | character here |
 | trial-scene.mjs:195 `castActors` | the trial's cast | leave it out (C1) |

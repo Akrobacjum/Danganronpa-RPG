@@ -70,7 +70,7 @@ import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection, mastermindStore } from "./gm-stores.mjs";
-import { spectatorViewer, watcherOf, flaggedSpectator } from "./spectator.mjs";
+import { spectatorViewer, watcherOf, flaggedSpectator, isMonocubCorpse } from "./spectator.mjs";
 import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
 import {
@@ -1882,7 +1882,8 @@ function isMine(token, gm = game.user.isGM) {
 
     if (gm) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
     // A Spectator stands in no room of the viewer's (E92 C4): its fog is the class's map (`fogSets`), its walk finds nothing.
-    return Boolean(token.isOwner) && actor.type === "character" && !flaggedSpectator(actor);
+    // Nor a Monocub's corpse beside the token it walks (E62 C3b fix): the body discovers nothing.
+    return Boolean(token.isOwner) && actor.type === "character" && !flaggedSpectator(actor) && !isMonocubCorpse(token.document);
 }
 
 /* ==========================================================================

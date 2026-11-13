@@ -11007,8 +11007,9 @@ const INVARIANTS = [
             /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
             JSON.stringify([
                 [null, null, null, null, null, null], 1, false, true, 0,
-                // The dead student outside the trial: the main room (null) until E72 C8, its account's own dead room since (R3806).
-                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), "drpg-dead-R117PLAYERC00000",
+                // The dead student outside the trial: the main room (null) until E72 C8, its account's own dead room until E62 C3b,
+                // the Spectators' room since (R3806, changed on purpose).
+                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), (await import("./voice-client.mjs")).SPECTATOR_ROOM,
                     V.liveKitRoomFor(school.id, "Dorm B"), V.liveKitRoomFor(school.id, "Hall"), null],
                 true, true, true]),
             "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
@@ -24265,7 +24266,7 @@ const INVARIANTS = [
             "[on: the first line of the diagnosis, the same with avclient-livekit off, the plan], [off: whether those lines name it]");
     }],
 
-    ["R3806 - the ordinary dead talk in a room of their own account outside the trial: a silenced death, public or kept secret, is placed in `deadRoomFor(userId)`, one room per account that nobody else is sent, never the main room; the trial keeps everybody in the main room; the room is the dead's own to speak in (E72 C8; S18-53, the owner's A9, the coordinator's decision of 12.11.2026)", async () => {
+    ["R3806 - the ordinary dead talk outside the trial in the Spectators' room (E62 C3b; a room of their own account from E72 C8 until then): a silenced death, public or kept secret, of any account, is placed in `SPECTATOR_ROOM`, never the main room nor the Eclipse's word; the trial keeps everybody in the main room; the room is the dead's own to speak in (E72 C8, E62 C3b; S18-53, the owner's A9 and Q-C3b-5)", async () => {
         /*
          * E72 C8, 12.11.2026; audit S18-53, the plan's A9, the coordinator's decision of 12.11 (the mic block stays in the
          * trial; the ordinary dead outside it get their own voice channel, with no write to the user record). Until C8 a
@@ -24275,33 +24276,35 @@ const INVARIANTS = [
          * written: `voiceClaim` for a silenced death of two accounts, public and secret, and for the same in the trial;
          * the room's name (voice-client.mjs `deadRoomFor`) beside the Eclipse's (`silentRoomFor`); `micHold` in one's
          * own dead room and in the main room. Red at 377a476: no `deadRoomFor`, the public death the main room.
+         * E62 C3b (13.11.2026; the owner's Q-C3b-5, "Tak"), changed on purpose: the dead talk with the Spectators, one
+         * room for every dead account and every Spectator who talks (the owner's accepted trade-off), so the room is
+         * `SPECTATOR_ROOM` for both accounts and the same.
          */
         const V = await import("./voice.mjs");
         const VC = await import("./voice-client.mjs");
-        ok(typeof VC.deadRoomFor === "function", "voice-client.mjs has no deadRoomFor - the dead have no room of their own (E72 C8)");
-        if (typeof VC.deadRoomFor !== "function") return;
+        ok(typeof VC.SPECTATOR_ROOM === "string", "voice-client.mjs has no SPECTATOR_ROOM - the dead have no room to talk in (E62 C3b)");
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const a = account("R3806PA000000000"), b = account("R3806PB000000000");
         const claim = (user, secret, trial = false) => {
             const row = V.voiceClaim({ user, trial, silenced: () => true, secret: () => secret });
             return [row.target ?? "main", row.claim];
         };
-        const own = id => VC.deadRoomFor(id);
+        const own = () => VC.SPECTATOR_ROOM;
         const read = {
             public: claim(a, false), secret: claim(a, true), other: claim(b, false),
             trial: claim(a, false, true),
-            names: [own(a.id).startsWith(VC.ROOM_PREFIX), own(a.id) !== own(b.id), own(a.id) !== VC.silentRoomFor(a.id)],
-            hold: [V.micHold({ user: a, room: own(a.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+            names: [own().startsWith(VC.ROOM_PREFIX), own() !== VC.silentRoomFor(a.id)],
+            hold: [V.micHold({ user: a, room: own(), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
                 V.micHold({ user: a, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [] })]
         };
         const dead = V.voiceClaim({ user: a, silenced: () => true }).claim;
         equal(stableJson(read), stableJson({
-            public: [own(a.id), dead], secret: [own(a.id), dead], other: [own(b.id), dead],
+            public: [own(), dead], secret: [own(), dead], other: [own(), dead],
             trial: ["main", V.voiceClaim({ user: a, trial: true }).claim],
-            names: [true, true, true],
+            names: [true, true],
             hold: [{ reason: "deadAlone", held: false }, null]
-        }), "[the room of a silenced public death, a secret one, another account's public one, a death in the trial; the names: ours, "
-            + "one per account, not the Eclipse's; micHold in one's own dead room and in the main room]");
+        }), "[the room of a silenced public death, a secret one, another account's public one, a death in the trial; the name: ours, "
+            + "not the Eclipse's; micHold in the Spectators' room and in the main room]");
     }],
 
     ["R815 - the dead channel: a dead student keeps the voice of the room they lie in until the incident ends, the body is found, a GM silences them or a living witness from outside the cast is there; then a secret death talks in the dead channel and a public one in the main room, each room to its account alone, a witness's after the victim's (E19-12 to E19-16)", async () => {
@@ -24326,8 +24329,8 @@ const INVARIANTS = [
         const school = { id: "R815SCHOOL000000", name: "R815 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const silencedNow = V.voiceClaim({ user: account("R815ANYONE000000"), silenced: () => true, secret: () => true });
-        // E72 C8 (12.11.2026): the dead room is the account's own (`deadRoomFor`), for a public death as for a secret one (R3806).
-        ok(silencedNow.target === VC.deadRoomFor("R815ANYONE000000"),
+        // E62 C3b (13.11.2026; Q-C3b-5): the dead talk in the Spectators' room, for a public death as for a secret one (R3806, R4550); E72 C8's room of the account's own until then.
+        ok(silencedNow.target === VC.SPECTATOR_ROOM,
             `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, not its account's own dead room (A9-K3)`);
         const NAMES = ["placeVoices", "deathVoiceGone", "sendInPasses", "onVoiceSocket", "createVoiceLedger"];
         ok(NAMES.every(name => typeof V[name] === "function"),
@@ -24347,8 +24350,8 @@ const INVARIANTS = [
         };
         const owner = { victim: "victim", killer: "killer", witness: "witness", bystander: "bystander", third: "third", spare: "victim", late: "victim", cub: "cub" };
         const userOf = a => (a === A.monokuma ? gm : users[owner[Object.keys(A).find(k => A[k] === a)]] ?? null);
-        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
-        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+        // Since E62 C3b the dead talk in the Spectators' room (`SPECTATOR_ROOM`, Q-C3b-5; E72 C8's room of the account's own until then, changed on purpose).
+        const label = (target, userId) => (target === null ? "main" : target === VC.SPECTATOR_ROOM ? "dead"
             : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         let asked = 0;
@@ -24427,11 +24430,11 @@ const INVARIANTS = [
             out.waiting = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
             if (forged) {
-                V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
+                V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.SPECTATOR_ROOM, state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
                 await tick();
                 out.forged = log().length;
             }
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.SPECTATOR_ROOM, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -24455,7 +24458,7 @@ const INVARIANTS = [
         seen.push(["kept, sent", keptSent.includes(users.victim.id), keptSent.includes(users.killer.id), keptSent.length]);
 
         const hold = room => V.micHold({ user: account(one.id), room, external: false, connected: true, canBroadcastAudio: true, actors: [] });
-        seen.push(["micHold", hold(VC.deadRoomFor(one.id)), hold(null), V.micHold({ user: gm, room: VC.deadRoomFor(gm.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+        seen.push(["micHold", hold(VC.SPECTATOR_ROOM), hold(null), V.micHold({ user: gm, room: VC.SPECTATOR_ROOM, external: false, connected: true, canBroadcastAudio: true, actors: [] }),
             game.i18n.has("DRPG.Voice.held.deadAlone")]);
 
         const key = name => ({ key: `${MODULE_ID}.${name}` });
@@ -24521,7 +24524,7 @@ const INVARIANTS = [
         const T = await import("./voice-tile.mjs");
         const VC = await import("./voice-client.mjs");
         const me = { id: game.user.id, name: "R831", active: true, isGM: false };
-        const hold = (extra = {}) => V.micHold({ user: me, room: VC.deadRoomFor(me.id), external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
+        const hold = (extra = {}) => V.micHold({ user: me, room: VC.SPECTATOR_ROOM, external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
         const writes = [], told = [];
         const settings = muted => ({
             get: (scope, key) => (scope === "client" && key === `users.${game.user.id}.muted` ? muted : undefined),
@@ -24584,8 +24587,8 @@ const INVARIANTS = [
             monokuma: actor("R832AMONOKUMA000", { [FLAGS.monokuma]: true }) };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
-        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+        // Since E62 C3b the dead talk in the Spectators' room (`SPECTATOR_ROOM`, Q-C3b-5; E72 C8's room of the account's own until then, changed on purpose).
+        const label = (target, userId) => (target === null ? "main" : target === VC.SPECTATOR_ROOM ? "dead"
             : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id, thirdId: A.pub.id };
         const place = ({ hydrated, where = {} }) => V.placeVoices({
@@ -24632,7 +24635,7 @@ const INVARIANTS = [
             out.first = log();
             out.timers = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.SPECTATOR_ROOM, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -24647,7 +24650,7 @@ const INVARIANTS = [
         seen.push(["asked inside the wait, no answer", await waited(false)]);
         // The victim already settled in the dead channel: the witness is answered at once.
         const settledLedger = ledger();
-        settledLedger.L.answer(users.victim.id, { room: VC.deadRoomFor(users.victim.id), state: "applied" });
+        settledLedger.L.answer(users.victim.id, { room: VC.SPECTATOR_ROOM, state: "applied" });
         seen.push(["asked, the victim settled", await V.answerWhoAmI(users.witness.id, warm, settledLedger.io), settledLedger.log()]);
 
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
@@ -24781,8 +24784,8 @@ const INVARIANTS = [
         const owner = { bob: "p", alice: "p", carol: "carol", killer: "killer", victim: "victim" };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
-        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+        // Since E62 C3b the dead talk in the Spectators' room (`SPECTATOR_ROOM`, Q-C3b-5; E72 C8's room of the account's own until then, changed on purpose).
+        const label = (target, userId) => (target === null ? "main" : target === VC.SPECTATOR_ROOM ? "dead"
             : VC.isDeadRoom(target) ? "?another's dead room" : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         const records = { alice: { chapter: 1, day: 3 }, victim: { chapter: 2, day: 1 } };
@@ -36017,7 +36020,7 @@ const INVARIANTS = [
         must(setup.length > 1000 && cub.length > 1000, "season-wipe.mjs or monocub.mjs is not among the module's sources - this would measure nothing");
         const deaths = bodyOf(fnSource(setup, "wipeStudent"), "deaths:", { until: "items:" });
         const setter = fnSource(cub, "setMonocub");
-        equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths),
+        equal(JSON.stringify([/setMonocub\(actor,\s*false,\s*\{\s*quiet:\s*true\s*\}\)/.test(deaths), /reviveCharacter\(actor,\s*\{\s*quiet:\s*true(?:,\s*silent:\s*true)?\s*\}\)/.test(deaths),
             /if\s*\(!quiet\)\s*ui\.notifications\.info\(/.test(setter)]), JSON.stringify([true, true, true]),
             "[the reset takes the Monocub off quietly; it revives quietly; setMonocub's toast asks !quiet]");
     }],
@@ -53926,7 +53929,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 2, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator-dead.mjs": 1, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -55198,6 +55201,327 @@ const INVARIANTS = [
         equal(stableJson([p.threshold, tierOne, p.unseen.threshold, p.plant.threshold, p.plant.unseen, p.rummage?.threshold ?? null]),
             stableJson([12, 12, 15, 8, 13, 10]),
             "[the steal, Search's Tier 1, the cover, the Plant, the Plant's cover, the Frisk's hand] - a Palm's numbers are not the owner's");
+    }],
+
+    ["R4550 - the dead talk with the Spectators: a silenced dead account's claim is the Spectators' room, a death kept or public, never an account's own dead room; the microphone's line in that room is the dead's, not held (E62 C3b, the owner's Q-C3b-5)", async () => {
+        /*
+         * E62 C3b, 13.11.2026; docs/dev/e62/STORYBOARD-C3.md 4 (the e62-c3 line, e64968c6). voice.mjs `voiceClaim` asked of
+         * plain facts, as R117 asks it, and `micHold` of a player's account in that room, no Spectator's (no actor held).
+         * Red at 9a74628: the claim named `drpg-dead-<id>` (E72 C8), and the room gave no line.
+         */
+        const V = await import("./voice.mjs");
+        const C = await import("./voice-client.mjs");
+        const user = { id: "R4550user", name: "R4550", active: true, isGM: false };
+        const claim = secret => { const r = V.voiceClaim({ user, silenced: () => true, secret: () => secret }); return [r.why.startsWith("dead"), r.target]; };
+        const hold = V.micHold({ user, room: C.SPECTATOR_ROOM, external: false, connected: true, canBroadcastAudio: true, actors: [], trial: null });
+        equal(stableJson({ kept: claim(true), shown: claim(false), hold }),
+            stableJson({ kept: [true, C.SPECTATOR_ROOM], shown: [true, C.SPECTATOR_ROOM], hold: { reason: "deadAlone", held: false } }),
+            "a silenced dead account ([the dead's reason, room] kept and public; the microphone's answer in the Spectators' room)");
+    }],
+
+    ["R4551 - a dead student's Spectator has no voice of its own: a Spectator's character whose account still owns a student is left out of the voice rows, a Spectator's account's is not (E62 C3b)", async () => {
+        /*
+         * E62 C3b, 13.11.2026. voice.mjs `watchesForTheDead` asked of stand-in actors: the account plays a student and a
+         * flagged Spectator (the dead student's watcher), against an account that plays a Spectator alone (E92's). A
+         * watcher left in the rows would claim the room its free token walks into as a living character's. Red at
+         * 9a74628: no `watchesForTheDead`.
+         */
+        const V = await import("./voice.mjs");
+        const ask = typeof V.watchesForTheDead === "function" ? V.watchesForTheDead : () => "none";
+        const userA = { id: "R4551a", name: "A", active: true, isGM: false }, userB = { id: "R4551b", name: "B", active: true, isGM: false };
+        const actor = (id, owner, spectator) => ({ id, type: "character", name: id,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? spectator : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && u?.id === owner.id,
+            get ownership() { return { default: 0, [owner.id]: 3 }; } });
+        const student = actor("R4551s", userA, false), watcher = actor("R4551w", userA, true), alone = actor("R4551e", userB, true);
+        const actors = [student, watcher, alone];
+        const users = new Map([[userA.id, userA], [userB.id, userB]]);
+        const own = game.users;
+        const read = await (async () => {
+            Object.defineProperty(game, "users", { configurable: true, value: { get: id => users.get(id), filter: f => [...users.values()].filter(f),
+                find: f => [...users.values()].find(f), [Symbol.iterator]: () => users.values(), contents: [...users.values()] } });
+            try {
+                return actors.map(a => [a.id, ask(a, { actors })]);
+            } finally {
+                Object.defineProperty(game, "users", { configurable: true, value: own });
+            }
+        })();
+        equal(stableJson(read), stableJson([["R4551s", false], ["R4551w", true], ["R4551e", false]]),
+            "left out of the voice rows ([actor, watches for the dead]: a student, its watcher, an E92 Spectator)");
+    }],
+
+    ["R4554 - the Class Trial mutes a dead player who owns its Spectator: the account's voice in the trial is the listed dead student, never the Spectator actor its player was given (E62 C3b; scenario 30's SECURITY dead-Botan checks, 13.11.2026)", async () => {
+        /*
+         * E62 C3b, 13.11.2026. voice.mjs `trialVoiceActorOf` asked of stand-ins: an account owning a dead student on the
+         * trial's list and that student's watcher (a Spectator's character). Scenario 30 found the first cut's hole: the
+         * watcher, off the list, was the account's voice, so `settleTrialVoices` left the dead player's microphone open.
+         * Red at b96434d's first cut (before the `watchesForTheDead` line in `trialVoiceActorOf`).
+         */
+        const V = await import("./voice.mjs");
+        const user = { id: "R4554u", name: "U", active: true, isGM: false };
+        const actor = (id, spectator) => ({ id, type: "character", name: id,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? spectator : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && u?.id === user.id,
+            get ownership() { return { default: 0, [user.id]: 3 }; } });
+        const dead = actor("R4554a", false), watcher = actor("R4554b", true);
+        const users = new Map([[user.id, user]]);
+        const own = game.users;
+        Object.defineProperty(game, "users", { configurable: true, value: { get: id => users.get(id), filter: f => [...users.values()].filter(f),
+            find: f => [...users.values()].find(f), [Symbol.iterator]: () => users.values(), contents: [...users.values()] } });
+        let voice = null;
+        try {
+            voice = V.trialVoiceActorOf(user, [dead, watcher], [dead.id])?.id ?? null;
+        } finally {
+            Object.defineProperty(game, "users", { configurable: true, value: own });
+        }
+        equal(voice, dead.id, "the account's voice in the trial (the listed dead student, not its Spectator)");
+    }],
+
+    ["R4555 - the death fade's batches are read off the panes' blocks at any size: the top slivers, the bottom slivers, the rail with the status and the tray, the clock with the notes and the room tile, the voice tile with the launchers (E62 C3; SB-C3's batches at 1366x768)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `batchOf` asked of stand-in panes as glass.mjs `LAST.panes` holds them
+         * (`tone`, `y0`, `y1`) on a screen 800 px high. The storyboard named its batches by pane index at one size; the
+         * pane's block is the same reading at every size. Red at 45448ef2: no death-fade.mjs.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        const pane = (tone, y0, y1) => ({ tone, y0, y1 });
+        const read = D ? [pane(null, 0, 100), pane(null, 700, 800), pane("rail", 0, 800), pane("three", 0, 200), pane("event", 0, 50), pane("tray", 600, 800),
+            pane("hud", 0, 200), pane("note-block", 400, 700), pane("room-block", 600, 800), pane("voice-block", 300, 500), pane("tiles-row", 700, 800),
+            pane("launch", 700, 800)].map(p => D.batchOf(p, 800)) : "no death-fade.mjs";
+        equal(stableJson(read), stableJson([1, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5]),
+            "the batch of each pane ([a top sliver, a bottom one, the rail, the status, the event strip, the tray, the clock, the notes, the room tile, the voice tile, the tiles' row, the launchers])");
+    }],
+
+    ["R4556 - the death fade and the Monocub's return keep the storyboard's times: the fade's onsets 0, 600, 1200, 1800 and 2400 with each later batch's colour back at +180 and out at +270, the pulse off and the edges flickering at 3000 and 3300, the rest bare at 3600; the return's edges, pulse at 500, batches from the player's tools out, the rest lit after M5's last step, at 2470; Legacy the same in four groups (E62 C3; SB-C3, MK-C3)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `fadePlan`, read as the steps' times by kind. Red at 45448ef2: no file; and
+         * once on the first cut, which set the return's rest at 2400, before batch 1's step at 2470.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        ok(D !== null, "death-fade.mjs could not be imported - the curtain has no death fade");
+        if (!D) return;
+        const fade = D.fadePlan("fade", 5), back = D.fadePlan("return", 5), legacy = D.fadePlan("fade", 4);
+        const onsets = plan => [...new Set(plan.filter(s => s.batch !== undefined).map(s => `${s.batch}@${s.at}:${s.on}`))];
+        const read = {
+            fade: onsets(fade), fadeEnd: fade.at(-1), seams: fade.filter(s => s.seams === "dim").map(s => s.at), pulseOff: fade.find(s => s.pulse === 0 && s.at === 3000) !== undefined,
+            back: onsets(back).filter(x => x.endsWith(":false")).map(x => x.split(":")[0]), backEnd: back.at(-1), pulseBack: back.find(s => s.pulse === 1)?.at ?? null,
+            legacy: onsets(legacy).filter(x => x.endsWith(":true")).map(x => x.split(":")[0]), legacyEnd: legacy.at(-1)
+        };
+        equal(stableJson(read), stableJson({
+            fade: ["1@0:true", "2@600:true", "2@780:false", "2@870:true", "3@1200:true", "3@1380:false", "3@1470:true", "4@1800:true", "4@1980:false",
+                "4@2070:true", "5@2400:true", "5@2580:false", "5@2670:true"],
+            fadeEnd: { at: 3600, rest: "bare" }, seams: [3000, 3300], pulseOff: true,
+            back: ["5@600", "5@870", "4@1000", "4@1270", "3@1400", "3@1670", "2@1800", "2@2070", "1@2200", "1@2470"], backEnd: { at: 2470, rest: "lit" }, pulseBack: 500,
+            legacy: ["1@0", "2@600", "2@870", "3@1200", "3@1470", "4@1800", "4@2070"], legacyEnd: { at: 3600, rest: "bare" }
+        }), "the plans ([the fade's batch steps], its end, the edges' dims, the pulse off; [the return's batches out], its end, the pulse back; [Legacy's groups in], its end)");
+    }],
+
+    ["R4557 - the death fade and the return flicker at most three times in any second, in both themes (E62 C3; the flash rule C2 and the storyboard reuse)", async () => {
+        /*
+         * E62 C3, 13.11.2026. transitions.mjs `flashRate` over death-fade.mjs `flickerOnsets` of each plan. Red at
+         * 45448ef2: no file.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        const T = await import("./transitions.mjs");
+        const read = D ? [["fade", 5], ["return", 5], ["fade", 4], ["return", 4]].map(([k, n]) => T.flashRate(D.flickerOnsets(D.fadePlan(k, n))))
+            : "no death-fade.mjs";
+        ok(Array.isArray(read) && read.every(n => n >= 1 && n <= 3), `the most flickers in any second ([fade, return] Stained Glass, then Legacy): ${stableJson(read)}`);
+    }],
+
+    ["R4558 - the curtain rests bare for a player whose every student is dead and no Monocub, a kept death too, and for nobody else: a GM, a living student, a Monocub, a player with no student (E62 C3; SB-C3's rest state, a reload shows it at once)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `restsBare` asked of stand-in users and actors; `isDeadForGm` reads the
+         * deceased flag on these (a kept death is the same reader through the player's copy). Red at 45448ef2: no file.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        const user = (id, isGM = false) => ({ id, isGM });
+        const actor = (owner, flags = {}) => ({ id: `R4558${Math.random()}`, type: "character",
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: (u, level) => level === "OWNER" && u?.id === owner });
+        const dead = { [FLAGS.deceased]: { chapter: 1 } };
+        const ask = (u, list) => (D ? D.restsBare(u, list) : "none");
+        const read = {
+            dead: ask(user("a"), [actor("a", dead)]), living: ask(user("a"), [actor("a")]), both: ask(user("a"), [actor("a", dead), actor("a")]),
+            cub: ask(user("a"), [actor("a", { ...dead, [FLAGS.monocub]: true })]), gm: ask(user("a", true), [actor("a", dead)]),
+            none: ask(user("a"), []), watcher: ask(user("a"), [actor("a", dead), actor("a", { [FLAGS.spectator]: true })])
+        };
+        equal(stableJson(read), stableJson({ dead: true, living: false, both: false, cub: false, gm: false, none: false, watcher: true }),
+            "whether the curtain rests bare ([a dead student, a living one, one of each, a Monocub, a GM, no student, a dead student and its Spectator])");
+    }],
+
+    ["R4559 - the dead's moment reaches the curtain as the storyboard says: a fade drawn, a correction at its end at once (bare), a Monocub's return and a revive drawn back to lit, a Monocub no more bare at once, nothing drawn under reduced motion or with the table's sequences off (E62 C3; SB-C3 #10, #16, #17)", async () => {
+        /*
+         * E62 C3, 13.11.2026. death-fade.mjs `onDeadMoment` with the switches handed in; what it answers ("drawn" or
+         * "rest") and the body's class after it; `setRest(false)` puts the page back after each. Red at 45448ef2: no file.
+         * The revive drawn (not silent) since the e93 line's G3 (13.11.2026): the title promised it and no case held it.
+         */
+        let D = null;
+        try { D = await import("./death-fade.mjs"); } catch { D = null; }
+        ok(D !== null, "death-fade.mjs could not be imported - the curtain has no death fade");
+        if (!D) return;
+        const bare = () => document.body.classList.contains(D.BARE_CLASS);
+        const was = bare();
+        const read = [];
+        try {
+            for (const [moment, opts] of [[{ phase: "fade" }, {}], [{ phase: "fade", silent: true }, {}], [{ phase: "monocub" }, {}], [{ phase: "return" }, {}],
+                [{ phase: "return", silent: true }, {}],
+                [{ phase: "spectator" }, {}], [{ phase: "fade" }, { still: true }], [{ phase: "fade" }, { on: false }], [{ phase: "else" }, {}]]) {
+                const answer = D.onDeadMoment(moment, { on: true, still: false, ...opts });
+                read.push([moment.phase, answer, bare()]);
+                D.setRest(false);
+            }
+        } finally {
+            D.setRest(was);
+        }
+        equal(stableJson(read), stableJson([["fade", "drawn", false], ["fade", "rest", true], ["monocub", "drawn", false], ["return", "drawn", false], ["return", "rest", false],
+            ["spectator", "rest", true], ["fade", "rest", true], ["fade", "rest", true], ["else", null, false]]),
+            "[the moment, what the curtain did, bare after it] for: a fade, a corrected fade, a Monocub, a revive, a corrected revive, a Monocub no more, a fade under reduced motion, a fade with the sequences off, a phase of nobody's");
+    }],
+
+    ["R4561 - Escape during the death fade or the return ends it at its end state and is the curtain's alone: the key is claimed (default prevented, no other listener hears it), as the transitions' Escape claims it; with nothing running Escape is left to Foundry (E62 C3; the e93 line's G4)", async () => {
+        /*
+         * E62 C3, 13.11.2026; the e93 line's G4 (docs/dev/e93/REVIEW-E62-C3-fade.md). death-fade.mjs's Escape ended a
+         * running fade but left the key to Foundry, which closed a window or opened its menu with the same press;
+         * sequence.mjs `holdEscape`'s Escape claims it. A fade played (`onDeadMoment`), Escape dispatched on the document,
+         * then the same with nothing running; a bubbling listener on the body counts what reaches it. Red at 09256a04: the
+         * key went on to Foundry.
+         */
+        const D = await import("./death-fade.mjs");
+        const was = document.body.classList.contains(D.BARE_CLASS);
+        let heard = 0;
+        const listen = () => { heard += 1; };
+        document.body.addEventListener("keydown", listen);
+        const press = () => {
+            const e = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+            document.body.dispatchEvent(e);
+            return e.defaultPrevented;
+        };
+        let read = null;
+        try {
+            D.onDeadMoment({ phase: "fade" }, { on: true, still: false });
+            const during = press();
+            const atEnd = document.body.classList.contains(D.BARE_CLASS);
+            const heardDuring = heard;
+            D.setRest(false);
+            const idle = press();
+            read = { during, atEnd, heardDuring, idle, heardIdle: heard - heardDuring };
+        } finally {
+            document.body.removeEventListener("keydown", listen);
+            D.setRest(was);
+        }
+        equal(stableJson(read), stableJson({ during: true, atEnd: true, heardDuring: 0, idle: false, heardIdle: 1 }),
+            "Escape ([during a fade: claimed, the end state, heard by another listener], [with nothing running: claimed, heard])");
+    }],
+
+    ["R4552 - the Death fade Sound row: in the incident group, played by default with the death's own file, its own file when one is set (E62 C3b, the storyboard's 9)", async () => {
+        /*
+         * E62 C3b, 13.11.2026. config.mjs `SFX_EVENTS.deathFade` and sfx-play.mjs `soundsFor`, read with the Sound map
+         * handed in through the setting's own reader on this browser (`withSetting`). Red at 9a74628: no row.
+         */
+        const { SFX_EVENTS } = await import("./config.mjs");
+        const P = await import("./sfx-play.mjs");
+        const row = SFX_EVENTS.deathFade ?? null;
+        const own = game.settings.get.bind(game.settings);
+        const files = map => {
+            game.settings.get = (scope, key) => (scope === MODULE_ID && key === SETTINGS.sfxMap ? map : own(scope, key));
+            try {
+                return P.soundsFor("deathFade");
+            } finally {
+                game.settings.get = own;
+            }
+        };
+        equal(stableJson({ category: row?.category ?? null, label: row?.label ?? null, fallback: files({ death: "a.ogg" }), own: files({ death: "a.ogg", deathFade: "b.ogg" }), none: files({}) }),
+            stableJson({ category: "incident", label: "Death fade", fallback: ["a.ogg"], own: ["b.ogg"], none: [] }),
+            "the Death fade row ([its group, its label, the files with the death's alone, with its own, with none])");
+    }],
+
+    ["R4553 - the dead's moment reaches the victim's browser alone: a token hook carrying the option is read on its owner's browser, as the phase and silence it carries, and on nobody else's nor a GM's (E62 C3b)", async () => {
+        /*
+         * E62 C3b, 13.11.2026. spectator-dead.mjs `momentOf` asked of a stand-in token, its owner, another player and a GM.
+         * The curtain (another line) listens to `drpgDeadSpectator` on that browser; the fade's sound plays there. Red at
+         * 9a74628: no spectator-dead.mjs. Since the e93 review's F2 (13.11.2026) the student's id is the owner's browser's own
+         * (none here: the stand-in owns no actor of the world), never the options', changed on purpose.
+         */
+        let D = null;
+        try {
+            D = await import("./spectator-dead.mjs");
+        } catch {
+            D = null;
+        }
+        const owner = { id: "R4553o", isGM: false }, other = { id: "R4553x", isGM: false }, gm = { id: "R4553g", isGM: true };
+        const token = { id: "R4553t", actor: { testUserPermission: (u, level) => level === "OWNER" && u?.id === owner.id }, testUserPermission: () => false };
+        const options = { drpgDeadSpectator: { phase: "fade", silent: false, studentId: "R4553s" } };
+        const ask = (user, opts = options) => (D ? D.momentOf(token, opts, user) : "none");
+        equal(stableJson({ owner: ask(owner), other: ask(other), gm: ask(gm), plain: ask(owner, {}), hook: D?.DEAD_SPECTATOR_HOOK ?? null }),
+            stableJson({ owner: { phase: "fade", silent: false, studentId: null, tokenId: "R4553t" }, other: null, gm: null, plain: null, hook: "drpgDeadSpectator" }),
+            "the moment read ([the owner's, another player's, a GM's, a hook without the option, the curtain's hook name])");
+    }],
+    ["R5400 - the Spectator's token, and so the Monocub's it becomes, wears the body's token's look: spectator-dead.mjs `tokenLookOf` copies the whole texture (its scale, fit, anchor, offset, tint), the squares, the rotation, the alpha, the ring and the rotation lock off a token, as a copy", async () => {
+        /*
+         * E106, 13.11.2026 (the owner: "Token monocuba jest mniejszy niz oryginalny token"). Until E106 the Spectator's
+         * token (spectator-dead.mjs `ensureDeadSpectator`) took the body's token's squares and the picture's file alone,
+         * so a token drawn at a texture scale over 1, or inside Foundry's ring, came back drawn at scale 1 and without the
+         * ring: a smaller picture, and the Monocub walks that token from E62 C3b (`watcherBecomesMonocub` re-links it).
+         * Read on a stand-in token of plain fields (its `toObject` preferred, as a document hands its source). Red at
+         * E106's base: spectator-dead.mjs exports no `tokenLookOf`.
+         */
+        let D = null;
+        try {
+            D = await import("./spectator-dead.mjs");
+        } catch {
+            D = null;
+        }
+        must(typeof D?.tokenLookOf === "function", "spectator-dead.mjs exports no tokenLookOf");
+        const source = { name: "R5400 Chie", x: 300, y: 400, actorId: "R5400ACTOR", width: 2, height: 2, rotation: 15, alpha: 0.9, lockRotation: true,
+            texture: { src: "r5400/chie.webp", scaleX: 1.4, scaleY: 1.4, fit: "cover", anchorX: 0.5, anchorY: 0.6, offsetX: 3, offsetY: -2, tint: "#ffeedd" },
+            ring: { enabled: true, subject: { scale: 1.1, texture: "r5400/subject.webp" }, colors: { ring: "#ff0000" } } };
+        const tokenDoc = { toObject: () => foundry.utils.deepClone(source), texture: { src: "wrong-if-read" } };
+        const look = D.tokenLookOf(tokenDoc);
+        equal(stableJson(look), stableJson({ alpha: 0.9, height: 2, lockRotation: true, ring: source.ring, rotation: 15, texture: source.texture, width: 2 }),
+            "the look copied off a token (the corner, the name and the actor left out)");
+        look.texture.scaleX = 9;
+        look.ring.subject.scale = 9;
+        ok(source.texture.scaleX === 1.4 && source.ring.subject.scale === 1.1, "the look is a copy: changing it changes nothing of the token's");
+        const plain = D.tokenLookOf({ width: 1, height: 1, texture: { src: "r5400/p.webp", scaleX: 0.8 } });
+        equal(stableJson({ plain, none: D.tokenLookOf(null) }), stableJson({ plain: { height: 1, texture: { scaleX: 0.8, src: "r5400/p.webp" }, width: 1 }, none: {} }),
+            "a token with no toObject read off its fields, and no token none");
+    }],
+    ["R5401 - the Spectator is made with the body's token's look, on its token and its prototype, and the picture as the body's token's or the student's (spectator-dead.mjs `ensureDeadSpectator`, E106)", async () => {
+        /*
+         * E106, 13.11.2026. The source of `ensureDeadSpectator`: the watcher's prototype token and the token laid where
+         * the body's stands both spread `tokenLookOf` (R5400), so neither is laid at the picture's file alone. Red at
+         * E106's base: both wrote `texture: { src: tokenImg }` and no look.
+         */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/spectator-dead.mjs`).then(lfText);
+        const make = bodyOf(src, "export async function ensureDeadSpectator", { until: "export async function" });
+        ok(make.length > 200, "ensureDeadSpectator read");
+        const proto = /prototypeToken:\s*\{[^}]*\.\.\.look\b/.test(make);
+        const token = /getTokenDocument\(\{[^)]*\.\.\.look\b/.test(make);
+        equal(stableJson({ proto, token }), stableJson({ proto: true, token: true }), "the prototype and the token spread the look");
+        ok(/const look = tokenLookOf\(/.test(make), "the look read off tokenLookOf");
+    }],
+    ["R5402 - a body tile's death sign and caption take no click: the mark's group is `eventMode` \"none\" and holds no interactive child (body-tile.mjs `drawBodyMark`, E106)", async () => {
+        /*
+         * E106, 13.11.2026 (the owner: the Monocub's token "nie pozwala odpalic karty postaci (przynajmniej z poziomu
+         * GMa)"). The tile is laid where the token stands, and its mark is drawn as a child of the Tile placeable, over
+         * the token's picture; every other drawing the module lays on the map (gm-overlay.mjs, own-ring.mjs,
+         * remnant-ring.mjs) is `eventMode` "none", and the mark was not. Whether v14 routes a token's double-click to a
+         * tile's child was not read (LIVE-E106-01): the mark is made to take none whatever v14 does. On a stand-in tile
+         * as R3144's. Red at E106's base: the group's eventMode was PIXI's default.
+         */
+        const B = await import("./body-tile.mjs");
+        const grid = 100, V = "SUITER5402VICTIM";
+        const tile = new PIXI.Container();
+        tile.document = { width: 100, height: 100, hidden: false, parent: { grid: { size: grid } },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? { actorId: V, deathId: null, level: null, at: 1 } : undefined) };
+        const mark = B.drawBodyMark(tile, { actors: { get: id => (id === V ? { name: "R5402 Daichi" } : undefined) }, gm: true });
+        ok(mark !== null, "the mark drawn");
+        equal(stableJson({ mode: mark?.eventMode ?? null, children: mark?.interactiveChildren ?? null }), stableJson({ mode: "none", children: false }),
+            "the mark's group ([eventMode, interactiveChildren])");
+        tile.destroy({ children: true });
     }],
 ];
 

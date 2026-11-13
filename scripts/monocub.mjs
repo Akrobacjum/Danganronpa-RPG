@@ -49,6 +49,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
+import { isMonocubCorpse } from "./spectator.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
 import { cubStore, cubCopy, cubTargetStore, bountyStore, projectWorkStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
@@ -193,6 +194,17 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     }
 
     log(`${actor.name} is ${value ? "now" : "no longer"} a Monocub.`);
+    /* THE SPECTATOR'S TOKEN (E62 C3b; Q-C3b-7's default, asked of the owner): becoming a Monocub, the dead's Spectator
+       token stays where it stands and becomes the student's own (the curtain's return on the player's browser); the
+       Spectator actor goes and the body's token stays the corpse. A Monocub no more, still dead: the Spectator back,
+       silently (spectator-dead.mjs). Tried on its own: the flag stands either way. */
+    try {
+        const D = await import("./spectator-dead.mjs");
+        if (value) await D.watcherBecomesMonocub(actor);
+        else if (isDeceased(actor)) await D.monocubBecomesWatcher(actor);
+    } catch (err) {
+        error(`Could not move ${actor.name}'s Spectator token`, err);
+    }
     // `quiet` for a caller that reports what it did itself (E51 C6; audit S06-46): the season reset, one toast per cub.
     if (!quiet) ui.notifications.info(game.i18n.format(
         value ? "DRPG.Monocub.opted" : "DRPG.Monocub.unopted", { name: actor.name }));
@@ -587,7 +599,8 @@ export async function markWitnessesAt(victim) {
     let marked = 0;
     for (const token of place.scene.tokens ?? []) {
         const actor = token.actor;
-        if (!actor || token.hidden || !isMonocub(actor) || lawfulRoomOf(token) !== place.room) continue;
+        // A Monocub's corpse beside the token it walks is no witness (E62 C3b fix; the e93 review's F1): it stands where it walks.
+        if (!actor || token.hidden || !isMonocub(actor) || isMonocubCorpse(token) || lawfulRoomOf(token) !== place.room) continue;
         if (await cubSawIncident(actor)) marked++;
     }
     return marked;
