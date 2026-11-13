@@ -3199,7 +3199,9 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-tab
     line-height: 1.45;
 }
 .application.drpg-window-case [data-drpg-pane="key"] table.drpg-data-table textarea { min-height: 0; }
-.application.drpg-window-case [data-drpg-pane="key"] table.drpg-data-table textarea:focus { min-height: 5.5rem; }
+/* The Key tab's one-line field grew to 5.5rem on focus here and pushed its row down; since the float-text line
+   (13.11.2026) a module textarea floats over the window while it is edited (scripts/float-text.mjs), and this rule
+   would grow it in place first, under the float, and move the row (audit/float-sweep.mjs read 31-99 elements moved). */
 .application.drpg-window-case td.drpg-data-col-case-key-status > * + * { margin-top: 0.25rem; }
 .application.drpg-window-case button.drpg-key-place { width: auto; }
 /* A hint is not an answer: dim, and slanted, so an empty box never reads as filled in. */

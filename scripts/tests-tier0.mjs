@@ -12016,6 +12016,107 @@ const REGRESSIONS = [
             + "(the callers of recordBodyFound, of announceBody, and the other writes of SETTINGS.bodiesFound)");
     }],
 
+    ["R4670 - a module textarea floats while edited: its scope, its height, its place and its ground", async () => {
+        /*
+         * float-text line, 13.11.2026 (the owner's 13.11: every text field of the module, while edited, grows to its text
+         * over the window and goes back after). scripts/float-text.mjs's pure parts on fixtures: `floats` takes an editable
+         * textarea of a module window or an actor's sheet and nothing else - not a read-only, a disabled or an opted-out
+         * field, not an input, not Foundry's own windows or the chat box; `floatHeight` is the text's height between the
+         * field's own and 60 % of the screen; `floatTop` moves the field up only as far as the screen's bottom needs;
+         * `groundFor` lays light text on the theme's ink and dark on its bone. The geometry in a browser is
+         * audit/float-sweep.mjs's (Chromium): jsdom lays nothing out and has no top layer.
+         */
+        const F = await import("./float-text.mjs");
+        const host = document.createElement("div");
+        const win = (classes, inner) => { const w = document.createElement("div"); w.className = classes; w.innerHTML = inner; host.append(w); return w.querySelector("textarea, input"); };
+        const cases = [
+            win("application dialog drpg-panel drpg-ui", "<form><textarea></textarea></form>"),
+            win("application drpg-messenger", "<textarea></textarea>"),
+            win("application sheet actor daggerheart", "<section><textarea></textarea></section>"),
+            win("application dialog drpg-ui", "<textarea readonly></textarea>"),
+            win("application dialog drpg-ui", "<textarea disabled></textarea>"),
+            win("application dialog drpg-ui", "<textarea data-drpg-float=\"off\"></textarea>"),
+            win("application dialog drpg-ui", "<input type=\"text\">"),
+            win("application journal-entry sheet", "<textarea></textarea>"),
+            win("chat-form", "<textarea id=\"chat-message\"></textarea>"),
+            win("application sheet item daggerheart", "<textarea></textarea>")
+        ];
+        equal(JSON.stringify(cases.map(el => F.floats(el))), JSON.stringify([true, true, true, false, false, false, false, false, false, false]),
+            "floats: [a kit window's, the messenger's, an actor sheet's; read-only, disabled, opted out, an input, a journal's, the chat box's, an item sheet's]");
+        equal(JSON.stringify([
+            F.floatHeight({ own: 60, needed: 40, screen: 768 }), F.floatHeight({ own: 60, needed: 300, screen: 768 }),
+            F.floatHeight({ own: 60, needed: 2000, screen: 768 }), F.floatHeight({ own: 500, needed: 2000, screen: 768 })
+        ]), JSON.stringify([60, 300, 460, 500]), "heights: [text shorter than the field, a text that fits, past 60 % of 768, a field taller than the cap]");
+        equal(JSON.stringify([
+            F.floatTop({ top: 100, height: 300, screen: 768 }), F.floatTop({ top: 600, height: 300, screen: 768 }), F.floatTop({ top: 600, height: 900, screen: 768 })
+        ]), JSON.stringify([100, 460, F.EDGE_PX]), "tops: [room below, moved up to the bottom's edge, taller than the screen]");
+        equal(JSON.stringify([F.groundFor("rgb(242, 238, 230)", { ink: "I", bone: "B" }), F.groundFor("rgb(29, 26, 33)", { ink: "I", bone: "B" })]),
+            JSON.stringify(["I", "B"]), "grounds: [light text on ink, dark text on bone]");
+        ok(F.drop() === false && F.floatingNow() === null, "with nothing floating, drop() puts nothing back and nothing floats");
+    }],
+
+    ["R4671 - the floating text fields are registered at init, before the Escape listeners ready adds", async () => {
+        /*
+         * float-text line, 13.11.2026. Escape in a floating field ends the editing and goes no further, so the window it
+         * stands in is not closed by the same press: that needs its capture listener on `window` before
+         * foundry-windows.mjs's and sequence.mjs's, which module.mjs registers in its ready hook. Read off module.mjs:
+         * `registerFloatText` called in the init hook's body, and neither of the other two there.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/module.mjs`, { cache: "no-cache" }).then(r => lfText(r)));
+        const init = bodyOf(src, 'Hooks.once("init"', { until: 'Hooks.once("setup"' });
+        must(init.length > 100, "the init hook's body of module.mjs was not read");
+        ok(/safely\([^)]*registerFloatText\)/.test(init), "registerFloatText is not called in module.mjs's init hook");
+        ok(!/registerFoundryWindows|registerSequences/.test(init), "foundry-windows.mjs or sequence.mjs registers in the init hook, before the floating fields");
+        const ready = bodyOf(src, 'Hooks.once("ready"', { length: 40000 });
+        ok(/registerFoundryWindows/.test(ready) && /registerSequences/.test(ready), "foundry-windows.mjs's or sequence.mjs's registration is no longer in the ready hook: read where their Escape listeners stand now");
+    }],
+
+    ["R4672 - every textarea the module draws is in the float survey, in a window the helper floats", async () => {
+        /*
+         * float-text line, 13.11.2026 (docs/dev/FLOAT-TEXT/STATUS.md, "The survey"). Each file of scripts/ that draws a
+         * `<textarea` or creates one is in FLOAT_SURVEY with the count it draws and the window it stands in; a new one,
+         * or one more in a file, fails here until it is read and listed - read for whether its window is one the helper
+         * floats (`FLOAT_SCOPE`: a module window or an actor's sheet). Comments are stripped before the count.
+         */
+        const FLOAT_SURVEY = {
+            "action-menus.mjs": [2, "an action's request field and a parked declaration's note (kit windows)"],
+            "action-search.mjs": [1, "Search's request field (its kit window)"],
+            "call-gm.mjs": [1, "the request to the GM (a kit window)"],
+            "call-pickers.mjs": [3, "a Call's text, motive and consequence (kit windows)"],
+            "calls.mjs": [1, "a Call's note (a kit window)"],
+            "cleanup.mjs": [1, "a reshaped trace's text (a kit window)"],
+            "gm-campaign.mjs": [1, "Edit campaign's morning line"],
+            "gm-items.mjs": [4, "Give's description, a Truth Bullet's texts, the autopsy's two"],
+            "investigation.mjs": [5, "the Remnants table's text and analysis, the Key tab's two, the case map's node text"],
+            "messenger-app.mjs": [3, "the messenger's input and note, a GM's ruling reply"],
+            "observe.mjs": [2, "a find's description and its analysed text"],
+            "projects-ui.mjs": [1, "a project's description"],
+            "remnant-ring.mjs": [2, "the GM's Remnant card, in the trace's actor sheet"],
+            "room-setup.mjs": [1, "Room setup's description column"],
+            "rules.mjs": [2, "the rules manager's rule and new rule"],
+            "sheet.mjs": [1, "the character sheet's biography"],
+            "tables-editor.mjs": [1, "Item tables' new item text"],
+            "trial-floor-ui.mjs": [1, "the Reveal's text"],
+            "trial-scene.mjs": [1, "the hall's words in Room setup's Scenes tab"],
+            "trial.mjs": [2, "a Present's and an Objection's comment"],
+            "verdict.mjs": [1, "the Blackened's rule"]
+        };
+        const sources = await moduleSources();
+        const counts = {};
+        for (const [file, text] of sources) {
+            if (/^tests(-[\w-]+)?\.mjs$/.test(file)) continue;
+            const n = (stripComments(text).match(/<textarea\b|createElement\(\s*["']textarea["']\s*\)/g) ?? []).length;
+            if (n) counts[file] = n;
+        }
+        must(Object.keys(counts).length > 10, `the census read ${Object.keys(counts).length} file(s) with a textarea - the sources were not read`);
+        const off = Object.entries(counts).filter(([file, n]) => FLOAT_SURVEY[file]?.[0] !== n).map(([file, n]) => `${file}: ${n} drawn, ${FLOAT_SURVEY[file]?.[0] ?? "none"} in the survey`);
+        const gone = Object.keys(FLOAT_SURVEY).filter(file => !counts[file]);
+        ok(!off.length, `textareas not in the float survey as drawn: ${off.join("; ")}`);
+        ok(!gone.length, `in the float survey and drawing no textarea now: ${gone.join(", ")}`);
+        const optedOut = [...sources].filter(([file]) => !/^tests/.test(file)).flatMap(([file, text]) => (stripComments(text).match(/data-drpg-float=["']off["']|drpgFloat\s*=\s*["']off["']/g) ?? []).map(() => file));
+        equal(JSON.stringify(optedOut), "[]", "a field opted out of the float (data-drpg-float=\"off\"): a reason goes into the survey first");
+    }],
+
     ["R350 - a hold is loud only in the hour, the day and the chapter its body was found in", async () => {
         /*
          * E11 C2, 1.2.73; audit S01-29; the ledger's G-b. settings.mjs `holdFreshAt`, which
