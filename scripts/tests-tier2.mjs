@@ -38396,6 +38396,805 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     // E40 item 4, slice B: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
     // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["a Truth Bullet whose real kind is Neutral is analysed against the number of the evidence it stands in for, and its card says there is nothing more in it (E40 item 4: R87's rule, driven; was R87)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R87 (tier 0, removed in E40) read two lines as text: config.mjs `analyzeDc`
+         * looking its column up through `ANALYZE_TYPE_ALIAS[realType] ?? realType`, and analyze.mjs naming
+         * `TRUTH_BULLET_TYPES[realType]?.analysedHint`. It passed a mutant that kept both lines and broke the rule: the
+         * alias table without its `neutral` row (the lookup's text unchanged, a Neutral's number null again, so every roll
+         * on one misses - analyze.mjs reads a null as a miss since 21.09), and the card reading `hint` before
+         * `analysedHint` (the name still there, the un-analysed sentence printed again). ACT-10, 20.09: a trace of unstated
+         * origin is priced like the ordinary evidence it stands in for. Here: the number for each visibility, a Neutral's
+         * against a Prep's, and two Neutral bullets on one student analysed on the GM, one at that number less one and one
+         * at it; read for each the verdict and which of the two sentences its card carries.
+         */
+        const [student] = cast(1);
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { analyzeDc, ANALYZE_DC, TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        const bands = Object.keys(ANALYZE_DC);
+        must(bands.length >= 4, "the Analyze table has fewer than four visibilities - this would measure less than it says");
+        const priced = bands.map(v => [analyzeDc(v, "neutral"), analyzeDc(v, "prep")]);
+        const dc = analyzeDc("evident", "prep");
+        must(Number.isFinite(dc) && dc > 1, `a Prep bullet's evident number is ${dc} - a total under it cannot be thrown, and this would measure nothing`);
+        const said = foundry.utils.escapeHTML(TRUTH_BULLET_TYPES.neutral?.analysedHint ?? "");
+        const unread = foundry.utils.escapeHTML(TRUTH_BULLET_TYPES.neutral?.hint ?? "");
+        must(said && unread && said !== unread, "the Neutral kind has no two sentences to tell apart - this would measure nothing");
+        const titles = ["DRPG.Analyze.identifiedTitle", "DRPG.Analyze.failedTitle"].map(k => game.i18n.localize(k));
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        const made = [], read = [];
+        try {
+            for (const total of [dc - 1, dc]) {
+                const item = await bullets.createTruthBullet(student, { name: `SUITE E40 R87 a Neutral at ${total}`, realType: "neutral", visibility: "evident" });
+                must(item, "the fixture's Neutral bullet was not made");
+                made.push(item);
+                const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total });
+                await settle();
+                const card = () => game.messages.contents.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? ""))
+                    .find(w => titles.some(t => w.includes(t)));
+                await until(card);
+                const words = card() ?? "";
+                for (const m of game.messages.contents) seen.add(m.id);
+                read.push([verdict?.success ?? null, words.includes(titles[0]), words.includes(said), words.includes(unread)]);
+            }
+        } finally {
+            for (const item of made) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+        equal(stableJson([priced.every(([n, p]) => p !== null && n === p), read]),
+            stableJson([true, [[false, false, false, false], [true, true, true, false]]]),
+            "a Neutral bullet was not priced as the Prep evidence it stands in for, or its card printed the un-analysed sentence "
+                + "([each visibility's Neutral number a Prep's], then for a total one under that number and at it: verdict, the "
+                + "identified card, the sentence that there is nothing more in it, the sentence to analyse it)");
+    }],
+
+    ["an Observe's Nothing was there marks the Sanity and gives nothing back, and a free action's refusal gives back nothing (E40 item 4: R88's rule, driven; was R88)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R88 (tier 0, trimmed in E40 to the four lines it still reads as text) read
+         * action-pipeline.mjs `declineAction` and messenger-app.mjs `ruleObserveMiss` and `CARD_ACTIONS` as text. It passed
+         * two mutants that kept every line it matched: `declineAction`'s data spread a `paid: ""` after its `paid` line for
+         * a card with no receipt (the legacy branch of `refundOnCard`, which hands one action back), and `CARD_ACTIONS`
+         * handed `observeMiss` to `ruleDecline` in a statement after the table. ACT-14 and ACT-17, 20.09: a refusal hands
+         * back what the card says was paid and nothing for a free action; "Nothing was there" on an Observe is its
+         * result, so it marks the Sanity the rule asks and gives no action back. Here: what `declineAction` writes for a
+         * Burst's receipt and for none; then a student with a player, one action spent and no Sanity marked, gets two
+         * cards in their thread (`callGm`), one with the Observe's miss and one with a free action's refusal, and each
+         * button is pressed as a GM presses it (`wireCallActions`). Read per press: the actions and the Sanity marks
+         * moved, the refusal's sentence and the GM's "Nothing was there" ruling said, and the card settled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the cards go to a player's thread");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { missAction, declineAction } = await import("./action-pipeline.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const drawn = [declineAction(student, { pay: "burst", amount: 2, grant: true }).data, declineAction(student, null).data]
+            .map(d => [d.paid, d.amount, d.grant]);
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const marks = () => Number(foundry.utils.getProperty(student._source, STRESS)) || 0;
+        const had = { [ACT]: foundry.utils.getProperty(student._source, ACT), [STRESS]: foundry.utils.getProperty(student._source, STRESS) };
+        must(actionsMax(student) >= 1 && Number(student.system.resources?.stress?.max) >= 1,
+            `${student.name} has no action to spend or no Sanity to mark - this would measure nothing`);
+        const declined = foundry.utils.escapeHTML(game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }));
+        const ruled = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Bridge.nothingThere"));
+        const posted = [];
+        const read = [];
+        try {
+            await student.update({ [ACT]: actionsMax(student) - 1, [STRESS]: 0 });
+            await settle();
+            for (const [call, button] of [["observeMiss", missAction(student)], ["decline", declineAction(student, null)]]) {
+                const before = new Set(game.messages.contents.map(m => m.id));
+                await callGm(student, { title: `SUITE E40 R88 ${call}`, actions: [button] });
+                const withButton = () => game.messages.contents.find(m => !before.has(m.id)
+                    && String(contentOf(m) ?? "").includes(`data-drpg-call="${call}"`));
+                await until(withButton, 8000);
+                const card = withButton();
+                must(card, `the ${call} card was not posted`);
+                posted.push(card.id);
+                const [actions, stress] = [actionsLeft(student), marks()];
+                const since = new Set(game.messages.contents.map(m => m.id));
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                const pressed = body.querySelector(`[data-drpg-call="${call}"]`);
+                must(pressed, `the ${call} card's button was not drawn`);
+                pressed.click();
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+                await settle();
+                const fresh = game.messages.contents.filter(m => !since.has(m.id));
+                for (const m of fresh) posted.push(m.id);
+                const said = fresh.map(m => String(contentOf(m) ?? ""));
+                read.push([actionsLeft(student) - actions, marks() - stress, said.some(w => w.includes(declined)),
+                    said.some(w => w.includes(ruled)), Boolean(cardFlag(game.messages.get(card.id), "settled"))]);
+            }
+        } finally {
+            for (const id of posted) await game.messages.get(id)?.delete();
+            await student.update(had);
+            await settle();
+        }
+        equal(stableJson([drawn, read]), stableJson([[["burst", "2", "true"], ["none", "0", "false"]],
+            [[0, 1, false, true, true], [0, 0, false, false, true]]]),
+            "a refusal's card did not say what was paid, an Observe's Nothing was there was taken as a refusal, or a free action's "
+                + "refusal gave something back ([declineAction's paid, amount, grant for a Burst of 2 and for none]; then per press of "
+                + "the Observe's miss and the free refusal: actions moved, Sanity marks moved, the refusal's sentence, the GM's Nothing "
+                + "was there, the card settled)");
+    }],
+
+    ["an Observe with no record on the GM tells the GMs and the player and gives nothing back, and the record is this browser's (E40 item 4: R89's rule, driven; was R89)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R89 (tier 0, trimmed in E40 to the write-through it still reads as text) read
+         * settings.mjs's registration of `SETTINGS.observePending` and observe.mjs `resolveObserve` as text: `scope:
+         * "client"` within 400 characters of the key, the two keys `resolveLost` and `resolveLostOwner` named, no
+         * `refundAction`. It passed two mutants that kept those lines: a `scope: "world"` after the client one in the same
+         * registration (the later key wins, and every player's browser holds the answer key), and the owner's whisper
+         * behind a condition that is never true (the key still named, the player told nothing). ACT-08, 20.09: a resolve
+         * with no record says so on both screens, and refunds nothing on a packet's word. Here: the scope Foundry holds
+         * for the store's key, then a student with a player resolved on the GM under a key nobody minted. Read: what the
+         * resolve answered, the GMs' card and the player's card among the new messages, and the actions moved.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the player's card goes to a student's owner");
+        const observe = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        // The store's key read off its row (`observeStore.spec.key`): R171 forbids the raw key outside the engine.
+        must(observeStore?.spec?.key, "the Observe store names no key - this would measure nothing");
+        const scope = game.settings.settings.get(`${MODULE_ID}.${observeStore.spec.key}`)?.scope ?? null;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const total = 17;
+        const toGms = game.i18n.format("DRPG.Observe.resolveLost", { name: foundry.utils.escapeHTML(student.name), total });
+        const toOwner = game.i18n.localize("DRPG.Observe.resolveLostOwner");
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const fresh = () => game.messages.contents.filter(m => !since.has(m.id));
+        const actions = actionsLeft(student);
+        let read = null;
+        try {
+            const answer = await observe.resolveObserve({ key: `suite-e40-r89-${foundry.utils.randomID()}`, total, isCritical: false,
+                actorId: student.id, senderId: player(student).id, senderIsGm: false });
+            await settle();
+            await until(() => fresh().some(m => String(contentOf(m) ?? "").includes(toOwner)));
+            const cards = fresh().map(m => [String(contentOf(m) ?? ""), m.whisper ?? []]);
+            const gms = game.users.filter(u => u.isGM).map(u => u.id);
+            read = [answer, cards.some(([w, to]) => w.includes(toGms) && to.length && to.every(id => gms.includes(id))),
+                cards.some(([w, to]) => w.includes(toOwner) && to.includes(player(student).id)), actionsLeft(student) - actions];
+        } finally {
+            for (const m of fresh()) await m.delete();
+            await settle();
+        }
+        equal(stableJson([scope, read]), stableJson(["client", [null, true, true, 0]]),
+            "the Observe record reaches every browser, or a resolve with no record was silent on a screen or gave something back "
+                + "([the store's scope], then: what the resolve answered, the GMs told, the player told, actions moved)");
+    }],
+
+    ["Analyze on the GM refuses a bullet it may not read now and an undo with no throw this chapter, whatever the packet says (E40 item 4: R145's Analyze half, driven; was R145)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R145 (tier 0, trimmed in E40 to its Stage 6 half) read analyze.mjs
+         * `resolveAnalyze` as text: `!undo && !isAnalysable(held, chapter)` and `analysedChapter !== chapter` in its body.
+         * It passed mutants that kept both texts and dropped the refusals (each condition joined by `&& false`). E03,
+         * 24.09.2026; audit S05-40: one Analyze per bullet per chapter was the sheet's rule alone, and a console's packet -
+         * `undo` included - bought a second reading. Here, on the GM: a bullet missed with a 1 (locked this chapter), then
+         * asked again with a 40; a second, fresh bullet asked to undo a throw it never had. Read: the three answers, and
+         * whether the first bullet was identified by the second ask.
+         */
+        const [student] = cast(1);
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const made = [];
+        let read = null;
+        try {
+            for (const n of [1, 2]) {
+                const item = await bullets.createTruthBullet(student, { name: `SUITE E40 R145 bullet ${n}`, realType: "prep" });
+                must(item, "the fixture's bullet was not made");
+                made.push(item);
+            }
+            const [locked, fresh] = made;
+            const miss = await resolveAnalyze({ actorId: student.id, itemId: locked.id, total: 1 });
+            await settle();
+            must(miss?.success === false, `the fixture's miss did not miss: ${stableJson(miss)}`);
+            const again = await resolveAnalyze({ actorId: student.id, itemId: locked.id, total: 40, isCritical: true });
+            const undo = await resolveAnalyze({ actorId: student.id, itemId: fresh.id, total: 40, undo: true });
+            await settle();
+            const shows = student.items.get(locked.id)?.getFlag(MODULE_ID, bullets.TRUTH_BULLET_FLAGS.analyzed) ?? null;
+            read = [again?.refused ?? again, undo?.refused ?? undo, Boolean(shows)];
+        } finally {
+            for (const item of made) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["that bullet cannot be analysed now", "no Analyze of that bullet this chapter to take back", false]),
+            "Analyze on the GM read a bullet its holder may not read now, or took back a throw this chapter never had (the second "
+                + "ask of a locked bullet, an undo of a fresh one, the locked bullet identified)");
+    }],
+
+    ["the GM judges a plant by the plant's own bars, not a theft's (E40 item 4: R36's plant half, driven; was R36)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R36 (tier 0, trimmed in E40 to its Tamper half) read palm.mjs `plantOnPerson`
+         * as text: `def.plant?.threshold` and `def.plant?.unseen` named in it. It passed a mutant that named both and
+         * judged by the theft's bars all the same (`def.plant?.threshold ? def.threshold : def.threshold`, and the unseen
+         * bar likewise). ACT-01, 17.09: the player's menu measures a plant against `ACTIONS.palm.plant` (D10a: easier on
+         * both axes), and the GM's side, which decides, measured it against the steal's. Two students alone in one room
+         * (`aloneTogether`); the first plants a Tool on the second twice, as the GM's side is asked: once at the plant's
+         * bars exactly, once one under each. Read: what each answered (done, seen), and whether the second holds the Tool.
+         */
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ACTIONS, ITEM_CATEGORIES } = await import("./config.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const def = ACTIONS.palm;
+        const bar = def.plant?.threshold, unseen = def.plant?.unseen;
+        must(Number.isFinite(bar) && Number.isFinite(unseen) && (bar < def.threshold || unseen < def.unseen?.threshold),
+            "the plant's bars are not below the theft's on either axis - this would measure nothing");
+        const [planter, victim] = cast(2);
+        const fixture = await aloneTogether(planter, victim);
+        const NAME = "SUITE E40 R36 a planted tool", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const stowed = [], read = [];
+        try {
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(victim, "tool").ok) for (const i of victim.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(victim, "tool").ok, `${victim.name} has no hand free for a Tool - this would measure nothing`);
+            for (const [total, unseenTotal] of [[bar, unseen], [bar - 1, unseen - 1]]) {
+                const item = await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                must(item, `${planter.name} could not be handed a Tool - this would measure nothing`);
+                await sheetAuditIdle();
+                const answer = await V.plantOnPerson({ plannerId: planter.id, victimId: victim.id, itemId: item.id, total, isCritical: false,
+                    unseenTotal, unseenCritical: false });
+                await settle();
+                read.push([answer?.done ?? null, answer?.seen ?? null, victim.items.some(i => i.name === NAME)]);
+                for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            }
+        } finally {
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const [i, was] of stowed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[true, false, true], [false, true, false]]),
+            "the GM's side judged a plant by other bars than the plant's (at the plant's bars, and one under each: done, seen, "
+                + "the victim holds the Tool)");
+    }],
+
+    ["the GM's New trace places the trace the window was told, with its two flags and its words, and refuses a player and a kind off the form (E40 item 4: R91's rule, driven; was R91)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R91 (tier 0, trimmed in E40 to the dashboard's door and the window's keys) read
+         * investigation.mjs `openNewTrace` as text: the GM gate in its first 400 characters, `tiedToCrime: tieTaken(...)`
+         * and `reinforced: result.reinforced`, `placeRemnant(` and `setRemnantPublic(token, {` and `playerText:
+         * result.text`, the kind checked. It passed mutants that kept every one of those lines: `reinforced:
+         * result.reinforced && false` (a ticked box carried as unticked: the matched text is a prefix of it), and the
+         * public words written under `{ ...(result.text ? { playerText: result.text } : {}), playerText: "" }`. N-4, Dawid
+         * 21.09: a hand-placed trace can be tied or not and reinforced or not, and the GM's name and description reach the
+         * player's record. Here the window is answered as a GM fills it (`answerWindows`): the first room, Prep, evident,
+         * tied, reinforced, a name and a description; then a kind the list does not hold written into the form, then an
+         * Autopsy; then the function called from a player's console. Read: the ledger's row and public pair of the trace
+         * placed, what the three refused calls answered (the first, and whether it was told as no kind at all: without the
+         * kind's own check the Observe-number check below it still refuses one, in other words), whether the console's call
+         * asked any window, and `game.drpg.newTrace`.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        needs(world.atLeast("namedRooms", 1), "a room to place the trace in");
+        const inv = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const NAME = "SUITE E40 R91 a trace", TEXT = "SUITE E40 R91 what the student reads";
+        const before = new Set(canvas.scene.tokens.map(t => t.id));
+        let kind = "prep";
+        const handle = answerWindows((cfg, root) => {
+            const form = root.querySelector("form");
+            if (!form) return null;
+            form.room.selectedIndex = 0;
+            if (![...form.type.options].some(o => o.value === kind)) {
+                const option = document.createElement("option");
+                option.value = kind;
+                form.type.append(option);
+            }
+            form.type.value = kind;
+            form.vis.value = "evident";
+            form.tied.value = "tied";
+            form.reinforced.checked = true;
+            form.tname.value = NAME;
+            form.ttext.value = TEXT;
+            return press(cfg, root);
+        });
+        let read = null;
+        try {
+            const token = await inv.openNewTrace();
+            await settle();
+            must(token, "New trace placed nothing - this would measure nothing");
+            const row = R.remnantData(token), shown = R.remnantPublic(token);
+            kind = "suite-not-a-kind";
+            const warn = ui.notifications.warn, warned = [];
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            let offList;
+            try {
+                offList = [await inv.openNewTrace(), warned.includes(game.i18n.localize("DRPG.Investigation.newTraceBadType"))];
+            } finally {
+                ui.notifications.warn = warn;
+            }
+            kind = "autopsy";
+            const unfindable = await inv.openNewTrace();
+            const asked = handle.asked.length;
+            const consoled = await asConsole(() => inv.openNewTrace());
+            await settle();
+            read = [[row?.type ?? null, row?.tiedToCrime ?? null, row?.reinforced ?? null, shown?.name ?? null, shown?.playerText ?? null],
+                offList, unfindable, consoled, handle.asked.length - asked, game.drpg?.newTrace === inv.openNewTrace];
+        } finally {
+            handle.restore();
+            for (const doc of canvas.scene.tokens.filter(t => !before.has(t.id))) {
+                if (typeof R.removeRemnant === "function") await R.removeRemnant(doc);
+                else await doc.delete();
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["prep", true, true, NAME, TEXT], [null, true], null, null, 0, true]),
+            "New trace placed another trace than the window was told, or placed one it should refuse ([the row's kind, tie, "
+                + "reinforced; the public name and description], [a kind off the list, told it is no kind], an Autopsy, a player's console call, windows "
+                + "the console's call asked, game.drpg.newTrace)");
+    }],
+
+    ["a reshape's ruling is the GM's, reads the trace as it stands, bounds the words and refunds nothing on a decline (E40 item 4: R92's ruling half, driven; was R92)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R92 (tier 0, trimmed in E40 to the writers' census and the card's keys) read
+         * cleanup.mjs `applyReshapeRuling` and `declineReshapeRuling` as text: the GM gate, `findRemnantToken(tokenId)`,
+         * `if (data.reinforced)`, `plainText(name,` and `plainText(text,`, no refund in the decline's first 900
+         * characters. It passed a mutant that kept every one of those and handed the proposal's raw name to `reshapeTrace`
+         * (`name: String(name)` where `name: safeName` stood). N-3, Dawid 21.09: bounding is not ruling, and the ruling
+         * reads the world as it stands. A trace placed for one student (`placeRemnant`), and a proposal written on that
+         * student's row as a Tamper leaves one (`proposeOnRow`) before each ruling: Approve from a player's console; Approve
+         * on the trace reinforced since; Approve of a name with markup and over the limit and a text over its limit;
+         * Decline, the student's actions and Sanity read around it; Approve on a trace id nothing holds. Read: each answer,
+         * the trace's public name after each, the bounded pair, the resources moved by the decline.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const cleanup = await import("./cleanup.mjs");
+        const R = await import("./remnants.mjs");
+        const { cleanupAttemptStore } = await import("./gm-stores.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const limits = CLEANUP.transformAction?.limits ?? {};
+        must(Number.isFinite(limits.name) && Number.isFinite(limits.text), "the reshape's limits are not stated - this would measure nothing");
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const hadRow = foundry.utils.deepClone(await cleanup.attemptOf(who.id));
+        const token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: "SUITE E40 R92 a trace" });
+        must(token, "the fixture trace was not placed - this would measure nothing");
+        const nameNow = () => R.remnantPublic(canvas.scene.tokens.get(token.id))?.name ?? null;
+        const STRESS = "system.resources.stress.value", ACT = "system.resources.actions.value";
+        const resources = () => [STRESS, ACT].map(p => Number(foundry.utils.getProperty(who._source, p)) || 0);
+        const rule = async (proposal, run = cleanup.applyReshapeRuling, tokenId = token.id) => {
+            const attempt = await proposeOnRow(who, token.id, proposal);
+            return run({ actorId: who.id, tokenId, attempt });
+        };
+        let read = null;
+        try {
+            const start = nameNow();
+            // Written first: `asConsole` holds a player's seat for the call's synchronous start alone.
+            const consoleAttempt = await proposeOnRow(who, token.id, { name: "SUITE E40 R92 console" });
+            const consoled = await asConsole(() => cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id, attempt: consoleAttempt }));
+            await settle();
+            const afterConsole = nameNow();
+            await R.setRemnantFlags(token, { reinforced: true });
+            const reinforced = await rule({ name: "SUITE E40 R92 reinforced" });
+            await settle();
+            const afterReinforced = nameNow();
+            await R.setRemnantFlags(token, { reinforced: false });
+            const long = await rule({ name: `<b>SUITE E40 R92</b> ${"n".repeat(2 * limits.name)}`, text: "t".repeat(2 * limits.text) });
+            await settle();
+            const shown = R.remnantPublic(canvas.scene.tokens.get(token.id)) ?? {};
+            const was = resources();
+            const declined = await rule({ name: "SUITE E40 R92 declined" }, cleanup.declineReshapeRuling);
+            await settle();
+            const moved = resources().map((v, i) => v - was[i]);
+            const gone = await rule({ name: "SUITE E40 R92 gone" }, cleanup.applyReshapeRuling, "suiteNoSuchTrace");
+            await settle();
+            read = [[consoled, afterConsole === start], [reinforced, afterReinforced === start],
+                [long, /[<>]/.test(shown.name ?? "<"), (shown.name ?? "").length <= limits.name, String(shown.playerText ?? "").length <= limits.text,
+                    String(shown.name ?? "").includes("SUITE E40 R92")],
+                [Boolean(declined), moved, Boolean(canvas.scene.tokens.get(token.id))], gone];
+        } finally {
+            if (canvas.scene.tokens.get(token.id)) {
+                if (typeof R.removeRemnant === "function") await R.removeRemnant(canvas.scene.tokens.get(token.id));
+                else await canvas.scene.tokens.get(token.id).delete();
+            }
+            if (hadRow) await cleanupAttemptStore.patch(who.id, hadRow);
+            else await cleanupAttemptStore.drop(who.id);
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[null, true], [null, true], [true, false, true, true, true], [true, [0, 0], true], null]),
+            "a reshape's ruling ran for a player, on a reinforced trace or on none, wrote unbounded words, or a decline moved "
+                + "the resources ([the console's answer, the name unchanged], [on a reinforced trace], [approved, markup in the name, "
+                + "the name and the description within their limits, the name the proposal's], [declined, Sanity and actions moved, "
+                + "the trace standing], the answer on a trace nothing holds)");
+    }],
+
+    ["a planted item goes to the first Search that finds something, never to one that misses (E40 item 4: R34's rule, driven; was R34)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R34 (tier 0, trimmed in E40 to the plant check's late answer and the one
+         * caller of `takePlant`) read search-tokens.mjs and the action family as text: no `takePlant` in `runSpend`,
+         * `SearchTokens.takePlant(` once and inside `searchDraw`, and `searchDraw(` standing after `searchSpecific(`,
+         * `searchNothing(` and `searchStash(` in `performSearch`. It passed a mutant that kept all of that and took the
+         * plant at the miss as well (`searchNothing` handed a call of `searchDraw` first, whose answer it drops). ACT-03,
+         * 17.09: the plant left the room on every spend, a failed Search used it up and the next successful one in any
+         * room was handed it. A student alone in a room with no stash (`standAlone`), a thing planted there; a free Search
+         * whose roll misses, then one whose roll reaches the first tier, each with its windows' defaults (`answerWindows`)
+         * and the character's `rollTrait` answering the total. Read: whether the miss granted anything, and whether the hit
+         * granted the planted thing.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const T = await import("./traps.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const bars = ACTIONS.search.thresholds.map(t => t.min);
+        const low = Math.min(...bars);
+        must(low > 2, "the Search's lowest bar leaves no total under it - this would measure nothing");
+        const stood = await standAlone(actor);
+        const region = V.regionsByName(canvas?.scene).get(stood.room);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        const start = new Set(actor.items.map(i => i.id)), had = new Set(start);
+        const windows = answerWindows(press);
+        const read = [];
+        try {
+            must(region, `${stood.room} has no region`);
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [], [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+            must(SearchTokens.left(stood.room, canvas?.scene) >= 2 && !SearchTokens.sealed(stood.room, canvas?.scene),
+                `${stood.room} has fewer than two search tokens left - this would measure nothing`);
+            const identity = await T.plantItem("SUITE-E40-R34", stood.room, { sceneId: canvas.scene.id, name: "SUITE E40 R34 a planted thing" });
+            must(identity, "nothing was planted - this would measure nothing");
+            for (const total of [low - 1, low]) {
+                actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
+                    options: { roll: { trait: "instinct" } } } });
+                await rolls.performAction(actor, "search", { free: true });
+                await settle();
+                const fresh = actor.items.filter(i => !had.has(i.id));
+                for (const i of fresh) had.add(i.id);
+                read.push([fresh.length, fresh.some(i => i.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identity)]);
+            }
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            for (const i of actor.items.filter(i => !start.has(i.id) || i.name === "SUITE E40 R34 a planted thing")) await i.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([[0, false], [1, true]]),
+            "a Search that missed took the plant, or the first one that found something was not handed it "
+                + "([things granted, the plant among them] for a total under the lowest bar, then at it)");
+    }],
+
+    ["a Key row's Save pushes the plan's words onto its trace only when the row was pointed at it, not on another field's edit (E40 item 4: R32's plan-row half, driven; was R32)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R32 (tier 0, trimmed in E40 to its form-reading half) read investigation.mjs
+         * `saveKeyPlan` as text: `repointed` and `stored.name` in it. It passed a mutant that kept both and pushed the
+         * plan's words on every Save (`const repointed = "token" in take || true;`). F6, 17.09: Save pushed the Key plan's
+         * old name back over a rename on the Traces tab. A Key trace placed, a chapter nobody has planned made the clock's,
+         * its plan's first row pointed at the trace with a name of the plan's own; the trace renamed as the Traces tab
+         * renames it (`setRemnantPublic`); the dashboard's Save of that row with its note alone changed, as the form hands it
+         * on (`applyDashboardSave`). Then a second trace, and the row pointed at it. Read: the first trace's name after the
+         * note's Save, and the second's after the repoint.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./gm-stores.mjs");
+        const PLAN = "SUITE E40 R32 the plan's name", RENAMED = "SUITE E40 R32 renamed on the Traces tab";
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        const placed = [];
+        let read = null;
+        try {
+            for (const x of [100, 300]) {
+                const token = await R.placeRemnant({ type: "key", visibility: "evident", x, y: 100, scene: canvas.scene, chapter: fresh, note: "SUITE E40 R32 a Key" });
+                must(token?.id, "the fixture's Key trace was not placed - this would measure nothing");
+                placed.push(token);
+            }
+            const [first, second] = placed;
+            await setClock({ chapter: fresh });
+            await I.setKeyPlan({ chapter: fresh, entries: [{ scale: "standard", tokenId: first.id, sceneId: canvas.scene.id, name: PLAN }] });
+            await gmStoresIdle();
+            await R.setRemnantPublic(first, { name: RENAMED });
+            await settle();
+            let plan = I.keyPlan();
+            must(plan.entries[0]?.tokenId === first.id && R.remnantPublic(first)?.name === RENAMED,
+                "the plan's row does not point at the renamed trace - this would measure nothing");
+            await I.applyDashboardSave({ traces: [], keyRows: [{ slot: 0, scale: plan.entries[0].scale,
+                fields: { note: { value: "SUITE E40 R32 a note", drawn: plan.entries[0].note ?? "" } } }] }, { traces: [], plan });
+            await settle();
+            const afterNote = R.remnantPublic(first)?.name ?? null;
+            plan = I.keyPlan();
+            await I.applyDashboardSave({ traces: [], keyRows: [{ slot: 0, scale: plan.entries[0].scale,
+                fields: { token: { value: `${second.id}|${canvas.scene.id}`, drawn: `${first.id}|${canvas.scene.id}` } } }] }, { traces: [], plan });
+            await settle();
+            read = [afterNote, I.keyPlan().entries[0]?.tokenId === second.id, R.remnantPublic(second)?.name ?? null];
+        } finally {
+            const rows = Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await setClock(clock);
+            for (const token of placed) {
+                const doc = canvas.scene.tokens.get(token.id);
+                if (doc) await R.removeRemnant(doc);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([RENAMED, true, PLAN]),
+            "a Key row's Save put the plan's name on its trace over a rename, or a repoint did not carry it (the first trace's "
+                + "name after the note's Save, the row on the second trace, the second's name)");
+    }],
+
+    ["a Tamper window closed after a landed concealment roll keeps its price, and one closed with nobody watching gives it back (E40 item 4: R37's rule, driven; was R37)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R37 (tier 0, removed in E40) read cleanup.mjs as text: `concealFromWitnesses`
+         * returning "rolled", `releaseTamper`'s `if (rolled)` branch without `refundPrice(`, and no `spendStress(` or
+         * `isCleaner(` in `releaseTamper`. It passed a mutant that kept all of that and asked `releaseTamper` with
+         * `rolled: cover === "roll"` at `attemptCleanup`'s closed window (never true). ACT-04's review, 17.09: a closed
+         * Tamper window refunded the price after a concealment roll had landed and paid its Hope. A student stood with
+         * another in one room (`aloneTogether`: watched), then alone in one (`standAlone`), each with an action spent by
+         * nothing yet and no Sanity marked, Tampers a trace (`attemptCleanup`, the tile's road) with the windows' defaults
+         * (`answerWindows`); the character's `rollTrait` lands the concealment (a 30 with Hope) and closes the main roll's
+         * window. Read for each: the actions and the Sanity marks moved.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to one, or to the two");
+        const [who, other] = cast(2);
+        const Cl = await import("./cleanup.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(who._source, ACT), [STRESS]: foundry.utils.getProperty(who._source, STRESS) };
+        const marks = () => Number(foundry.utils.getProperty(who._source, STRESS)) || 0;
+        must(actionsMax(who) >= 1, `${who.name} has no action to spend - this would measure nothing`);
+        const F = await cleanupFixture(who, "SUITE E40 R37 a trace");
+        const windows = answerWindows(press);
+        const read = [];
+        try {
+            must(F.trace, "the fixture's trace was not placed - this would measure nothing");
+            for (const stand of ["watched", "alone"]) {
+                const stood = stand === "watched" ? await aloneTogether(who, other, { asked: true }) : await standAlone(who);
+                try {
+                    await who.update({ [ACT]: actionsMax(who), [STRESS]: 0 });
+                    await settle();
+                    const thrown = [];
+                    who.rollTrait = async (trait, config) => {
+                        thrown.push(trait);
+                        return thrown.length === 1 && stand === "watched" ? { total: 30, isCritical: false, withHope: true } : null;
+                    };
+                    const [actions, stress] = [actionsLeft(who), marks()];
+                    await Cl.attemptCleanup(who, F.trace.id, { viaAction: true });
+                    await settle();
+                    read.push([stand, thrown.length, actionsLeft(who) - actions, marks() - stress]);
+                } finally {
+                    delete who.rollTrait;
+                    await stood.back();
+                }
+            }
+        } finally {
+            windows.restore();
+            await F.putBack();
+            await who.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["watched", 2, -1, 0], ["alone", 1, 0, 0]]),
+            "a Tamper window closed after a landed concealment roll gave the price back, or one closed unwatched kept it "
+                + "([stood, rolls asked, actions moved, Sanity marks moved] watched, then alone)");
+    }],
+
+    ["Analyze takes its price before the dice, gives it back on a closed window, is free for a GM alone, and a refusal's card refunds the table's step, not its own amount (E40 item 4: R46's rule, driven; was R46)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R46 (tier 0, trimmed in E40 to its order against the GM check and two
+         * censuses) read action-analyze.mjs `performAnalyze` and messenger-app.mjs `refundOnCard` as text: `payPrice(`
+         * before `rollTrait(`, the free road's `options.free && game.user.isGM` in one of two spellings, `refundPrice(`
+         * named, `PRICE_CHAINS` in the refund and no `amount: data.` read. It passed mutants that kept every one of those:
+         * a free road open to anybody asking for it (`Boolean(options.free) && game.user.isGM || Boolean(options.free)
+         * && !game.user.isGM`: the spelling it matched still in it), and a refund that took the card's amount through a
+         * name of its own (`const amount = Number(data.amount) || step.amount`). T-1: the
+         * price is taken before the dice and a closed roll window keeps none of it; the free road is the GM's; and the
+         * card a refusal is pressed on is authored on the player's own client, so what comes back is the table's step.
+         * A student with a player and an analysable bullet: Analyze asked as a player's console asks it, `free: true`
+         * (`asConsole`: the free road is read before the first await), then as the GM with `free: true`, the
+         * character's `rollTrait` noting the actions it sees and closing its window. Then a refusal card in the
+         * student's thread naming an action paid and an amount of 5, pressed as a GM presses it (`wireCallActions`).
+         * Read: the actions moved at the dice and after each Analyze, and moved by the press.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the refusal card goes to a player's thread");
+        const { performAnalyze } = await import("./action-analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const step = PRICE_CHAINS.analyze?.steps?.[0];
+        must(step?.pay === "action" && actionsMax(student) >= step.amount + 1,
+            "the Analyze chain does not open on an action, or the student cannot spend one - this would measure nothing");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(student._source, ACT), [STRESS]: foundry.utils.getProperty(student._source, STRESS) };
+        const since = new Set(game.messages.contents.map(m => m.id));
+        let item = null;
+        const read = [];
+        try {
+            item = await bullets.createTruthBullet(student, { name: "SUITE E40 R46 a bullet", realType: "prep" });
+            must(item, "the fixture's bullet was not made");
+            for (const asked of ["console", "gm"]) {
+                await student.update({ [ACT]: actionsMax(student), [STRESS]: 0 });
+                await settle();
+                const start = actionsLeft(student);
+                let atDice = null;
+                student.rollTrait = async () => { atDice = actionsLeft(student) - start; return null; };
+                const run = () => performAnalyze(student, ACTIONS.analyze, { free: true, bulletId: item.id });
+                await (asked === "console" ? asConsole(run) : run());
+                await settle();
+                delete student.rollTrait;
+                read.push([asked, atDice, actionsLeft(student) - start]);
+            }
+            await student.update({ [ACT]: 0 });
+            await settle();
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await callGm(student, { title: "SUITE E40 R46 a refusal", actions: [{ action: "decline", label: "SUITE refuse",
+                data: { by: student.id, paid: "action", amount: "5", grant: "false", words: "refused" } }] });
+            const withButton = () => game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+            await until(withButton, 8000);
+            const card = withButton();
+            must(card, "the refusal card was not posted");
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const pressed = body.querySelector('[data-drpg-call="decline"]');
+            must(pressed, "the refusal card's button was not drawn");
+            pressed.click();
+            await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+            await settle();
+            read.push(["refused", actionsLeft(student)]);
+        } finally {
+            delete student.rollTrait;
+            if (item) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await student.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["console", -step.amount, 0], ["gm", 0, 0], ["refused", step.amount]]),
+            "Analyze paid after the dice, kept a price its closed window never rolled for, let a player's console take the free road, "
+                + "or a refusal's card gave back its own amount ([asked as, actions moved at the dice, after]; [the press, the actions after it from 0])");
+    }],
+
+    ["an Analyze of a bullet whose answer key holds no reading publishes its trace's reading (E40 item 4: R49's reading half, driven; was R49)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R49 (tier 0, trimmed in E40 to the copy makers' and the give dialog's lines)
+         * read truth-bullets.mjs `publishReading` as text: `secret.analyzedText || remnantPublicById(` in it. It passed a
+         * mutant that kept that text and read a field the trace's public record does not hold (`?.analyzedTextX`). T-2's
+         * road, which Analyze and the chapter's reveal share: a bullet whose answer key has no reading asks the trace it
+         * came from. A trace placed and given a reading on its public record, then a bullet of it on one student made with
+         * no reading of its own; the bullet analysed on the GM at 40. Read: the reading on the answer key before, and
+         * the bullet's reading flag after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const [student] = cast(1);
+        const R = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const READING = "SUITE E40 R49 what the trace says when read";
+        let token = null, item = null, read = null;
+        try {
+            token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: "SUITE E40 R49 a trace" });
+            must(token, "the fixture trace was not placed - this would measure nothing");
+            await R.setRemnantPublic(token, { analyzedText: READING });
+            await settle();
+            must(R.remnantPublic(token)?.analyzedText === READING, "the trace's reading was not written - this would measure nothing");
+            item = await bullets.createTruthBullet(student, { name: "SUITE E40 R49 a bullet", realType: "prep", visibility: "evident",
+                remnantId: token.id, sceneId: canvas.scene.id });
+            must(item, "the fixture's bullet was not made");
+            await settle();
+            const keyed = bullets.secretOf(item.uuid)?.analyzedText ?? "";
+            const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 40 });
+            await settle();
+            const live = student.items.get(item.id);
+            read = [keyed, verdict?.success ?? null, live?.getFlag(MODULE_ID, bullets.TRUTH_BULLET_FLAGS.analyzedText) ?? null];
+        } finally {
+            if (item) {
+                const uuid = item.uuid;
+                try { await student.items.get(item.id)?.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            const doc = token ? canvas.scene.tokens.get(token.id) : null;
+            if (doc) await R.removeRemnant(doc);
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["", true, READING]),
+            "an Analyze of a bullet with no reading on its answer key did not publish its trace's reading (the answer key's "
+                + "reading before, the verdict, the bullet's reading after)");
+    }],
+
+    ["Tamper takes its price after the concealment and before the dice, and a watched attempt on a full Sanity track is refused before either (E40 item 4: R47's order, driven; was R47)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R47 (tier 0, trimmed in E40 to the GM side's charges, the claim's road and
+         * Stage 6's attempt) read cleanup.mjs `attemptCleanup` as text: `concealFromWitnesses(`, `chargeTamper(` and
+         * `rollTrait(` in that order, and `tamperWatchBlock(` named. It passed mutants that kept both: a price paid
+         * before the concealment through `payPrice` beside the `chargeTamper` it read (the attempt paid twice, the first
+         * time before the cover story could take the point), and the watch block's refusal behind `if (watched && false)`.
+         * T-1: the charge sits between the concealment and the dice, because the concealment's own Sanity can take the
+         * point the price needed; a full track stops an attempt somebody is watching. A student stood with another in one
+         * room (`aloneTogether`), Tampering a trace (`attemptCleanup`, the tile's road) with the windows' defaults; the
+         * character's `rollTrait` noting the actions moved at each roll it is asked, landing the concealment and closing
+         * the main roll. Then the same with the student's Sanity track full. Read: per roll asked, the actions moved
+         * then; the actions moved after; and for the full track, the rolls asked and the actions moved.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the two");
+        const [who, other] = cast(2);
+        const Cl = await import("./cleanup.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const ACT = `system.resources.${ACTIONS_RESOURCE}.value`, STRESS = "system.resources.stress.value";
+        const had = { [ACT]: foundry.utils.getProperty(who._source, ACT), [STRESS]: foundry.utils.getProperty(who._source, STRESS) };
+        const max = Number(who.system.resources?.stress?.max) || 0;
+        must(actionsMax(who) >= 1 && max >= 1, `${who.name} has no action to spend or no Sanity track - this would measure nothing`);
+        const F = await cleanupFixture(who, "SUITE E40 R47 a trace");
+        const windows = answerWindows(press);
+        const stood = await aloneTogether(who, other, { asked: true });
+        const read = [];
+        try {
+            must(F.trace, "the fixture's trace was not placed - this would measure nothing");
+            for (const track of [0, max]) {
+                await who.update({ [ACT]: actionsMax(who), [STRESS]: track });
+                await settle();
+                const start = actionsLeft(who), seen = [];
+                who.rollTrait = async () => {
+                    seen.push(actionsLeft(who) - start);
+                    return seen.length === 1 ? { total: 30, isCritical: false, withHope: true } : null;
+                };
+                await Cl.attemptCleanup(who, F.trace.id, { viaAction: true });
+                await settle();
+                delete who.rollTrait;
+                read.push([track === max ? "full" : "empty", seen, actionsLeft(who) - start]);
+            }
+        } finally {
+            delete who.rollTrait;
+            windows.restore();
+            await stood.back();
+            await F.putBack();
+            await who.update(had);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["empty", [0, -1], -1], ["full", [], 0]]),
+            "Tamper took its price before the concealment or after the dice, or a watched attempt on a full track went ahead "
+                + "([the Sanity track, the actions moved at each roll asked, the actions moved after])");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*

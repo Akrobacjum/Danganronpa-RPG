@@ -2498,6 +2498,12 @@ const REGRESSIONS = [
     }],
 
     ["R32 - the case dashboard saves the rows on screen, and a plan row only when it was edited", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the form's reader. The plan row's half - its words
+           pushed onto the trace only when the row was pointed at it - is tier 2's "a Key row's Save pushes the plan's words
+           onto its trace only when the row was pointed at it, not on another field's edit (E40 item 4: R32's plan-row
+           half, driven; was R32)". The rows read off the form (investigation.mjs `readCaseFields`) are not exported, and a
+           row the filter hides exists only in the open dashboard: driving it would need an export of the reader or the
+           dashboard opened and filtered. */
         /*
          * F1: a trace the filter hides has no inputs, and Save wrote its blanks over it.
          * F6: Save pushed the Key plan's old name back over a rename on the Traces tab.
@@ -2505,11 +2511,6 @@ const REGRESSIONS = [
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         ok(/traces\.filter\([^)]*\)\s*=>\s*q\(`name\./.test(inv),
             "the dashboard's Save reads a row the filter is hiding as blanks again");
-        // Cut at `keyRowShows` since E09 C16, which took `stripDraft` out with Save's placing.
-        const plan = bodyOf(inv, "async function saveKeyPlan", { until: "function keyRowShows" });
-        ok(plan.length > 200, "saveKeyPlan is gone or has moved past keyRowShows");
-        ok(/repointed/.test(plan) && /stored\.name/.test(plan),
-            "a Key plan row is pushed onto its trace whether or not anybody edited it");
     }],
 
     ["R33 - no action pays for its roll after the dice", async () => {
@@ -2533,6 +2534,13 @@ const REGRESSIONS = [
     }],
 
     ["R34 - a planted item is taken only by a Search that found something", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the token spend's and the plant run's shape and a
+           census of callers. The rule on the Search's own road - a miss leaves the plant, the first find takes it - is tier
+           2's "a planted item goes to the first Search that finds something, never to one that misses (E40 item 4: R34's
+           rule, driven; was R34)", which replaced this test's reading of `performSearch`'s order. Read here: no
+           `takePlant` in `runSpend` and `searchedBy` asked in `runTakePlant` (runs of the primary's table, reached by a
+           player's request: scenario 30 sends the plant's packets from a player's browser), the plant check's late answer kept for
+           the GM's window (R165), and `SearchTokens.takePlant(` called once in the action family. */
         /*
          * ACT-03 (17.09). The GM took the plant out of the room on every token spend,
          * before anybody knew what the dice said; a failed Search used it up and the
@@ -2550,17 +2558,8 @@ const REGRESSIONS = [
         // one back (E31 review): the wait keeps that late answer for the GM's window, not for one more clock (R165).
         ok(/\blateMs:\s*(?:PLANT_WINDOW_MS|TIMING\.plantWindowMs)\b/.test(fnSource(tokens, "requestPlantCheck")),
             "the plant check drops a late answer before the GM's window for giving the plant back has closed");
-        const draw = bodyOf(rolls, "async function searchDraw(", { until: "async function performSearch(" });
-        ok(draw.includes("SearchTokens.takePlant("), "the Search no longer asks for a plant");
         equal((rolls.match(/SearchTokens\.takePlant\(/g) ?? []).length, 1,
             "something other than the draw takes the plant out of the room");
-        const search = bodyOf(rolls, "async function performSearch(");
-        const take = search.indexOf("searchDraw(");
-        ok(take > 0, "performSearch no longer draws anything");
-        for (const marker of ["searchSpecific(", "searchNothing(", "searchStash("]) {
-            const at = search.indexOf(marker);
-            ok(at > 0 && at < take, `the plant is taken before ${marker.slice(0, -1)} can end the Search`);
-        }
     }],
 
     ["R35 - the Eclipse ends what was bought for the time of day, and the refill box only refills", async () => {
@@ -2582,18 +2581,15 @@ const REGRESSIONS = [
     }],
 
     ["R36 - the GM side judges a plant and a Tamper by the rules the player's menu used", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the Tamper half, read as text and not driven on this
+           line (a Tamper on another student's trace, and one on an incident trace by a participant, through cleanup.mjs's
+           resolver). The plant half is tier 2's "the GM judges a plant by the plant's own bars, not a theft's (E40 item 4:
+           R36's plant half, driven; was R36)". */
         /*
          * ACT-01: the plant was judged against the steal thresholds. ACT-02: Tamper
          * refused every trace somebody else had left, after the menu offered it.
          */
         const sources = new Map(await otherSources());
-        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone
-        // was read. `plantOnPerson` is palm.mjs's last function now, cut by name: an `until: "\nexport "` would run on
-        // into room-setup.mjs.
-        const vault = stripComments(vaultText(sources));
-        const plant = fnSource(vault, "plantOnPerson");
-        ok(/def\.plant\?\.threshold/.test(plant) && /def\.plant\?\.unseen/.test(plant),
-            "a plant is judged against the steal thresholds again");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         ok(!/viaAction\s*&&\s*data\.sourceActor\s*!==\s*actor\.id/.test(cleanup),
             "Tamper refuses a trace somebody else left again, after its menu offered it");
@@ -2602,40 +2598,28 @@ const REGRESSIONS = [
     }],
 
     ["R37 - a closed Tamper window after a landed concealment roll refunds nothing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is one read of `releaseTamper`'s inputs. The rule - a
+           window closed after a landed concealment roll keeps the price, one closed unwatched gives it back, and nothing
+           more is charged - is tier 2's "a Tamper window closed after a landed concealment roll keeps its price, and one
+           closed with nobody watching gives it back (E40 item 4: R37's rule, driven; was R37)". Read here: the release
+           does not ask `isCleaner` (who pays is read off the receipt), which the test's student, no cleaner, does not
+           reach. */
         /*
          * Review of ACT-04 (17.09). `concealFromWitnesses` ended with `return true`, the
          * callers refused a refund only for "rolled", and so the concealment roll's Hope
          * came with the action back. A killer on their own night paid nothing at all.
-         *
-         * REWRITTEN FOR T-1's SHAPE. The price is taken AFTER the concealment now, so
-         * the rule is no longer "charge the Sanity in the refund" - it is "keep what was
-         * paid and take nothing else". Written against the old names this test passed
-         * vacuously: `indexOf` returned -1, `slice(-1)` handed it one character, and
-         * both assertions were about an empty string.
          */
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
-        const conceal = bodyOf(cleanup, "async function concealFromWitnesses", { until: "\nasync function " });
-        ok(/return "rolled";/.test(conceal) && !/return true;/.test(conceal),
-            "concealFromWitnesses no longer tells its callers a concealment roll landed");
-
-        /*
-         * Bounded by the next DECLARATION, not by a character count and not by a
-         * comment: `stripComments` blanks a comment to spaces rather than deleting
-         * it, so there is no "/**" left to look for - and 900 characters runs into
-         * `stageSixDef`, which asks `isCleaner` for its own good reasons. The kit's
-         * fnSource reads it that way (E30).
-         */
         const release = fnSource(cleanup, "releaseTamper");
-        const kept = bodyOf(release, "if (rolled)", { until: "if (charge)" });
-        ok(kept.length > 20 && !/refundPrice\(/.test(kept),
-            "a closed window after a landed concealment roll hands the price back again");
-        ok(!/spendStress\(/.test(release),
-            "the kept charge is charged a second time - the price was taken before the roll");
+        ok(release.length > 100, "releaseTamper is gone or cut short");
         ok(!/isCleaner\(/.test(release),
             "the release asks isCleaner again instead of reading what was paid");
     }],
 
     ["R40 - no action can be withdrawn from after the roll for who can see you", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census - no carry-on question after a concealment roll in the action
+           family or cleanup.mjs, none in Sabotage - and a branch of action-project.mjs `concealSabotage`, which is not
+           exported (driving its watched branch would need an export of it, or Sabotage's windows answered as a player). */
         /*
          * Dawid, 18.09. Sabotage used to ask "carry on anyway? nothing is spent yet"
          * after a failed, public concealment roll and hand the action back - while that
@@ -2664,6 +2648,11 @@ const REGRESSIONS = [
     }],
 
     ["R39 - the unfound-Key charge counts every Key Remnant that was found", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): which readers the fee, the charge and the planner's finders call. What
+           the fee counts is tier 2's: "the Key fee is the same with Save and without", "a dead student's find does not
+           count toward the Key fee", "a dead student's find is not found on the Key tab" and "a Key copy whose trace is
+           gone counts in the chapter its answer key names and not in the one its holder writes". Read here only, not
+           driven on this line: `keyPlanStatus` counting a find off the plan, and the bar taking the case's own count. */
         /*
          * F18, Dawid 17.09. "No slot" is the only option once five rows are filled, and
          * such a trace is a real Key clue - but the count that bills Despair read the
@@ -2957,6 +2946,13 @@ const REGRESSIONS = [
     }],
 
     ["R46 - Analyze pays the chain before the dice, and every road gives it back", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is order against the GM check and two censuses. The price
+           before the dice, the closed window's refund, the free road kept to a GM and the refusal card's refund from the
+           table are tier 2's "Analyze takes its price before the dice, gives it back on a closed window, is free for a GM
+           alone, and a refusal's card refunds the table's step, not its own amount (E40 item 4: R46's rule, driven; was
+           R46)". Read here: the chain quoted, not `canAfford`; the GM check before the price (a road with no GM cannot be
+           made in the harness, whose suite runs on a GM); the three roads that can end empty each naming `refundPrice(`
+           (not driven on this line); and every `gmRulingActions` call handed a receipt (a census). */
         /*
          * T-1. Three things at once, and all three are about ORDER or about who is
          * allowed to claim what: the price is taken before the dice, a road that
@@ -2973,15 +2969,8 @@ const REGRESSIONS = [
             "performAnalyze is back to counting pips instead of quoting the chain");
         ok(analyze.includes("quotePrice(") && analyze.includes("payPrice("),
             "performAnalyze stopped asking or stopped paying the chain");
-        ok(analyze.indexOf("payPrice(") < analyze.indexOf("rollTrait("),
-            "the price is taken after the dice again");
         ok(analyze.indexOf("gmOnline()") < analyze.indexOf("payPrice("),
             "a road with no GM on it is paid for before anybody notices");
-        ok(/options\.free\)? *&& *game\.user\.isGM|game\.user\.isGM *&& *Boolean\(options\.free/.test(analyze)
-            || /const free = Boolean\(options\.free\) && game\.user\.isGM;/.test(analyze),
-            "the free bypass is reachable from a player's macro, and it now skips Hope and Sanity");
-        ok(analyze.includes("refundPrice("),
-            "a closed roll window keeps the price it never rolled for");
 
         for (const road of ["analyseBullet", "askForHint", "locateStash"]) {
             const body = fnSource(src, road);
@@ -2997,22 +2986,16 @@ const REGRESSIONS = [
             ok(!/^\d+$/.test(argument) && argument !== "cost",
                 `gmRulingActions is still being handed a bare cost: ${argument}`);
         }
-
-        const messenger = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText));
-        const body = bodyOf(messenger, "function refundOnCard(", { until: "async function ruleCreateItem(" });
-        ok(body.length > 300 && body.includes("async function ruleDecline("),
-            "the refusal's refund has moved out of refundOnCard and ruleDecline");
-        ok(body.includes("PRICE_CHAINS"),
-            "the refund no longer takes its amount from the table, so a card can name its own");
-        // `cost` may still say WHETHER anything was paid (a "0" card refunds
-        // nothing); what it may never do is say how much comes back.
-        ok(!/amount:\s*(?:Number\()?data\./.test(body)
-            && !/refund\w*\(actor,\s*(?:Number\()?data\./.test(body),
-            "the refund reads an amount off a card the player authored");
     }],
 
     ["R47 - Tamper pays one price, on the client, after the concealment", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is Stage 6's attempt, the GM side's charges and the
+           claim's road. `attemptCleanup`'s order - the price after the concealment and before the dice - and its watch
+           block are tier 2's "Tamper takes its price after the concealment and before the dice, and a watched attempt on
+           a full Sanity track is refused before either (E40 item 4: R47's order, driven; was R47)". Read here: the same
+           order in `attemptStageSix` (it needs an incident's Stage 6: not driven on this line), the step named on both
+           attempts' rolls, every GM-side Sanity charge behind a missing claim (a census), `validPrice` and `handBack`
+           declared, the concealment's own refund, and the price carried by the bridge's run and a Reroll's replay. */
         /*
          * T-1. Tamper used to cost an action AND a Sanity mark: the action on the
          * player's client, the mark on the GM's. This reads the three rules that
@@ -3026,7 +3009,8 @@ const REGRESSIONS = [
          */
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
 
-        for (const fn of ["attemptCleanup", "attemptStageSix"]) {
+        // Stage 6's attempt alone: `attemptCleanup`'s order and its watch block are driven in tier 2 (above).
+        for (const fn of ["attemptStageSix"]) {
             const body = bodyOf(cleanup, `export async function ${fn}`, { until: "\nexport " });
             const conceal = body.indexOf("concealFromWitnesses(");
             const charge = body.indexOf("chargeTamper(");
@@ -3037,7 +3021,9 @@ const REGRESSIONS = [
             ok(charge < dice, `${fn} charges after the dice`);
             ok(body.includes("tamperWatchBlock("),
                 `${fn} stopped refusing a watched attempt on a full Sanity track`);
-            ok(body.includes("cleanupPrice"),
+        }
+        for (const fn of ["attemptCleanup", "attemptStageSix"]) {
+            ok(bodyOf(cleanup, `export async function ${fn}`, { until: "\nexport " }).includes("cleanupPrice"),
                 `${fn} does not tell the GM's side which step paid`);
         }
 
@@ -3137,6 +3123,11 @@ const REGRESSIONS = [
     }],
 
     ["R49 - a bullet whose badge says Neutral is not treated as identified", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the copy makers and the give dialog. Analyze's road
+           to the trace's reading is tier 2's "an Analyze of a bullet whose answer key holds no reading publishes its
+           trace's reading (E40 item 4: R49's reading half, driven; was R49)". Read here: observe.mjs `createFind` and
+           handover.mjs `mintLootBullet` (neither exported: reached through an Observe ruled by a GM and a body's loot, not
+           driven on this line), and the give dialog's two Neutral guards in gm-items.mjs (a GM's window). */
         /*
          * T-2's precondition, and a defect on its own. A Key or Final trace found
          * on an ordinary success arrived `analyzed: true` under a badge reading
@@ -3153,20 +3144,6 @@ const REGRESSIONS = [
         const gmi = stripComments(sources.get("gm-items.mjs") ?? "");
         equal((gmi.match(/analyzed: result\.shown === "neutral"/g) ?? []).length, 2,
             "the give dialog lost one of its two explicit-Neutral guards");
-
-        /*
-         * AND THE SENTENCE ITSELF, which is `analyzedText` on the trace's `public`
-         * record, in the bullet's secret and on the item once it is identified -
-         * the model 1.2.47 shipped, whose own scenario ("the analysis half of a
-         * trace is not on the item until it is bought") holds the four places it
-         * must not leak. What is read here is the two roads that model did not
-         * have when T-2 met it.
-         */
-        // In truth-bullets.mjs `publishReading` since E09 C8: the write Analyze and the chapter's reveal share.
-        const tb = stripComments(sources.get("truth-bullets.mjs") ?? "");
-        const publish = bodyOf(tb, "export async function publishReading(");
-        ok(/secret\.analyzedText\s*\|\|\s*remnantPublic(?:ById)?\(/.test(publish),
-            "publishing a reading no longer asks the trace when a bullet's secret holds no reading");
 
         // A looted trace is usually already revealed, so `revealSourceOf` returns
         // before it reconciles the new copy: the loot mint reads the ledger itself.
@@ -3396,6 +3373,10 @@ const REGRESSIONS = [
     }],
 
     ["R53 - the Tamper tile's late answer does not eat the reason it is locked", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the tile is repainted only on an open character sheet (sheet.mjs
+           `sheetsFor`), and the headless harness has no Daggerheart sheet to open (`env.systemSheets`, in
+           skip-baseline.json); `paintTamper` and `askTamper` are not exported. Driving it would need an export of
+           `paintTamper`, or a sheet the harness can draw. */
         /*
          * MEASURED ON A PLAYER'S SHEET IN A CLASS TRIAL (19.09). Every tile carried
          * "The Class Trial is in session..."; a second later, when the GM's ledger
@@ -3510,30 +3491,54 @@ const REGRESSIONS = [
          * `keepLive` carries the fields somebody touched and redraws everything else
          * from the world - so anything applied by an EVENT is applied exactly once,
          * and anything captured as a NODE is detached a moment later.
+         *
+         * E40 item 4, slice B, 13.11.2026 (a): the two wirings are called on a detached element, as a rebuild hands them
+         * one. utils.mjs `wirePortraitPickers`: a picture whose hidden field holds another path is put in step, the
+         * picker opened by a click (Foundry's FilePicker stood in for by a class that keeps what it was given), the
+         * window's nodes replaced as a rebuild replaces them, and the picker's answer given. investigation.mjs
+         * `wireKeyLimitOverride`: rows drawn disabled under a ticked override, as a redraw that restored the tick draws
+         * them, then the tick taken off. Until then the test read the functions' text; mutants that kept it - the in-step
+         * guard joined by `&& false`, every limited row disabled again after `apply()` - passed it. What stays text:
+         * the dashboard re-wiring the override after a rebuild (`wireCase`, not exported) and `keepLive`'s order.
          */
-        const sources = new Map(await otherSources());
-        const utils = stripComments(sources.get("utils.mjs") ?? "");
-        // Cut to the function after it, `eachPane` since E44 C4a (it stands where `panelTabs` stood).
-        const picker = bodyOf(utils, "export function wirePortraitPickers", { until: "export function eachPane" });
-        ok(picker.length > 300, "wirePortraitPickers is gone or has moved past eachPane");
-        const cb = picker.indexOf("callback:");
-        ok(cb > 0, "wirePortraitPickers no longer hands the FilePicker a callback");
-        ok(bodyOf(picker, "callback:").includes("querySelector"),
-            "the picker's callback writes to the nodes it captured before the picker opened; a "
-            + "live window has replaced both by the time somebody chooses a file");
-        const insync = picker.indexOf('getAttribute("src")');
-        ok(insync > 0 && insync < cb,
-            "nothing puts the picture back in step with the hidden field after a rebuild");
+        const { wirePortraitPickers } = await import("./utils.mjs");
+        const { wireKeyLimitOverride } = await import("./investigation.mjs");
+        const FP = foundry.applications.apps?.FilePicker;
+        must(FP, "Foundry's FilePicker is not here - the picker cannot be opened");
+        const own = Object.getOwnPropertyDescriptor(FP, "implementation");
+        const root = document.createElement("div");
+        const draw = (src, value) => { root.innerHTML = `<img data-drpg-portrait="r1" src="${src}"><input type="hidden" name="img.r1" value="${value}">`; };
+        let opened = null, picture = null;
+        try {
+            Object.defineProperty(FP, "implementation", { configurable: true,
+                get: () => class { constructor(options) { opened = options; } render() { return this; } } });
+            draw("suite/old.webp", "suite/kept.webp");
+            wirePortraitPickers(root);
+            const synced = root.querySelector("img").getAttribute("src");
+            root.querySelector("img").click();
+            draw("suite/old.webp", "suite/old.webp");
+            opened?.callback?.("suite/picked.webp");
+            picture = [synced, Boolean(opened), root.querySelector("img").getAttribute("src"), root.querySelector("input").value];
+        } finally {
+            if (own) Object.defineProperty(FP, "implementation", own);
+            else delete FP.implementation;
+        }
+        const box = document.createElement("div");
+        box.innerHTML = `<input type="checkbox" name="keyOverride" checked><select class="drpg-key-limited" disabled></select>
+            <button type="button" class="drpg-key-limited" disabled></button>`;
+        const limited = () => [...box.querySelectorAll(".drpg-key-limited")].map(el => el.disabled);
+        const wired = wireKeyLimitOverride(box);
+        const ticked = limited();
+        const tick = box.querySelector('[name="keyOverride"]');
+        tick.checked = false;
+        tick.dispatchEvent(new Event("change"));
+        equal(JSON.stringify([picture, [wired, ticked, limited()]]),
+            JSON.stringify([["suite/kept.webp", true, "suite/picked.webp", "suite/picked.webp"], [true, [false, false], [true, true]]]),
+            "[the picture: put in step with its field, the picker opened, the picture and the field after the answer arrived over a rebuild], "
+                + "[the override: wired, the rows under a restored tick, the rows after it was taken off]");
 
+        const sources = new Map(await otherSources());
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
-        const helper = bodyOf(inv, "export function wireKeyLimitOverride", { until: "export async function openInvestigationDashboard" });
-        ok(helper.length > 200,
-            "wireKeyLimitOverride is gone or has moved past openInvestigationDashboard");
-        ok(/addEventListener\("change", apply\)/.test(helper),
-            "the override no longer follows the tick box at all");
-        ok(helper.indexOf("apply();") > helper.indexOf("addEventListener"),
-            "the override is wired but never applied, so a redraw that restores the tick leaves "
-            + "the rows disabled");
         const wire = bodyOf(inv, "function wireCase(", { until: "function wireCaseFilters(" });
         ok(wire.includes("wireKeyLimitOverride("),
             "the dashboard stopped re-wiring the Key Remnant limit override after a rebuild");
@@ -4904,35 +4909,16 @@ const REGRESSIONS = [
             "the gate is below the dead test, which is where it could not do its job");
     }],
 
-    ["R87 - a trace of unstated origin is not a free Analyze", async () => {
-        /*
-         * ACT-10, 20.09. `ANALYZE_DC` has no neutral column, so `analyzeDc` fell
-         * through to `null` for a bullet whose REAL type is itself neutral - a red
-         * herring, or a GM who never picked a category - and `null` is read one line
-         * later as the guide's "Bez rzutu". Every such bullet identified itself on any
-         * roll at all and closed for ever: the action was spent, the evidence was
-         * shut, and nothing was learned.
-         *
-         * The note that said this file wants no alias table was half right: it is the
-         * DISPLAYED type that is normally neutral, and this lookup takes the real one.
-         * The case it missed is the real one being neutral too. `OBSERVE_TYPE_ALIAS`
-         * is the module's existing answer - "a trace of unstated origin is priced like
-         * the ordinary evidence it stands in for" - so no second number is invented.
-         */
-        const cfg = stripComments(new Map(await otherSources()).get("config.mjs") ?? "");
-        const fn = bodyOf(cfg, "export function analyzeDc", { length: 300 });
-        // ANALYZE_TYPE_ALIAS since 21.09: Observe's aliases spread, plus autopsy.
-        ok(/(?:OBSERVE|ANALYZE)_TYPE_ALIAS\[realType\] \?\? realType/.test(fn),
-            "Analyze still has no answer for a trace whose real type is neutral");
-
-        const analyze = stripComments(new Map(await otherSources()).get("analyze.mjs") ?? "");
-        // Asked of every kind's own `analysedHint` since 21.09, neutral's included.
-        ok(/TRUTH_BULLET_TYPES\[realType\]\?\.analysedHint/.test(analyze),
-            "the card announcing an analysis still prints the un-analysed sentence - "
-            + "\"analysis turns it into a real category\" - about an analysis that did not");
-    }],
-
     ["R88 - a refusal hands back what was paid, and an Observe miss is not a refusal", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is shape. The rule itself - what `declineAction` writes,
+           an Observe's "Nothing was there" marking the Sanity with no action back, a free action's refusal giving back
+           nothing - is tier 2's "an Observe's Nothing was there marks the Sanity and gives nothing back, and a free action's
+           refusal gives back nothing (E40 item 4: R88's rule, driven; was R88)". Read here: no card of the action family
+           writes its own refusal button (a census), the Observe card of the GM's road builds its miss with `missAction`
+           (that road needs a GM ruling an Observe declared by a player: not driven), the miss's bookmark carries the marks
+           made and not the constant (read by a Reroll's undo: not driven), and `refundOnCard`'s `data.paid === "none"` -
+           measured on a copy, 13.11.2026: that line removed, tier 2's test still passes, since `if (data.paid) return null`
+           below it answers a "none" the same way; it stands as a statement of the case, not as an outcome. */
         /*
          * ACT-14 and ACT-17, 20.09.
          *
@@ -4955,10 +4941,6 @@ const REGRESSIONS = [
 
         const builder = bodyOf(rolls, "function declineAction", { until: "function missAction" });
         ok(builder.length > 200, "the refusal button is hand-written again");
-        ok(/paid: receipt \? \(receipt\.pay \?\? "action"\) : "none"/.test(builder),
-            "a free action's card is indistinguishable from a card with no receipt");
-        ok(/amount: String\(receipt\?\.amount \?\? 0\)/.test(builder),
-            "the card does not say how much was paid, so two actions come back as one");
 
         // No hand-written refusal anywhere else: the builder is the only one.
         const outside = rolls.replace(builder, "");
@@ -4968,8 +4950,6 @@ const REGRESSIONS = [
         ok(/missAction\(actor\)/.test(rolls), "the Observe card still sends a refusal");
 
         const observe = stripComments(sources.get("observe.mjs") ?? "");
-        ok(/export async function chargeObserveMiss\(/.test(observe),
-            "there is no single writer of an Observe miss");
         ok(/bulletId: null,(?: projectId: null,)? stress: marked/.test(observe),
             "the miss bookmarks the figure the rule asks for rather than the marks it made");
         ok(!/bulletId: null,(?: projectId: null,)? stress: OBSERVE_FAIL_STRESS/.test(observe),
@@ -4977,19 +4957,17 @@ const REGRESSIONS = [
             + "the constant hands back Sanity nobody spent");
 
         const app = stripComments(sources.get("messenger-app.mjs") ?? "");
-        const miss = bodyOf(app, "async function ruleObserveMiss(", { until: "function refundOnCard(" });
-        ok(miss.length > 200, "the GM's \"nothing was there\" has no handler of its own");
-        ok(/observeMiss: ruleObserveMiss,/.test(app), "the miss is not in CARD_ACTIONS");
-        ok(/chargeObserveMiss\(actor\)/.test(miss), "the miss charges nothing");
-        ok(!/refundAction/.test(miss),
-            "the miss refunds the action - the character looked, on either road");
-        ok(!/DRPG\.Bridge\.declined|settledDeclined/.test(miss),
-            "the miss tells the player their action is back, beside the Sanity it just took");
         ok(/data\.paid === "none"/.test(app),
             "a card for a free action still refunds an action that was never spent");
     }],
 
     ["R89 - an Observe declaration outlives the browser that made it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the write-through, which no call shows. The store's
+           client scope and a resolve with no record told on both screens and refunding nothing are tier 2's "an Observe
+           with no record on the GM tells the GMs and the player and gives nothing back, and the record is this browser's
+           (E40 item 4: R89's rule, driven; was R89)". Read here: every mutation of the pending Map is written through
+           (a census of `await writePending()`), the cache is read before the sweep (the Map is module-private: driving a
+           reload would need an export of it), and the resolve's run hands the packet's actor on (the bridge's run). */
         /*
          * ACT-08, 20.09. The two halves of an Observe are minutes apart - the GM
          * fixes the target, the player rolls, the answer comes back - and the
@@ -5007,13 +4985,6 @@ const REGRESSIONS = [
          * both screens instead of returning null in silence.
          */
         const sources = new Map(await otherSources());
-        const settings = stripComments(sources.get("settings.mjs") ?? "");
-        // The key is the local GM store's since E04 (1.2.63; gm-stores.mjs `observeStore`).
-        ok(/observePending: "gmObservePending"/.test(settings), "the store has no setting");
-        const reg = bodyOf(settings, "SETTINGS.observePending", { length: 400 });
-        ok(/scope: "client"/.test(reg),
-            "the pending Observes are world-scoped, so every player can read the answer key");
-
         const observe = stripComments(sources.get("observe.mjs") ?? "");
         ok(/function readPending\(/.test(observe) && /async function writePending\(/.test(observe),
             "the Map is not written through to anything");
@@ -5026,11 +4997,6 @@ const REGRESSIONS = [
         const resolve = bodyOf(observe, "export async function resolveObserve", { until: "async function undoPrevious" });
         ok(resolve.indexOf("readPending()") < resolve.indexOf("sweepPending()"),
             "the sweep runs over an unloaded cache, and then writes that nothing back");
-        ok(/resolveLost/.test(resolve) && /resolveLostOwner/.test(resolve),
-            "a resolve with no record is still silent on one screen or both");
-        ok(!/refundAction/.test(resolve),
-            "the lost road refunds an action on a socket payload's word, which is ACT-12 "
-            + "with the names changed");
 
         // The resolve's run itself (E41 fix FG3; STATUS E41 Open 13): the family's text matched 28 places of the field.
         const bridge = bridgeFn(sources, "handleObserveResolve");
@@ -5088,63 +5054,39 @@ const REGRESSIONS = [
     }],
 
     ["R91 - the GM can state that a trace exists", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the window's markup, the dashboard's door and its
+           keys. What the window places - the kind, the tie, the reinforced mark, the public name and description - and its
+           refusals (a player, a kind off the list, an Autopsy) are tier 2's "the GM's New trace places the trace the window
+           was told, with its two flags and its words, and refuses a player and a kind off the form (E40 item 4: R91's rule,
+           driven; was R91)", as is `game.drpg.newTrace`. Read here: the kind list built from `REMNANT_TYPES` through
+           `findableKind`, the window asking for the two flags, the dashboard's button and its handler (`runDashboardButton`
+           is not exported), and the window's keys localized (a live read, kept beside the rest). */
         /*
          * N-4, Dawid 21.09. There was no general "put a trace here" control at all:
          * every road onto the map placed a KEY Remnant (the planner's per-row button,
          * the Observe ruling card) or a trace an action had earned (`dropRemnant`,
          * the Final Remnant). A GM who simply wanted a Prep trace in the kitchen had
          * to build a token and flag it by hand.
-         *
-         * THE TWO FLAGS ARE THE TEST. A Key Remnant is tied to the crime and
-         * reinforced because that is what a Key Remnant IS; a hand-placed trace can
-         * be either, and those two booleans decide whether the chapter-end sweep
-         * takes it and whether a killer can clean it up. A window that assumed them
-         * would quietly make every hand-placed trace unsweepable and uncleanable.
          */
         const sources = new Map(await otherSources());
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
         const body = bodyOf(inv, "export async function openNewTrace", { until: "export" });
         ok(body.length > 400, "openNewTrace has moved or been hollowed out");
-
-        ok(/if \(!game\.user\.isGM\)/.test(body.slice(0, 400)),
-            "a player reaching openNewTrace is not turned away at the door");
         ok(/Object\.entries\(REMNANT_TYPES\)/.test(body),
             "the kind list is written out rather than read from REMNANT_TYPES, so a "
             + "new kind will be missing from the one window that can place any of them");
         ok(/name="tied"/.test(body) && /name="reinforced"/.test(body),
             "the window does not ask for the two flags");
-        // The tie is a three-way select since E09 C4 ("-", Tied, Not tied), read back through `tieTaken`.
-        ok(/tiedToCrime: tieTaken\(result\.tied\)/.test(body) && /reinforced: result\.reinforced/.test(body),
-            "the flags are asked for and then not carried, so every hand-placed trace "
-            + "is an ordinary one whatever the GM ticked");
-        ok(/if \(!REMNANT_TYPES\[result\.type\]\)/.test(body),
-            "the kind comes back off a form and is written without being checked");
         // The list's rule has its own name since E09 C13, which the Traces tab's kind reads too (S05-20).
         const findable = bodyOf(inv, "function findableKind(", { until: "\n}" });
-        ok(/\.filter\(\(\[key\]\) => findableKind\(key\)\)/.test(body) && /observeDc\(v, key\) !== null/.test(findable)
-            && /observeDc\(result\.visibility, result\.type\) === null/.test(body),
-            "a kind Observe has no number for can be placed, and then nobody can ever find it");
-        ok(/placeRemnant\(/.test(body),
-            "the trace is built by hand instead of through the one writer that owns "
-            + "the flags, the art and the name");
-        /* MEASURED, 21.09: the first cut passed `name` and `text` to `placeRemnant`,
-           which has neither parameter and dropped both without a word. The window
-           looked right and produced a trace the finder would read as "Trace" with no
-           description. The public pair is a SECOND write, and every other road that
-           offers those words makes it. */
-        ok(/setRemnantPublic\(token, \{/.test(body),
-            "the name and the description the GM typed never reach the player's record");
-        ok(/playerText: result\.text/.test(body),
-            "the description is written under the wrong key, so the bullet is blank");
+        ok(/\.filter\(\(\[key\]\) => findableKind\(key\)\)/.test(body) && /observeDc\(v, key\) !== null/.test(findable),
+            "a kind Observe has no number for is offered, and then nobody can ever find it");
 
         /* The door. A window nothing opens is a window nobody has. */
         const dash = bodyOf(inv, "export async function openInvestigationDashboard");
         ok(/action: "newTrace"/.test(dash), "the dashboard has no button for it");
         const door = bodyOf(inv, "async function runDashboardButton(", { until: "export async function openInvestigationDashboard" });
         ok(/if \(action === "newTrace"\)/.test(door), "the button leads nowhere");
-
-        const api = stripComments(sources.get("api.mjs") ?? "");
-        ok(/newTrace: openNewTrace/.test(api), "it is not on game.drpg, so a macro cannot reach it");
 
         /* A localise() that misses prints its own key at the table - and it prints it
            truthy, so only comparing against the key itself catches it. */
@@ -5156,15 +5098,19 @@ const REGRESSIONS = [
     }],
 
     ["R92 - a reshaped trace waits for a ruling", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is a census of the writers and the card's wiring. The
+           ruling itself - GM-gated, refused on a trace reinforced since or gone, the words bounded, a decline refunding
+           nothing - is tier 2's "a reshape's ruling is the GM's, reads the trace as it stands, bounds the words and refunds
+           nothing on a decline (E40 item 4: R92's ruling half, driven; was R92)". Read here: `reshapeTrace` awaited once,
+           behind the approval; both roads (the Tamper action and the erase road's critical) propose instead of writing
+           (the Tamper road is driven by tier 2's reshape tests, `reshapeCopiesFixture`; the critical's is not on this
+           line); the card's two buttons in `CARD_ACTIONS`; the six keys localized (a live read, kept beside the rest). */
         /*
          * N-3, Dawid 21.09. A Tamper that succeeded wrote the player's name and
          * the player's sentence onto the GM's own evidence the moment the dice
          * landed. The packet was bounded - `plainText` caps both halves, the
          * visibility list is checked - but BOUNDING IS NOT RULING, and the next
          * person through the door read those words as the truth of the room.
-         *
-         * Starting a project is the precedent Dawid named: the form becomes a
-         * card, and nothing exists in the world until the GM presses a button.
          *
          * TWO ROADS WRITE THOSE WORDS, which is the half a reader misses: the
          * Tamper action, and the erase road's critical reward. A rule with a door
@@ -5190,23 +5136,6 @@ const REGRESSIONS = [
         const critical = bodyOf(src, "if (rewrite) {", { until: "} else if (outcome.removes" });
         ok(/await proposeReshape\(/.test(critical),
             "a critical clean-up still applies the lie itself");
-
-        /* The ruling reads the world as it stands, not as the card remembers it. */
-        ok(/findRemnantToken\(tokenId\)/.test(ruling),
-            "the ruling trusts the card for the trace instead of looking it up, so a "
-            + "trace swept between the roll and the button is relabelled in absentia");
-        ok(/if \(data\.reinforced\)/.test(ruling),
-            "a GM who reinforced the trace after the roll is still offered a button "
-            + "that edits it");
-        ok(/plainText\(name,/.test(ruling) && /plainText\(text,/.test(ruling),
-            "the words come off a dataset and are written without being bounded again");
-        ok(/if \(!game\.user\.isGM\) return null/.test(ruling),
-            "the approval is not GM-gated on the client that runs it");
-
-        /* A decline is a ruling, not a refund - the whole point of where this sits. */
-        const decline = bodyOf(src, "export async function declineReshapeRuling");
-        ok(!/refundPrice|handBack|trustedWrite/.test(decline.slice(0, 900)),
-            "declining hands the price back, which turns every ruling into a free retry");
 
         /* And the GM's card reaches both. */
         const app = stripComments(sources.get("messenger-app.mjs") ?? "");
@@ -5486,7 +5415,31 @@ const REGRESSIONS = [
          *
          * Measured live on two clients: Player A saw "You do not know what this is."
          * on two projects and the name, progress and room of the one they are in on.
+         *
+         * E40 item 4, slice B, 13.11.2026 (a): the GM's rows are read off the card itself. projects-map.mjs `projectCard`
+         * (exported) is called on a project of its own, an indirect murder's, once as this GM and once with `game.user.isGM`
+         * reading false for the call (synchronous: it awaits nothing), and each card is searched for the four things only
+         * the GM's may print. Until then the test read where the four keys stood in the source; a mutant that pushed the
+         * secrecy row again after the GM's branch for a player passed it. What stays text: `showProjectCard` (not exported:
+         * the token it reads, the `knowsProject` gate, the hook that draws it), the stylesheet's title band and the frame's
+         * sizing a frame late.
          */
+        const { projectCard } = await import("./projects-map.mjs");
+        const project = { id: "suite-e40-r96", name: "SUITE E40 R96 a project", start: 4, current: 1, room: "SUITE room",
+            indirectMurder: true, condition: "SUITE E40 R96 the trigger" };
+        const gmOnly = [game.i18n.localize("DRPG.Project.cardKnownBy"), game.i18n.localize("DRPG.Project.cardSecrecy"),
+            game.i18n.localize("DRPG.Project.indirect"), "data-drpg-project-manager"];
+        const asPlayer = () => {
+            Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+            try { return projectCard(project); } finally { delete game.user.isGM; }
+        };
+        must(game.user.isGM, "the suite is not running on a GM's browser - the GM's card cannot be read");
+        const cards = [projectCard(project), asPlayer()];
+        must(cards[1].includes(project.name) && cards[1].includes("1 / 4"), "the player's card does not carry the project at all - this would measure nothing");
+        equal(JSON.stringify(cards.map(card => gmOnly.map(text => card.includes(text)))),
+            JSON.stringify([[true, true, true, true], [false, false, false, false]]),
+            "[the GM's card, a player's card]: [who knows it, its secrecy, the indirect murder's trigger, the manager's button] printed");
+
         const sources = new Map(await otherSources());
         const map = stripComments(sources.get("projects-map.mjs") ?? "");
         const show = bodyOf(map, "function showProjectCard(", { until: "\nfunction " });
@@ -5498,13 +5451,6 @@ const REGRESSIONS = [
         ok(/knowsProject\(id\)/.test(show), "the card is not gated by knowsProject");
         ok(/Hooks\.on\("renderActorSheetV2"[\s\S]{0,120}showProjectCard/.test(map),
             "nothing draws the card when a project token's sheet opens");
-
-        const card = bodyOf(map, "function projectCard(", { until: "function unknownProjectCard(" });
-        const gm = bodyOf(card, "if (game.user.isGM)");
-        for (const key of ["cardKnownBy", "cardSecrecy", "DRPG.Project.indirect", "data-drpg-project-manager"]) {
-            ok(gm.includes(key) && card.indexOf(key) >= card.indexOf("if (game.user.isGM)"),
-                `"${key}" is printed outside the GM's branch, so a player reads it`);
-        }
 
         /* And the frame both cards share: the title band in the flow, the size a frame late. */
         const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
@@ -5779,6 +5725,11 @@ const REGRESSIONS = [
     }],
 
     ["R143 - ownership raised past the window's back, and a bullet a player edits, are put back", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): both roads are a player's write judged on the primary GM, and tier 2 runs
+           on the GM's browser: a write it makes is the GM's (the hooks' `userId`), so the put-back is not reached from it.
+           Scenario 30 drives both from a player's browser (phase 7i, "ownership" and "Truth Bullet edits"; the harness's
+           `noHook` silences `updateActor` too, so its ownership check reads the window's close road). What stays here is
+           the wiring: which hooks, in which order against the sheet audit, and the courtesy list on the player's client. */
         /*
          * E03, 24.09.2026; audit S11-04 and S05-12. Configure Ownership saves with
          * `noHook`, which skips the `pre` hook that was the only guard; and a player
@@ -5852,6 +5803,12 @@ const REGRESSIONS = [
     }],
 
     ["R145 - Analyze, Stage 6 and a clean-up's undo, judged by the rules on the GM", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is order and a receipt's arithmetic. The Analyze half is
+           tier 2's "Analyze on the GM refuses a bullet it may not read now and an undo with no throw this chapter, whatever
+           the packet says (E40 item 4: R145's Analyze half, driven; was R145)". Stage 6's refusals themselves are driven by
+           tier 2's "Stage 6's own refusals give the killer back the step they paid and no more"; read here is that each is
+           asked before the GM's fallback charge, and that a clean-up's undo takes back the attempt's own move (driving it
+           needs a clean-up thrown and taken back by a Reroll: not built on this line). */
         /*
          * E03, 24.09.2026; audit S05-40. One Analyze per bullet per chapter was the
          * sheet's rule alone; a misleading trail could point at the killer, the victim
@@ -5860,10 +5817,6 @@ const REGRESSIONS = [
          * mark earned since.
          */
         const sources = new Map(await otherSources());
-        const analyze = stripComments(sources.get("analyze.mjs") ?? "");
-        const resolve = bodyOf(analyze, "export async function resolveAnalyze(", { until: "\n}\n" });
-        ok(/!undo && !isAnalysable\(held, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
-        ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
         // The price is `chargeUnclaimed`'s since E64 (f657e7d), `spendStress` before: whichever comes first.
@@ -6896,6 +6849,10 @@ const REGRESSIONS = [
     }],
 
     ["R172 - no answer-key writer derives a value from absence", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of 30 store writers and 2 migrations in 11 files, each held to what its row
+           names. A derived write that forgot `ifLive`, `weak` or `fillOnly` behaves the same on one GM; it differs only
+           when a second GM's copy arrives, and the per-field merge that makes the difference is R169's and tier 2's.
+           What is measured is the call's text, every writer at once, which no single call returns. */
         /*
          * E04, 26.09.2026; audit S05-01. The answer key was erased by a writer that
          * built a row out of nothing - a migration that met a bullet this GM held no
@@ -13302,6 +13259,9 @@ const REGRESSIONS = [
     }],
 
     ["R305 - a trace's tie keeps its three states through every writer and reader of the ledger", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of ten writers and readers of the tie, none flattening it with
+           `Boolean()` or passing a token's old flag on raw. The behaviour is tier 2's ("a victim's death ties the chapter's
+           undecided traces and never one a GM marked not tied"); this holds the shape across every function at once. */
         /*
          * E09 C4, 08.10.2026; audit S05-37, S05-25, the owner's D14. The tie is `true` (tied to the
          * crime), `false` (a GM's "not tied", a red herring) or `null` (nobody has said). Five places
@@ -13346,6 +13306,9 @@ const REGRESSIONS = [
     }],
 
     ["R306 - a reshape's ruling is claimed before anything waits: claimRuling marks `ruled` with no await, and the store's hydration is the only wait before either ruling claims", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order with no outcome a call can see. The race it rests on is tier 2's
+           ("two rulings of one reshape at once run once, and the second is told it was ruled"); an await added before the
+           claim on a road that test does not take shows only under a timing no call fixes. `claimRuling` is not exported. */
         /*
          * E09 C10, 08.10.2026. Two rulings of one reshape both ran - Approve and Decline on one card,
          * or two GMs' Approve - because each read the attempt's row, awaited, and wrote, and nothing
@@ -13771,6 +13734,9 @@ const REGRESSIONS = [
     }],
 
     ["R376 - the Key Remnants still to place, the off-plan finds, the Key fee, the autopsy and the crime-witness mark are this season's chapter's", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of five readers and three writers of a chapter's record, each
+           asking or writing the season. What they answer after a reset is tier 2's ("this season's chapter reads none of
+           last season's Key Remnants nor its autopsy nor its silence") and scenario 65's K; this holds all eight at once. */
         /*
          * E11 fix r2-H2, 1.2.73; round 2's cor COR2-2, sec S2 and goal S06-42, round 1's res R6. C12 gave
          * `sameSeason` to seven readers of a trace or the motive (R356); the side line's Key line (r1-G4)
@@ -14260,6 +14226,9 @@ const REGRESSIONS = [
     }],
 
     ["R430 - the room cache and a Remnant's card read the world's tokens, not the ones this browser draws", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of two readers that must not name the canvas. What each reads
+           differs only on a browser that draws another scene than the one the tokens are on, which tier 0 cannot set up
+           without a write; scenario 66 R reads the crossing that followed from it. */
         /*
          * E12 fix r2-S1, 11.10.2026; review round 2 O3. Two readers reached the camera by a road R382
          * does not read: movement.mjs `primeRoomCache` took `canvas.tokens.placeables`, so a browser
@@ -18358,6 +18327,9 @@ const REGRESSIONS = [
     }],
 
     ["R1103 - Analyze's request field shows with Hint alone: `askWhatToAnalyze`'s request block carries `data-drpg-when=\"hint\"` and the stylesheet's rule that shows the checked row's block covers `hint` (E51 C1; E51-04, audit S02-51 (a))", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the pairing of a markup attribute and a stylesheet selector.
+           action-analyze.mjs `askWhatToAnalyze` is not exported (driving its window would need an export of it), and
+           whether the box shows is the stylesheet's `:has` rule, a layout reading the harness's cascade is not held to. */
         /*
          * E51 C1, 30.10.2026; audit S02-51 (a). The GM's hint is the one Analyze row a person reads, and the box for
          * it was shown under every row - a stash hunt or a passage asked for a sentence no GM would read. The block is
@@ -18687,6 +18659,9 @@ const REGRESSIONS = [
         "[registerTokenRuler sets CONFIG.Token.rulerClass from hourRulerFor; registerFog calls it; the body's observer recolours the outline and draws the rulers again]");
     }],
     ["R1120 - an undescribed trace's name is empty and worded at read time: the key `DRPG.Remnant.tokenName` is localized only in remnants.mjs `traceLabel` and `neutralWords`, nothing compares a name against `traceLabel(`, and observe.mjs `createFind` prefills the GM's describe window from the trace's subject, not from the stored name (E51 C5; E51-30, audit S05-52)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over every module file - where the neutral word's key is
+           localized and whether any name is compared against `traceLabel(` - and which argument `createFind` hands the
+           describe window (`createFind` and `describeFind` are not exported). The ITEM4 pilot read it as (c). */
         /*
          * E51 C5, 31.10.2026; audit S05-52. Every trace's `public.name` read "Trace" until a GM described it - the neutral
          * word, in the language of the browser that wrote or read it (remnants.mjs `defaultPublic`) - and about fifteen
@@ -18771,6 +18746,9 @@ const REGRESSIONS = [
             + "announceRemnant writes the row, and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
     }],
     ["R1135 - a discard's ticket is written only for a trace placed, and a discard stands only on one: bridge-runs-records.mjs `handleRemnant` calls `noteDiscardTrace` once, for a player's discard, after the Class Trial's refusal and after the trace is placed; sheet-audit.mjs `itemFindings` lets a discard-stamped deletion stand only where `takeDiscardTrace` answers (E51 fix FG5; the end review's S1)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order inside one bridge run and one audit line. The roads are driven by
+           scenario 30's "a console's discard" (D1-D4 and the honest road); what is read here is where the ticket is
+           written and asked, which a call shows only on the road that reaches each line. */
         /*
          * E51 fix FG5, 31.10.2026; the end review's S1. The ticket is the evidence a discard's stamp stood on nothing
          * without: written before the trial's refusal it would let D1 through again (a discard's trace in the Class
@@ -20367,6 +20345,9 @@ const REGRESSIONS = [
             "the test did not put CONFIG.Token.rulerClass back as it found it");
     }],
     ["R1199 - the search ledger keeps no dead code and no stale spend (E37 C6, E37-26; audit S07-44): search-tokens.mjs declares no `exhaust` and no module file calls one, and search-tokens.mjs `runSpend` prunes `searchedBy` of its entries older than `PLANT_WINDOW_MS` before it sets the new one", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): dead code and a module-private ledger. Whether `exhaust` is declared or
+           called is a census; the prune of `searchedBy` before `runSpend` sets its entry is seen only in that Map, which
+           search-tokens.mjs does not export (driving it would need an export of `searchedBy` or `pruneSpends`). */
         /*
          * E37 C6, 01.11.2026; E37-26, audit S07-44. `SearchTokens.exhaust` zeroed a room "for the rest of the day (project
          * 'Tidy the room')", a project that does not exist, and nothing in the module called it (tier 0's R991 names it
@@ -23286,6 +23267,9 @@ const REGRESSIONS = [
     }],
 
     ["R3143 - a body's loot is judged where its body lies, by the one gate and no second (E95 C1; E72 amend[16]): frisk.mjs `personActionRefusal` reads the body's place through body-tile.mjs `bodyPlaceOf` and its hidden flag from it, the living road the token's (`gmPlaceOf`); handover.mjs `lootBody`, inventory.mjs's loot and anonymity.mjs's greying read no room of their own and ask the one gate", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): where the gate is asked, not what it answers. The answers are tier 2's
+           ("a body's loot is judged where the body lies (E95 C1; E72 amend[16]) ..."); this holds which room readers the
+           gate and its three callers name - one gate and no second - which no call returns. */
         /*
          * E95 C1, 10.11.2026; E72 item (1): "bramka pokoju grabieży ciała w polityce transferItem ... od E67 bodyRoomOf
          * (pokój kafla, a gdy GM kafel usunie, pokój tokenu), bez drugiej bramki w handover.mjs". Read off the served

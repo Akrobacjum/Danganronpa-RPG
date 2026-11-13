@@ -94,7 +94,7 @@ Next free: R5172. Reserved and unused: none.
 | R84 | 0 | <=1.2.50 | a request that never went is not reported as sent, and a tile states the rule |
 | R85 | 0 | <=1.2.50 | a Call still applies when the roll window is unlocked |
 | R86 | 0 | <=1.2.50 | a Monocub may cross a room, and that is the list |
-| R87 | 0 | <=1.2.50 | a trace of unstated origin is not a free Analyze |
+| R87 | 0 | <=1.2.50 | a trace of unstated origin is not a free Analyze (removed in E40) |
 | R88 | 0 | <=1.2.50 | a refusal hands back what was paid, and an Observe miss is not a refusal |
 | R89 | 0 | <=1.2.50 | an Observe declaration outlives the browser that made it |
 | R90 | 0 | <=1.2.50 | a region that redraws itself comes back dressed |
