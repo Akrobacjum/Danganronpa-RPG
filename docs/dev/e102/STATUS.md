@@ -60,6 +60,15 @@ difference is E102's. R-REGISTRY.md is generated and conflicts wherever two line
 | T1-T15 | the words, two code changes (Rest's cost, the project window's key), five tooltips dropped, `title` on the controls drawn disabled; R4760 | af5939de |
 | T16 Grant all is in the posting GM's language | left: the card is GMs-only, nothing leaks; a GM in another language reads the poster's words | - |
 
+## The review of C4 and C5 (REVIEW-102-C4C5, claude/gaps-radio e7152e5b), and a second read of Gm, Setup and More
+
+| Finding | What was done | Commit |
+| --- | --- | --- |
+| G1, G2, S1, S2 (medium), S3, S4, G3-G7, S5, S6, S8-S11, the style notes | as the review proposed, with three changes said in the commit: G1 says Health and Sanity full (text-style M7; R1448 failed the review's Polish "znacznikami"), G2 and S2 shortened under the 23-word limit, G5 says what Apply does to a held death (chapter.mjs publishDeath) | f8bb7826, R4762 |
+| S7 (closeX on cards kept nowhere) | the gaps line's: a code fix | - |
+| the second read's 5-15, 22, 23 | five label or window repeats dropped (each a baseline row), the passages menu's two keys, Play's title, wordings | b30682c8 |
+| the second read's Case findings (1, 2, 16-21) | taken into C6 | - |
+
 R numbers: R4750-R4754 (C1-C5), R4760 on (review fixes, C6-C8).
 
 ## Tier 2
