@@ -79245,6 +79245,47 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ name: true, roles: true, told: true }),
             "{name: the campaign name typed is written; roles: the scene roles unchanged; told: the GM warned of the one scene for both} - a held scenes part drops itself alone");
     }],
+    ["E101-T12 - the next morning's line typed in Season setup is kept by its Save, as Edit campaign's Apply keeps it (E101 item 1): on the drawn window, a line typed in the Edit campaign block's next morning's field is this browser's `morningLineDraft` after Save, the line drawn again when Season setup opens next", async () => {
+        /*
+         * E101 item 1, 13.11.2026 (the GM screens' review, #2). As the GM: Season setup drawn, the field filled, Save pressed;
+         * read the setting, then the field of the window opened again (closed unsaved). The draft is put back. Red at eb0cd30a:
+         * Season setup has no such field (the first `must`).
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const SS = await import("./season-setup.mjs");
+        const LINE = "SUITE E101-T12 the gym opens at noon";
+        const draftWas = game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? "";
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        let answer = null;
+        const read = {};
+        try {
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]'), 6000), "Season setup has no next morning's line - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const field = el.querySelector('[name="morningLine"]');
+            field.value = LINE;
+            field.dispatchEvent(new Event("change", { bubbles: true }));
+            el.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(6000)]);
+            await settle();
+            read.kept = game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) === LINE;
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]'), 6000);
+            read.shown = of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]')?.value === LINE;
+        } finally {
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, draftWas);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ kept: true, shown: true }),
+            "{kept: the line is this browser's draft after Save; shown: the window opened again draws it}");
+    }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-34. `registerMusic`'s `updateSetting` listener answered a `musicMap` write with

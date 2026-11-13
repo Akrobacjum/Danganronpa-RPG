@@ -19105,6 +19105,26 @@ const INVARIANTS = [
             "{a Scenes tab in Room setup; Season setup's scenes part: [school, hall, its one sentence, the old intro]; its Save: [reads, clash, hall lock, applies]; "
             + "[the checklist opens Room setup's Scenes, openTrialCast opens Season setup]}");
     }],
+    ["R4475 - Season setup holds Edit campaign's next morning's line (E101 item 1; the owner's yes of 12.11.2026 to the GM screens' review, #2: Edit campaign's window has no button and opens from the console alone, so E94's field there was a GM's nobody would see): season-setup.mjs `campaignFieldsHtml` draws gm-campaign.mjs `morningLineRow` in its Edit campaign block, `readSeasonForm` reads it, and `openSeasonSetup`'s Save keeps it as Edit campaign's Apply does (the browser's `morningLineDraft`)", async () => {
+        /*
+         * E101 item 1, 13.11.2026. E49 A1e put Edit campaign's rows at Season setup's top, each field once; E94 C1 then added
+         * the next morning's line to Edit campaign's own window (`openClockDialog`), which only `game.drpg.editClock` opens.
+         * Read on the block drawn detached and on the sources; nothing is written. Red at eb0cd30a: no morningLine in the block.
+         */
+        const SS = await import("./season-setup.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = SS.campaignFieldsHtml(getClock() ?? {}, "R4475word");
+        const field = box.querySelector('textarea[name="morningLine"]');
+        const src = stripComments((await moduleSources()).get("season-setup.mjs") ?? "");
+        must(src.length > 10000, "season-setup.mjs was not read");
+        equal(stableJson({
+            drawn: Boolean(field), inBlock: Boolean(field?.closest("fieldset.drpg-setup-campaign")),
+            label: box.querySelector(`label[for="${field?.id}"]`)?.textContent.trim() === game.i18n.localize("DRPG.Clock.morningLine"),
+            read: /morningLine/.test(fnSource(src, "readSeasonForm")),
+            kept: /SETTINGS\.morningLineDraft/.test(fnSource(src, "openSeasonSetup"))
+        }), stableJson({ drawn: true, inBlock: true, label: true, read: true, kept: true }),
+            "{the next morning's line drawn, in Edit campaign's block, under its label; read by the form; kept by Save}");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
@@ -19220,7 +19240,8 @@ const INVARIANTS = [
             body: [false, 0],
             pinned: [true, false],
             legend: L("DRPG.Panel.jump"),
-            fields: ["campaignName", "chapter", "phase", "day", "session", "timeOfDay", "safeword", "reset"],
+            // The next morning's line after the six since E101 item 1 (13.11.2026, changed on purpose: Edit campaign's E94 field, R4475).
+            fields: ["campaignName", "chapter", "phase", "day", "session", "timeOfDay", "morningLine", "safeword", "reset"],
             once: [1, 1, 1],
             end: ["destructive", true],
             tiles: [["gmTeam", "fa-users-gear", L("DRPG.Panel.despairFlow")], ["mastermind", "fa-user-secret", L("DRPG.Mastermind.dialogTitle")],
