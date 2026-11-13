@@ -43480,6 +43480,106 @@ const SCENARIOS = [
             "the fight's tile kept its name, its cost or the GM's chip, was live off-turn or lit on the turn, or the press and the other tiles did not say the sentence (killer's tile, victim's tile, said, Search's tooltip)");
     }],
 
+    ["every action's tile and its press agree on whether it is locked and why, in every phase that locks (E40-T3): daily life, an Eclipse, the Class Trial and a fight - for every key of ACTIONS, the sheet's tile (sheet.mjs `actionButton`) and the press (`performAction`) say the same lock sentence or none; and a fight and an Eclipse never stand together", async () => {
+        /*
+         * E40 C4, 13.11.2026; plan E40 item 3, "a phase x action matrix on one shared 'allowed now' predicate". Two readers
+         * decide whether an action may run now, each with its own chain: the tile (`actionButton`: `locked` and its
+         * `lockReason`) and the press (`performAction`'s gates). The matrix holds them to each other, cell by cell: the
+         * states that lock - an Eclipse (the clock's flag, written raw), the Class Trial (its phase) and a fight (a direct
+         * murder opened here, invitations held, the victim's turn) - and every key of ACTIONS, on
+         * the victim, a student with a player, with her actions full so no tile is dimmed by its price. A tile is read for
+         * the lock sentence in its tooltip; a press, with every window answered null (nothing it asks is answered, so
+         * nothing runs past its first window), for the lock sentence it warns. The four lock sentences are
+         * DRPG.Murder.actionsLocked, DRPG.Eclipse.murderOnlyInEclipse, DRPG.Trial.actionsLocked and DRPG.Eclipse.actionsLocked.
+         * A new key of ACTIONS is a row of the matrix by itself.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { actionButton } = await import("./sheet.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(killer && victim, "two living students with players - this would measure nothing");
+        const keys = Object.keys(ACTIONS);
+        const fightTile = game.i18n.localize("DRPG.Murder.tileFightBack");
+        const SENTENCES = {
+            fight: game.i18n.format("DRPG.Murder.actionsLocked", { tile: fightTile }),
+            murderOnlyInEclipse: game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse"),
+            trial: game.i18n.localize("DRPG.Trial.actionsLocked"),
+            eclipse: game.i18n.localize("DRPG.Eclipse.actionsLocked")
+        };
+        const which = text => Object.entries(SENTENCES).filter(([, line]) => String(text ?? "").includes(line)).map(([k]) => k).join("+") || null;
+        const D = foundry.applications.api.DialogV2;
+        const kept = Object.fromEntries(["wait", "confirm", "prompt"].map(k => [k, Object.getOwnPropertyDescriptor(D, k)]));
+        const notes = ui.notifications, keptNotes = Object.fromEntries(["warn", "info", "error"].map(k => [k, Object.getOwnPropertyDescriptor(notes, k)]));
+        const clock = foundry.utils.deepClone(getClock());
+        const read = async () => {
+            await game.drpg.setActions(victim, game.drpg.actionsMax(victim));
+            const row = {};
+            for (const key of keys) {
+                const tile = actionButton(victim, key, ACTIONS[key]);
+                const said = [];
+                for (const k of ["warn", "info", "error"]) notes[k] = message => { said.push(String(message)); };
+                for (const k of ["wait", "confirm", "prompt"]) D[k] = async () => null;
+                try { await performAction(victim, key); } catch (err) { said.push(`threw ${err?.message ?? err}`); }
+                finally {
+                    for (const [k, d] of Object.entries(kept)) { if (d) Object.defineProperty(D, k, d); else delete D[k]; }
+                    for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+                }
+                row[key] = { tile: which(tile.dataset.tooltip), press: which(said.join(" | ")) };
+            }
+            await settle();
+            return row;
+        };
+        const matrix = {}, reachable = {};
+        try {
+            matrix.daily = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            matrix.eclipse = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            matrix.trial = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            });
+            await settle();
+            must(M.murderState()?.stage === "incident", `no fight opened: ${stableJson(M.murderState())}`);
+            matrix.fight = await read();
+            /* A FIGHT IN AN ECLIPSE IS NO STATE THE MODULE REACHES (measured here, so the matrix leaves it out by evidence):
+               an Eclipse is not started while a fight runs (eclipse.mjs `startRefusal`), and a fight is not opened in an
+               Eclipse (murder-rules.mjs `openMurder`). Written raw, as this test's first draft did, the tile said the fight's
+               sentence and the press the Eclipse's for ten keys (13.11.2026) - a disagreement only a console can reach. */
+            const E = await import("./eclipse.mjs");
+            reachable.startInFight = await E.startRefusal();
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        await M.endMurder({ followUp: false }).catch(() => null);
+        await settle();
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            const said = [];
+            for (const k of ["warn", "info", "error"]) notes[k] = message => { said.push(String(message)); };
+            try {
+                reachable.openInEclipse = await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            } finally {
+                for (const [k, d] of Object.entries(keptNotes)) { if (d) Object.defineProperty(notes, k, d); else delete notes[k]; }
+            }
+            reachable.stageAfter = M.murderState()?.stage ?? null;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+        }
+        equal(stableJson(reachable), stableJson({ startInFight: "DRPG.Eclipse.incidentFirst", openInEclipse: null, stageAfter: null }),
+            "a fight and an Eclipse can stand together after all - the matrix must read that state too (an Eclipse started in a fight, a fight opened in an Eclipse, the fight's stage after)");
+        const disagree = Object.entries(matrix).flatMap(([state, row]) => Object.entries(row)
+            .filter(([, cell]) => cell.tile !== cell.press).map(([key, cell]) => `${state}/${key}: tile ${cell.tile}, press ${cell.press}`));
+        ok(Object.keys(matrix).length === 4 && keys.length > 0, `the matrix was not read in every state (${Object.keys(matrix).join(", ")})`);
+        equal(stableJson(disagree), "[]", `a tile and its press disagree on whether the action is locked, or why: ${stableJson(matrix)}`);
+    }],
+
     ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {
         /*
          * E32+E07 C16, 03.10.2026; audit S02-30. The killer's notice "This roll is yours"
