@@ -7313,7 +7313,7 @@ const INVARIANTS = [
         /*
          * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the
          * GMs' `deaths` store and a copy for those who may know; the flag waits for the
-         * body's discovery or a GM's hand (chapter.mjs `publishDeath`). Driven on engines
+         * body's discovery or a GM's hand (death.mjs `publishDeath`). Driven on engines
          * built with fakes - storage in a Map - so nothing in this browser is written:
          * `deadIn`, the rule under `isDeadForGm`, by role - a GM holding the row, the
          * victim's player holding a copy, a bystander holding none - and a flag, dead to
@@ -28427,7 +28427,7 @@ const INVARIANTS = [
          * bar's type by the sheets' cascade (`styleCascade`): Stained Glass's own rule at its text floor won only
          * without the shared bar rule's `!important` (`var(--drpg-text-xs)`, 11 px in VT323, which draws small);
          * Monokuma Legacy keeps the module's 11 px floor. What VT323 draws at 1366x768 is not measured here
-         * (LIVE-E18-03). The body's discovery (chapter.mjs `runDiscovery`) is posted as the assemblies are, its
+         * (LIVE-E18-03). The body's discovery (body.mjs `runDiscovery`) is posted as the assemblies are, its
          * title in the bar and the banner kept, and loud: an objection's accent, over the windows (R847).
          */
         const NH = await import("./notice-history.mjs");
@@ -37212,7 +37212,7 @@ const INVARIANTS = [
     ["R1193 - the GM's strip and the panel's Next line count one cast (E37 C2, E37-09; S10-45): with a Monocub holding an action and every other student spent, both say one student still has actions, \"Still placing\" counts the Monocub in an Eclipse, and the trial's ballots go to whom they went before", async () => {
         /*
          * E37 C2, 01.11.2026; E37-09, audit S10-45. The panel's Next line counted `actingStudents()` (the living, and the
-         * Monocubs) and the GM's strip chapter.mjs `livingStudents()`, so with a Monocub holding the only action left the
+         * Monocubs) and the GM's strip death.mjs `livingStudents()`, so with a Monocub holding the only action left the
          * line said "1 student still has actions to spend." over a strip reading "Still to act 0 / 2". Read on four
          * stand-in students, nothing written: `game.actors.filter` answers them while the test reads, and the clock is
          * read as an Eclipse for the second strip (`game.settings.get` of the clock), both put back in `finally` and the
@@ -41200,7 +41200,7 @@ const INVARIANTS = [
             buttons: [["cancel", true, "cancel"], ["reset", false, "destructive"]]
         }), "[the root's kit and own classes, the kit bodies in the window, the fields with autofocus, the footer in tree order: action, default, role]");
     }],
-    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (chapter.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
+    ["R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (death.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \"- choose -\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role", async () => {
         /*
          * E22 C3b, 06.11.2026; audit S06-08 ("They are dead", "Announce it" and "Do it" were Bone buttons and the default
          * under Enter; Who died? opened on the first living student and the body's window on the first room: one Enter
@@ -45006,7 +45006,7 @@ const INVARIANTS = [
             + "field read-only, its writes and what it kept; after a render while typing the new field's text, selection and focus, the writes "
             + "then, and after the close]");
     }],
-    ["R1453 - not in the class (E24 C3a, E24-19; audit S03-36): a student marked `notInClass` leaves monokuma.mjs `studentActors`, `actingStudents` and `studentCensus` (the world's and a handed list), chapter.mjs `livingStudentsForGm` (the murder window's cast), assignments.mjs `students` and the vote's `trialParticipants`; the vote's candidates and its size, the verdict's survivors and the Final Trial's list read `studentActors` and never `game.actors`; `classCandidates` names the characters no player owns, not a Monokuma or one already out", async () => {
+    ["R1453 - not in the class (E24 C3a, E24-19; audit S03-36): a student marked `notInClass` leaves monokuma.mjs `studentActors`, `actingStudents` and `studentCensus` (the world's and a handed list), death.mjs `livingStudentsForGm` (the murder window's cast), assignments.mjs `students` and the vote's `trialParticipants`; the vote's candidates and its size, the verdict's survivors and the Final Trial's list read `studentActors` and never `game.actors`; `classCandidates` names the characters no player owns, not a Monokuma or one already out", async () => {
         /*
          * E24 C3a, 08.11.2026. Every `character` was a student (monokuma.mjs `studentActors`: not a Monokuma), so an NPC on
          * a sheet got a ballot, the verdict's Level Up and the murder window's default seat. A student of a player is
@@ -52833,7 +52833,7 @@ const INVARIANTS = [
         /*
          * E63 C0, 11.11.2026. The owner: "Trial tez, ale kafel smierci po trialu znika" (an execution leaves a tile, gone
          * once the trial ends) and "gdy postac umiera ... Nie gdy zostaje Monocubem" (every death). So `isBodyDeath` reads
-         * only whether there is a record; the discovery keeps its own rule (chapter.mjs `bodiesToDiscover`: an execution
+         * only whether there is a record; the discovery keeps its own rule (body.mjs `bodiesToDiscover`: an execution
          * is no body to find). The warning (`DRPG.Body.noToken`) is the only sign a body was not laid, and at a death in the
          * trial every body goes at its end anyway (QUESTIONS Q5): `noTokenWarns(record)` is false for the trial's phase
          * and true for every other record. Red at 7b5b4da9: an execution and a death in the trial left no body, and
@@ -54964,7 +54964,7 @@ const INVARIANTS = [
      * A new kind of player: a character flagged `spectator`, owned by its account, which is no student. Each test hands
      * its Spectator in memory (`e24HeldFlagged`, `e92Char`): nothing is written.
      * ========================================================================== */
-    ["R3850 - a Spectator is no student (E92 C1; the owner's E92 goal (5)): a student flagged `spectator` leaves monokuma.mjs `studentActors`, `actingStudents`, `studentCensus` (the world's and a handed list), `ownedStudents`, chapter.mjs `livingStudentsForGm` (the murder window's cast, the body's witnesses), assignments.mjs `students` (Despair's pools), the vote's `trialParticipants` (the ballots), trial-scene.mjs `castActors` (the trial's cast) and `classCandidates`; `isSpectator` names it", async () => {
+    ["R3850 - a Spectator is no student (E92 C1; the owner's E92 goal (5)): a student flagged `spectator` leaves monokuma.mjs `studentActors`, `actingStudents`, `studentCensus` (the world's and a handed list), `ownedStudents`, death.mjs `livingStudentsForGm` (the murder window's cast, the body's witnesses), assignments.mjs `students` (Despair's pools), the vote's `trialParticipants` (the ballots), trial-scene.mjs `castActors` (the trial's cast) and `classCandidates`; `isSpectator` names it", async () => {
         /*
          * E92 C0, 12.11.2026. The roster is read once (monokuma.mjs `studentActors`), so the flag leaves every list that
          * reads it; the lists that walk `game.actors` themselves are named here one by one (CENSUS.md). Red on C0's tree:

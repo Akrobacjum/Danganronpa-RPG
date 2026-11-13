@@ -124,7 +124,7 @@ export const SETTINGS = {
      * in, a body they found alone). Until 1.2.64 a kill wrote the `deceased` flag, the
      * `dead` status and the Truth Bullets' deletion at once, so every console knew who
      * died from the moment of the killing. `isDeadForGm` reads these; the flag waits
-     * for the publication (chapter.mjs `publishDeath`).
+     * for the publication (death.mjs `publishDeath`).
      */
     gmDeaths: "gmDeaths",
     mineDeaths: "mineDeaths",
@@ -752,7 +752,7 @@ export const SETTINGS = {
      * phase change, so nothing remembered that a body had been found once the Investigation
      * began, and a walk past it after End the trial announced it again. Who walked in is not
      * here (the GMs' log has it): the bodies named are public by the time this is written.
-     * One writer, chapter.mjs `announceBody` (tier 0 R349); cleared with the hold by the
+     * One writer, body.mjs `announceBody` (tier 0 R349); cleared with the hold by the
      * reset's `bodyFound` group.
      */
     bodiesFound: "bodiesFound",
@@ -3626,7 +3626,7 @@ export function incidentWitness() {
  * TWO PHASES (E05 C10; audit S06-11). A killing in an incident writes only the
  * GMs' store (`deaths`) and the copies of those who may know; the flag, the
  * status and the Truth Bullets' deletion wait for the body to be found or for a
- * GM's hand (chapter.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then
+ * GM's hand (death.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then
  * on the two differ: on a GM a row of the store is a death, on a player a row of
  * their copy (`mineDeaths`) - never another player's secret.
  */
@@ -3692,7 +3692,7 @@ export function deadIn(actor, held) {
 /**
  * The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and
  * season (E11 C1), its `deathId` (fix r1-G1) and the verdict before it (`sinceVerdict`, E70 fix p1-G3) - the fields
- * chapter.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI
+ * death.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI
  * at df6f6fbd, 28.10.2026: "a Finishing Blow leaves the victim unflagged" read the published record with `sinceVerdict`
  * and this one without).
  */
@@ -3881,7 +3881,7 @@ export function setBodyDiscovery({ room = null, victimId = null } = {}) {
  * decision D8). Keyed `<epoch>:<chapter>`, the epoch `seasonEpoch`'s, so a season's chapter 1
  * is not the next season's. The hold above answers "is a discovery waiting on the GM"; these
  * answer "was this body found", which outlives the hold - the watcher reads them so a body
- * announced once is not announced again (chapter.mjs `bodiesToDiscover`).
+ * announced once is not announced again (body.mjs `bodiesToDiscover`).
  */
 function bodiesFoundAll() {
     try {
@@ -3915,7 +3915,7 @@ export function chapterBodyFound(chapter, epoch = seasonEpoch()) {
  * the body the case now open is about (E11 fix r1-G3; early review EARLY-C2-1, goal K1). The
  * chapter's last stamp alone named the first trial's body in a second Investigation of the same
  * chapter, which the GM can open with no new discovery (Edit campaign, `setPhase`). Both stamps
- * are `serverNow()` (a discovery's `at`, chapter.mjs `runDiscovery`; `clock.trialEndedAt`,
+ * are `serverNow()` (a discovery's `at`, body.mjs `runDiscovery`; `clock.trialEndedAt`,
  * `setClock`), so two GMs' machines compare on one clock. A stamp without `at` counts as before
  * any trial: none is written without one. Tier 2 "a chapter's second Investigation reads its own
  * body on the card and in a discard".
@@ -3928,7 +3928,7 @@ export function bodyFoundSinceTrial(clock = getClock(), epoch = seasonEpoch()) {
 /**
  * One discovery's stamp, under the chapter and season the discovery began in - the row's own
  * `chapter` and `epoch`, read before anything was awaited, never the clock's now (tier 2 "a
- * body found is stamped once per chapter and season"). GM-side; chapter.mjs `announceBody`
+ * body found is stamped once per chapter and season"). GM-side; body.mjs `announceBody`
  * is its only caller (tier 0 R349).
  */
 export async function recordBodyFound({ chapter, epoch, ...row } = {}) {

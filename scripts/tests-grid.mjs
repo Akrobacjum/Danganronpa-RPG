@@ -707,7 +707,7 @@ const STEPS = {
         opens(run, "direct", third, killer);
     },
 
-    /* The discovery's two parts the invariants read (chapter.mjs `runDiscovery`): the
+    /* The discovery's two parts the invariants read (body.mjs `runDiscovery`): the
        bodies published, and the cleaning tools of their killers broken - the bodies found
        are handed to it, as `runDiscovery` hands it the bodies in the room (fix r2-G3). The
        gather that moves every token is not run - the runner could not put the scene back. */

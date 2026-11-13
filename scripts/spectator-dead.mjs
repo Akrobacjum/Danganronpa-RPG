@@ -213,7 +213,7 @@ export async function removeDeadSpectator(student, { silent = false, row = undef
 }
 
 /**
- * THE SEASON'S END (the storyboard's F; season-reset's "deaths" group, chapter.mjs `clearSeasonDeaths`): every watcher
+ * THE SEASON'S END (the storyboard's F; season-reset's "deaths" group, death.mjs `clearSeasonDeaths`): every watcher
  * the GMs know of - a kept death's row naming one, a watcher flagged with its student - taken away silently, its tokens
  * first. Answers how many went.
  */

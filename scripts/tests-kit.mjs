@@ -2534,7 +2534,7 @@ function clientStored() {
 /**
  * The ids of the body tiles on `scene` that `known` (the snapshot's set of its tile ids) did not hold: what tier 2's
  * `restore` deletes (E95 fix RV-4, 10.11.2026; tier 1 R3146). A tile is a body tile by its `FLAGS.bodyOf` object, the
- * one a public death lays (body-tile.mjs `leaveBody`, from chapter.mjs `markDeceased` since E63) where a test marks a death and takes the flag
+ * one a public death lays (body-tile.mjs `leaveBody`, from death.mjs `markDeceased` since E63) where a test marks a death and takes the flag
  * back with no revive (E51-T21). Any other tile that appeared is left for the world dump to name ("tiles.<id>
  * appeared"), as it named that leak. No `known` (a scene that appeared, which goes whole): none.
  */

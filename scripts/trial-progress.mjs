@@ -73,7 +73,7 @@ const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt
  * AN EXECUTION IS PUBLIC, AND NO BODY TO FIND (E10 fix r1-G4, fix r2-G3; E11 C1, fix r1-G1, all kept).
  * A death the GMs hold is made the table's (`publishDeath`), any other killed with the death made
  * public at once (`secret: false`), each in the Class Trial's phase - so no walk past the body
- * discovers it (chapter.mjs `bodiesToDiscover`) - and with the cause "executed" (amend 4 (b)).
+ * discovers it (body.mjs `bodiesToDiscover`) - and with the cause "executed" (amend 4 (b)).
  *
  * A FINAL TRIAL'S SENTENCE IS THE GMS' (the owner's Q2 answer, 27.10.2026). The world's record says only
  * that a Final verdict's sentence waits (`sentencePending`); who is in the GMs' store (gm-stores.mjs
