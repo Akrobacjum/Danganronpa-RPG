@@ -17684,7 +17684,8 @@ const SCENARIOS = [
             const clock = getClock();
             await cubStore.patch(cub.id, { redeemDay: { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day } });
             read.b = say();
-            await cubStore.patch(cub.id, { redeemDay: null, askOpen: true });
+            // The ask's mark of this time of day since the 1.2.110 review (E72 reader #3): an old `true` shuts nothing now.
+            await cubStore.patch(cub.id, { redeemDay: null, askOpen: M.askMarkNow() });
             read.c = say();
             await cubStore.patch(cub.id, { askOpen: null });
             await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
@@ -17924,6 +17925,69 @@ const SCENARIOS = [
             + "closed; a bet on A: placed, on A, its value; a second; a witness's block and its bet refused; a right verdict on A: [winners, purse, a bet left]; a wrong one: the same})");
     }],
 
+    ["1.2.110 lows, the Monocub's row - an Ask for Hope lapses with its time of day, a refund into the purse stops at the limit, and a student revived from a Monocub is neither paid a bet nor given Hope on an old card (scripts/monocub.mjs `askStillOpen`, `refundCubHope`, `setMonocub`, `settleBets`, `answerHopeAsk`; the E101 line's review of 1.2.110, E72 reader #3, #4, #5, 13.11.2026)", async () => {
+        /*
+         * The review's lows. #3: `askOpen` was cleared only by a GM's answer on its card, so a card deleted or a chat flushed
+         * shut Ask for Hope for good. It is a mark of the time of day it was asked in now, shut only while that time of day
+         * lasts. #4: a refund into the purse had no cap (a Bribe filling it between a Tinker's price and its refund took the
+         * total past the maximum). #5: a revived student kept its bet, order and ask: `settleBets` paid it and an old card's
+         * Give made Hope for a living student. One Monocub of the cast, its row and sheet put back after. Red at 32f5093f:
+         * the ask still shut on yesterday's mark ("legacy" true stays shut too), the total 7 of 6, the bet paid, the Hope given.
+         */
+        const [cub, target] = cast(2);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax, resourceValue } = await import("./character.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const had = { hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            const blocked = () => M.CUB_BLOCKS.askOpen.refuses(cub) !== null;
+            // #3: an ask from an earlier time of day, and one with the old `true`, shut nothing; one of now does.
+            await S.cubStore.patch(cub.id, { askOpen: true });
+            read.legacy = blocked();
+            const now = typeof M.askMarkNow === "function" ? M.askMarkNow() : null;
+            await S.cubStore.patch(cub.id, { askOpen: now ? { ...now, day: (now.day ?? 1) - 1 } : true });
+            read.yesterday = blocked();
+            await S.cubStore.patch(cub.id, { askOpen: now ?? true });
+            read.now = blocked();
+            await S.cubStore.patch(cub.id, { askOpen: null });
+            // #4: the limit counts the purse; a refund of 1 into a purse when the total already stands at the maximum.
+            const max = resourceMax(cub, "hope");
+            await trustedWrite(cub, { "system.resources.hope.value": max - 1 }, { reason: "gmRuling" });
+            await S.cubStore.patch(cub.id, { purse: 1 });
+            await M.refundCubHope(cub, { purse: 1, sheet: 0 });
+            read.total = [resourceValue(cub, "hope") + M.purseOf(cub), max];
+            await S.cubStore.patch(cub.id, { purse: null });
+            // #5: a bet on the target, the student revived, a right verdict sentencing the target; an old card's Give.
+            await S.cubStore.patch(cub.id, { bet: { targetId: target.id, targetName: target.name, value: 2 }, askOpen: now ?? true });
+            await M.setMonocub(cub, false, { quiet: true });
+            await settle();
+            const row = S.cubStore.get(cub.id) ?? {};
+            read.revived = [row.bet ?? null, row.askOpen ?? null, row.order ?? null];
+            const hopeBefore = resourceValue(cub, "hope");
+            await S.cubStore.patch(cub.id, { bet: { targetId: target.id, targetName: target.name, value: 2 } });
+            read.paid = await M.settleBets({ record: { correct: true, executedIds: [target.id] } });
+            // An old card's Give for a revived student is answered as Not now (no Hope asked of any pool), not as a Give;
+            // read by its answer, since the GM's pool may hold no Despair to convert either way.
+            read.given = [await M.answerHopeAsk(cub, 1) === game.i18n.format("DRPG.Monocub.askDeclined", { name: game.user.name }),
+                resourceValue(cub, "hope") - hopeBefore];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (cub.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        const max = read.total?.[1];
+        equal(stableJson(read), stableJson({ legacy: false, yesterday: false, now: true, total: [max, max], revived: [null, null, null], paid: 0, given: [true, 0] }),
+            "{legacy: the old true shuts the ask; yesterday: a mark of an earlier day does; now: one of this time of day does; total: [the Hope after a refund into a full purse, the maximum]; revived: [the bet, the ask, the order left on a revived student's row]; paid: bets paid to the revived; given: [an old card's Give answered as Not now, the Hope it gave]}");
+    }],
     ["a move to order costs only its action: the Monocub's next Confusion after it accepted a Bribe this time of day takes no Hope, the one after it does, and an order lapses at the turn (E72 C17)", async () => {
         /*
          * E72 C17, 12.11.2026; the owner's DC34 ("a move done to order costs only the action"); defaults, owner may revise:

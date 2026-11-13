@@ -171,6 +171,12 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     // Unconditional on purpose: clearing the mark is also the repair for a
     // silence left behind by a cub who is no longer one (the GMs' row since E72 C2).
     if (!value && cubRowOf(actor)?.witness) await patchCubRow(actor.id, { witness: null });
+    // A revived student keeps no Monocub's bet, order or ask (the 1.2.110 review, E72 reader #5): `settleBets` paid the
+    // bet into a living student's purse, and an old card's Give made Hope for them.
+    if (!value) {
+        const row = cubRowOf(actor) ?? {};
+        if (row.bet || row.order || row.askOpen) await patchCubRow(actor.id, { bet: null, order: null, askOpen: null });
+    }
 
     /*
      * ONLY ON A REAL CHANGE (F16, 20.09), which is the rule `setSilenced` below
@@ -235,7 +241,7 @@ export function cubsFor(userId) {
         // round, review #2): the owner's combine takes only a newer answer, and a post or a lapse touches no row.
         stamps[actor.id] = isMonocub(actor) ? Math.max(cubStore.newest(actor.id), newestIn(bountyStore.section())) : cubStore.newest(actor.id);
         const row = cubStore.get(actor.id) ?? (isMonocub(actor) ? {} : null);
-        if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen), invited: Boolean(row.invite),
+        if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: askStillOpen(row.askOpen) ? row.askOpen : null, invited: Boolean(row.invite),
             purse: Math.max(0, Math.trunc(Number(row.purse) || 0)),
             // The Bribes offered to this Monocub (E72 C15): the payer's name and the price, for its player's answer.
             bribes: row.bribes ? Object.fromEntries(Object.entries(row.bribes).map(([id, b]) => [id, { fromName: b?.fromName ?? "", cost: b?.cost ?? 0 }])) : null,
@@ -341,7 +347,9 @@ export function copyRowOf(row) {
         .map(b => ({ targetName: String(b.targetName ?? ""), reward: Math.max(0, Math.trunc(Number(b.reward) || 0)) }));
     const bet = row.bet && typeof row.bet === "object" && typeof row.bet.targetName === "string"
         ? { targetName: row.bet.targetName, value: Math.max(0, Math.trunc(Number(row.bet.value) || 0)) } : null;
-    return { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true, invited: row.invited === true,
+    const ask = row.askOpen && typeof row.askOpen === "object" ? { chapter: row.askOpen.chapter ?? null, epoch: row.askOpen.epoch ?? null,
+        day: row.askOpen.day ?? null, timeOfDay: row.askOpen.timeOfDay ?? null } : null;
+    return { witness: witnessShape(row.witness), redeemDay: day, askOpen: ask, invited: row.invited === true,
         purse: Math.max(0, Math.trunc(Number(row.purse) || 0)), bribes: Object.keys(bribes).length ? bribes : null,
         bounties: bounties.length ? bounties : null, bet };
 }
@@ -698,6 +706,21 @@ function gameDayNow() {
     return { chapter: clock.chapter ?? null, epoch: seasonEpoch(), day: clock.day ?? null };
 }
 
+/**
+ * AN ASK FOR HOPE IS OPEN FOR ITS TIME OF DAY (the E101 line's review of 1.2.110, E72 reader #3, 13.11.2026). `askOpen`
+ * was `true` until a GM answered the card, and nothing else cleared it, so a card deleted or a chat flushed shut Ask for
+ * Hope for good. It is now the mark of the time of day the ask was made in (`askMarkNow`: the game day and its time of
+ * day), and it shuts the next ask only while that time of day lasts (`askStillOpen`); an old `true` shuts nothing. The
+ * owner's copy carries the mark, so its tile reads the same rule. Exported for tier 2.
+ */
+export function askMarkNow() {
+    return { ...gameDayNow(), timeOfDay: getClock()?.timeOfDay ?? null };
+}
+
+export function askStillOpen(mark, now = askMarkNow()) {
+    return Boolean(mark) && typeof mark === "object" && isToday(mark, now) && mark.timeOfDay === now.timeOfDay;
+}
+
 /** Is `mark` (a row's `{ chapter, epoch, day }`) this game day? */
 function isToday(mark, today = gameDayNow()) {
     return Boolean(mark) && mark.chapter === today.chapter && mark.epoch === today.epoch && mark.day === today.day;
@@ -752,7 +775,10 @@ export function refundCubHope(actor, paid) {
 
 async function refundCubHopeNow(actor, paid) {
     const purse = Math.max(0, Math.trunc(Number(paid?.purse) || 0)), sheet = Math.max(0, Math.trunc(Number(paid?.sheet) || 0));
-    if (purse) await patchCubRow(actor.id, { purse: purseOf(actor) + purse });
+    // The purse held to the limit as well (the 1.2.110 review, E72 reader #4): a Bribe that filled it since the price
+    // leaves no room past the maximum, as the sheet's part below.
+    const room = Math.max(0, resourceMax(actor, "hope") - cubHopeTotal(actor));
+    if (purse && room) await patchCubRow(actor.id, { purse: purseOf(actor) + Math.min(purse, room) });
     // Held to the limit less the purse (the second review's #4): a purse that filled since the price leaves no room past it.
     if (sheet) {
         await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") - purseOf(actor), resourceValue(actor, "hope") + sheet) },
@@ -795,7 +821,7 @@ export const CUB_BLOCKS = Object.freeze({
         say: "DRPG.Monocub.darkened"
     },
     askOpen: {
-        refuses: actor => (cubRowOf(actor)?.askOpen ? "an Ask for Hope is still open" : null),
+        refuses: actor => (askStillOpen(cubRowOf(actor)?.askOpen) ? "an Ask for Hope is still open" : null),
         say: "DRPG.Monocub.askStillOpen"
     },
     // A Ghost Bet's (E72 C18): one placed already, the Monocub's own case open (DC15), a crime witness from the murder on.
@@ -1475,7 +1501,7 @@ async function postHopeAsk(actor) {
         thread: owner?.id ?? null,
         veiled: true
     });
-    if (posted) await patchCubRow(actor.id, { askOpen: true });
+    if (posted) await patchCubRow(actor.id, { askOpen: askMarkNow() });
     log(`${actor.name} (a Monocub) asked the GMs for Hope.`);
     return { success: Boolean(posted) };
 }
@@ -1487,7 +1513,8 @@ async function postHopeAsk(actor) {
  */
 export async function answerHopeAsk(actor, n) {
     if (!game.user?.isGM || !actor) return null;
-    const amount = wholeNumber(n, { min: 0, fallback: 0 });
+    // A student who is a Monocub no more is answered Not now (the 1.2.110 review's #5): no Despair turned into its Hope.
+    const amount = isMonocub(actor) ? wholeNumber(n, { min: 0, fallback: 0 }) : 0;
     if (amount > 0) {
         const { convertDespairToHope } = await import("./despair.mjs");
         const granted = await convertDespairToHope(game.user.id, actor, amount);
@@ -1822,7 +1849,8 @@ export async function settleBets(context) {
         const bet = row?.bet;
         if (!bet) continue;
         const actor = game.actors.get(actorId);
-        if (!actor) {
+        // No actor, or one that is a Monocub no more (revived since it bet): the bet goes unpaid (the 1.2.110 review's #5).
+        if (!actor || !isMonocub(actor)) {
             await patchCubRow(actorId, { bet: null });
             continue;
         }
