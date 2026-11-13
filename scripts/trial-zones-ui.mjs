@@ -237,6 +237,10 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = 
     const p = key => esc(plan?.[key] ?? "");
     const L = key => game.i18n.localize(key);
     const radio = m => `<label class="drpg-zone-mode-pick"><input type="radio" name="mode" value="${m}"${m === mode ? " checked" : ""}> ${esc(L(`DRPG.Floor.mode.${m}`))}</label>`;
+    /* Named by its row's label (13.11.2026): formGrid's <label> has no `for`, so a field of this window had no name a
+       screen reader could read, and tier 2's "every control in the module's own chrome has a name to be read out"
+       reported the question and the set once a test opened the window with a set in the store. */
+    const named = key => `aria-label="${esc(L(key))}"`;
     const setOptions = sets.map(s => `<option value="${esc(s.id)}"${plan?.setId && s.id === plan.setId ? " selected" : ""}>${esc(s.name)} (${s.questions.length})</option>`).join("");
     const warnings = sets.map(s => {
         const w = replayWarning(s);
@@ -246,14 +250,14 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = 
         <fieldset class="drpg-zone-modes"><legend>${esc(L("DRPG.Zones.picker.mode"))}</legend>${Object.values(ZONE_MODES).map(radio).join(" ")}</fieldset>
         <p class="notes" data-drpg-zone-hint></p>
         <div data-drpg-zone-fields="free">${formGrid([
-        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" value="${p("question")}" maxlength="${TRIAL.modes.zones.questionLength}">` },
-        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" value="${p("a")}" maxlength="${TRIAL.modes.zones.answerLength}">` },
-        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" value="${p("b")}" maxlength="${TRIAL.modes.zones.answerLength}">` }
+        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" ${named("DRPG.Zones.picker.question")} value="${p("question")}" maxlength="${TRIAL.modes.zones.questionLength}">` },
+        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" ${named("DRPG.Zones.picker.a")} value="${p("a")}" maxlength="${TRIAL.modes.zones.answerLength}">` },
+        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" ${named("DRPG.Zones.picker.b")} value="${p("b")}" maxlength="${TRIAL.modes.zones.answerLength}">` }
     ])}
-            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" value="${p("thesis")}" maxlength="${TRIAL.modes.zones.scrum.thesisLength}">` }])}</div>
+            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" ${named("DRPG.Zones.picker.thesis")} value="${p("thesis")}" maxlength="${TRIAL.modes.zones.scrum.thesisLength}">` }])}</div>
         </div>
         <div data-drpg-zone-fields="dive">
-            ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId">${setOptions}</select>` }])
+            ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId" ${named("DRPG.Zones.picker.set")}>${setOptions}</select>` }])
         : `<p>${esc(L("DRPG.Zones.picker.noSets"))}</p>`}
             <div class="drpg-dive-replay">${warnings ? box("secret", warnings) : ""}</div>
             <button type="button" data-drpg-dive-edit>${esc(L("DRPG.Zones.picker.editSets"))}</button>

@@ -566,5 +566,13 @@ Defaults, as built (the owner may revise):
   the Map's Straw Poll node shows its question and hides the Dive's set), red at 6964661 (no `startFromNode`; the window
   opened empty). R3373 reads the node's new fields.
 - GM handbook (EN, PL): the Map's paragraph.
+- The **Hall zones** window's fields named (13.11, b77190a's whole tier 2): its question, answers, thesis and set had
+  no name a screen reader could read (formGrid's label has no `for`), and "every control in the module's own chrome
+  has a name to be read out" failed once "planned minigames" had opened the window with a set in the store. Each field
+  now carries its row's label as `aria-label`. Red, then green: `--tier 2 --only "planned minigames" --only "every
+  control in the module's own chrome"` (`input name="question"` and `select name="setId"` reported, then none).
+- Seen beside it and not of this line: a run of tiers 0-2 in one process also reports R3551's character sheet input
+  (`system.traits.instinct.value`, tier 1) to that test, at 91ec405 as well (`--only R3551 --only "every control ..."`).
+  CI runs tier 2 in shards 2-8, apart from tier 1, so it does not see that input.
 - Not done here: shots. The Map's node fields for a zone mode and the filled window are drawn in the harness, and are
   for the shots page with items 3-5.
