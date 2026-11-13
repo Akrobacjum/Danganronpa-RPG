@@ -90,6 +90,8 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- Before the push of item 5 batch 8 (13.11.2026): its 4 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
+  problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 7 (13.11.2026): its 5 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
   problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 6 (13.11.2026): its 7 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
@@ -205,12 +207,19 @@ The plan's items 2-6, in its order, with what each would take:
   - Batch 7: the next 25: 5 expect a card and got the wait (a Dynamic action's Reroll bookmark message, its item card,
     a Work's card, the motive withdrawn, the Survive card); 20 keep the settle: clean-ups, reads after an `until`
     already there, token moves, async helpers, and a helper that expects no card on one call and a card on another.
+  - Batch 8, the last 17: 4 expect a card and got the wait (a Dynamic Reroll's bookmark message, a crisis action's
+    card read in both languages, a stopped chapter end's "dropped" card, a room action's whisper); 13 keep the settle:
+    cards expected at 0 after a window cancelled or closed, a receipt expected absent, clean-ups and token moves.
+  - **The chat-card group is done** (13.11.2026): batch 1's 12 sites, then 167 reviewed one by one in batches 2-8;
+    60 sites in all now wait for their card after the kept settle, and 119 keep the settle alone. After batch 8 the
+    finder lists 118 sites, every one of them reviewed and left alone (the 119th dropped out of its three-line look-ahead
+    once a wait was inserted below it, as recorded at batch 5).
   - Each new wait found its card: `until()` returns false at its deadline and fails nothing, so a wrong predicate would
     only make a test slower. Measured on a copy where every wait right after a settle throws on a timeout (47 such
     pairs in the file, batches 1 and 2 among them): the 33 tests holding batch 1's and 2's sites, 0 failed; batch 3's 11
-    tests, 0 failed once the three verdict waits were corrected; batch 4's 8 tests, 0 failed; batch 5's 6 tests, 0 failed; batch 6's 7 tests, 0 failed; batch 7's 5 tests, 0 failed.
-  - Left: the rest of the chat-card group (found again after each batch by a script over the file, not by stale line
-    numbers), and the 194 hook and notice sites, not started.
+    tests, 0 failed once the three verdict waits were corrected; batch 4's 8 tests, 0 failed; batch 5's 6 tests, 0 failed; batch 6's 7 tests, 0 failed; batch 7's 5 tests, 0 failed; batch 8's 4 tests, 0 failed.
+  - Left: the 194 hook and notice sites, counted and not started: the coordinator approved the chat-card group; the
+    hook group waits for the coordinator's word.
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
   wiring is not this line's to touch.
 

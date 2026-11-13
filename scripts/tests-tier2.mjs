@@ -83670,6 +83670,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             let outcome;
             try { outcome = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? ""));
             must(outcome?.success === false, `the first throw did not miss - this would measure nothing: ${stableJson(outcome)}`);
             const row = rerollBookmarkStore.get(actor.id);
             const message = game.messages.get(row?.messageId ?? "");
@@ -84042,6 +84043,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const mark = new Set(game.messages.map(m => m.id));
             await M.resolveCrisisAction({ actorId: killer.id, key, total: 20, isCritical, withHope: true });
             await settle();
+            await until(() => game.messages.some(m => !mark.has(m.id)));
             return game.messages.filter(m => !mark.has(m.id)).map(m => String(contentOf(m) ?? "")).join("\n");
         };
         await calm();
@@ -86436,6 +86438,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const seen = new Set(game.messages.map(m => m.id));
             const dropped = await C.openChapterEndDialog();
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && String(contentOf(m)).includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Chapter.dropped", { steps: listOf([L("faint")]) })))));
             const droppedText = foundry.utils.escapeHTML(game.i18n.format("DRPG.Chapter.dropped", { steps: listOf([L("faint")]) }));
             read.drop = [dropped ?? null, runs, record()?.stage ?? null, record()?.notRun ?? null,
                 game.messages.filter(m => !seen.has(m.id) && String(contentOf(m)).includes(droppedText)).length,
@@ -92976,6 +92979,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             await tellUse(actor, { label }, true, ["SUITE line one", "SUITE line two"]);
             await settle();
+            await until(() => game.messages.some(m => !before.has(m.id)));
             const message = game.messages.find(m => !before.has(m.id));
             must(message, "no whisper was posted - this would measure nothing");
             // A whisper's words are secret.mjs's (`postSecret`): read as its readers read them.
