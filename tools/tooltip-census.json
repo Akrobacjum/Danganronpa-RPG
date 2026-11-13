@@ -366,7 +366,7 @@
    "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },
   {
-   "file": "scripts/cleanup.mjs",
+   "file": "scripts/cleanup-reshape.mjs",
    "unit": "askTransform",
    "kind": "footer",
    "key": "DRPG.Cleanup.transformErase",

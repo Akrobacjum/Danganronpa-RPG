@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy, cleanupText, cleanupBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2602,7 +2602,7 @@ const REGRESSIONS = [
         const plant = fnSource(vault, "plantOnPerson");
         ok(/def\.plant\?\.threshold/.test(plant) && /def\.plant\?\.unseen/.test(plant),
             "a plant is judged against the steal thresholds again");
-        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        const cleanup = stripComments(cleanupText(sources));
         ok(!/viaAction\s*&&\s*data\.sourceActor\s*!==\s*actor\.id/.test(cleanup),
             "Tamper refuses a trace somebody else left again, after its menu offered it");
         ok(/data\.type\s*===\s*"incident"\s*&&\s*incidentParticipant\(actor\)/.test(cleanup),
@@ -2621,7 +2621,7 @@ const REGRESSIONS = [
          * vacuously: `indexOf` returned -1, `slice(-1)` handed it one character, and
          * both assertions were about an empty string.
          */
-        const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
+        const cleanup = stripComments(cleanupText(new Map(await otherSources())));
         const conceal = bodyOf(cleanup, "async function concealFromWitnesses", { until: "\nasync function " });
         ok(/return "rolled";/.test(conceal) && !/return true;/.test(conceal),
             "concealFromWitnesses no longer tells its callers a concealment roll landed");
@@ -2654,7 +2654,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         // E41 C3 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read.
         const rolls = stripComments(actionText(sources));
-        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        const cleanup = stripComments(cleanupText(sources));
         for (const [file, src] of [["the action family", rolls], ["cleanup.mjs", cleanup]]) {
             ok(!/DialogV2\.confirm\([\s\S]{0,400}?(carryOn|CarryOn)/.test(src),
                 `${file} asks whether to carry on after a concealment roll again`);
@@ -3013,7 +3013,7 @@ const REGRESSIONS = [
          *   is what keeps a forged packet paying something;
          *   and the critical hands back the STEP that paid.
          */
-        const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
+        const cleanup = stripComments(cleanupText(new Map(await otherSources())));
 
         for (const fn of ["attemptCleanup", "attemptStageSix"]) {
             const body = bodyOf(cleanup, `export async function ${fn}`, { until: "\nexport " });
@@ -5113,7 +5113,7 @@ const REGRESSIONS = [
          * checking the branch it was written for.
          */
         const sources = new Map(await otherSources());
-        const src = stripComments(sources.get("cleanup.mjs") ?? "");
+        const src = stripComments(cleanupText(sources));
 
         const callers = [...src.matchAll(/await reshapeTrace\(/g)].length;
         ok(callers === 1,
@@ -5819,7 +5819,7 @@ const REGRESSIONS = [
         const resolve = bodyOf(analyze, "export async function resolveAnalyze(", { until: "\n}\n" });
         ok(/!undo && !isAnalysable\(held, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
         ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
-        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        const cleanup = stripComments(cleanupText(sources));
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
         // The price is `chargeUnclaimed`'s since E64 (f657e7d), `spendStress` before: whichever comes first.
         const paidAt = Math.min(...["spendStress(", "chargeUnclaimed("].map(k => six.indexOf(k)).filter(at => at >= 0));
@@ -12476,7 +12476,7 @@ const REGRESSIONS = [
             "call-gm.mjs": [1, "the request to the GM (a kit window)"],
             "call-pickers.mjs": [3, "a Call's text, motive and consequence (kit windows)"],
             "calls.mjs": [1, "a Call's note (a kit window)"],
-            "cleanup.mjs": [1, "a reshaped trace's text (a kit window)"],
+            "cleanup-reshape.mjs": [1, "a reshaped trace's text (a kit window)"],
             "gm-campaign.mjs": [1, "Edit campaign's morning line"],
             "gm-items.mjs": [4, "Give's description, a Truth Bullet's texts, the autopsy's two"],
             // 16 since E104 (the 1.2.112 tree): a planned Remnant's, Final Truth's and Truth Bullet's three each, the case map's node editor.
@@ -12698,7 +12698,7 @@ const REGRESSIONS = [
         const place = fnSource(remnants, "placeRemnant");
         ok(/epoch: keepId && Number\.isFinite\(data\.epoch\) \? data\.epoch : seasonEpoch\(\)/.test(place),
             "a trace's ledger row does not name its season, or takes it off the packet rather than only for a trace put back under its id");
-        ok(/epoch: entry\.epoch \?\? null/.test(fnSource(remnants, "remnantData")) && /epoch: d\.epoch \?\? null/.test(fnSource(src("cleanup.mjs"), "recreationDataFor")),
+        ok(/epoch: entry\.epoch \?\? null/.test(fnSource(remnants, "remnantData")) && /epoch: d\.epoch \?\? null/.test(fnSource(cleanupBy(src), "recreationDataFor")),
             "the GM's reading of a trace, or a clean-up's copy of one, drops its season - a trace put back is this season's");
         ok(/chapter: getClock\(\)\.chapter,\s*epoch: seasonEpoch\(\)/.test(fnSource(rules, "setMotive")), "the motive does not name its season");
         // Read last: before 1.2.73 there was no such reader, and `fnSource` throws for a function it cannot find.
@@ -13231,7 +13231,7 @@ const REGRESSIONS = [
         const READS = [
             ["remnants.mjs", "placeRemnant"], ["remnants.mjs", "remnantData"], ["remnants.mjs", "setRemnantFlags"],
             ["remnants.mjs", "setRemnantFlagsMany"], ["remnants.mjs", "retuneRemnant"],
-            ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"],
+            ["cleanup-reshape.mjs", "reshapeTrace"], ["cleanup-reshape.mjs", "recreationDataFor"],
             ["observe.mjs", "mintFindCopy"], ["gm-items.mjs", "bulletFromRemnant"], ["remnants.mjs", "moveIntoLedger"]
         ];
         const FLAT = /\bBoolean\(\s*(?:[\w.?]*tiedToCrime|\w+\(\s*["']tiedToCrime["']\s*\))\s*\)/;
@@ -13266,7 +13266,7 @@ const REGRESSIONS = [
          * `cleanupAttemptStore.whenHydrated()`. Read off the source, comments stripped.
          */
         const sources = new Map(await otherSources());
-        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        const cleanup = stripComments(cleanupText(sources));
         const claim = fnSource(cleanup, "claimRuling");
         const waits = text => [...text.matchAll(/\bawait\s+([\w$.]+)/g)].map(m => m[1]);
         const beforeClaim = name => {
@@ -14238,7 +14238,7 @@ const REGRESSIONS = [
                 && /scene: esc\(scene\?\.name \?\? "\?"\)/.test(fnSource(code("traps.mjs"), "alert")),
             oneScene: /place\.scene\.id === projectScene\(countdownId\)\?\.id/.test(fnSource(code("projects.mjs"), "standsAtProject"))
                 && /standsAtProject\(\{ room, scene \}, trap\.id\)/.test(fnSource(code("traps.mjs"), "armedIn"))
-                && /return sameRoom\(actor, victim\);/.test(fnSource(code("cleanup.mjs"), "bodyIsHere"))
+                && /return sameRoom\(actor, victim\);/.test(fnSource(cleanupBy(code), "bodyIsHere"))
                 && /DRPG\.Panel\.noSceneNamed/.test(fnSource(api, "sceneNamed"))
                 && /if \(room && game\.user\?\.isGM && !sceneOfRoom\(room\)\)/.test(fnSource(api, "createProjectNamed")),
             putBack: /if \(!roomFlagSeen\.has\(region\.id\)\) return keepRoomFlag\(region, undefined, false, author\);/.test(fnSource(movement, "judgeRoomFlagChange"))
@@ -15281,7 +15281,7 @@ const REGRESSIONS = [
             return text;
         };
         code("call-world.mjs");
-        code("cleanup.mjs");
+        cleanupBy(code);
         const sites = [];
         for (const [file, raw] of sources) {
             if (/^tests/.test(file)) continue;
@@ -16225,7 +16225,7 @@ const REGRESSIONS = [
             ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
             ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],
             ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
-            ["cleanup.mjs#proposeReshape", "gm", null, "`resolveCleanup` runs on a GM: the run of `murder.cleanup`, or a GM's own (`local`); its false is read"],
+            ["cleanup-reshape.mjs#proposeReshape", "gm", null, "`resolveCleanup` runs on a GM: the run of `murder.cleanup`, or a GM's own (`local`); its false is read"],
             ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
             ["monocub.mjs#postHopeAsk", "gm", null, "an Ask for Hope's card (E72 C5): `CUB_RESOLVERS.askHope` runs on a GM, in `cubAbilityOnGm` (the run of `monocub.ability`, or a GM's own); its false leaves the ask closed"],
             ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
@@ -18202,7 +18202,7 @@ const REGRESSIONS = [
          * was a variable, R1230). Red at C1's parent: crisis and murderOpening passed none.
          */
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
-        const FILES = [...ACTION_FAMILY, "frisk.mjs", "murder-rules.mjs", "cleanup.mjs", "use-items.mjs", "observe.mjs"];
+        const FILES = [...ACTION_FAMILY, "frisk.mjs", "murder-rules.mjs", "cleanup.mjs", "cleanup-reshape.mjs", "use-items.mjs", "observe.mjs"];
         const palm = ACTIONS.palm;
         const num = v => Number.isFinite(v);
         const RULED = {
@@ -22810,7 +22810,7 @@ const REGRESSIONS = [
             ["analyze.mjs", "tellGmsKeyMissing", "E49", 1, 0, 0], ["anonymity.mjs", "lowerOwnership", "E49", 1, 0, 0],
             ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 1, 0, 0], ["call-effects.mjs", "tell", "E49", 1, 0, 0], ["call-gm.mjs", "callCardHtml", "E49", 1, 0, 0],
             ["chapter.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
-            ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup.mjs", "proposeReshape", "E49", 1, 0, 0],
+            ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup-reshape.mjs", "proposeReshape", "E49", 1, 0, 0],
             ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
             ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
             ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
@@ -22877,8 +22877,8 @@ const REGRESSIONS = [
             // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
             "case-summary.mjs": {"message": 1},
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
-            "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
-            "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
+            
+            "cleanup-reshape.mjs": {"action": 2, "card": 1, "line": 1}, "cleanup.mjs": {"action": 3, "built": 1, "card": 3, "heading": 2, "line": 6, "message": 1}, "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"line": 6}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
             "gm-items.mjs": {"action": 1, "heading": 2},
