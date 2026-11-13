@@ -38873,10 +38873,39 @@ const INVARIANTS = [
         const src = await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText);
         const apply = fnSource(src, "applyToProjectToken"), forget = fnSource(src, "forgetMyRooms"), reg = fnSource(src, "registerVisibility");
         equal(stableJson({
-            gate: /if \(knowsProject\(projectId\) && tokenShownAsSeen\(projectId\)\) return;/.test(apply),
+            gate: /if \(knowsProject\(projectId\) && tokenShownAsSeen\(projectId\)\) \{/.test(apply) && /\n    hide\(token\);/.test(apply),
             forget: /forgetSeenPass\(\)/.test(forget), pass: /Hooks\.on\("drpgSeenChanged", \(\) => projectTokensPass\(\)\)/.test(reg) && /applyToProjectToken\(token, projectId\)/.test(fnSource(src, "projectTokensPass")),
             gm: S.tokenShownAsSeen("R5651none", game.user)
         }), stableJson({ gate: true, forget: true, pass: true, gm: true }), "[the token's gate; the pass's reading dropped; the project tokens asked again on a change; a GM's answer]");
+    }],
+
+    ["R5652 - a project token's finished tint on a player's map follows what they saw (PV, the coordinator's follow-up of 13.11.2026 to the owner's rule #2): projects-seen.mjs `tintForSeen` answers the finished tint for a row seen finished, the underway tint for one seen underway or never seen, and none for a live row, which draws the document's own; visibility.mjs lays it on a shown project token's sprite (`paintProjectTint`)", async () => {
+        const S = await import("./projects-seen.mjs");
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/visibility.mjs`).then(lfText);
+        equal(stableJson({
+            seenDone: S.tintForSeen({ seen: "last", complete: true }), seenUnder: S.tintForSeen({ seen: "last", complete: false }),
+            unknown: S.tintForSeen({ seen: "unknown", complete: false }), live: S.tintForSeen({ seen: "live", complete: true }), none: S.tintForSeen(null),
+            painted: /paintProjectTint\(token, projectId\)/.test(fnSource(src, "applyToProjectToken")) && /tintAsSeen\(projectId\)/.test(fnSource(src, "paintProjectTint"))
+        }), stableJson({ seenDone: PROJECT_TOKEN.doneTint, seenUnder: PROJECT_TOKEN.workingTint, unknown: PROJECT_TOKEN.workingTint, live: null, none: null, painted: true }),
+        "[seen finished; seen underway; never seen; live; no row; laid on the sprite]");
+    }],
+
+    ["R5653 - a player's Call picker offers projects as the player last saw them (PV, the coordinator's follow-up of 13.11.2026): call-pickers.mjs `callProjectPool` keeps, for a Call that moves progress, a row seen last by its own frozen and finished state - a project frozen since the player's last visit is still offered, one seen frozen is not - and asks a live row's project; a Call that moves none keeps every row; the away list is `projectsAsSeen` for a player, `knownProjects` for a GM, and the Call's legality stays live (`projectRefusal`)", async () => {
+        const C = await import("./call-pickers.mjs");
+        const liveFrozen = new Set(["R5653a", "R5653c"]);
+        const readers = { isComplete: p => Boolean(p.complete), isFrozen: id => liveFrozen.has(id) };
+        const rows = [{ id: "R5653a", seen: "last", frozen: false, complete: false }, { id: "R5653b", seen: "last", frozen: true, complete: false },
+            { id: "R5653c", seen: "live", frozen: true, complete: false }, { id: "R5653d", seen: "last", frozen: false, complete: true }, { id: "R5653e", frozen: false, complete: false }];
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/call-pickers.mjs`).then(lfText);
+        const effects = await fetch(`/modules/${MODULE_ID}/scripts/call-effects.mjs`).then(lfText);
+        const pick = fnSource(src, "pickProject");
+        equal(stableJson({
+            moves: C.callProjectPool(rows, true, readers).map(p => p.id), still: C.callProjectPool(rows, false, readers).length,
+            away: /game\.user\?\.isGM \? knownProjects\(\)/.test(pick) && /projectsAsSeen\(game\.user\)/.test(pick),
+            legality: /isComplete\(project\) \|\| isFrozen\(project\.id\)/.test(fnSource(effects, "projectRefusal"))
+        }), stableJson({ moves: ["R5653a", "R5653e"], still: 5, away: true, legality: true }),
+        "[offered to a Call that moves progress: seen unfrozen though frozen now, a live row asked; to one that moves none; the away list by reader; the legality live]");
     }],
 
     ["R1301 - the dice look's two preset findings know the table's look (E60 fix FG3; the end review's C-m5, G-m5): where this browser lays the table's Hope and Despair look (`browser.tableLook`), dice-look.mjs `lookFindings` words a duality die with no preset as drawn in the table's look (`presetMissing`, its own sentence) and holds a die's preset to the table's look rather than this browser's Daggerheart preset (`presetDiffers`, its own sentence; none where the two agree); with no table look laid both say what they said at C5b", async () => {

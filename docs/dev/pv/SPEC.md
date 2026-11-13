@@ -152,6 +152,14 @@ projects-seen.mjs). The backup test ("Back up the case, then Restore") holds eve
 
 - The map's project token follows the tray (R5651): found in the self-review - a project made, or a repair begun, while
   the player was away appeared on their map at once, as `knowsProject` alone gated it.
+- The coordinator's follow-up (13.11.2026): a finished project's token tint on a player's map follows the snapshot
+  (`tintForSeen`, visibility.mjs `paintProjectTint`; R5652; LIVE-PV-03), live for a GM and while a character stands
+  there; a player's Call picker (a player-held Monokuma's Despair Call away from a project's room) lists and filters the
+  projects as seen (`projectsAsSeen`, call-pickers.mjs `callProjectPool`; R5653). The Call's legality stays live: the
+  picker shows the snapshot, and call-effects.mjs `projectRefusal` still refuses a finished or frozen project, live, after
+  the pick - so a pick of a project frozen while the player was away is refused with `DRPG.Project.noneToMove`, which
+  says that much. `.claude/rules/code.md` has the two new files' rows (the owner's consent of 13.11, relayed by the
+  coordinator).
 - Scenario 86's E89 C2 caught the first wiring: a change of the snapshot asked a whole visibility pass on an own move;
   it asks the project tokens alone now (`projectTokensPass`).
 

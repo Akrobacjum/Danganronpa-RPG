@@ -40,7 +40,7 @@ import { myLairRoom } from "./mastermind.mjs";
 import { knowsProject } from "./projects.mjs";
 import { projectIdOf } from "./projects-map.mjs";
 // What a player saw last (PV, 13.11.2026): a project's token as the tray shows its row. It reaches no file that imports this one.
-import { tokenShownAsSeen, forgetSeenPass } from "./projects-seen.mjs";
+import { tokenShownAsSeen, forgetSeenPass, tintAsSeen } from "./projects-seen.mjs";
 import { debug } from "./utils.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -623,8 +623,30 @@ function applyToProjectToken(token, projectId) {
     if (token.document.hidden) return;     // a GM has hidden it by hand
     /* AS LAST SEEN (PV, 13.11.2026; the owner's rule #2): a project made, or a sabotage's repair begun, while none of this
        player's characters was in its room stays off their map until one of them is (projects-seen.mjs `asSeen`). */
-    if (knowsProject(projectId) && tokenShownAsSeen(projectId)) return;
+    if (knowsProject(projectId) && tokenShownAsSeen(projectId)) {
+        paintProjectTint(token, projectId);
+        return;
+    }
     hide(token);
+}
+
+/**
+ * A PROJECT TOKEN'S FINISH AS THIS PLAYER SAW IT (PV, 13.11.2026): the tint projects-seen.mjs `tintAsSeen` answers - the
+ * finished one only when the player's last sight of the room saw it finished - or, for a live row, the document's own,
+ * written back so a tint laid while the player was away does not outlast their return. Laid on the sprite of this
+ * browser alone, after Foundry's own refresh of it (this runs in the refresh's hook). No canvas in the harness: what is
+ * drawn is LIVE-PV-03; the tint chosen is R5652.
+ */
+function paintProjectTint(token, projectId) {
+    const mesh = token?.mesh;
+    if (!mesh) return;
+    const tint = tintAsSeen(projectId) ?? token.document?.texture?.tint ?? null;
+    if (tint === null || tint === undefined) return;
+    try {
+        mesh.tint = typeof tint === "number" ? tint : (foundry.utils.Color?.from?.(tint) ?? tint);
+    } catch {
+        // A tint the canvas cannot read leaves the sprite as Foundry drew it.
+    }
 }
 
 function applyToRemnantToken(token) {

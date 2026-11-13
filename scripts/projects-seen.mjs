@@ -24,7 +24,7 @@
  * browser that receives it, so the primary holds it (`foundDoneStore`) and posts it at the finder's next entry.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, gmIds, esc, announce, error, debug } from "./utils.mjs";
 import { allProjects, knowsProject, knowsWithoutRoom, projectScene } from "./projects.mjs";
@@ -207,6 +207,26 @@ export function tokenShownAsSeen(projectId, user = game.user) {
     if (!passCache) passCache = { section: seenSection(user), standing: standingNow(user), rows: new Map(allProjects().map(p => [p.id, p])) };
     const row = passCache.rows.get(projectId);
     return Boolean(row && asSeen(row, { user, section: passCache.section, standing: passCache.standing, live: false }));
+}
+
+/**
+ * A PROJECT TOKEN'S TINT AS SEEN (PV, 13.11.2026; the coordinator's follow-up to the owner's rule #2). The token's
+ * document carries the finished tint the moment the bar fills (projects-map.mjs `tintFor`), which every browser on its
+ * scene draws - a finish told live to a player who was not there. Pure: the tint a row seen last draws, finished
+ * (`doneTint`) or underway (`workingTint`; also for a bar this browser never saw, which says nothing of a finish), or
+ * null for a live row (a GM, a Spectator, a character standing there), which draws the document's own.
+ */
+export function tintForSeen(seen) {
+    if (!seen || seen.seen === "live") return null;
+    return seen.complete ? PROJECT_TOKEN.doneTint : PROJECT_TOKEN.workingTint;
+}
+
+/** The tint this reader's map draws a project's token in: `tintForSeen` of its row, read once a pass; null for live. */
+export function tintAsSeen(projectId, user = game.user) {
+    if (seesLive(user)) return null;
+    if (!passCache) passCache = { section: seenSection(user), standing: standingNow(user), rows: new Map(allProjects().map(p => [p.id, p])) };
+    const row = passCache.rows.get(projectId);
+    return row ? tintForSeen(asSeen(row, { user, section: passCache.section, standing: passCache.standing, live: false })) : null;
 }
 
 /* ---- this browser's writes ---------------------------------------------- */
