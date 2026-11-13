@@ -43,19 +43,21 @@ import {
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
-    ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
+    ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
-    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
-    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
+    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
+    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH,
+    ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
     handleAdvancementOffer, handleAdvancementAsk, handleShareBulletOrGiveItem, handlePassageShare, handlePassageCross,
-    handleRefundCrossing, handlePassageFind, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
+    handleRefundCrossing, handlePassageFind, handlePassageLairSeal, handleLairLock, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
-    handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
-    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling
+    handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
+    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
+    handleTailStart, tailRolls, handleDoorShut, handleDoorForce, handleDoorPick, pickRolls, handleWatchDeclare, handleDoorKnock
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -142,6 +144,110 @@ export const BRIDGE_ACTIONS = table({
         claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-pipeline.mjs): the sender's own row of that message, its character and an Analyze not thrown as a Find Passage (`notFindPassageRoll`)" }
     },
+    [ACTION_FACILITY_USE]: {
+        label: "DRPG.Bridge.what.facility.use",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, actionId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        run: handleFacilityUse,
+        // The asker's window says what the use did (`useFacility`), so the answer is the run's.
+        answer: "reply",
+        /* A GM's room action's total and critical are the GMs' record of the roll `rollId` names (E93 C3): a Facilities
+           roll of this character, the sender's, drawn for this action (`named`: the record's `facility`, roll-draw.mjs
+           `drawOnGm`). A project's action has no roll; a GM's packet with none is refused in the run while the GMs draw. */
+        rolled: { field: "rollId", actor: "actorId", kind: "facility", when: "rollId", named: { facility: "actionId" } },
+        claims: { actionId: "looked up in the room the GMs hold the character in, and nowhere else (facilities-gm.mjs offerAt): a GM's action on the room's own pieces, a project's among the completed projects standing there that the sender can see",
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): the sender's own drawn roll of that character, a Facilities roll drawn for that action" }
+    },
+    [ACTION_DASH]: {
+        label: "DRPG.Bridge.what.dash.settle",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        run: handleDash,
+        // The asker's card says how many free crossings came (`performDash`).
+        answer: "reply",
+        /* Always a roll: a Dash's total and critical are the GMs' record of the Leg roll `rollId` names, a Dash roll of this
+           character, the sender's, settled once (bridge-guards.mjs `rollRefusal`); with no roll named it is refused. */
+        rolled: { field: "rollId", actor: "actorId", kind: "dash" },
+        claims: { rollId: "the roll the free crossings are read from (bridge-guards.mjs rollRefusal): the sender's own drawn Dash roll of that character, settling one Dash" }
+    },
+    [ACTION_DOOR_SHUT]: {
+        label: "DRPG.Bridge.what.door.shut",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, rollId: as.id }),
+        run: handleDoorShut,
+        // The asker's card says the door is shut, or nothing was (`performShut`).
+        answer: "reply",
+        // Always a roll: the barricade's strength is the GMs' record of the Body roll `rollId` names (rollRefusal).
+        rolled: { field: "rollId", actor: "actorId", kind: "shut" },
+        claims: { rollId: "the roll the barricade's strength is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Shut the Door roll of that character" }
+    },
+    [ACTION_DOOR_FORCE]: {
+        label: "DRPG.Bridge.what.door.force",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, room: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
+        run: handleDoorForce,
+        // The asker's card says whether the door gave (`performForce`).
+        answer: "reply",
+        // Always a roll: the total, the critical and the Hope are the GMs' record of the Body roll `rollId` names.
+        rolled: { field: "rollId", actor: "actorId", kind: "force" },
+        claims: {
+            room: "judged by forceDoor (doors-gm.mjs): a neighbour of the room the GMs read the character standing in; what holds its door is read on the GM",
+            rollId: "the roll the door is forced with (bridge-guards.mjs rollRefusal): the sender's own drawn Force the Door roll of that character"
+        }
+    },
+    [ACTION_DOOR_PICK]: {
+        label: "DRPG.Bridge.what.door.pick",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, room: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, coverTotal: as.num,
+            coverCritical: as.bool, rollId: as.id, coverRollId: as.id }),
+        run: handleDoorPick,
+        // The asker's card says whether the lock opened (`performPick`).
+        answer: "reply",
+        // Both rolls on the GMs' record of each (Palm's model): the Hand, thrown as "pick", and its cover, "pickCover".
+        rolled: pickRolls("actorId"),
+        claims: {
+            room: "judged by pickLock (doors-gm.mjs): a neighbour of the room the GMs read the character standing in; what holds its door is read on the GM",
+            rollId: "the Hand roll the lock is picked with (bridge-guards.mjs rollRefusal): the sender's own drawn Pick the Lock roll of that character",
+            coverRollId: "the Shadow roll the two rooms' seeing is read from (bridge-guards.mjs rollRefusal): the sender's own drawn roll of that character, thrown as pickCover"
+        }
+    },
+    [ACTION_WATCH_DECLARE]: {
+        label: "DRPG.Bridge.what.watch.declare",
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
+        run: handleWatchDeclare,
+        // The asker's card says whether a watch is kept (`performWatch`).
+        answer: "reply",
+        // Always a roll: the total and the critical are the GMs' record of the Body roll `rollId` names.
+        rolled: { field: "rollId", actor: "actorId", kind: "keepWatch" },
+        claims: { rollId: "the roll the watch is kept by (bridge-guards.mjs rollRefusal): the sender's own drawn Keep Watch roll of that character" }
+    },
+    [ACTION_DOOR_KNOCK]: {
+        label: "DRPG.Bridge.what.door.knock",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, room: as.text }),
+        run: handleDoorKnock,
+        // A report nobody waits on: the walker was told by its own veto that the door does not give.
+        answer: "none", quiet: true,
+        claims: { room: "judged by knockDoor (doors-gm.mjs): a barricaded room next to the one the GMs read the character standing in; one card a barricade a quarter minute" }
+    },
+    [ACTION_TAIL_START]: {
+        label: "DRPG.Bridge.what.tail.start",
+        guards: [knownSender, notSpectator("tailerId"), guardUndoIsTheGms, owns("tailerId", "sender does not own that character")],
+        sanitize: pick({ tailerId: as.id, targetId: as.id, total: as.num, isCritical: as.bool, unseenTotal: as.num,
+            unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
+        run: handleTailStart,
+        // The asker's card says the tail began, and whether the target noticed (`performTail`).
+        answer: "reply",
+        // Both rolls on the GMs' record of each (Palm's `palmRolls` the model): the effect, thrown as "tail", and the
+        // Shadow the target's noticing is read from, thrown as "tailUnseen". Always both: a packet naming none is refused.
+        rolled: tailRolls("tailerId"),
+        claims: {
+            targetId: "judged by startTail (tail-gm.mjs `tailRefusal`), before the rolls are read: the one gate of a person's action (frisk.mjs personActionRefusal) - a student in the tailer's room as the GMs read both, not the tailer, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the tailer's own incident - a target the GMs hold alive, outside an investigation",
+            rollId: "the effect's roll the result is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Tail Someone roll of that character",
+            unseenRollId: "the Shadow roll the target's noticing is read from (bridge-guards.mjs rollRefusal): the sender's own drawn roll of that character, thrown as tailUnseen"
+        }
+    },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
@@ -207,6 +313,32 @@ export const BRIDGE_ACTIONS = table({
         run: handleRefundCrossing,
         answer: "reply",
         claims: { actorId: "movement.mjs refundLastCrossing gives back only the GMs' own record of that character's newest crossing (gm-stores.mjs `crossingStore`), once, on the primary" }
+    },
+    /*
+     * THE MASTERMIND'S DOOR (E91 C4, C5; D038, the owner's "Budujemy" of 12.11.2026). The Mastermind's player locks or
+     * opens their own room with the GM's lock (mastermind.mjs `lockLair`, vault-store.mjs `writeRoomLock`) and seals a
+     * passage at their door with the tab's close (passages-gm.mjs `sealLairPassage`), on the primary. The sender's own
+     * student first; whether that student is the Mastermind and the sender the owner the door names
+     * (`actsAsMastermind`), and the lair, are the GMs' record's, judged in the run; every refusal is "nothing was carried
+     * out", so another player's ask learns nothing of the role. Tier 2 "D038 lair lock" and "D038 lair seal".
+     */
+    [ACTION_LAIR_LOCK]: {
+        label: "DRPG.Bridge.what.mastermind.lairLock",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, lock: as.bool }),
+        run: handleLairLock,
+        // The Mastermind's line says the door is locked or open: a reply, or nothing changed.
+        answer: "reply"
+    },
+    [ACTION_PASSAGE_LAIR_SEAL]: {
+        label: "DRPG.Bridge.what.passage.lairSeal",
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, passageId: as.id }),
+        run: handlePassageLairSeal,
+        answer: "reply",
+        claims: {
+            passageId: "passages-gm.mjs sealLairPassage: an open passage of the GMs' records with a side in the lair the GMs' record names (`presetSideRefusal`), for the sender who acts as the Mastermind through the character (`actsAsMastermind`), on the primary"
+        }
     },
     [ACTION_PASSAGE_FIND]: {
         label: "DRPG.Bridge.what.passage.find",
@@ -422,7 +554,36 @@ export const BRIDGE_ACTIONS = table({
         run: handleCubAbility,
         // The roll it threw goes back, for the Monocub's card.
         answer: "reply",
-        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
+        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room, or for Tinker (E72 C13) a public, unfinished, unfrozen project there that a living student worked on this time of day; an id that is neither is refused as a missing one" }
+    },
+    [ACTION_CUB_ANSWER]: {
+        label: "DRPG.Bridge.what.monocub.answer",
+        // E72 C6: the player of a dead student the GMs invited; whether an invitation is open is the GMs' row's (`cubStore`).
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, accept: as.bool }),
+        run: handleCubAnswer,
+        // The player's window says what came of it (a Monocub now, or the invitation closed).
+        answer: "reply"
+    },
+    [ACTION_BRIBE_OFFER]: {
+        label: "DRPG.Bridge.what.bribe.offer",
+        // E72 C15: the payer is the sender's own student; the Monocub is judged in the run (`bribeRefusal`).
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, cubId: as.id }),
+        run: handleBribeOffer,
+        // The payer's Call says it was offered, or nothing was spent.
+        answer: "reply",
+        claims: { cubId: "judged by monocub.mjs bribeRefusal in offerBribeOnGm before anything is written: a Monocub, not the payer" }
+    },
+    [ACTION_BRIBE_ANSWER]: {
+        label: "DRPG.Bridge.what.bribe.answer",
+        // E72 C15: the Monocub's own player; the offer is the GMs' row's (`cubStore`'s `bribes`), never the packet's.
+        guards: [knownSender, notSpectator("cubId"), owns("cubId", "sender does not own that Monocub")],
+        sanitize: pick({ cubId: as.id, bribeId: as.id, accept: as.bool }),
+        run: handleBribeAnswer,
+        // The Monocub's window says what came of it.
+        answer: "reply",
+        claims: { bribeId: "judged by monocub.mjs answerBribeOnGm: an offer open in the GMs' row of that Monocub, never the packet's" }
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",

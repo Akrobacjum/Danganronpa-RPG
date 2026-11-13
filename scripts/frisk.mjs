@@ -183,14 +183,14 @@ export function knownDeath(user, target) {
  * The students who see what happens in `room` on `scene`, as the GMs read them: chapter.mjs `witnessesOf`, the rule a
  * walk-in on a body counts its witnesses by - a student's character (no Monokuma), on a token the GMs have not hidden,
  * alive for the GMs or a Monocub, standing where the witness judge reads it (movement.mjs `lawfulRoomOf`), one a
- * student however many tokens - less the ids of `except` (the two the event is about). A Monocub sees, as it sees a
- * body found. World actors, in the scene's token order. On the primary GM: the marks are its (`flagsHeldNow`).
+ * student however many tokens - less the ids of `except` (the two the event is about). A Monocub sees (`monocubs`),
+ * though since E72 C3 it finds no body (DC7). World actors, in the scene's token order. On the primary GM: the marks are its (`flagsHeldNow`).
  */
 export function roomWitnessesOnGm(room, scene, { except = [] } = {}) {
     if (!room || !scene) return [];
     const left = new Set(except);
     const students = new Set(studentActors().map(actor => actor.id));
-    return witnessesOf({ tokens: scene.tokens ?? [], room, students, held: flagsHeldNow, roomOf: lawfulRoomOf })
+    return witnessesOf({ tokens: scene.tokens ?? [], room, students, held: flagsHeldNow, roomOf: lawfulRoomOf, monocubs: true })
         .map(token => game.actors.get(token.actor?.id) ?? null).filter(actor => actor && !left.has(actor.id));
 }
 

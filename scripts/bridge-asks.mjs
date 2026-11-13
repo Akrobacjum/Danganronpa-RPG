@@ -30,11 +30,11 @@ import {
     ACTION_READY_END, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
-    ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND,
+    ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK,
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
-    ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
+    ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -45,6 +45,74 @@ import { ask } from "./bridge-table.mjs";
 export function requestOpeningResult({ actorId, side, total, isCritical, withHope, rollId = null }) {
     return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope, rollId }, {
         local: () => import("./murder.mjs").then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }))
+    });
+}
+
+/**
+ * Use a room action of the Facilities tile (E93 C3): a GM's, named by its id with the roll thrown for it (`rollId`, the
+ * message the GM wrote for it, whose record the GM reads the total and the critical off), or a completed project's,
+ * `project:<projectId>`, with no roll. Judged and carried out on the primary (facilities-gm.mjs `handleFacilityUse`); a
+ * GM runs it on their own client.
+ */
+export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_FACILITY_USE, { actorId, actionId, total, isCritical, rollId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleFacilityUse({ actorId, actionId, total, isCritical, rollId }, game.user))
+    });
+}
+
+/** Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`). */
+/** Shut the Door (E74 C2): the Body roll named by its message; answers `{ room }` as `.value`. */
+export function requestDoorShut({ actorId, total = 0, rollId = null }) {
+    const packet = { actorId, total, rollId };
+    return ask(ACTION_DOOR_SHUT, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorShut(packet, game.user))
+    });
+}
+
+/** Force the Door (E74 C3): the room beyond and the Body roll named by its message; answers `{ forced, held }` as `.value`. */
+export function requestDoorForce({ actorId, room, total = 0, isCritical = false, withHope = true, rollId = null }) {
+    const packet = { actorId, room, total, isCritical, withHope, rollId };
+    return ask(ACTION_DOOR_FORCE, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorForce(packet, game.user))
+    });
+}
+
+/** Pick the Lock (E74 C4): the room beyond and both rolls named by their messages; answers `{ opened, held }` as `.value`. */
+export function requestDoorPick({ actorId, room, total = 0, isCritical = false, withHope = true, coverTotal = 0, coverCritical = false,
+    rollId = null, coverRollId = null }) {
+    const packet = { actorId, room, total, isCritical, withHope, coverTotal, coverCritical, rollId, coverRollId };
+    return ask(ACTION_DOOR_PICK, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorPick(packet, game.user))
+    });
+}
+
+/** Somebody at a barricaded door (E74): the walker's veto refused the walk in; the GM tells the barricade's author. */
+export function requestDoorKnock({ actorId, room }) {
+    return ask(ACTION_DOOR_KNOCK, { actorId, room }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorKnock({ actorId, room }, game.user))
+    });
+}
+
+/** Keep Watch (E74 C6): the Body roll named by its message; answers `{ kept }` as `.value`. */
+export function requestWatchDeclare({ actorId, total = 0, isCritical = false, withHope = true, rollId = null }) {
+    const packet = { actorId, total, isCritical, withHope, rollId };
+    return ask(ACTION_WATCH_DECLARE, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleWatchDeclare(packet, game.user))
+    });
+}
+
+/** Begin a tail (E69 C3): the two rolls named by their messages; answers `{ seen }` as `.value`. */
+export function requestTailStart({ tailerId, targetId, total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false,
+    rollId = null, unseenRollId = null }) {
+    const packet = { tailerId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId };
+    return ask(ACTION_TAIL_START, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleTailStart(packet, game.user))
+    });
+}
+
+export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))
     });
 }
 
@@ -958,6 +1026,53 @@ export function requestBetrayal({ actorId, note = "", proposed = null }) {
     // `proposed` (E68 C9): the opening's statistic the betrayer proposes, for the GM's opening window.
     return ask(ACTION_BETRAYAL, { actorId, note, proposed }, {
         local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note, proposed }))
+    });
+}
+
+/**
+ * The Mastermind locks (`lock` true) or opens their own room (E91 C4, D038; mastermind.mjs `lockLair`), judged on the
+ * primary GM; a GM's own browser does it here when it is the primary, and says a refusal as the bridge would. Its value
+ * is `{ locked }` once written.
+ */
+export function requestLairLock({ actorId, lock }) {
+    return ask(ACTION_LAIR_LOCK, { actorId, lock: Boolean(lock) }, {
+        onPrimary: true,
+        local: () => import("./mastermind.mjs").then(m => m.lockLair({ actorId, lock: Boolean(lock) }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_LAIR_LOCK, reasonOf(out.refused));
+            return out?.refused ? null : { locked: Boolean(out?.locked) };
+        })
+    });
+}
+
+/** The Mastermind seals a passage at their door (E91 C5, D038; passages-gm.mjs `sealLairPassage`), as `requestLairLock`. */
+export function requestLairSeal({ actorId, passageId }) {
+    return ask(ACTION_PASSAGE_LAIR_SEAL, { actorId, passageId }, {
+        onPrimary: true,
+        local: () => import("./passages-gm.mjs").then(m => m.sealLairPassage({ actorId, passageId }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PASSAGE_LAIR_SEAL, reasonOf(out.refused));
+            return out?.refused ? null : true;
+        })
+    });
+}
+
+/** Answer the GMs' invitation to become a Monocub (E72 C6): `accept` true takes the Monocub Rule. */
+export function requestCubAnswer({ actorId, accept }) {
+    return ask(ACTION_CUB_ANSWER, { actorId, accept: Boolean(accept) }, {
+        local: () => import("./monocub.mjs").then(m => m.answerMonocubOffer({ actorId, accept: Boolean(accept) }, game.user))
+    });
+}
+
+/** Offer a Monocub a Bribe (E72 C15): answers `{ bribeId }` once the GM wrote the offer; nothing is paid before its yes. */
+export function requestBribeOffer({ actorId, cubId }) {
+    return ask(ACTION_BRIBE_OFFER, { actorId, cubId }, {
+        local: () => import("./monocub.mjs").then(m => m.offerBribeOnGm({ actorId, cubId }, game.user))
+    });
+}
+
+/** A Monocub's player answers a Bribe (E72 C15): `accept` true pays it into the purse. Answers `{ accepted }`. */
+export function requestBribeAnswer({ cubId, bribeId, accept }) {
+    return ask(ACTION_BRIBE_ANSWER, { cubId, bribeId, accept: Boolean(accept) }, {
+        local: () => import("./monocub.mjs").then(m => m.answerBribeOnGm({ cubId, bribeId, accept: Boolean(accept) }, game.user))
     });
 }
 

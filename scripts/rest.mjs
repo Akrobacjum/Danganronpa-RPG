@@ -17,7 +17,7 @@ import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { locateActor, roomsKnownToMe, sceneOfActor } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
-import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
+import { whisperToOwner, log, error, plural, cardHead, forcedDeletion, isPrimaryGm } from "./utils.mjs";
 // One room map for the whole module (audit C3): rooms.mjs, rooms only and on the scene it is
 // handed (E12 C2a). The scene is the caller's, with no default (E12 C6): a rest is judged on
 // the scene the character stands on, Room Setup writes the scene it shows. Until 1.2.74 these
@@ -27,6 +27,7 @@ import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
 import { drpgWindow } from "./ui-kit.mjs";
+import { overflowBlocksShortRest } from "./overflow.mjs";
 
 /** Flags set on a Scene Region. */
 export const REST_FLAGS = {
@@ -63,6 +64,10 @@ export function restRooms(kind, scene) {
  * sentence the list goes into, `data` its other fields, `scene` the scene whose rest rooms
  * are listed (the character's) and whose found rooms filter them - the camera's did until
  * E12 fix r1-G4; `known` is a parameter for the suite, which runs on a GM's browser.
+ *
+ * THE REST'S NAME FROM `kind`, NOT ONLY FROM `data` (gaps, the owner's 12.11.2026): the Rest window's hints ask with no
+ * `kind` in `data` (`restVariants`, whose "allowedIn" has none), and on a map with no rest room the fallback said "marked
+ * for a  yet" / "oznaczony pod ." - now it names the rest by `kindLabel`, as the refusal's road does. R3980.
  */
 export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe(scene)) {
     const rooms = restRooms(kind, scene);
@@ -70,7 +75,7 @@ export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe
     if (shown.length) return game.i18n.format(key, { ...data, rooms: shown.join(", ") });
     return rooms.length
         ? game.i18n.localize("DRPG.Rest.noKnownRooms")
-        : game.i18n.format("DRPG.Rest.noRooms", { kind: data?.kind ?? "" });
+        : game.i18n.format("DRPG.Rest.noRooms", { kind: data?.kind ?? kindLabel(kind) });
 }
 
 /**
@@ -147,6 +152,51 @@ export function legacyRestStamp(kind, clock) {
     return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
+/**
+ * THE OLD STAMPS, MIGRATED ONCE (E91 C8, 12.11.2026; the owner's deferred item D068; default, owner may revise). Pure:
+ * of `rests` (a character's `restsTaken`), what a migration writes - `set`, the old-shape stamps (`legacyRestStamp`'s,
+ * no chapter) of the window `clock` reads now, given that clock's chapter (`restStamp`), which is how they were read
+ * until now; `drop`, every other old-shape stamp, which could only refuse a rest of an earlier chapter by mistake (the
+ * cost `legacyRestStamp` names). A stamp with a chapter is left as it is.
+ */
+export function migratedRests(rests, clock) {
+    const set = {}, drop = [];
+    for (const [kind, taken] of Object.entries(rests ?? {})) {
+        if (typeof taken !== "string" || /^c/.test(taken)) continue;
+        if (taken === legacyRestStamp(kind, clock)) set[kind] = restStamp(kind, clock);
+        else drop.push(kind);
+    }
+    return { set, drop };
+}
+
+/**
+ * The migration step `chapterRestStamps` (migrate.mjs): every character's old rest stamps by `migratedRests` against the
+ * clock now, on the primary GM, one update a character (a key dropped with `forcedDeletion`, else `unsetFlag` and the
+ * stamps written again). Answers how many characters changed, or null for none.
+ */
+export async function migrateRestStamps({ actors = game.actors, clock = getClock() } = {}) {
+    if (!isPrimaryGm()) return { notPrimary: true };
+    let changed = 0;
+    for (const actor of actors ?? []) {
+        if (actor?.type !== "character") continue;
+        const rests = restsTaken(actor);
+        const { set, drop } = migratedRests(rests, clock);
+        if (!Object.keys(set).length && !drop.length) continue;
+        const gone = forcedDeletion();
+        const path = `flags.${MODULE_ID}.${FLAGS.restsTaken}`;
+        if (gone) {
+            await actor.update({ ...Object.fromEntries(Object.entries(set).map(([k, v]) => [`${path}.${k}`, v])),
+                ...Object.fromEntries(drop.map(k => [`${path}.${k}`, gone])) });
+        } else {
+            const kept = Object.fromEntries(Object.entries(rests).filter(([k]) => !drop.includes(k)));
+            await actor.unsetFlag(MODULE_ID, FLAGS.restsTaken);
+            await actor.setFlag(MODULE_ID, FLAGS.restsTaken, { ...kept, ...set });
+        }
+        changed++;
+    }
+    return changed ? { changed } : null;
+}
+
 /** The "used up" stamp for this rest, as a path of the one write that also carries its benefits. */
 function restTakenUpdate(actor, kind, clock) {
     return { [`flags.${MODULE_ID}.${FLAGS.restsTaken}`]: { ...restsTaken(actor), [kind]: restStamp(kind, clock) } };
@@ -179,9 +229,12 @@ function currentClock() {
 export function restVariants(actor) {
     const place = locateActor(actor);
     const room = place?.room ?? null;
+    // Insomnia (E93 C6): the Despair Overflow's darkening that bars the Short rest this time of day; the Long stays.
+    const sleepless = overflowBlocksShortRest();
     return ["short", "long"].map(kind => {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
+        const barred = kind === "short" && sleepless;
         // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
         // character's scene, the school's for one with no token (E12 fix r1-G4).
         const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
@@ -194,8 +247,8 @@ export function restVariants(actor) {
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
                     : elsewhere}`,
-            disabled: spent || !allowed,
-            why: spent
+            disabled: spent || !allowed || barred,
+            why: barred ? game.i18n.localize("DRPG.Rest.insomnia") : spent
                 ? game.i18n.localize(kind === "long"
                     ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
                 : elsewhere
@@ -242,6 +295,12 @@ export async function takeRest(actor, kind = "short", {
         if (!actor || !rules) return null;
 
         const clock = currentClock();
+        // Insomnia bars the Short rest; a Relief's free rest (`ignoreLimit`, a Call paid in Hope) is not barred by it
+        // (E93 C6; default taken, the owner to confirm).
+        if (kind === "short" && !ignoreLimit && overflowBlocksShortRest()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Rest.insomnia"));
+            return null;
+        }
         if (!ignoreLimit && restSpent(actor, kind, clock)) {
             ui.notifications.warn(game.i18n.format(
                 kind === "long" ? "DRPG.Rest.alreadyThisSession" : "DRPG.Rest.alreadyThisTimeOfDay",

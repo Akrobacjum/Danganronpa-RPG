@@ -32,7 +32,7 @@
 
 import { MODULE_ID, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { allProjects, knowsProject } from "./projects.mjs";
+import { allProjects, knowsProject, isSecret } from "./projects.mjs";
 import { error, markLanguage } from "./utils.mjs";
 
 /**
@@ -170,6 +170,29 @@ export function hideUndiscovered(root, user = game.user) {
         removed += 1;
     }
     return removed;
+}
+
+/**
+ * A SECRET PROJECT'S ROW WEARS ITS NAME AGAIN (known leak S17-31). Its countdown carries a name that is no name
+ * (projects-secrecy.mjs `HIDDEN_NAME`), which every browser holds; a reader who may know it - a GM, or a player in on it
+ * after `hideUndiscovered` - reads its name as this browser holds it (`allProjects`: the GMs' store, the player's card)
+ * and the row's header is written with it, on every render. Matched by the row's id alone (`data-countdown`): every
+ * secret row has the same name. A browser that holds no name for it leaves the header as drawn. Answers how many rows
+ * were named.
+ */
+export function nameSecretRows(root) {
+    const rows = root?.querySelectorAll?.(".countdown-container[data-countdown]") ?? [];
+    if (!rows.length) return 0;
+    const byId = new Map(allProjects().map(p => [p.id, p]));
+    let n = 0;
+    for (const row of rows) {
+        const project = byId.get(row.dataset.countdown);
+        const header = row.querySelector(".countdown-content > header");
+        if (!project || !header || !isSecret(project.id) || !project.name || header.textContent.trim() === project.name) continue;
+        header.textContent = project.name;
+        n += 1;
+    }
+    return n;
 }
 
 /**
@@ -314,8 +337,13 @@ const watchedLists = new WeakSet();
 export function markTrayMore(root) {
     const list = root?.querySelector?.(".countdowns-container");
     if (!list) return false;
+    /* ROWS BELOW, NOT ANY OVERFLOW (gaps, the owner's table on 1.2.108: one project's name darker and fading). The mark
+       read any overflow past 1 px, and a list of one project that overflows by a few pixels of something that is no row
+       faded its only row. More stands below only when at least half a row overflows - the first row's own height, read
+       where there is a layout; with none (headless), past 1 px as before. A sixth row overflows by a whole row. R3983. */
     const mark = () => {
-        const more = list.scrollHeight - list.clientHeight - list.scrollTop > 1;
+        const row = list.querySelector(".countdown-container")?.offsetHeight || 0;
+        const more = list.scrollHeight - list.clientHeight - list.scrollTop > Math.max(1, row / 2);
         list.toggleAttribute("data-drpg-more", more);
         return more;
     };

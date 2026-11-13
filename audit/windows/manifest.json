@@ -633,7 +633,7 @@
     {
       "id": "investigation",
       "client": "gm",
-      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
       "captured": true,
       "title": "Investigation",
       "classes": [
@@ -643,10 +643,10 @@
         "drpg-projects",
         "drpg-window-case",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "save",
@@ -669,23 +669,13 @@
           "default": false
         },
         {
-          "action": "log",
-          "label": "Trial evidence log",
-          "default": false
-        },
-        {
           "action": "bodyFound",
           "label": "Body found",
           "default": false
         },
         {
-          "action": "clearFaint",
-          "label": "Clear Faint Remnants",
-          "default": false
-        },
-        {
-          "action": "sweepBullets",
-          "label": "Sweep Truth Bullets",
+          "action": "realize",
+          "label": "Realization preview",
           "default": false
         }
       ],
@@ -694,7 +684,7 @@
     {
       "id": "investigation--key",
       "client": "gm",
-      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
       "of": "investigation",
       "tab": "key",
       "captured": true,
@@ -706,10 +696,10 @@
         "drpg-projects",
         "drpg-window-case",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "save",
@@ -732,23 +722,13 @@
           "default": false
         },
         {
-          "action": "log",
-          "label": "Trial evidence log",
-          "default": false
-        },
-        {
           "action": "bodyFound",
           "label": "Body found",
           "default": false
         },
         {
-          "action": "clearFaint",
-          "label": "Clear Faint Remnants",
-          "default": false
-        },
-        {
-          "action": "sweepBullets",
-          "label": "Sweep Truth Bullets",
+          "action": "realize",
+          "label": "Realization preview",
           "default": false
         }
       ],
@@ -757,7 +737,7 @@
     {
       "id": "investigation--final",
       "client": "gm",
-      "opener": "investigation.mjs m.openInvestigationDashboard()",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
       "of": "investigation",
       "tab": "final",
       "captured": true,
@@ -769,10 +749,10 @@
         "drpg-projects",
         "drpg-window-case",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "save",
@@ -795,8 +775,56 @@
           "default": false
         },
         {
-          "action": "log",
-          "label": "Trial evidence log",
+          "action": "bodyFound",
+          "label": "Body found",
+          "default": false
+        },
+        {
+          "action": "realize",
+          "label": "Realization preview",
+          "default": false
+        }
+      ],
+      "file": "investigation--final.html"
+    },
+    {
+      "id": "investigation--who",
+      "client": "gm",
+      "opener": "investigation.mjs m.openInvestigationDashboard({ view: \"table\" })",
+      "of": "investigation",
+      "tab": "who",
+      "captured": true,
+      "title": "Investigation",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-case",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save",
+          "default": true
+        },
+        {
+          "action": "close",
+          "label": "Cancel",
+          "default": false
+        },
+        {
+          "action": "newTrace",
+          "label": "New Remnant",
+          "default": false
+        },
+        {
+          "action": "autopsy",
+          "label": "Issue Autopsy Truth Bullet",
           "default": false
         },
         {
@@ -805,17 +833,137 @@
           "default": false
         },
         {
-          "action": "clearFaint",
-          "label": "Clear Faint Remnants",
-          "default": false
-        },
-        {
-          "action": "sweepBullets",
-          "label": "Sweep Truth Bullets",
+          "action": "realize",
+          "label": "Realization preview",
           "default": false
         }
       ],
-      "file": "investigation--final.html"
+      "file": "investigation--who.html"
+    },
+    {
+      "id": "case-realize",
+      "client": "gm",
+      "opener": "case-realize.mjs m.openRealization()",
+      "captured": true,
+      "title": "Realization of the case, chapter 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-case-realize",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 720,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        },
+        {
+          "action": "run",
+          "label": "Run realization",
+          "default": false
+        }
+      ],
+      "file": "case-realize.html"
+    },
+    {
+      "id": "case-realize--made",
+      "client": "gm",
+      "opener": "case-realize.mjs m.openRealization()",
+      "captured": true,
+      "title": "Realization of the case, chapter 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-case-realize",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 720,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        },
+        {
+          "action": "run",
+          "label": "Run realization",
+          "default": false
+        },
+        {
+          "action": "undo",
+          "label": "Undo realization",
+          "default": false
+        }
+      ],
+      "file": "case-realize--made.html"
+    },
+    {
+      "id": "new-trace",
+      "client": "gm",
+      "opener": "investigation.mjs m.openNewTrace({ room: \"Library\" })",
+      "captured": true,
+      "title": "New Remnant",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-newtrace",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 900,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Create on the map",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "new-trace.html"
+    },
+    {
+      "id": "chapter-end",
+      "client": "gm",
+      "opener": "chapter.mjs m.openChapterEndDialog()",
+      "captured": true,
+      "title": "End the chapter",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-chapter-end",
+        "drpg-ui",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 900,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": true
+        },
+        {
+          "action": "ok",
+          "label": "End chapter 1",
+          "default": false
+        }
+      ],
+      "file": "chapter-end.html"
     },
     {
       "id": "class-trial",
@@ -1314,25 +1462,27 @@
       "client": "gm",
       "opener": "look.mjs m.openLookDialog()",
       "captured": true,
-      "title": "Settings",
+      "title": "DRPG Settings",
       "classes": [
         "application",
         "dialog",
-        "drpg-panel",
-        "drpg-projects",
-        "drpg-sound",
-        "drpg-sound-player",
-        "drpg-window-look",
+        "drpg-window-settings",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-panel",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 560,
+      "width": 1008,
       "buttons": [
         {
-          "action": "close",
-          "label": "Close",
+          "action": "save",
+          "label": "Save changes",
           "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
         }
       ],
       "file": "look-gm.html"
@@ -1634,25 +1784,27 @@
       "client": "p1",
       "opener": "look.mjs m.openLookDialog()",
       "captured": true,
-      "title": "Settings",
+      "title": "DRPG Settings",
       "classes": [
         "application",
         "dialog",
-        "drpg-panel",
-        "drpg-projects",
-        "drpg-sound",
-        "drpg-sound-player",
-        "drpg-window-look",
+        "drpg-window-settings",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-panel",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 560,
+      "width": 1008,
       "buttons": [
         {
-          "action": "close",
-          "label": "Close",
+          "action": "save",
+          "label": "Save changes",
           "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
         }
       ],
       "file": "look-player.html"

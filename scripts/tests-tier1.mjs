@@ -269,7 +269,11 @@ const INVARIANTS = [
         const ACTED_ON = ["grants", "grantsHope", "damage", "progress", "feedsOverflow",
                           "reroll", "announces", "sealsRoom", "silences", "chains",
                           "gathersEveryone", "freeMoves", "freeActions", "freeRest",
-                          "setsMotive"];
+                          "setsMotive",
+                          // E72 C15: a Bribe is offered, and paid on its yes, outside `applyCall` (calls.mjs `spendHopeCall`).
+                          "bribe",
+                          // E72 C16: a Bounty is posted, owed and claimed outside `applyCall` (calls.mjs `spendDespairCallFor`).
+                          "bounty"];
         const check = (source, label) => {
             for (const [key, call] of Object.entries(source)) {
                 ok(typeof call.cost === "number", `${label} ${key} has no numeric cost`);
@@ -277,7 +281,10 @@ const INVARIANTS = [
                 const acts = ACTED_ON.some(field => call[field])
                     // The two that do their work through the picker rather than
                     // through a field of their own.
-                    || call.target === "item";
+                    || call.target === "item"
+                    // CHANGED ON PURPOSE (E72, 12.11.2026): a tile of choices (Talent) acts through the rows it offers,
+                    // each held to this check itself.
+                    || (Array.isArray(call.choices) && call.choices.every(k => source[k] && k !== key));
                 ok(acts, `${label} ${key} has no effect any branch of applyCall acts on`);
             }
         };
@@ -621,7 +628,8 @@ const INVARIANTS = [
             // of those needs one: a subtraction with no floor reaches zero, and
             // zero actions or zero search tokens is a different game rather
             // than a harder one.
-            if (rule.kind === "state" && rule.by !== undefined) {
+            // A state whose size raises a price (`adds`, E93 C6's Toll: room actions cost more) takes nothing down.
+            if (rule.kind === "state" && rule.by !== undefined && !rule.adds) {
                 ok(Number.isFinite(rule.floor) && rule.floor >= 1,
                     `${key} subtracts ${rule.by} with no floor under it`);
             }
@@ -833,15 +841,17 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
-        const body = bodyOf(src, "async function bodyDestinations", { length: 500 });
-        ok(/neighbouringRooms/.test(body),
-            "a body can be dragged to a room that does not connect to this one");
+        // E64 C4 (12.11.2026): the list is `bodyReach`'s - the connected rooms and, for a critical, those two away
+        // through them (R3957) - and `bodyDestinations` answers its near half.
+        const body = bodyOf(src, "export async function bodyReach", { length: 1200 });
+        ok(/neighbouringRooms\(scene, room\)/.test(body) && /neighbouringRooms\(scene, step\)/.test(body),
+            "a body can be dragged to a room that does not connect to this one, or to one it reaches through");
         ok(/vaultOwnerOf/.test(body),
             "a body can be dragged into somebody's bedroom");
 
         // Definition plus both callers.
-        ok((src.match(/bodyDestinations\(/g) ?? []).length >= 3,
-            "one of the two Move the body roads no longer asks bodyDestinations");
+        ok((src.match(/bodyReach\(/g) ?? []).length >= 3,
+            "one of the two Move the body roads no longer asks bodyReach");
         ok(!/neighbouringRooms\(here/.test(src),
             "a Stage 6 road still builds its own room list, so the two can disagree");
     }],
@@ -7052,12 +7062,15 @@ const INVARIANTS = [
         const FIXTURES = [
             // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage; E15 part 2 C2 a Secret
             // Passage's `passage` and `target` and a project's Observe finders, `foundBy`; E18 C7 the request a player's
-            // Sabotage came under, `sabotageAsk`; H84 fix G3 whether a public project's proposer was told, `proposerTold`.
-            ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold"].map(f => [`projectMeta.${f}`,
+            // Sabotage came under, `sabotageAsk`; H84 fix G3 whether a public project's proposer was told, `proposerTold`;
+            // S17-31 a secret project's name and the players in on it, `secretName` and `viewers`.
+            ...["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold",
+                "secretName", "viewers"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E44 fix FG6: a secret project's description (the clean snapshot's project is secret).
-            ...["description"].map(f => [`projectMeta while secret: ${f}`,
+            // E93 C1: a secret project's room action (its label and effects) as well.
+            ...["description", "facility"].map(f => [`projectMeta while secret: ${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
@@ -7085,6 +7098,13 @@ const INVARIANTS = [
             ["Actor flag lastAction",
                 s => { s.actors[1].flags[MOD].lastAction = {}; },
                 h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`],
+            // E72 C2: which Monocub saw the crime is the GMs' (monocub.mjs `cubStore`'s `witness`), not an actor flag.
+            ["Actor flag silencedChapter",
+                s => { s.actors[1].flags[MOD].silencedChapter = { chapter: 1, epoch: 0 }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.silencedChapter`],
+            ["unlinked token's Actor flag silencedChapter",
+                s => { s.tokens[0].delta.flags[MOD].silencedChapter = 1; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.silencedChapter`],
             // E05's fix round (S1-m4): the same bookmark on an unlinked token's own actor data, where
             // 1.2.63 wrote it from a sheet opened from the token.
             ["unlinked token's Actor flag lastAction",
@@ -8257,7 +8277,7 @@ const INVARIANTS = [
             asks: [true, true, true]
         }), "[the store's name, key, kind, reset group, backup, sync and that any GM may write it; its setting's scope and config; on a player's engine the row and what was stored; the gate from a player, on a player's browser, from a GM; each writer asks for a GM]");
     }],
-    ["R3650 - the Investigation panel's fixed frame (E97 C2; the owner's Q-C and Q-D, 11.11.2026): the window states WIDE's width and is no `fit` window; its body is a toolbar (the view switch's slot and the controls' slot, a said line in the controls') and the view's box, the live region itself; components.css states the view's height from the screen's and lets it alone scroll, the toolbar's height, the body no scroll of its own, and the footer one grid of four columns in two rows; under Legacy no Traces or Key head breaks inside a word, the Traces table wider than its box and scrolled there", async () => {
+    ["R3650 - the Investigation panel's fixed frame (E97 C2; the owner's Q-C and Q-D, 11.11.2026): the window states WIDE's width and is no `fit` window; its body is a toolbar (the view switch's slot and the controls' slot, a said line in the controls') and the view's box, the live region itself; components.css states the view's height from the screen's and lets it alone scroll, the toolbar's height, the body no scroll of its own, and the footer one grid of four columns in two rows; under Legacy no Traces or Key head breaks inside a word, the Traces table wider than its box and scrolled in the view, the box letting it out (E64-inv: one scroller a tab)", async () => {
         /*
          * E97 C2, 12.11.2026. The panel was a `fit` window, as wide as its widest table, so its frame followed what it
          * held; the Map beside the Table (C5) would have moved it at every switch, which the owner's fixed-layout rule
@@ -8316,7 +8336,8 @@ const INVARIANTS = [
                 foot: [from(foot, "display"), from(foot, "grid-template-columns"), from(foot, "grid-template-rows"), from(q(".drpg-kit-left"), "display"), from(q(".drpg-kit-right"), "display"), from(q(".drpg-role-primary"), "order")],
                 said: from(q(".drpg-case-result"), "white-space"),
                 heads: [from(q('[data-drpg-pane="traces"] th'), "overflow-wrap"), from(q('[data-drpg-pane="key"] th'), "overflow-wrap")],
-                traces: [from(q('[data-drpg-pane="traces"] table'), "min-width"), from(q('[data-drpg-pane="traces"] .drpg-data-table-box'), "overflow-x")],
+                // E64-inv: under Legacy the pane is the table's width (130 % of the view) and the table fills it; the view scrolls
+                traces: [from(q('[data-drpg-pane="traces"] table'), "min-width"), from(q('[data-drpg-pane="traces"] .drpg-data-table-box'), "overflow-x"), from(q('[data-drpg-pane="traces"]'), "width")],
                 keyShares: [from(q("col.drpg-data-col-case-scale"), "width"), from(q("col.drpg-data-col-case-key-name"), "width")]
             };
         }
@@ -8327,8 +8348,8 @@ const INVARIANTS = [
             plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true, rows: true },
             told: "SUITE R3650 said",
             read: {
-                "drpg-theme-monokuma-legacy": { ...both, heads: ["normal (components.css)", "normal (components.css)"], traces: ["130% (components.css)", "auto (components.css)"], keyShares: ["13% (components.css)", "15% (components.css)"] },
-                "drpg-theme-stained-glass": { ...both, heads: ["anywhere (components.css)", "anywhere (components.css)"], traces: ["0 (components.css)", "auto (components.css)"], keyShares: ["11% (components.css)", "17% (components.css)"] }
+                "drpg-theme-monokuma-legacy": { ...both, heads: ["normal (components.css)", "normal (components.css)"], traces: ["100% (components.css)", "visible (components.css)", "130cqw (components.css)"], keyShares: ["13% (components.css)", "15% (components.css)"] },
+                "drpg-theme-stained-glass": { ...both, heads: ["anywhere (components.css)", "anywhere (components.css)"], traces: ["0 (components.css)", "visible (components.css)", null], keyShares: ["11% (components.css)", "17% (components.css)"] }
             }
         }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box; the footer the kit's two rows (\`footer.rows: 2\`)]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
     }],
@@ -8374,7 +8395,8 @@ const INVARIANTS = [
             const plan = I.keyPlan();
             const ch = chapterPicked && Number.isInteger(n) ? n : getClock().chapter;
             const slots = ch === plan.chapter ? plan.entries.map((e, slot) => ({ ...e, slot })) : null;
-            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots });
+            // and the planned Autopsy's node, drawn for the chapter now running (13.11.2026)
+            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots, autopsy: ch === plan.chapter });
             const kept = frame().map((el, i) => Boolean(el) && el === first[i]);
             root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
             await until(() => view() === "table", 3000).catch(() => {});
@@ -8459,7 +8481,7 @@ const INVARIANTS = [
             [...actor.items].filter(i => !isTruthBullet(i)).map(i => i.name)] }));
         equal(JSON.stringify(drawn), JSON.stringify(want), "[each student listed: the name, the Truth Bullets' names, the other items' names]");
     }],
-    ["R3658 - Who has what is a tab of its own in the Table view (E98 C4; the owner's comparison 2, E47-21; Q-E98-5's default): the Table's tabs are Remnants, Key Remnants, Final Truth Remnants and Who has what; nothing stands above the tabs; the Who has what pane holds the counts table and, under it, each living student by name with their Truth Bullets and items by name", async () => {
+    ["R3658 - Who has what is a tab of its own in the Table view (E98 C4; the owner's comparison 2, E47-21; Q-E98-5's default): the Table's tabs are Remnants, Key Remnants, Final Truth Remnants and Who has what; nothing stands above the tabs; the Who has what pane holds the counts table, a row for each living student by name (their Truth Bullets and items by name in it since E64-inv, R3968)", async () => {
         /*
          * E98 C4, 12.11.2026. Read off the drawn window on the Table view. Red at ae538b7: the counts above the tabs, no
          * fourth tab.
@@ -8479,7 +8501,8 @@ const INVARIANTS = [
             read = {
                 tabs: [...(form?.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]") ?? [])].map(b => b.dataset.drpgTabKey),
                 first: form?.firstElementChild?.tagName?.toLowerCase() ?? null,
-                pane: pane ? [Boolean(pane.querySelector("table.drpg-data-table")), [...pane.querySelectorAll(".drpg-case-student strong")].map(el => el.textContent)] : null
+                // E64-inv: the students by name are the table's rows (R3968), no list under it.
+                pane: pane ? [Boolean(pane.querySelector("table.drpg-data-table")), [...pane.querySelectorAll("table.drpg-data-table tbody tr")].map(tr => tr.children[0]?.textContent.trim())] : null
             };
         } finally {
             for (const a of open()) await a.close().catch(() => {});
@@ -8487,6 +8510,131 @@ const INVARIANTS = [
         }
         equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
             "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
+    }],
+    ["R3967 - the Investigation bar after the owner's pick (E64-inv; the Investigation review of 12.11.2026, \"Na reszte sie zgadzam\"): the drawn dashboard's footer is Save, New Remnant, Issue Autopsy Truth Bullet, Body found, Realization preview and Close - no evidence log, no Clear Faint, no Sweep, no Undo realization; and every road those buttons took is still reachable where it remains: End the chapter's Collect and Clear Faint boxes, the trial console's evidence log, and Undo in the realization's preview while a run's marks stand", async () => {
+        /*
+         * E64-inv, 12.11.2026. The owner's verdict on the Investigation review (STATUS): remove Clear Faint and Sweep from
+         * the bar (End the chapter keeps them), remove the evidence log (the trial console keeps it), tuck Undo realization
+         * away (the realization's preview, behind its question). The footer is read off the drawn dashboard; the roads off
+         * End the chapter's form (`chapterEndForm`, counts chosen here), the trial console's source and the preview's
+         * footer (`realizationFooter`, pure). Red at 235c321: ten actions on the bar, no `realizationFooter`.
+         */
+        needs(env.dialogs(), "the footer is read off the drawn dashboard");
+        const I = await import("./investigation.mjs");
+        const C = await import("./chapter.mjs");
+        const CR = await import("./case-realize.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
+        let bar = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector("footer.drpg-kit-footer")), 6000).catch(() => {});
+            const footer = open()[0]?.element?.querySelector("footer.drpg-kit-footer");
+            bar = footer ? [...footer.querySelectorAll("button[data-action]")].map(b => b.dataset.action).sort() : null;
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        const form = document.createElement("div");
+        form.innerHTML = C.chapterEndForm({ chapter: 1, session: 1, day: 1, sweepable: 2, faintable: 3 });
+        const live = name => Boolean(form.querySelector(`input[name="${name}"]:not([disabled])`));
+        const consoleSource = stripComments((await moduleSources()).get("trial-floor-ui.mjs") ?? "");
+        const realizeSource = fnSource(stripComments((await moduleSources()).get("case-realize.mjs") ?? ""), "openRealization");
+        const footerOf = made => (typeof CR.realizationFooter === "function" ? (CR.realizationFooter({ made }).destructive ?? []).map(b => b.action) : "none");
+        must(consoleSource.length > 1000 && realizeSource.length > 100, "a source was not read - this would measure nothing");
+        equal(stableJson({
+            bar,
+            endChapter: [live("sweep"), live("faint")],
+            trialLog: /data-drpg-console="log"/.test(consoleSource) && /openObjectionLog\(\)/.test(consoleSource),
+            undo: [footerOf(0), footerOf(2), /picks === "undo"\)\s*return confirmUndoRealization\(/.test(realizeSource)]
+        }), stableJson({
+            // The closing word's action "close": the owner's 13.11.2026 ("Nie, ma zapisywac") made it the kit's Close, which
+            // keeps an open node's text (bc3445c9; investigation.mjs, the footer). From the planner's review until then it
+            // was a Cancel answering "discard" (8d049f99).
+            bar: ["autopsy", "bodyFound", "close", "newTrace", "realize", "save"],
+            endChapter: [true, true],
+            trialLog: true,
+            undo: [[], ["undo"], true]
+        }), "{bar: the drawn footer's actions, sorted; endChapter: [Collect, Clear Faint] live with something to take; trialLog: the console's "
+            + "button opens the log; undo: [the preview's destructive actions with no marks, with two, its Undo asks first]}");
+    }],
+    ["R3968 - Who has what is one view (E64-inv; the Investigation review of 12.11.2026): the Table's Who has what pane holds one table and no list under it; each living student's row names their Truth Bullets one by one (the Breakdown column) and their other items by name (an Items column)", async () => {
+        /*
+         * E64-inv, 12.11.2026. Until this the pane drew the counts table and, under it, the Map's list of the same students
+         * by name (`studentsListHtml`). Read off the drawn window against the world: `livingStudentsForGm`, each one's
+         * bullets (truth-bullets.mjs `bulletsOf`) and their other items. Red at 235c321: the list under the table, no
+         * Items column, the Breakdown kinds by count.
+         */
+        needs(env.dialogs(), "the pane is read off the drawn dashboard");
+        needs(world.atLeast("livingStudents"), "the rows are read against the living students");
+        const I = await import("./investigation.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { bulletsOf, isTruthBullet } = await import("./truth-bullets.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
+        let read = null;
+        const names = cell => {
+            if (!cell || cell.textContent.trim() === "-") return [];
+            return cell.innerHTML.split(/<br\s*\/?>/).map(part => {
+                const div = document.createElement("div");
+                div.innerHTML = part;
+                return div.firstChild?.textContent?.trim() ?? "";
+            });
+        };
+        try {
+            await until(() => open().some(a => a.element?.querySelector('[data-drpg-pane="who"] table')), 6000).catch(() => {});
+            const pane = open()[0]?.element?.querySelector('.drpg-case-live [data-drpg-pane="who"]');
+            const table = pane?.querySelector("table");
+            const cols = table ? [...table.querySelectorAll("col")].map(c => c.dataset.drpgCol) : [];
+            const at = key => cols.indexOf(key);
+            read = pane ? {
+                tables: pane.querySelectorAll("table").length,
+                list: pane.querySelectorAll(".drpg-case-students").length,
+                rows: [...table.querySelectorAll("tbody tr")].map(tr => [tr.children[at("student")]?.textContent.trim() ?? null,
+                    names(tr.children[at("breakdown")]), names(tr.children[at("items")])])
+            } : null;
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        const want = livingStudentsForGm().map(actor => [actor.name, bulletsOf(actor).map(i => i.name),
+            [...actor.items].filter(i => !isTruthBullet(i)).map(i => i.name)]);
+        equal(stableJson(read), stableJson({ tables: 1, list: 0, rows: want }),
+            "{tables: tables in the pane; list: a students list under it; rows: [student, their Truth Bullets by name, their other items by name]}");
+    }],
+    ["R3969 - one name for a Remnant's visibility (E64-inv; the Investigation review of 12.11.2026): every select of a Remnant's visibility in investigation.mjs (`name=\"vis\"`) is labelled `DRPG.Investigation.visibility`, the rules' word, never `DRPG.Investigation.difficulty` (the Key plan's scale keeps that one)", async () => {
+        /*
+         * E64-inv, 12.11.2026. New Remnant labelled its visibility "Difficulty" ("Trudność") while Create a Key Remnant here
+         * and the Remnants table said "Visibility" ("Widoczność") for the same field; the rules and the handbook call it
+         * visibility (config.mjs REMNANT_VISIBILITY_LABELS). Read off the source: the label each `<select name="vis">` sits
+         * in. Red at 235c321: New Remnant's read `difficulty`.
+         */
+        const source = stripComments((await moduleSources()).get("investigation.mjs") ?? "");
+        const labels = [...source.matchAll(/localize\("DRPG\.Investigation\.(\w+)"\)\}\s*<select name="vis"/g)].map(m => m[1]);
+        must(labels.length >= 2, "fewer than two labelled visibility selects were read - this would measure nothing");
+        equal(stableJson([...new Set(labels)]), stableJson(["visibility"]), "[the keys labelling every visibility select]");
+    }],
+    ["R3970 - the Investigation's standing hints are short (E64-inv; the Investigation review of 12.11.2026, the owner's text rule of 12.11): the Remnants tab's hint, New Remnant's intro and End the chapter's note on the reveal are each one sentence of at most 20 words in English and in Polish, and End the chapter's closing note, which said again what each box's \"cannot be undone\" says, is gone from both files and from chapter.mjs", async () => {
+        /*
+         * E64-inv, 12.11.2026. The owner: "im krotsze teksty, tym lepiej, przy zachowaniu naturalnosci jezyka codziennego".
+         * Words counted on whitespace; a sentence ends at ". " or the end. Red at 235c321: 26 to 37 words each, two of the three
+         * two sentences, and `DRPG.Chapter.endNote` drawn by `chapterEndForm`.
+         */
+        const files = {};
+        for (const lang of ["en", "pl"]) files[lang] = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+        const at = (obj, key) => key.split(".").reduce((o, k) => o?.[k], obj);
+        const KEYS = ["DRPG.Investigation.neverOnePerson", "DRPG.Investigation.newTraceIntro", "DRPG.Chapter.revealKeeps"];
+        const read = {};
+        for (const lang of ["en", "pl"]) for (const key of KEYS) {
+            const text = at(files[lang], key);
+            read[`${lang} ${key}`] = typeof text === "string" ? [text.trim().split(/\s+/).length <= 20, text.trim().split(/\.\s+/).length === 1] : "missing";
+        }
+        const chapter = stripComments((await moduleSources()).get("chapter.mjs") ?? "");
+        must(chapter.length > 1000, "chapter.mjs was not read - this would measure nothing");
+        read.endNote = [at(files.en, "DRPG.Chapter.endNote") ?? null, at(files.pl, "DRPG.Chapter.endNote") ?? null, chapter.includes("DRPG.Chapter.endNote")];
+        equal(stableJson(read), stableJson({ ...Object.fromEntries(Object.keys(read).filter(k => k !== "endNote").map(k => [k, [true, true]])), endNote: [null, null, false] }),
+            "{<lang> <key>: [at most 20 words, one sentence]; endNote: [en, pl, drawn by chapter.mjs]}");
     }],
     ["R3670 - the trial modes' census (E99 C2; the owner's 09.11: every trial minigame wires into the case map, read from the trial's mode table, with a census test; Q-E99-10): every mode of floor-machine.mjs MODES has a row in trial-floor.mjs MODE_STARTS - an action the console's trialButtons draws, or a reason it has none - and a name in both languages (`DRPG.Floor.mode.<mode>`); a mode planted with no row, a row of no mode and a row with an unknown action are each found", async () => {
         /*
@@ -8666,6 +8814,113 @@ const INVARIANTS = [
         "{the record's row [lives, blank, at entry]; in the blank; in another GM's whitelist; showCaseSummary reads it, writes it, names no store row; the card's sound; SFX_EVENTS.caseSummary}");
         ok(plRow && typeof plRow.label === "string" && plRow.label.length > 3, "the sound's Polish label (config.mjs prose in lang/pl.json) is missing");
     }],
+    ["R3917 - Show summary is the trial's next step after the verdict, and reads as sent once it is (E99 next, 12.11.2026; the plan's C7 row, the owner's go-ahead through the coordinator): trial-floor.mjs `TRIAL_NEXT_STEPS` answers `caseSummary` after the verdict while the trial's record says the summary is not out (`summaryShown` null) and no Final Trial runs, and End of chapter once it is out, in a Final Trial, or with a view that carries no record of it (R2050's views); `trialStepView` carries the Final Trial flag; the step has its text and the console its lead in both languages; the console's footer makes Show summary its primary at that step, and once the summary is out the button is greyed and says so", async () => {
+        /* Red at 9ca7fcc: no such row, no `finalNow` on the step's view, no texts, the button the same before and after. */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const given = (p = {}, over = {}) => ({ floor: null, running: true, afterwards: true, stopped: null, runner: null, finalNow: false, ...over,
+            progress: { voteClosed: true, verdictApplied: true, debateAgain: false, againAfterOverrule: null, vote: { open: false }, ...p } });
+        const steps = [given({ summaryShown: null }), given({ summaryShown: 1700000000000 }), given({ summaryShown: null }, { finalNow: true }), given({}),
+            given({ summaryShown: null }, { running: false }), given({ summaryShown: null }, { runner: "otherGM000000000" })].map(v => F.trialNextStep(v));
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        const texts = ["en", "pl"].map(code => [typeof lang[code].next?.caseSummary === "string", typeof lang[code].lead?.caseSummary === "string"]);
+        const footer = sent => {
+            const v = { ...given({ summaryShown: sent ? 1700000000000 : null }), restrictive: false, pending: null, bar: null, register: 0, deathThisChapter: false,
+                table: null, rows: [], left: 0, next: sent ? "chapterEnd" : "caseSummary" };
+            const f = UI.consoleFooter(v);
+            const all = [...(f.secondary ?? []), ...(f.destructive ?? []), ...(f.primary ? [f.primary] : [])];
+            const b = all.find(x => x.action === "caseSummary");
+            return { primary: f.primary?.action ?? null, disabled: Boolean(b?.disabled), label: b?.label ?? null };
+        };
+        const before = footer(false), after = footer(true);
+        const view = typeof F.trialStepView === "function" ? F.trialStepView({ clock: { ...getClock(), phase: "classTrial", finalTrial: true }, progress: given().progress }) : {};
+        equal(stableJson({ steps, final: view.finalNow ?? null, texts, before: [before.primary, before.disabled], after: [after.primary === "caseSummary", after.disabled, after.label !== before.label] }),
+            stableJson({ steps: ["caseSummary", "chapterEnd", "chapterEnd", "chapterEnd", "caseSummary", "verdictElsewhere"], final: true,
+                texts: [[true, true], [true, true]], before: ["caseSummary", false], after: [false, true, true] }),
+            "{the step for [not sent, sent, a Final Trial, no record of it, the trial ended, another GM's verdict]; the step view's Final Trial flag; [EN, PL] the step's text and lead; the footer before [its primary, the button greyed]; after [Show summary still primary, greyed, its label changed]}");
+    }],
+    ["R3918 - the verdict and the chapter's end are steps of the trial's flow, not standing buttons, and no Final Trial starts inside an ordinary one (the owner, 12.11.2026, through the coordinator: \"czy werdykt nie powinien byc usunietym przyciskiem z konsoli trial? Zamiast tego byc kolejnym etapem glosowania? Tak samo end the chapter. A start final trial w ogole tez nie powinno byc w trakcie trwania zwyklego class triala opcja\"): the console's footer (`consoleFooter`) holds the Verdict only while it is the next step (the vote counted), End of chapter only while it is the next step (after the verdict and the summary) and never as the Enter default, and no Start the Final Trial while an ordinary trial runs; with no trial Start the Final Trial is where it was, and in a Final Trial End the Final Trial", async () => {
+        /* Red at a5844ac: the Verdict and End of chapter stood in every state of a trial, Start the Final Trial too. */
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        const F = await import("./trial-floor.mjs");
+        const view = (over, p = {}) => {
+            const v = { floor: null, running: true, afterwards: true, finalNow: false, mastermind: true, stopped: null, runner: null, table: null, restrictive: false, ...over,
+                progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, closing: null, vote: { open: false }, summaryShown: null, ...p } };
+            v.next = F.trialNextStep(v);
+            return v;
+        };
+        const read = v => {
+            const list = K.footerButtons(UI.consoleFooter(v));
+            const has = a => list.some(b => b.action === a);
+            return [v.next, has("verdict"), has("chapterEnd"), has("toggleFinal"), list.find(b => b.default)?.action ?? null];
+        };
+        const states = {
+            discussion: read(view({})), vote: read(view({}, { vote: { open: true } })), counted: read(view({}, { voteClosed: true })),
+            countedInDebate: read(view({ floor: { mode: "debate" } }, { voteClosed: true })),
+            given: read(view({}, { voteClosed: true, verdictApplied: true })), sent: read(view({}, { voteClosed: true, verdictApplied: true, summaryShown: 1700000000000 })),
+            stopped: read(view({ stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true })),
+            elsewhere: read(view({ runner: "otherGM000000000" }, { voteClosed: true, verdictApplied: true })),
+            noTrial: read(view({ running: false, afterwards: false })),
+            final: read(view({ finalNow: true }, {})), finalGiven: read(view({ finalNow: true }, { voteClosed: true, verdictApplied: true }))
+        };
+        equal(stableJson(states), stableJson({
+            discussion: ["openDebate", false, false, false, "openDebate"], vote: ["vote", false, false, false, "vote"],
+            counted: ["verdict", true, false, false, "verdict"], countedInDebate: ["closeDebate", false, false, false, "closeDebate"],
+            given: ["caseSummary", false, false, false, "caseSummary"], sent: ["chapterEnd", false, true, false, "close"],
+            stopped: ["finishVerdict", false, false, false, "finishVerdict"], elsewhere: ["verdictElsewhere", false, false, false, "close"],
+            noTrial: ["start", false, false, true, "start"],
+            final: ["openDebate", false, false, true, "openDebate"], finalGiven: ["chapterEnd", false, true, true, "close"]
+        }), "{state: [the next step, a Verdict button, an End of chapter button, the Final Trial's switch, the Enter default]}");
+    }],
+    ["R3919 - an open node is its editor, nothing above it (the owner at a real table, 12.11.2026, through the coordinator: on a click the editing part replaces the node entirely, no read-only part with the dashed line above it): case-map.mjs draws the open node's face marked `is-editing`, which the module's sheets hide, and its fields at the face's own place; the fields hold the Table's cells, the arrows and a Close, and no read-only rows (state, room, who left it); a node's own warnings stay; a node with no fields of its own still shows its facts; Close asks to close the node", async () => {
+        /* Red at f0b4f9b: the face stood above the fields (dashed, read-only), the fields under it opened with the node's facts. */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 4, traces: [{ key: "S.T1", type: "prep", name: "R3919 knife", tiedToCrime: true },
+            { key: "S.T2", type: "prep", name: "R3919 rope", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R3919 a", inputs: ["S.T1", "S.T2"] }, "d-b": { kind: "deduction", label: "R3919 b" } } });
+        const layout = layoutCase(graph);
+        const problems = S.checkCase(graph, {});
+        const editors = new Map([["S.T1", M.editRow("Name", `<input type="text" name="name.S__T1" value="R3919 knife" />`)],
+            ["d-b", M.editRow("Name", `<input type="text" name="case:4:d-b:label" value="R3919 b" />`)]]);
+        const draw = node => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout, reading: { node }, editors, problems });
+            return d;
+        };
+        const read = (d, id) => {
+            const face = d.querySelector(`.drpg-case-canvas > button[data-drpg-node="${id}"]`);
+            const edit = d.querySelector(`.drpg-case-canvas > .drpg-case-edit[data-drpg-edit="${id}"]`);
+            return { editing: face?.classList.contains("is-editing") ?? null, top: edit && face ? edit.style.top === face.style.top : null,
+                rows: (edit?.querySelectorAll(".drpg-case-info-row").length ?? 0) > 0, warns: edit?.querySelectorAll(".drpg-case-info-warn").length ?? null,
+                close: Boolean(edit?.querySelector("[data-drpg-case-close]")), cells: Boolean(edit?.querySelector("[name]")) };
+        };
+        // S.T1 has fields and, today, read-only rows (its state, who left it); S.T2 no fields of its own; d-b its own warning.
+        const open = draw("S.T1"), bare = draw("S.T2"), warned = draw("d-b"), shut = draw(null);
+        const C = await styleCascade();
+        const sheet = (() => {
+            const body = document.createElement("body");
+            body.className = "drpg-theme-stained-glass";
+            const app = body.appendChild(document.createElement("div"));
+            app.className = "application drpg-ui drpg-panel drpg-window-case";
+            app.innerHTML = open.innerHTML;
+            const face = app.querySelector('.drpg-case-canvas > button[data-drpg-node="S.T1"]');
+            return face ? C.winner(face, ["display"])?.value ?? null : null;
+        })();
+        const said = [];
+        const w = draw("d-b");
+        M.wireCaseMap(w, { onClose: id => said.push(["close", id]) });
+        w.querySelector('.drpg-case-edit[data-drpg-edit="d-b"] [data-drpg-case-close]')?.click();
+        const warn = read(warned, "d-b");
+        equal(stableJson({ open: read(open, "S.T1"), bare: read(bare, "S.T2"), warned: [warn.rows, warn.warns, warn.cells], shut: read(shut, "S.T1").editing, sheet, said }), stableJson({
+            open: { editing: true, top: true, rows: false, warns: 0, close: true, cells: true },
+            bare: { editing: true, top: true, rows: true, warns: 0, close: true, cells: false },
+            warned: [false, 1, true], shut: false, sheet: "none", said: [["close", "d-b"]]
+        }), "{the open Remnant with fields [face editing, fields at its top, any read-only row, warnings, a Close, its cells]; a Remnant with no fields of its own; a deduction with its own warning [rows, warnings, cells]; a node not open; the sheets' display for the editing face; Close's call}");
+    }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*
          * E73 C1, 12.11.2026. Planted regions and halls, no world. Red at 4077664: no zone-geometry.mjs.
@@ -8793,6 +9048,163 @@ const INVARIANTS = [
         }), stableJson({ marker: false, truthField: false, tie: [null, "tie", false], tieCardsNameMorning: false,
             skipped: [null, "skipped", false], second: "Q2 the time?", rule: true }),
             "{marker: the truth's marker in a floor; truthField: a truth field on a floor; tie: [no floor, its outcome, a record]; tie cards naming the true answer; skipped: [no floor, outcome, a record]; second: Q2 on the floor after a right answer; rule: world-secrets keeps truth out of trialQueue}");
+    }],
+    ["R4454 - a node's close reads the node's own fields and no Table field (perf-open's review for 1.2.111, section 2; 13.11.2026): saveOpenNode reads its editor through readCaseFields, which reads no Final Key Remnant field, and the window's Save reads the final fields beside readCaseFields(form)", async () => {
+        /*
+         * The review: investigation.mjs's node save read the open node through `readDashboardForm` with a stand-in
+         * element that answered every selector with the node, so the Final Key Remnant's fields, absent from a node, read
+         * as "" and "evident" on every node's close; harmless only because a final field is acted on when `finalRoom` is
+         * set. A later field whose empty value means "clear" would have been wiped by any node's close. Read in the
+         * source, since the node's save is not exported; tier 2's "planner autosave" runs it. Red at c598d3c: no
+         * readCaseFields. Since 13.11 the node's save and the window's close share one writer, `saveFieldsIn(scope)`,
+         * handed the open node's editor or the window's form (`saveDrawnForm`).
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
+        const node = fnSource(src, "saveOpenNode") + fnSource(src, "saveFieldsIn"), fields = fnSource(src, "readCaseFields"), dashboard = fnSource(src, "readDashboardForm");
+        equal(stableJson({
+            nodeReads: [/saveFieldsIn\(root\?\.querySelector\?\.\("\.drpg-case-edit:not\(\[hidden\]\)"\)\)/.test(node) && /readCaseFields\(scope\)/.test(node), /readDashboardForm/.test(node)],
+            fieldsFinal: (fields.match(/final\w*/gi) ?? []).length,
+            dashboard: [/finalRoom/.test(dashboard), /\.\.\.readCaseFields\(form\)/.test(dashboard)]
+        }), stableJson({ nodeReads: [true, false], fieldsFinal: 0, dashboard: [true, true] }),
+            "{the node's save: hands the open editor to saveFieldsIn, which reads readCaseFields(scope); reads readDashboardForm; final names in readCaseFields; Save's reader: reads finalRoom, spreads readCaseFields(form)}");
+    }],
+    ["R4453 - a planned Remnant has a type (the owner, 13.11.2026): Incident where none is written, Prep, Neutral, Faint or Tamper as planned, never Key, Final Truth or Autopsy; no other kind of node has one; the node's face names the type", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:00. case-schema.mjs PLANNED_TYPES and `caseNodeOf`'s `type`;
+         * case-map.mjs `kindLabel` on the planned node `graphOf` makes. Placing one is tier 2's "planned Remnants of every
+         * type". Red at 6ea98d9: no type on a row, every planned node an Incident Remnant.
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        const read = (kind, type) => S.caseNodeOf({ kind, label: "R4453", ...(type ? { type } : {}) })?.type ?? null;
+        const graph = S.graphOf ? S.graphOf({ chapter: 1, rows: { "incident-r4453": { kind: "incident", label: "R4453", type: "prep" } }, meta: null, traces: [], slots: [] }) : null;
+        const planned = graph?.nodes.find(n => n.id === "incident-r4453") ?? null;
+        equal(stableJson({
+            types: S.PLANNED_TYPES ?? null,
+            known: (S.PLANNED_TYPES ?? []).every(t => Boolean(REMNANT_TYPES[t])),
+            read: [read("incident"), read("incident", "prep"), read("incident", "key"), read("incident", "final"), read("incident", "autopsy"), read("deduction", "prep")],
+            face: planned ? M.kindLabel(planned) : null
+        }), stableJson({
+            types: ["incident", "prep", "neutral", "faint", "resolution"], known: true,
+            read: ["incident", "prep", "incident", "incident", "incident", null],
+            face: REMNANT_TYPES.prep.label
+        }), "{the types a plan offers; each a REMNANT_TYPES key; a row read with no type, prep, key, final, autopsy, and a deduction with prep; a planned prep node's face}");
+    }],
+    ["R4452 - the case map's columns stand 80 px apart, not 48 (the owner, 13.11.2026: \"Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko siebie\"): the evidence, each column of deductions and the solution, on the Map and in the trial console's schema", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:20: the gaps between columns, not rows. One gap for every column
+         * (case-view.mjs MAP_GEOMETRY.colGap, which `mapPlace` lays both the Map and the console's schema out with), 1.67x
+         * the 48 px it was. Measured in Chromium in the commit (STATUS): the widths and the fit at 1366x768. Red at 0f5591d.
+         */
+        const V = await import("./case-view.mjs");
+        const layout = { positions: { e: { col: 0, row: 0 }, d1: { col: 1, row: 0 }, d2: { col: 2, row: 0 }, s: { col: 3, row: 0 } }, gapAt: null, unrelated: [] };
+        const placed = V.mapPlace(layout);
+        const g = V.MAP_GEOMETRY;
+        equal(stableJson({ colGap: g.colGap, gaps: ["d1", "d2", "s"].map((id, i) => placed.at[id].x - (placed.at[["e", "d1", "d2"][i]].x + g.nodeW)), width: placed.width }),
+            stableJson({ colGap: 80, gaps: [80, 80, 80], width: 2 * g.pad + 4 * g.nodeW + 3 * 80 }),
+            "{MAP_GEOMETRY's column gap; the gaps evidence -> deduction -> deduction -> solution as mapPlace lays them; the canvas's width}");
+    }],
+    ["R4451 - a node's trial mode is never OBJECTION or Rebuttal (the owner, 13.11.2026: \"usuwamy objection i rebuttal\"; players start them, never a node): the planner's list keeps no mode and the seven a GM starts, and a node stored with either reads as no mode", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:30. `caseModes` is the list the node's select draws (after its
+         * "no trial mode") and the consistency check holds a node to; a stored `objection` or `rebuttal` is read as no mode
+         * (`caseNodeOf`), with no migration: the next Save of that node writes what its select then holds. Red at 91ec405.
+         */
+        const S = await import("./case-schema.mjs");
+        const stored = mode => S.caseNodeOf({ kind: "deduction", label: "R4451", mode })?.mode ?? null;
+        const graph = { chapter: 1, nodes: [{ id: "d1", kind: "deduction", label: "R4451", ...S.caseNodeOf({ kind: "deduction", label: "R4451", mode: "objection" }) }], edges: [], missing: [] };
+        equal(stableJson({
+            modes: S.caseModes(),
+            stored: ["objection", "rebuttal", "testimony", "dive"].map(stored),
+            badMode: S.checkCase(graph).filter(p => p.code === "badMode").length
+        }), stableJson({
+            modes: ["debate", "testimony", "panic", "closing", "straw", "dive", "scrum"],
+            stored: [null, null, "testimony", "dive"],
+            badMode: 0
+        }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
+    }],
+    ["R4900 - several planned Autopsies a chapter (the owner, 13.11.2026: \"zaplanowane autopsy moga byc wiecej niz 1 ... preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce\"): the n-th under autopsy-<n>, the first under autopsy; the preset one a body, the bodies found and the open incident's victim, one where there is none, at most 9; the bodies in the order found, each once; due: of the count, with words, not sent, its body found - its atBody, else its own number; atBody and the meta row's count and sent marks as the store reads them; the Map draws the count's Autopsies and one past it only where it went out", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~09:20. case-schema.mjs `autopsyId`, `autopsyNumber`,
+         * `autopsyPresetOf`, `bodiesInOrder`, `autopsiesDue`, `caseNodeOf`'s atBody, `caseMetaOf`'s autopsies and
+         * autopsySent, `graphOf`'s count. The sending is tier 2's "planned Autopsies: ...". Red at bc3445c: one planned
+         * Autopsy a chapter, none of these.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.autopsiesDue === "function", "case-schema.mjs plans one Autopsy a chapter - nothing here reads several");
+        const rows = { autopsy: { kind: "autopsy", label: "A1" }, "autopsy-2": { kind: "autopsy", text: "A2 words", atBody: 3 },
+            "autopsy-3": { kind: "autopsy" }, "autopsy-4": { kind: "autopsy", label: "A4" } };
+        const graph = S.graphOf({ chapter: 1, rows, meta: { autopsySent: { "autopsy-4": 7 } }, autopsy: 2 });
+        equal(stableJson({
+            ids: [1, 2, 9].map(S.autopsyId),
+            numbers: ["autopsy", "autopsy-2", "autopsy-9", "autopsy-10", "autopsy-1", "autopsyx", null].map(S.autopsyNumber),
+            preset: [S.autopsyPresetOf({}), S.autopsyPresetOf({ found: ["a", "b"] }), S.autopsyPresetOf({ found: ["a"], victimId: "a" }),
+                S.autopsyPresetOf({ found: ["a"], victimId: "b" }), S.autopsyPresetOf({ found: Array.from({ length: 12 }, (_, i) => `v${i}`) })],
+            order: S.bodiesInOrder([{ at: 20, victimIds: ["c"] }, { at: 10, victimIds: ["a", "b"] }, { at: 30, victimIds: ["a", "d"] }]),
+            due: [0, 1, 2, 3].map(bodies => S.autopsiesDue({ count: 3, rows, sent: {}, bodies }).map(d => d.id)),
+            dueSent: S.autopsiesDue({ count: 4, rows, sent: { autopsy: 1 }, bodies: 9 }).map(d => d.id),
+            atBody: [S.caseNodeOf({ kind: "autopsy", atBody: "2" }).atBody, S.caseNodeOf({ kind: "autopsy", atBody: 0 }).atBody,
+                S.caseNodeOf({ kind: "autopsy", atBody: 12 }).atBody, S.caseNodeOf({ kind: "deduction", atBody: 2 }).atBody],
+            meta: (m => [m.autopsies, m.autopsySent])(S.caseMetaOf({ autopsies: "3", autopsySent: { autopsy: 5, "autopsy-2": "x", other: 3 } })),
+            graph: graph.nodes.filter(n => n.kind === "autopsy").map(n => [n.id, n.n, n.sent, n.written])
+        }), stableJson({
+            ids: ["autopsy", "autopsy-2", "autopsy-9"],
+            numbers: [1, 2, 9, null, null, null, null],
+            preset: [1, 2, 1, 2, 9],
+            order: ["a", "b", "c", "d"],
+            due: [[], ["autopsy"], ["autopsy"], ["autopsy", "autopsy-2"]],
+            dueSent: ["autopsy-2", "autopsy-4"],
+            atBody: [2, null, null, null],
+            meta: [3, { autopsy: 5 }],
+            graph: [["autopsy", 1, false, true], ["autopsy-2", 2, false, true], ["autopsy-4", 4, true, true]]
+        }), "{ids of 1, 2, 9; numbers of ids; presets: none, two found, one found that is the victim, one found and another victim, twelve; the bodies in order; due at 0-3 bodies; due with the first sent; atBody read from \"2\", 0, 12 and on a deduction; the meta row's count and marks; the Map's Autopsies at a count of 2: id, number, sent, written}");
+    }],
+    ["R4455 - a tick written before ticks carried their trial is read as the running trial's when it was written in it (the planner's review for 1.2.111, minor 1; 13.11.2026): `caseTicks` reads a row with no `trial` as the current trial's where its `at` is at or after the record's `trialStartedAt`, and as an earlier trial's before it; a row that names its trial is read only in that trial; with no record every row with no `trial` reads, as before", async () => {
+        /*
+         * 1.2.108 and 1.2.109 write a tick as `{ ticked, by, at }` (case-schema.mjs `setCaseTick`), and the trial record's
+         * `trialStartedAt` is written at every trial's entry since 1.2.108 (trial-progress.mjs TRIAL_RECORD). So a Class
+         * Trial entered before the update and continued after it has a stamp, and its ticks none. The store's rows and
+         * the record are stood in for (`caseTickStore.entries`, `game.settings.get` for `trialProgress` alone) and put
+         * back. Red at 4bab7361: the two rows with no `trial` written in the running trial read unticked.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseTickStore } = await import("./gm-stores.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        must(game.user?.isGM, "caseTicks reads on a GM alone - this would measure nothing");
+        const CH = 9455, T = 1_000_000;
+        const rows = {
+            [`${CH}:legacyIn`]: { ticked: true, by: "g", at: T + 5 },
+            [`${CH}:legacyAtStart`]: { ticked: true, by: "g", at: T },
+            [`${CH}:legacyBefore`]: { ticked: true, by: "g", at: T - 5 },
+            [`${CH}:thisTrial`]: { ticked: true, by: "g", at: T + 9, trial: T },
+            [`${CH}:otherTrial`]: { ticked: true, by: "g", at: T + 9, trial: T - 400 },
+            [`${CH}:unticked`]: { ticked: false, by: "g", at: T + 9, trial: T },
+            [`${CH + 1}:elsewhere`]: { ticked: true, by: "g", at: T + 9 }
+        };
+        const ownEntries = Object.prototype.hasOwnProperty.call(caseTickStore, "entries"), realEntries = caseTickStore.entries;
+        const realGet = game.settings.get;
+        let record = { chapter: CH, trialStartedAt: T };
+        const read = {};
+        try {
+            caseTickStore.entries = () => rows;
+            game.settings.get = function (scope, key, ...rest) {
+                return key === SETTINGS.trialProgress ? record : realGet.call(this, scope, key, ...rest);
+            };
+            read.inTrial = Object.keys(S.caseTicks(CH)).sort();
+            record = { chapter: CH, trialStartedAt: null };
+            read.noStamp = Object.keys(S.caseTicks(CH)).sort();
+            record = { chapter: CH + 1, trialStartedAt: T };
+            read.otherChapter = Object.keys(S.caseTicks(CH)).sort();
+        } finally {
+            if (ownEntries) caseTickStore.entries = realEntries; else delete caseTickStore.entries;
+            game.settings.get = realGet;
+        }
+        equal(stableJson(read), stableJson({
+            inTrial: ["legacyAtStart", "legacyIn", "thisTrial"],
+            noStamp: ["legacyAtStart", "legacyBefore", "legacyIn"],
+            otherChapter: ["legacyAtStart", "legacyBefore", "legacyIn"]
+        }), "{the ticks read in the running trial; with a record of no stamp; with the record another chapter's}");
     }],
     ["R3905 - the zone modes' census (E73 C5; the plan's 'every mode has a panel, a name and a start button'; the owner's 09.11 census): Straw Poll, Logic Dive and Scrum Debate are modes of floor-machine.mjs MODES, each with a MODE_RULES row of family \"zones\" and no Objection, a MODE_STARTS row naming the console's one zones action, a row of trial-zones-ui.mjs ZONE_PANELS with its panel and name, and the name in both languages; E99's case schema lists them (`caseModes`)", async () => {
         /* E73 C5, 12.11.2026. Red at 4077664: no zone modes. */
@@ -10025,7 +10437,7 @@ const INVARIANTS = [
          * E11 fix r2-H4, 1.2.73; the goal's D3 / S06-49 (a) and (c), the plan's 3.3. The cast's "notes they
          * wrote on their own sheets" cleared `system.notes` and `system.biography.notes`, which a Daggerheart
          * character does not have (character.mjs:80-88 at Daggerheart's tag 2.6.5, the version module.json
-         * verifies: `biography` is background, connections and characteristics), so the tick wiped nothing.
+         * verified until 1.2.111: `biography` is background, connections and characteristics), so the tick wiped nothing.
          * And the actions row ended "and betrayal window cleared": the offer is the cast's record since
          * CASE-04 and goes with the incident group, so with the incident unticked the row promised what
          * stayed. Read: the groups, the reset's source for the two paths, and both lang files for the two
@@ -10595,7 +11007,8 @@ const INVARIANTS = [
             /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
             JSON.stringify([
                 [null, null, null, null, null, null], 1, false, true, 0,
-                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), null,
+                // The dead student outside the trial: the main room (null) until E72 C8, its account's own dead room since (R3806).
+                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), "drpg-dead-R117PLAYERC00000",
                     V.liveKitRoomFor(school.id, "Dorm B"), V.liveKitRoomFor(school.id, "Hall"), null],
                 true, true, true]),
             "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
@@ -18667,6 +19080,100 @@ const INVARIANTS = [
             "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
             + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
     }],
+    ["R3980 - the Rest window names the rest a map has no room for (gaps, the owner's 12.11): rest.mjs `restRoomsSentence`, asked as `restVariants` asks it for the window's hints (no `kind` in its data), on a map whose rooms allow no rest, says DRPG.Rest.noRooms with the rest's own name - Short Rest or Long Rest, in English and in Polish - and never an empty word", async () => {
+        /*
+         * Gaps, 12.11.2026 (the owner, through the coordinator): the Rest window read "No room on this map is marked for a
+         * yet" / "... oznaczony pod . GM ustawia to per scena". `restVariants` builds each choice's hint with
+         * `restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, ...)` - data with no `kind`, since "allowedIn" has none - and on
+         * a map with no rest room the sentence falls back to DRPG.Rest.noRooms with `kind: data?.kind ?? ""`. The refusal's
+         * road (`performRest`, DRPG.Rest.wrongRoom) passes `kind` and was whole. Asked here with a scene of the test's own
+         * (no region, so no rest room) and with the language's words standing in for `game.i18n` (lang/en.json and
+         * lang/pl.json, the module's own files), and restored. Red at 235c3210: the kind empty in both.
+         */
+        const R = await import("./rest.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const files = { en: await lang("en"), pl: await lang("pl") };
+        const scene = { id: "R3980SCENE", regions: [] };
+        const at = (obj, key) => key.split(".").reduce((o, p) => o?.[p], obj);
+        const read = {};
+        const own = game.i18n.localize, fmt = game.i18n.format;
+        try {
+            for (const code of ["en", "pl"]) {
+                const word = key => at(files[code], key) ?? key;
+                game.i18n.localize = key => word(key);
+                game.i18n.format = (key, data = {}) => String(word(key)).replace(/\{(\w+)\}/g, (m, k) => (k in data ? String(data[k]) : m));
+                read[code] = ["short", "long"].map(kind => R.restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, scene, null));
+            }
+        } finally {
+            game.i18n.localize = own;
+            game.i18n.format = fmt;
+        }
+        must(read.en?.length === 2 && read.pl?.length === 2, "restRoomsSentence answered nothing - this would measure nothing");
+        const want = code => ["short", "long"].map(kind => String(at(files[code], "DRPG.Rest.noRooms")).replace("{kind}", at(files[code], `DRPG.Rest.${kind}`)));
+        equal(JSON.stringify(read), JSON.stringify({ en: want("en"), pl: want("pl") }),
+            "{en, pl: [the Short Rest's sentence, the Long Rest's]} - a sentence with no rest's name in it");
+    }],
+    ["R3981 - game.drpg.a11y() lists a nameless control while it is on the page and not after its window is gone (gaps, 12.11.2026; the E99 line's full tier-2 run): a11y.mjs `a11yReport` names a nameless control of a module window standing in the page, and once that window is removed counts its kind on the line of kinds met only in windows since closed, and no longer as a control that carries no name", async () => {
+        /*
+         * Gaps, 12.11.2026 (the coordinator: tier 2's "every control in the module's own chrome has a name" failed after
+         * R3551 and passed alone). R3551's windows were gone from the page (read after it: no `r3551-` element), but the
+         * report's map keeps a kind from its first sight and listed "input in r3551-character-..." for ever. Here: a
+         * `.drpg-panel` of the test's own with a button that has nothing to be named by, appended, swept, read, removed,
+         * read again. Red at 235c3210: after the removal the report still said the kind "carries no name".
+         */
+        const A = await import("./a11y.mjs");
+        const host = document.createElement("section");
+        host.className = "drpg-panel";
+        host.id = `r3981-${Date.now().toString(36)}`;
+        host.innerHTML = `<button type="button" class="r3981-nameless"></button>`;
+        let on = "", off = "";
+        try {
+            document.body.append(host);
+            A.nameControls(host);
+            on = A.a11yReport();
+        } finally { host.remove(); }
+        off = A.a11yReport();
+        const kind = "button.r3981-nameless";
+        const read = {
+            on: on.includes(`${kind} in ${host.id}`) && /carry no name/.test(on),
+            offListed: off.split("\n").some(l => l.trim().startsWith(`${kind} in`)),
+            offCounted: /windows no longer on the page: .*button\.r3981-nameless/.test(off)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ on: true, offListed: false, offCounted: true }),
+            `{on: listed while on the page; offListed: still listed as on screen after removal; offCounted: counted among the closed} - the reports: ${JSON.stringify({ on, off })}`);
+    }],
+    ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
+        /*
+         * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground
+         * rgb(11,10,19), no Foundry chat stylesheet): an info card's glyph took the colour the page gave it, #000000, 1.07:1
+         * under the glass and 1.18:1 under Legacy against its card; a warning's (glass #e0182f, 4.07; Legacy 3.04) and a
+         * secret's (9.18; 3.86) are their tone's. The info glyph had no colour of its own: under the glass it is painted in
+         * `currentColor` through its mask (pixel-icons.css), under Legacy Font Awesome draws in `color`, and both took what
+         * Foundry or Daggerheart leave on a message's header. The commit's message has the table. Headless there is no
+         * paint, so this reads the cause: which rule decides the glyph's colour. Red at 7c0d1af9: info null in both themes.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            read[theme] = {};
+            for (const tone of ["info", "warning", "secret"]) {
+                const body = document.createElement("body");
+                body.className = theme;
+                const kit = body.appendChild(document.createElement("div"));
+                kit.className = "drpg-chat-kit";
+                kit.dataset.drpgTone = tone;
+                const head = kit.appendChild(document.createElement("header"));
+                head.className = "drpg-chat-kit-head";
+                const glyph = head.appendChild(document.createElement("i"));
+                glyph.className = "fa-solid fa-ear-listen drpg-chat-kit-glyph";
+                const w = C.winner(glyph, ["color"]);
+                read[theme][tone] = w ? `${w.value}${/components\.css/.test(w.file ?? w.sheet ?? "") ? "" : ` (${w.file ?? w.sheet ?? "?"})`}` : null;
+            }
+        }
+        const want = { info: "var(--drpg-kit-ink)", warning: "var(--drpg-kit-warn-edge)", secret: "var(--drpg-kit-secret-edge)" };
+        equal(stableJson(read), stableJson({ "drpg-theme-stained-glass": want, "drpg-theme-monokuma-legacy": want }),
+            "per theme and tone, the `color` the glyph's winning rule declares (and its sheet when not components.css); null when no rule of the module states it");
+    }],
     ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
@@ -20106,6 +20613,21 @@ const INVARIANTS = [
             derived({ findPassage: false }), derived({})]),
             J([null, null, "that roll was not thrown for that action", "that roll was not thrown for that action", "that roll was not thrown for that action"]),
             "[an Analyze thrown as a Find Passage (the record, the row's reading), a Search's roll, an Analyze for a bullet or a hint, a record of before C3] - a passage was found on another action's roll");
+    }],
+    ["R4202 - the files a window reaches only by import() are fetched at idle after ready, each without an error", async () => {
+        /*
+         * perf-open line, 12.11.2026 (open-cost.mjs, R4200). The warming starts a few seconds after ready on every
+         * client; by the time this tier runs it has finished. Every file of this browser's plan - everyone's, and the
+         * GMs' on a GM - was imported, none failed (a path the list spells wrong fails here, where R4200 reads only the
+         * list), and the warming says how long it took.
+         */
+        const W = await import("./open-cost.mjs");
+        const warmed = await Promise.race([W.warmFirstOpens(), new Promise(resolve => setTimeout(() => resolve(null), 30000))]);
+        must(warmed, "the warming had not finished 30 s into this test - it starts 4 s after ready and fetches one file an idle callback");
+        const plan = W.warmPlan();
+        equal(JSON.stringify(warmed.imports.failed), "[]", "files of the plan that did not load");
+        equal(warmed.imports.ok, plan.length, `files imported, of the ${plan.length} in this browser's plan (${plan.join(", ")})`);
+        ok(typeof warmed.ms === "number" && warmed.ms >= 0, `the warming's time is not read: ${warmed.ms}`);
     }],
     ["R599 - the sound of a secret passage: a find rings passageFound for the finder's owner and the GMs, a miss searchNothing for the owner alone, a show passageFound for the owner of the one shown it alone; a revoke, a Close and the season's reset write no card and ring nothing - the reset takes every cell a find wrote and keeps the tunnel; the sound's line names a find and a show in English and in Polish", async () => {
         /*
@@ -23254,6 +23776,45 @@ const INVARIANTS = [
             "[on: the first line of the diagnosis, the same with avclient-livekit off, the plan], [off: whether those lines name it]");
     }],
 
+    ["R3806 - the ordinary dead talk in a room of their own account outside the trial: a silenced death, public or kept secret, is placed in `deadRoomFor(userId)`, one room per account that nobody else is sent, never the main room; the trial keeps everybody in the main room; the room is the dead's own to speak in (E72 C8; S18-53, the owner's A9, the coordinator's decision of 12.11.2026)", async () => {
+        /*
+         * E72 C8, 12.11.2026; audit S18-53, the plan's A9, the coordinator's decision of 12.11 (the mic block stays in the
+         * trial; the ordinary dead outside it get their own voice channel, with no write to the user record). Until C8 a
+         * public death, once silenced, went to the main room (`voiceClaim`'s "the main room"), where every living player
+         * heard it, and a secret one to the one dead channel every secret death shared (`DEAD_ROOM`), where two dead
+         * players heard each other - a second death the first was not told of. Read here on plain objects, nothing
+         * written: `voiceClaim` for a silenced death of two accounts, public and secret, and for the same in the trial;
+         * the room's name (voice-client.mjs `deadRoomFor`) beside the Eclipse's (`silentRoomFor`); `micHold` in one's
+         * own dead room and in the main room. Red at 377a476: no `deadRoomFor`, the public death the main room.
+         */
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        ok(typeof VC.deadRoomFor === "function", "voice-client.mjs has no deadRoomFor - the dead have no room of their own (E72 C8)");
+        if (typeof VC.deadRoomFor !== "function") return;
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const a = account("R3806PA000000000"), b = account("R3806PB000000000");
+        const claim = (user, secret, trial = false) => {
+            const row = V.voiceClaim({ user, trial, silenced: () => true, secret: () => secret });
+            return [row.target ?? "main", row.claim];
+        };
+        const own = id => VC.deadRoomFor(id);
+        const read = {
+            public: claim(a, false), secret: claim(a, true), other: claim(b, false),
+            trial: claim(a, false, true),
+            names: [own(a.id).startsWith(VC.ROOM_PREFIX), own(a.id) !== own(b.id), own(a.id) !== VC.silentRoomFor(a.id)],
+            hold: [V.micHold({ user: a, room: own(a.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+                V.micHold({ user: a, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [] })]
+        };
+        const dead = V.voiceClaim({ user: a, silenced: () => true }).claim;
+        equal(stableJson(read), stableJson({
+            public: [own(a.id), dead], secret: [own(a.id), dead], other: [own(b.id), dead],
+            trial: ["main", V.voiceClaim({ user: a, trial: true }).claim],
+            names: [true, true, true],
+            hold: [{ reason: "deadAlone", held: false }, null]
+        }), "[the room of a silenced public death, a secret one, another account's public one, a death in the trial; the names: ours, "
+            + "one per account, not the Eclipse's; micHold in one's own dead room and in the main room]");
+    }],
+
     ["R815 - the dead channel: a dead student keeps the voice of the room they lie in until the incident ends, the body is found, a GM silences them or a living witness from outside the cast is there; then a secret death talks in the dead channel and a public one in the main room, each room to its account alone, a witness's after the victim's (E19-12 to E19-16)", async () => {
         /*
          * E19 C3, 19.10.2026; S11-26, D8, the owner's A9 of 11.10. Until C3 a death the GMs held sent its account to
@@ -23276,13 +23837,13 @@ const INVARIANTS = [
         const school = { id: "R815SCHOOL000000", name: "R815 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const silencedNow = V.voiceClaim({ user: account("R815ANYONE000000"), silenced: () => true, secret: () => true });
-        ok(silencedNow.target === `${VC.ROOM_PREFIX}dead`,
-            `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, where every player hears it (A9-K3)`);
+        // E72 C8 (12.11.2026): the dead room is the account's own (`deadRoomFor`), for a public death as for a secret one (R3806).
+        ok(silencedNow.target === VC.deadRoomFor("R815ANYONE000000"),
+            `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, not its account's own dead room (A9-K3)`);
         const NAMES = ["placeVoices", "deathVoiceGone", "sendInPasses", "onVoiceSocket", "createVoiceLedger"];
         ok(NAMES.every(name => typeof V[name] === "function"),
             `voice.mjs has no ${NAMES.filter(name => typeof V[name] !== "function").join(", ")}: nothing keeps a victim in the room until the trigger, or holds a witness's room for the victim's`);
         if (!NAMES.every(name => typeof V[name] === "function")) return;
-        const DEAD = VC.DEAD_ROOM;
 
         const [one, two] = game.users.filter(u => !u.isGM);
         const gm = account("R815GM0000000000", true);
@@ -23297,8 +23858,9 @@ const INVARIANTS = [
         };
         const owner = { victim: "victim", killer: "killer", witness: "witness", bystander: "bystander", third: "third", spare: "victim", late: "victim", cub: "cub" };
         const userOf = a => (a === A.monokuma ? gm : users[owner[Object.keys(A).find(k => A[k] === a)]] ?? null);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         let asked = 0;
         /* One case: who is dead (`dead`), whose death is public (`deceased`), where each stands, the incident, its cast held
@@ -23320,7 +23882,7 @@ const INVARIANTS = [
             const { rows, byUser, waits } = placed;
             const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
             return {
-                rooms: Object.fromEntries([...byUser].map(([id, row]) => [who(id), row.keep ? "kept" : label(row.target ?? null)])),
+                rooms: Object.fromEntries([...byUser].map(([id, row]) => [who(id), row.keep ? "kept" : label(row.target ?? null, id)])),
                 waits: Object.fromEntries([...waits].map(([id, list]) => [who(id), list.map(who)])),
                 byUser, rows, waitMap: waits, held: placed.held
             };
@@ -23365,7 +23927,7 @@ const INVARIANTS = [
             });
             const { byUser, waitMap: waits } = await place({ cast: ["victim", "killer", "witness", "bystander", "monokuma"], where: { witness: "Kitchen" } });
             const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-            const log = () => sent.map(s => `${who(s.target)}:${label(s.room)}`);
+            const log = () => sent.map(s => `${who(s.target)}:${label(s.room, s.target)}`);
             const tick = () => new Promise(resolve => setTimeout(resolve, 0));
             const out = {};
             const pass = V.sendInPasses(V.applyOrder(byUser, gm.id), waits, {
@@ -23376,11 +23938,11 @@ const INVARIANTS = [
             out.waiting = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
             if (forged) {
-                V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
+                V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
                 await tick();
                 out.forged = log().length;
             }
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -23404,7 +23966,7 @@ const INVARIANTS = [
         seen.push(["kept, sent", keptSent.includes(users.victim.id), keptSent.includes(users.killer.id), keptSent.length]);
 
         const hold = room => V.micHold({ user: account(one.id), room, external: false, connected: true, canBroadcastAudio: true, actors: [] });
-        seen.push(["micHold", hold(DEAD), hold(null), V.micHold({ user: gm, room: DEAD, external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+        seen.push(["micHold", hold(VC.deadRoomFor(one.id)), hold(null), V.micHold({ user: gm, room: VC.deadRoomFor(gm.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
             game.i18n.has("DRPG.Voice.held.deadAlone")]);
 
         const key = name => ({ key: `${MODULE_ID}.${name}` });
@@ -23425,9 +23987,9 @@ const INVARIANTS = [
             ["cast not here", { ...kitchen, victim: "kept" }],
             ["cast arrived", kitchen],
             ["killer dead in public, in the incident", kitchen],
-            ["killer dead in public, after", { ...kitchen, killer: "main" }],
+            ["killer dead in public, after", { ...kitchen, killer: "dead" }], // the main room until E72 C8
             ["outside the cast, secret", { ...kitchen, bystander: "dead" }],
-            ["outside the cast, public", { ...kitchen, bystander: "main" }],
+            ["outside the cast, public", { ...kitchen, bystander: "dead" }], // the main room until E72 C8
             ["no incident, secret", { ...kitchen, bystander: "dead" }],
             ["the body found", out],
             ["silenced by a GM", out],
@@ -23470,7 +24032,7 @@ const INVARIANTS = [
         const T = await import("./voice-tile.mjs");
         const VC = await import("./voice-client.mjs");
         const me = { id: game.user.id, name: "R831", active: true, isGM: false };
-        const hold = (extra = {}) => V.micHold({ user: me, room: VC.DEAD_ROOM, external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
+        const hold = (extra = {}) => V.micHold({ user: me, room: VC.deadRoomFor(me.id), external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
         const writes = [], told = [];
         const settings = muted => ({
             get: (scope, key) => (scope === "client" && key === `users.${game.user.id}.muted` ? muted : undefined),
@@ -23521,7 +24083,6 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const VC = await import("./voice-client.mjs");
         const { participantIds } = await import("./incident-store.mjs");
-        const DEAD = VC.DEAD_ROOM;
         const school = { id: "R832SCHOOL000000", name: "R832 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const [one, two] = game.users.filter(u => !u.isGM);
@@ -23534,8 +24095,9 @@ const INVARIANTS = [
             monokuma: actor("R832AMONOKUMA000", { [FLAGS.monokuma]: true }) };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id, thirdId: A.pub.id };
         const place = ({ hydrated, where = {} }) => V.placeVoices({
             actors: Object.values(A), eclipse: false, trial: false,
@@ -23553,7 +24115,7 @@ const INVARIANTS = [
                 cancel: id => timers.delete(id)
             });
             const io = { assign: (id, room, force) => L.assignUser(id, room, { force }), waitFor: (id, room) => L.waitApplied(id, room) };
-            return { L, sent, timers, io, log: () => sent.map(s => `${who(s.target)}:${label(s.room)}`), alone: () => sent.every(s => s.to?.length === 1 && s.to[0] === s.target) };
+            return { L, sent, timers, io, log: () => sent.map(s => `${who(s.target)}:${label(s.room, s.target)}`), alone: () => sent.every(s => s.to?.length === 1 && s.to[0] === s.target) };
         };
         const tick = () => new Promise(resolve => setTimeout(resolve, 0));
         const seen = [];
@@ -23581,7 +24143,7 @@ const INVARIANTS = [
             out.first = log();
             out.timers = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -23596,7 +24158,7 @@ const INVARIANTS = [
         seen.push(["asked inside the wait, no answer", await waited(false)]);
         // The victim already settled in the dead channel: the witness is answered at once.
         const settledLedger = ledger();
-        settledLedger.L.answer(users.victim.id, { room: DEAD, state: "applied" });
+        settledLedger.L.answer(users.victim.id, { room: VC.deadRoomFor(users.victim.id), state: "applied" });
         seen.push(["asked, the victim settled", await V.answerWhoAmI(users.witness.id, warm, settledLedger.io), settledLedger.log()]);
 
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
@@ -23608,7 +24170,7 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson([
             ["the pass, the cast not here", ["bystander", "gm"]],
             ["asked, the cast not here", { victim: "kept", pub: "kept", witness: "held", killer: "held", bystander: "sent" },
-                ["victim:dead", "pub:main", "bystander:Dorm"], true],
+                ["victim:dead", "pub:dead", "bystander:Dorm"], true], // pub: the main room until E72 C8
             ["the waits", { witness: ["victim"] }],
             ["asked inside the wait, the victim answers", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
                 all: ["victim:dead", "witness:Kitchen"], alone: true }],
@@ -23718,7 +24280,6 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const VC = await import("./voice-client.mjs");
         const { participantIds } = await import("./incident-store.mjs");
-        const DEAD = VC.DEAD_ROOM;
         const school = { id: "R835SCHOOL000000", name: "R835 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const gm = account("R835GM0000000000", true);
@@ -23731,8 +24292,9 @@ const INVARIANTS = [
         const owner = { bob: "p", alice: "p", carol: "carol", killer: "killer", victim: "victim" };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         const records = { alice: { chapter: 1, day: 3 }, victim: { chapter: 2, day: 1 } };
         /* Chapter 2. Alice died in chapter 1 (public: the flag; secret: the GMs' row alone), her token in the Gym; Bob
@@ -23746,10 +24308,10 @@ const INVARIANTS = [
             userOf: a => users[owner[nameOf(a)]], dead: a => ["alice", "victim"].includes(nameOf(a)), monokumaOf: () => false
         });
         const rooms = placed => Object.fromEntries([...placed.byUser].map(([id, row]) => [who(id),
-            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null)]));
+            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null, id)]));
         const asked = async placed => {
             const sent = [];
-            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room)}`); return true; }, waitFor: async () => "applied" };
+            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room, id)}`); return true; }, waitFor: async () => "applied" };
             const said = {};
             for (const name of ["p", "carol", "victim", "killer"]) said[name] = await V.answerWhoAmI(users[name].id, placed, io);
             return [said, sent];
@@ -23757,7 +24319,7 @@ const INVARIANTS = [
         const pass = async placed => {
             const sent = [];
             await V.sendInPasses(V.applyOrder(placed.byUser, gm.id), placed.waits, { ownId: gm.id, held: placed.held,
-                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null)}`); return true; }, waitFor: async () => "applied" });
+                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null, userId)}`); return true; }, waitFor: async () => "applied" });
             return sent;
         };
         const seen = [];
@@ -23804,7 +24366,7 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         ok(typeof V.placeVoices === "function", "voice.mjs has no `placeVoices`: the trial's room is not asked of the decision the dead channel changes");
         if (typeof V.placeVoices !== "function") return;
-        const { DEAD_ROOM } = await import("./voice-client.mjs");
+        const { isDeadRoom } = await import("./voice-client.mjs");
         const school = { id: "R816SCHOOL000000", name: "R816 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
@@ -23827,7 +24389,7 @@ const INVARIANTS = [
         const targets = [...byUser.values()].map(row => row.target ?? null);
         const claim = V.voiceClaim({ user: account("R816P20000000000"), trial: true, silenced: () => true, secret: () => true });
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
-        equal(stableJson([targets, new Set(targets).size, rows.some(r => r.target === DEAD_ROOM), waits.size, asked,
+        equal(stableJson([targets, new Set(targets).size, rows.some(r => isDeadRoom(r.target)), waits.size, asked,
             claim.target ?? null, claim.why === game.i18n.localize("DRPG.Voice.claimTrial"),
             /death: eclipse \|\| trial \? null : await deathFacts\(\)/.test(fnSource(voice, "voiceTargets"))]),
         stableJson([[null, null, null, null, null], 1, false, 0, 0, null, true, true]),
@@ -29973,12 +30535,13 @@ const INVARIANTS = [
          * put evidence on every screen (the sheet's Present asked only for a Class Trial), and a player who wanted to show a
          * Truth Bullet without the reading their Analyze bought had to show it all. Pure functions on hand-made floors and
          * views; nothing is written, no world is read (the names are handed in). Red at cbce376f: no `presentRefusal`, no
-         * `analysisOffered`, no `unreadView`.
+         * `analysisOffered`, no `unreadView`. E72 C11 (12.11.2026; D114) adds the Closing's exchange, changed on purpose: a
+         * student outside its Objection and Rebuttal is refused at Present; red at 7ab4cc6 (C presented).
          */
         const F = await import("./trial-floor.mjs");
         const T = await import("./trial.mjs");
         const read = { fns: [typeof F.presentRefusal, typeof T.analysisOffered, typeof T.unreadView] };
-        const names = { A: "R1045 Aoi", B: "R1045 Bo" };
+        const names = { A: "R1045 Aoi", B: "R1045 Bo", C: "R1045 Cy" };
         const nameOf = id => names[id] ?? null;
         if (typeof F.presentRefusal === "function") {
             const floors = {
@@ -29993,7 +30556,15 @@ const INVARIANTS = [
             };
             read.matrix = Object.fromEntries(Object.entries(floors).map(([k, floor]) =>
                 [k, ["A", "B"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
+            /* THE CLOSING'S EXCHANGE (E72 C11, 12.11.2026; the owner's D114 of 31.10): an Objection at the Closing's speaker B
+               and its Rebuttal are the debate's modes with the Closing's field still on the floor (floor-machine.mjs
+               `closingOf`); A and B are in the exchange, C is not. Until C11 everybody presented there, as in a debate. */
+            const exchange = { objection: { active: true, mode: "objection", holderId: "A", targetId: "B", closing: { phase: "speak", speakerId: "B" } },
+                rebuttal: { active: true, mode: "rebuttal", holderId: "A", targetId: "B", closing: { phase: "speak", speakerId: "B" } } };
+            read.exchange = Object.fromEntries(Object.entries(exchange).map(([k, floor]) =>
+                [k, ["A", "B", "C"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
         }
+        const pair = game.i18n.has("DRPG.Trial.presentPair") ? game.i18n.format("DRPG.Trial.presentPair", { a: names.A, b: names.B }) : "DRPG.Trial.presentPair";
         const only = game.i18n.format("DRPG.Trial.presentOnly", { name: names.A });
         const panic = `${only} ${game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize("DRPG.Floor.mode.panic") })}`;
         const nobody = game.i18n.localize("DRPG.Trial.presentNobody");
@@ -30019,11 +30590,13 @@ const INVARIANTS = [
                 none: [null, null], debate: [null, null], objection: [null, null], rebuttal: [null, null],
                 testimony: [null, only], panic: [null, panic], closing: [null, only], volunteers: [nobody, nobody]
             },
+            exchange: { objection: [null, null, pair], rebuttal: [null, null, pair] },
             offered: [false, false, true, true, true, false],
             unread: [["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", false, true, "R1045 the words", "R1045 bullet"],
                 ["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", true, true, "R1045 the words", "R1045 bullet"]],
             untouched: true
         }), "Present's rule per mode or its with-or-without choice is not the owner's [the three functions; who of the speaker A and B may present on each floor, "
+            + "who of A, B and C in the Closing's exchange (A objecting at B: C is outside it, D114), "
             + "with the reason; the choice offered for an unread bullet, an unread Key, an analysed one, an analysed Key, one read as Neutral; the view without the reading - type, reading, Faint, identified, the words, the name; the view handed in untouched]");
     }],
     ["R1046 - the floor's modes and their music, one row a mode (E70 C13, E70-82): Testimony, Panic Round and the Closing Argument play the trial's discussion, an Objection and its rebuttal the Objection's in every mode, the Closing's exchange too", async () => {
@@ -32008,7 +32581,7 @@ const INVARIANTS = [
             "the run's ok, failed and unknown lists do not count its rows");
         equal(stableJson(mod.contractState()), before, "a run on rows handed in replaced this load's contract, which the report reads");
 
-        // Unknown is a warning: one console line naming each such row, and no notice (a notice is a failed row's).
+        // Unknown is not a failure: no warning naming it, and no notice (a notice is a failed row's).
         const notices = [];
         const log = watchLog();
         try {
@@ -32017,8 +32590,9 @@ const INVARIANTS = [
         } finally {
             log.stop();
         }
-        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([1, 1, 0]),
-            "a row that cannot be read is not one warning line each, or it raised a notice [cannot tell | hook | notices]");
+        // Since E91 C1 (the owner's note of 09.11) an unread row is no warning: one info line counts them (R3810).
+        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([0, 0, 0]),
+            "a row that cannot be read is a warning line, or it raised a notice [cannot tell | hook | notices]");
 
         // At ready: after the requirements, on the primary GM only, from the ready hook that runs once.
         const src = (await moduleSources()).get("module.mjs") ?? "";
@@ -32026,6 +32600,539 @@ const INVARIANTS = [
         const gate = ready.indexOf("requirementsMet()"), run = ready.indexOf("announceAtReady(");
         ok(gate >= 0 && run > gate, "module.mjs's ready does not run the contract after it checked the requirements");
         ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
+    }],
+
+    ["R4474 - the wrong verdict's card goes to the Monocubs of the case it judged (scripts/monocub.mjs `wrongVerdictTouches`, verdict.mjs `remindOnWrongVerdict`, `readSentence`; the E101 line's review of 1.2.110, V4, 13.11.2026): a death of this season's chapter since the verdict before this one, not an execution, and a crime witness marked since it, are told; the first case's dead and witness at the chapter's second trial, last season's dead of the same chapter number and the executed are not; a mark from before the field (no `sinceVerdict`) reads as before", async () => {
+        /*
+         * The review's V4. E72 C7 told "the case's own dead" by `death.chapter === clock.chapter` alone, with no season and
+         * no verdict: at a chapter's second trial the first case's Monocub was told too, and after a reset that keeps the
+         * Monocubs, last season's dead of the same chapter number. Pure readings on rows of the suite's own, so tier 1 changes
+         * nothing; the verdict's own wiring read in source (the step keeps the verdict before it in its record, since the
+         * sentence step writes this verdict's stamp first). Red at 12a7e309: no `wrongVerdictTouches`.
+         */
+        const M = await import("./monocub.mjs");
+        must(typeof M.wrongVerdictTouches === "function", "monocub.mjs exports no wrongVerdictTouches");
+        const now = { chapter: 3, epoch: "E2", before: 1000 };
+        const first = { chapter: 3, epoch: "E2", before: null };
+        const death = (extra = {}) => ({ death: { chapter: 3, epoch: "E2", ...extra } });
+        const witness = (extra = {}) => ({ death: null, witness: { chapter: 3, epoch: "E2", ...extra } });
+        const read = {
+            thisCase: M.wrongVerdictTouches(death({ sinceVerdict: 1000 }), now),
+            firstCaseAtSecond: M.wrongVerdictTouches(death({ sinceVerdict: null }), now),
+            firstCaseAtFirst: M.wrongVerdictTouches(death({ sinceVerdict: null }), first),
+            lastSeason: M.wrongVerdictTouches(death({ sinceVerdict: 1000, epoch: "E1" }), now),
+            executed: M.wrongVerdictTouches(death({ sinceVerdict: 1000, cause: "executed" }), now),
+            otherChapter: M.wrongVerdictTouches(death({ sinceVerdict: 1000, chapter: 2 }), now),
+            witnessThis: M.wrongVerdictTouches(witness({ sinceVerdict: 1000 }), now),
+            witnessFirst: M.wrongVerdictTouches(witness({ sinceVerdict: null }), now),
+            witnessLastSeason: M.wrongVerdictTouches(witness({ sinceVerdict: 1000, epoch: "E1" }), now),
+            witnessOld: M.wrongVerdictTouches({ death: null, witness: 3 }, first),
+            nobody: M.wrongVerdictTouches({ death: null, witness: null }, now)
+        };
+        const src = stripComments((await moduleSources()).get("verdict.mjs") ?? "");
+        must(src.length > 5000, "verdict.mjs was not read");
+        read.wired = [/wrongVerdictTouches\(/.test(fnSource(src, "remindOnWrongVerdict")), /verdictBefore/.test(fnSource(src, "readSentence"))];
+        equal(stableJson(read), stableJson({ thisCase: true, firstCaseAtSecond: false, firstCaseAtFirst: true, lastSeason: false, executed: false,
+            otherChapter: false, witnessThis: true, witnessFirst: false, witnessLastSeason: false, witnessOld: true, nobody: false, wired: [true, true] }),
+            "{who the wrong verdict's card reaches: this case's dead; the first case's at the second trial, at its own; last season's; the executed; another chapter's; a witness of this case, of the first, of last season, an old mark; nobody; wired: [the step asks it, the sentence keeps the verdict before]}");
+    }],
+    ["R3815 - the Final Trial's verdict settles the Ghost Bets: a step finalBets after the card and before the pick is cleared, the bet won only on the executed Mastermind (E72, the coordinator's bug of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the coordinator's note of 12.11 ("the Final Trial runs no 'bets' step, so a Ghost Bet there stays
+         * unpaid. That is a bug"). verdict.mjs `FINAL_VERDICT_STEPS` had no step that called monocub.mjs `settleBets`: a bet
+         * placed before the Final stayed in the Monocub's row until a reset. Now the step `finalBets` runs after
+         * `finalLevelUps` and before `mastermind` (which clears the pick the outcome is read from), needs `finalCard`, and
+         * settles with `finalBetsRecord(final)` (pure): a right verdict on the Mastermind when the Final executed them, the
+         * one sentenced; none else. The record of the Final Trial names nobody, so the record is built from the GMs' side.
+         * Red before: no finalBets.
+         */
+        const V = await import("./verdict.mjs");
+        const src = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
+        const steps = /const FINAL_VERDICT_STEPS = Object\.freeze\(\[([^\]]*)\]\)/.exec(src)?.[1]?.match(/"(\w+)"/g)?.map(x => x.slice(1, -1)) ?? [];
+        const at = name => steps.indexOf(name);
+        equal(JSON.stringify([at("finalBets") > at("finalLevelUps") && at("finalLevelUps") >= 0, at("finalBets") < at("mastermind"),
+            /finalBets:\s*"finalCard"/.test(src)]), JSON.stringify([true, true, true]),
+            "the Final Trial's steps have no finalBets after its Level Ups and before the pick is cleared, needing its card");
+        ok(typeof V.finalBetsRecord === "function", "verdict.mjs has no finalBetsRecord");
+        if (typeof V.finalBetsRecord !== "function") return;
+        equal(JSON.stringify([V.finalBetsRecord({ executed: true, mastermind: { id: "R3815MM" } }), V.finalBetsRecord({ executed: false, mastermind: { id: "R3815MM" } }),
+            V.finalBetsRecord({ executed: true, mastermind: null })]),
+            JSON.stringify([{ correct: true, executedIds: ["R3815MM"] }, { correct: false, executedIds: [] }, { correct: false, executedIds: [] }]),
+            "the Final's bets are not settled on the executed Mastermind alone ([executed, escaped, no Mastermind known])");
+    }],
+
+    ["R3816 - the GM's Despair Calls draw no Bounty tile: Fuel a Monocub's tile offers Fuel or Bounty, each with its own price and secrecy (E72, the owner's tiles decision of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner ("chcemy zachowac te sama liczbe kafli", "Tak chodzilo o bounty"), relayed by the
+         * coordinator: the GM's Calls keep their number of tiles, so the Bounty (E72 C16) lives inside Fuel a Monocub's.
+         * config.mjs DESPAIR_CALLS.bounty is kept for its rules and marked `inside: "fuelTheCub"`; calls.mjs
+         * `despairCallsFor` (the grid's list) leaves such a row out; `fuelTheCub.choices` lists the two; sheet.mjs `runCall`
+         * asks which before anything else (`callChoice`). Red before: a Bounty tile, no choices.
+         */
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { despairCallsFor } = await import("./calls.mjs");
+        const keys = despairCallsFor(99).map(c => c.key);
+        equal(JSON.stringify([keys.includes("bounty"), keys.includes("fuelTheCub"), DESPAIR_CALLS.bounty?.inside ?? null,
+            DESPAIR_CALLS.fuelTheCub?.choices ?? null]),
+            JSON.stringify([false, true, "fuelTheCub", ["fuelTheCub", "bounty"]]),
+            "the GM's Calls draw a Bounty tile, or Fuel a Monocub's tile does not offer Fuel and Bounty");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        // Since R3818 (E72, the action's layout) the window is call-pickers.mjs `pickChoice`, sheet.mjs `callChoice` gone.
+        ok(/call\.choices/.test(fnSource(sheet, "runCall")) && /\bpickChoice\s*\(/.test(fnSource(sheet, "runCall")),
+            "sheet.mjs runCall does not ask which Call of a tile's choices (pickChoice)");
+    }],
+
+    ["R3817 - Experience and Ultimate are one Hope Call, Talent: ten Hope Call tiles with Bribe among them, Talent offering both effects, the two rows kept so an armed one still resolves (E72, the owner's decision of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner's pick (option 1, relayed by the coordinator): Bribe stays among the Hope Calls and
+         * the Hope Calls stay at ten, so Experience and Ultimate become one Call, Talent (cost 1; the player writes how an
+         * experience or their Ultimate applies, a GM approves or refuses, the Hope paid only on the yes; in its window the
+         * player picks one effect for the next roll: an experience's value, or advantage). config.mjs HOPE_CALLS.talent
+         * holds the tile (`choices: ["experience", "ultimate"]`); the two rows stay, each `inside: "talent"`, with every
+         * guard of theirs, so an Experience or an Ultimate armed before the update resolves by its key as before; calls.mjs
+         * `affordableHopeCalls` (the grid's list) leaves them out; sheet.mjs `runCall` asks which (`callChoice`) for a Hope
+         * Call as for a Despair one. Red before: no talent row, eleven tiles.
+         */
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const { affordableHopeCalls } = await import("./calls.mjs");
+        const [actor] = studentActors();
+        const keys = affordableHopeCalls(actor).map(c => c.key);
+        equal(JSON.stringify([keys.length, keys.includes("talent"), keys.includes("bribe"), keys.includes("experience"), keys.includes("ultimate"),
+            HOPE_CALLS.talent?.choices ?? null, HOPE_CALLS.talent?.cost ?? null, HOPE_CALLS.experience?.inside ?? null, HOPE_CALLS.ultimate?.inside ?? null,
+            Boolean(HOPE_CALLS.experience?.needsGm && HOPE_CALLS.ultimate?.needsGm)]),
+            JSON.stringify([10, true, true, false, false, ["experience", "ultimate"], 1, "talent", "talent", true]),
+            "the Hope Calls are not ten tiles with Talent holding Experience and Ultimate ([tiles, Talent, Bribe, Experience, Ultimate, Talent's choices, its price, "
+            + "where each of the two lives, both still wait for a GM])");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        ok(!/despair\s*&&\s*Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")) && /Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")),
+            "sheet.mjs runCall asks a tile's choice for a Despair Call only");
+    }],
+
+    ["R3818 - a Call window that asks a choice or a text is drawn as an action's: the header and its facts on the left, the rows (radio buttons, not a dropdown) and the text or the note to the GM on the right, its side's class kept; Talent's two rows and the note are one window, a shut row greyed with its reason; a Call that asks nothing is the left column alone (E72, the owner's of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner, relayed by the coordinator: "Ekrany calli niech przypominaja ekran akcji od teraz
+         * apropo zmian e72, skoro maja wybory i wpisy do gma". call-pickers.mjs `callWindow` takes `layout: "action"`
+         * (action-menus.mjs `actionWindow`, R3200's builder), and its rows are the action window's (`callRowsHtml` on
+         * ui-columns.mjs `choiceRowHtml`). Opened here with DialogV2.wait held by a stand-in that keeps each window until
+         * the test closes it (cancelled: nothing paid, armed or written), as R1111 does: a picker (Bounty's student), a
+         * text (New Rule), a tile's choice (Fuel a Monocub's, `pickChoice`), Talent's confirmation with its two rows and
+         * the note (Experience shut), a confirmation that asks nothing (Sprint) and the GM's ruling. The Monocub's ability
+         * window needs a Monocub, so it is read from its source (tier 2's tests open it). Red at 478a8e7: one column, a
+         * dropdown, Talent's choice a window of buttons before the note's.
+         */
+        needs(world.atLeast("livingStudents", 2), "Bounty's picker lists a living student other than the one aiming it");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const calls = await import("./calls.mjs");
+        const pickers = await import("./call-pickers.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
+        const who = livingStudents()[0];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const look = cfg => {
+            const root = document.createElement("div");
+            if (typeof cfg.content === "string") root.innerHTML = cfg.content;
+            else if (cfg.content) root.append(cfg.content.cloneNode(true));
+            const ask = root.querySelector(".drpg-variant-ask");
+            const radios = [...(ask?.querySelectorAll(".drpg-choice input[type=radio]") ?? [])];
+            return {
+                action: (cfg.classes ?? []).includes("drpg-action-window"),
+                side: (cfg.classes ?? []).find(c => /^drpg-(?:hope|despair)-dialog$/.test(c)) ?? null,
+                header: Boolean(root.querySelector(".drpg-variant-brief .drpg-call-header")),
+                ask: Boolean(ask),
+                rows: radios.length,
+                picked: radios.find(r => r.checked)?.value ?? null,
+                shut: radios.filter(r => r.disabled).map(r => r.value),
+                why: radios.filter(r => r.disabled).map(r => r.closest(".drpg-choice")?.querySelector("small")?.textContent.trim() ?? ""),
+                words: [...(ask?.querySelectorAll("textarea") ?? [])].map(t => t.name),
+                select: root.querySelectorAll("select").length,
+                routed: (cfg.buttons ?? []).filter(b => /\bdrpg-gm-route\b/.test(String(b.class ?? ""))).map(b => b.action)
+            };
+        };
+        const closeAll = answer => { for (const w of held.splice(0)) w.resolve(answer); };
+        const opened = async answer => {
+            const got = await until(() => held.length >= 1, 3000);
+            const seen = got ? look(held[0].config) : "(no window opened)";
+            closeAll(answer);
+            return seen;
+        };
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            const run = async (name, promise, answer = null) => { read[name] = await opened(answer); await promise; };
+            await run("bounty", pickTarget(who, DESPAIR_CALLS.bounty, "despair"));
+            await run("newRule", pickTarget(who, DESPAIR_CALLS.newRule, "despair"));
+            await run("fuel", pickers.pickChoice(DESPAIR_CALLS.fuelTheCub, "despair"));
+            await run("talent", calls.confirmCall(HOPE_CALLS.talent, { kind: "hope", held: 12, choices: HOPE_CALLS.talent.choices,
+                shut: { experience: "R3818 shut" } }), "cancel");
+            await run("sprint", calls.confirmCall(HOPE_CALLS.sprint, { kind: "hope", held: 12 }), "cancel");
+            await run("ruling", calls.askHopeCallApproval({ callLabel: "R3818", cost: 1, effect: "R3818", actorName: who.name, note: "R3818 words" }));
+        } finally {
+            closeAll(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        const base = { action: true, header: true, ask: true, rows: 0, picked: null, shut: [], why: [], words: [], select: 0, routed: [] };
+        const J = stableJson;
+        const got = Object.fromEntries(Object.entries(read).map(([k, v]) => [k, typeof v === "string" ? v
+            : k === "bounty" ? { ...v, rows: v.rows >= 1 } : v]));
+        equal(J(got), J({
+            bounty: { ...base, side: "drpg-despair-dialog", rows: true, picked: got.bounty?.picked ?? "(none)" },
+            newRule: { ...base, side: "drpg-despair-dialog", words: ["text"] },
+            fuel: { ...base, side: "drpg-despair-dialog", rows: 2, picked: "fuelTheCub" },
+            talent: { ...base, side: "drpg-hope-dialog", rows: 2, picked: "ultimate", shut: ["experience"], why: ["R3818 shut"], words: ["callNote"], routed: ["spend"] },
+            sprint: { ...base, side: "drpg-hope-dialog", ask: false },
+            ruling: { ...base, side: "drpg-hope-dialog" }
+        }), "a Call window is not drawn as an action's ([the action's window, its side, the header on the left, a right column, its rows, the row picked, "
+            + "the rows shut and why, the text fields on the right, a dropdown, the GM's road] for Bounty's picker, New Rule, Fuel's choice, Talent, Sprint, the ruling)");
+        ok(got.bounty?.picked !== null, "Bounty's picker has no row picked at opening");
+
+        // The Monocub's ability window, read from its source: the action's layout, the targets as rows, no dropdown.
+        const cub = topLevelFunction(stripComments(new Map(await otherSources()).get("monocub.mjs") ?? ""), "cubAbilityDialog") ?? "";
+        must(cub.length > 200, "monocub.mjs cubAbilityDialog was not read - this would measure nothing");
+        equal(J([/layout:\s*"action"/.test(cub), /\bcallRowsHtml\s*\(/.test(cub), /<select\b/.test(cub)]), J([true, true, false]),
+            "monocub.mjs cubAbilityDialog does not draw the action's layout with its targets as rows ([layout, rows, a dropdown])");
+    }],
+
+    ["R3819 - the Mastermind's room is locked by the GM's own lock (D038 (1), the owner's \"Budujemy\" of 12.11): one writer of a room's lock, vault-store.mjs `writeRoomLock`, which Room Setup's save and mastermind.mjs `lockLair` both call - the same flag, the same refusal, the same card when it opens; `lockLair` is the primary GM's and writes for the one who acts as the Mastermind alone, refusing anyone else with nothing carried out; the bridge's `mastermind.lairLock` asks it, in both languages", async () => {
+        /*
+         * E91 C4 (D038 (1)), 12.11.2026; the owner's answer relayed by the coordinator: "the lock must not be a tell - from
+         * a student's side the Mastermind's locked room must look and refuse exactly like any other locked room, and the GM
+         * can lock any room the same way". So the lair carries no lock of its own: `lockLair` writes the room's
+         * `ROOM_FLAGS.locked` through the writer Room Setup uses (`writeRoomLock`: every piece, and the unlock's card), and a
+         * student meets movement.mjs `isLocked` and "The door is locked." as at any locked door. Read here: the two callers'
+         * sources, the run's refusal for an asker who is not the Mastermind (this GM asks for a student it does not act as
+         * the Mastermind for: nothing written, tier 1's dump holds it), the bridge's row and its words. Tier 2 "D038 lair
+         * lock" writes it. Red at 5c93301: no writer, no `lockLair`, no row.
+         */
+        const sources = new Map(await otherSources());
+        const clean = name => stripComments(sources.get(name) ?? "");
+        const V = await import("./vault-store.mjs");
+        const M = await import("./mastermind.mjs");
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const J = stableJson;
+        const setup = clean("room-setup.mjs"), lair = typeof M.lockLair === "function" ? fnSource(clean("mastermind.mjs"), "lockLair") : "";
+        must(setup.length > 1000, "room-setup.mjs was not read - this would measure nothing");
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const refused = typeof M.lockLair === "function" ? await M.lockLair({ actorId: student.id, lock: true }, { asker: { id: "R3819NOBODY", isGM: false } }) : null;
+        const row = BRIDGE_ACTIONS["mastermind.lairLock"] ?? null;
+        // Three guards since 1.2.110 (merged 12.11.2026): knownSender, the Spectator guard R3865 holds every player row to, owns.
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        equal(J({
+            writer: typeof V.writeRoomLock === "function",
+            setup: /\bwriteRoomLock\s*\(/.test(setup) && !/updateRoom\([^;]*ROOM_FLAGS\.locked\}`\]/.test(setup),
+            lair: /\bwriteRoomLock\s*\(/.test(lair),
+            refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
+            row: row ? [row.answer, typeof row.run === "function", (row.guards ?? []).length, Object.keys(row.claims ?? {})] : null,
+            words: [game.i18n.localize("DRPG.Bridge.what.mastermind.lairLock") !== "DRPG.Bridge.what.mastermind.lairLock", typeof pl?.DRPG?.Bridge?.what?.["mastermind.lairLock"] === "string"]
+        }), J({ writer: true, setup: true, lair: true, refused: true, row: ["reply", true, 3, []], words: [true, true] }),
+            "the lair's lock is not the GM's lock through one writer ([vault-store.mjs writeRoomLock, Room Setup calls it and writes the lock no other way, "
+            + "lockLair calls it, a non-Mastermind asker refused with nothing carried out, the bridge's row [answer, run, guards, claims], its words EN/PL])");
+    }],
+
+    ["R3820 - the Mastermind seals a passage at their door as the GM's tab closes one (D038 (2)): passages-gm.mjs `sealLairPassage`, the primary's, closes an open passage with a side in the lair through the tab's own close, for the one who acts as the Mastermind alone, refusing anyone else with nothing carried out; the bridge's `passage.lairSeal` asks it; 'Known passages' draws Seal only on a row the sheet marks `seal`, and its rows carry their two rooms", async () => {
+        /*
+         * E91 C5 (D038 (2)), 12.11.2026. A closed passage reads the same whoever closed it: the GM's tab (`closePassage`),
+         * a finished Seal the passage project, and now the Mastermind at their own door - each the one `setState` close,
+         * the copies sent without it and a GM-only log row. Read here: the source (the close is the tab's), the refusal for
+         * an asker who is not the Mastermind, the bridge's row and words, and a drawn row with and without `seal`. Tier 2
+         * "D038 lair seal" closes one. Red at 5c93301: none of it.
+         */
+        const sources = new Map(await otherSources());
+        const P = await import("./passages-gm.mjs");
+        const S = await import("./sheet.mjs");
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const J = stableJson;
+        const seal = typeof P.sealLairPassage === "function" ? fnSource(stripComments(sources.get("passages-gm.mjs") ?? ""), "sealLairPassage") : "";
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const refused = typeof P.sealLairPassage === "function"
+            ? await P.sealLairPassage({ actorId: student.id, passageId: "R3820NOPASSAGE" }, { asker: { id: "R3820NOBODY", isGM: false } }) : null;
+        const row = BRIDGE_ACTIONS["passage.lairSeal"] ?? null;
+        // Three guards since 1.2.110 (merged 12.11.2026): knownSender, the Spectator guard R3865 holds every player row to, owns.
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        const drawn = flag => {
+            const li = S.knownPassageItem({ passage: { id: "R3820P" }, label: "R3820 A - R3820 B", shut: false, way: null, seal: flag });
+            return Boolean(li.querySelector(".drpg-passage-seal"));
+        };
+        const sides = typeof S.knownPassageRows === "function" ? fnSource(stripComments(sources.get("sheet.mjs") ?? ""), "knownPassageRows") : "";
+        equal(J({
+            close: /\bsetState\(\s*passageId,\s*"closed",\s*\["secret"\]/.test(seal) && /presetSideRefusal\(/.test(seal),
+            refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
+            row: row ? [row.answer, typeof row.run === "function", (row.guards ?? []).length, Object.keys(row.claims ?? {}).sort()] : null,
+            words: [game.i18n.localize("DRPG.Bridge.what.passage.lairSeal") !== "DRPG.Bridge.what.passage.lairSeal", typeof pl?.DRPG?.Bridge?.what?.["passage.lairSeal"] === "string"],
+            drawn: [drawn(true), drawn(false)],
+            rooms: /rows\.push\(\{[^}]*\brooms\b/.test(sides)
+        }), J({ close: true, refused: true, row: ["reply", true, 3, ["passageId"]], words: [true, true], drawn: [true, false], rooms: true }),
+            "the Mastermind's seal is not the tab's close ([the close and the side's judge, a non-Mastermind asker refused, the bridge's row, its words EN/PL, "
+            + "Seal drawn with and without the row's mark, the rows' rooms])");
+    }],
+
+    ["R3821 - a GM's \"Silence now\" (E72 C8, the plan's A9): the cast holds `silencedDead`, stamped per student and in no player's copy; incident-store.mjs `silenceDeadNow` writes it for a death the GMs keep and refuses anything else with nothing written; the Students row of such a death draws Silence now, or Silenced once written, and the incident tracker's footer offers it for its victim; the words EN and PL", async () => {
+        /*
+         * E72 C8, 12.11.2026 (the part left from C8; the plan's amendment A9 of 11.10: the per-account channel starts at
+         * `deathVoiceGone`, "the end of the incident, the body's announcement, or a GM's new Silence now"). voice.mjs
+         * `deathVoiceGone` read `silencedDead` since E19 C3 and nothing wrote it. Now: gm-stores.mjs CAST_FIELDS and the
+         * cast's split carry it (two GMs silencing two students both stay), incident-store.mjs `castCopyFor` leaves it out
+         * of every player's copy, `silenceDeadNow` writes it on a GM's browser (the GMs' store syncs it to the primary,
+         * whose `drpgCastChanged` moves the voice). Read here: the lists, a copy built for a player, the refusal for a
+         * living student (tier 1 writes nothing), the two windows' sources, the words. Tier 2 "E72 C8 Silence now" writes
+         * it. Red at f05fe96: none of it.
+         */
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./incident-store.mjs");
+        const sources = new Map(await otherSources());
+        const clean = name => stripComments(sources.get(name) ?? "");
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const player = game.users.find(u => !u.isGM);
+        const copy = I.castFor(player?.id ?? "R3821NOBODY", { victimId: student.id, killerId: null, silencedDead: { [student.id]: true } });
+        const refused = typeof I.silenceDeadNow === "function" ? await I.silenceDeadNow(student) : "no silenceDeadNow";
+        const students = fnSource(clean("gm-students.mjs"), "aliveTableHtml") ?? clean("gm-students.mjs");
+        const tracker = bodyOf(clean("murder-ui.mjs"), "function incidentButtons(", { until: "\nfunction emptyButtons" });
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        const said = key => [game.i18n.localize(key) !== key, typeof key.split(".").slice(1).reduce((o, k) => o?.[k], pl.DRPG) === "string"];
+        equal(stableJson({
+            field: S.CAST_FIELDS.includes("silencedDead"),
+            split: /split:\s*\[[^\]]*"silencedDead"/.test(clean("gm-stores.mjs")),
+            copy: Object.hasOwn(copy ?? {}, "silencedDead"),
+            refused: refused === false,
+            students: [/data-drpg-silence=/.test(students), /DRPG\.Voice\.silenceNow\b/.test(students), /DRPG\.Voice\.silenced\b/.test(students)],
+            tracker: /action:\s*"silence"/.test(tracker),
+            words: ["DRPG.Voice.silenceNow", "DRPG.Voice.silenceNowTip", "DRPG.Voice.silenced"].map(said)
+        }), stableJson({ field: true, split: true, copy: false, refused: true, students: [true, true, true], tracker: true,
+            words: [[true, true], [true, true], [true, true]] }),
+            "Silence now is not built ([the cast's field, its split, in a player's copy, a living student refused, the Students row's button and words, "
+            + "the tracker's action, the words EN/PL])");
+    }],
+
+    ["R3822 - a Call window folds away no row's description: in a Hope or a Despair Call window drawn as an action's, an unpicked row's line (its description and price) is shown as the picked row's is, in both themes (the owner's standing rule of 12.11: \"nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji NIGDY\")", async () => {
+        /*
+         * 12.11.2026, relayed by the coordinator. The action window's columns hide an unpicked row's `small` line
+         * (danganronpa.css, `.drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) ...`), and the
+         * Call windows took that layout with R3818. In a Call window that line is the row's description and its price, so
+         * it is shown on every row. Read as a cascade from the stylesheets' text (`styleCascade`) on a window built of
+         * the classes `callWindow` gives, one row unpicked. The action window's own rule is not this test's. Red at
+         * eee3ff7: `display: none` won.
+         */
+        const C = await styleCascade();
+        const shown = (theme, side) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel ${side} drpg-action-window"><section class="window-content"><div class="dialog-content">`
+                + `<div class="drpg-variant-columns"><div class="drpg-wide-col drpg-variant-ask"><form><div class="drpg-choice-list">`
+                + `<label class="drpg-choice"><input type="radio" name="choice" value="a" checked><span class="drpg-choice-text"><strong>A</strong><small>R3822 a</small></span></label>`
+                + `<label class="drpg-choice"><input type="radio" name="choice" value="b"><span class="drpg-choice-text"><strong>B</strong><small>R3822 b</small></span></label>`
+                + `</div></form></div></div></div></section></div>`;
+            const [, unpicked] = body.querySelectorAll(".drpg-choice-text small");
+            return C.winner(unpicked, ["display"])?.value ?? "(no rule)";
+        };
+        const read = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].flatMap(theme => ["drpg-hope-dialog", "drpg-despair-dialog"]
+            .map(side => [theme, side, shown(theme, side) !== "none"]));
+        equal(stableJson(read.filter(r => !r[2]).map(r => r.slice(0, 2))), "[]",
+            "a Call window hides an unpicked row's description line ([theme, side] where `display: none` wins)");
+    }],
+
+    ["R3824 - a Monocub's player gets one Event card whatever its states (E72 C19 fix; the owner, 12.11: the cards were cut off at the bottom): events.mjs `cubCardOf` makes the states (Redeem waits, a Bribe waits, its Ghost Bet stands) one card - the first state's kind, title and Monocub, its line and every other state's own line under it - and renderEvents' list draws `cubCard()` in place of the three", async () => {
+        /*
+         * 12.11.2026, the owner via the coordinator: the two part B cards were cut off at the bottom. Measured in Chromium
+         * (audit/events-fit.mjs, the layout this suite cannot read): each card held its text, but the panel's box is
+         * capped (192 px under Legacy at 1366x768) and one Legacy card is 101 px, so a second and a third card fell below
+         * it. So a Monocub's states are one card. Read here: the builder on three planted states and on none, and the
+         * panel's list in the source. audit/events-fit.mjs measures the box. Red at 879224a: no `cubCardOf`, three cards
+         * in the list.
+         */
+        const EV = await import("./events.mjs");
+        const events = stripComments(new Map(await otherSources()).get("events.mjs") ?? "");
+        const render = bodyOf(events, "export function renderEvents(", { until: "\n}\n" });
+        must(render.length > 500, "events.mjs renderEvents was not read - this would measure nothing");
+        const states = [
+            { kind: "redeemHope", title: "R3824 R", sub: "R3824 Cub", meta: "R3824 r meta", line: "R3824 r line" },
+            { kind: "bribeHope", title: "R3824 B", sub: "R3824 Cub", meta: "R3824 b meta", line: "R3824 b line" },
+            { kind: "betHope", title: "R3824 G", sub: "R3824 Cub", meta: "R3824 g meta", line: "R3824 g line" }];
+        const one = typeof EV.cubCardOf === "function" ? EV.cubCardOf(states) : "no cubCardOf";
+        const second = typeof EV.cubCardOf === "function" ? EV.cubCardOf(states.slice(1)) : "no cubCardOf";
+        equal(stableJson({
+            one: one && typeof one === "object" ? [one.kind, one.title, one.sub, one.meta] : one,
+            second: second && typeof second === "object" ? [second.kind, second.meta] : second,
+            none: typeof EV.cubCardOf === "function" ? EV.cubCardOf([]) : "no cubCardOf",
+            list: [/\bcubCard\(\)/.test(render), /\b(?:redeemCard|bribeWaitCard|betCard)\(\)/.test(render)]
+        }), stableJson({
+            one: ["redeemHope", "R3824 R", "R3824 Cub", ["R3824 r meta", "R3824 b line", "R3824 g line"]],
+            second: ["bribeHope", ["R3824 b meta", "R3824 g line"]],
+            none: null,
+            list: [true, false]
+        }), "a Monocub's states are not one card ([kind, title, Monocub, lines] of three states, of the last two, none; the list draws cubCard() and none of the three)");
+    }],
+
+    ["R4476 - a Monocub's move and a fog answer read the GMs' stores only once they hold the other GMs' copies (scripts/monocub.mjs `cubAbilityOnGm`, fog.mjs FOG_REQUEST; the E101 line's review of 1.2.110, E72 reader #7 and #8, 13.11.2026): `cubAbilityOnGm` waits for `cubStore`, `cubTargetStore` and `projectWorkStore` (and refuses on a time-out) before the refusals, caps and order it reads; the fog request waits for `mastermindStore`, whose record leaves the Mastermind's row out of a Monocub's and a Spectator's fog, as it waits for `discoveryStore`", async () => {
+        /*
+         * The review's #7 and #8 (suspected there, read again here): `patchCubRow` and the bridge's roll guard wait for their
+         * stores, but the move's readers (`cubRowOf`, `cubCapRefusal`, `orderOpen`, `workersNow`) did not, so on a primary
+         * just reloaded beside a second GM a once-a-day rule or a cap could read an empty row; and FOG_REQUEST waited for the
+         * discoveries alone. Read in source, cut with the kit; whether a real hydration window lets a second Redeem through is
+         * not measured. Red at the E72 #6 commit: neither waits.
+         */
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        must(src("monocub.mjs").length > 10000 && src("fog.mjs").length > 10000, "the sources were not read");
+        const move = fnSource(src("monocub.mjs"), "cubAbilityOnGm");
+        const fogCase = bodyOf(src("fog.mjs"), "case FOG_REQUEST:", { until: "case FOG_SHARE_ASK:" });
+        equal(stableJson({
+            stores: ["cubStore", "cubTargetStore", "projectWorkStore"].map(name => new RegExp(`${name}\\.whenHydrated\\(`).test(move)),
+            refuses: /timedOut/.test(move),
+            fog: [/discoveryStore\.whenHydrated\(/.test(fogCase), /mastermindStore\.whenHydrated\(/.test(fogCase)]
+        }), stableJson({ stores: [true, true, true], refuses: true, fog: [true, true] }),
+            "{stores: the move waits for [cubStore, cubTargetStore, projectWorkStore]; refuses: a time-out refuses it; fog: the request waits for [the discoveries, the Mastermind]}");
+    }],
+    ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
+        /*
+         * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load
+         * warned "The contract: N row(s) could not be read here" with each row's note - a warning on a load where
+         * nothing failed, read at the table as an error. Now: failed rows warn as before; the rows a probe could not
+         * read yet (a hook not fired, a sheet not rendered) are one console.info line with a count and the call that
+         * lists them; the rows only a table check reads (`table`, B-E52-2 and B-E52-3) are left out of the console.
+         * Stand-in rows here. Red before C1: the unknown rows were a warning naming each.
+         */
+        const mod = await import("./patches.mjs");
+        const row = (id, probe, extra = {}) => ({
+            id, kind: "override", target: `R3810 ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R3810", when: "always", fallback: `R3810 ${id}: what the table gets`, probe, ...extra
+        });
+        const rows = [
+            row("holds", () => ({ present: true, ours: true })),
+            row("blind", () => ({ present: null, ours: null })),
+            row("unfired", () => ({ present: true, ours: null }), { kind: "hook" }),
+            row("table", () => ({ present: null, ours: null, note: "a probe cannot read it" }), { kind: "call", table: "B-E52-2" })
+        ];
+        const lines = { warn: [], info: [], log: [] }, kept = { warn: console.warn, info: console.info, log: console.log };
+        for (const level of Object.keys(kept)) console[level] = (...args) => { lines[level].push(args.map(String).join(" ")); };
+        const notices = [];
+        let contract;
+        try {
+            contract = mod.announceContract({ rows, told: new Set(), notify: text => notices.push(text) });
+        } finally {
+            Object.assign(console, kept);
+        }
+        const all = [...lines.warn, ...lines.info, ...lines.log];
+        equal(stableJson([contract.unknown.length, contract.failed.length]), stableJson([3, 0]), "the stand-in rows are not read as three unknown and none failed");
+        equal(stableJson(lines.warn.filter(l => /R3810|contract/i.test(l))), "[]", "a load with no failed row still warns about the contract");
+        const info = [...lines.info, ...lines.log].filter(l => /contract/i.test(l));
+        equal(info.length, 1, "the rows not read yet are not one info line");
+        ok(/\b2\b/.test(info[0] ?? "") && /diagnosePatches\(\)/.test(info[0] ?? ""),
+            `the info line does not give the count of rows not read (2, the table row left out) and where to see them: ${info[0]}`);
+        equal(all.filter(l => l.includes("R3810 table")).length, 0, "a row only a table can check is named in the console at load");
+        equal(notices.length, 0, "an unread row raised a GM notice");
+
+        // A failed row still warns, once, and the info line stays one.
+        lines.warn.length = 0; lines.info.length = 0; lines.log.length = 0;
+        for (const level of Object.keys(kept)) console[level] = (...args) => { lines[level].push(args.map(String).join(" ")); };
+        try {
+            mod.announceContract({ rows: [...rows, row("gone", () => ({ present: false, ours: null }))], told: new Set(), notify: text => notices.push(text) });
+        } finally {
+            Object.assign(console, kept);
+        }
+        equal(stableJson([lines.warn.filter(l => l.includes("R3810 gone")).length, notices.length]), stableJson([1, 1]),
+            "a failed row is not one warning and one notice");
+    }],
+
+    ["R3811 - game.drpg.passages makes a passage public or secret by the tab's own write: makePublic and makeSecret, each refusing an unknown id with nothing written (E91 C3, D117)", async () => {
+        /*
+         * E91 C3, 12.11.2026; the owner's deferred item D117. The Passages tab's Make public and Make secret buttons
+         * (passages-tab.mjs, `makePassagePublic` and `makePassageSecret` of passages-gm.mjs) had no console road: the API
+         * held create, grant, revoke, close, open, delete, list, log and audit. Read here without a write: both are
+         * functions on the live object, an unknown id answers false, and api.mjs hands each to the tab's write. Red
+         * before C3: neither on the object.
+         */
+        const api = game.drpg?.passages ?? {};
+        equal(stableJson(["makePublic", "makeSecret"].map(k => typeof api[k])), stableJson(["function", "function"]),
+            "game.drpg.passages has no makePublic or makeSecret");
+        if (typeof api.makePublic !== "function" || typeof api.makeSecret !== "function") return;
+        const warn = console.warn;
+        console.warn = () => {};
+        let answers;
+        try {
+            answers = [await api.makePublic("SUITER3811NONE00"), await api.makeSecret("SUITER3811NONE00")];
+        } finally {
+            console.warn = warn;
+        }
+        equal(stableJson(answers), stableJson([false, false]), "an unknown passage was not refused by makePublic or makeSecret");
+        const src = (await moduleSources()).get("api.mjs") ?? "";
+        const block = bodyOf(src, "    passages: {", { until: "\n    }," });
+        ok(/makePublic:\s*passageId\s*=>\s*makePassagePublic\(passageId\)/.test(block) && /makeSecret:\s*passageId\s*=>\s*makePassageSecret\(passageId\)/.test(block),
+            "api.mjs does not hand makePublic and makeSecret to the tab's own write (passages-gm.mjs makePassagePublic, makePassageSecret)");
+    }],
+
+    ["R3813 - a room a breach forced, renamed in full, is read by its new name: the breach's row carries forced.room and forced.from with its rooms, so a second breach and the undo find it (E91 C7, D037)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D037 ("a forced room renamed in full: the breach read by the old
+         * name"). passages-gm.mjs `carryPassageRooms` (a GM's rename, carried on the primary) carried a row's `rooms` and
+         * the 'when they leave' cells, and not the breach's `forced` (`{ room, from, ... }`, E15 part 2 C4): after a full
+         * rename `forcingRows` (which asks forced.room) found no standing breach of the room, so a second breach counted
+         * the room as broken by hand (`already`), the first one's undo took the break off while the second stood, and the
+         * undo's reseal named a room no longer drawn. Stores of the suite's own (an engine opened here, as R561 does): a
+         * breach row whose forced room is the Kitchen, from the Hall; both renamed. Red before C7: the old names.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R3813GM", isGM: () => true, isPrimary: () => true, worldId: () => "R3813WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R3813GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r3813${name}`, key: `r3813${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), season: def(S.passageSeasonStore, "Season"), access: def(S.passageAccessStore, "Access"),
+            log: def(S.passageLogStore, "Log"), mastermind: eng.define({ name: "r3813mm", key: "r3813mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        await eng.open();
+        const ID = "R3813SCENE.breach1";
+        await stores.season.patch(ID, { sceneId: "R3813SCENE", level: null, shape: "wall", rooms: ["R3813 Hall", "R3813 Kitchen"], state: "secret",
+            startAccess: [], breach: { breachId: "R3813B1", originalWallId: "R3813W", pieceIds: [], forced: { room: "R3813 Kitchen", from: "R3813 Hall",
+                already: false, unsealed: null, pieceIds: ["R3813RK"] } } });
+        await P.carryPassageRooms("R3813SCENE", "R3813 Kitchen", "R3813 Scullery", { stores });
+        await P.carryPassageRooms("R3813SCENE", "R3813 Hall", "R3813 Great Hall", { stores });
+        const row = stores.season.get(ID);
+        equal(JSON.stringify([row?.rooms, row?.breach?.forced?.room, row?.breach?.forced?.from, row?.breach?.forced?.pieceIds, row?.breach?.breachId]),
+            JSON.stringify([["R3813 Great Hall", "R3813 Scullery"], "R3813 Scullery", "R3813 Great Hall", ["R3813RK"], "R3813B1"]),
+            "a breach's forced room is read by the old name after a full rename ([rooms, forced.room, forced.from, its pieces kept, the breach kept])");
+    }],
+
+    ["R3814 - rest stamps written before E17 C9 (no chapter) are migrated once: one of the window now gets the current chapter, any other goes; stamps with a chapter are left; a migration step runs it on the primary (E91 C8, D068)", async () => {
+        /*
+         * E91 C8, 12.11.2026; the owner's deferred item D068 ("migrate rest markers written before the update with no
+         * chapter"). Since E17 fix p2-G3 a stamp of the old shape (`d${day}:${timeOfDay}`, `s${session}`) was read on every
+         * check as the current chapter's (rest.mjs `legacyRestStamp`), so one from an earlier chapter at the same day and
+         * time of day refused a rest. Now rest.mjs `migratedRests(rests, clock)` (pure) answers what a migration writes:
+         * an old-shape stamp of the window now (the current day and time of day, or session) is given the clock's
+         * chapter, any other old-shape stamp is dropped (`drop`), a stamp with a chapter is kept; and migrate.mjs has the
+         * step `chapterRestStamps`. Default, owner may revise. Red before C8: no migratedRests.
+         */
+        const R = await import("./rest.mjs");
+        ok(typeof R.migratedRests === "function", "rest.mjs has no migratedRests - the old rest stamps are not migrated");
+        if (typeof R.migratedRests !== "function") return;
+        const clock = { chapter: 3, day: 2, timeOfDay: "afternoon", session: 5 };
+        const cases = [
+            [{ short: "d2:afternoon", long: "s5" }, { set: { short: "c3d2:afternoon", long: "c3s5" }, drop: [] }],
+            [{ short: "d1:morning", long: "s4" }, { set: {}, drop: ["long", "short"] }],
+            [{ short: "c3d2:afternoon", long: "c2s5" }, { set: {}, drop: [] }],
+            [{}, { set: {}, drop: [] }],
+            [null, { set: {}, drop: [] }]
+        ];
+        const got = cases.map(([rests]) => { const out = R.migratedRests(rests, clock); return { set: out.set, drop: [...out.drop].sort() }; });
+        equal(JSON.stringify(got), JSON.stringify(cases.map(([, want]) => want)),
+            "the old rest stamps are not migrated as D068's default says ([of the window now, of another, with a chapter, none, no flag])");
+        const src = stripComments(new Map(await otherSources()).get("migrate.mjs") ?? "");
+        ok(/key:\s*"chapterRestStamps"/.test(src) && /migrateRestStamps\(/.test(src), "migrate.mjs has no chapterRestStamps step calling rest.mjs migrateRestStamps");
+        /* Its `since` is the version it ships in, 1.2.110 (12.11.2026, the coordinator's; red at 1ff4bc77, which held the
+           line's planned 1.2.117): a later one runs it again at every update below it. */
+        equal(bodyOf(src, 'key: "chapterRestStamps"', { until: "run:" }).match(/since:\s*"([^"]+)"/)?.[1] ?? null, "1.2.110",
+            "chapterRestStamps's since, the version it ships in");
     }],
 
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
@@ -33170,7 +34277,7 @@ const INVARIANTS = [
         equal(stableJson(missing), "[]", "the handbook lacks something the code has");
     }],
 
-    ["R1104 - the Palm and Frisk roll windows are named by their part: palm.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 10\", \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
+    ["R1104 - the Palm and Frisk roll windows are named by their part: palm.mjs `palmTitle` reads \"Palm - Shadow, beat 15\", \"Palm - Hand, beat 12\" (10 until E64's S02-75), \"Palm - Body, beat 12\" and the Plant's and the unseen Frisk's numbers off ACTIONS.palm, and a part the table does not hold falls back to the action's label (E51 C1; E51-05, the owner's A11 of 13.10)", async () => {
         /*
          * E51 C1, 30.10.2026; the owner's A11 (13.10): roll titles "Palm - Hand, beat 10", Frisk included, the numbers
          * from config. The cover's window read "Keep your hands out of sight · beat 15" and the hand's "Palm · beat 10";
@@ -33196,7 +34303,7 @@ const INVARIANTS = [
                 want(palm.frisk.trait, palm.frisk.threshold)],
             standIn: [f(stand, "leg", 4), f(stand, "eye", 3), f(stand, "shadow", 11)],
             missing: palm.label, noNumber: "R1104",
-            literal: game.i18n.lang === "en" ? ["Palm - Shadow, beat 15", "Palm - Hand, beat 10", "Palm - Body, beat 12"] : [read[0], read[1], read[6]]
+            literal: game.i18n.lang === "en" ? ["Palm - Shadow, beat 15", "Palm - Hand, beat 12", "Palm - Body, beat 12"] : [read[0], read[1], read[6]]
         }), "[the seven parts' titles off ACTIONS.palm; three off a stand-in table; a part the table lacks; a part with no number; in English the owner's three strings]");
     }],
 
@@ -34621,7 +35728,7 @@ const INVARIANTS = [
                 lines: ["Costs 2 actions. You have 5 actions.", "No actions left, so this costs 1 Hope. You hold 2 Hope.", "Paid with 2 actions.", "2 actions", "1 Hope, 2 actions."],
                 skipped: "No action is needed here. This costs 1 Sanity.",
                 analyze: ["No action left, so there is nothing to pay for Analyze with.", "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with."],
-                tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and no Sanity to give instead."],
+                tamperStuck: ["No action is needed here, but you have no Sanity left to pay with.", "No action left, and Tamper takes nothing else."],
                 raw: [`Their opponent rolls ${lc} and ${sv} at disadvantage for 2 turns.`, `Their opponent cannot use ${st} or ${rr} for 2 turns.`,
                     `Their opponent cannot use ${sv} for 1 turn.`, "1 action back.", "You get 1 Sanity back."]
             },
@@ -34631,7 +35738,7 @@ const INVARIANTS = [
                 lines: ["Kosztuje 2 akcje. Masz 5 akcji.", "Nie masz już akcji, więc to kosztuje 1 Hope. Masz 2 Hope.", "Zapłacono 2 akcjami.", "2 akcje", "1 Hope, 2 akcje."],
                 skipped: "Akcja nie jest tu potrzebna. To kosztuje 1 Sanity.",
                 analyze: ["Nie masz już akcji, więc nie masz czym zapłacić za Analyze.", "Nie masz już akcji, Hope ani Sanity, więc nie masz czym zapłacić za Analyze."],
-                tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji ani Sanity, które można by dać w zamian."],
+                tamperStuck: ["Akcja nie jest tu potrzebna, ale nie masz już Sanity, by zapłacić.", "Nie masz już akcji, a Tamper nie przyjmuje niczego innego."],
                 raw: [`Przeciwnik ma utrudnienie na ${lc} i ${sv} przez 2 tury.`, `Przeciwnik nie może użyć ${st} ani ${rr} przez 2 tury.`,
                     `Przeciwnik nie może użyć ${sv} przez 1 turę.`, "Odzyskujesz 1 akcję.", "Odzyskujesz 1 Sanity."]
             },
@@ -35331,7 +36438,7 @@ const INVARIANTS = [
             hideTraces: [[[0, "obvious"], [12, "evident"], [18, "subtle"]], "hidden"],
             darkness: [true, 2, [true, 2, 1]],
             fallback: [true, false],
-            sabotage: [18, [0, 1, 2].map(() => [6, 3, 8]), []],
+            sabotage: [18, [0, 1, 2].map(() => [6, 2, 8]), []],
             rest: [true, false, 2, 1],
             traceWrong: []
         }), "{broken: BROKEN_ITEMS' thresholds and critical are hideTraces' own; hideTraces: its rows; darkness: [freeBecomes is ECLIPSE_MOVES, "
@@ -35346,7 +36453,8 @@ const INVARIANTS = [
          * inline on five roads, `Math.random` reached directly (two `sort(() => Math.random() - 0.5)` and `randomItem`),
          * so no test read the order without a world's tables. Now `DRAW_STEPS` (frozen) runs in order, each step
          * answering through `resultFrom`, and the draw hands `rng` (both shuffles and `randomItem`) and `tables` (what
-         * every step reads). The shuffle is today's (D21: Fisher-Yates waits for E64).
+         * every step reads). The shuffle was a `sort` on a random comparison until E64 C3 (12.11.2026) made it
+         * utils.mjs `shuffle` (Fisher-Yates, R3953); two roads' answers below moved with it, read at that tree.
          *
          * Read on a shim, nothing written and nothing of this browser's replaced: each road's own tables (a stand-in
          * collection with `getName`, `contents` and an iterator; tables whose `draw` answers a fixed result, or throws),
@@ -35396,11 +36504,12 @@ const INVARIANTS = [
             mathRandom: false,
             roads: [
                 ["room's table by name (a broken one asked first)", upTo(1), ["R1234 knife", "crimeTool", 1, null, ["crimeTool", "tool"], null, true]],
-                ["room's other tables, shuffled", upTo(2), ["R1234 book", "crimeTool", 0, null, [], true, true]],
+                // E64 C3: the fair shuffle on the same sequence takes another table first - read at E64 C3's tree, not the parent's.
+                ["room's other tables, shuffled", upTo(2), ["R1234 lamp", "crimeTool", 1, null, ["tool"], true, true]],
                 ["a tier pool by its flags", upTo(3), ["R1234 wrench", "tool", 1, null, ["tool"], null, true]],
                 ["a tier pool by its name", upTo(3), ["R1234 mop", "cleaningTool", 1, null, [], null, true]],
                 ["the built-in pool", upTo(4), ["Sports drink", "usable", 1, "healing", [], null, false]],
-                ["a spare category", upTo(5), ["Cold tea", "usable", 1, null, [], true, false]]
+                ["a spare category", upTo(5), ["Screwdriver", "tool", 1, null, [], true, false]]
             ]
         };
         const steps = Array.isArray(T.DRAW_STEPS) ? T.DRAW_STEPS : null;
@@ -35424,11 +36533,11 @@ const INVARIANTS = [
             frozen: steps ? Object.isFrozen(steps) : null,
             steps: stepShape,
             resultFrom: [/\broomEntryAs\(/, /\bpoolEntryAs\(/].map(re => re.test(built)),
-            shuffles: (tablesSrc.match(/\.sort\(\(\) => ctx\.rng\(\) - 0\.5\)/g) ?? []).length,
+            shuffles: (tablesSrc.match(/\bshuffle\((?:owned|Object\.keys\(ITEM_CATEGORIES\)), ctx\.rng\)/g) ?? []).length,
             mathRandom: /\bMath\.random\(\)/.test(fnSource(tablesSrc, "randomItem")),
             roads
         }), JSON.stringify(EXPECTED), "{frozen: DRAW_STEPS is frozen; steps: each [name, frozen, answers through resultFrom alone, reaches Math.random]; "
-            + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `sort(() => ctx.rng() - 0.5)`; mathRandom: randomItem "
+            + "resultFrom: it builds the room's and the pool's entries; shuffles: the two `shuffle(..., ctx.rng)` (E64 C3); mathRandom: randomItem "
             + "calls Math.random itself; roads: each [road, the steps run, the answer's name, category, tier, goal, roles, substitute, fromTable]}");
     }],
     ["R1240 - an action key ACTIONS holds only by inheritance is refused as unknown (E41 fix FG2; the end review's C-m2 = S-n1, STATUS E41 Open 6): `performAction` over \"constructor\", \"toString\" and \"__proto__\", and over a key no object holds, answers null and tells the GM `DRPG.Action.unknown` once each, and nothing else", async () => {
@@ -36772,6 +37881,42 @@ const INVARIANTS = [
         }), "[toggle (role, checked); chips (role, name; each pressed, disabled, count, value); the boxes; an unknown box throws; emptyOption (value, words); the mode bar after Debate is pressed (pressed, the key handed on; wired twice, it hands on once)]");
     }],
 
+    ["R4673 - a kit window's Close answers null, as a closed window does (the close-action survey, 13.11.2026; LIVE-E21-06): drpgWindow with an OK and a Close, drawn on this GM; Close pressed ends the wait with null and the window gone, OK pressed answers \"ok\" and the window gone", async () => {
+        /*
+         * docs/dev/gaps/SURVEY-close-action.md. A closing word whose action is "close" is taken by ApplicationV2's own
+         * close before DialogV2 sees the press (trial-floor-ui.mjs `openVoteDialog`'s note, 11.09; ui-kit.mjs
+         * `footerButtons`), so the wait answers null. That is the module's premise for v14, still open as LIVE-E21-06;
+         * the harness's DialogV2 models it since this test (audit/harness/lib/shim.mjs `_onSubmit`). Headless this test
+         * holds the shim to the premise; at a v14 table, run as GM, it reads what v14 answers, which is LIVE-E21-06's
+         * question - a FAIL there with `close.answer` "close" says the premise is wrong. OK is the control: a press that
+         * reaches DialogV2 answers its action. Red first on 986e3a89's shim: Close answered "close".
+         */
+        needs(env.dialogs(), "the window is drawn and its footer pressed");
+        const K = await import("./ui-kit.mjs");
+        const CLS = "drpg-window-r4673";
+        const root = () => document.querySelector(`.${CLS}`);
+        must(!root(), "an R4673 window is open - close it: this test opens its own");
+        const press = async action => {
+            let answer = null;
+            try {
+                answer = Promise.resolve().then(() => K.drpgWindow({
+                    title: "R4673", classes: ["drpg-panel", CLS], body: "<p>R4673</p>",
+                    footer: { primary: { action: "ok", label: "OK" }, close: "close" }, rejectClose: false
+                })).catch(err => `threw: ${err.message}`);
+                const button = () => root()?.querySelector(`footer button[data-action="${action}"]`);
+                must(await until(() => button(), 6000), `the window did not open with its ${action} button`);
+                button().click();
+                const got = await Promise.race([answer, wait(3000).then(() => "still open")]);
+                return { answer: got, gone: await until(() => !root(), 3000) };
+            } finally {
+                for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains(CLS))) await app.close();
+                if (answer) await Promise.race([answer, wait(3000)]);
+            }
+        };
+        const read = { close: await press("close"), ok: await press("ok") };
+        equal(stableJson(read), stableJson({ close: { answer: null, gone: true }, ok: { answer: "ok", gone: true } }),
+            "{Close pressed: what the wait answered, the window gone; OK pressed: the same}");
+    }],
     ["R1321 - BUTTON_ROLES (scripts/ui-kit.mjs; E44 C3a, E44-13): primary, gmRoute, close, cancel, secondary and destructive, each with its class, today's face class, its side, its place in it, whether it may be the default, its token and its word; destructive and secondary never the default; the close word the same words as DRPG.Panel.close in both lang files and the cancel word Cancel's own; every role's class styled in styles/components.css through its token, the token declared for both themes; the roles a question's answer may take (E21 C1b): drpgConfirm's yes primary, gmRoute or destructive, drpgPrompt's ok primary or gmRoute", async () => {
         /*
          * E44 C3a, 04.11.2026; the owner's footer contract (the pilot, 04.11: the closing word left, the primary
@@ -37387,6 +38532,8 @@ const INVARIANTS = [
          * element (the same weight and property: none in the glass harness's page in Chromium, 04.11.2026), so their
          * order inside the section draws nothing; the `@media` overrides do tie with the rules they override, and their
          * order is read from the sheet's text (mutant c6-m1b, the reduced-motion block above the word's run).
+         * The six gm-launcher prints moved on gaps-108 (R3986, 12.11.2026): the eye's sprite lost its lower-left tail, so its
+         * mask's value is another; nothing else of the hexagon's winners changed (the rest of the prints as they were).
          */
         const C = await styleCascade();
         const { PROPS } = await import("./style-snapshot.mjs");
@@ -37638,21 +38785,21 @@ const INVARIANTS = [
            headless; the pressed switch's rules match nothing this test draws. Every other print, `left` and the @media
            rules as they were. */
         const C5 = {
-            "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
+            "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:9e537601",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:19e941be", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
-            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
+            "desk|monokuma-legacy|gm-launcher": "1:9e537601", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
-            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
+            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:19e941be",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
-            "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
+            "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:9e537601", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
+            "stacked|stained-glass|gm-launcher": "1:19e941be", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
@@ -38319,7 +39466,7 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const SOURCE = [["boundary.mjs", "placementTable"], ["enforced.mjs", "openGiveBackFoundry"], ["enforced.mjs", "askHoldAgain"],
             ["gm-students.mjs", "openWhoIsAliveDialog"], ["gm-team-dialog.mjs", "openGmTeamDialog"], ["investigation.mjs", "openInvestigationDashboard"],
-            ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
+            ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
             ["room-setup.mjs", "openRoomSetupDialog"], ["rules.mjs", "openRulesManager"], ["sound-panel.mjs", "openPlayerSoundDialog"],
             ["sound-panel.mjs", "openSoundDialog"], ["trial.mjs", "openObjectionLog"]];
         const source = {};
@@ -38338,8 +39485,10 @@ const INVARIANTS = [
             ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", close: "cancel" },
-                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "close"]],
+                // E64-inv (the owner's pick of the Investigation review, 12.11.2026): no evidence log, no destructive row (R3967).
+                // Close, which keeps an open node's text, since the owner's 13.11.2026 (a discarding Cancel before it)
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", bodyFound: "secondary", realize: "secondary", close: "close" },
+                ["save", "newTrace", "autopsy", "bodyFound", "realize", "close"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */
@@ -38683,6 +39832,9 @@ const INVARIANTS = [
          * question and before `setFinalTrial`, and the answer a return. The select: `verdictCandidates` with the Final
          * Trial's `final` and no accused opens on "Nobody named" (id ""); since E41 C10b, before this stage - not red here,
          * read so the row stays true. Red on C3a's tree: `finalVerdict` in the footer, no body button, no refusal.
+         * SINCE 12.11.2026 NO VERDICT IN THIS WINDOW AT ALL (the GM screen review, approved by the owner, relayed by the
+         * coordinator): the Class Trial console's Verdict opens the same window in a Final Trial (trial-floor-ui.mjs; tier 0
+         * holds that road, `finalConsole`), so the body's button went. `verdict` is null; red at bf09855.
          */
         needs(world.atLeast("livingStudents", 2), "the accused select lists the students");
         const MM = await import("./mastermind.mjs");
@@ -38706,7 +39858,7 @@ const INVARIANTS = [
             verdict: button ? [button.closest("footer") === null, Boolean(button.closest("fieldset")?.querySelector(".notes")), button.disabled === !MM.mastermindActor()] : null,
             refusal: [at(/!mastermindActor\(\)/) > 0, at(/!mastermindActor\(\)/) < at(/drpgConfirm\(/), at(/!mastermindActor\(\)/) < at(/setFinalTrial\(/)],
             opens: [opens, opens === students[0]?.id]
-        }), stableJson({ footer: ["save", "cancel"], verdict: [true, true, true], refusal: [true, true, true], opens: ["", false] }),
+        }), stableJson({ footer: ["save", "cancel"], verdict: null, refusal: [true, true, true], opens: ["", false] }),
             "[the footer's buttons; the verdict (out of the footer, with its note, disabled exactly when nobody is set); the refusal before the question and the write; the accused select's first choice and whether it is the first student]");
     }],
     ["R1363 - the incident tracker and Mark as Monokuma (E22 C3b; S03-34): murder-ui.mjs `incidentButtons` makes Close the default with no primary, Pass the turn and the ask-again ways on beside it, End the murder destructive and last, apart from Close, and no Pass in the resolution; `openIncidentTracker` refuses a Pass within PASS_COOLDOWN_MS (1500) of the last on this client; End the murder's label is its own; and the sheet's header offers a GM Mark as Monokuma for a student and Unmark for a Monokuma (the Actors directory's menu until E24 C3a), a mark of a player's character asked first with a destructive yes", async () => {
@@ -38920,16 +40072,16 @@ const INVARIANTS = [
             closeAnswers
         };
         equal(stableJson({ footers, ended: ended ?? null, asked, revealButtons, sources }), stableJson({
+            // The owner, 12.11.2026 (E99 round 7): the Verdict and End of chapter are steps of the flow, in the footer only
+            // while each is the next step (R3918), and no Start the Final Trial inside an ordinary trial.
             footers: {
                 none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
                 running: [["openDebate", "primary", true], ["close", "close", false],
-                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
-                    ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
-                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
+                    ["vote", "secondary", false], ["caseSummary", "secondary", false], ["end", "destructive", false]],
+                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["caseSummary", "secondary", false],
                     ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
                 final: [["openDebate", "primary", true], ["close", "close", false],
-                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
-                    ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
+                    ["vote", "secondary", false], ["caseSummary", "secondary", false], ["toggleFinal", "secondary", false], ["end", "destructive", false]]
             },
             ended: null,
             asked: [hall ? EXIT : END, EXIT, END],
@@ -39289,7 +40441,8 @@ const INVARIANTS = [
             ["cleanup.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
             ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
             ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
-            ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"],
+            // Since E72 by calls.mjs `callAsksGm` (a row a GM rules, or Talent's tile of two such rows; read in `tiles` below).
+            ["calls.mjs#confirmCall", /gmRoute: asksGm,/, "DRPG.Calls.waitsForGm"],
             // E68 C4: a crisis row whose statistic a GM approves, and a project's statistic proposal; each sentence says the GM approves.
             ["action-murder.mjs#openCrisisMenu", /gmRoute: asks\(\{ key, def, free \}\),/, "DRPG.Murder.gmPicksTrait"],
             ["action-project.mjs#proposeProjectTrait", /gmRoute: \[\{\s*action: "propose",\s*label: game\.i18n\.localize\("DRPG\.TraitRuling\.propose"\)/, "DRPG.TraitRuling.projectBody"],
@@ -39349,9 +40502,12 @@ const INVARIANTS = [
         const sheet = src("sheet.mjs");
         const call = fnSource(sheet, "callButton"), use = fnSource(sheet, "addUseButton");
         read.tiles = {
-            call: /const askGm = Boolean\(call\.needsGm\) && !pending;/.test(call) && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(call)
+            call: /const askGm = callAsksGm\(call, monokuma \? "despair" : "hope"\) && !pending;/.test(call)
+                && /const asksGm = callAsksGm\(call, kind\);/.test(fnSource(src("calls.mjs"), "confirmCall")) && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(call)
                 && /<span class="drpg-action-gm">\$\{game\.i18n\.localize\("DRPG\.Action\.waitsForGm"\)\}<\/span>/.test(call),
             needsGm: Object.entries(HOPE_CALLS).filter(([, c]) => c.needsGm).map(([key]) => key).sort(),
+            asksGm: await import("./calls.mjs").then(C => typeof C.callAsksGm === "function"
+                ? Object.keys(HOPE_CALLS).filter(key => C.callAsksGm(HOPE_CALLS[key], "hope")).sort() : "calls.mjs exports no callAsksGm"),
             use: /const askGm = !broken && usedCreatively\(item\) && !inCrisis\(app\.document\);/.test(use) && /"DRPG\.Items\.useTier0Tooltip"/.test(use)
                 && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(use),
             useItem: /if \(usedCreatively\(held\)\) return/.test(fnSource(src("use-items.mjs"), "useItem")),
@@ -39367,7 +40523,7 @@ const INVARIANTS = [
             cls: ["drpg-gm-route", true, []],
             dynamic: [true, true, 1],
             analyze: { note: ["hint"], stash: true },
-            tiles: { call: true, needsGm: ["experience", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
+            tiles: { call: true, needsGm: ["experience", "ultimate"], asksGm: ["experience", "talent", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
             creative: [true, false, false, false],
             stripe: ["gm", "stress", "gm", "free"]
         }), "[the GM's road: marks with no census row, rows whose mark is gone, rows whose mark is not the road's, sentences naming no GM (EN, PL); "
@@ -40012,6 +41168,72 @@ const INVARIANTS = [
             "{first: the first mark (rows 100 px in a list of 120); watched: what the live ResizeObservers watch after two marks of the same list; "
             + "grown / shrunk: the attribute after the observer fires with the rows 200 px in 120, then 110 in 120}");
     }],
+    ["R3984 - no line at the screen's edges while paused (gaps, the owner's table on 1.2.108): `#pause` is the whole viewport (danganronpa.css, \"The band, and the box it lived in\"), so no rule of the module's sheets gives `#pause.paused` a top or bottom border, under either theme", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: a thin light line flashes along the top and the bottom of the whole screen
+         * every two or three seconds, and only while the game is paused. stained-glass.css's pause band kept a 1 px
+         * accent `border-top` and `border-bottom` from when `#pause` was Foundry's 180 px band mid-screen; since
+         * danganronpa.css made the element the full viewport (`top: 0; height: 100vh`) those two seams lie on the
+         * screen's first and last rows. Read here by the sheets' cascade (`styleCascade`), every property that can draw
+         * either seam, on a body of its own per theme. Whether core's own `pulse` or the veil is what makes the seam
+         * flash at a table is not read here (no layout, no paint): the shots and a table say that. Red on 4dfac3a9:
+         * stained-glass draws both, 1px solid.
+         */
+        const C = await styleCascade();
+        const sides = {
+            top: ["border", "border-width", "border-style", "border-block", "border-block-start", "border-top", "border-top-width", "border-top-style"],
+            bottom: ["border", "border-width", "border-style", "border-block", "border-block-end", "border-bottom", "border-bottom-width", "border-bottom-style"]
+        };
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<figure id="pause" class="paused"><img alt=""><figcaption>Game Paused</figcaption></figure>`;
+            const pause = body.querySelector("#pause");
+            /* A control first (the 1.2.110 review, E91 reader F6, 13.11.2026): the full-viewport rule this reading stands on
+               must be read, or "none" on every side would be the cascade reading nothing (sheets not loaded, a rule moved
+               under a media query, which styleCascade skips). */
+            must(C.winner(pause, "top")?.value != null && C.winner(pause, "height")?.value != null,
+                `the cascade read no top or height for the paused #pause under ${theme} - this would measure nothing`);
+            for (const [side, names] of Object.entries(sides)) {
+                const w = C.winner(pause, names);
+                const drawn = !!w && !/^\s*(none|0(px)?)\b/.test(w.value) && !/\b(none|hidden|transparent)\s*$/.test(w.value.trim());
+                read[`${theme.replace("drpg-theme-", "")} ${side}`] = drawn ? `${w.file}: ${w.value.trim()}` : "none";
+            }
+        }
+        equal(stableJson(read), stableJson({
+            "stained-glass top": "none", "stained-glass bottom": "none", "monokuma-legacy top": "none", "monokuma-legacy bottom": "none"
+        }), "{theme side: the border the paused full-screen #pause draws there, or none}");
+    }],
+    ["R3983 - one project never fades as if more stood below it (gaps, the owner's table on 1.2.108): projects-tray.mjs `markTrayMore` marks `data-drpg-more` only when what overflows the list is at least half a row (the first row's own height), so a list of one row that overflows by a few pixels of something that is no row is not marked, and a list with a row standing below still is", async () => {
+        /*
+         * Gaps, 12.11.2026 (the owner, at a table on 1.2.108 with Daggerheart 2.12.8: "with one project the name looks
+         * darker and fades out"). The fade is the list's foot (`data-drpg-more`, both themes), and it fades the last row -
+         * with one project, the only one. The mark read `scrollHeight - clientHeight - scrollTop > 1`: any overflow past 1 px.
+         * MEASURED on the glass harness (Daggerheart 2.10.11's rows, the harness's): one project's list overflows by 1 px
+         * under the glass on a GM's page (scroll 27, client 26) and by 0 elsewhere, at 1280x720 to 2560x1440 and device
+         * scales 1-1.5 - never marked; with 4 px planted under the row, marked, and the row faded (the commit's shots). What
+         * overflows at the owner's table under 2.12.8 is not read here: its rows are not in this harness. Here, as R1431
+         * stands in, the heights are the test's own (jsdom lays nothing out): one row 27 px in a list 26 px tall that
+         * scrolls 30 px (3 px past, no row) - and a control, a list whose second row stands wholly below (scroll 57). Red at
+         * 7c0d1af9: the one row marked.
+         */
+        const PT = await import("./projects-tray.mjs");
+        must(typeof PT.markTrayMore === "function", "projects-tray.mjs has no markTrayMore - nothing marks the list's foot");
+        const stand = (rows, scroll, client) => {
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="countdowns-container"><div class="countdown-category-container">${Array.from({ length: rows }, (_, i) => `<div class="countdown-container" data-countdown="r3983-${i}"></div>`).join("")}</div></div>`;
+            const list = root.querySelector(".countdowns-container");
+            Object.defineProperty(list, "scrollHeight", { value: scroll, configurable: true });
+            Object.defineProperty(list, "clientHeight", { value: client, configurable: true });
+            for (const row of root.querySelectorAll(".countdown-container")) Object.defineProperty(row, "offsetHeight", { value: 27, configurable: true });
+            return root;
+        };
+        const read = { one: PT.markTrayMore(stand(1, 30, 26)), below: PT.markTrayMore(stand(2, 57, 26)) };
+        equal(stableJson(read), stableJson({ one: false, below: true }),
+            "{one: one row of 27 px, the list 26 tall scrolling 30 - marked?; below: two rows, the second wholly below (scroll 57 of 26) - marked?}");
+    }],
     ["R1433 - the Projects tray reads in rows under Monokuma Legacy too (E23 fix G3, E23-16; the end review's screens M1): a row's name and count stand on one line - the content a row, its items on the baseline - the name taking the row's room and giving way with its ellipsis, the count and the controls after it at their own width; the tray no wider than 360 px a scale, as the glass's, so the longer row does not drag the column", async () => {
         /*
          * E23 fix G3, 08.11.2026; the end review's screens M1. E23-16's "each row's name and count on one baseline" and
@@ -40554,7 +41776,8 @@ const INVARIANTS = [
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
                 "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
-            menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
+            // E69 C1: the Infiltrate tile's rows (action-listen.mjs `performListen`), an action's declaration.
+            menus: ["action-analyze.mjs", "action-listen.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
                 "level-up.mjs", "palm.mjs"],
             never: [],
             frame: [false, true, true],
@@ -41580,6 +42803,134 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([[false, true], [true, true, 0]]),
             "[before: ended, layers laid]; [the class put on: ended, cancelled, layers left]");
     }],
+    ["R3986 - the GM button's eye has no line under it, and the Remnant card's eye keeps its tail (gaps, the owner's table on 1.2.108; the owner's yes on the review page, 12.11.2026): danganronpa.css's launcher mask draws nothing below row 16 and not the hanging pixel at 8,17, while pixel-icons.css's `--drpg-pix-monokuma-eye` and `--drpg-pix-gm` still draw both", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: "na przycisku pod okiem Monokumy jest kreska". The harness drew no element
+         * under the eye; the stroke was the drawing's own lower-left tail (rows 17 and 18) and the pixel hanging at 8,17
+         * (tools/glyphs.json chrome:monokuma-eye, then `same` as legacy:monokuma-eye). The owner chose the cut on the review
+         * page for the launcher alone: the Remnant card's GM-placed trace keeps the old eye, so the chrome row no longer
+         * shares the legacy row's drawing. Read off the served sheets' path data. Red at 02d20f9a: the launcher has both.
+         */
+        const dcss = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const cells = d => { const set = new Set(), ys = []; for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) { set.add(`${+x + k},${+y}`); ys.push(+y); } return { set, ys }; };
+        const pathOf = (text, re, what) => {
+            const m = re.exec(text);
+            must(m, `${what} carries no path in its sheet - this reads nothing`);
+            return cells(m[1]);
+        };
+        const launcher = pathOf(dcss, /#drpg-gm-launcher i::before \{\s*-webkit-mask-image:[^;]*?d='([^']+)'/, "the launcher's eye");
+        const remnant = pathOf(pcss, /--drpg-pix-monokuma-eye:[^;]*?d='([^']+)'/, "--drpg-pix-monokuma-eye");
+        const glassGm = pathOf(pcss, /--drpg-pix-gm:[^;]*?d='([^']+)'/, "--drpg-pix-gm");
+        must(launcher.set.size > 20 && remnant.set.size > 20, "an eye of fewer than 20 pixels - this reads nothing");
+        const lowest = c => Math.max(...c.ys);
+        equal(JSON.stringify([launcher.set.has("8,17"), lowest(launcher), remnant.set.has("8,17"), lowest(remnant), glassGm.set.has("8,17")]), JSON.stringify([false, 16, true, 18, true]),
+            "[the launcher's eye draws 8,17, its lowest row, the Remnant card's eye draws 8,17, its lowest row, the glass gm eye draws 8,17]");
+    }],
+    ["R3987 - the Projects action wears the hammer the owner approved, in both themes (gaps, the owner's yes on the review page, 12.11.2026): the action's icon reads `--drpg-pix-hammer` under Stained Glass (`--drpg-glyph`) and under Monokuma Legacy (`mask-image`), both of pixel-icons.css's declarations of it draw the approved rows, and the Remnant card's project glyph is left as it was", async () => {
+        /*
+         * The owner asked for a hammer on the character sheet's Projects action (12.11.2026): Stained Glass wore the
+         * hourglass, Legacy a plain T. The approved drawing is the review page's claw hammer, below, one drawing for both
+         * themes (glass:hammer and legacy:hammer, `same`). Read by the sheets' cascade (`styleCascade`) on a body of its own
+         * per theme, and off pixel-icons.css's path data. Red at 02d20f9a: hourglass and project, no hammer token.
+         */
+        const HAMMER = ["........................", "........................", "........................", ".................###....", "........############....", "....################....", "...#################....", "...##.##############....", "..###...############....", "..##.......###...###....", "..##.......###..........", "..#........###..........", "...........###..........", "...........###..........", "...........###..........", "..........#####.........", "..........#####.........", "...........###..........", "..........#####.........", "...........###..........", "..........#####.........", "..........#####.........", "........................", "........................"];
+        const C = await styleCascade();
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const read = {};
+        for (const [theme, prop] of [["drpg-theme-stained-glass", "--drpg-glyph"], ["drpg-theme-monokuma-legacy", "mask-image"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-action-grid"><button type="button" class="drpg-action-button" data-drpg-action="project"><i class="fa-solid fa-hammer drpg-action-icon"></i></button></div><span class="drpg-remnant-glyph" data-drpg-act="project"></span>`;
+            const w = C.winner(body.querySelector(".drpg-action-icon"), [prop]);
+            const r = C.winner(body.querySelector(".drpg-remnant-glyph"), ["mask-image", "-webkit-mask-image"]);
+            read[theme.replace("drpg-theme-", "")] = [w?.value.trim() ?? null, r?.value.trim() ?? null];
+        }
+        const drawn = [];
+        for (const [, d] of pcss.matchAll(/--drpg-pix-hammer:[^;]*?d='([^']+)'/g)) {
+            const grid = Array.from({ length: 24 }, () => Array(24).fill("."));
+            for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) grid[+y][+x + k] = "#";
+            drawn.push(grid.map(r => r.join("")).join("\n") === HAMMER.join("\n"));
+        }
+        equal(JSON.stringify([read, drawn]), JSON.stringify([{
+            "stained-glass": ["var(--drpg-pix-hammer)", "var(--drpg-pix-hourglass)"],
+            "monokuma-legacy": ["var(--drpg-pix-hammer)", "var(--drpg-pix-project)"]
+        }, [true, true]]), "[{theme: [the action icon's glyph, the Remnant card's project glyph]}, [each declaration of --drpg-pix-hammer draws the approved rows]]");
+    }],
+    ["R3988 - Hold this ready and Hand this over wear the pair the owner picked, in both themes (gaps-108; the owner's pick of round 2 on the review page, 12.11.2026: C's hand raising a star, A's arrow from one figure to another): an inventory row's equip and handover glyphs read `--drpg-pix-hold-ready` and `--drpg-pix-hand-over` under Stained Glass (`--drpg-glyph`) and Monokuma Legacy (`mask-image`), every declaration of each draws the picked rows, and the same Font Awesome classes outside the row keep what they wore", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: "Hold this ready" and "Hand this over" were too alike (a fist and an open palm
+         * under Stained Glass, a small fist and a cupped hand under Legacy). Round 1's pair still read as two blobs; round 2
+         * drew three pairs, every Hold one tall upright object and every Give a wide shape with a motion, and the owner took
+         * C's Hold and A's Give. The row buttons' classes are shared (fa-hand-fist: Strike, Resolve, Determination;
+         * fa-hand-holding: Secure a Trace, Plant), so the drawing is keyed on the row button, and the classes outside it are
+         * read too. Read by the sheets' cascade (`styleCascade`) on a body of its own per theme, and off pixel-icons.css's
+         * path data. Red at e4fa790f: fist and palm (glass), fist and give (legacy), no token of either name.
+         */
+        const HOLD = ["........................", "...........##...........", "...........##...........", "..........####..........", ".......##########.......", "........########........", ".........######.........", ".........##..##.........", "........##....##........", "........................", ".........##..##.........", ".........##..##.........", "........########........", "......##########........", "......##########........", "......##########........", "........########........", "........########........", ".........######.........", ".........######.........", ".........######.........", ".........######.........", "........................", "........................"];
+        const GIVE = ["........................", "........................", "........................", "........................", "........................", "........................", "..###..............###..", "..###..............###..", "..###..............###..", ".............#..........", ".#####.......##...#####.", ".#####.......###..#####.", ".#####.##########.#####.", ".#####.##########.#####.", ".#####.##########.#####.", ".#####.......###..#####.", ".#####.......##...#####.", ".#####.......#....#####.", "........................", "........................", "........................", "........................", "........................", "........................"];
+        const C = await styleCascade();
+        const pcss = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const read = {};
+        for (const [theme, prop] of [["drpg-theme-stained-glass", "--drpg-glyph"], ["drpg-theme-monokuma-legacy", "mask-image"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-sheet-x"><ul class="drpg-inventory-list"><li><button type="button" class="drpg-row-button drpg-row-equip"><i class="fa-solid fa-hand-fist"></i></button>`
+                + `<button type="button" class="drpg-row-button drpg-row-handover"><i class="fa-solid fa-hand-holding"></i></button></li></ul>`
+                + `<span class="drpg-elsewhere"><i class="fa-solid fa-hand-fist"></i><i class="fa-solid fa-hand-holding"></i></span></div>`;
+            const [equip, give, fist, holding] = body.querySelectorAll("i");
+            const glyph = el => [prop, "-webkit-mask-image"].map(p => C.winner(el, [p])?.value.trim()).find(Boolean) ?? null;
+            read[theme.replace("drpg-theme-", "")] = [glyph(equip), glyph(give), glyph(fist), glyph(holding)];
+        }
+        const drawsOf = name => [...pcss.matchAll(new RegExp(`--drpg-pix-${name}:[^;]*?d='([^']+)'`, "g"))].map(([, d]) => {
+            const grid = Array.from({ length: 24 }, () => Array(24).fill("."));
+            for (const [, x, y, w] of d.matchAll(/M(\d+) (\d+)h(\d+)/g)) for (let k = 0; k < +w; k++) grid[+y][+x + k] = "#";
+            return grid.map(r => r.join("")).join("\n");
+        });
+        const drawn = [drawsOf("hold-ready").map(g => g === HOLD.join("\n")), drawsOf("hand-over").map(g => g === GIVE.join("\n"))];
+        equal(JSON.stringify([read, drawn]), JSON.stringify([{
+            "stained-glass": ["var(--drpg-pix-hold-ready)", "var(--drpg-pix-hand-over)", "var(--drpg-pix-fist)", "var(--drpg-pix-palm)"],
+            "monokuma-legacy": ["var(--drpg-pix-hold-ready)", "var(--drpg-pix-hand-over)", null, null]
+        }, [[true, true], [true, true]]]), "[{theme: [the equip glyph, the handover glyph, fa-hand-fist outside the row, fa-hand-holding outside the row]}, [each declaration of --drpg-pix-hold-ready, of --drpg-pix-hand-over, draws the picked rows]]");
+    }],
+    ["R3985 - the panes that stand keep their frost through a turn (glass.mjs `glassTurn`, `turnPlan`; gaps, the owner's table on 1.2.108): on a stand-in curtain a recut that moves two panes and leaves two standing lays no animation that takes the frost to 0, clips the frost for the moves to the two standing panes and to the part of each moving pane its old and new places share (`convexOverlap`), and to the new cut once they end", async () => {
+        /*
+         * The owner, 12.11.2026, on 1.2.108: folding or unfolding the Projects tray takes the blur off the notices tile
+         * beside it for a moment, and it comes back. The blur under Stained Glass is one element, `#drpg-curtain-frost`,
+         * clipped to the cut; E23 C1b's turn faded the whole of it out over 120 ms whenever a recut moved glass, and back
+         * in over 180 ms once the moves were over - so every pane, the ones the fold never touched included, stood
+         * unfrosted for the turn's 700 ms. Measured on the glass harness at 1366x768 (4dfac3a9, the tray's class
+         * toggled): the frost's opacity 1.00 at 9 ms, 0.00 from 401 to 959 ms, 1.00 again at 1230 ms. Read here on a
+         * stand-in curtain (`turnRig`: panes 0 and 2 move, 1 and 3 stand), the colour kept, so it is the fold's kind of
+         * turn. Red at 4dfac3a9: the frost faded to 0 and was clipped to nothing of its own for the moves.
+         * Pane 0 moves from (0,0 200,0 0,150) to (0,0 260,0 0,190): its overlap is the old place whole, and 260 stands only
+         * in the new.
+         */
+        needs(env.motion());
+        const G = await import("./glass.mjs");
+        const rig = turnRig(G);
+        let read = null;
+        try {
+            rig.job.pathD = "M0 0H400V300H0Z";
+            const h = rig.turn({ force: true, flash: false });
+            must(h, "the stand-in recut planned no turn - this reads nothing");
+            must(h.plan.moves.length === 2 && !h.plan.recolour, `the stand-in recut does not move two panes in its colour (${h.plan.moves.length} moves) - this reads nothing`);
+            rig.frames();
+            const frost = document.getElementById("drpg-curtain-frost");
+            must(frost, "the turn laid no frost - this reads nothing");
+            const faded = rig.animations().some(a => a.el === frost && a.frames.some(f => Number(f.opacity) === 0));
+            const during = frost.style.clipPath;
+            for (const a of rig.animations()) if (a.el !== frost) a.finish();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise(resolve => setTimeout(resolve, 0));
+            read = [faded, during.includes("M200 0L400 0L400 150Z"), during.includes("M400 150L400 300L200 300Z"), during.includes("M0 0L200 0L0 150Z"), during.includes("260"), frost.style.clipPath === "path('M0 0H400V300H0Z')"];
+            h.cancel();
+        } finally { rig.done(); }
+        equal(JSON.stringify(read), JSON.stringify([false, true, true, true, false, true]),
+            "[a frost animation reaches 0, the moves' frost holds pane 1, holds pane 3, holds pane 0's old and new overlap, holds a corner only pane 0's new place has, the frost on the new cut after the moves]");
+    }],
     ["R3120 - a recolour is a crossfade (glass.mjs `glassTurn`, E96 C2; the owner at the table on 1.2.101, H102 DIAGNOSIS 6): on a stand-in curtain a turn under a new accent bakes the new look per batch beside the old, rising 0 to 1 on the old one's delay while the old falls 1 to 0, each batch's two layers a group of their own with the new one added on; a moving pane's new place rises the same way under it; and the curtain is held at 0 under them until every rising layer ends, at one time", async () => {
         /*
          * E96 C2, 09.11.2026. C1b painted the new look beneath at once and laid the old over it, so the first frame of
@@ -41755,6 +43106,8 @@ const INVARIANTS = [
         const RULES = {
             "character.mjs initCharacter": "a new character's starting maximum and no marks, written once",
             "cleanup.mjs undoLastCleanup": "a Reroll puts the clean-up's Sanity marks back",
+            // E74 C6: Keep Watch missed with Despair marks a Sanity, written by the primary GM.
+            "watch-gm.mjs declareWatch": "a watch missed with Despair, its Sanity mark, written",
             "cleanup.mjs markResolutionStress": "the resolution's Sanity price, written",
             "cleanup.mjs restoreStress": "a refund of Sanity, written",
             "cleanup.mjs resolveCleanup": "the receipt's Sanity before the attempt, for a Reroll",
@@ -41767,6 +43120,8 @@ const INVARIANTS = [
             "dh-settings.mjs WINDOW_WORDS": "the module's labels for the same window, keyed on the maximums' field names: the system's markup",
             "dh-settings.mjs dressCharacterSettings": "finds Health's maximum field in the system's window to take its tooltip off: the system's markup, no number drawn",
             "level-up.mjs applyAdvancement": "a Level Up raises a maximum, written",
+            "level-up.mjs da39RowOf": "the DA39 migration reads the maxima as the GMs hold them, for the GM's confirm (E64)",
+            "level-up.mjs applyDa39Migration": "the DA39 migration writes the maxima the GM confirmed and holds the marks to them (E64)",
             "monocub.mjs setMonocub": "a Monocub starts with no marks, written",
             "murder-rules.mjs resolveKillerOpening": "the opening's Despair fills the victim's Sanity track, written",
             "murder-rules.mjs afterCrisisRoll": "the GMs' bookmark of the use's start, for a Reroll",
@@ -45303,8 +46658,8 @@ const INVARIANTS = [
         const R = await import("./room-setup.mjs");
         const K = await import("./ui-kit.mjs");
         const KINDS = {
-            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "text"],
-            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check"],
+            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "check", "text"] /* E74 C5: Broken, after Locked at start */,
+            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check", "step"] /* E93 C2: the room actions' count */,
             stashes: null, description: ["room", "prose", "picture"], fog: null
         };
         const students = studentActors();
@@ -46265,6 +47620,39 @@ const INVARIANTS = [
             hidden: true, corner: true
         }), "{dice: each die's colour by picture or select, each theme's Hope and Despair token; windows: a framed core window's ground, title band, field and button under Legacy, button and edge under the glass, the FilePicker's picked row, no layout property in any of these rules; hidden: the hotbar's rule hides the combat tab, pane and window and the effects display; corner: a stand-in core confirm's button wears this theme's corner}");
     }],
+    ["R4700 - every project glyph has a token picture, drawn as the tray draws it, and a project with no glyph keeps the hammer", async () => {
+        /*
+         * The owner's choice B of 13.11.2026: a project's token wears its chosen glyph (projects-map.mjs
+         * `projectTokenIcon`). The pictures are tools/token-icons.mjs's, one icons/project-<key>.svg per key of
+         * config.mjs PROJECT_GLYPHS, from the sprite the tray paints for that key (`var(--drpg-pix-<key>)`, the
+         * first match in styles/pixel-icons.css - the :root drawing, as the Remnants' token pictures). Read here:
+         * each key's file is served and holds that sprite's path, white; a key with no file, a file of a stale
+         * drawing, or a picture for a project with no glyph other than the hammer is red. The planted reading first:
+         * a path that is not the sprite's must read as stale. Red first before the files were written (13.11.2026):
+         * 21 of 21 keys had no picture. Nothing is written.
+         */
+        const { PROJECT_GLYPHS, PROJECT_TOKEN } = await import("./config.mjs");
+        const { projectTokenIcon } = await import("./projects-map.mjs");
+        const sheet = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const spritePath = key => {
+            const hit = sheet.match(new RegExp(`--drpg-pix-${key}:\\s*url\\("data:image/svg\\+xml,([^"]+)"\\)`));
+            return hit ? (decodeURIComponent(hit[1]).match(/ d='([^']+)'/)?.[1] ?? null) : null;
+        };
+        const filePath = text => String(text ?? "").match(/<path fill="#ffffff" d="([^"]+)"/)?.[1] ?? null;
+        const stale = (key, text) => !spritePath(key) || filePath(text) !== spritePath(key);
+        must(spritePath("key"), "pixel-icons.css holds no sprite for the key glyph - this test reads nothing until it is pointed at the sheet again");
+        ok(stale("key", `<svg><path fill="#ffffff" d="M0 0h1v1H0z"/></svg>`), "a planted picture that is not the sprite's reads as current");
+        const wrong = [];
+        for (const key of Object.keys(PROJECT_GLYPHS)) {
+            const res = await fetch(`/modules/${MODULE_ID}/icons/project-${key}.svg`);
+            const text = res.ok ? await lfText(res) : null;
+            if (text === null) wrong.push(`${key}: no picture`);
+            else if (stale(key, text)) wrong.push(`${key}: not the tray's drawing (re-run tools/token-icons.mjs)`);
+        }
+        equal(JSON.stringify(wrong), "[]", `of ${Object.keys(PROJECT_GLYPHS).length} glyphs, these have no token picture or a stale one`);
+        equal(projectTokenIcon("R4700-no-such-project"), PROJECT_TOKEN.icon, "a project with no glyph wears something other than the hammer");
+    }],
+
     ["R3578 - the Projects tray shows no Foundry or Daggerheart picture, in either theme (E49 FT batch 3; the owner, 11.11.2026 night: the tray's stored picture still drawn under Monokuma Legacy - Foundry's or Daggerheart's removed, the module's own project icon kept): a row's `img` whose path is not in the module's own folder (core's hourglass webp, which is Daggerheart's countdown default and the module's stored default; any other core or system file; a world's own file; none) is hidden in both themes, and under Monokuma Legacy the row draws the module's own pixel drawing of its glyph in its place - `--drpg-project-glyph`, the hourglass where none is chosen, as the glass does; a picture in the module's folder stays and draws no glyph beside it; every glyph the tray can name is declared on :root, so it resolves under Legacy; painting the tray leaves each row's `src` and the stored projects as they were", async () => {
         /*
          * E49 FT batch 3, the owner's question 6 of 11.11.2026 night, decided: "Projects tray picture: Foundry/Daggerheart
@@ -46959,7 +48347,7 @@ const INVARIANTS = [
         equal(new Set(read.map(r => r[0])).size, 12, "the views do not reach the twelve steps of a running trial - this would measure less than it says");
     }],
 
-    ["R2052 - the console's footer slots (E47 C1; the owner's 05.10 D (2), E47-02; S13-36 (1)): `consoleFooter` across a family's states keeps Close first on the left and the destructive zone - End of chapter, End the trial, Start the Final Trial - last, never the default; the right slot holds the next step alone (the primary), Close the default while an Objection runs; Start the Final Trial greyed with its reason while no Mastermind is set; the console redraws the footer in place (`liveFooter`) and reopens only on its signature, which reads the trial's start and the floor's family alone", async () => {
+    ["R2052 - the console's footer slots (E47 C1; the owner's 05.10 D (2), E47-02; S13-36 (1)): `consoleFooter` across a family's states keeps Close first on the left and the destructive zone - End the trial, and End of chapter at its step (E99 round 7) - last, never the default; the right slot holds the next step alone (the primary), Close the default while an Objection runs; Start the Final Trial greyed with its reason while no Mastermind is set; the console redraws the footer in place (`liveFooter`) and reopens only on its signature, which reads the trial's start and the floor's family alone", async () => {
         /*
          * E47 C1, 09.11.2026. Pure: the footer of a reading (`consoleFooter`) through ui-kit.mjs `footerButtons`, in the
          * running trial's states with no floor (discussion, after an exchange, the vote, the count, the verdict, the verdict
@@ -46994,20 +48382,24 @@ const INVARIANTS = [
         const debate = { debate: slots(view({ floor: { mode: "debate" } })), objection: slots(view({ floor: { mode: "objection" } })) };
         const all = { ...none, ...debate };
         const tail = s => s.left.filter(([, role]) => role === "destructive").map(([a]) => a);
-        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.left[0]?.[0] ?? null, tail(s), s.left.slice(-3).every(([, r]) => r === "destructive")]]))),
-            stableJson(Object.fromEntries(Object.keys(all).map(k => [k, ["close", ["chapterEnd", "end", "toggleFinal"], true]]))),
+        // The owner, 12.11.2026 (E99 round 7): End of chapter only while it is the next step (here the verdict's state:
+        // these views carry no record of the case summary) and no Start the Final Trial inside an ordinary trial (R3918).
+        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.left[0]?.[0] ?? null, tail(s), s.left.slice(-tail(s).length).every(([, r]) => r === "destructive")]]))),
+            stableJson(Object.fromEntries(Object.keys(all).map(k => [k, ["close", k === "verdict" ? ["chapterEnd", "end"] : ["end"], true]]))),
             "{state: [the first button on the left, the destructive zone, the zone last on the left]}");
         equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.right, s.def, s.defRole === "destructive"]]))), stableJson({
             discussion: [["openDebate"], "openDebate", false], again: [["reopen"], "reopen", false], vote: [["vote"], "vote", false],
             counted: [["verdict"], "verdict", false], verdict: [[], "close", false], stopped: [["finishVerdict"], "finishVerdict", false],
             elsewhere: [[], "close", false], debate: [["closeDebate"], "closeDebate", false], objection: [["closeDebate"], "close", false]
         }), "{state: [the right slot, the default, the default destructive]}");
-        // The same set of buttons in every state of the family with no floor: only which one stands on the right changes.
-        const set = s => [...s.right, ...s.left.map(([a]) => a)].sort().join(",");
+        // The same set of buttons in every state of the family with no floor, the Verdict aside: only which one stands on
+        // the right changes - the Verdict, a step of the flow since E99 round 7, stands only at its step (R3918).
+        const set = s => [...s.right, ...s.left.map(([a]) => a)].filter(a => a !== "verdict").sort().join(",");
         equal(new Set(["discussion", "again", "vote", "counted"].map(k => set(none[k]).replace(/openDebate|reopen/, "debate"))).size, 1,
             "the buttons of the family with no floor are not the same set in each state (a button came or went, not only moved)");
-        const final = K.footerButtons(UI.consoleFooter(view({ mastermind: false }))).find(b => b.action === "toggleFinal");
-        const set2 = K.footerButtons(UI.consoleFooter(view({ mastermind: true }))).find(b => b.action === "toggleFinal");
+        // With no trial running: Start the Final Trial is not offered inside an ordinary trial (E99 round 7, R3918).
+        const final = K.footerButtons(UI.consoleFooter(view({ mastermind: false, running: false, afterwards: false }))).find(b => b.action === "toggleFinal");
+        const set2 = K.footerButtons(UI.consoleFooter(view({ mastermind: true, running: false, afterwards: false }))).find(b => b.action === "toggleFinal");
         const running = K.footerButtons(UI.consoleFooter(view({ finalNow: true, mastermind: false }))).find(b => b.action === "toggleFinal");
         equal(stableJson([[final?.role, final?.disabled ?? false, final?.tooltip ?? null], [set2?.disabled ?? false, set2?.tooltip ?? null], [running?.role, running?.disabled ?? false]]),
             stableJson([["destructive", true, game.i18n.localize("DRPG.Mastermind.noneSet")], [false, null], ["secondary", false]]),
@@ -47311,16 +48703,18 @@ const INVARIANTS = [
             await Promise.race([answer, wait(3000)]);
         }
         equal(stableJson({ who, traces: shape(traces), traceNames: names(traces), keys: shape(keys), keyNames: names(keys) }), stableJson({
-            who: { kit: true, cols: ["student", "bullets", "keys", "unidentified", "breakdown"],
-                heads: ["DRPG.Investigation.student", "DRPG.Investigation.bullets", "DRPG.Investigation.keysHeld", "DRPG.Investigation.unidentified", "DRPG.Investigation.breakdown"].map(L),
-                num: [false, true, true, true, false], tooltip: L("DRPG.Investigation.breakdownTooltip") },
+            // E64-inv: the other items by name, a column of their own (R3968).
+            who: { kit: true, cols: ["student", "bullets", "keys", "unidentified", "breakdown", "items"],
+                heads: ["DRPG.Investigation.student", "DRPG.Investigation.bullets", "DRPG.Investigation.keysHeld", "DRPG.Investigation.unidentified", "DRPG.Investigation.breakdown", "DRPG.CaseMap.studentItems"].map(L),
+                num: [false, true, true, true, false, false], tooltip: L("DRPG.Investigation.breakdownTooltip") },
             traces: { kit: true, cols: ["name", "text", "analysis", "type", "vis", "faint", "crime", "reinf", "found", "delete"],
                 heads: ["DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.traceType", "DRPG.Investigation.visibility",
                     "DRPG.Remnant.faintColumn", "DRPG.Remnant.crimeColumn", "DRPG.Remnant.reinforcedColumn", "DRPG.Investigation.foundBy", "DRPG.Investigation.deleteTrace"].map(L) },
             traceNames: ["img.K", "name.K", "text.K", "analysis.K", "type.K", "vis.K", "faint.K", "crime.K", "reinf.K"],
             keys: { kit: true, cols: ["scale", "name", "text", "analysis", "note", "status"],
                 heads: ["DRPG.Investigation.difficulty", "DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.keyNoteLabel", "DRPG.Investigation.keyStatus"].map(L) },
-            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "place:0"]
+            // keyroom (13.11.2026): a slot's planned room, beside Place while it is not on the map
+            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "keyroom:0", "place:0"]
         }), "{who: WHO HAS WHAT on the drawn dashboard [a dataTable, its columns' keys, its heads' words, each head a number head, the Breakdown head's tooltip]; traces, keys: "
             + "the Traces tab's and the planner's tables [a dataTable, columns, heads]; traceNames, keyNames: their fields' names (a trace's row key as K)}");
     }],
@@ -47350,7 +48744,7 @@ const INVARIANTS = [
             traces: has("caseTraceTable") ? I.caseTraceTable(trace, finders) : `<table class="drpg-vault-table"><tbody>${I.caseTraceRows(trace, finders)}</tbody></table>`,
             keys: has("caseKeyTable") ? I.caseKeyTable({ plan, status, placed: [], limit: null }) : `<table class="drpg-vault-table"><tbody>${I.caseKeyRows({ plan, status, placed: [], limit: null })}</tbody></table>`
         };
-        const CLAMPED = { who: "breakdown", traces: "found" };
+        const CLAMPED = { traces: "found" };
         const read = {};
         for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
             const html = document.createElement("html"), body = document.createElement("body");
@@ -47386,7 +48780,8 @@ const INVARIANTS = [
             }));
         }
         const each = {
-            who: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: "none", shares: 100, clamped: [true, true], heads: true },
+            // E64-inv: Who has what's names are read whole, not cut at two lines (investigation.mjs `caseStudentTable`).
+            who: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: "none", shares: 100, heads: true },
             traces: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, clamped: [true, true], heads: true },
             keys: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, heads: true }
         };
@@ -49781,10 +51176,14 @@ const INVARIANTS = [
          * `setPhase` (a debate opened outside a trial among its callers), Edit campaign, `setClock` - writes the clock,
          * and the clock's row is the one place `drpgPhaseChanged` is fired (sync.mjs `phaseHook`), so the roads are read
          * as the one event here. The theme's class is taken off for the run so the entry draws the lids.
+         * The clock read is a road that plays, so it carries that road's mark (`trialCut: true`, as Start the Class Trial
+         * and `setPhase` write it) and not the world's: 13.11.2026, release run 43428636380, 01-runtests' A2 crosses into
+         * the trial with a bare `setClock`, which marks the crossing false, and this test, reading the world's mark, saw
+         * the entry play nothing there (first null, look null, lids 0, stillPlaying null) - the module right, the test not.
          */
         const S = await import("./sequence.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), phase = body.dataset.drpgPhase;
-        const clock = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R3704:${Date.now()}` }, read = {};
+        const clock = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R3704:${Date.now()}`, trialCut: true }, read = {};
         try {
             body.classList.remove("drpg-theme-stained-glass");
             read.key = S.trialEntryKey(clock) === `classTrial:${clock.timeOfDayStartedAt}`;
@@ -49806,15 +51205,16 @@ const INVARIANTS = [
         must(sync.length > 2000 && seq.length > 2000 && glass.length > 20000, "a source was not read - the source half reads nothing");
         read.row = /onlyWhen\("phaseHook", "phase"\)/.test(sync) && /Hooks\.callAll\("drpgPhaseChanged"/.test(sync);
         read.heard = /Hooks\.on\("drpgPhaseChanged", onPhaseChanged\)/.test(seq);
-        read.held = /oldLook && !entryHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
+        read.held = /oldLook && !entryHold && !curtainHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
         equal(stableJson(read), stableJson({ key: true, notTrial: null, first: "motion", look: "lids", lids: 2, again: null, stillPlaying: "trialEntry", out: null, ended: null, row: true, heard: true, held: true }),
             "[the key is the edge's stamp; another phase has none; the first hearing; its look with no curtain; its lids; a second hearing; still playing; another phase; ended; the clock's row fires the hook once a phase moved; the sequences hear it; rebuildAll turns nothing while the entry holds it]");
     }],
     ["R3705 - the entry's still frame is the title on the closed curtain, and the tiles come back with it (scripts/sequence.mjs `drawTrialEntry`; E61 C3, C4, MK-R1 #3: \"reduced motion: a still board with the title for 1.5 s\"; A8): under reduced motion the entry's host holds the title in this language - CLASS TRIAL and the chapter's line - and the closed lids, and the room and voice tiles are covered (`data-drpg-sequence-cover`) while it stands and uncovered after; it ends on its own at 1.5 s", async () => {
-        /* E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. */
+        /* E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. The road's mark, not the world's: R3704's
+           comment (13.11.2026: mode null, lids 0 inside 01-runtests' A2, whose clock is marked false). */
         const S = await import("./sequence.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
-        const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}` }, read = {};
+        const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}`, trialCut: true }, read = {};
         try {
             body.classList.remove("drpg-theme-stained-glass");
             body.classList.add("drpg-reduced-motion");
@@ -49835,6 +51235,251 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ mode: "still", title: game.i18n.localize("DRPG.Sequence.trialTitle"), sub: true, lids: 2, cover: true, endedAlone: true, uncovered: true }),
             "[the entry's mode under reduced motion; the title; the chapter's line in this language; the closed lids; the tiles covered; ended on its own at its hold; the tiles uncovered]");
+    }],
+    ["R4420 - the entry hands over to the live curtain without a blink (scripts/sequence.mjs `drawTrialEntry`, `coverBlocks`; scripts/glass.mjs `holdPulse`, `pulseNow`, `entryPieces`; styles/danganronpa.css; the owner at the table, 12.11.2026: \"calosc blyska, bug pulsu\"): on a stand-in for the curtain's pieces, in motion the live curtain is held at 0 as the copies come in over the sequence's `handIn`, handed back over its last `hand` ms and let go once the host is gone, and no full-screen wash stands over the closed curtain; still, it is held at once and let go at the end; the pulse's clock stands while held and runs on from where it stood; the closed curtain's cover takes the interface's blocks with the tiles", async () => {
+        /*
+         * The entry's hand-over, 12.11.2026. Red at 421f2395: `playTrialEntry` takes no stand-in and drew the lids, so the
+         * pieces were never held, handed back or let go; glass.mjs had no `holdPulse`; the cover named the two tiles alone.
+         * The probe of the seam report read the base's blink in Chromium on the glass harness at 1366x768 (whole frame
+         * -11 at the start, +19 at 900 ms, +7 at the end); its after-numbers are in docs/dev/trial-exit/STATUS.md. jsdom
+         * plays no animation, so what is read here is who is held when, and the stylesheet. The clocks carry the road's
+         * mark, not the world's (R3704's comment; 13.11.2026 inside 01-runtests' A2: motion null, calls []).
+         */
+        const S = await import("./sequence.mjs"), G = await import("./glass.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const T = S.SEQUENCE_TIMES.trialEntry, read = {};
+        const stand = () => {
+            const calls = [], t0 = performance.now();
+            const at = () => Math.round(performance.now() - t0);
+            return { calls, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]), release: () => calls.push(["release", null, at()]) };
+        };
+        const near = (got, want, slack = 250) => Number.isFinite(got) && got >= want && got <= want + slack;
+        const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}`, trialCut: true });
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            const m = stand(), c = clock("m");
+            read.motion = await S.playTrialEntry(c, { pieces: m });
+            read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
+            read.covered = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            await wait(T.closed + 150);
+            read.wash = document.querySelectorAll(`#${S.SEQUENCE_HOST_ID} .drpg-seq-pulse`).length;
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + 1500);
+            const [hold, back, rel] = ["hold", "handBack", "release"].map(k => m.calls.find(x => x[0] === k));
+            read.calls = m.calls.map(x => x[0]);
+            read.hold = hold?.[1] === T.handIn && hold?.[2] < 100;
+            read.back = back?.[1] === T.hand && near(back?.[2], T.end - T.hand);
+            read.release = near(rel?.[2], T.end);
+            read.again = await S.playTrialEntry(c, { pieces: stand() });
+            S.endSequence("cut");
+            body.classList.add("drpg-reduced-motion");
+            const st = stand();
+            read.still = await S.playTrialEntry(clock("s"), { pieces: st });
+            read.stillHold = st.calls.map(x => x.slice(0, 2));
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.still + 1500);
+            read.stillEnd = st.calls.map(x => x[0]);
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        // the pulse's clock: stands while held, runs on from the moment it stood
+        if (typeof G.holdPulse === "function") {
+            G.holdPulse(true);
+            const p0 = G.pulseNow();
+            await wait(120);
+            const p1 = G.pulseNow();
+            G.holdPulse(false);
+            const p2 = G.pulseNow();
+            await wait(60);
+            const p3 = G.pulseNow();
+            read.pulse = { stood: p1 === p0, resumed: p2 - p1 >= 0 && p2 - p1 < 40, runs: p3 - p2 >= 40 };
+        } else read.pulse = null;
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rule = /body\[data-drpg-sequence-cover\] :is\(([^{]*)\) \{\s*opacity: 0;/.exec(css)?.[1] ?? "";
+        read.cover = String(S.COVERED ?? "-").split(",").map(x => x.trim()).filter(sel => !rule.includes(sel));
+        read.coverNames = ["#drpg-hud", "#drpg-despair", "#countdowns", "#drpg-room-tile", "#drpg-voice-tile"].every(x => String(S.COVERED ?? "").includes(x));
+        read.washRule = /drpg-seq-pulse/.test(css);
+        equal(stableJson(read), stableJson({
+            motion: "motion", look: "glass", covered: true, wash: 0, calls: ["hold", "handBack", "release"], hold: true, back: true, release: true, again: null,
+            still: "still", stillHold: [["hold", 0]], stillEnd: ["hold", "release"],
+            pulse: { stood: true, resumed: true, runs: true }, cover: [], coverNames: true, washRule: false
+        }), "[in motion: what played, its look, the cover; a wash at the closed curtain; the stand-in's calls in order; held over handIn at the start; handed back over hand before the end; let go at the end; the same event again; still: what played, held at once, let go at its end; the pulse's clock held, resumed and running; blocks of COVERED the stylesheet's cover leaves out; the cover names the blocks; a wash rule left in the stylesheet]");
+    }],
+    ["R4421 - the trial's exit is E61's and names a new day in the same write (scripts/transitions.mjs `transitionFor`, `onClockHeard`; the owner's decision of 12.11.2026, every default accepted): out of the Class Trial into Daily Life is `{ kind: \"trialExit\", owner: \"E61\" }` with no direction for the curtain, and with `newDay` when the same write opened a later day (a chapter's end whose next morning lands in one run of the clock's row); the Investigation's way out stays the curtain's; heard, it hands the curtain no direction", async () => {
+        /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was `{ kind: "trialExit", how: "centre" }`, a hint for
+           the curtain's own turn, and named no new day. */
+        const T = await import("./transitions.mjs"), G = await import("./glass.mjs");
+        const c = (timeOfDay, phase = "dailyLife", extra = {}) => ({ day: 3, timeOfDay, phase, eclipse: false, ...extra });
+        const read = {
+            exit: T.transitionFor(c("night", "classTrial"), c("night")),
+            morning: T.transitionFor(c("night", "classTrial"), c("morning", "dailyLife", { day: 4 })),
+            investigation: T.transitionFor(c("noon", "classTrial"), c("noon", "investigation"))?.kind ?? null
+        };
+        try {
+            G.hintTurn(null);
+            T.onClockHeard(c("night", "classTrial"), { on: false, still: true });
+            read.heard = T.onClockHeard(c("night"), { on: false, still: false })?.owner ?? null;
+            await settle();
+            read.hint = G.pendingTurnHint();
+        } finally { G.hintTurn(null); }
+        equal(stableJson(read), stableJson({ exit: { kind: "trialExit", owner: "E61" }, morning: { kind: "trialExit", newDay: true, owner: "E61" }, investigation: "investigation", heard: "E61", hint: null }),
+            "[the trial's exit; the same with the next morning in the write; out into the Investigation; heard; the direction handed to the curtain]");
+    }],
+    ["R4422 - the trial's exit plays once on this browser, TRIAL ADJOURNED and the chapter's line, with no sound of its own (scripts/sequence.mjs `playTrialExit`, `trialExitKey`; lang; the owner's decision of 12.11.2026, every default accepted): with no curtain it closes the lids as the entry does, the title in this language - TRIAL ADJOURNED / KONIEC ROZPRAWY and \"Chapter {n} · Back to school\" / \"Rozdział {n} · Powrót do szkoły\" - and covers the tiles; its key is the trial's end stamp, so a second hearing starts nothing; Escape ends it; its frames are the entry's and its length too (3.4 s, still 1.5 s); under reduced motion it is the still frame and ends on its own; with the switch off, or for a crossing Edit campaign wrote, it plays nothing; it plays no sound", async () => {
+        /* The trial's exit, 12.11.2026. Red at 421f2395: sequence.mjs had no `playTrialExit` and no exit's words. The clocks
+           carry End the trial's mark, `trialCut: true`, and `quiet` its own false, not the world's (R3704's comment; 13.11.2026
+           inside 01-runtests' A2: motion null, lids 0, so `quiet` told nothing apart). */
+        const S = await import("./sequence.mjs"), C = await import("./perf-counters.mjs");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const stamp = `R4422:${Date.now()}`, read = {};
+        const clock = (k, extra = {}) => ({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `${stamp}${k}`, trialCut: true, ...extra });
+        const words = t => ["exitTitle", "exitSubtitle", "exitSubtitleNoChapter"].map(k => t?.DRPG?.Sequence?.[k] ?? null);
+        read.words = { en: words(en), pl: words(pl) };
+        const T = S.SEQUENCE_TIMES.trialExit ?? {}, E = S.SEQUENCE_TIMES.trialEntry;
+        read.times = [T.end === E.end, T.still === E.still, T.closed === E.closed, T.titleOut === E.titleOut];
+        const sounds = () => C.snapshot()["sfx.played"] ?? 0;
+        try {
+            if (typeof S.playTrialExit !== "function") throw new Error("sequence.mjs has no playTrialExit");
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            read.key = S.trialExitKey(clock("k")) === `trialExit:${stamp}k` && S.trialExitKey({ ...clock("k"), phase: "classTrial" }) === null;
+            const heard = sounds();
+            read.motion = await S.playTrialExit(clock("m"), { on: true });
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            read.playing = S.sequenceNow()?.kind ?? null;
+            read.look = host?.dataset.drpgSequenceLook ?? null;
+            read.lids = host?.querySelectorAll(".drpg-seq-lid").length ?? 0;
+            read.cover = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            read.again = await S.playTrialExit(clock("m"), { on: true });
+            await wait(T.title + 150);
+            read.title = host?.querySelector(".drpg-seq-title-band")?.textContent === game.i18n.localize("DRPG.Sequence.exitTitle");
+            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.exitSubtitle", { chapter: 3 });
+            const esc1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+            window.dispatchEvent(esc1);
+            read.escaped = esc1.defaultPrevented && S.sequenceNow() === null && !document.getElementById(S.SEQUENCE_HOST_ID);
+            read.silent = sounds() === heard;
+            body.classList.add("drpg-reduced-motion");
+            read.still = await S.playTrialExit(clock("s"), { on: true });
+            read.stillTitle = Boolean(document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-title`));
+            await wait(T.still + 200);
+            read.endedAlone = S.sequenceNow() === null && !body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            read.off = await S.playTrialExit(clock("o"), { on: false });
+            read.quiet = await S.playTrialExit(clock("q", { trialCut: false }), { on: true });
+            read.none = S.sequenceNow();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({
+            words: { en: ["TRIAL ADJOURNED", "Chapter {chapter} · Back to school", "Back to school"], pl: ["KONIEC ROZPRAWY", "Rozdział {chapter} · Powrót do szkoły", "Powrót do szkoły"] },
+            times: [true, true, true, true], key: true, motion: "motion", playing: "trialExit", look: "lids", lids: 2, cover: true, again: null,
+            title: true, sub: true, escaped: true, silent: true, still: "still", stillTitle: true, endedAlone: true, off: null, quiet: null, none: null
+        }), "[the exit's words in English and Polish; its frames the entry's (end, still, closed, opening); the key is the trial's end and none in the trial; in motion: what played, what plays, its look, its lids, the cover; the same event again; the title; the chapter's line; Escape ends it; no sound; reduced motion: the still frame, its title, ended on its own and uncovered; the switch off; a crossing Edit campaign wrote; nothing playing]");
+    }],
+    ["R4423 - Edit campaign moves the clock across the trial's edge without a full-screen sequence (scripts/clock.mjs `trialCutOf`, `setClock`, `setPhase`; scripts/trial-floor-ui.mjs `startClassTrial`, `closeTrial`; scripts/gm-campaign.mjs `applyCampaignForm`; scripts/sequence.mjs `edgeShown`, `onPhaseChanged`; the owner's rule of 12.11.2026: \"edytuj kampanie nie ma odpalac animacji - tylko zegar/gora gm panel\"): a crossing into or out of the trial is marked `trialCut` true only when the write says so, false otherwise, and a write that is no crossing leaves the mark as it was; Start the Class Trial, End the trial and `setPhase` say so and Edit campaign's Apply, the season's reset and the chapter's clock step do not; the entry does not play for a crossing marked false and plays for one marked true or not marked at all", async () => {
+        /* The Edit campaign silence, 12.11.2026. Red at 421f2395: clock.mjs had no `trialCutOf`, no road wrote the mark
+           and the entry played for every crossing, Edit campaign's among them. The exit's half is R4422's `quiet`. */
+        const K = await import("./clock.mjs"), S = await import("./sequence.mjs");
+        const read = {};
+        const of = (b, p) => typeof K.trialCutOf === "function" ? K.trialCutOf(b, p) ?? "same" : "none";
+        read.pure = {
+            roadIn: of({ phase: "investigation" }, { phase: "classTrial", trialCut: true }), roadOut: of({ phase: "classTrial" }, { phase: "dailyLife", trialCut: true }),
+            editIn: of({ phase: "investigation" }, { phase: "classTrial" }), editOut: of({ phase: "classTrial" }, { phase: "dailyLife" }),
+            noEdge: of({ phase: "dailyLife" }, { phase: "investigation", trialCut: true }), morning: of({ phase: "dailyLife" }, { timeOfDay: "morning", day: 4 })
+        };
+        const sources = await moduleSources();
+        const src = name => stripComments(sources.get(name) ?? "");
+        const clock = src("clock.mjs"), floor = src("trial-floor-ui.mjs"), camp = src("gm-campaign.mjs"), wipe = src("season-wipe.mjs"), chapter = src("chapter.mjs");
+        must(clock.length > 5000 && floor.length > 5000 && camp.length > 2000 && wipe.length > 2000 && chapter.length > 5000, "a source was not read - the source half reads nothing");
+        read.roads = {
+            setPhase: /return setClock\(\{ phase: key, trialCut: true \}\)/.test(bodyOf(clock, "export async function setPhase(", { until: "\nexport " })),
+            setClock: /trialCutOf\(before, patch\)/.test(bodyOf(clock, "export async function setClock(", { until: "\nexport " })),
+            start: /setClock\(\{ phase: "classTrial", timeOfDayStartedAt: serverNow\(\), trialCut: true \}\)/.test(floor),
+            close: /setClock\(\{ phase: "dailyLife", timeOfDayStartedAt: serverNow\(\), trialCut: true \}\)/.test(floor),
+            edit: /await setClock\(patch\)/.test(bodyOf(camp, "export async function applyCampaignForm(", { length: 12000 })) && !/trialCut/.test(bodyOf(camp, "export async function applyCampaignForm(", { length: 12000 })),
+            wipe: !/trialCut/.test(wipe), chapterClock: !/trialCut/.test(chapter)
+        };
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), phase = body.dataset.drpgPhase;
+        /* `unmarked` is a clock with no mark at all, so the world's is taken off first (13.11.2026, inside 01-runtests' A2,
+           whose bare `setClock` marked the crossing false: `unmarked` read null, the world's false and not the case named). */
+        const c = (k, extra) => {
+            const x = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R4423${k}:${Date.now()}` };
+            delete x.trialCut;
+            return { ...x, ...extra };
+        };
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            S.endSequence("cut");
+            read.edited = await S.onPhaseChanged("classTrial", c("e", { trialCut: false }));
+            read.editedNone = S.sequenceNow();
+            read.road = await S.onPhaseChanged("classTrial", c("r", { trialCut: true }));
+            S.endSequence("cut");
+            read.unmarked = await S.onPhaseChanged("classTrial", c("u", {}));
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({
+            pure: { roadIn: true, roadOut: true, editIn: false, editOut: false, noEdge: "same", morning: "same" },
+            roads: { setPhase: true, setClock: true, start: true, close: true, edit: true, wipe: true, chapterClock: true },
+            edited: null, editedNone: null, road: "motion", unmarked: "motion"
+        }), "[the mark by the write: a road in and out, Edit campaign in and out, no crossing, the next morning; which roads say so in source; the entry for a crossing marked false, then nothing playing; marked true; unmarked]");
+    }],
+    ["R4424 - a chapter's end that closes the trial and opens the next morning plays the exit first, then the day's boards (scripts/transitions.mjs `onClockHeard`; scripts/sequence.mjs `whenTrialExitEnds`; the owner's decision of 12.11.2026, every default accepted): heard as one run of the clock's row, the exit plays and the end-of-day board waits for it; heard as two runs - the trial's end, then the morning while the exit plays - the exit is not cut and the board starts when it ends; a new day with no exit asked for starts its board at once", async () => {
+        /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was no sequence and the board started at once, and since
+           a sequence cuts the one running, a board started during an exit would have cut it. Each new morning carries the
+           boards' stamp (`dayBoard`), as the chapter end's next morning and the roll-over write it: since the 1.2.110 line
+           (merged into 1.2.111 on 13.11.2026) a day moved without it - Edit campaign's - plays no board (R4400, R4401). */
+        const S = await import("./sequence.mjs"), T = await import("./transitions.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const day = 700 + (Date.now() % 100), tag = `R4424:${Date.now()}`, read = {};
+        const c = (d, timeOfDay, ph = "dailyLife", extra = {}) => ({ season: tag, session: d, day: d, timeOfDay, phase: ph, eclipse: false, chapter: 2, ...extra });
+        const kind = () => S.sequenceNow()?.kind ?? null;
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            // one run: the trial's end and the next morning in one reading of the clock
+            T.onClockHeard(c(day, "night", "classTrial"), { on: false, still: true });
+            T.onClockHeard(c(day + 1, "morning", "dailyLife", { trialEndedAt: `${tag}a`, dayBoard: day + 1 }), { on: true, still: true, keep: false });
+            await until(() => kind() !== null, 3000);
+            read.oneFirst = kind();
+            await wait(400);
+            read.oneStill = kind();
+            await until(() => kind() === "dayEnd", 4000);
+            read.oneThen = kind();
+            S.endSequence("cut");
+            // two runs: the trial's end, then the morning heard while the exit plays
+            T.onClockHeard(c(day + 1, "night", "classTrial"), { on: false, still: true });
+            T.onClockHeard(c(day + 1, "night", "dailyLife", { trialEndedAt: `${tag}b` }), { on: true, still: true, keep: false });
+            await until(() => kind() === "trialExit", 3000);
+            T.onClockHeard(c(day + 2, "morning", "dailyLife", { trialEndedAt: `${tag}b`, dayBoard: day + 2 }), { on: true, still: true, keep: false });
+            await wait(400);
+            read.twoStill = kind();
+            S.endSequence("skipped");
+            await until(() => kind() === "dayEnd", 3000);
+            read.twoThen = kind();
+            S.endSequence("cut");
+            // no exit: the board at once
+            T.onClockHeard(c(day + 2, "night"), { on: false, still: true });
+            T.onClockHeard(c(day + 3, "morning", "dailyLife", { dayBoard: day + 3 }), { on: true, still: true, keep: false });
+            await until(() => kind() !== null, 3000);
+            read.alone = kind();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({ oneFirst: "trialExit", oneStill: "trialExit", oneThen: "dayEnd", twoStill: "trialExit", twoThen: "dayEnd", alone: "dayEnd" }),
+            "[one run: what plays first, still after 400 ms, then; two runs: what plays 400 ms after the morning was heard, then once the exit was skipped; a new day with no exit]");
     }],
     ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
         /*
@@ -50080,20 +51725,26 @@ const INVARIANTS = [
             inputs: ["despair", "hope", "monocubHope", "overflow", true], published: true, read: true
         }), "[the bars; the bands for each set of inputs; bars handed in; the three words; a number refused, a word kept; the GM's four inputs; the inputs read the one cast by the published death, the Monocubs and the count; the advance reads them and writes the word]");
     }],
-    ["R3724 - the Night's own summary folds into the end-of-day board (scripts/day-summary.mjs `nightFoldsIntoBoard`, `sumUp`; E94 C3, the plan's Q-E94-5 default): with the table's switch on, the summary of the day's last time of day closed by the roll-over to the next morning is not put up - the board holds the whole day and keeps a card of it; with the switch off, at an Eclipse's start and at any other time of day it is put up as before", async () => {
-        /* E94 C3, 12.11.2026. Red at 7bbbd3c: day-summary.mjs has no nightFoldsIntoBoard. */
+    ["R3724 - the Night's own summary folds into the end-of-day board (scripts/day-summary.mjs `nightFoldsIntoBoard`, `sumUp`; E94 C3, the plan's Q-E94-5 default): with the table's switch on, the summary of the day's last time of day closed by the roll-over to the next morning (the clock stamped for the boards, `dayBoard`) or by the Morning Eclipse opened at Night is not put up - the board holds the whole day and keeps a card of it; with the switch off, at any other Eclipse's start, at a Night to Morning moved by hand and at any other time of day it is put up as before", async () => {
+        /* E94 C3, 12.11.2026. Red at 7bbbd3c: day-summary.mjs has no nightFoldsIntoBoard.
+           THE ECLIPSE'S ROAD AND THE STAMP (12.11.2026, the owner's report on 1.2.109): the boards play at the Morning
+           Eclipse's end too, and only on a real roll-over (`dayBoard`, R4400, R4401). So the Night's summary folds at the
+           Morning Eclipse's start at Night - put up there, the board at the Eclipse's end showed the same rows again - and
+           a Night to Morning moved by hand, which plays no board now, keeps its summary. Red at 1ff4bc77 on both. */
         const D = await import("./day-summary.mjs"), { TIMES_OF_DAY } = await import("./config.mjs");
         if (typeof D.nightFoldsIntoBoard !== "function") { ok(false, "day-summary.mjs has no nightFoldsIntoBoard"); return; }
         const last = TIMES_OF_DAY[TIMES_OF_DAY.length - 1], first = TIMES_OF_DAY[0];
         const sources = await moduleSources();
         const sum = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "sumUp");
         equal(stableJson([
-            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first }, true),
-            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first }, false),
+            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 4, dayBoard: 4 }, true),
+            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 4, dayBoard: 4 }, false),
             D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: last, eclipse: true }, true),
             D.nightFoldsIntoBoard({ timeOfDay: first }, { timeOfDay: TIMES_OF_DAY[1] }, true),
+            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 4, dayBoard: 3 }, true),
+            D.nightFoldsIntoBoard({ timeOfDay: TIMES_OF_DAY[3] }, { timeOfDay: TIMES_OF_DAY[3], eclipse: true }, true),
             /nightFoldsIntoBoard\(window, clock\)\) return/.test(sum)
-        ]), stableJson([true, false, false, false, true]), "[the night at the roll-over, switch on; switch off; an Eclipse's start; another time of day; sumUp asks it]");
+        ]), stableJson([true, false, true, false, false, false, true]), "[the night at the roll-over with the boards' stamp, switch on; switch off; the Morning Eclipse's start at Night; another time of day; Night to Morning by hand (no stamp on the new day); an Evening Eclipse's start; sumUp asks it]");
     }],
     ["R3725 - the clock stamps when the day began (scripts/clock.mjs `setClock`; E94 C3): a write that moves the day sets `dayStartedAt` to the new time of day's own stamp, or the server's clock, unless the write sets it itself; the end-of-day board reads its rows from it", async () => {
         /* E94 C3, 12.11.2026. Red at 7bbbd3c: setClock writes no dayStartedAt. The write itself is tier 2's (tiers 0-1 write no setting). */
@@ -50105,6 +51756,157 @@ const INVARIANTS = [
             stamp: /patch\.day !== undefined && Number\(patch\.day\) !== Number\(before\.day\) && patch\.dayStartedAt === undefined/.test(set) && /next\.dayStartedAt = next\.timeOfDayStartedAt \?\? serverNow\(\)/.test(set),
             read: /before\?\.dayStartedAt/.test(fnSource(seq, "dayEndReads"))
         }), stableJson({ stamp: true, read: true }), "[setClock stamps dayStartedAt on a new day; the board reads it]");
+    }],
+    ["R4400 - the Morning Eclipse's end on the curtain clock is a new day, and its boards play; a day moved by hand plays none (scripts/transitions.mjs `transitionFor`, `onClockHeard`; the owner's report at a real table on 1.2.109 and their rule of 12.11.2026): an Eclipse that ends at Night into the next Morning, day 3 to day 4, is the Eclipse's turn and names the new day, an Eclipse that ends on the same day names none; heard with the clock's `dayBoard` stamp on the new day, the end-of-day board plays, still under reduced motion; a day moved without the stamp - Edit campaign's correction - and a stamp left from an older day play nothing", async () => {
+        /* 12.11.2026. Red at 1ff4bc77: `transitionFor` answered the Eclipse's end before it read the day, so the curtain
+           clock's road (and the GM panel's Eclipse button) never named the new day and never played the boards, while
+           Edit campaign's day + 1 did. Hand-built clocks, read on this browser alone (DOM only, R3712). */
+        const S = await import("./sequence.mjs");
+        const T = await import("./transitions.mjs");
+        const c = (day, timeOfDay, extra = {}) => ({ season: "R4400", session: day, day, timeOfDay, phase: "dailyLife", eclipse: false, ...extra });
+        const pick = t => (t ? [t.kind, t.newDay === true] : null);
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        /* A DAY NO RUN OF THIS PAGE HAS PLAYED (13.11.2026; release run 43397715368, suite 1/8 red on 44f9d690 where CI
+           run 43394616656 on the same tree was green). A sequence starts once per key on a page (sequence.mjs
+           `playSequence`, `started`), and this test's keys are its days. The day was 700 + Date.now() % 200, and shard 1
+           runs tiers 0-1 four times in one GM boot (01-runtests A1, A2, A3, C): a later run on an earlier run's day found
+           its board started already - eclipseRoad null, or the next morning's board, which a board not played hands on to
+           (`playDayEnd`). With the GM's clock read to 200 ms (a probe, not committed) and R4400 run three times in one
+           boot: run 1 green, run 2 red reading "day:R4400:701:701", run 3 red reading null. So the day is the first from
+           700, in steps of 3, whose three days' boards - this road's, Edit campaign's and Night to Morning's - this page
+           has not started: a board held null by a key played before would read as a board never asked for. */
+        const fresh = d => [d, d + 1, d + 2].every(n => !S.sequenceStarted("dayEnd", `dayEnd:R4400:${n}:${n}`)
+            && !S.sequenceStarted("dayStart", `day:R4400:${n + 1}:${n + 1}`));
+        let day = 700;
+        while (!fresh(day)) day += 3;
+        const read = {};
+        read.pure = {
+            morningEclipse: pick(T.transitionFor(c(3, "night", { eclipse: true }), c(4, "morning"))),
+            nightEclipse: pick(T.transitionFor(c(3, "evening", { eclipse: true }), c(3, "night"))),
+            panelNext: pick(T.transitionFor(c(3, "night"), c(4, "morning")))
+        };
+        try {
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            // the curtain clock's road: Night, the Morning Eclipse opened, then its end into the next morning with the stamp
+            T.onClockHeard(c(day, "night"), { on: false, still: true });
+            T.onClockHeard(c(day, "night", { eclipse: true }), { on: false, still: true });
+            T.onClockHeard(c(day + 1, "morning", { dayBoard: day + 1 }), { on: true, still: true, keep: false });
+            await until(() => S.sequenceNow()?.kind === "dayEnd", 3000).catch(() => {});
+            read.eclipseRoad = S.sequenceNow()?.key ?? null;
+            S.endSequence("cut");
+            // Edit campaign's day + 1 at the same hour: no stamp on the new day
+            T.onClockHeard(c(day + 1, "noon", { dayBoard: day + 1 }), { on: false, still: true });
+            T.onClockHeard(c(day + 2, "noon", { dayBoard: day + 1 }), { on: true, still: true, keep: false }); await settle();
+            read.editDay = S.sequenceNow();
+            // and Night to Morning by hand, the day + 1 with it, a stamp from an older day standing
+            T.onClockHeard(c(day + 2, "night", { dayBoard: day + 1 }), { on: false, still: true });
+            T.onClockHeard(c(day + 3, "morning", { dayBoard: day + 1 }), { on: true, still: true, keep: false }); await settle();
+            read.editMorning = S.sequenceNow();
+        } finally {
+            S.endSequence("cut");
+            // the page's clock seen again as the world's, so no test after this reads a turn from a hand-built one
+            T.onClockHeard(getClock(), { on: false, still: true });
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson(read), stableJson({
+            pure: { morningEclipse: ["eclipseOut", true], nightEclipse: ["eclipseOut", false], panelNext: ["newDay", false] },
+            eclipseRoad: `dayEnd:R4400:${day}:${day}`, editDay: null, editMorning: null
+        }), "[the Morning Eclipse's end, a Night Eclipse's end and Next from Night as [kind, names the new day]; the board played on the Eclipse's end with the stamp; Edit campaign's day + 1; Night to Morning by hand under an older stamp]");
+    }],
+    ["R4401 - only a real roll-over stamps the day's boards (scripts/sequence.mjs `dayStartPatch`; scripts/clock.mjs `advanceTimeOfDay`, `setClock`; scripts/chapter.mjs, the chapter end's next morning; scripts/gm-campaign.mjs `applyCampaignForm`; scripts/settings.mjs `DEFAULT_CLOCK`; the owner's rule of 12.11.2026): the roll-over's patch names the new day as `dayBoard`, any other move names none; the advance hands its new day in; the chapter end's next morning stamps its day; `setClock` takes the stamp away from any write that moves the day without naming it, so Edit campaign's correction - which never names it - is silent; the clock's defaults hold the field, so tier 2's restore of a whole clock writes it back", async () => {
+        /* 12.11.2026. Red at 1ff4bc77: no `dayBoard` anywhere. The writes themselves are tier 2's ("E110 day boards"). */
+        const S = await import("./sequence.mjs");
+        const { DEFAULT_CLOCK } = await import("./settings.mjs");
+        const sources = await moduleSources();
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const campaign = stripComments(sources.get("gm-campaign.mjs") ?? "");
+        const set = bodyOf(clockSrc, "export async function setClock(", { until: "\nexport " });
+        const advance = bodyOf(clockSrc, "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        const morning = bodyOf(chapter, "{ key: \"morning\"", { until: "} }," });
+        const apply = bodyOf(campaign, "export async function applyCampaignForm(", { until: "\n}\n" });
+        must(set.length > 500 && advance.length > 500 && morning.length > 100 && apply.length > 500, "a source was not read - this reads nothing");
+        equal(stableJson({
+            rollOver: S.dayStartPatch({ rolledOver: true, draft: "", mood: "calm", day: 7 }).dayBoard ?? null,
+            other: "dayBoard" in S.dayStartPatch({ rolledOver: false, day: 7 }),
+            advance: /dayStartPatch\(\{[^}]*\bday\b[^}]*\}\)/.test(advance),
+            chapterEnd: /dayBoard: morning\.day/.test(morning),
+            cleared: /patch\.dayBoard === undefined/.test(set) && /next\.dayBoard = null/.test(set),
+            campaign: /dayBoard/.test(apply),
+            defaults: Object.hasOwn(DEFAULT_CLOCK, "dayBoard") ? DEFAULT_CLOCK.dayBoard : "missing"
+        }), stableJson({ rollOver: 7, other: false, advance: true, chapterEnd: true, cleared: true, campaign: false, defaults: null }),
+            "[the roll-over's stamp; another move's patch names none; the advance hands its day in; the chapter end stamps its morning; setClock clears it on an unstamped day move; Edit campaign names none; the default]");
+    }],
+    ["R4402 - the day's boards wear the frame of the module's ordinary windows, in both themes (styles/danganronpa.css, styles/stained-glass.css; the owner's report at a real table on 1.2.109: the boards' frame was pink): read through the module's cascade, the end-of-day and start-of-day boards win the same edge and the same shadow as a module window - Monokuma Legacy's one-pixel window edge and its drop shadow, Stained Glass's window glass (the inset highlights, the accent's glow, the drop shadow); the trial's band and the \"spilling\" mood word keep the sequences' band colour", async () => {
+        /* 12.11.2026. Red at 1ff4bc77: the boards' edge was three units of `--drpg-seq-band` (Stained Glass's Despair pink,
+           Legacy's red) and they had no shadow. The cascade is the text's (tests-kit.mjs `styleCascade`), not a layout. */
+        const C = await styleCascade();
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const host = body.appendChild(document.createElement("div"));
+            host.id = "drpg-sequence";
+            const board = kind => host.appendChild(Object.assign(document.createElement("div"), { className: `drpg-seq-day drpg-seq-${kind}` }));
+            const win = body.appendChild(Object.assign(document.createElement("div"), { className: "application dialog drpg-ui drpg-panel" }));
+            const band = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-band" }));
+            const mood = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-mood" }));
+            mood.dataset.drpgMood = "spilling";
+            const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const edge = ["border", "border-color", "border-width", "border-style"];
+            const w = { edge: v(win, edge), shadow: v(win, ["box-shadow"]) };
+            return {
+                window: [Boolean(w.edge), Boolean(w.shadow)],
+                boards: ["daystart", "dayend"].map(k => [v(board(k), edge) === w.edge, v(board(k), ["box-shadow"]) === w.shadow]),
+                pink: ["daystart", "dayend"].some(k => /--drpg-seq-band/.test(v(board(k), edge) ?? "")),
+                band: /--drpg-seq-band/.test(v(band, ["background", "background-color"]) ?? ""),
+                spilling: /--drpg-seq-band/.test(v(mood, ["color"]) ?? "")
+            };
+        };
+        const want = { window: [true, true], boards: [[true, true], [true, true]], pink: false, band: true, spilling: true };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), stableJson({ legacy: want, glass: want }),
+            "[each theme: a module window wins an edge and a shadow; each board's [edge, shadow] the window's; a board's edge in the band's colour; the trial's band and the spilling word in it]");
+    }],
+    ["R4403 - End the chapter's flag stands beside its word, not on the brush (styles/pixel-icons.css; scripts/gm-campaign.mjs `endChapterPart`; the owner's report at a real table on 1.2.109: in Season setup and Edit campaign, Stained Glass, the flag covered the \"E\"): read through the module's cascade, the button as `roleButton` draws it in a module window under the glass keeps its own ::before for the brush (absolute, no glyph's mask), draws the flag on its ::after first in a row (inline-flex, `order: -1`), and no glyph rule of pixel-icons.css puts a pixel glyph on the ::before of a button or of an attribute alone - the brush's pseudo-element on every button of a module window", async () => {
+        /* 12.11.2026. Red at 1ff4bc77: the flag was `[data-drpg-end-chapter]::before`, which the brush's rule (0,5,3 against
+           0,2,2) turned into a 22 px absolute box over the first letter. The cascade is the text's (tests-kit.mjs
+           `styleCascade`), not a layout; the picture is the harness's (scratchpad endbtn, before and after). */
+        const C = await styleCascade();
+        const K = await import("./ui-kit.mjs");
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        must(css.length > 20000, "pixel-icons.css was not read - this reads nothing");
+        const body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass";
+        const win = body.appendChild(Object.assign(document.createElement("div"), { className: "application dialog drpg-ui drpg-panel" }));
+        win.innerHTML = K.roleButton({ role: "destructive", label: "End the chapter", attrs: { "data-drpg-end-chapter": "1" } });
+        const btn = win.querySelector("button");
+        must(btn, "roleButton drew no button - this reads nothing");
+        const v = (names, pseudo) => C.winner(btn, names, pseudo)?.value ?? null;
+        const glyph = /--drpg-pix-/;
+        /* every glyph rule on a ::before whose subject - the compound before it - is a button or an attribute selector alone */
+        const onButton = [];
+        for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            if (!glyph.test(m[2])) continue;
+            for (const sel of m[1].split(",").map(x => x.trim()).filter(x => x.endsWith("::before"))) {
+                const subject = sel.slice(0, -"::before".length).trim().split(/[\s>+~]+/).pop();
+                if (/^(?:button\b|\[)/.test(subject)) onButton.push(sel);
+            }
+        }
+        equal(stableJson({
+            before: [v(["position"], "::before"), glyph.test(v(["mask-image", "-webkit-mask-image", "mask"], "::before") ?? "")],
+            after: [/--drpg-pix-end-chapter/.test(v(["mask-image"], "::after") ?? ""), v(["order"], "::after"), v(["content"], "::after")],
+            row: v(["display"]),
+            onButton
+        }), stableJson({ before: ["absolute", false], after: [true, "-1", "\"\""], row: "inline-flex", onButton: [] }),
+            "[the button's ::before: [position, a glyph's mask]; its ::after: [the flag's mask, its order, its content]; the button's display; pixel-icons.css's glyph rules on a button's or an attribute's ::before]");
+    }],
+    ["R4404 - Wide project windows is on by default (scripts/settings.mjs, the client setting `wideProjectWindows`; scripts/projects-ui.mjs `projectWindowWidth`; the owner, 13.11.2026: \"Wide project windows w ustawieniach gracza - niech bedzie domyslnie zaznaczone\"): the setting is registered with the default true, and the width reads wide when the setting cannot be read", async () => {
+        /* 13.11.2026. Red at 1ff4bc77: the default was false, and so was the fallback (E47-C6's "off by default"). */
+        const def = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.wideProjectWindows}`);
+        must(def, "the setting is not registered - this reads nothing");
+        const src = stripComments((await moduleSources()).get("projects-ui.mjs") ?? "");
+        const width = fnSource(src, "projectWindowWidth");
+        equal(stableJson({ default: def.default, scope: def.scope, fallback: /catch\s*\{\s*wide = true;\s*\}/.test(width) }),
+            stableJson({ default: true, scope: "client", fallback: true }), "[the registered default; each browser its own; the width when the setting cannot be read]");
     }],
     ["R3726 - no file the module serves holds a merge's conflict marker (scripts, styles, lang): a line that is seven <, = or > alone or before a space is none of the module's own; one found 12.11.2026 in styles/danganronpa.css, left by the merge of the 1.2.107 line, dropped the rule after it (Monokuma Legacy's notifications)", async () => {
         /* 12.11.2026. Red at 7bbbd3c: styles/danganronpa.css line 18324 was "=======". */
@@ -50180,7 +51982,7 @@ const INVARIANTS = [
         }), stableJson({ top: [0, 3], bottom: [3, 0], centre: true, inward: true, randomOnce: true, sameSeed: true, otherSeed: true }),
             "[top: first and last row; bottom: the same; centre's first is the middle's nearest; inward's first the farthest; random: every pane once, the same seed the same order, another seed another]");
     }],
-    ["R3709 - each change of the clock has its transition (scripts/transitions.mjs `transitionFor`; E62 C1, SB-R1 of 05.11, the plan's Q5 default): evening to night from the top, night to a new morning from the bottom, an hour taken back from the bottom, the Eclipse in from the centre and out inward (1.4 s), the Investigation's entry six random groups at MK-R3's onsets, the Class Trial's entry E61's and nothing here, its exit from the centre, and a clock that did not move none", async () => {
+    ["R3709 - each change of the clock has its transition (scripts/transitions.mjs `transitionFor`; E62 C1, SB-R1 of 05.11, the plan's Q5 default): evening to night from the top, night to a new morning from the bottom, an hour taken back from the bottom, the Eclipse in from the centre and out inward (1.4 s), the Investigation's entry six random groups at MK-R3's onsets, the Class Trial's entry and exit E61's and nothing here (the exit's since the owner's decision of 12.11.2026, R4421), and a clock that did not move none", async () => {
         /* E62 C1, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
         const T = await import("./transitions.mjs");
         const c = (timeOfDay, phase = "dailyLife", extra = {}) => ({ day: 3, timeOfDay, phase, eclipse: false, ...extra });
@@ -50192,7 +51994,7 @@ const INVARIANTS = [
             trial: k(c("noon", "investigation"), c("noon", "classTrial")), exit: k(c("noon", "classTrial"), c("noon")), same: k(c("noon"), c("noon")), first: T.transitionFor(null, c("noon"))
         }), stableJson({
             evening: ["hour", "top"], morning: ["newDay", "bottom"], back: ["hourBack", "bottom"], forward: ["hour", "top"], eclipseIn: ["eclipseIn", "centre"], eclipseOut: ["eclipseOut", "inward"],
-            investigation: ["investigation", "random"], onsets: [0, 360, 900, 1320, 1930, 2400], trial: ["trialEntry", "E61"], exit: ["trialExit", "centre"], same: null, first: null
+            investigation: ["investigation", "random"], onsets: [0, 360, 900, 1320, 1930, 2400], trial: ["trialEntry", "E61"], exit: ["trialExit", "E61"], same: null, first: null
         }), "[each pair's kind and direction (the owner for the trial's entry); the Investigation's onsets; no change; no clock seen before]");
     }],
     ["R3710 - no transition flashes more than three times a second (scripts/transitions.mjs `flashRate`; E62 C2, C4, the owner's 10.10 and MK-R3, WCAG 2.3.1's count): the Investigation's six onsets and the discovery's four read at most 3 in any second, and a planted table of four in 900 ms reads 4", async () => {
@@ -50457,8 +52259,20 @@ const INVARIANTS = [
         const S = await import("./sequence.mjs");
         const T = await import("./transitions.mjs");
         const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
-        const day = 900 + (Date.now() % 1000), read = {};
-        const c = (d, timeOfDay) => ({ season: "R3715", session: d, day: d, timeOfDay, phase: "dailyLife", eclipse: false });
+        /* A DAY NO RUN OF THIS PAGE HAS PLAYED (13.11.2026; R4400's red in release run 43397715368, the same pattern): a
+           board starts once per key on a page (sequence.mjs `started`), and the day was 900 + Date.now() % 1000, which a
+           later run of tiers 0-1 in the same boot (01-runtests A1, A2, A3, C) can draw again. With the GM's clock read to
+           1000 ms (a probe, not committed) and this test run three times in one boot: run 1 green, runs 2 and 3 red. So the
+           day is the first from 900, in steps of 2, whose boards - the roll-over's, and the night after's with the switch
+           off - this page has not started. */
+        const fresh = d => [d, d + 1].every(n => !S.sequenceStarted("dayEnd", `dayEnd:R3715:${n}:${n}`)
+            && !S.sequenceStarted("dayStart", `day:R3715:${n + 1}:${n + 1}`));
+        let day = 900;
+        while (!fresh(day)) day += 2;
+        const read = {};
+        /* Each clock carries the roll-over's stamp on its own day (`dayBoard`, 12.11.2026): the boards play for a real roll-over
+           alone since the owner's report on 1.2.109, and a hand-built clock without it is Edit campaign's correction (R4400). */
+        const c = (d, timeOfDay) => ({ season: "R3715", session: d, day: d, timeOfDay, phase: "dailyLife", eclipse: false, dayBoard: d });
         try {
             body.classList.add("drpg-reduced-motion");
             S.endSequence("cut");
@@ -50836,7 +52650,9 @@ const INVARIANTS = [
             actor("C1", "R3867c", { spectator: true }), actor("C2", "R3867c", {}), actor("D1", "R3867d", { monokuma: true })];
         equal(stableJson({ viewer: map[viewer], watcher: map[watcher], other: map[other], gms: game.users.filter(u => u.isGM).some(u => u.id in map),
             accounts: [...spectatorUserIds(users, actors)].sort() }),
-            stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: 0, gms: false, accounts: ["R3867a"] }),
+            // `other` at OBSERVER since S17-31 (13.11.2026): the map gives every player one level and tells nobody apart;
+            // who sees the row is `canSee`'s - a Spectator by E92's rule there, a player in on it by the GMs' card.
+            stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: S.OBSERVER, gms: false, accounts: ["R3867a"] }),
             "[the map's entry for a viewer, a Spectator and another player; a GM in it; the accounts that play a Spectator]");
     }],
     ["R3868 - a Spectator's end-of-day board holds the day's heading and the school's mood, and nothing else (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `dayEndBoardFor`, `playDayEnd`; scripts/spectator.mjs `spectatorViewer`; E92 with E94, the owner's word of 12.11.2026: \"Dostaje tylko koniec dnia i nastroj szkoly\"): on a Spectator's browser the board names the day that ends and the mood's word, and holds no row, no tally or quiet day, no public card and no chapter line, and the day's rows and cards handed to it are not used; a player's board, handed the same, is as before - its chapter, its rows, its cards and its mood", async () => {
@@ -50880,10 +52696,14 @@ const INVARIANTS = [
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*
          * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two
-         * comments that spell it are counted as they stand). Green from C0: the count is the census's own.
+         * comments that spell it are counted as they stand). Green from C0: the count is the census's own. Merged with E72
+         * (1.2.110, 12.11.2026): gm-stores.mjs 3 (`fogSectionFor`'s Monocubs, E72 C10) and monocub.mjs 2 (the old Monocubs
+         * window's roster of the dead went with it, E72 C6), classified in CENSUS.md. Merged with E93, E69 and E74 (1.2.111,
+         * 13.11.2026): action-tail.mjs 1 (Tail Someone's targets, after `othersInRoom`) and facilities-gm.mjs 1 (a room
+         * action's "for those present", after `occupantsOf`), classified in CENSUS.md.
          */
-        const CENSUS = { "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1,
-            "fog.mjs": 5, "gm-stores.mjs": 2, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 3, "monokuma.mjs": 9,
+        const CENSUS = { "action-tail.mjs": 1, "anonymity.mjs": 1, "camera-view.mjs": 2, "cleanup.mjs": 1, "config.mjs": 1, "dh-settings.mjs": 1, "diagnostics.mjs": 1, "events.mjs": 1, "facilities-gm.mjs": 1,
+            "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
             "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
@@ -50895,6 +52715,251 @@ const INVARIANTS = [
         }
         must(Object.keys(counted).length > 10, "the sources read hold almost no character reads - this would measure nothing");
         equal(stableJson(counted), stableJson(CENSUS), "[each file's count of `type === \"character\"`, against docs/dev/e92/CENSUS.md]");
+    }],
+    ["R3750 - a room action is held to the closed list as a GM types it (scripts/facilities.mjs `cleanAction`, `cleanEffect`, `cleanFacility`; E93 C1, the owner's audit entry E93 (2) and (5), 08.11): a GM's action keeps a label, a trait of TRAITS, a difficulty clamped to FACILITIES.dc and at most FACILITIES.maxEffects effects of FACILITIES.effects, each n clamped to its kind's amount and a scope of FACILITIES.scopes; an unknown kind, an empty label or text is dropped; a project's action costs an action unless its switch is false and its lifetime is forever unless it names timesOfDay or days with n from 1 to maxLifetime", async () => {
+        /*
+         * E93 C1, 12.11.2026. What a GM types in Room Setup or on a project reaches every browser (a region flag, projectMeta)
+         * and the GM's run reads it again; one cleaning for both, so a hand-edited flag is held to the list as a typed one.
+         */
+        const F = await import("./facilities.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const a = F.cleanAction({ id: "abc123", label: "  Brew tea  ", trait: "nope", dc: 99, effects: [
+            { kind: "health", n: 50, scope: "present" }, { kind: "fly", n: 1 }, { kind: "text", text: "  " },
+            { kind: "searchToken", n: 2, scope: "others" }, { kind: "hope", n: 0, scope: "nobody" }, { kind: "sanity", n: 2 }, { kind: "text", text: "x" }] });
+        const read = {
+            action: a && { id: a.id, label: a.label, trait: Object.hasOwn(TRAITS, a.trait), dc: a.dc, effects: a.effects },
+            noLabel: F.cleanAction({ label: "   " }),
+            newId: typeof F.cleanAction({ label: "x" })?.id === "string",
+            dcLow: F.cleanAction({ label: "x", dc: -4 })?.dc, dcNaN: F.cleanAction({ label: "x", dc: "q" })?.dc,
+            many: F.cleanActions(Array.from({ length: 12 }, (_, i) => ({ id: `id${i % 10}`, label: `a${i}` }))).length,
+            facility: F.cleanFacility({ label: "Soup", effects: [{ kind: "sanity", n: 1 }], costsAction: 0, lifetime: { kind: "days", n: 99 } }),
+            facilityDefaults: F.cleanFacility({ label: "Lamp" }),
+            facilityOff: F.cleanFacility({ label: "Lamp", costsAction: false, lifetime: { kind: "weeks", n: 3 } })
+        };
+        equal(stableJson(read), stableJson({
+            action: { id: "abc123", label: "Brew tea", trait: true, dc: FACILITIES.dc.max, effects: [
+                { kind: "health", n: FACILITIES.effects.health.amount, scope: "present" },
+                { kind: "searchToken", n: 2, scope: "self" }, { kind: "hope", n: 1, scope: "self" }, { kind: "sanity", n: 2, scope: "self" }] },
+            noLabel: null, newId: true, dcLow: FACILITIES.dc.min, dcNaN: FACILITIES.defaultDc, many: FACILITIES.maxActions,
+            facility: { label: "Soup", effects: [{ kind: "sanity", n: 1, scope: "self" }], costsAction: true, lifetime: { kind: "days", n: FACILITIES.maxLifetime } },
+            facilityDefaults: { label: "Lamp", effects: [], costsAction: true, lifetime: { kind: "forever" } },
+            facilityOff: { label: "Lamp", effects: [], costsAction: false, lifetime: { kind: "forever" } }
+        }), "{action: a GM's action cleaned; noLabel; newId; dcLow, dcNaN; many: twelve with ten ids, cut to maxActions; facility: a project's; facilityDefaults; facilityOff} - what a GM typed must be held to FACILITIES' closed list");
+    }],
+    ["R3751 - a completed project's action lives for its lifetime, counted in times of day from the one it was completed in (scripts/facilities.mjs `facilityOrdinal`, `facilityLive`, `facilityTimesLeft`, `facilityMark`; E93 C1, the owner's audit entry E93 (4)): forever stands, timesOfDay n the time of day of completion and the n - 1 after it, days n for n days of them; none outlives its chapter or its season; the mark of a use is the season, chapter, session, day and time of day, not the phase", async () => {
+        const F = await import("./facilities.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const at = (day, tod, more = {}) => ({ seasonStartedAt: 7, chapter: 2, session: 3, day, timeOfDay: TIMES_OF_DAY[tod], phase: "dailyLife", ...more });
+        const done = F.facilityOrdinal(at(2, 3));
+        const two = { label: "x", lifetime: { kind: "timesOfDay", n: 2 } }, day = { label: "x", lifetime: { kind: "days", n: 1 } }, ever = { label: "x", lifetime: { kind: "forever" } };
+        const read = {
+            ordinal: [F.facilityOrdinal(at(1, 0)).at, F.facilityOrdinal(at(1, 4)).at, F.facilityOrdinal(at(2, 0)).at, done.at],
+            two: [F.facilityLive(two, done, at(2, 2)), F.facilityLive(two, done, at(2, 3)), F.facilityLive(two, done, at(2, 4)), F.facilityLive(two, done, at(3, 0))],
+            day: [F.facilityLive(day, done, at(3, 2)), F.facilityLive(day, done, at(3, 3))],
+            ever: [F.facilityLive(ever, done, at(9, 0)), F.facilityLive(ever, done, at(1, 0, { chapter: 3 }))],
+            chapter: [F.facilityLive(day, done, at(2, 4, { chapter: 3 })), F.facilityLive(day, done, at(2, 4, { seasonStartedAt: 8 }))],
+            none: [F.facilityLive(null, done, at(2, 3)), F.facilityLive(two, null, at(9, 0))],
+            left: [F.facilityTimesLeft(two, done, at(2, 3)), F.facilityTimesLeft(two, done, at(2, 4)), F.facilityTimesLeft(two, done, at(3, 0)),
+                F.facilityTimesLeft(ever, done, at(2, 3)), F.facilityTimesLeft(day, null, at(2, 3))],
+            mark: [F.facilityMark(at(2, 3)) === F.facilityMark(at(2, 3, { phase: "investigation" })),
+                ...[{ seasonStartedAt: 8 }, { chapter: 3 }, { session: 4 }, { day: 3 }, { timeOfDay: TIMES_OF_DAY[0] }].map(d => F.facilityMark(at(2, 3)) !== F.facilityMark(at(2, 3, d)))]
+        };
+        const n = TIMES_OF_DAY.length;
+        equal(stableJson(read), stableJson({
+            ordinal: [0, 4, n, n + 3], two: [false, true, true, false], day: [true, false], ever: [true, true], chapter: [false, false],
+            none: [false, true], left: [2, 1, 0, null, n], mark: [true, true, true, true, true, true]
+        }), "{ordinal; two: timesOfDay 2 before, at, after, past; day: days 1 at the last and the first past; ever; chapter: a new chapter, a new season; none: no action, no stamp; left; mark: the phase not in it, then each of season, chapter, session, day, time of day} - a project's action must live its lifetime and no longer");
+    }],
+    ["R3752 - a room action's uses are the GMs' and its closing the table's (scripts/gm-stores.mjs `facilityUseStore`, settings.mjs `facilityClosed`, projects.mjs COMPLETION_EFFECTS `facility`, facilities.mjs `facilityCost`, `facilityShut`; E93 C1, 05.11 limits, 08.11): the uses a synced GM ledger cut with the actions and not backed up, the closed keys a world setting that names no character; a project with an action stamps its completion and loses the stamp below its target; a GM's action costs FACILITIES.gmCost, a project's its switch's, the Toll more; Lockdown shuts both sources and Power cut a project's only", async () => {
+        const S = await import("./gm-stores.mjs");
+        const F = await import("./facilities.mjs");
+        const { COMPLETION_EFFECTS } = await import("./projects.mjs");
+        const { FACILITIES } = await import("./config.mjs");
+        const store = S.facilityUseStore ?? null;
+        const row = COMPLETION_EFFECTS.find(r => r.key === "facility") ?? null;
+        const setting = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.facilityClosed}`) ?? null;
+        const read = {
+            store: store ? [store.spec.kind, store.spec.resetGroup, store.spec.sync, store.spec.backup] : null,
+            setting: setting ? setting.scope : null,
+            row: row ? [row.has({}), row.has({ facility: { label: "x" } }),
+                Object.keys(row.onCrossed({ id: "P1" }).meta?.P1 ?? {}).join(), row.onUncrossed({ id: "P1" }).meta?.P1?.completedAt === null] : null,
+            cost: [F.facilityCost("gm", null, 0), F.facilityCost("gm", null, 1), F.facilityCost("project", { costsAction: true }, 0),
+                F.facilityCost("project", { costsAction: false }, 0), F.facilityCost("project", { costsAction: false }, 1)],
+            shut: [F.facilityShut("gm", {}), F.facilityShut("gm", { lockdown: true }), F.facilityShut("project", { lockdown: true }),
+                F.facilityShut("gm", { powercut: true }), F.facilityShut("project", { powercut: true })],
+            keys: [F.gmActionKey("S1", "Kitchen", "a1"), F.projectActionKey("P1", "A1")]
+        };
+        equal(stableJson(read), stableJson({
+            store: ["ledger", "actions", true, false], setting: "world", row: [false, true, "completedAt", true],
+            cost: [FACILITIES.gmCost, FACILITIES.gmCost + 1, FACILITIES.projectCost, 0, 1],
+            shut: [null, "lockdown", "lockdown", null, "powercut"], keys: ["g:S1:Kitchen:a1", "p:P1:A1"]
+        }), "{store: [kind, reset group, synced, backed up]; setting: the closed keys' scope; row: [no action, an action, the crossed patch, the uncrossed stamp null]; cost; shut; keys} - a room action's uses, its closing, its price and its shutting");
+    }],
+    ["R3753 - the Despair Overflow has the five room-action states (scripts/config.mjs OVERFLOW.effects, overflow.mjs `facilityStatesFor`, `facilityTollFor`, `shortRestBarredBy`, `jittersFor`; E93 C6, the owner's audit entry E93 (6)): Lockdown, Insomnia, Toll, Jitters and Power cut are states, out of the hat until a GM ticks them (the owner to confirm), Toll the only one with a size; each reader answers for its own drawn key alone - Lockdown and Power cut shut room actions, Toll adds its size, Insomnia bars the Short rest, Jitters a die of disadvantage - and each has its name and its line in both languages", async () => {
+        /*
+         * E93 C6, 12.11.2026. Read on the drawn key, not on the world's stamp, so the readers are measured without
+         * writing a darkening (tier 1 writes nothing); overflow.mjs's `overflowFacility*` ask them with `overflowEffect()`.
+         */
+        const O = await import("./overflow.mjs");
+        const five = ["lockdown", "insomnia", "toll", "jitters", "powercut"];
+        const rules = { effects: { toll: { by: 2 } } };
+        const lang = await Promise.all(["en", "pl"].map(l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json())));
+        const said = l => five.every(k => typeof l?.DRPG?.Overflow?.name?.[k] === "string" && l.DRPG.Overflow.what?.[k] !== undefined);
+        const read = {
+            catalogue: five.map(k => [OVERFLOW.effects[k]?.kind ?? null, OVERFLOW.effects[k]?.on ?? null, OVERFLOW.effects[k]?.by ?? null]),
+            states: [...five, "fog", null].map(k => JSON.stringify(O.facilityStatesFor?.(k) ?? null)),
+            toll: [O.facilityTollFor?.("toll", rules), O.facilityTollFor?.("toll", { effects: { toll: { by: 0 } } }), O.facilityTollFor?.("jitters", rules)],
+            rest: ["insomnia", "lockdown", null].map(k => O.shortRestBarredBy?.(k) ?? null),
+            jitters: ["jitters", "toll", null].map(k => O.jittersFor?.(k) ?? null),
+            said: lang.map(said)
+        };
+        equal(stableJson(read), stableJson({
+            // In the draw by default (the owner's DRPG-D1 answer, 12.11.2026: "Wlaczone w losowaniu"), out of it until then.
+            catalogue: [["state", true, null], ["state", true, null], ["state", true, 1], ["state", true, null], ["state", true, null]],
+            states: ['{"lockdown":true,"powercut":false}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}',
+                '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":true}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}'],
+            toll: [2, 0, 0], rest: [true, false, false], jitters: [-1, 0, 0], said: [true, true]
+        }), "{catalogue: [kind, on, by] per state; states: the shut per drawn key; toll; rest: Short rest barred; jitters: the die; said: EN, PL names and lines} - the five Overflow states and their readers");
+    }],
+    ["R3754 - Room Setup's Rest tab is the Facilities tab and edits a room's actions (scripts/room-setup.mjs `ROOM_SETUP_TABS`, `wireFacilityButtons`; facility-editor.mjs `roomActionsBody`, `readRoomActions`, `projectFacilityBody`, `readProjectFacility`; E93 C2, the owner's audit entry E93 (1), (2), (4) and the 08.11 switch): the tab is named Facilities and holds, beside the two rest columns, a column of each room's action count with its edit button; a room's editor draws its actions and two blank rows and reads back what the GM typed; a project's editor reads its name, effects, switch and lifetime", async () => {
+        /*
+         * E93 C2, 12.11.2026. Read on Room Setup's window as this GM draws it (`roomSetupDrawn`, which stubs the window's
+         * wait), and on the editors' bodies parsed here: nothing is written.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room Setup lists a room");
+        const { ROOM_SETUP_TABS } = await import("./room-setup.mjs");
+        const E = await import("./facility-editor.mjs");
+        const { cfg, pane } = await roomSetupDrawn();
+        const rest = pane("rest");
+        const heads = rest ? [...rest.querySelectorAll("th")].map(th => th.textContent.trim()) : [];
+        const parse = html => { const d = document.createElement("div"); d.innerHTML = html; return d.querySelector(".drpg-facility-editor"); };
+        const room = parse(E.roomActionsBody("R3754 Kitchen", [{ id: "R3754a", label: "Tea", trait: "head", dc: 14, effects: [{ kind: "sanity", n: 2, scope: "present" }] }]));
+        const set = (form, name, value) => { const el = form.querySelector(`[name="${CSS.escape(name)}"]`); if (el) el.value = value; };
+        set(room, "a1.label", "Radio"); set(room, "a1.e0.kind", "text"); set(room, "a1.e0.text", "A song plays.");
+        const project = parse(E.projectFacilityBody({ name: "R3754 Soup" }, { label: "Soup", effects: [{ kind: "health", n: 1 }], costsAction: false, lifetime: { kind: "days", n: 1 } }));
+        const read = {
+            tab: ROOM_SETUP_TABS.find(([key]) => key === "rest")?.[1] ?? null,
+            label: game.i18n.localize("DRPG.Vault.tabFacilities"),
+            column: heads.includes(game.i18n.localize("DRPG.Facility.roomColumn")),
+            buttons: rest ? rest.querySelectorAll("button[data-drpg-facility-edit]").length > 0 : false,
+            counts: rest ? rest.querySelectorAll("[data-drpg-facility-count]").length === rest.querySelectorAll("button[data-drpg-facility-edit]").length : false,
+            rows: room ? room.querySelectorAll('input[name$=".label"]').length : 0,
+            room: room ? E.readRoomActions(room).map(a => [a.id, a.label, a.trait, a.dc, a.effects.map(e => [e.kind, e.n, e.scope, e.text])]) : null,
+            project: project ? E.readProjectFacility(project) : null
+        };
+        equal(stableJson({ ...read, project: read.project && { ...read.project, effects: read.project.effects.map(e => [e.kind, e.n, e.scope]) } }), stableJson({
+            tab: "DRPG.Vault.tabFacilities", label: "Facilities", column: true, buttons: true, counts: true, rows: 3,
+            room: [["R3754a", "Tea", "head", 14, [["sanity", 2, "present", ""]]], [null, "Radio", "eye", 12, [["text", 1, "self", "A song plays."]]], [null, "", "eye", 12, []]],
+            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 } }
+        }), `{tab; label; column, buttons, counts on the Facilities tab; rows; room: what the room's editor reads back; project: the project's} - Room Setup's Facilities tab and the two editors (window: ${Boolean(cfg)})`);
+    }],
+    ["R3755 - the Listen tile is the Infiltrate tile and its rows are one table (scripts/config.mjs `INFILTRATE`, `ACTIONS.listen`; E69 C1, DA27, DA28, DA48, DB40): the key stays `listen`, the label is Infiltrate in English and in Polish, the hint names all seven rows (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock, Keep Watch) in both languages, `variants` lists `INFILTRATE`'s rows in order, Tail Someone's unseen roll is on Shadow at 15, and Dash rolls on Leg for 0 to 3 free crossings by band", async () => {
+        /*
+         * E69 C1, 12.11.2026. Read off the config and the two language files; nothing is written. The Polish label and hint are
+         * the config prose keys (`DRPG.Config.ACTIONS.listen.*`), read from lang/pl.json as i18n.mjs swaps them in.
+         */
+        const C = await import("./config.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const plRow = pl?.DRPG?.Config?.ACTIONS?.listen ?? {};
+        const seven = ["Listen", "Tail Someone", "Dash", "Shut the Door", "Force the Door", "Pick the Lock", "Keep Watch"];
+        const I = C.INFILTRATE ?? {};
+        const read = {
+            key: Object.hasOwn(C.ACTIONS, "listen"),
+            label: [C.ACTIONS.listen?.label ?? null, plRow.label ?? null],
+            hint: [seven.every(n => (C.ACTIONS.listen?.hint ?? "").includes(n)), seven.every(n => (plRow.hint ?? "").includes(n))],
+            variants: C.ACTIONS.listen?.variants ?? null,
+            rows: Object.keys(I),
+            // Tail Someone's effect statistics (Leg or Shadow, DA32) come with its GM ruling in C3 (R213 asks a ruling of any list of several).
+            tail: I.tail ? [I.tail.unseen?.trait, I.tail.unseen?.threshold] : null,
+            dash: I.dash ? [I.dash.traits, I.dash.bands?.map(b => [b.min, b.moves]), I.dash.critical?.moves] : null,
+            inAggregate: C.DRPG?.INFILTRATE === C.INFILTRATE
+        };
+        equal(stableJson(read), stableJson({ key: true, label: ["Infiltrate", "Infiltrate"], hint: [true, true], variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+            // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
+            rows: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"], tail: ["shadow", 15], dash: [["leg"], [[12, 1], [18, 2]], 3], inAggregate: true }),
+            "{key; label [EN, PL]; hint names the seven rows [EN, PL]; variants; INFILTRATE's rows; tail [traits, unseen trait, its threshold]; dash [traits, bands, critical]; inAggregate} - the Infiltrate tile");
+    }],
+    ["R3756 - the Infiltrate window is one list of rows, Listen first and shut with its reason where the room has no neighbour (scripts/action-listen.mjs `infiltrateRows`, `performListen`; E69 C1, DA28): one row a key of `ACTIONS.listen.variants` in its order, each with its price; Listen open where the character's room has a neighbour and greyed with the no-neighbour line where it has none; a row not built greyed with its line; and `performListen` asks the rows before Listen's own room", async () => {
+        /*
+         * E69 C1, 12.11.2026. Read for every student standing in a named room (the harness world has rooms with and without
+         * neighbours on its scene), against movement.mjs `neighbouringRooms` read here; nothing is written.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        const L = await import("./action-listen.mjs");
+        const M = await import("./movement.mjs");
+        const C = await import("./config.mjs");
+        const students = game.actors.filter(a => a.type === "character" && M.locateActor(a)?.room);
+        must(students.length, "no student stands in a named room - this would measure nothing");
+        const rows = students.map(a => {
+            const place = M.locateActor(a);
+            const open = M.neighbouringRooms(place.scene, place.room).length > 0;
+            const r = L.infiltrateRows(a);
+            return [r.map(x => x.value).join(), r[0].disabled === !open,
+                r[0].why === (open ? "" : game.i18n.localize("DRPG.Listen.noNeighbours")), r.every(x => /\d/.test(x.hint))];
+        });
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/action-listen.mjs`).then(lfText), "performListen") ?? "");
+        equal(stableJson({ rows: [...new Set(rows.map(stableJson))].map(JSON.parse), variants: C.ACTIONS.listen.variants,
+            asksFirst: src.indexOf("infiltrateRows(actor)") > 0 && src.indexOf("infiltrateRows(actor)") < src.indexOf("neighbouringRooms(scene, here)") }),
+            stableJson({ rows: [...new Set(rows.map(r => stableJson([C.ACTIONS.listen.variants.join(), true, true, true])))].map(JSON.parse),
+                // E74 C2 adds Shut the Door, C3 Force the Door, C4 Pick the Lock, C6 Keep Watch (intended changes of this expectation).
+                variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"], asksFirst: true }),
+            "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
+    }],
+    ["R3757 - a GM's room action is drawn only on a payment of its whole price (E93 C3, C6; the coordinator's fix of 12.11.2026, from E93's watched gap): the GM's price is one action, two under Toll; a payment's size is what its one write took down, a Burst's covering any price; a ticket of one action does not cover two, one of two and a Burst's do", async () => {
+        /*
+         * Pure readings, so tier 1 changes nothing. Until this test a ticket was "one payment" whatever it took down
+         * (roll-draw.mjs `notePayments`), so under Toll a console that paid one action drew the roll of a two-action room
+         * action as well as an honest player who paid two (docs/dev/e93/STATUS.md, "What a console can still do").
+         * Scenario 30's "a forged single payment under Toll" is the same on the road. Red at 30ad52a: no `paymentSize`.
+         */
+        const F = await import("./facilities.mjs");
+        const D = await import("./roll-draw.mjs");
+        ok(typeof D.paymentSize === "function" && typeof D.ticketCovers === "function", "roll-draw.mjs exports no paymentSize or ticketCovers");
+        const read = {
+            price: [F.facilityCost("gm", null, 0), F.facilityCost("gm", null, 1)],
+            size: [D.paymentSize({ action: 3, grant: 0 }, { action: 2, grant: 0 }), D.paymentSize({ action: 3, grant: 0 }, { action: 1, grant: 0 }),
+                D.paymentSize({ action: 3, grant: 1 }, { action: 3, grant: 0 }) === Infinity],
+            covers: [D.ticketCovers({ size: 1 }, 2), D.ticketCovers({ size: 2 }, 2), D.ticketCovers({ size: Infinity }, 2), D.ticketCovers({ size: 1 }, 1), D.ticketCovers({}, 1)]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ price: [1, 2], size: [1, 2, true], covers: [false, true, true, true, true] }),
+            "{price: a GM's room action without Toll and under it; size: one action taken, two, a Burst; covers: one for two, two for two, a Burst for two, one for one, a ticket of no size for one}");
+    }],
+    ["R4620 - a secret project's countdown tells no player apart (scripts/projects-secrecy.mjs `ownershipMap`, `HIDDEN_NAME`; known leak S17-31, 13.11.2026): the map it writes gives every player of this world one level, OBSERVER, and `default` NONE, whatever it is handed, and names no GM; the neutral name names nothing", async () => {
+        /*
+         * Pure readings, so tier 1 changes nothing. Until S17-31 `ownershipMap(viewerIds)` gave the viewers OBSERVER and the
+         * rest NONE, in a world setting every browser holds: for an indirect murder, the killer's player. Red with the body it
+         * had before S17-31 put back on the fixed tree (measured 13.11.2026; 4eef965's whole file does not load with the fix's
+         * importers): levels [OBSERVER, NONE].
+         */
+        const S = await import("./projects-secrecy.mjs");
+        const { OBSERVER, NONE } = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const players = game.users.filter(u => !u.isGM);
+        const map = S.ownershipMap([players[0]?.id].filter(Boolean));
+        const read = {
+            levels: [...new Set(players.map(u => map[u.id]))],
+            gms: game.users.filter(u => u.isGM && Object.hasOwn(map, u.id)).length,
+            default: map.default,
+            hidden: typeof S.HIDDEN_NAME === "string" && S.HIDDEN_NAME.length > 0 && !/[A-Za-z]/.test(S.HIDDEN_NAME)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ levels: players.length ? [OBSERVER] : [], gms: 0, default: NONE, hidden: true }),
+            "{levels: the levels the map gives the players; gms: GMs it names; default; hidden: the neutral name has no letters}");
+    }],
+    ["R4621 - the reseal at load and at a new user waits for the GMs' copies of the project secrets (scripts/projects.mjs `resealSecretProjects`; E101's review of S17-31, R1, 13.11.2026): it asks `projectSecretStore.whenHydrated()` before it reads a project's name or list, and writes nothing when the copies timed out, as `sealOldRepairs` does", async () => {
+        /*
+         * Since S17-31 a secret project's name and the players in on it are the GMs' store's (`secretName`, `viewers`), and
+         * the countdown carries "???" and one level for every player. module.mjs `sealProjects` runs the reseal on the primary
+         * at load and on every `createUser`; a primary whose browser had not yet been sent another GM's row read "???" and
+         * no list, and wrote both with fresh stamps that won the exchange (E101 R1). The other load passes over this store
+         * wait (`sealOldRepairs`, `tellProposers`). Read off the source: the wait cannot be staged in tier 1, and tier 2's
+         * S17-31-T3 holds what the step does without the row. Red at 9f052871: no wait.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/projects.mjs`).then(lfText));
+        const body = fnSource(src, "resealSecretProjects");
+        const waits = body.search(/await\s+projectSecretStore\.whenHydrated\(\)\s*===\s*["']timedOut["']\s*\)\s*return\s+0/);
+        const reads = body.search(/allProjects\(\)/);
+        must(reads >= 0, "resealSecretProjects no longer reads allProjects() - this test is pointed at the wrong code");
+        equal(JSON.stringify({ waits: waits >= 0, first: waits >= 0 && waits < reads }), JSON.stringify({ waits: true, first: true }),
+            "{waits: it awaits the store's hydration and returns 0 on a time-out; first: before it reads the projects}");
     }],
     ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
         /*
@@ -51002,6 +53067,40 @@ const INVARIANTS = [
             instinct: data.system?.traits?.instinct?.value, health: data.system?.resources?.hitPoints?.max }),
             stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, health: 6 }),
             "the submit's data: the three hidden fields, the statistic changed in the window, Max Health");
+    }],
+    ["R3920 - every field the wrench's window shows has a name a screen reader reads (dh-settings.mjs `dressCharacterSettings`, `markStatistics`; a11y.mjs `CONTROLS`): on the dressed stand-in with two statistics and one experience, every control a11y.mjs sweeps, shown or in a hidden cell, carries an aria-label, an aria-labelledby, a label of its own or (not a field) words - and each statistic's field is named by the words of its own name, as Daggerheart drew them", async () => {
+        /*
+         * 13.11.2026. Daggerheart draws a statistic as `.trait-container > span + input`: the span is beside the field, not
+         * a label of it, so the field had no name - and once the window is dressed as the module's (`drpg-panel`), a11y.mjs
+         * sweeps it and reports `input ... system.traits.instinct.value` as a control that carries no name. Tier 2's "every
+         * control in the module's own chrome has a name to be read out" read that report whenever R3551 had drawn the
+         * window earlier in the same run (the local gate, `run-tests --tier 2`); CI deals tier 2 into other shards and never
+         * saw it. Red at 421f2395: both statistics' fields, Max Health and Max Sanity unnamed.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const A = await import("./a11y.mjs");
+        const K = await import("./tests-kit.mjs");
+        const source = { traits: { instinct: { value: 1 }, knowledge: { value: 0 } }, resources: { hitPoints: { max: 6 }, stress: { max: 5 } },
+            scars: 0, proficiency: 1, evasion: 0, experiences: { r3920: { name: "R3920", value: 2, description: "" } } };
+        const win = K.dhSettingsStandIn(source, { name: "R3920" });
+        D.dressCharacterSettings(win);
+        const content = win.querySelector(".window-content");
+        const controls = [...content.querySelectorAll(A.CONTROLS)].filter(el => !el.closest("[hidden]"));
+        must(controls.length >= 8, `the stand-in shows ${controls.length} controls - this would measure nothing`);
+        const named = el => Boolean(el.getAttribute("aria-label")?.trim() || el.getAttribute("aria-labelledby") || el.labels?.length
+            || (!el.matches("select, textarea, input") && el.textContent.trim()));
+        const traits = [...content.querySelectorAll('.trait-container input[name^="system.traits."]')].map(el =>
+            [el.name, el.getAttribute("aria-label") === el.closest(".trait-container").querySelector(":scope > span").textContent.trim()]);
+        /* AND THE HIDDEN ONES (the review of 13.11.2026, docs/dev/gaps/REVIEW-111-r3551-icon.md): the tier-2 chrome test
+           this stands for sweeps every control of a `.drpg-panel`, hidden or not (a11y.mjs `nameControls` has no
+           visibility filter), so the fields in the hidden cells - scars, proficiency, evasion - are read as well. */
+        const hidden = [...content.querySelectorAll(A.CONTROLS)].filter(el => el.closest("[hidden]"));
+        must(hidden.length >= 3, `the stand-in hides ${hidden.length} controls, not the three hidden fields - the second reading would measure nothing`);
+        const nameOf = el => el.name || el.outerHTML.slice(0, 80);
+        equal(stableJson({ unnamed: controls.filter(el => !named(el)).map(nameOf), unnamedHidden: hidden.filter(el => !named(el)).map(nameOf), traits }),
+            stableJson({ unnamed: [], unnamedHidden: [], traits: [["system.traits.instinct.value", true], ["system.traits.knowledge.value", true]] }),
+            "unnamed: each shown control with no name; unnamedHidden: each control in a hidden cell with no name; traits: each statistic's field and whether its aria-label is its name's words");
     }],
     ["R3553 - the wrench's window is the kit's in both themes (styles/components.css, the block of `drpg-window-dh-settings`; E49): read through the suite's cascade (tests-kit.mjs `styleCascade`, the module's sheets as module.json loads them) on the dressed stand-in under Monokuma Legacy and under Stained Glass, every declaration the block states for a part wins there, and each part - the name, the tabs (the selected one and the other), each group and its heading, a statistic's cell, name and field, Max Health's label and field, New, an experience's box, its fields and its bin, the description, the window's body - takes its colour, ground, edge and type from a rule of the module; the hidden cells are `display: none` and a number field shows no spinner", async () => {
         /*
@@ -51408,6 +53507,477 @@ const INVARIANTS = [
         }
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
+    }],
+    ["R3950 - the fresh-scene discount holds only with a killing to be fresh (E64 C1a; audit S05-60; default taken, owner to confirm): `CLEANUP.freshScene.onlyWith` names the running incident and an unfound body of this chapter, and cleanup.mjs `freshSceneBonus` answers its bonus with either, none with neither, none once the body is found or in the Investigation and the trial, and none for a body of another chapter", async () => {
+        /*
+         * E64 C1a, 12.11.2026. Red at 3ccfde3e: `onlyWith` was not in the config and `freshSceneBonus` took no
+         * arguments, reading the world alone - the quiet afternoon (no incident, no body) answered 3, so a Tamper in
+         * Daily Life read every rung of the 9/12/15/18 ladder 3 lower.
+         */
+        const Cl = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must(typeof Cl.freshSceneBonus === "function", "cleanup.mjs exports no freshSceneBonus - this would measure nothing");
+        const bonus = CLEANUP.freshScene?.bonus;
+        must(bonus === 3, `the fresh-scene bonus is ${bonus}, not the 3 this test was written for`);
+        const day = { phase: "dailyLife", chapter: 2 };
+        const body = { a1: { chapter: 2, day: 1, timeOfDay: "night" } };
+        const read = {
+            onlyWith: CLEANUP.freshScene.onlyWith ?? null,
+            quiet: Cl.freshSceneBonus({ clock: day, found: null, incident: false, deaths: {} }),
+            incident: Cl.freshSceneBonus({ clock: day, found: null, incident: true, deaths: {} }),
+            unfound: Cl.freshSceneBonus({ clock: day, found: null, incident: false, deaths: body }),
+            otherChapter: Cl.freshSceneBonus({ clock: { ...day, chapter: 3 }, found: null, incident: false, deaths: body }),
+            found: Cl.freshSceneBonus({ clock: day, found: { at: 1 }, incident: true, deaths: body }),
+            investigation: Cl.freshSceneBonus({ clock: { ...day, phase: "investigation" }, found: null, incident: true, deaths: body }),
+            trial: Cl.freshSceneBonus({ clock: { ...day, phase: "classTrial" }, found: null, incident: false, deaths: body })
+        };
+        equal(stableJson(read), stableJson({ onlyWith: ["incident", "unfoundBody"], quiet: 0, incident: 3, unfound: 3, otherChapter: 0, found: 0, investigation: 0, trial: 0 }),
+            "the rule's list, then the bonus per case");
+    }],
+    ["R3951 - no clean-up threshold falls below 8 after its reliefs (E64 C1b; the owner's DA12, audit S18-06; default taken, owner to confirm): `CLEANUP.minDc` is 8, cleanup.mjs `atLeastFloor` lifts a lower number to it and leaves a higher one, `cleanupDc` answers through it, and the GM's scoring (`cleanupVerdict`) and the roll window's number (`attemptCleanup`) take a reshape's relief off and then lift it, never clamping at 0", async () => {
+        /*
+         * E64 C1b, 12.11.2026. Red at 629f52e: no `minDc`, no `atLeastFloor`, and both reliefs clamped at 0 - a
+         * Hidden trace reshaped with a Tier 3 tool in a fresh scene read 9 - 3 - 3 - 3 = 0.
+         */
+        const Cl = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must(typeof Cl.cleanupDc === "function", "cleanup.mjs exports no cleanupDc - this would measure nothing");
+        const src = await moduleSources();
+        const file = src.get("cleanup.mjs");
+        must(typeof file === "string" && file.length > 1000, "cleanup.mjs's source was not read - this would measure nothing");
+        const lift = typeof Cl.atLeastFloor === "function" ? [0, -3, 7, 8, 12].map(n => Cl.atLeastFloor(n)) : null;
+        const body = name => { try { return fnSource(file, name); } catch { return ""; } };
+        const read = {
+            minDc: CLEANUP.minDc ?? null,
+            lift,
+            // The roller handed in since the 1.2.110 review's V3 (13.11.2026): on a GM the fresh scene is the bodies its player may know.
+            cleanupDc: /return atLeastFloor\(base - tool - freshSceneBonus\(\{ actor \}\)\)/.test(body("cleanupDc")),
+            verdict: [/atLeastFloor\(base - relief\)/.test(body("cleanupVerdict")), /Math\.max\(0, base - relief\)/.test(body("cleanupVerdict"))],
+            window: [/atLeastFloor\(listed - relief\)/.test(body("attemptCleanup")), /atLeastFloor\(base - relief\)/.test(body("attemptCleanup")), /Math\.max\(0, (listed|base) - relief\)/.test(body("attemptCleanup"))],
+            hidden: Cl.cleanupDc("hidden", null) >= 8
+        };
+        equal(stableJson(read), stableJson({ minDc: 8, lift: [8, 8, 8, 8, 12], cleanupDc: true, verdict: [true, false], window: [true, true, false], hidden: true }),
+            "the floor, what it answers for 0/-3/7/8/12, and where it is read");
+    }],
+    ["R3952 - Confusion's first tier is beaten at 11 (E64 C5a; the owner's DC5 of 05.10; default taken, owner to confirm): MONOCUB.abilities.meddle's tiers are 11 (+1/-1) and 16 (advantage/disadvantage), the threshold reader (utils.mjs `resolveThreshold`, which `scoreMeddle` asks) grants the +1 at 11 and nothing at 10, and both player handbooks' Confusion table says 11+", async () => {
+        /*
+         * E64 C5a, 12.11.2026. Red at 383cf11: the tiers read [12, 16], a total of 11 granted nothing, and the
+         * books' table said 12+. Counted by hand over the 144 throws of 2d12, a double being a critical and so a hit:
+         * 12+ or a double is 89 + 5 = 94 (65.3%), 11+ or a double 99 + 5 = 104 (72.2%), the owner's DC5 numbers - the
+         * ten throws that sum to 11 move from a miss to +1/-1.
+         */
+        const { MONOCUB } = await import("./config.mjs");
+        const { resolveThreshold } = await import("./utils.mjs");
+        const row = MONOCUB.abilities?.meddle;
+        must(row?.thresholds?.length >= 2, "the meddle row holds fewer than two tiers - this would measure nothing");
+        const books = {};
+        for (const lang of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            must(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load - this would measure nothing`);
+            const book = await lfText(res);
+            books[lang] = [/^\| 11\+ \| \+1 \| -1 \|$/m.test(book), /^\| 12\+ \| \+1 \| -1 \|$/m.test(book)];
+        }
+        equal(stableJson({
+            mins: row.thresholds.map(t => [t.min, t.grants]),
+            at11: resolveThreshold(11, row.thresholds)?.grants ?? null,
+            at10: resolveThreshold(10, row.thresholds)?.grants ?? null,
+            books
+        }), stableJson({ mins: [[11, "bonus"], [16, "advantage"]], at11: "bonus", at10: null, books: { en: [true, false], pl: [true, false] } }),
+            "the tiers, what 11 and 10 grant, and each book's table row [11+, 12+]");
+    }],
+    ["R3953 - the draw's shuffles are fair (E64 C3; audit S17-29, D21): utils.mjs `shuffle` is Fisher-Yates - a new list, the old one untouched, every element kept - and over 24,000 shuffles of four on one fixed sequence its chi-square against the 24 orders stays under 49.7 (23 degrees of freedom, p = 0.001) while the old `sort(() => rng() - 0.5)` on the same sequence reads far above it; tables-pools.mjs's two shuffles (`drawRoomAny`, `drawSpare`) call it on the draw's `rng`, and no `sort` on a random comparison is left", async () => {
+        /*
+         * E64 C3, 12.11.2026. Red at ce58136: utils.mjs had no `shuffle`, and both steps sorted on `ctx.rng() - 0.5`.
+         * Measured in node on the same seed (mulberry32, seed 64) before the code: Fisher-Yates 28.10, the old sort
+         * 27967.36 - the control says the count can see an unfair shuffle.
+         */
+        const U = await import("./utils.mjs");
+        must(typeof U.shuffle === "function", "utils.mjs exports no shuffle - the draw's shuffles are not fair");
+        const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+        const chi = fn => {
+            const rng = seeded(64), seen = new Map(), n = 24000;
+            for (let k = 0; k < n; k++) { const p = fn([0, 1, 2, 3], rng).join(""); seen.set(p, (seen.get(p) ?? 0) + 1); }
+            const e = n / 24;
+            let x = (24 - seen.size) * e;
+            for (const v of seen.values()) x += (v - e) ** 2 / e;
+            return x;
+        };
+        const fair = chi(U.shuffle), old = chi((list, rng) => [...list].sort(() => rng() - 0.5));
+        const list = ["a", "b", "c", "d", "e"], out = U.shuffle(list, seeded(1));
+        const src = stripComments((await otherSources()).find(([file]) => file === "tables-pools.mjs")?.[1] ?? "");
+        must(src.length > 5000, "tables-pools.mjs was not read - this test measured nothing");
+        equal(stableJson({
+            fair: fair < 49.7, old: old > 49.7,
+            copy: [out !== list, list.join(""), [...out].sort().join("")],
+            steps: [/\bshuffle\(owned, ctx\.rng\)/.test(fnSource(src, "drawRoomAny")), /\bshuffle\(Object\.keys\(ITEM_CATEGORIES\), ctx\.rng\)/.test(fnSource(src, "drawSpare"))],
+            sorts: (src.match(/\.sort\(\(\) =>[^)]*rng\(\)/g) ?? []).length
+        }), stableJson({ fair: true, old: true, copy: [true, "abcde", "abcde"], steps: [true, true], sorts: 0 }),
+            `{fair: chi-square ${fair.toFixed(2)} < 49.7; old: ${old.toFixed(2)} > 49.7; copy: a new list, the old as it was, the same elements; steps: each shuffle on the draw's rng; sorts: random-comparison sorts left}`);
+    }],
+    ["R3954 - Wounded takes its action in Daily Life and the Investigation, not in the Class Trial (E64 C1c; audit S03-49; the owner's answer of 12.11.2026, \"wolalbym by wounded dzialalo tez w investigation\"): `STATES.wounded.actionsLostIn` is [\"dailyLife\", \"investigation\"], actions.mjs `actionBudget` answers a Wounded student one action fewer in Daily Life and in the Investigation and the whole budget in the Class Trial, still answering `wounded` in all three, with `costsAction` saying where the action went; the clock's GM note and the sheet's mark read `costsAction`", async () => {
+        /*
+         * E64 C1c, 12.11.2026. Red at 3c6383a: no `actionsLostIn`, `phase` not read, no `costsAction` - a Wounded
+         * student was one action down in every phase. The owner's review of 12.11.2026 (~10:17) puts the Investigation
+         * back: red at 34ded63, the Investigation read [2, true, false] and the list ["dailyLife"]. Asked of a stand-in actor (only `getFlag`), the phase named, so
+         * nothing in the world is read but the Overflow's penalty, held to none first.
+         */
+        const A = await import("./actions.mjs");
+        const { STATES } = await import("./config.mjs");
+        const actor = { id: "zR3954", getFlag: () => undefined };
+        const whole = A.actionBudget(actor, { wounded: false, phase: "dailyLife" });
+        must(!whole.darkened, "a darkened hour stands in this world - its floor would hide the lost action; this would measure nothing");
+        const at = phase => { const b = A.actionBudget(actor, { wounded: true, phase }); return [b.total, b.wounded, b.costsAction ?? null]; };
+        const src = await moduleSources();
+        const clock = stripComments(src.get("clock.mjs") ?? ""), sheet = stripComments(src.get("sheet.mjs") ?? "");
+        must(clock.length > 1000 && sheet.length > 1000, "clock.mjs or sheet.mjs was not read - this would measure nothing");
+        equal(stableJson({
+            lostIn: STATES.wounded?.actionsLostIn ?? null,
+            dailyLife: at("dailyLife"), investigation: at("investigation"), classTrial: at("classTrial"),
+            readers: [/summary\.actions\.filter\(r => r\.costsAction\)/.test(clock), /\{ costsAction: wounded \} = actionBudget\(actor\)/.test(sheet)]
+        }), stableJson({
+            lostIn: ["dailyLife", "investigation"],
+            dailyLife: [whole.total - 1, true, true], investigation: [whole.total - 1, true, true], classTrial: [whole.total, true, false],
+            readers: [true, true]
+        }), `per phase [actions, wounded, costsAction] against a whole budget of ${whole.total}; the clock's note and the sheet's mark read costsAction`);
+    }],
+    ["R3955 - Observe's critical hint is the finder's alone (E64 C2; audit S05-59; default taken, owner to confirm): observe.mjs `findTexts` puts a critical's hint under the trace's description on that finder's copy only, and none on an ordinary find; `describeFind` draws the hint's box on a critical alone and answers it as `critHint`; `createFind` writes back to the trace only the window's name and texts, never the hint, and hands the copy `findTexts`'s text", async () => {
+        /*
+         * E64 C2, 12.11.2026. Red at 91ff70f: no `findTexts`, no `critHint` - the hint was typed in the description
+         * box, which `createFind` writes back to the trace's public record, so every later finder's copy read it.
+         * The window and the write are read off the source (comments and strings kept apart); the texts are asked
+         * of the pure helper. A whole find on a real trace is tier 2's (62-investigation drives Observe).
+         */
+        const O = await import("./observe.mjs");
+        must(typeof O.findTexts === "function", "observe.mjs exports no findTexts - the critical's hint is not kept apart");
+        const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
+        must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
+        const create = fnSource(src, "createFind"), describe = fnSource(src, "describeFind");
+        const publicWrite = /setRemnantPublicById\(entry\.sceneId, entry\.tokenId, \{([\s\S]*?)\}\)/.exec(create)?.[1] ?? null;
+        must(publicWrite !== null, "createFind's write back to the trace was not found - this would measure nothing");
+        const pub = { playerText: "A smear on the sill." };
+        equal(stableJson({
+            critical: O.findTexts({ pub, written: { playerText: "A smear on the sill.", critHint: "  It was wiped from inside. " }, isCritical: true }),
+            ordinary: O.findTexts({ pub, written: { playerText: "A smear on the sill.", critHint: "a forged hint" }, isCritical: false }),
+            undescribed: O.findTexts({ pub: null, written: { playerText: "", critHint: "Only you noticed." }, isCritical: true }),
+            box: [/isCritical\s*\?\s*`<label>\$\{game\.i18n\.localize\("DRPG\.Observe\.critHint"\)\}/.test(describe), /critHint: f\.critHint\?\.value\.trim\(\) \?\? ""/.test(describe)],
+            write: [/critHint|hint/i.test(publicWrite), /playerText: texts\.copyText/.test(create)]
+        }), stableJson({
+            critical: { described: "A smear on the sill.", hint: "It was wiped from inside.", copyText: "A smear on the sill.\n\nIt was wiped from inside." },
+            ordinary: { described: "A smear on the sill.", hint: "", copyText: "A smear on the sill." },
+            undescribed: { described: "", hint: "Only you noticed.", copyText: "Only you noticed." },
+            box: [true, true], write: [false, true]
+        }), "the texts of a critical's copy, an ordinary find's, an undescribed trace's critical; the window's box and answer; the trace's write and the copy's text");
+    }],
+    ["R3956 - a Level Up raises no Health or Sanity by itself; a point in Head, Body or Leg raises a maximum with it (E64 C6; the owner's DA39, audit S18-27; default taken, owner to confirm; Q-E64-4: past picks kept): `LEVEL_UP_OPTIONS` is the statistic, the experience and the new experience; `LEVEL_UP_TRAIT_RESOURCES` gives Head (knowledge) +1 Sanity maximum, Body (strength) and Leg (agility) +1 Health maximum and the other three nothing; level-up.mjs `applyAdvancement` has no Health or Sanity option left, refuses a pick of no option, and counts the table's rises on a statistic's pick; the picker says the rise (`traitRaisesNote`) in English and Polish", async () => {
+        /*
+         * E64 C6, 12.11.2026. Red at 7469197: the options still held `hp` and `stress`, no table, no note. What the
+         * write does on a sheet is tier 2's: "a GM's advancement rises from the maxima ..." picks a point in Body and in
+         * Head and reads the Health and Sanity maxima one higher each, as it read them for +1 Health and +1 Sanity.
+         */
+        const C = await import("./config.mjs");
+        const L = await import("./level-up.mjs");
+        const src = stripComments((await moduleSources()).get("level-up.mjs") ?? "");
+        must(src.length > 5000, "level-up.mjs was not read - this would measure nothing");
+        const apply = fnSource(src, "applyAdvancement");
+        const table = C.LEVEL_UP_TRAIT_RESOURCES ?? null;
+        const rise = dh => table ? stableJson(table[dh] ?? {}) : null;
+        const langs = {};
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            langs[lang] = [typeof json.DRPG?.Advance?.raisesHealth === "string", typeof json.DRPG?.Advance?.raisesSanity === "string",
+                json.DRPG?.Config?.LEVEL_UP_OPTIONS?.hp === undefined && json.DRPG?.Config?.LEVEL_UP_OPTIONS?.stress === undefined];
+        }
+        equal(stableJson({
+            options: Object.keys(C.LEVEL_UP_OPTIONS),
+            rises: Object.values(C.TRAITS).map(t => [t.label, rise(t.dh)]),
+            notes: typeof L.traitRaisesNote === "function"
+                ? ["strength", "agility", "knowledge", "instinct"].map(dh => L.traitRaisesNote(dh))
+                : null,
+            apply: [/case "hp"|case "stress"/.test(apply), /!Object\.hasOwn\(LEVEL_UP_OPTIONS, pick\?\.option \?\? ""\)/.test(apply), /LEVEL_UP_TRAIT_RESOURCES\[key\]/.test(apply)],
+            langs
+        }), stableJson({
+            options: ["trait", "experienceUp", "experienceNew"],
+            rises: [["Eye", "{}"], ["Head", "{\"stress\":1}"], ["Body", "{\"hitPoints\":1}"], ["Leg", "{\"hitPoints\":1}"], ["Hand", "{}"], ["Shadow", "{}"]],
+            notes: [game.i18n.localize("DRPG.Advance.raisesHealth"), game.i18n.localize("DRPG.Advance.raisesHealth"), game.i18n.localize("DRPG.Advance.raisesSanity"), ""],
+            apply: [false, true, true],
+            langs: { en: [true, true, true], pl: [true, true, true] }
+        }), "the options; each statistic's rise; the picker's note for Body, Leg, Head and Eye; applyAdvancement [an old case left, a non-option refused, the table read]; each language [the two notes, no old option's label]");
+    }],
+    ["R3957 - a critical carries the body two rooms (E64 C4; U06-config-rules-07, the amend of 26.09; default taken, owner to confirm): cleanup.mjs `bodyLanding` lands a near room on any hit, a far room on a reach of 2 and the room between on a reach of 1, and the first near room for a room on neither list; `applyMoveBody` reads its reach off `def.rooms[band]` (Hope 1, Despair 1, critical 2 in `CLEANUP.actions.moveBody`) through `bodyReach`, and the destination window lists the far rooms under their own heading", async () => {
+        /*
+         * E64 C4, 12.11.2026. Red at e451f49: no `bodyReach` or `bodyLanding`; `applyMoveBody` took `reachable[0]` for
+         * any room off the connected list, and `rooms.critical: 2` was read by nothing (R1231 kept the field for this).
+         * The landing is asked of the pure helper on a stand-in reach (the Kitchen next door, the Library two away
+         * through it); the map's reach itself is movement.mjs `neighbouringRooms`, read here by name. A body moved two
+         * rooms on a real map with Levels is LIVE-E64-01.
+         */
+        const Cl = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must(typeof Cl.bodyLanding === "function" && typeof Cl.bodyReach === "function", "cleanup.mjs exports no bodyLanding or bodyReach - a critical still carries the body one room");
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        must(src.length > 5000, "cleanup.mjs was not read - this would measure nothing");
+        const reach = { near: ["Kitchen", "Hall"], far: ["Library"], via: { Library: "Kitchen" } };
+        const at = (room, n) => { const l = Cl.bodyLanding(reach, room, n); return [l.room, l.short]; };
+        const apply = fnSource(src, "applyMoveBody"), dialog = fnSource(src, "openMoveBodyDialog"), reachSrc = fnSource(src, "bodyReach");
+        equal(stableJson({
+            rooms: CLEANUP.actions?.moveBody?.rooms ?? null,
+            landing: [at("Hall", 1), at("Library", 2), at("Library", 1), at("Nowhere", 2), at("Nowhere", 1)],
+            empty: Cl.bodyLanding({ near: [], far: [], via: {} }, "Library", 2).room,
+            reads: [/bodyLanding\(reach, chosenRoom, Number\(def\.rooms\?\.\[band\]\) \|\| 1\)/.test(apply), /await bodyReach\(here\.scene, here\.room\)/.test(apply),
+                /neighbouringRooms\(scene, step\)/.test(reachSrc) && /vaultOwnerOf\(r, scene\)/.test(reachSrc),
+                /<optgroup label=/.test(dialog) && /DRPG\.Cleanup\.moveFar"/.test(dialog)]
+        }), stableJson({
+            rooms: { hope: 1, despair: 1, critical: 2 },
+            landing: [["Hall", false], ["Library", false], ["Kitchen", true], ["Kitchen", false], ["Kitchen", false]],
+            empty: null,
+            reads: [true, true, true, true]
+        }), "the reach per band; landings [Hall on 1, Library on 2, Library on 1, a room on neither list on 2 and 1] as [room, short]; none with no room near; the reads");
+    }],
+    ["R4477 - a Tamper the GM could charge nothing for is refused, not scored (scripts/cleanup.mjs `resolveCleanup`, `resolveStageSix`, `chargeUnclaimed`; the E101 line's review of 1.2.110, E64 reader F3, 13.11.2026): on the action's road (`viaAction`), when the packet's price is not one the GMs saw paid and `chargeUnclaimed` finds no action to take, both refuse with \"nothing was carried out\" before the attempt is scored", async () => {
+        /*
+         * The review's F3. E64 made Tamper one action and no Sanity; a packet whose claimed step `validPrice` refuses goes to
+         * `chargeUnclaimed`, which on the action's road takes an action - and with none left answered `{ stress: 0, step:
+         * null }`, and the attempt was scored all the same: a console with no action left still cleaned, for the Sanity mark
+         * its own browser wrote (roll-draw.mjs `paysFor("cleanup")` still names the chain's Sanity step for a draw ticket).
+         * Read in source, cut with the kit: a refusal follows the charge in both roads. A run of the whole road is not here:
+         * it needs a clean-up the GM would otherwise score (a found trace, an incident). Red at 37d96462: no refusal.
+         */
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        must(src.length > 10000, "cleanup.mjs was not read");
+        const refusal = /nothing was carried out: no action was left to pay for it/;
+        // Cut with the kit (R156): the 900 characters after the charge, which must() the marker is there.
+        const after = (fn, marker) => refusal.test(bodyOf(fnSource(src, fn), marker, { length: 900 }));
+        equal(stableJson({ cleanup: after("resolveCleanup", "const charged = await chargeUnclaimed("), stageSix: after("resolveStageSix", "chargeUnclaimed(") }),
+            stableJson({ cleanup: true, stageSix: true }), "{the refusal after an unpaid charge in resolveCleanup, in resolveStageSix}");
+    }],
+    ["R4478 - a season reset takes the DA39 migration's rises with the season (scripts/season-wipe.mjs `wipeStudent`'s advancement part; the E101 line's review of 1.2.110, E64 reader F5, 13.11.2026): the step that restores the starting sheet also unsets `da39Rises`, so a migration still pending across a reset does not read last season's rises as covering this season's points", async () => {
+        /*
+         * The review's F5. `da39Rises` records the Health and Sanity rises a Level Up gave by the new rule, so the DA39
+         * migration (level-up.mjs `da39Row`) does not give them twice. The reset restored the starting sheet and left the
+         * flag: a world whose migration stayed pending (Cancel, again and again) across a reset under-counted the rises
+         * owed for the new season's points. Read in source, cut with the kit. Red at 7b9add03: the part does not name it.
+         */
+        const src = stripComments((await moduleSources()).get("season-wipe.mjs") ?? "");
+        must(src.length > 5000, "season-wipe.mjs was not read");
+        const part = bodyOf(fnSource(src, "wipeStudent"), "advancement: async () => {", { until: "actions: async () => {" });
+        equal(stableJson({ unsets: /unsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.da39Rises\s*\)/.test(part), afterRestore: part.indexOf("restoreStartingSheet(") >= 0 && part.indexOf("restoreStartingSheet(") < part.indexOf("FLAGS.da39Rises") }),
+            stableJson({ unsets: true, afterRestore: true }), "{the advancement part unsets da39Rises; after the sheet's restore}");
+    }],
+    ["R3958 - Tamper has no cap a time of day: it costs its price and nothing limits how often (E64, the owner's review of 12.11.2026, \"niech kosztuje po prostu akcje, bez jakis dziwnych rozwiazan\"; it replaces 4f3882f's two-a-time-of-day cap): `CLEANUP` has no `tamperPerTimeOfDay`, cleanup.mjs neither declares nor calls `tamperOverLimit`, gm-stores.mjs has no `tamperAttemptStore`, settings.mjs no `gmTamperAttempts`, no `DRPG.Tamper.limitReached` in either language, and `PRICE_CHAINS.tamper` keeps its two steps, 1 action and 1 Sanity (the Sanity is the killer's own Stage 6 alone since R3959)", async () => {
+        /*
+         * E64, the owner's review of 12.11.2026 (~10:17 Warsaw, through the coordinator). The cap came from the plan's
+         * Q-E64-3 default (2), on audit item S02-58, whose own text and reason are not in this checkout: so it goes, and
+         * the price stays the one T-1 (17.09) set. Red at bb78af3: the cap, its store, its setting and its texts were there.
+         */
+        const { CLEANUP, PRICE_CHAINS } = await import("./config.mjs");
+        const src = await moduleSources();
+        const code = ["cleanup.mjs", "gm-stores.mjs", "settings.mjs"].map(f => stripComments(src.get(f) ?? ""));
+        must(code.every(c => c.length > 5000), "cleanup.mjs, gm-stores.mjs or settings.mjs was not read - this would measure nothing");
+        const langs = [];
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            must(json.DRPG?.Tamper, `lang/${lang}.json has no DRPG.Tamper - this would measure nothing`);
+            langs.push(json.DRPG.Tamper.limitReached === undefined);
+        }
+        equal(stableJson({
+            config: Object.hasOwn(CLEANUP, "tamperPerTimeOfDay"),
+            code: [/tamperOverLimit/.test(code[0]), /tamperAttemptStore/.test(code[1]), /gmTamperAttempts/.test(code[2])],
+            langs,
+            price: (PRICE_CHAINS.tamper?.steps ?? []).map(s => [s.pay, s.amount])
+        }), stableJson({ config: false, code: [false, false, false], langs: [true, true], price: [["action", 1], ["stress", 1]] }),
+            "{config: the cap's field; code: [the check, its store, its setting]; langs: [en, pl] without the refusal; price: Tamper's steps}");
+    }],
+    ["R3959 - Tamper costs one action and no Sanity, outside the killer's own Stage 6 (E64; the owner's answer of 12.11.2026, \"limit znika, Tamper kosztuje 1 akcję, domyślnie bez Sanity\": \"Zgoda\"): cleanup.mjs `tamperPriceSkip` skips Tamper's Sanity step for anyone not cleaning their own scene and its action step for the killer who is (D3, unchanged); on the GM the Sanity step is no claim on the Tamper tile's road (`validPrice` reads `viaAction`), and an attempt with no claim is charged an action there, Sanity only on the killer's Stage 6 road (`chargeUnclaimed`); the refusal with no action left names no Sanity", async () => {
+        /*
+         * E64, 12.11.2026, after the owner's answer. Red at 41e7d1e: `tamperPriceSkip` answered [] for an ordinary
+         * Tamper, so a character with no action left paid 1 Sanity (T-1's chain); `validPrice` took any step of the
+         * chain, and a packet with no claim paid the Sanity on the GM.
+         */
+        const Cl = await import("./cleanup.mjs");
+        must(typeof Cl.tamperPriceSkip === "function", "cleanup.mjs exports no tamperPriceSkip - this would measure nothing");
+        const student = { id: "zR3959", getFlag: () => undefined, system: { resources: {} } };
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        must(src.length > 5000, "cleanup.mjs was not read - this would measure nothing");
+        const valid = fnSource(src, "validPrice");
+        const unclaimed = /\bfunction chargeUnclaimed\(/.test(src) ? fnSource(src, "chargeUnclaimed") : "";
+        const calls = ["resolveCleanup", "resolveStageSix"].map(name => {
+            const body = fnSource(src, name);
+            return [/chargeUnclaimed\(actor, \{ viaAction \}\)/.test(body), /!paidStep && !free\) (?:receipt\.stressMoved \+= )?await spendStress\(actor\)/.test(body)];
+        });
+        const langs = [];
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            langs.push(/Sanity/.test(json.DRPG?.Price?.nothingLeft?.tamper ?? "Sanity"));
+        }
+        equal(stableJson({
+            skip: Cl.tamperPriceSkip(student),
+            valid: /viaAction && step\.pay === "stress"/.test(valid),
+            unclaimed: [/!viaAction/.test(unclaimed), /spendStress\(actor\)/.test(unclaimed), /spendAction\(actor/.test(unclaimed)],
+            calls, langs
+        }), stableJson({ skip: ["stress"], valid: true, unclaimed: [true, true, true], calls: [[true, false], [true, false]], langs: [false, false] }),
+            "{skip: an ordinary student's skipped steps; valid: validPrice refuses Sanity on the tile's road; unclaimed: [asks the road, Sanity on the killer's, an action on the tile's]; calls: per resolver [charges through chargeUnclaimed, still charges Sanity itself]; langs: [en, pl] refusal names Sanity}");
+    }],
+    ["R3960 - on a critical Observe the finder's hint is asked first: observe.mjs `describeFind` draws the hint's box right under the critical's line, above the name, the description and the lab's reading, and gives it the focus, where the description took it (E64; Q-E64-11, the owner's answer of 12.11.2026: \"Zgoda, przesun\")", async () => {
+        /*
+         * E64, 12.11.2026. Measured in Chromium at 1366x768 on probe 08's capture through audit/style-harness.html (R3955's
+         * window, a described trace): the body is taller than the window and opened scrolled to the focused description,
+         * so the window's top - who found what, the trace's kind - was out of view, and on an undescribed trace under
+         * Stained Glass the box sat at 664-713 px of 768, below the window's fold. Red at f657e7d: the box came after the
+         * lab's reading and the description held the focus.
+         */
+        const src = stripComments((await moduleSources()).get("observe.mjs") ?? "");
+        must(src.length > 5000, "observe.mjs was not read - this would measure nothing");
+        const body = fnSource(src, "describeFind");
+        const at = needle => body.indexOf(needle);
+        const [crit, hint, name, text, lab] = ['"DRPG.Observe.critPrompt"', 'name="critHint"', '"DRPG.TruthBullet.name"', 'name="playerText"', 'name="analyzedText"'].map(at);
+        must([crit, hint, name, text, lab].every(i => i >= 0), `describeFind lost one of its fields - this would measure nothing: ${stableJson([crit, hint, name, text, lab])}`);
+        equal(stableJson({
+            order: [crit < hint, hint < name, hint < text, hint < lab],
+            focus: [/name="critHint"[^>]*autofocus/.test(body), /rows="3"\$\{stored && !isCritical \? " autofocus" : ""\}/.test(body)]
+        }), stableJson({ order: [true, true, true, true], focus: [true, true] }),
+            "{order: [the box under the critical's line, above the name, the description, the lab's reading]; focus: [the box takes it, the description only off a critical]}");
+    }],
+    ["R3961 - a crisis action aimed at the other side is one harder when that side is strong, and the opening never (E64; the owner's DA6/DA23 of 05.10 and answer of 12.11.2026: \"Ok. Nigdy nie dotyczy otwarcia\"; the eight rows a default the owner may revise): `DEFENSE.cap` is 1; eight CRISIS_ACTIONS rows carry `defense { side, trait }` - Strike, Attack with a Weapon and Pin the victim's Body, Keep Your Distance the victim's Leg, Self-Defense and Role Reversal the killer's Body, Survive and Escape Together the killer's Leg; murder-rules.mjs `crisisThreshold` adds `crisisDefense`, the defender's statistic held to 0..cap, to those rows alone and to no Finishing Blow; the opening rolls (`resolveKillerOpening`, `resolveVictimOpening`, `throwOpeningRoll`) read MURDER_OPENING's threshold and no defence", async () => {
+        /*
+         * E64, 12.11.2026. Red at 8b17220: no `DEFENSE`, no `defense` on any row, `crisisThreshold` read `def.threshold`
+         * alone. Asked of the pure reading with a stand-in for the defender's statistics (`traitOf`), so no world is read.
+         */
+        const C = await import("./config.mjs");
+        const R = await import("./murder-rules.mjs");
+        const rows = Object.entries(C.CRISIS_ACTIONS).filter(([, def]) => def.defense).map(([key, def]) => [key, def.defense.side, def.defense.trait]).sort();
+        const state = { victimId: "zV", killerId: "zK", stage: "incident" };
+        const at = (key, stats) => R.crisisThreshold(key, state, { traitOf: (id, dh) => stats[id]?.[dh] ?? 0 });
+        const src = stripComments((await moduleSources()).get("murder-rules.mjs") ?? "");
+        must(src.length > 5000, "murder-rules.mjs was not read - this would measure nothing");
+        const openings = ["resolveKillerOpening", "resolveVictimOpening", "throwOpeningRoll"].map(name => {
+            const body = fnSource(src, name);
+            return [/MURDER_OPENING/.test(body) || /def\.threshold/.test(body), /crisisThreshold|crisisDefense/.test(body)];
+        });
+        equal(stableJson({
+            cap: C.DEFENSE?.cap ?? null,
+            rows,
+            strike: [at("strike", { zV: { strength: 2 } }), at("strike", { zV: { strength: 1 } }), at("strike", { zV: { strength: 0 } }), at("strike", { zV: { strength: -1 } })],
+            keepDistance: at("keepDistance", { zV: { agility: 3 } }),
+            selfDefence: at("selfDefence", { zK: { strength: 1 } }),
+            survive: at("survive", { zK: { agility: 2 }, zV: { agility: 2 } }),
+            leaveClue: at("leaveClue", { zV: { strength: 3 }, zK: { strength: 3 } }),
+            openings
+        }), stableJson({
+            cap: 1,
+            rows: [["keepDistance", "victim", "leg"], ["pin", "victim", "body"], ["roleReversal", "killer", "body"], ["selfDefence", "killer", "body"],
+                ["sharedEscape", "killer", "leg"], ["strike", "victim", "body"], ["survive", "killer", "leg"], ["weaponAttack", "victim", "body"]],
+            strike: [16, 16, 15, 15], keepDistance: 13, selfDefence: 19, survive: 19, leaveClue: 12,
+            openings: [[true, false], [true, false], [true, false]]
+        }), "{cap; rows [key, side, trait]; Strike at the victim's Body 2, 1, 0, -1; Keep Your Distance at Leg 3; Self-Defense at the killer's Body 1; Survive at the killer's Leg 2; Leave a Clue, no defence; openings [read their own threshold, read a defence]}");
+    }],
+    ["R3962 - a Loaded Die that did not hold gives its Call back on both roads (E64, D052; the owner's default, confirmed 12.11.2026): call-effects.mjs `giveBackLoadedDie` arms the entry again on a GM under a new nonce, keeping its `by`, and whispers \"loadedDieBack\"; action-pipeline.mjs `throwDice` calls it for a roll this browser threw whose die did not hold, and roll-draw.mjs `throwDrawn` for a drawn roll whose die did not hold, after its spend, and records and answers `loaded` as held", async () => {
+        /*
+         * E64, 12.11.2026. The GM's own road is measured in tier 2 ("E64 D052 - ..."): red before this commit. The drawn road
+         * runs only on a primary GM answering a player's packet, read here off the source; what it reads, `loadedDieHeld`,
+         * is E16-T35's. Each field is a reading of the text, not of a run. Tier 2 does draw it ("a Loaded Die bought and
+         * armed ..."), and on 1.2.110's first CI run (43352869429) found the faces read bare off a 2.12 config, where no
+         * die held: `drawnFilled` holds the fill before the read.
+         */
+        const sources = await moduleSources();
+        const ce = stripComments(sources.get("call-effects.mjs") ?? "");
+        const ap = stripComments(sources.get("action-pipeline.mjs") ?? "");
+        const rd = stripComments(sources.get("roll-draw.mjs") ?? "");
+        must(ce.length > 5000 && ap.length > 5000 && rd.length > 5000, "a source was not read - this would measure nothing");
+        const give = fnSource(ce, "giveBackLoadedDie");
+        const thrown = fnSource(ap, "throwDice");
+        const drawn = fnSource(rd, "throwDrawn");
+        const spendAt = drawn.indexOf("spendCallsByNonce(actor, used)");
+        const giveAt = drawn.indexOf("giveBackLoadedDie(");
+        equal(stableJson({
+            gmOnly: /game\.user\?\.isGM/.test(give),
+            newNonce: /nonce:\s*foundry\.utils\.randomID\(\)/.test(give),
+            keepsBy: /entry\.by/.test(give) && /appendArmedCall\(/.test(give),
+            told: /DRPG\.Calls\.loadedDieBack/.test(give),
+            thrownRoad: /free && !drawn && !loaded/.test(thrown) && /giveBackLoadedDie\(actor, armed\)/.test(thrown),
+            drawnRoad: /loadedDieHeld\(config\)/.test(drawn) && giveAt > spendAt && spendAt > 0,
+            // The faces filled on 2.12 before they are read (1.2.110's first CI run: read bare, no drawn die held).
+            drawnFilled: drawn.indexOf("fillRollFacts(config)") > 0 && drawn.indexOf("fillRollFacts(config)") < drawn.indexOf("loadedDieHeld(config)"),
+            drawnRecords: /loaded: dieHeld, at:/.test(drawn) && /stash, loaded: dieHeld, roll:/.test(drawn)
+        }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnFilled: true, drawnRecords: true }),
+        "a Loaded Die that did not hold is not given back on one of its roads");
+    }],
+    ["R3963 - the DA39 migration's row is read off the sheet alone (E64; the owner's DRPG-D1 of 12.11.2026): level-up.mjs `da39Row` takes old Health and Sanity picks as the maxima above STARTING's 4 and 6, less the rises DA39 already gave (`da39Rises`), never below 0; owes Head, Body and Leg points since the season's stamp their DA39 rise, less those given; hands out one point per old pick; a sheet with no stamp owes no rise; `offerList` keeps an offer's `only: \"trait\"` and nothing else under that name", async () => {
+        /*
+         * E64, 12.11.2026. A pure reading: stand-in sheets, no world. Red before this commit: level-up.mjs exports no
+         * `da39Row`.
+         */
+        const L = await import("./level-up.mjs");
+        ok(typeof L.da39Row === "function", "level-up.mjs has no DA39 migration row");
+        if (typeof L.da39Row !== "function") return;
+        const row = args => { const r = L.da39Row(args); return [r.hpOld, r.sanOld, r.hpRetro, r.sanRetro, r.points, r.hpMax, r.stressMax]; };
+        const snapshot = { strength: 0, agility: 1, knowledge: 0 };
+        equal(stableJson({
+            plain: row({ hpMax: 4, stressMax: 6, traits: { strength: 0, agility: 1, knowledge: 0 }, snapshot }),
+            oldPicks: row({ hpMax: 6, stressMax: 7, traits: { strength: 0, agility: 1, knowledge: 0 }, snapshot }),
+            retro: row({ hpMax: 4, stressMax: 6, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot }),
+            given: row({ hpMax: 6, stressMax: 7, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot, rises: { hitPoints: 2, stress: 1 } }),
+            noStamp: row({ hpMax: 6, stressMax: 6, traits: { strength: 3 }, snapshot: null }),
+            below: row({ hpMax: 3, stressMax: 5, traits: {}, snapshot: {} }),
+            offers: L.offerList({ offers: [{ id: "a", kind: "standard", extra: 2, only: "trait" }, { id: "b", kind: "standard", only: "hp" }] })
+                .map(offer => [offer.id, offer.only ?? null]),
+            // Per change (the owner's "oba wymagajace potwierdzenia gma do kazdego przypadku"): the rises owed per statistic,
+            // a row held to the GM's yes, and the ticked boxes read back as counts.
+            byTrait: L.da39Row({ hpMax: 4, stressMax: 6, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot,
+                rises: { hitPoints: 1 } }).retroByTrait,
+            taken: typeof L.da39Taken === "function" ? (r => [r.hpOld, r.sanOld, r.hpRetro, r.sanRetro, r.points, r.hpMax, r.stressMax])(
+                L.da39Taken(L.da39Row({ hpMax: 6, stressMax: 7, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot }),
+                    { hpOld: 1, sanOld: 0, rises: { agility: 1, knowledge: 5 } })) : null,
+            answers: typeof L.readDa39Answers === "function" ? L.readDa39Answers(["da39.A.hpOld.0", "da39.A.hpOld.1", "da39.A.rise-strength.0",
+                "da39.B.sanOld.0", "other.A.hpOld.0"]) : null
+        }), stableJson({
+            plain: [0, 0, 0, 0, 0, 4, 6],
+            oldPicks: [2, 1, 0, 0, 3, 4, 6],
+            retro: [0, 0, 2, 1, 0, 6, 7],
+            given: [0, 0, 0, 0, 0, 6, 7],
+            noStamp: [2, 0, 0, 0, 2, 4, 6],
+            below: [0, 0, 0, 0, 0, 3, 5],
+            offers: [["a", "trait"], ["b", null]],
+            byTrait: { agility: 1, knowledge: 1 },
+            taken: [1, 0, 1, 1, 1, 6, 8],
+            answers: [{ actorId: "A", hpOld: 2, sanOld: 0, rises: { strength: 1 } }, { actorId: "B", hpOld: 0, sanOld: 1, rises: {} }]
+        }), "a DA39 migration row read the old picks, the rises owed, the GM's yes or the ticked boxes wrongly");
+    }],
+    ["R3964 - a sabotage hit at 12 makes a repair of 2 (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: \"Zgoda na zmiany z kolumny opcje\", \"Zostaje to co wdrazamy i tylko to\"): config.mjs `ACTIONS.sabotage.simpleRepair` is 2 and action-project.mjs `sabotageRepairScale` answers it for a hit below the complex band, the complex band (6) and a critical (8) unchanged", async () => {
+        /*
+         * E64, 12.11.2026. S02-75's reading (STATUS): a sabotage forced 3.11 repair actions per attempt (saboteur and
+         * repairer at 0), its hit at 12 a repair of Trivial's 3; with 2 it is 2.68. Red before this commit: no
+         * `simpleRepair`, and a hit at 12 answered 3.
+         */
+        const C = await import("./config.mjs");
+        const A = await import("./action-rolls.mjs");
+        const scale = (total, isCritical = false) => A.sabotageRepairScale({ isCritical, total }, total, 0);
+        equal(stableJson([C.ACTIONS.sabotage.simpleRepair ?? null, scale(12), scale(17), scale(18), scale(5, true)]),
+            stableJson([2, 2, 2, 6, 8]), "[the constant, a hit at 12, at 17, at 18, a critical] - a sabotage's repair is not the owner's");
+    }],
+    ["R3965 - a trap's victim notices it at Night as by day (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: \"Zgoda na zmiany z kolumny opcje\", \"Zostaje to co wdrazamy i tylko to\"): config.mjs `MURDER_OPENING.victim.nightDisadvantage` is false, so murder-rules.mjs and roll-draw.mjs give the victim's opening no -1 at Night; the killer's opening keeps its Night advantage and the victim's threshold stays 20", async () => {
+        /*
+         * E64, 12.11.2026. S02-75's reading (STATUS): Eye or Head against 20 with disadvantage at Night noticed 10.0 / 11.3 /
+         * 13.4% at 0 / +1 / +2; without it 16.7 / 20.8 / 25.0%, the day's. The two readers ask the flag (`def.nightDisadvantage
+         * ? -1 : 0`), read here off their source. Red before this commit: the flag was true.
+         */
+        const C = await import("./config.mjs");
+        const sources = await moduleSources();
+        const reads = ["murder-rules.mjs", "roll-draw.mjs"].map(file => /def\.nightDisadvantage\s*\?\s*-1\s*:\s*0/.test(stripComments(sources.get(file) ?? "")));
+        equal(stableJson([C.MURDER_OPENING.victim.nightDisadvantage, C.MURDER_OPENING.victim.threshold, C.MURDER_OPENING.killer.nightAdvantage, reads]),
+            stableJson([false, 20, true, [true, true]]),
+            "[the victim's Night disadvantage, the victim's threshold, the killer's Night advantage, the two readers ask the flag] - a trap's notice at Night is not the owner's");
+    }],
+    ["R3966 - a Palm's steal needs 12, as a Search's Tier 1 (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: \"Zgoda na zmiany z kolumny opcje\", \"Zostaje to co wdrazamy i tylko to\"): config.mjs `ACTIONS.palm.threshold` is 12 and Search's Tier 1 band is 12; the cover (Shadow 15), the Plant (8, unseen 13) and the Frisk's hand (`rummage`, 10) are unchanged", async () => {
+        /*
+         * E64, 12.11.2026. S02-75's reading (STATUS): the steal at 10 took 77.8 / 83.3 / 87.5% at 0 / +1 / +2, surer than
+         * a Search's Tier 1 at 12 (65.3 / 72.2 / 77.8%); at 12 the two are one. Red before this commit: 10.
+         */
+        const { ACTIONS } = await import("./config.mjs");
+        const p = ACTIONS.palm;
+        const tierOne = ACTIONS.search.thresholds.find(band => band.tier === 1)?.min ?? null;
+        equal(stableJson([p.threshold, tierOne, p.unseen.threshold, p.plant.threshold, p.plant.unseen, p.rummage?.threshold ?? null]),
+            stableJson([12, 12, 15, 8, 13, 10]),
+            "[the steal, Search's Tier 1, the cover, the Plant, the Plant's cover, the Frisk's hand] - a Palm's numbers are not the owner's");
     }],
 ];
 

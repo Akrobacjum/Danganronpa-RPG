@@ -66,7 +66,7 @@ import { ROOM_FLAGS, roomBroken } from "./movement.mjs";
 import { isDeceased, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import {
-    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat
+    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce
 } from "./utils.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import {
@@ -478,7 +478,7 @@ export async function reconcileBedroomKeys({ silent = true, owners = null } = {}
  * "gmRuling"), the GM told who lost which key and the old owner that it was taken back. Read as the GMs hold the
  * student (`itemsHeldNow` after `judgedFor`), so an item a player's browser wrote a key's room on is not deleted for it.
  * Kept where the old owner still owns a room of that name on another scene: a key is a room's name, and the sweep
- * would only hand it back. Keys the old owner shared with others stay theirs (`keyCopiesAfterOwnerLeft`, below).
+ * would only hand it back. Keys the old owner shared with others go with the room too since E64 (`keyCopiesAfterOwnerLeft`, below).
  *
  * ON EVERY ROAD THAT GIVES A ROOM AWAY (E14 fix e1-G2, 24.10.2026; the review's E14R-2). C2 called this from Room
  * Setup's Apply alone, so `game.drpg.setVaultRoom(room, { owner })`, the console road the GM handbook names, left the
@@ -518,14 +518,14 @@ export async function takeOldOwnersKeys(left) {
 }
 
 /**
- * THE COPIES OF THE OLD OWNER'S KEY (E14 fix e1-G2, 24.10.2026; the review's E14R-1, E14R-09, E14R-08). A copy the old
- * owner gave somebody stays with its holder - whether the copies should go with the room too is the owner's to rule
- * (STATUS Open) - and a key is a room's name, so it opens the new owner's door. Two things were wrong with that whatever
- * the ruling: nothing told the GM those keys exist, and each still read "which belongs to" the old owner. So each
- * character but the new owner who holds a key to the room, carried or stashed, as the GMs hold it (`itemsHeldNow` after
- * `judgedFor`), is named to the GM, and every key to the room whose text is the module's own for the old owner
- * (`grantBedroomKey`'s, in this GM's language) is rewritten for the new one by a GM's ruling. A text a GM wrote, or one
- * written in another language, is left as it is. Answers the holders named.
+ * THE COPIES OF THE OLD OWNER'S KEY GO WITH THE ROOM TOO (E14 fix e1-G2, 24.10.2026, the review's E14R-1, E14R-09, E14R-08;
+ * E64, D008, the owner's default confirmed 12.11.2026). Until E64 a copy the old owner gave somebody stayed with its holder,
+ * and a key is a room's name, so it opened the new owner's door; the GM was named the holders and asked to take the keys by
+ * hand. Now each character but the old owner (whose own `takeOldOwnersKeys` took) and the new owner who holds a key to the
+ * room, carried or stashed, as the GMs hold it (`itemsHeldNow` after `judgedFor`), loses every such key by a GM's ruling
+ * (`trustedDelete`, "gmRuling"), whatever its text says; the GM is told who lost one ("keyCopiesTakenGm") and each holder is
+ * whispered ("keyCopyTakenBack"). The new owner's own keys stay, and one whose text is the module's own for the old owner
+ * (`grantBedroomKey`'s, in this GM's language) is rewritten for them. Answers the holders who lost one.
  */
 async function keyCopiesAfterOwnerLeft(room, old, owner) {
     const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
@@ -537,17 +537,34 @@ async function keyCopiesAfterOwnerLeft(room, old, owner) {
         await judgedFor(actor.id);
         const keys = itemsHeldNow(actor).filter(item => keyRoomOf(item) === room).map(held => actor.items.get(held.id)).filter(Boolean);
         if (!keys.length) continue;
-        if (actor.id !== owner?.id) holders.push(actor.name);
-        if (before === after) continue;
-        for (const key of keys.filter(key => key.system?.description === before)) {
+        if (actor.id === owner?.id) {
+            if (before === after) continue;
+            for (const key of keys.filter(key => key.system?.description === before)) {
+                try {
+                    await trustedWrite(key, { "system.description": after }, { reason: "gmRuling" });
+                } catch (err) {
+                    error(`Could not rewrite ${actor.name}'s key to ${room}`, err);
+                }
+            }
+            continue;
+        }
+        let gone = 0;
+        for (const key of keys) {
             try {
-                await trustedWrite(key, { "system.description": after }, { reason: "gmRuling" });
+                await trustedDelete(key, { reason: "gmRuling" });
+                gone++;
             } catch (err) {
-                error(`Could not rewrite ${actor.name}'s key to ${room}`, err);
+                error(`Could not take ${actor.name}'s copy of the key to ${room}`, err);
             }
         }
+        if (!gone) continue;
+        holders.push(actor.name);
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.keyCopyTakenBack", { room: esc(room) })}</p>`);
     }
-    if (holders.length) ui.notifications.info(game.i18n.format("DRPG.Vault.keyCopiesGm", { room, holders: holders.join(", ") }));
+    if (holders.length) {
+        log(`Copies of the key to ${room} went with the room: taken from ${holders.join(", ")}.`);
+        ui.notifications.info(game.i18n.format("DRPG.Vault.keyCopiesTakenGm", { room, holders: holders.join(", ") }));
+    }
     return holders;
 }
 
@@ -731,6 +748,28 @@ export async function updateRoom(scene, room, update) {
     const pieces = writablePieces(scene, room);
     if (pieces.length) await scene.updateEmbeddedDocuments("Region", pieces.map(r => ({ _id: r.id, ...update })));
     return pieces;
+}
+
+/**
+ * A room locked or opened, on every piece of it on this scene (`updateRoom`) - THE ONE WRITER OF A ROOM'S LOCK (E91 C4,
+ * D038, 12.11.2026). Room Setup's save and the Mastermind's own lair (mastermind.mjs `lockLair`) both write through it,
+ * so a lair the Mastermind locked is the GM's lock: the same flag (`ROOM_FLAGS.locked`, which movement.mjs `isLocked`
+ * reads), the same "The door is locked." at the door, and the same card when it opens. Only unlocking is announced: a
+ * GM locking a door mid-session is often the point the players finding out is meant to come from walking into it and
+ * reading "Drzwi są zamknięte." themselves - the same reasoning `toggleFinalTrialFlag` in mastermind.mjs applies to
+ * starting versus ending; unlocking has no such in-fiction moment of its own, so it says so out loud. Nothing is written
+ * or said when the room already stands so. A GM's write; answers whether it changed.
+ */
+export async function writeRoomLock(scene, room, locked) {
+    if (!game.user?.isGM || !scene || !room) return false;
+    const pieces = writablePieces(scene, room);
+    // Read as Room Setup and the door read a room of pieces (`flagOver`: the first piece that carries the flag), and
+    // written unless every piece already says it, so a lock left on one piece by an old writer is made whole.
+    const was = Boolean(flagOver(pieces, ROOM_FLAGS.locked));
+    if (!pieces.length || pieces.every(piece => Boolean(piece.getFlag(MODULE_ID, ROOM_FLAGS.locked)) === Boolean(locked))) return false;
+    await updateRoom(scene, room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: Boolean(locked) });
+    if (was && !locked) await announce({ content: `<p>${game.i18n.format("DRPG.Vault.unlockedAnnounce", { room: esc(room) })}</p>` });
+    return true;
 }
 
 /**

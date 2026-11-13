@@ -135,6 +135,16 @@ export function armOwnSituational(value) { own = Math.trunc(Number(value)) || 0;
 export function clearOwnSituational() { own = 0; }
 
 /**
+ * A hindrance die given to this roll by name, its cause not said (E74, DA44 option A: the killer's opening against a
+ * watch of 18 or more, murder-rules.mjs `throwOpeningRoll`). Counted in `situationalAdvantage`, so the roll's claim holds
+ * the die the GM draws, and shown by the window as a source of its own (roll-dialog.mjs `advantageSources`).
+ */
+let hindrance = 0;
+export function armOwnHindrance(count) { hindrance = Math.max(0, Math.trunc(Number(count)) || 0); }
+export function clearOwnHindrance() { hindrance = 0; }
+export function ownHindrance() { return hindrance; }
+
+/**
  * A signed count: the action's die, zero while a supporting roll is shielded, and
  * the roll's own (`armOwnSituational`), which is not.
  *
@@ -144,7 +154,7 @@ export function clearOwnSituational() { own = 0; }
  * not shielded and never was - see `stateGrant` in roll-dialog.mjs.
  */
 export function situationalAdvantage() {
-    return (shielded ? 0 : situational) + own;
+    return (shielded ? 0 : situational) + own - hindrance;
 }
 
 /**
@@ -403,6 +413,14 @@ export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
     const { judgedFor } = await import("./sheet-audit.mjs");
     await judgedFor(actor.id);
     await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), entry].map(unsigned));
+    // A room action's stronger next Ultimate (E93, the owner's answer to Q-E93-3): a second die beside the Ultimate armed.
+    if (entry.key === "ultimate") {
+        try {
+            await (await import("./timed-effects.mjs")).boostUltimate(actor);
+        } catch (err) {
+            error(`Could not strengthen ${actor.name}'s Ultimate`, err);
+        }
+    }
     return true;
 }
 
@@ -485,6 +503,29 @@ export async function spendCallsByNonce(actor, nonces) {
     if (spent.length) await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.pendingCall}`]: kept.length ? kept.map(unsigned) : forcedDeletion() ?? null }, { reason: "call" });
     if (confusions.length) await spendConfusions(actor, confusions);
     return [...spent, ...confusions];
+}
+
+/**
+ * A LOADED DIE THAT DID NOT HOLD GIVES ITS CALL BACK (E64, D052; the owner's default, confirmed 12.11.2026). The die is
+ * loaded by answering its draw from `CONFIG.Dice.randomUniform` (forced-roll.mjs `loadDie`); a dice method that draws
+ * no such sample shows an honest face (`loadedDieHeld`, E16 part 2 C5), and until E64 the Call was spent all the same:
+ * 6 Hope for an ordinary roll. Here, on a GM, the spent entry is armed again for the next roll - under a new nonce,
+ * because the old one is used up in forced-roll.mjs's set and would load nothing - and the owner is told. `by` is kept
+ * as the entry had it: a Call a player bought stays the player's (`appendArmedCall`). Called where the dice were
+ * thrown: the GM's own roll (action-pipeline.mjs `throwDice`) and a player's roll this GM drew (roll-draw.mjs
+ * `throwDrawn`); never on a player's browser, whose write of a Call the GMs' audit would put back. Answers whether
+ * the Call was armed again.
+ */
+export async function giveBackLoadedDie(actor, entry) {
+    if (!actor || !game.user?.isGM || entry?.grants !== "critical") return false;
+    const again = { ...entry, nonce: foundry.utils.randomID() };
+    delete again.at;
+    delete again.by;
+    const armed = await appendArmedCall(actor, again, { by: entry.by ? game.users?.get(entry.by) ?? null : null });
+    if (!armed) return false;
+    await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Calls.freeCritTitle") })}<p>${
+        game.i18n.format("DRPG.Calls.loadedDieBack", { name: foundry.utils.escapeHTML(actor.name) })}</p>`);
+    return true;
 }
 
 /** How long a GM's spend is remembered (`spentByGm`): longer than a judgement waits for a roll. Chosen, not measured. */

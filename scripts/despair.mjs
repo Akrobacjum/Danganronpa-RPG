@@ -619,6 +619,16 @@ async function recordOwed(userId, n) {
     await despairOwedStore.patch(`${userId}:${game.user.id}:${Date.now()}`, { owed: n, since: timeOfDayMark() });
 }
 
+/**
+ * A Despair this GM's pool owes from now, paid at the next time of day (E72 C16: a Bounty's price, DC40 "through the
+ * debt buffer"): `recordOwed`, for a caller outside this file. GM-side; answers whether it was written.
+ */
+export async function oweDespair(userId, n) {
+    if (!game.user?.isGM || !(n > 0)) return false;
+    await recordOwed(userId, Math.trunc(n));
+    return true;
+}
+
 /*
  * INCOME INTO A FULL POOL PAYS WHAT IT OWES FIRST. `before` is the pool before the income
  * and `n` the income; what is left over after the debt goes to the overflow. Both roads that
@@ -819,8 +829,12 @@ export async function creditHopeFromDespair(actor, amount, { payer = null, owes 
         return { granted: 0, blocked: "darkening" };
     }
     const { meansWrite } = await import("./sheet-audit.mjs");
+    // A Monocub's purse counts toward its limit (E72 fix round, review #5; the owner's DC37): the sheet takes only the
+    // maximum less the purse.
+    const { isMonocub, purseOf } = await import("./monocub.mjs");
+    const purse = isMonocub(actor) ? purseOf(actor) : 0;
     const { held, granted } = await meansWrite(actor, async ({ hope }, maxOf) => {
-        const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - hope);
+        const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - purse - hope);
         if (room <= 0) return { held: hope, granted: 0 };
         if (owes) await recordOwed(owes, room);
         // A reason of the closed list, a literal each (tests-tier0.mjs R220): the Call's, or a GM's ruling.

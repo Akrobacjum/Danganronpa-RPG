@@ -38,7 +38,8 @@ import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./mu
 import { deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, whisperToGms, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, primaryGmId, log, warn, error, plural, listOf } from "./utils.mjs";
+import { deathRecordFor } from "./settings.mjs";
 import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "./trial-progress.mjs";
 import { runSteps, stepsReport } from "./steps.mjs";
 // The kit's frame for the verdict's windows: the Final Trial's (E22 C3b), the ordinary verdict and the Blackened's rule
@@ -476,8 +477,10 @@ async function keepVerdictBlackened(at, blackenedIds) {
  * reaches "done" without it, and its sentenced die at the exit like anybody's.
  */
 const VERDICT_STEPS = {
-    correct: ["sentence", "card", "levelUps", "overflow"],
-    wrong: ["sentence", "card", "offers", "despair", "rule", "overflow"]
+    // "bets" (E72 C18): the Monocubs' Ghost Bets settled, after the overflow, on either verdict.
+    correct: ["sentence", "card", "levelUps", "overflow", "bets"],
+    // "remind" (E72 C7): the Monocubs this case's death and this chapter's crime touched are told the verdict let the killer go.
+    wrong: ["sentence", "card", "offers", "despair", "rule", "remind", "overflow", "bets"]
 };
 /*
  * THE FINAL TRIAL'S EXECUTION AND PICK WAIT ON ITS SENTENCE (E42 fix FG1, 03.11.2026; the end review's C-m1). A Final
@@ -486,8 +489,8 @@ const VERDICT_STEPS = {
  * stands for the Finish, which writes the sentence first (tier 2 E42-T11).
  */
 const VERDICT_NEEDS = {
-    card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence",
-    finalExecution: "finalSentence", mastermind: "finalSentence"
+    card: "sentence", levelUps: "sentence", offers: "sentence", rule: "sentence", remind: "card", bets: "card",
+    finalExecution: "finalSentence", mastermind: "finalSentence", finalBets: "finalCard"
 };
 
 /*
@@ -501,17 +504,20 @@ const VERDICT_NEEDS = {
  * "sentence" as an ordinary sentence (R1252). The record holds the keys and nothing else of the Final Trial: no
  * name, no id (the Mastermind's identity is the GMs'; mastermind.mjs's header).
  */
-const FINAL_VERDICT_STEPS = Object.freeze(["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "mastermind"]);
+// "finalBets" (E72, 12.11.2026; the coordinator's bug): the Ghost Bets settled as at an ordinary verdict, before "mastermind"
+// clears the pick the outcome is read from.
+const FINAL_VERDICT_STEPS = Object.freeze(["finalSentence", "finalCard", "finalClose", "finalExecution", "finalLevelUps", "finalBets", "mastermind"]);
 
 // "executions" stays named for a record from before 1.2.90 whose stopped steps still list it (`verdictStopped`).
 const VERDICT_STEP_LABELS = {
     sentence: "DRPG.Vote.verdictSteps.sentence", executions: "DRPG.Vote.verdictSteps.executions",
     card: "DRPG.Vote.verdictSteps.card", levelUps: "DRPG.Vote.verdictSteps.levelUps",
     offers: "DRPG.Vote.verdictSteps.offers", despair: "DRPG.Vote.verdictSteps.despair",
-    rule: "DRPG.Vote.verdictSteps.rule", overflow: "DRPG.Vote.verdictSteps.overflow",
+    rule: "DRPG.Vote.verdictSteps.rule", remind: "DRPG.Vote.verdictSteps.remind", overflow: "DRPG.Vote.verdictSteps.overflow",
+    bets: "DRPG.Vote.verdictSteps.bets",
     finalSentence: "DRPG.Vote.verdictSteps.finalSentence", finalCard: "DRPG.Vote.verdictSteps.finalCard",
     finalClose: "DRPG.Vote.verdictSteps.finalClose", finalExecution: "DRPG.Vote.verdictSteps.finalExecution",
-    finalLevelUps: "DRPG.Vote.verdictSteps.finalLevelUps", mastermind: "DRPG.Vote.verdictSteps.mastermind"
+    finalLevelUps: "DRPG.Vote.verdictSteps.finalLevelUps", finalBets: "DRPG.Vote.verdictSteps.finalBets", mastermind: "DRPG.Vote.verdictSteps.mastermind"
 };
 
 /** The steps of a verdict record (`trialProgress().verdict`), in order: the Final Trial's for a `final` record. */
@@ -659,7 +665,13 @@ function verdictHeld(record, blackenedIds) {
  */
 async function readSentence(context) {
     const { sentenced } = await verdictReading(context);
-    context.record = { ...context.record, executedIds: sentenced, sentenced: [...sentenced] };
+    /* The chapter's verdict before this one, kept in the verdict's record before this one's stamp replaces it (the 1.2.110
+       review's V4): the wrong verdict's card (`remindOnWrongVerdict`) tells the case judged from the chapter's earlier one by
+       it. Kept once, so a verdict stopped and finished later reads the same. */
+    const stored = trialProgress();
+    const verdictBefore = Object.hasOwn(context.record ?? {}, "verdictBefore") ? context.record.verdictBefore
+        : stored.chapter === getClock().chapter ? (stored.lastVerdictAt ?? null) : null;
+    context.record = { ...context.record, executedIds: sentenced, sentenced: [...sentenced], verdictBefore };
     await setTrialProgress({ lastVerdictAt: context.record.at ?? null });
 }
 
@@ -887,11 +899,56 @@ async function verdictOverflow() {
 }
 
 /** What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order. */
+/**
+ * THE WRONG VERDICT'S CARD TO THE MONOCUBS (E72 C7, 12.11.2026; audit S18-58, the owner's DC16). A wrong verdict lets the
+ * killer go, and the Monocubs who know who it was - the case's own dead (a death of this chapter, not an execution) and
+ * the chapter's crime witnesses (`isCrimeSilenced`) - could spend their moves for or against them. Each is sent one veiled
+ * card (its words to that player alone, its document naming nobody): do not act for or against that person, their
+ * projects, bribes or bets. The card names nobody; the GMs' summary lists who was told. Answers the names told.
+ */
+export async function remindOnWrongVerdict(context) {
+    const { monocubActors, wrongVerdictTouches, cubRowOf } = await import("./monocub.mjs");
+    const { seasonEpoch } = await import("./settings.mjs");
+    const clock = getClock();
+    // This season's chapter, since the verdict before this one (the 1.2.110 review's V4; `readSentence` kept it).
+    const at = { chapter: clock.chapter, epoch: seasonEpoch(), before: context?.record?.verdictBefore ?? null };
+    const touched = monocubActors().filter(actor => wrongVerdictTouches({ death: deathRecordFor(actor), witness: cubRowOf(actor)?.witness ?? null }, at));
+    for (const actor of touched) {
+        await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Monocub.wrongVerdictTitle")}</strong></p>`
+            + `<p>${game.i18n.localize("DRPG.Monocub.wrongVerdictCard")}</p>`, { veiled: true });
+    }
+    if (touched.length) context?.lines?.push(game.i18n.format("DRPG.Monocub.wrongVerdictTold", { names: listOf(touched.map(actor => actor.name)) }));
+    return touched.map(actor => actor.name);
+}
+
+/** The verdict's step "bets" (E72 C18): monocub.mjs `settleBets`, with this verdict's record. */
+async function settleBetsStep(context) {
+    const { settleBets } = await import("./monocub.mjs");
+    await settleBets(context);
+}
+
+/**
+ * THE FINAL TRIAL'S BETS (E72, 12.11.2026; the coordinator's bug: a Ghost Bet placed before the Final stayed unpaid). Pure:
+ * the record `settleBets` reads, built from the GMs' side, since the Final's record names nobody - right, with the
+ * Mastermind the one sentenced, when the verdict executed them; otherwise nobody sentenced, so every bet is lost.
+ */
+export function finalBetsRecord(final) {
+    const id = final?.executed === true ? final?.mastermind?.id ?? null : null;
+    return id ? { correct: true, executedIds: [id] } : { correct: false, executedIds: [] };
+}
+
+/** The Final verdict's step "finalBets": `settleBets` on `finalBetsRecord`. */
+async function finalVerdictBets(context) {
+    const { settleBets } = await import("./monocub.mjs");
+    await settleBets({ ...context, record: finalBetsRecord(context.final) });
+}
+
 const VERDICT_STEP = {
     sentence: readSentence, card: verdictCard,
-    levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, overflow: verdictOverflow,
+    levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, remind: remindOnWrongVerdict,
+    overflow: verdictOverflow, bets: settleBetsStep,
     finalSentence: finalVerdictSentence, finalCard: finalVerdictCard, finalClose: finalVerdictClose,
-    finalExecution: finalVerdictExecution, finalLevelUps: finalVerdictLevelUps, mastermind: finalVerdictMastermind
+    finalExecution: finalVerdictExecution, finalLevelUps: finalVerdictLevelUps, finalBets: finalVerdictBets, mastermind: finalVerdictMastermind
 };
 
 /**
