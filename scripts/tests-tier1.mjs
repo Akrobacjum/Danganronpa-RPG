@@ -40974,6 +40974,11 @@ const INVARIANTS = [
             html.append(body);
             body.innerHTML = `<figure id="pause" class="paused"><img alt=""><figcaption>Game Paused</figcaption></figure>`;
             const pause = body.querySelector("#pause");
+            /* A control first (the 1.2.110 review, E91 reader F6, 13.11.2026): the full-viewport rule this reading stands on
+               must be read, or "none" on every side would be the cascade reading nothing (sheets not loaded, a rule moved
+               under a media query, which styleCascade skips). */
+            must(C.winner(pause, "top")?.value != null && C.winner(pause, "height")?.value != null,
+                `the cascade read no top or height for the paused #pause under ${theme} - this would measure nothing`);
             for (const [side, names] of Object.entries(sides)) {
                 const w = C.winner(pause, names);
                 const drawn = !!w && !/^\s*(none|0(px)?)\b/.test(w.value) && !/\b(none|hidden|transparent)\s*$/.test(w.value.trim());
