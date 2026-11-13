@@ -963,5 +963,5 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const sightAfter = await sightOn();
     check("p3: the player in on the secret project still holds it, by its name, after the GM clears the chat log (E101's review of S17-31, R2)",
         Boolean(made) && sightBefore.sees && sightBefore.named && cleared === 0 && sightAfter.sees && sightAfter.named,
-        JSON.stringify({ sightBefore, cleared, sightAfter }));
+        JSON.stringify({ sightBefore, cleared, sightAfter }), { flow: "projects" });
 }
