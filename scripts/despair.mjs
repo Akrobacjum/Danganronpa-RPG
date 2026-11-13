@@ -50,6 +50,12 @@ export function registerDespair() {
         settleOwed().catch(err => error("Could not settle the owed Despair at the time of day's change", err));
     });
     Hooks.on("canvasReady", () => renderDespairBar());
+    /* THE OWED PIPS FOLLOW THE STORE (the owner's report of 13.11.2026 on 1.2.112). A GM's bar draws what its pools owe
+       (`despairRowOf`), and the owed rows are a GM store, a client setting: `updateSetting` never hears its write, and
+       another GM's row merged in here fires this hook too (live.mjs, `watch.stores`). A GM's alone: a player holds none. */
+    Hooks.on("clientSettingChanged", key => {
+        if (game.user?.isGM && key === `${MODULE_ID}.${despairOwedStore.spec.key}`) renderDespairBar();
+    });
     // Keep every client's rows in step when a pool changes.
     Hooks.on("userConnected", () => renderDespairBar());
     // A row is one full Gamemaster. Promoting a player, demoting a GM or
@@ -618,17 +624,40 @@ function timeOfDayMark(clock = getClock()) {
  * (`convertDespairToHope`); the write reads nothing.
  */
 async function recordOwed(userId, n) {
-    await despairOwedStore.patch(`${userId}:${game.user.id}:${Date.now()}`, { owed: n, since: timeOfDayMark() });
+    const key = `${userId}:${game.user.id}:${Date.now()}`;
+    await despairOwedStore.patch(key, { owed: n, since: timeOfDayMark() });
+    return key;
 }
 
 /**
  * A Despair this GM's pool owes from now, paid at the next time of day (E72 C16: a Bounty's price, DC40 "through the
- * debt buffer"): `recordOwed`, for a caller outside this file. GM-side; answers whether it was written.
+ * debt buffer"): `recordOwed`, for a caller outside this file. GM-side; answers the owed row's key (`returnOwed` reads
+ * it), or false when nothing was written.
  */
 export async function oweDespair(userId, n) {
     if (!game.user?.isGM || !(n > 0)) return false;
-    await recordOwed(userId, Math.trunc(n));
-    return true;
+    return recordOwed(userId, Math.trunc(n));
+}
+
+/**
+ * WHAT WAS OWED, GIVEN BACK (the audit's A113-C6-3, 13.11.2026; the owner's default): a lapsed Bounty's Despair goes back
+ * to its pool. The row `key` (`oweDespair`'s answer) still owed is dropped - "cancelled", nothing paid; a row gone was
+ * paid by a settlement, and `n` is paid back into the pool - "back", held at the maximum (`clamp`: a refund never spills).
+ * Asked in a step of `DESPAIR_KEY`, the key the settlement writes in on the primary, so on the primary a settlement half
+ * done (the pools written, the rows not yet dropped) is not read as owed. A row a fill or a zero cleared reads as paid:
+ * after a fill the pool is full and the clamp gives nothing; after a zero, `n` comes back. GM-side; answers which, or null.
+ */
+export async function returnOwed(userId, key, n) {
+    if (!game.user?.isGM || !userId || !key || !(n > 0)) return null;
+    await despairOwedStore.whenHydrated();
+    const owed = await serialWrite(DESPAIR_KEY, async () => {
+        if (!despairOwedStore.has(key)) return false;
+        await despairOwedStore.dropMany([key]);
+        return true;
+    });
+    if (owed) return "cancelled";
+    await adjustDespair(userId, Math.trunc(n), { clamp: true });
+    return "back";
 }
 
 /*
@@ -802,7 +831,12 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
      */
     const user = game.users.get(monokumaUserId);
     const { granted } = await creditHopeFromDespair(actor, Math.min(amount, held), { payer: user ?? null, owes: monokumaUserId, reason: "gmRuling" });
-    if (granted > 0) log(`Converted ${granted} Despair from ${user?.name} into Hope for ${actor.name}; the pool pays at the next time of day.`);
+    if (granted > 0) {
+        log(`Converted ${granted} Despair from ${user?.name} into Hope for ${actor.name}; the pool pays at the next time of day.`);
+        /* The giving GM is told the debt (the owner's report of 13.11.2026 on 1.2.112): the bar draws it owed on a GM's
+           browser alone (`despairRowOf`), and a notice is this browser's. */
+        ui.notifications.info(plural("DRPG.Despair.owedGiven", { n: granted, pool: user ? poolLabel(user) : "Monokuma" }));
+    }
     return granted;
 }
 
@@ -1004,7 +1038,7 @@ export function renderDespairBar() {
         heading.textContent = game.i18n.localize("DRPG.Despair.widgetTitle");
         wrapper.append(heading);
 
-        for (const user of gms) wrapper.append(buildRow(user));
+        for (const user of gms) wrapper.append(despairRowOf(user));
 
         // UNDER THE POOLS (Dawid, 29.08). It reads as the consequence of the
         // rows above it rather than as a heading for them, which is what it is:
@@ -1137,16 +1171,29 @@ export function buildOverflowCaption(status = overflowStatus(), { gm = game.user
     }
 }
 
-function buildRow(user) {
-    const held = getDespair(user.id);
+/**
+ * One pool's row of the bar. `gm`, `held` and `owed` are the suite's to hand (R5880); otherwise this browser's, the
+ * pool's and what it owes. A row handed its `held` animates nothing (`spentSince` learns only the pool's own reading).
+ *
+ * WHAT THE POOL OWES, ON A GM'S ROW ALONE (the owner's report of 13.11.2026 on 1.2.112: "Giving a Monocub Hope doesn't
+ * take Despair from the GM"). A conversion to Hope is owed and paid at the next time of day (E05 C12), so the pool drew
+ * nothing different until then and the GM read the gift as free. On a GM's row the last `owed` filled pips are drawn
+ * as owed (`owed`, a dimmer skull) and the count names the debt in its tooltip; the count's text stays the pool's, so
+ * the panel keeps the one width on every client (Dawid, 29.08, the steppers' note below). A player's row draws the pool
+ * as it stands, and a player's browser holds no owed row to draw: the drop at the gift is what S09-28 hid.
+ */
+export function despairRowOf(user, { gm = game.user.isGM, held = null, owed = null } = {}) {
+    const given = held !== null;
+    if (!given) held = getDespair(user.id);
     const max = despairMax();
-    const isGM = game.user.isGM;
+    const isGM = gm;
     const isOwnPool = game.user.id === user.id;
+    const debt = isGM ? Math.min(Math.max(Math.trunc(Number(owed ?? owedOf(user.id)) || 0), 0), held) : 0;
 
     // Everyone has a reading now (D3): the pool's count is shown on every
     // client, so the pips that were just paid animate on every client too.
     // Only the OVERFLOW stays masked for a player - see `buildOverflowCaption`.
-    const spent = spentSince("despair", user.id, held);
+    const spent = given ? null : spentSince("despair", user.id, held);
 
     const row = document.createElement("div");
     row.className = "drpg-despair-row";
@@ -1182,7 +1229,7 @@ function buildRow(user) {
         // and the table could not tell what its own Despair rolls were feeding.
         // The count is shown to everyone now; what stays hidden is the
         // overflow: when the hat fires is still Monokuma's to know.
-        pip.className = `drpg-despair-pip${i <= held ? " filled" : ""}`;
+        pip.className = `drpg-despair-pip${i <= held ? " filled" : ""}${i <= held && i > held - debt ? " owed" : ""}`;
         // The pips between the old reading and the new one: the ones that were
         // just paid. They are built empty, like every other unspent socket, and
         // the class only says how they got that way. See the keyframes in the
@@ -1225,6 +1272,11 @@ function buildRow(user) {
     const count = document.createElement("span");
     count.className = "drpg-despair-count";
     count.textContent = `${held}/${max}`;
+    if (debt > 0) {
+        const tip = plural("DRPG.Despair.owedTip", { n: debt });
+        count.dataset.tooltip = tip;
+        count.setAttribute("aria-label", `${held}/${max}, ${tip}`);
+    }
     row.append(count);
 
     /*

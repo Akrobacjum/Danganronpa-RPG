@@ -276,12 +276,17 @@ export async function openDespairExplainer() {
 }
 
 /** The Despair window's body as a GM (`gm: true`) or a player reads it; exported for the suite (E15-T5). */
-export async function despairExplainerBody({ gm = false } = {}) {
+export async function despairExplainerBody({ gm = false, owed = null } = {}) {
     const lines = [esc(t("DRPG.Explain.despair.what")), esc(t("DRPG.Explain.despair.spent"))];
 
-    const { monokumas, getDespair, despairMax, poolLabel } = await import("./despair.mjs");
-    const rows = monokumas().map(user =>
-        esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}`));
+    const { monokumas, getDespair, despairMax, poolLabel, owedOf } = await import("./despair.mjs");
+    /* What a pool owes, for a GM alone (the owner's report of 13.11.2026 on 1.2.112): a conversion's Despair is paid at
+       the next time of day, and a player's window shows the pool as it stands. `owed` is the suite's to hand (R5880). */
+    const debtOf = owed ?? owedOf;
+    const rows = monokumas().map(user => {
+        const debt = gm ? Math.max(Number(debtOf(user.id)) || 0, 0) : 0;
+        return esc(`${poolLabel(user)}: ${getDespair(user.id)} / ${despairMax()}${debt ? ` (${plural("DRPG.Despair.owed", { n: debt })})` : ""}`);
+    });
     lines.push(rows.length
         ? rows.join("<br>")
         : esc(t("DRPG.Explain.despair.noPools")));

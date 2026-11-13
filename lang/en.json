@@ -627,6 +627,14 @@
         "one": "{n} owed",
         "other": "{n} owed"
       },
+      "owedTip": {
+        "one": "{n} owed, paid at the next time of day",
+        "other": "{n} owed, paid at the next time of day"
+      },
+      "owedGiven": {
+        "one": "{n} Despair owed from {pool}. The pool pays at the next time of day; only GMs see it owed.",
+        "other": "{n} Despair owed from {pool}. The pool pays at the next time of day; only GMs see it owed."
+      },
       "tabPools": "Pools",
       "tabMonokumas": "Monokumas",
       "tabStudents": "Students",
@@ -1267,6 +1275,15 @@
       "bribeLapsed": "Your Bribe to {name} went unanswered and lapsed. You keep your Hope.",
       "bountyPosted": "A Bounty: {reward} Hope to the first Monocub whose Confusion hinders {name}.",
       "bountyClaimed": "The Bounty on {name} is claimed.",
+      "bountyLapsed": "{name}'s Bounty lapsed unclaimed.",
+      "bountyOwedCancelled": {
+        "one": "The {n} Despair {pool} owed for it is cancelled.",
+        "other": "The {n} Despair {pool} owed for it is cancelled."
+      },
+      "bountyDespairBack": {
+        "one": "The {n} Despair {pool} paid for it is back in the pool.",
+        "other": "The {n} Despair {pool} paid for it is back in the pool."
+      },
       "bountyPaid": "You claim the Bounty on {name}: {n} Hope in your purse.",
       "bountyNoDespair": "Your pool has not the Despair for a Bounty.",
       "bet": "Bet",
@@ -3512,6 +3529,7 @@
       "usedOk": "{action}: done.",
       "usedFailed": "{action}: it did not work. The action is used for this time of day.",
       "traceNote": "Room action: {action}",
+      "shieldTook": "{name}'s protection from Despair took this roll's point: no Despair was gained.",
       "closed": "Someone used this already this time of day.",
       "noActions": "Not enough actions.",
       "shut": {

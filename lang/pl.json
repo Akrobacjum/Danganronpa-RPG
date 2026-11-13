@@ -618,6 +618,18 @@
         "many": "{n} do spłaty",
         "other": "{n} do spłaty"
       },
+      "owedTip": {
+        "one": "{n} do spłaty przy następnej porze dnia",
+        "few": "{n} do spłaty przy następnej porze dnia",
+        "many": "{n} do spłaty przy następnej porze dnia",
+        "other": "{n} do spłaty przy następnej porze dnia"
+      },
+      "owedGiven": {
+        "one": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+        "few": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+        "many": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+        "other": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie."
+      },
       "tabPools": "Pule",
       "tabMonokumas": "Monokumy",
       "tabStudents": "Uczniowie",
@@ -1332,6 +1344,19 @@
       "bribeLapsed": "Twój Bribe dla postaci {name} został bez odpowiedzi i wygasł. Hope zostaje u ciebie.",
       "bountyPosted": "Bounty: {reward} Hope dla pierwszego Monocuba, którego Confusion przeszkodzi postaci {name}.",
       "bountyClaimed": "Bounty na postać {name} odebrane.",
+      "bountyLapsed": "Bounty na postać {name} wygasło nieodebrane.",
+      "bountyOwedCancelled": {
+        "one": "{n} Despair, które pula {pool} była za nie winna, anulowano.",
+        "few": "{n} Despair, które pula {pool} była za nie winna, anulowano.",
+        "many": "{n} Despair, które pula {pool} była za nie winna, anulowano.",
+        "other": "{n} Despair, które pula {pool} była za nie winna, anulowano."
+      },
+      "bountyDespairBack": {
+        "one": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli.",
+        "few": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli.",
+        "many": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli.",
+        "other": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli."
+      },
       "bountyPaid": "Odbierasz Bounty na postać {name}: {n} Hope w twojej sakiewce.",
       "bountyNoDespair": "W twojej puli nie ma Despair na Bounty.",
       "bet": "Postaw",
@@ -3771,6 +3796,7 @@
       "usedOk": "{action}: zrobione.",
       "usedFailed": "{action}: nie wyszło. Akcja jest zużyta na tę porę dnia.",
       "traceNote": "Akcja w pokoju: {action}",
+      "shieldTook": "Ochrona przed Despair postaci {name} zabrała punkt tego rzutu: nie przybyło Despair.",
       "closed": "Ktoś już tego użył o tej porze dnia.",
       "noActions": "Za mało akcji.",
       "shut": {

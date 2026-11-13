@@ -42653,6 +42653,335 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["giving a Monocub Hope, road by road: the Students window's Give, Give 2 pressed on the chat card of its Ask for Hope and a GM's answer to that ask owe the Despair until the next time of day and pay it then, Fuel a Monocub's Call is charged at once, a Bounty's Despair is owed, named on the GMs' card and given back as it lapses unclaimed, and a GM's own write of its Hope takes no Despair; the owed Despair is drawn on this GM's bar (the owner's report of 13.11.2026 on 1.2.112; the audit's A113-C6-2, C6-3)", async () => {
+        /*
+         * The owner, 13.11.2026, at a table on 1.2.112: "Giving a Monocub Hope doesn't take Despair from the GM." Measured
+         * here road by road, on this GM, a Monokuma's pool of this GM's at 5 owing nothing and a Monocub with no Hope:
+         * - window: the Students window's Give pressed drawn, 2 from this GM's pool (gm-students.mjs, `convertDespairToHope`);
+         * - card: the road the owner took - the Monocub's Ask for Hope posted (`performCubAbility`, "askHope"), its card's
+         *   Give 2 pressed through the card's own click handler (messenger-app.mjs `wireCallActions`, which the chat log's
+         *   `renderChatMessageHTML` and the messenger both put on a card), claimed and ruled (`claimCard`, `ruleCubHope`);
+         * - ask: this GM's Give 2 on the Monocub's Ask for Hope called directly (monocub.mjs `answerHopeAsk`, E72 C5);
+         * - fuel: Fuel a Monocub bought for the Monokuma actor whose pool that is (calls.mjs `spendDespairCallFor`);
+         * - bounty: a Bounty this GM posts on another living student (monocub.mjs `postBounty` -> despair.mjs `oweDespair`,
+         *   E72 C16; the audit's A113-C6-2), its Hope never claimed, so it lapses at the time of day's change and its
+         *   Despair goes back (A113-C6-3, the owner's default: until fc4dc27c the pool paid it, [4, 0]) - and the words the
+         *   GMs' card of it says (`bountyCard`: names the debt);
+         * - sheet: this GM's own write of the Monocub's Hope, the write Daggerheart's `toggleHope` on the Hope pips makes
+         *   (`system.resources.hope.value`; read off the module's notes, not off Daggerheart's source, which the harness
+         *   does not hold).
+         * Read after each: [pool, owed, the Monocub's Hope, the owed pips on this GM's bar]; then after the time of day moved on
+         * by the clock's own change (`setTimeOfDay`, which lapses a Bounty; a bare write of the clock pays what is owed and
+         * lapses none): [pool, owed]. The clock is put back between roads (a change of the time of day, which pays nothing owed then). The Mastermind window
+         * gives to the Mastermind, never to a Monocub, and is not a road here. The rows are dropped here; the clock, the
+         * pools and the Hope are put back by tier 2's restore.
+         */
+        needs(env.dialogs(), "the Students window's Give is pressed drawn");
+        needs(world.atLeast("monokumas", 1), "a Monokuma actor whose pool pays Fuel a Monocub");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const MK = await import("./monokuma.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { cubStore, despairOwedStore, bountyStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue, resourceMax } = await import("./character.mjs");
+        const { TIMES_OF_DAY, DESPAIR_CALLS } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const C = await import("./clock.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)?.id === game.user.id) ?? null;
+        must(Boolean(kuma), "no Monokuma actor draws on this GM's pool - this would measure nothing");
+        must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
+        const donor = game.user;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(cub, [HOPE, `flags.${MODULE_ID}.${FLAGS.monocub}`]);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const clock = foundry.utils.deepClone(getClock());
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const ownRows = () => Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(ownRows().map(k => [k, despairOwedStore.get(k)])));
+        const dropOwed = async () => { const rows = ownRows(); if (rows.length) await despairOwedStore.dropMany(rows); };
+        const alive = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const owedPips = () => document.querySelectorAll(`#drpg-despair .drpg-despair-row[data-user-id="${CSS.escape(donor.id)}"] .drpg-despair-pip.owed`).length;
+        const warned = ui.notifications.warn;
+        let bountyOn = null;
+        const read = {};
+        const roads = {
+            window: async () => {
+                void Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+                must(await until(() => alive()[0]?.element?.querySelector(`[data-drpg-give="${CSS.escape(cub.id)}"]`), 6000),
+                    "the Students window drew no Give on the Monocub's row - this would measure nothing");
+                const el = alive()[0].element;
+                el.querySelector(`[name="donor:${CSS.escape(cub.id)}"]`).value = donor.id;
+                el.querySelector(`[name="amount:${CSS.escape(cub.id)}"]`).value = "2";
+                el.querySelector(`[data-drpg-give="${CSS.escape(cub.id)}"]`).click();
+                await until(() => resourceValue(cub, "hope") === 2, 4000);
+                for (const a of alive()) await a.close().catch(() => {});
+            },
+            card: async () => {
+                const before = new Set(game.messages.contents.map(m => m.id));
+                const asked = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+                await settle();
+                const card = game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes("data-drpg-call=\"cubGiveHope\""));
+                must(asked?.done && card, "the Ask for Hope posted no card with a Give - this would measure nothing");
+                const body = document.createElement("div");
+                body.innerHTML = String(contentOf(card) ?? "");
+                wireCallActions(body, card);
+                const give2 = body.querySelector('[data-drpg-call="cubGiveHope"][data-n="2"]');
+                must(give2, "the card has no Give 2 - this would measure nothing");
+                give2.click();
+                await until(() => resourceValue(cub, "hope") === 2 && !cubStore.get(cub.id)?.askOpen, 4000);
+            },
+            ask: () => M.answerHopeAsk(cub, 2),
+            fuel: () => spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: cub } }),
+            bounty: async () => {
+                const other = livingStudents().find(a => a.id !== cub.id && !MK.isMonokuma(a) && !M.isMonocub(a));
+                must(other && !bountyStore.has(other.id), "no living student free of a Bounty to post one on - this would measure nothing");
+                bountyOn = other;
+                const before = new Set(game.messages.contents.map(m => m.id));
+                must(await M.postBounty(donor.id, other), "the Bounty was not posted - this would measure nothing");
+                await settle();
+                const owedWords = plural("DRPG.Despair.owedGiven", { n: DESPAIR_CALLS.bounty.cost, pool: D.poolLabel(donor) });
+                const fresh = game.messages.contents.filter(m => !before.has(m.id));
+                read.bountyCard = [fresh.filter(m => String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(owedWords))).map(m => (m.whisper ?? []).every(id => game.users.get(id)?.isGM)),
+                    fresh.filter(m => String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyPosted", { name: other.name, reward: DESPAIR_CALLS.bounty.reward ?? 1 })))).length > 0];
+            },
+            sheet: () => cub.update({ [HOPE]: 2 })
+        };
+        try {
+            if (getClock().phase === "classTrial") await setClock({ phase: "investigation" });
+            ui.notifications.warn = () => null;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            must(M.isMonocub(cub) && M.purseOf(cub) === 0, `${cub.name} is no Monocub, or holds a purse - this would measure nothing`);
+            must((resourceMax(cub, "hope") || STARTING.hopeMax) >= 2, `${cub.name}'s Hope maximum is under 2 - this would measure nothing`);
+            for (const [road, give] of Object.entries(roads)) {
+                if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+                await dropOwed();
+                await D.setDespair(donor.id, 5);
+                await trustedWrite(cub, { [HOPE]: 0 }, { reason: "gmRuling" });
+                await settle();
+                await give();
+                await settle();
+                await until(() => owedPips() === D.owedOf(donor.id), 3000);
+                const now = [D.getDespair(donor.id), D.owedOf(donor.id), resourceValue(cub, "hope"), owedPips()];
+                // The clock's own change of the time of day (clock.mjs `setTimeOfDay`, the road of Next time of day): a write of
+                // the clock alone settles what is owed (`drpgTimeOfDayChanged`) but lapses no Bounty (measured 13.11.2026).
+                await C.setTimeOfDay(next, { resetSearchTokens: false, announce: false });
+                await until(() => D.owedOf(donor.id) === 0, 4000);
+                await D.settleOwed();
+                await settle();
+                read[road] = [now, [D.getDespair(donor.id), D.owedOf(donor.id)]];
+                if (road === "bounty") read.lapsed = !bountyStore.has(bountyOn.id);
+                await setClock({ timeOfDay: clock.timeOfDay });
+                await D.settleOwed();
+                await settle();
+            }
+        } finally {
+            ui.notifications.warn = warned;
+            for (const a of alive()) await a.close().catch(() => {});
+            if (bountyOn && bountyStore.has(bountyOn.id)) await bountyStore.drop(bountyOn.id);
+            await dropOwed();
+            for (const [key, row] of Object.entries(owedWas)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
+            await putBack();
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            window: [[5, 2, 2, 2], [3, 0]],
+            card: [[5, 2, 2, 2], [3, 0]],
+            ask: [[5, 2, 2, 2], [3, 0]],
+            fuel: [[4, 0, 1, 0], [4, 0]],
+            bounty: [[5, 1, 0, 1], [5, 0]],
+            bountyCard: [[true], true],
+            lapsed: true,
+            sheet: [[5, 0, 2, 0], [5, 0]]
+        }), "a road of Hope to a Monocub took its Despair other than as measured on 13.11.2026, or this GM's bar did not draw the debt, or the GMs' card of a Bounty did not name it ({road: [[pool, owed, Hope, owed pips] after the gift, [pool, owed] after the time of day moved on]; bountyCard: [GMs alone, for each card naming the debt], the Monocubs' card posted; lapsed: the unclaimed Bounty gone at the time of day's change})");
+    }],
+
+    ["a gift of Hope from Despair tells the giving GM what is owed, and the GM's bar draws the owed pips until the next time of day pays them (the owner's report of 13.11.2026 on 1.2.112)", async () => {
+        /*
+         * The owner, 13.11.2026, at a table on 1.2.112: "Giving a Monocub Hope doesn't take Despair from the GM." The
+         * Despair is owed and paid at the next time of day (E05 C12), and until then this GM's bar drew the pool
+         * unchanged. On this GM, a pool of this GM's at 5 owing nothing and a Monocub with no Hope: this GM gives 2 on
+         * its Ask for Hope (monocub.mjs `answerHopeAsk`). Read: the notices this browser was given that name the debt,
+         * the owed pips on this browser's bar (`#drpg-despair`, redrawn as the store changes), and whether the Despair
+         * window's GM body names the debt; then the time of day moves on and the bar is read again. The rows are dropped
+         * here; the clock, the pools and the Hope are put back by tier 2's restore. Red on ceb9e9c8: no notice, no pip.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const { cubStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { despairExplainerBody } = await import("./explain.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const donor = game.user;
+        ok(D.monokumas().some(u => u.id === donor.id), "this GM holds no Despair pool to give from - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(cub, [HOPE, `flags.${MODULE_ID}.${FLAGS.monocub}`]);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const clock = foundry.utils.deepClone(getClock());
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const ownRows = () => Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(ownRows().map(k => [k, despairOwedStore.get(k)])));
+        const dropOwed = async () => { const rows = ownRows(); if (rows.length) await despairOwedStore.dropMany(rows); };
+        const owedPips = () => document.querySelectorAll(`#drpg-despair .drpg-despair-row[data-user-id="${CSS.escape(donor.id)}"] .drpg-despair-pip.owed`).length;
+        const told = [];
+        const ownInfo = ui.notifications.info;
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            await dropOwed();
+            await D.setDespair(donor.id, 5);
+            await trustedWrite(cub, { [HOPE]: 0 }, { reason: "gmRuling" });
+            await settle();
+            must(document.querySelector(`#drpg-despair .drpg-despair-row[data-user-id="${CSS.escape(donor.id)}"]`), "this GM's pool has no row on the bar - this would measure nothing");
+            ui.notifications.info = (text, ...rest) => { told.push(String(text)); return ownInfo.call(ui.notifications, text, ...rest); };
+            await M.answerHopeAsk(cub, 2);
+            await settle();
+            await until(() => owedPips() === 2, 3000);
+            read.gift = [D.owedOf(donor.id), told.filter(t => t === plural("DRPG.Despair.owedGiven", { n: 2, pool: D.poolLabel(donor) })).length, owedPips(),
+                (await despairExplainerBody({ gm: true })).includes(foundry.utils.escapeHTML(plural("DRPG.Despair.owed", { n: 2 })))];
+            await setClock({ timeOfDay: next });
+            await until(() => D.owedOf(donor.id) === 0, 4000);
+            await D.settleOwed();
+            await settle();
+            await until(() => owedPips() === 0, 3000);
+            read.paid = [D.getDespair(donor.id), D.owedOf(donor.id), owedPips()];
+        } finally {
+            ui.notifications.info = ownInfo;
+            await setClock({ timeOfDay: clock.timeOfDay });
+            await D.settleOwed();
+            await dropOwed();
+            for (const [key, row] of Object.entries(owedWas)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
+            await putBack();
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gift: [2, 1, 2, true], paid: [3, 0, 0] }),
+            "the gift did not tell this GM its debt once, or this GM's bar or Despair window did not draw it, or the bar kept it once paid ({gift: [owed, notices naming it, owed pips, the window names it], paid: [pool, owed, owed pips]})");
+    }],
+
+    ["an unclaimed Bounty's lapse gives its Despair back and tells the GMs and the Monocubs: lapsed before the settlement, the debt is dropped; lapsed after it, the pool is paid back (the audit's A113-C6-3, 13.11.2026)", async () => {
+        /*
+         * The audit's A113-C6-3, 13.11.2026, the owner's default: an unclaimed Bounty lapsed at the turn with no card, and its
+         * Despair, owed through `oweDespair`, was still taken. The Bounty keeps the key of its owed row (`owedKey`); at the
+         * lapse (monocub.mjs `lapseBounties`) a row still owed is dropped, and a row already paid by a settlement
+         * (`settleOwed`) is paid back into the pool (`adjustDespair`, held at the maximum: nothing spills); the GMs' card says
+         * "{name}'s Bounty lapsed unclaimed" with which of the two it was, and every Monocub's player is told the lapse, as
+         * the post was told to them. On this GM, its pool at 5 owing nothing, a Monocub with a player and another living
+         * student: (a) a Bounty posted and lapsed before any settlement; (b) one posted, its debt paid by a write of the clock
+         * (which settles and lapses nothing, measured 13.11.2026), then lapsed. Read for each: [pool, owed] after the post,
+         * after the settlement (b), after the lapse, and [the GMs' cards naming the lapse with their sentence, the Monocub's
+         * player told]. Red on fc4dc27c: no card, and the Despair kept.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player to tell");
+        const D = await import("./despair.mjs");
+        const M = await import("./monocub.mjs");
+        const MK = await import("./monokuma.mjs");
+        const { cubStore, despairOwedStore, bountyStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { TIMES_OF_DAY, DESPAIR_CALLS } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const donor = game.user;
+        ok(D.monokumas().some(u => u.id === donor.id), "this GM holds no Despair pool - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const other = livingStudents().find(a => a.id !== cub.id && !MK.isMonokuma(a));
+        must(other, "no second living student to put a Bounty on - this would measure nothing");
+        const putBack = sheetAsFound(cub, [`flags.${MODULE_ID}.${FLAGS.monocub}`]);
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const clock = foundry.utils.deepClone(getClock());
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const seen = new Set(had);
+        const ownRows = () => Object.keys(despairOwedStore.entries()).filter(k => k === donor.id || k.startsWith(`${donor.id}:`));
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(ownRows().map(k => [k, despairOwedStore.get(k)])));
+        const dropOwed = async () => { const rows = ownRows(); if (rows.length) await despairOwedStore.dropMany(rows); };
+        const state = () => [D.getDespair(donor.id), D.owedOf(donor.id)];
+        const cost = DESPAIR_CALLS.bounty.cost;
+        const lapsedWords = foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyLapsed", { name: other.name }));
+        const cards = sentence => {
+            const fresh = game.messages.contents.filter(m => !seen.has(m.id));
+            fresh.forEach(m => seen.add(m.id));
+            const lapse = fresh.filter(m => String(contentOf(m) ?? "").includes(lapsedWords));
+            const toGms = m => (m.whisper ?? []).length > 0 && m.whisper.every(id => game.users.get(id)?.isGM);
+            return [lapse.filter(toGms).map(m => String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(sentence))),
+                lapse.some(m => (m.whisper ?? []).includes(player(cub)?.id))];
+        };
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            if (bountyStore.has(other.id)) await bountyStore.drop(other.id);
+            await dropOwed();
+            await D.setDespair(donor.id, 5);
+            await settle();
+            cards("");
+
+            must(await M.postBounty(donor.id, other), "the first Bounty was not posted - this would measure nothing");
+            await settle();
+            read.a = [state()];
+            await M.lapseBounties();
+            await settle();
+            await D.settleOwed();
+            await settle();
+            read.a.push(state(), cards(plural("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool: D.poolLabel(donor) })));
+
+            must(await M.postBounty(donor.id, other), "the second Bounty was not posted - this would measure nothing");
+            await settle();
+            read.b = [state()];
+            await setClock({ timeOfDay: next });
+            await until(() => D.owedOf(donor.id) === 0, 4000);
+            await D.settleOwed();
+            await settle();
+            read.b.push(state(), bountyStore.has(other.id));
+            await M.lapseBounties();
+            await settle();
+            read.b.push(state(), cards(plural("DRPG.Monocub.bountyDespairBack", { n: cost, pool: D.poolLabel(donor) })));
+        } finally {
+            await setClock({ timeOfDay: clock.timeOfDay });
+            await D.settleOwed();
+            if (bountyStore.has(other.id)) await bountyStore.drop(other.id);
+            await dropOwed();
+            for (const [key, row] of Object.entries(owedWas)) if (!despairOwedStore.has(key)) await despairOwedStore.patch(key, row);
+            await putBack();
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            a: [[5, cost], [5, 0], [[true], true]],
+            b: [[5, cost], [5 - cost, 0], true, [5, 0], [[true], true]]
+        }), "an unclaimed Bounty's lapse kept its Despair, or did not tell the GMs which way it went back, or did not tell the Monocub ({a: lapsed before the settlement: [pool, owed] posted, after the lapse, [[the GMs' cards of the lapse naming the debt dropped], the Monocub's player told]; b: lapsed after it: posted, paid, still open, after the lapse, [[the GMs' cards naming the Despair paid back], told]})");
+    }],
+
     ["the Despair counters wait for the rows the other GMs hold", async () => {
         /*
          * E05 fix r2-G2, 27.09.2026; review F5, S2-m7. The owed Despair and the overflow's count
@@ -97219,6 +97548,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E93, 12.11.2026. The rolls thrown on this GM, whose chat hook awards a fresh roll's point as the primary does at a
          * table (despair-award.mjs `onChatMessage` -> `awardRollDespair` with the message), with "Rolls grant Despair" on. Put back: the pool, the setting, the rows, the messages.
          * Red at e1b0ac4: no kind "despairShield".
+         * The audit's A113-C6-1 (13.11.2026): the shield stopped the point with a console line alone, while the roll's card
+         * said "with Despair" and the pool did not move, so a GM could not tell why. The GMs are whispered that the shield
+         * took the point (`DRPG.Facility.shieldTook`), once, on the roll it stopped; the players are told no more than
+         * before. Read with each roll: [whispers naming it, each to the GMs alone]. Red at 43d34e26: no whisper.
          */
         const T = await import("./timed-effects.mjs");
         const F = await import("./facilities.mjs");
@@ -97229,6 +97562,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { player, actor, where } = await playerInRoom();
         const monokuma = (await import("./assignments.mjs")).monokumaFor(actor);
         must(monokuma, `${actor.name} has no Monokuma to feed - this would measure nothing`);
+        const { contentOf } = await import("./secret.mjs");
+        const tookWords = foundry.utils.escapeHTML(game.i18n.format("DRPG.Facility.shieldTook", { name: actor.name }));
+        const seenIds = new Set(game.messages.contents.map(m => m.id));
+        const told = () => {
+            const fresh = game.messages.contents.filter(m => !seenIds.has(m.id));
+            fresh.forEach(m => { seenIds.add(m.id); if (!made.includes(m)) made.push(m); });
+            return fresh.filter(m => String(contentOf(m) ?? "").includes(tookWords)).map(m => (m.whisper ?? []).length > 0 && m.whisper.every(id => game.users.get(id)?.isGM));
+        };
         const settingWas = game.settings.get(MODULE_ID, SETTINGS.despairFromRolls);
         const poolWas = P.getDespair(monokuma.id);
         const clock = getClock();
@@ -97245,10 +97586,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // The primary's chat hook awards a fresh roll's point (despair-award.mjs `onChatMessage`), the road at a table.
             const first = await roll();
             await settle();
-            read.first = [P.getDespair(monokuma.id), Boolean(first.getFlag(MODULE_ID, "despairShielded")), T.timedEffectsOf(actor.id).length];
+            read.first = [P.getDespair(monokuma.id), Boolean(first.getFlag(MODULE_ID, "despairShielded")), T.timedEffectsOf(actor.id).length, told()];
             const second = await roll();
             await settle();
-            read.second = [P.getDespair(monokuma.id), Boolean(second.getFlag(MODULE_ID, "despairShielded"))];
+            read.second = [P.getDespair(monokuma.id), Boolean(second.getFlag(MODULE_ID, "despairShielded")), told()];
             await applyEffects(actor, [effect], where, player);
             await T.endTimedEffects({ clock: nextTime });
             read.unused = T.timedEffectsOf(actor.id).length;
@@ -97261,8 +97602,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson({ first: [0, true, 0], second: [1, false], unused: 0 }),
-            "{first: [the pool, the roll marked, rows left] after a roll with Fear; second: [the pool, marked] after the next; unused: rows after a time of day} - protection from Despair");
+        equal(stableJson(read), stableJson({ first: [0, true, 0, [true]], second: [1, false, []], unused: 0 }),
+            "{first: [the pool, the roll marked, rows left, the GMs' whispers that the shield took the point (each to the GMs alone)] after a roll with Fear; second: [the pool, marked, those whispers] after the next; unused: rows after a time of day} - protection from Despair");
     }],
     ["E93-T9 - a room action's extra crossing in an Eclipse raises that character's allowance alone until the next Eclipse ends (scripts/timed-effects.mjs, eclipse.mjs `eclipseAllowanceFor`, `movesLeft`; the owner's answer to Q-E93-3, 12.11.2026): one more crossing raises the character's allowance and crossings left by one and nobody else's, reads on the sheet, and an Eclipse's end takes it away; a free-placement Eclipse stays free", async () => {
         /*

@@ -1255,6 +1255,17 @@ body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
     filter: drop-shadow(0 0 3px var(--drpg-blood-glow));
 }
 
+/* OWED, ON A GM'S BAR ALONE (the owner's report of 13.11.2026 on 1.2.112; despair.mjs `despairRowOf`). A conversion
+   to Hope's Despair, still in the pool until the next time of day pays it: the skull filled, dimmer and unlit, in a
+   dashed box - told from a lit and an empty skull by the box, not by colour alone (measured in Chromium, 13.11.2026:
+   at 0.45 and no box, Stained Glass's owed skull stood 1.40:1 from its empty one, the same hue). */
+#drpg-despair .drpg-despair-pip.filled.owed {
+    opacity: 0.6;
+    filter: none;
+    outline: 1px dashed currentColor;
+    outline-offset: 1px;
+}
+
 #drpg-despair.gm-editable .drpg-despair-pip:hover {
     transform: scale(1.18);
     cursor: pointer;
@@ -17831,6 +17842,8 @@ body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
         background: Canvas;
     }
     .drpg-despair-pip.filled { background: CanvasText; }
+    /* Owed (despair.mjs `despairRowOf`): opacity is taken here, so the owed skull is told by its dashed outline. */
+    .drpg-despair-pip.filled.owed { outline-style: dashed; }
 
     /* THE REST OF THE STATES (E48 K3, 11.11.2026; tests-css.mjs FORCED_STATES, R3440, audit/forced-sweep.mjs).
        A pip, a Hope star and every pixel glyph is a mask over `background-color: currentColor`, and forced
