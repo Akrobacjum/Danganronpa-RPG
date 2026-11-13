@@ -8010,7 +8010,8 @@
         "counter": "Nowa kontra",
         "solution": "Rozwiązanie",
         "incident": "Nowy Remnant",
-        "final": "Final Truth Remnant"
+        "final": "Final Truth Remnant",
+        "bullet": "Nowy Truth Bullet"
       },
       "reachYes": "{held}/{of}: uczniowie mogą do tego dojść",
       "reachNo": "{held}/{of}: jeszcze nie",
@@ -8036,10 +8037,13 @@
         "tooManyKeys": "Key Remnanty w sprawie: {ref}, więcej niż przygotowuje rozdział.",
         "incomplete": "Brakuje: {ref} ({node})."
       },
-      "needs": {"room": "pokój"},
+      "needs": {"room": "pokój", "name": "nazwa", "recipient": "odbiorca"},
       "pickRoom": "- wybierz pokój -",
       "addIncident": "Dodaj zaplanowany Remnant",
       "addFinal": "Dodaj zaplanowany Final Truth",
+      "addBullet": "Dodaj zaplanowany Truth Bullet",
+      "noRecipient": "- jeszcze nikt -",
+      "bulletGiven": "Wydany.",
       "finalAskRoomTitle": "Gdzie ma stanąć Final Truth Remnant?",
       "placeOnMap": "Postaw na mapie",
       "showOnMap": "Pokaż",

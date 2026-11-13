@@ -9117,6 +9117,41 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R5333 - a planned Truth Bullet made by hand is a case row of its own (E104; the owner, 13.11.2026: \"kazdemu zaplanowanemu remnantowi/bulletowi\"): kind bullet, holding the Give Truth Bullet window's Write new fields with its defaults (Neutral, shown as auto, Evident, not Faint, not tied, the player told), its recipient and when it was given; on the Map evidence of its real type, planned until given and sent after, needing a name and a recipient where it has none", async () => {
+        /*
+         * E104 C4. case-schema.mjs CASE_KINDS, `caseNodeOf` (`bulletFields`), `graphOf`'s planned Truth Bullet; case-map.mjs
+         * `kindLabel`, `nodeState`. The editor and Give are tier 2's "planned Truth Bullet holds every field ...". Red at
+         * f9f86848: no kind "bullet".
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const { TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        const pick = n => n ? { recipient: n.recipient, tell: n.tell, realType: n.realType, shown: n.shown, vis: n.vis, faint: n.faint, tied: n.tied,
+            analysis: n.analysis, note: n.note, given: n.given } : null;
+        const full = { kind: "bullet", label: "R5333", recipient: "A1", tell: false, realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true,
+            text: "words", analysis: "lab", note: "gm", given: 5 };
+        const graph = S.graphOf({ chapter: 1, rows: { "bullet-a": { ...full, given: null }, "bullet-b": { kind: "bullet" }, "bullet-c": full } });
+        const node = id => graph.nodes.find(n => n.id === id) ?? null;
+        equal(stableJson({
+            kind: S.CASE_KINDS.includes("bullet"),
+            full: pick(S.caseNodeOf(full)),
+            bare: pick(S.caseNodeOf({ kind: "bullet" })),
+            odd: pick(S.caseNodeOf({ kind: "bullet", realType: "nonsense", shown: "maybe", vis: "loud", faint: "yes", given: "now" })),
+            other: pick(S.caseNodeOf({ kind: "deduction", recipient: "A1" })),
+            a: node("bullet-a") ? { evidence: node("bullet-a").evidence, tied: node("bullet-a").tied, face: M.kindLabel(node("bullet-a")), state: M.nodeState(node("bullet-a")), needs: node("bullet-a").needs } : null,
+            b: node("bullet-b")?.needs ?? null,
+            c: node("bullet-c") ? M.nodeState(node("bullet-c")) : null
+        }), stableJson({
+            kind: true,
+            full: { recipient: "A1", tell: false, realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true, analysis: "lab", note: "gm", given: 5 },
+            bare: { recipient: "", tell: true, realType: "neutral", shown: "auto", vis: "evident", faint: false, tied: false, analysis: "", note: "", given: null },
+            odd: { recipient: "", tell: true, realType: "neutral", shown: "auto", vis: "evident", faint: false, tied: false, analysis: "", note: "", given: null },
+            other: { recipient: null, tell: null, realType: null, shown: null, vis: null, faint: null, tied: null, analysis: null, note: null, given: null },
+            a: { evidence: true, tied: true, face: TRUTH_BULLET_TYPES.incident.label, state: "planned", needs: [] },
+            b: ["name", "recipient"],
+            c: "sent"
+        }), "{bullet among the kinds; a full row read; a bare one; bad values; a deduction; a planned node: evidence, tied, face, state, needs; a bare plan's needs; a given one's state}");
+    }],
     ["R5332 - a planned Final Truth is a case row of its own (E104; the owner, 13.11.2026: \"kazdy rodzaj i kazdy szczegol\"): kind final, its id named for it, holding the Final Truth form's fields (room's scene, visibility, who left it, analysis, note, picture; tied and reinforced by its kind, so neither is planned); on the Map a planned node with the Final Truth's face, needing a room where it has none, and once placed its Remnant's node, marked with the plan", async () => {
         /*
          * E104 C3. case-schema.mjs CASE_KINDS, `newCaseNodeId`, `caseNodeOf` (`incidentFields`), `graphOf`'s planned

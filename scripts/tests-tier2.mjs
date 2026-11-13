@@ -29320,6 +29320,89 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "{the editor's fields in order; the row after the close; the placed Final Truth's fields; the plan pointing at it; the roomless plan's question; Final Truths placed in all}");
     }],
 
+    ["planned Truth Bullet holds every field: the Map's editor of a planned Truth Bullet shows the Give Truth Bullet window's Write new fields and its recipient rows in their order, keeps them at the node's close, and its Give opens that window on Write new with every one filled in; given, the student holds it as planned and the plan reads given (E104; the owner, 13.11.2026: \"kazdemu zaplanowanemu remnantowi/bulletowi\")", async () => {
+        /*
+         * E104 C4. investigation.mjs `schemaEditor`'s planned Truth Bullet, `placeIncident` -> `givePlannedBullet` ->
+         * gm-items.mjs `giveTruthBulletDialog` (`fill`). A fixture plan in the chapter running: its fields read in order
+         * and set (name, Incident, shown as real, Subtle, Faint, tied, the words, analysis and note, the first student, not
+         * told), the node closed, the row read back; then Give: the window's Write new tab and recipient rows read, Give
+         * pressed; the student's new Truth Bullet read (name, its answer key's real type, visibility, Faint, tied, words,
+         * analysis, note) and the plan's `given`. The bullet and the row are taken away. Red at f9f86848: no planned
+         * Truth Bullet.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const chapter = I.keyPlan().chapter;
+        const id = "bullet-suitee104a", base = `case:${chapter}:${id}`;
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give it to - this would measure nothing");
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const before = new Set(TB.bulletsOf(student).map(i => i.uuid));
+        const fresh = () => TB.bulletsOf(student).filter(i => !before.has(i.uuid));
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE e104 bullet" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
+            const edit = root?.querySelector(".drpg-case-edit:not([hidden])");
+            must(edit && win.field(`${base}:recipient`), "the planned Truth Bullet's node did not open with its fields");
+            seen.order = [...edit.querySelectorAll("[name]")].map(el => el.getAttribute("name").split(":").pop());
+            const set = (f, v) => { win.field(`${base}:${f}`).value = v; };
+            set("label", "SUITE e104 the bullet"); set("realType", "incident"); set("shown", "real"); set("vis", "subtle");
+            win.field(`${base}:faint`).checked = true; win.field(`${base}:tied`).checked = true;
+            set("text", "SUITE e104 bullet words"); set("analysis", "SUITE e104 bullet lab"); set("note", "SUITE e104 bullet note");
+            set("recipient", student.id); win.field(`${base}:tell`).checked = false;
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[id])?.recipient === student.id, 4000).catch(() => {});
+            const row = S.caseNodeOf(S.caseRows(chapter).rows[id]);
+            seen.stored = row ? { label: row.label, realType: row.realType, shown: row.shown, vis: row.vis, faint: row.faint, tied: row.tied, text: row.text,
+                analysis: row.analysis, note: row.note, recipient: row.recipient, tell: row.tell } : null;
+            await win.close();
+            win = null;
+            const giving = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            const el = giveWindow()?.element;
+            const f = el?.querySelector("form");
+            seen.window = f ? { tab: el.querySelector('nav.drpg-tabs > button[role="tab"][aria-selected="true"]')?.dataset.drpgTabKey ?? null,
+                name: f.elements.name.value, realType: f.elements.realType.value, shown: f.elements.shown.value, vis: f.elements.visibility.value,
+                faint: f.elements.faint.checked, tied: f.elements.tied.checked, text: f.elements.playerText.value, analysis: f.elements.analyzedText.value,
+                note: f.elements.gmNote.value, recipient: f.elements.recipient.value, tell: f.elements.tell.checked } : null;
+            el?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([giving, wait(5000)]);
+            await gmStoresIdle();
+            const item = fresh()[0] ?? null;
+            const secret = item ? TB.secretOf(item.uuid) : null;
+            const data = item ? TB.truthBulletData?.(item) ?? null : null;
+            seen.given = item ? { name: item.name, real: secret?.realType ?? null, vis: secret?.visibility ?? data?.visibility ?? null, note: secret?.gmNote ?? null } : null;
+            seen.marked = Number.isFinite(S.caseNodeOf(S.caseRows(chapter).rows[id])?.given);
+        } finally {
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const item of fresh()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "recipient", "tell"],
+            stored: { label: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true, text: "SUITE e104 bullet words",
+                analysis: "SUITE e104 bullet lab", note: "SUITE e104 bullet note", recipient: student.id, tell: false },
+            window: { tab: "create", name: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true,
+                text: "SUITE e104 bullet words", analysis: "SUITE e104 bullet lab", note: "SUITE e104 bullet note", recipient: student.id, tell: false },
+            given: { name: "SUITE e104 the bullet", real: "incident", vis: "subtle", note: "SUITE e104 bullet note" },
+            marked: true
+        }), "{the editor's fields in order; the row after the close; the Give window's tab and fields; the given Truth Bullet: name, real type, visibility, GM note; the plan marked given}");
+    }],
+
     ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~01:05: the case plans its Autopsy on a node of its own

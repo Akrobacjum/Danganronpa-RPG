@@ -34,8 +34,8 @@ export { MAP_GEOMETRY, mapPlace, edgePath, TILE_GUTTER, placeTileControls } from
  */
 export function nodeState(node, finders = null) {
     if (!node?.evidence) return "schema";
-    // a planned Autopsy once sent (13.11.2026)
-    if (node.kind === "autopsy") return node.sent ? "sent" : "planned";
+    // a planned Autopsy once sent (13.11.2026), a planned Truth Bullet once given (E104)
+    if (node.kind === "autopsy" || node.kind === "bullet") return node.sent ? "sent" : "planned";
     if (node.planned) return "planned";
     const names = finders?.get?.(tokenIdOf(node.trace)) ?? null;
     return names && names.size ? "held" : "onMap";
@@ -60,6 +60,8 @@ export function kindLabel(node) {
             return node.of > 1 && Number.isInteger(node.n) ? F("DRPG.CaseMap.autopsyNth", { label, n: node.n }) : label;
         }
         if (node.planned && node.kind === "final") return REMNANT_TYPES.final?.label ?? L("DRPG.CaseMap.kind.remnant");
+        // a planned Truth Bullet by its real type (E104)
+        if (node.kind === "bullet") return TRUTH_BULLET_TYPES[node.realType]?.label ?? L("DRPG.CaseMap.kind.remnant");
         if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES[node.type ?? "incident"]?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
         return REMNANT_TYPES[node.type]?.label ?? REMNANT_TYPES[node.kind]?.label ?? L("DRPG.CaseMap.kind.remnant");
     }
@@ -355,7 +357,7 @@ export function caseToolsHtml({ sort = "kind", sorts = [] } = {}) {
     const b = (attr, value, key, extra = "") => `<button type="button" ${attr}="${esc(value)}"${extra}>${esc(L(key))}</button>`;
     return `<div class="drpg-case-tools" role="toolbar" aria-label="${esc(L("DRPG.CaseMap.toolsLabel"))}">`
         + `<div class="drpg-case-tools-row">${b("data-drpg-case-add", "deduction", "DRPG.CaseMap.addDeduction")}${b("data-drpg-case-add", "counter", "DRPG.CaseMap.addCounter")}`
-        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}${b("data-drpg-case-add", "incident", "DRPG.CaseMap.addIncident")}${b("data-drpg-case-add", "final", "DRPG.CaseMap.addFinal")}</div>`
+        + `${b("data-drpg-case-add", "solution", "DRPG.CaseMap.addSolution")}${b("data-drpg-case-add", "incident", "DRPG.CaseMap.addIncident")}${b("data-drpg-case-add", "final", "DRPG.CaseMap.addFinal")}${b("data-drpg-case-add", "bullet", "DRPG.CaseMap.addBullet")}</div>`
         /* the order's picker named by `aria-label` and its title, not a visible label: with one, the row was 1005 px under
            the glass at 1366x768, over the 972 px it has, and took a second row from the graph (the E97 fix's sweep) */
         + `<select class="drpg-case-sort" data-drpg-case-sort aria-label="${esc(L("DRPG.CaseMap.sortLabel"))}" title="${esc(L("DRPG.CaseMap.sortLabel"))}">`

@@ -2474,7 +2474,10 @@ function caseReach(graph) {
             /* an Autopsy's node is held by whoever holds this chapter's Autopsy of its name (13.11.2026; several a chapter
                since the owner's 13.11), and one of no planned name by the first */
             const id = secret.realType === "autopsy" && Number(secret.chapter) === Number(graph.chapter) && sameSeason(secret)
-                ? autopsyHolderNode(graph, item.name) : byToken.get(secret.remnantId);
+                ? autopsyHolderNode(graph, item.name)
+                // a planned Truth Bullet given by hand (E104): held by whoever holds one of its name with no Remnant behind it
+                : !secret.remnantId ? graph.nodes.find(n => n.kind === "bullet" && n.sent && n.label && n.label === item.name)?.id ?? null
+                : byToken.get(secret.remnantId);
             if (!id) continue;
             if (!holders.has(id)) holders.set(id, new Set());
             holders.get(id).add(actor.id);
@@ -2548,7 +2551,7 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
     }
     /* A PLANNED REMNANT'S FIELDS TOO (13.11.2026): it is evidence on the map, so until then it drew none, and its room,
        its type and its Place on the map were reached only from the GM panel's list (E97 C12's editor, never drawn). */
-    for (const node of graph.nodes) if (!node.evidence || (node.planned && ["incident", "autopsy", "final"].includes(node.kind))) add(node.id, schemaEditor(graph, node));
+    for (const node of graph.nodes) if (!node.evidence || (node.planned && ["incident", "autopsy", "final", "bullet"].includes(node.kind))) add(node.id, schemaEditor(graph, node));
     const slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]));
     caseKeyCells({ plan, status, placed, limit }).forEach((c, i) => {
         const id = slotNode.get(i);
@@ -2614,6 +2617,41 @@ function schemaEditor(graph, node) {
             editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyTextPlaceholder"))}">${esc(node.text)}</textarea>`),
             editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2">${esc(node.note ?? "")}</textarea>`)
+        ].join("");
+    }
+    if (node.kind === "bullet") {
+        /* A PLANNED TRUTH BULLET MADE BY HAND (E104; the owner, 13.11.2026: "kazdemu zaplanowanemu remnantowi/bulletowi"):
+           the Give Truth Bullet window's Write new fields in its order and words (gm-items.mjs `bulletCreatePane`: name,
+           real type, shown as, visibility, Faint, tied, the player's words, the analysis, the GM's note), then its recipient
+           rows (who gets it, Tell the player). Give opens that window filled in (`placeIncident` -> `givePlannedBullet`). */
+        const types = Object.entries(TRUTH_BULLET_TYPES).map(([key, t]) => `<option value="${key}"${key === (node.realType ?? "neutral") ? " selected" : ""}>${
+            esc(t.label)}</option>`).join("");
+        const shown = [["auto", "DRPG.TruthBullet.shownAuto"], ["neutral", "DRPG.TruthBullet.shownNeutral"], ["real", "DRPG.TruthBullet.shownReal"]]
+            .map(([v, k]) => `<option value="${v}"${v === (node.shown ?? "auto") ? " selected" : ""}>${esc(L(k))}</option>`).join("");
+        const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (node.vis ?? "evident") ? " selected" : ""}>${
+            esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
+        const check = (field, key, on) => editRow(L(key), `<input type="checkbox" name="${esc(name(field))}" aria-label="${esc(L(key))}"${on ? " checked" : ""} />`);
+        const recipients = `<option value=""${node.recipient ? "" : " selected"}>${esc(L("DRPG.CaseMap.noRecipient"))}</option>`
+            + studentActors().map(a => `<option value="${esc(a.id)}"${a.id === node.recipient ? " selected" : ""}>${esc(a.name)}</option>`).join("");
+        return [
+            ...(node.sent ? [`<p class="drpg-case-info-note">${esc(L("DRPG.CaseMap.bulletGiven"))}</p>`] : []),
+            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+                esc(L("DRPG.TruthBullet.namePlaceholder"))}" />`),
+            editRow(L("DRPG.TruthBullet.realType"), `<select name="${esc(name("realType"))}">${types}</select>`),
+            editRow(L("DRPG.TruthBullet.shown"), `<select name="${esc(name("shown"))}">${shown}</select>`),
+            editRow(L("DRPG.TruthBullet.visibility"), `<select name="${esc(name("vis"))}">${vis}</select>`),
+            check("faint", "DRPG.TruthBullet.faintField", node.faint === true),
+            check("tied", "DRPG.TruthBullet.tiedField", node.tied === true),
+            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="2" placeholder="${
+                esc(L("DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(node.text)}</textarea>`),
+            editRow(L("DRPG.TruthBullet.analyzedText"), `<textarea name="${esc(name("analysis"))}" rows="2" placeholder="${
+                esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
+            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
+                esc(L("DRPG.TruthBullet.gmNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
+            editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}">${recipients}</select>`),
+            check("tell", "DRPG.Items.tellPlayer", node.tell !== false),
+            `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
+                esc(L("DRPG.TruthBullet.give"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`
         ].join("");
     }
     if (node.kind === "final") {
@@ -3089,6 +3127,7 @@ export async function placeIncident(chapter, id) {
     if (!game.user?.isGM) return null;
     const row = caseNodeOf(caseRows(chapter).rows[id]);
     if (row?.kind === "final") return placePlannedFinal(chapter, id, row);
+    if (row?.kind === "bullet") return givePlannedBullet(chapter, id, row);
     if (row?.kind !== "incident") return null;
     // the plan's type (13.11.2026); an Incident Remnant is tied to the murder, any other as the GM says in the window
     const type = row.type ?? "incident";
@@ -3228,6 +3267,19 @@ export async function runDashboardButton(action) {
 // the window they pressed Save on. Same order its old home kept.
 // On the scene of the option picked (E12 fix r1-G2): the placement used to look the room's
 // name up on the school first, so a GM who picked the Annex's Kitchen got the school's.
+/**
+ * A PLANNED TRUTH BULLET GIVEN (E104): the Give Truth Bullet window (gm-items.mjs `giveTruthBulletDialog`) opens on Write
+ * new with every field the plan holds, on its planned recipient (else the first student, which the window shows), and
+ * the GM gives it there; given, the plan is marked so (`given`). The window refuses one with no name, as ever. Answers
+ * whether it was given.
+ */
+async function givePlannedBullet(chapter, id, row) {
+    const { giveTruthBulletDialog } = await import("./gm-items.mjs");
+    const given = await giveTruthBulletDialog(row.recipient ? game.actors.get(row.recipient) ?? null : null, { fill: row });
+    if (given) await setCaseNode(chapter, id, { given: Date.now() });
+    return given;
+}
+
 /**
  * A PLANNED FINAL TRUTH PUT ON THE MAP (E104): by the Final Truth form's own road (mastermind.mjs `placeFinalRemnant`),
  * with every field the plan holds - its room on its scene, visibility, who left it, name, words, analysis and the GM's

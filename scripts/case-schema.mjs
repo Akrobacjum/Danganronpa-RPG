@@ -23,12 +23,13 @@ import { caseSchemaStore, keyPlanStore, caseTickStore } from "./gm-stores.mjs";
 import { remnantsOn, remnantData, keyOf } from "./remnants.mjs";
 import { getClock } from "./clock.mjs";
 import { sameSeason, SETTINGS } from "./settings.mjs";
-import { MODULE_ID, REMNANT_VISIBILITY } from "./config.mjs";
+import { MODULE_ID, REMNANT_VISIBILITY, TRUTH_BULLET_TYPES } from "./config.mjs";
 
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
-/* E104: and "final", a planned Final Truth Remnant: the Final Truth form's fields, kept until it is placed from its node */
-export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident", "autopsy", "final"]);
+/* E104: and "final", a planned Final Truth Remnant: the Final Truth form's fields, kept until it is placed from its node;
+   and "bullet", a planned Truth Bullet made by hand: the Give Truth Bullet window's Write new fields, given from its node */
+export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident", "autopsy", "final", "bullet"]);
 /* THE PLANNED AUTOPSY (the owner, 13.11.2026: "Dodajmy tez opcje zaplanowania autopsy truth bullet zamiast wysylania go od
    razu. Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa"): one row a
    chapter, kind "autopsy", under this id - its name (`label`), the players' words (`text`) and the GM's note (`note`).
@@ -124,15 +125,35 @@ function incidentFields(raw) {
     // a planned Remnant's and a planned Final Truth's (E104); the Final Truth is tied and reinforced by its kind
     const on = raw.kind === "incident" || raw.kind === "final";
     const own = raw.kind === "incident";
+    // a planned Truth Bullet (E104) has a visibility and an analysis too
+    const bullet = raw.kind === "bullet";
     const str = v => (on ? (typeof v === "string" ? v : "") : null);
     return {
         scene: on ? (typeof raw.scene === "string" && raw.scene ? raw.scene : null) : null,
         author: str(raw.author),
-        vis: on ? (REMNANT_VISIBILITY.includes(raw.vis) ? raw.vis : "evident") : null,
+        vis: on || bullet ? (REMNANT_VISIBILITY.includes(raw.vis) ? raw.vis : "evident") : null,
         tie: own ? (TIES.includes(raw.tie) ? raw.tie : ((PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") === "incident" ? "tied" : "")) : null,
         reinforced: own ? raw.reinforced === true : null,
-        analysis: str(raw.analysis),
-        img: str(raw.img)
+        analysis: on || bullet ? (typeof raw.analysis === "string" ? raw.analysis : "") : null,
+        img: str(raw.img),
+        ...bulletFields(raw)
+    };
+}
+
+/* A PLANNED TRUTH BULLET MADE BY HAND (E104): the rest of the Write new tab (gm-items.mjs `bulletCreatePane`) and the
+   window's recipient rows - who gets it, whether the player is told (ticked, as the window draws it), its real type
+   (Neutral, as there), how it shows (auto, as there), Faint and tied - and `given`, when it went out from its node. */
+const SHOWN = Object.freeze(["auto", "neutral", "real"]);
+function bulletFields(raw) {
+    const on = raw.kind === "bullet";
+    return {
+        recipient: on ? (typeof raw.recipient === "string" ? raw.recipient : "") : null,
+        tell: on ? raw.tell !== false : null,
+        realType: on ? (TRUTH_BULLET_TYPES[raw.realType] ? raw.realType : "neutral") : null,
+        shown: on ? (SHOWN.includes(raw.shown) ? raw.shown : "auto") : null,
+        faint: on ? raw.faint === true : null,
+        tied: on ? raw.tied === true : null,
+        given: on && Number.isFinite(raw.given) ? raw.given : null
     };
 }
 
@@ -165,7 +186,7 @@ export function caseNodeOf(raw) {
         // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
         type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
         // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; a planned Remnant's (E104) too
-        note: ["autopsy", "incident", "final"].includes(raw.kind) ? (typeof raw.note === "string" ? raw.note : "") : null,
+        note: ["autopsy", "incident", "final", "bullet"].includes(raw.kind) ? (typeof raw.note === "string" ? raw.note : "") : null,
         /* E104 (the owner, 13.11.2026: "niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry kazdemu
            zaplanowanemu remnantowi"): a planned Remnant holds every field New Remnant asks (investigation.mjs
            `openNewTrace`) and the Table's picture - its room's scene, who left it, its band (with its type, its Observe
@@ -280,6 +301,15 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
                 vis: node.vis, analysis: node.analysis, note: node.note, img: node.img, needs: node.room ? [] : ["room"] });
             continue;
         }
+        /* A PLANNED TRUTH BULLET (E104) is evidence: planned until given, then marked sent (`given`), as an Autopsy is; it
+           needs a name (the window refuses one without) and a recipient to be given by */
+        if (node.kind === "bullet") {
+            nodes.push({ id, kind: "bullet", evidence: true, planned: true, slot: null, trace: null, type: node.realType, label: node.label,
+                tied: node.tied === true, faint: node.faint === true, room: null, chapter, foundAt: null, text: node.text, recipient: node.recipient,
+                tell: node.tell, realType: node.realType, shown: node.shown, vis: node.vis, analysis: node.analysis, note: node.note,
+                given: node.given, sent: node.given !== null, needs: [...(node.label ? [] : ["name"]), ...(node.recipient ? [] : ["recipient"])] });
+            continue;
+        }
         // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)
         if (node.kind === "autopsy") {
             const n = autopsyNumber(id);
@@ -368,6 +398,7 @@ function autopsyNode(chapter, n = 1, node = null, sent = false) {
 }
 
 const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note", "atBody", "scene", "author", "vis", "tie", "reinforced", "analysis", "img",
+    "recipient", "tell", "realType", "shown", "faint", "tied", "given",
     "zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
 const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made", "autopsies", "autopsySent"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);

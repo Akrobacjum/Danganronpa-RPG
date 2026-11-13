@@ -6208,7 +6208,8 @@
         "counter": "New counter",
         "solution": "Solution",
         "incident": "New Remnant",
-        "final": "Final Truth Remnant"
+        "final": "Final Truth Remnant",
+        "bullet": "New Truth Bullet"
       },
       "reachYes": "{held}/{of}: the students can reach it",
       "reachNo": "{held}/{of}: not yet",
@@ -6234,10 +6235,13 @@
         "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares.",
         "incomplete": "{node} is missing its {ref}."
       },
-      "needs": {"room": "room"},
+      "needs": {"room": "room", "name": "name", "recipient": "recipient"},
       "pickRoom": "- pick a room -",
       "addIncident": "Add planned Remnant",
       "addFinal": "Add planned Final Truth",
+      "addBullet": "Add planned Truth Bullet",
+      "noRecipient": "- nobody yet -",
+      "bulletGiven": "Given.",
       "finalAskRoomTitle": "Where does the Final Truth Remnant go?",
       "placeOnMap": "Place on the map",
       "showOnMap": "Show",

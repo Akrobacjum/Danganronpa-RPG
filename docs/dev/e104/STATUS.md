@@ -79,3 +79,36 @@ kazdemu zaplanowanemu remnantowi/bulletowi. Upewnijmy sie ze gm moze zaplanowac 
 - **D7. Several planned Final Truths may stand in one chapter**, as the form may place more than one; the reminder
   "a Final Truth placed this chapter" is unchanged.
 
+## C4. A planned Truth Bullet made by hand
+
+- A case row of its own, kind `bullet` (**Add planned Truth Bullet** on the Map). It holds the Give a Truth Bullet
+  window's **Write a new one** fields in their order and words (gm-items.mjs `bulletCreatePane`: name, real type, shown
+  as, visibility, Faint, tied, the player's words, the analysis, the GM's note), then the window's recipient rows (who
+  gets it, Tell the player), with the window's own defaults (Neutral, auto, Evident, told).
+- On the Map, evidence of its real type, planned until given and marked sent after (`given`), as a planned Autopsy is.
+  Its holders are whoever holds a Truth Bullet of its name with no Remnant behind it (investigation.mjs `caseReach`).
+- **Give** (`placeIncident` -> `givePlannedBullet`) opens the real window (`giveTruthBulletDialog`, now taking `fill`) on
+  Write a new one with every field and on its planned recipient; the GM gives it there, and the plan is marked given.
+- **Incomplete:** with no name or no recipient it `needs` them; the window refuses one with no name, as ever.
+- Tests: R5333 (tier 1: the kind, the row read with its defaults, the node's face, state and `needs`); tier 2 "planned
+  Truth Bullet holds every field: ..." (the editor's order, the row after the close, the Give window's tab and fields,
+  the given Truth Bullet's name, real type, visibility and note, the plan marked given). Both red at f9f86848. R3373
+  and R3661 read the new kind and the Map's six add buttons.
+- GM handbook EN/PL: one passage.
+
+### Defaults taken, owner to confirm
+
+- **D8. A planned Truth Bullet goes out by the GM's Give from its node**, through the real window filled in, the way a
+  planned Remnant is placed (the coordinator's default for the one open choice in the survey). It has no trigger of its
+  own, unlike a planned Autopsy.
+- **D9. Giving it again is not refused.** A plan already given reads Given, and its Give still opens the window, as a
+  GM may give the same Truth Bullet to a second student.
+- **D10. A copy of a Remnant (the Existing tab) is not planned.** It names a Remnant on the map, and a planned Remnant
+  has no token until it is placed (SURVEY.md).
+
+## The trust model
+
+Every plan is a row of the GMs' stores (the case schema, the Key plan), which only a GM's browser holds; a player's
+browser receives a planned item only when its real road makes the real thing (a Remnant placed, a Truth Bullet given).
+No new road reaches a player.
+
