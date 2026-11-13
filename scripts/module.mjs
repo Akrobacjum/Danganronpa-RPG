@@ -114,6 +114,7 @@ import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerDhSettings } from "./dh-settings.mjs";
 import { registerApi } from "./api.mjs";
+import { registerFloatText } from "./float-text.mjs";
 import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
@@ -189,6 +190,9 @@ Hooks.once("init", () => {
     safely("the language", registerLanguage);
     // Every window the module opens says which language it is in (E66 C1; utils.mjs `markModuleWindow`).
     safely("the windows' language", () => Hooks.on("renderApplicationV2", markModuleWindow));
+    // A module textarea floats over its window while it is edited (float-text line, 13.11.2026): at init, so its Escape
+    // listener on `window` stands before foundry-windows.mjs's and sequence.mjs's, which ready registers.
+    safely("the floating text fields", registerFloatText);
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);

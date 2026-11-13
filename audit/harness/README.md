@@ -478,6 +478,13 @@ roll at a table.
   that client's copy render nothing. From v13/v14 notes as remembered, not v14's source: LIVE-E45-01. Until C3a no
   document had `apps` and nothing rendered on a write. There are still no Daggerheart sheets: scenario 71's sheet is a
   stand-in whose own render builds the root again and calls the module's hook.
+- **`[data-action]` is dispatched by DialogV2 alone** (13.11.2026; docs/dev/gaps/SURVEY-close-action.md). The shim's
+  DialogV2 takes a footer press on "close" as Foundry's own close, the wait answering null (`_onSubmit`, R4673), and
+  answers null for a default Close it is not drawn to press (`DialogV2.wait`, 00-boot's last check) - v14's
+  close-before-DialogV2 as the module assumes it, still open as LIVE-E21-06. The shim's ApplicationV2 dispatches no
+  `[data-action]` at all, so a DrpgApp window's footer Close (the notice history, notice-history-app.mjs) does nothing
+  when clicked headless: a test that clicked it and waited for the window to go would wait out its time. No test clicks
+  one today (scenario 73 reads that button and does not press it); the gap is left as it is.
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
   nothing out. A suite test that needs one of these asks the environment first
   and is counted as skipped (`needs`, `scripts/tests-kit.mjs`).
