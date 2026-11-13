@@ -665,7 +665,13 @@ function verdictHeld(record, blackenedIds) {
  */
 async function readSentence(context) {
     const { sentenced } = await verdictReading(context);
-    context.record = { ...context.record, executedIds: sentenced, sentenced: [...sentenced] };
+    /* The chapter's verdict before this one, kept in the verdict's record before this one's stamp replaces it (the 1.2.110
+       review's V4): the wrong verdict's card (`remindOnWrongVerdict`) tells the case judged from the chapter's earlier one by
+       it. Kept once, so a verdict stopped and finished later reads the same. */
+    const stored = trialProgress();
+    const verdictBefore = Object.hasOwn(context.record ?? {}, "verdictBefore") ? context.record.verdictBefore
+        : stored.chapter === getClock().chapter ? (stored.lastVerdictAt ?? null) : null;
+    context.record = { ...context.record, executedIds: sentenced, sentenced: [...sentenced], verdictBefore };
     await setTrialProgress({ lastVerdictAt: context.record.at ?? null });
 }
 
@@ -901,13 +907,12 @@ async function verdictOverflow() {
  * projects, bribes or bets. The card names nobody; the GMs' summary lists who was told. Answers the names told.
  */
 export async function remindOnWrongVerdict(context) {
-    const { monocubActors, isCrimeSilenced } = await import("./monocub.mjs");
+    const { monocubActors, wrongVerdictTouches, cubRowOf } = await import("./monocub.mjs");
+    const { seasonEpoch } = await import("./settings.mjs");
     const clock = getClock();
-    const touched = monocubActors().filter(actor => {
-        const death = deathRecordFor(actor);
-        const caseDead = Boolean(death) && death.cause !== "executed" && death.chapter === clock.chapter;
-        return caseDead || isCrimeSilenced(actor);
-    });
+    // This season's chapter, since the verdict before this one (the 1.2.110 review's V4; `readSentence` kept it).
+    const at = { chapter: clock.chapter, epoch: seasonEpoch(), before: context?.record?.verdictBefore ?? null };
+    const touched = monocubActors().filter(actor => wrongVerdictTouches({ death: deathRecordFor(actor), witness: cubRowOf(actor)?.witness ?? null }, at));
     for (const actor of touched) {
         await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Monocub.wrongVerdictTitle")}</strong></p>`
             + `<p>${game.i18n.localize("DRPG.Monocub.wrongVerdictCard")}</p>`, { veiled: true });
