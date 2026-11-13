@@ -24022,6 +24022,46 @@ const REGRESSIONS = [
             css: [true, true]
         }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
+
+    ["R5466 - the table's dice look is worded as three choices in both languages, the GM's handbook names the setting and each choice in its line, and no text of the module still names the switch by its old name (E108)", async () => {
+        /*
+         * E108, 13.11.2026; the coordinator's default for the owner's report of 13.11: "Each player's own look", "One look
+         * for the table: Dice So Nice", "One look for the table: Daggerheart". The GM's handbook's line on the setting (R803,
+         * R806 read the same line) names the setting in italics and each choice. The old name, "One dice look for the
+         * table" / "Jeden wygląd kości przy stole", stood in two strings (the setting's and the diagnostic's
+         * presetMissingLaid): a string that names a setting by a name it no longer has sends the GM looking for a row that
+         * is not there. Red before E108: no choices, and both old names.
+         */
+        const OLD = { en: "one dice look for the table", pl: "jeden wygląd kości przy stole" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const setting = keys.DRPG?.Settings?.forceDiceLook ?? {};
+            const choices = ["own", "dsn", "daggerheart"].map(v => setting.choices?.[v] ?? "");
+            ok(typeof setting.name === "string" && setting.name.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook.name - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
+            const book = (await lfText(res)).toLocaleLowerCase(lang);
+            const at = book.indexOf(`*${(setting.name ?? "").toLocaleLowerCase(lang)}*`);
+            const line = at >= 0 ? lineAround(book, at) : "";
+            const strings = [];
+            const walk = (node, path) => {
+                if (typeof node === "string") strings.push([path, node]);
+                else if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+            };
+            walk(keys, "");
+            measured[lang] = {
+                choices: choices.every(Boolean) && new Set(choices).size === 3,
+                named: at >= 0,
+                eachChoice: choices.map(c => Boolean(c) && line.includes(`*${c.toLocaleLowerCase(lang)}*`)),
+                old: strings.filter(([, text]) => text.toLocaleLowerCase(lang).includes(OLD[lang])).map(([path]) => path)
+            };
+            expected[lang] = { choices: true, named: true, eachChoice: [true, true, true], old: [] };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - three distinct choices worded; the GM's handbook names the setting in italics; its line names each choice in italics; "
+            + "the lang keys that still name the old switch]");
+    }],
 ];
 
 

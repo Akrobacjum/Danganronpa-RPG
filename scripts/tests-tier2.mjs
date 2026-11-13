@@ -91595,6 +91595,151 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the window's boxes for the student; [the sheet after every box but the second Health pick: Health max, its marks, Sanity max, its marks]; "
             + "[the offer's picks, what it is limited to]; [the owner's copy as sent, as kept, the options its picker draws]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
     }],
+
+    ["the game's settings window saves the table's dice look as one choice of three (E108): from Dice So Nice's, Daggerheart's writes the kind alone; a Save with the choice untouched writes nothing; each player's own turns the look off, the world's reload asked, and leaves the kind; Dice So Nice's then writes the kind and turns the look on, the reload asked again", async () => {
+        /*
+         * E108, 13.11.2026. The row is R5463's; Save writes through settings.mjs `diceLookWrites` (R5460), the kind before
+         * the switch, so a world that reloads on the switch reads the kind it was given. A form of the row alone, saved
+         * by settings-window.mjs `saveSettings` with the reload stood in. Red before E108: the row is a switch, so the
+         * select is not found and nothing is written.
+         */
+        needs(env.primaryGm());
+        const W = await import("./settings-window.mjs");
+        const S = await import("./settings.mjs");
+        ok(typeof S.diceLookChoice === "function" && game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`), "no diceLookChoice, or no diceLookKind");
+        if (typeof S.diceLookChoice !== "function" || !game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`)) return;
+        const get = key => game.settings.get(MODULE_ID, key);
+        const was = [get(SETTINGS.forceDiceLook), get(SETTINGS.diceLookKind)];
+        const asked = [];
+        const save = async choice => {
+            const form = document.createElement("form");
+            form.innerHTML = W.settingRowHtml("forceDiceLook");
+            const select = form.querySelector("select[name=forceDiceLook]");
+            if (select && choice !== null) select.value = choice;
+            asked.length = 0;
+            const result = await W.saveSettings(form, game.user, { reload: async options => { asked.push(options?.world === true ? "world" : "client"); } });
+            await wait(300);
+            return [select ? select.value : null, result.written, asked.slice(), get(SETTINGS.forceDiceLook), get(SETTINGS.diceLookKind), S.diceLookChoice()];
+        };
+        const read = {};
+        try {
+            if (was[0] !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            if (was[1] !== "dsn") await game.settings.set(MODULE_ID, SETTINGS.diceLookKind, "dsn");
+            await wait(300);
+            read.daggerheart = await save("daggerheart");
+            read.untouched = await save(null);
+            read.own = await save("own");
+            read.dsn = await save("dsn");
+        } finally {
+            if (get(SETTINGS.diceLookKind) !== was[1]) await game.settings.set(MODULE_ID, SETTINGS.diceLookKind, was[1]);
+            if (get(SETTINGS.forceDiceLook) !== was[0]) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was[0]);
+            await wait(600);
+        }
+        equal(stableJson(read), stableJson({
+            daggerheart: ["daggerheart", ["diceLookKind"], [], true, "daggerheart", "daggerheart"],
+            untouched: ["daggerheart", [], [], true, "daggerheart", "daggerheart"],
+            own: ["own", ["forceDiceLook"], ["world"], false, "daggerheart", "own"],
+            dsn: ["dsn", ["diceLookKind", "forceDiceLook"], ["world"], true, "dsn", "dsn"]
+        }), "[per Save: the select's value, the keys written, the reload asked, the switch, the kind, the choice read back]");
+    }],
+
+    ["an Assistant GM's write of the table's dice look kind is put back, heard or written with no hook (E108)", async () => {
+        /*
+         * E108, 13.11.2026. R5464 reads that `diceLookKind` is one of dice-sync.mjs `SWITCHES`; this is the put-back on a
+         * write, as the switches' own test (an Assistant GM's switch of the table's dice look, S16-02) does it: heard - the
+         * write with `noHook`, then handed to `updateSetting`'s listeners with the Assistant's id; unheard - the write with
+         * `noHook`, then a message a player posts, the next step the primary takes. Red before E108: no diceLookKind.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const KEY = SETTINGS.diceLookKind;
+        ok(game.settings.settings.has(`${MODULE_ID}.${KEY}`), "no diceLookKind");
+        if (!game.settings.settings.has(`${MODULE_ID}.${KEY}`)) return;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const get = key => game.settings.get(MODULE_ID, key);
+        const was = [get(SETTINGS.forceDiceLook), get(KEY)];
+        const made = [], cards = [];
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "R5468 kind writer", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            if (was[0] !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            await game.settings.set(MODULE_ID, KEY, "daggerheart");
+            await wait(800);
+            await game.settings.set(MODULE_ID, KEY, "dsn", { noHook: true });
+            Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${KEY}`, value: "dsn" }, { value: "dsn" }, {}, assistant.id);
+            read.heard = await until(() => get(KEY) === "daggerheart", 3000);
+            await wait(1200);
+            await game.settings.set(MODULE_ID, KEY, "dsn", { noHook: true });
+            await wait(600);
+            read.unheard = [get(KEY)];
+            cards.push(await ChatMessage.create({ author: player.id, content: "R5468 a player's throw after a kind no hook heard" }));
+            read.unheard.push(await until(() => get(KEY) === "daggerheart", 3000));
+        } finally {
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            for (const user of made) if (game.users.get(user.id)) await user.delete();
+            if (get(KEY) !== was[1]) await game.settings.set(MODULE_ID, KEY, was[1]);
+            if (get(SETTINGS.forceDiceLook) !== was[0]) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was[0]);
+            await wait(600);
+        }
+        equal(stableJson(read), stableJson({ heard: true, unheard: ["dsn", true] }),
+            "[heard: the kind back to the full Gamemaster's; unheard: the write stood until the player's message, then back]");
+    }],
+
+    ["with Daggerheart's look chosen, every throw this browser draws on Daggerheart 2.10 and later carries Daggerheart's four colorsets on its duality dice, whoever throws, and with Dice So Nice's or each player's own it carries none (E108)", async () => {
+        /*
+         * E108, 13.11.2026. dice-look.mjs `layOnThrow` hands Dice So Nice (`diceSoNiceRollStart`'s `context.dsnRoll`) a
+         * copy whose Hope, Fear, advantage and disadvantage dice carry Daggerheart's colorset (R5461, R5462). The harness's
+         * system answers module.json's verified version (lib/versions.mjs), 2.6.5, so `layOnThrow` - what the hook runs,
+         * here on the settings this test writes - is handed a system of 2.12.8, with a roll of the player's: the throw a
+         * GM's screen draws of it. The hook's own road is the 2.9 test's (the table's Hope and Despair dice, E60 C5d). Red
+         * before E108: no layOnThrow exported, and on 2.12.8 nothing laid whatever the switch.
+         */
+        const L = await import("./dice-look.mjs");
+        ok(typeof L.layOnThrow === "function", "dice-look.mjs exports no layOnThrow");
+        if (typeof L.layOnThrow !== "function") return;
+        ok(game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`), "no diceLookKind");
+        if (!game.settings.settings.has(`${MODULE_ID}.${SETTINGS.diceLookKind}`)) return;
+        const player = game.users.find(u => !u.isGM) ?? game.user;
+        const get = key => game.settings.get(MODULE_ID, key);
+        const was = [get(SETTINGS.forceDiceLook), get(SETTINGS.diceLookKind)];
+        const system = { id: "daggerheart", version: "2.12.8" };
+        const roll = () => Roll.fromData({ class: "DualityRoll", options: {}, evaluated: true, formula: "1d12 + 1d12 + 1d6 + 1d20", total: 30, terms: [
+            { class: "HopeDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["h"], results: [{ result: 7, active: true }] },
+            { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+            { class: "FearDie", options: {}, evaluated: true, number: 1, faces: 12, modifiers: ["f"], results: [{ result: 5, active: true }] },
+            { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+            { class: "AdvantageDie", options: {}, evaluated: true, number: 1, faces: 6, modifiers: ["a"], results: [{ result: 4, active: true }] },
+            { class: "OperatorTerm", options: {}, evaluated: true, operator: "+" },
+            { class: "Die", options: {}, evaluated: true, number: 1, faces: 20, modifiers: [], results: [{ result: 14, active: true }] }] });
+        const thrown = () => {
+            const context = { roll: roll(), user: player, blind: false };
+            L.layOnThrow(context, system);
+            return (context.dsnRoll?.terms ?? []).filter(t => typeof t?.faces === "number").map(t => t.options?.colorset ?? null);
+        };
+        const set = async (force, kind) => {
+            if (get(SETTINGS.diceLookKind) !== kind) await game.settings.set(MODULE_ID, SETTINGS.diceLookKind, kind);
+            if (get(SETTINGS.forceDiceLook) !== force) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, force);
+            await wait(300);
+        };
+        const read = {};
+        try {
+            await set(true, "daggerheart");
+            read.daggerheart = thrown();
+            await set(true, "dsn");
+            read.dsn = thrown();
+            await set(false, "daggerheart");
+            read.own = thrown();
+        } finally {
+            await set(was[0], was[1]);
+            await wait(600);
+        }
+        equal(stableJson(read), stableJson({
+            daggerheart: ["daggerheart-hope-colorset", "daggerheart-fear-colorset", "daggerheart-advantage-colorset", null],
+            dsn: [], own: []
+        }), "[each die's own colorset on the copy Dice So Nice draws: Daggerheart's look, Dice So Nice's look (no copy), each player's own (no copy)]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
