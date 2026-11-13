@@ -962,7 +962,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* --------------- F1c. the sheet's reserve field, from p1's console --------------- */
 
-    /* E24 C1b (C1a's Open 1): the sheet's reserve field writes through sheet.mjs `writeReserve` - `trustedWrite` with
+    /* E24 C1b (C1a's Open 1): the sheet's reserve field writes through sheet-sidebar.mjs `writeReserve` - `trustedWrite` with
        the reason `sheetReserve`, which resource-guard.mjs `HAND_EDITS` leaves unstamped (no `drpgAutomated`), so it is
        a hand edit as Daggerheart's own field was. p1's console calls it for Aiko's Health, one less than is left. Under
        Lock player resources (the season's default) p1's own guard takes the marks out of the write: nothing lands and

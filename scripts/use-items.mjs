@@ -292,7 +292,7 @@ export async function breakOnDespair(actor, tool, roll, held = tool) {
  * A dead student readies, uses and throws away nothing, a Monocub included: what they
  * carried is on the body, the body's to be found. A death this browser may know
  * (`isDeadForGm`), so the victim's own player is stopped before the table learns of it;
- * the sheet's buttons are gone by the same reading (sheet.mjs `sheetMode`). True, and
+ * the sheet's buttons are gone by the same reading (sheet-mode.mjs `sheetMode`). True, and
  * the clicker told, when `actor` is dead.
  */
 function deadHands(actor) {
@@ -389,7 +389,7 @@ export function isUsable(item) {
  * Whether using this item is a request to the GM (E22 C5c; audit S03-26): a Tier 0 thing - or a tier with no row of
  * `USABLE_EFFECTS`, or a creative one - has no table row to apply, so a GM rules on what the player says they do with
  * it (`useCreatively`). One answer for both readers: `useItem`, which takes that road, and the sheet's Use button
- * (sheet.mjs `addUseButton`), which is red with the GM's word for it.
+ * (sheet-inventory.mjs `addUseButton`), which is red with the GM's word for it.
  */
 export function usedCreatively(item) {
     const effect = USABLE_EFFECTS[tierOf(item)];
@@ -879,7 +879,7 @@ export async function discardRemnantType(actor = null) {
  * NOTHING IS THROWN AWAY IN THE CLASS TRIAL (E51 C6, 31.10.2026; amend 14.10 (2), the owner before session 0:
  * "Wyrzucanie itemow tez powinno byc zabronione w trial grounds"; Q1: the trial's grounds are the phase,
  * `clock.phase === "classTrial"`, not the hall's scene; E51-41). Asked before the window, so nothing is asked or rolled;
- * the sheet's button is greyed with the same sentence (sheet.mjs `addDiscardButton`), and the primary GM refuses the
+ * the sheet's button is greyed with the same sentence (sheet-inventory.mjs `addDiscardButton`), and the primary GM refuses the
  * trace of a discard that reaches it in the trial (bridge-runs-records.mjs `handleRemnant`, `cannotNow`). An Eclipse is no trial:
  * a discard in one goes as before.
  */

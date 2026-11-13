@@ -245,7 +245,7 @@ export const FLAGS = {
      * Level Up and in no incident's cast (E24 C3a, 08.11.2026; audit S03-36, the
      * owner's Q-E24-5). `studentActors` leaves it out, and with it everything that
      * reads the one roster. A GM's flag: written only by a GM's toggle on the
-     * sheet's header (sheet.mjs `injectClassControls`), never set by itself, and a
+     * sheet's header (sheet-header.mjs `injectClassControls`), never set by itself, and a
      * player's write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
      * Who is a student is the table's to know, so it holds no secret.
      */
@@ -526,7 +526,7 @@ export function staleStamp(at, now) {
 /**
  * The character sheet's size, in one place (UI-13). Daggerheart opens it at
  * its own default; `minHeight` is what the Hope Calls panel needs under the
- * Legacy theme (grown once, upwards only - sheet.mjs `growForCalls`), and
+ * Legacy theme (grown once, upwards only - sheet-fit.mjs `growForCalls`), and
  * `glass` is the size the Stained Glass theme draws the sheet for, scaled by
  * the interface slider (settings.mjs `scaleWindow`).
  */
@@ -626,7 +626,7 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * TIER 0'S ONE IS A SINGLE USE, NOT A DURABILITY (the owner's amend of
  * 25.09.2026; E13 C8): a tier 0 tool or weapon is spent by the first roll it
  * is used in, whatever the roll (use-items.mjs `rollSpends`), and the sheet
- * draws it no track (sheet.mjs `wearMarkup`). The number stays 1 because the
+ * draws it no track (sheet-item.mjs `wearMarkup`). The number stays 1 because the
  * spending goes through `wearItem` like any wear - one point, and the point
  * that fills it breaks it - so a Reroll gives it back as it gives a wear back,
  * and the Rot, which never takes the last point, still passes it by.
@@ -1934,7 +1934,7 @@ export const ACTIONS = {
  * THE ACTION GRID'S ORDER (E103, 13.11.2026; the owner: "Zmieniamy tylko kolejnosc akcji u gracza"): the first row
  * Search, Observe, Analyze, Infiltrate (`listen`), Palm; the second Projects, Facilities (`rest`), Dynamic, then Tamper
  * and Direct Murder, which the owner's words did not name and which keep the last two places (the stage's default, owner
- * to confirm). Every `universal` key of ACTIONS once, nothing else; sheet.mjs `injectActionPanel` draws them in this
+ * to confirm). Every `universal` key of ACTIONS once, nothing else; sheet-actions.mjs `injectActionPanel` draws them in this
  * order. Until E103: Search, Observe, Analyze, Projects, Dynamic | Facilities, Infiltrate, Palm, Tamper, Direct Murder.
  */
 export const ACTION_GRID = Object.freeze(["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper", "directMurder"]);

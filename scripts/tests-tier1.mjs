@@ -11510,7 +11510,7 @@ const INVARIANTS = [
          * sheet drew it one pip. Asked of plain objects, so it reads no document and writes nothing (tier 1):
          * use-items.mjs `rollSpends` - the rule `breakOnDespair` asks - for tiers 0 to 3 and an item with no tier
          * recorded (which every reader takes as tier 0, `tierOf`), each after a roll with Hope, one with Despair and a
-         * critical; sheet.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a
+         * critical; sheet-item.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a
          * tier 0 usable (no track, and no "Single use" either: it is not readied for a roll). Then, in the source with
          * comments blanked: `breakOnDespair` asks `rollSpends` before it wears; the five roads that wear a tool after
          * their dice still call it, as a statement of its own (action-project.mjs `workOnProject`, `performSabotage`; cleanup.mjs `attemptCleanup`,
@@ -23464,9 +23464,9 @@ const INVARIANTS = [
          * H81-03 and H81-04 (20.10.2026; the owner's items 4b and 8: "Your character is not at an end of that passage" in
          * the tunnel's room, and no button for a passage in a wall, so nobody knew what to do). The design's step 11 has
          * 'Go through' disabled away from an end; a disabled button is true only while the row is drawn again as the token
-         * moves, and nothing draws it then (sheet.mjs `goThrough`'s note: none of the sheet's hooks hears a move), so the
+         * moves, and nothing draws it then (sheet-sidebar.mjs `goThrough`'s note: none of the sheet's hooks hears a move), so the
          * button stays enabled and the click's refusal says where to stand. Read: rows of the list's reader with the copy,
-         * the map and the veto injected (R562's way), drawn by sheet.mjs `knownPassageItem`, and the refusal's words in both
+         * the map and the veto injected (R562's way), drawn by sheet-sidebar.mjs `knownPassageItem`, and the refusal's words in both
          * files. Red at f0ea429: no `knownPassageItem`, no line under a row, the old refusal.
          */
         const SH = await import("./sheet.mjs");
@@ -27691,7 +27691,7 @@ const INVARIANTS = [
         /*
          * E88 C4, 27.10.2026; E88-09. Scenario 86 at 7baff238 (C3): a write of the GM's Despair pool asked a sheet pass,
          * the HUD and the status strip on every browser, and the sheet pass renders every open character sheet - a
-         * student's reads nothing of a pool (sheet.mjs `monokumaPool` is asked for the Monokuma's panel alone) - and the
+         * student's reads nothing of a pool (sheet-actions.mjs `monokumaPool` is asked for the Monokuma's panel alone) - and the
          * strip redrew for every module setting written, whatever it reads. Read here on stand-in sheets standing in
          * `ui.windows` for the length of the test (a student, a Monokuma, a minimised student; each counts its renders
          * and is taken out in `finally`), through sync.mjs's own `applyKind` for SYNC.despair, then clock.mjs
@@ -29999,7 +29999,7 @@ const INVARIANTS = [
             "the window's numbers (performSabotage's `dc`) or the judge (`sabotageHit`) do not read `sabotageBar` [window, judge]");
     }],
 
-    ["R986 - the Projects tile is not struck through outside a room, while Search still is (E16-T32; audit S03-24): sheet.mjs `roomBlockFor` answers nothing for \"project\" and the room's note for \"search\" for a character standing nowhere, and the count its comment gives is the length of its `roomBound` list", async () => {
+    ["R986 - the Projects tile is not struck through outside a room, while Search still is (E16-T32; audit S03-24): sheet-actions.mjs `roomBlockFor` answers nothing for \"project\" and the room's note for \"search\" for a character standing nowhere, and the count its comment gives is the length of its `roomBound` list", async () => {
         /*
          * E16 part 2 C4, 26.10.2026. "project" stood on roomBlockFor's list of actions the room can block, so in a
          * corridor the Projects tile was struck through with "You are not in any room", while proposing a project
@@ -30562,7 +30562,7 @@ const INVARIANTS = [
         const free = L("DRPG.Actions.eclipseFreePlacement"), n = k => plural("DRPG.Actions.eclipseMovesLeft", { n: k });
         const legend = L("DRPG.Actions.moveLegend");
         equal(J(got), J({
-            // Two feet in every state since E49 B2 (sheet.mjs `moveSlots`, R3487), the legend after the row's sentence.
+            // Two feet in every state since E49 B2 (sheet-header.mjs `moveSlots`, R3487), the legend after the row's sentence.
             rows: [{ available: true, feet: 2, solid: true, tooltip: free }, { available: false, feet: 2, solid: false, tooltip: n(0) },
                 { available: true, feet: 2, solid: true, tooltip: n(2) }],
             drawn: [[true, false, 2, 0, `${free}. ${legend}`], [false, true, 0, 2, `${n(0)}. ${legend}`], [true, false, 2, 0, `${n(2)}. ${legend}`]],
@@ -33958,7 +33958,7 @@ const INVARIANTS = [
          * E72, 12.11.2026; the owner ("chcemy zachowac te sama liczbe kafli", "Tak chodzilo o bounty"), relayed by the
          * coordinator: the GM's Calls keep their number of tiles, so the Bounty (E72 C16) lives inside Fuel a Monocub's.
          * config.mjs DESPAIR_CALLS.bounty is kept for its rules and marked `inside: "fuelTheCub"`; calls.mjs
-         * `despairCallsFor` (the grid's list) leaves such a row out; `fuelTheCub.choices` lists the two; sheet.mjs `runCall`
+         * `despairCallsFor` (the grid's list) leaves such a row out; `fuelTheCub.choices` lists the two; sheet-actions.mjs `runCall`
          * asks which before anything else (`callChoice`). Red before: a Bounty tile, no choices.
          */
         const { DESPAIR_CALLS } = await import("./config.mjs");
@@ -33982,7 +33982,7 @@ const INVARIANTS = [
          * player picks one effect for the next roll: an experience's value, or advantage). config.mjs HOPE_CALLS.talent
          * holds the tile (`choices: ["experience", "ultimate"]`); the two rows stay, each `inside: "talent"`, with every
          * guard of theirs, so an Experience or an Ultimate armed before the update resolves by its key as before; calls.mjs
-         * `affordableHopeCalls` (the grid's list) leaves them out; sheet.mjs `runCall` asks which (`callChoice`) for a Hope
+         * `affordableHopeCalls` (the grid's list) leaves them out; sheet-actions.mjs `runCall` asks which (`callChoice`) for a Hope
          * Call as for a Despair one. Red before: no talent row, eleven tiles.
          */
         const { HOPE_CALLS } = await import("./config.mjs");
@@ -41373,7 +41373,7 @@ const INVARIANTS = [
          * each entry's `condition` asked of a student and of a Monokuma when the world holds one. Red on C3a's tree: Pass
          * the default, no cooldown, one entry for both states.
          * REPOINTED IN E24 C3a (08.11.2026; STAGE.md "Amend 08.11" A2): the two entries are the sheet header's GM controls
-         * now (sheet.mjs `injectClassControls`), the ask `markFromSheet`. Each claim kept: the ask and its destructive yes
+         * now (sheet-header.mjs `injectClassControls`), the ask `markFromSheet`. Each claim kept: the ask and its destructive yes
          * off the source; the entry shown in the state it changes, read off a stand-in sheet drawn by the render hook for
          * a student and for the same student answering the Monokuma flag in memory (`e24Flagged`, nothing written);
          * Unmark's words its own. R1486 holds the rest (a player sees none, Cancel the default, the menu empty).
@@ -41646,7 +41646,7 @@ const INVARIANTS = [
     }],
     ["R1367 - the Stop on the sheet stays in view (E21 C5a; E21-06, audit S01-06, S12-09): settings.mjs `scaleWindow` keys its memo on the slider and the layout height (`scaleMemo`), so the same window asked again at another height is sized again and at the same numbers is not; the screen's resize asks every open sheet again (`rescaleSheets`, from `watchScreen`); the sheet's min-height is bounded by the screen; and the Stop is sticky at the bottom-left of what scrolls, in both themes", async () => {
         /*
-         * E21 C5a, 06.11.2026. The Stop (sheet.mjs `injectSafeword`) stood `position: absolute` at the foot of the sheet's
+         * E21 C5a, 06.11.2026. The Stop (sheet-sidebar.mjs `injectSafeword`) stood `position: absolute` at the foot of the sheet's
          * content box, and the box was held to `min-height: 830px` - below a 768 or 800 px screen whatever the window
          * asked for - and `scaleWindow` sized a window once per slider value (`drpgScaled` keyed on the slider alone),
          * so a resize never moved it. Read here: `scaleWindow` on a stand-in sheet (an application with a `setPosition`
@@ -43574,7 +43574,7 @@ const INVARIANTS = [
          * E96 C1, 09.11.2026; H102 item 3. E24 C1a wrote "Left: 3 / 4" ("Zostało: 3 / 4") under Health and Sanity, Q-E24-1
          * run on its default; the owner at the table asked why, and on the palette page (H102-K1) chose to drop the word.
          * The key keeps its name and its two placeholders, so the sheet's editor still splits the words around the field
-         * (sheet.mjs `paintReserveRow`: nothing before it, " / 4" after). Read: both lang files as served, the key
+         * (sheet-sidebar.mjs `paintReserveRow`: nothing before it, " / 4" after). Read: both lang files as served, the key
          * formatted in this browser's language, `reserveRow` for a view shown and one not. Red on 7175878b: "Left: 3 / 4".
          */
         const { reserveRow } = await import("./character.mjs");
@@ -45130,7 +45130,7 @@ const INVARIANTS = [
                 unknown: [FLAGS.freeActionGrants, FLAGS.monokuma, FLAGS.notInClass ?? "notInClass"].sort(), hope: 2, hook: true }),
             "[the first mark's module flags of a character a player made, a GM made and nobody known made; its Hope from the document; the createActor hook handing the maker on]");
     }],
-    ["R1455 - the gates' matrix (E24 C3a, E24-18, E24-20; audit S03-15): sheet.mjs `rowGate` answers no row buttons for the dead and a Monocub (D15), a Monokuma and a sheet the viewer may not edit, and yes for the living and an NPC, for a GM and for the owner; Use, Equip, Discard, Stash, Give/Share and the Truth Bullet row (Share, Present, Analyze) each ask it first; and on a stand-in sheet drawn by the render hook as the living, the dead, a Monocub and an NPC not in the class, for a GM and for the owner: the header still (`drpg-sheet-still`, the Actions section `drpg-still`, no pip tooltip) for the dead and the NPC, live for the living and a Monocub; the death mark on the dead's portrait, not a Monocub's; the dead's line in the dead's panel; the NPC's line to the GM, no action grid, no Calls and no Level Up button; the GM's controls only for a GM", async () => {
+    ["R1455 - the gates' matrix (E24 C3a, E24-18, E24-20; audit S03-15): sheet-mode.mjs `rowGate` answers no row buttons for the dead and a Monocub (D15), a Monokuma and a sheet the viewer may not edit, and yes for the living and an NPC, for a GM and for the owner; Use, Equip, Discard, Stash, Give/Share and the Truth Bullet row (Share, Present, Analyze) each ask it first; and on a stand-in sheet drawn by the render hook as the living, the dead, a Monocub and an NPC not in the class, for a GM and for the owner: the header still (`drpg-sheet-still`, the Actions section `drpg-still`, no pip tooltip) for the dead and the NPC, live for the living and a Monocub; the death mark on the dead's portrait, not a Monocub's; the dead's line in the dead's panel; the NPC's line to the GM, no action grid, no Calls and no Level Up button; the GM's controls only for a GM", async () => {
         /*
          * E24 C3a, 08.11.2026. No Daggerheart sheet renders in the harness, so `onRenderCharacterSheet` is handed a stand-in
          * root (`e24SheetRoot`) through its hook, detached, and the flags are answered in memory (`e24Flagged`); the owner
@@ -45240,7 +45240,7 @@ const INVARIANTS = [
             marked: false, menu: 0 }),
             "[the controls drawn (kind, aria-pressed, label) for a GM on a student, a Monokuma and one not in the class, and for its player; Mark's question on a player's character (windows, title, buttons: action, default, destructive); the Monokuma flag after a Cancel; the directory menu's Monokuma entries]");
     }],
-    ["R1442 - the reserve on the sheet (sheet.mjs `paintReserves`; E24 C1a, E24-02 and E24-03; the owner's D5 option 1, D46 option 2): on stand-in roots of both of Daggerheart 2.10.5's layouts (resource-bar.hbs), an untouched student's Health and Sanity drawn full, their rows \"Left: 4 / 4\" and \"Left: 6 / 6\"; after one mark of Health, drawn by the repaint's call, the bar 75 % and the row \"Left: 3 / 4\", the band over the held unit that moved (75 % to 100 %) and the pip that went marked spent; the system's controls hidden by a class and still in the DOM; each block marked by its key; the track carries no number", async () => {
+    ["R1442 - the reserve on the sheet (sheet-sidebar.mjs `paintReserves`; E24 C1a, E24-02 and E24-03; the owner's D5 option 1, D46 option 2): on stand-in roots of both of Daggerheart 2.10.5's layouts (resource-bar.hbs), an untouched student's Health and Sanity drawn full, their rows \"Left: 4 / 4\" and \"Left: 6 / 6\"; after one mark of Health, drawn by the repaint's call, the bar 75 % and the row \"Left: 3 / 4\", the band over the held unit that moved (75 % to 100 %) and the pip that went marked spent; the system's controls hidden by a class and still in the DOM; each block marked by its key; the track carries no number", async () => {
         /*
          * E24 C1a, 08.11.2026. Until E24 the bar drew marks - `paintResourceBars` filled it by `progress.value`, which
          * Daggerheart counts up (measured at C0 on `?sheet=parts`: Health 1 of 4 marked drew 25 %, Sanity 2 of 6
@@ -45293,7 +45293,7 @@ const INVARIANTS = [
         }), "[the bar layout, the pip layout] x [untouched, after one mark of Health]: the blocks' keys, the rows, what is drawn (the fills' widths; the pips full of drawn), "
             + "the system's controls hidden (its field, maximum and slash; its slots and their n / max), the system's progress replaced or slots kept, the numbers on the track, what the mark lit");
     }],
-    ["R1443 - the reserve's field (sheet.mjs `paintReserves`, `writeReserve`; resource-guard.mjs `sheetReserve`; E24 C1a, E24-04; MARKED): a GM's field holds the reserve and its change writes the marks it comes to, `max - n`, held to 0..max, as a hand edit - without the module's mark, so a player's own guard still cuts it while Lock player resources is on - and with no reason sent; the change goes no further than the field; `sheetReserve` is on WRITE_REASONS, in HAND_EDITS and not in JUDGED; a player who owns the student has the field only with the lock off, another player never", async () => {
+    ["R1443 - the reserve's field (sheet-sidebar.mjs `paintReserves`, `writeReserve`; resource-guard.mjs `sheetReserve`; E24 C1a, E24-04; MARKED): a GM's field holds the reserve and its change writes the marks it comes to, `max - n`, held to 0..max, as a hand edit - without the module's mark, so a player's own guard still cuts it while Lock player resources is on - and with no reason sent; the change goes no further than the field; `sheetReserve` is on WRITE_REASONS, in HAND_EDITS and not in JUDGED; a player who owns the student has the field only with the lock off, another player never", async () => {
         /*
          * E24 C1a, 08.11.2026 (MARKED: a module write of Health and Sanity from the sheet). The field replaces
          * Daggerheart's own number field, which the sheet hides since E24, so its road is held to what that field was:
@@ -45424,7 +45424,7 @@ const INVARIANTS = [
         if (/--drpg-res(?![\w-])/.test(await moduleStyles())) problems.push("`--drpg-res` is still in a sheet");
         equal(stableJson(problems), "[]", "the reserves' colours: [theme, layout, reserve: what is wrong]");
     }],
-    ["R1445 - Sanity is private on the sheet (sheet.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the owner's 28.10): another player's redacted stand-in, in either layout, holds no Sanity number - its marks, reserve, maximum or share - in a text node, an attribute (a `data-tooltip`, an `aria-label`, a `value`, a `max` among them) or a field's value, and its row says \"?\"; with \"Enforce anonymity\" off, another player's unredacted stand-in holds none either (E24 fix G2B; general m2); Health's row is there; the owner's and a GM's sheets show both", async () => {
+    ["R1445 - Sanity is private on the sheet (sheet-sidebar.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the owner's 28.10): another player's redacted stand-in, in either layout, holds no Sanity number - its marks, reserve, maximum or share - in a text node, an attribute (a `data-tooltip`, an `aria-label`, a `value`, a `max` among them) or a field's value, and its row says \"?\"; with \"Enforce anonymity\" off, another player's unredacted stand-in holds none either (E24 fix G2B; general m2); Health's row is there; the owner's and a GM's sheets show both", async () => {
         /*
          * E24 C1a, 08.11.2026. The owner, 28.10: another player does not see a player's Sanity on the sheet. A view
          * change, not a data change (the document still reaches every browser): `reserveView` says Sanity is not shown
@@ -45815,7 +45815,7 @@ const INVARIANTS = [
             cubHeads: [true, true, true], dimmed: students.filter(a => !isMonocub(a)).map(() => 3)
         }), "{advance: per state the Advance button as [drawn, disabled, title]; cubHeads: each Monocub head in the Students table; dimmed: per student who is not a Monocub, its dimmed \"-\" cells}");
     }],
-    ["R1497 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
+    ["R1497 - the reserve's field is the mode's (sheet-mode.mjs `sheetMode(...).reserveField`, sheet-sidebar.mjs `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*
          * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`
          * beside the mode, so the field was drawn on the dead's sheet (a GM's always, the owner's with the lock off), on
@@ -45900,7 +45900,7 @@ const INVARIANTS = [
         equal(stableJson({ drawn, said, repainted, typed }), stableJson({ drawn: want, said: want, repainted: [0, 0], typed: ["1", true, 0] }),
             "{drawn: the fields on each [kind, seat (a GM, a GM with the lock on, the owner, the owner with the lock on, another player), sheet editable or not]; said: the mode's reserveField as 2 or 0; repainted: [the fields after a Health repaint on a GM's sheet that is not editable, the original's renders]; typed: [a field typed into while a null write came back, still focused, writes]}");
     }],
-    ["R1484 - the Party sheet's rows are every member's reserve, Sanity only to its owner and the GMs (sheet.mjs `paintPartyReserves`; E24 fix G2B, general m4's Party side and security S-2; E24-11, Q-E24-3): a student's, an NPC's not in the class and a Monokuma's rows read what is left; a GM's pips toggle the reserve, a player's toggle nothing; to another player Sanity reads \"?\" with no slot left, so its maximum is not counted off the pips", async () => {
+    ["R1484 - the Party sheet's rows are every member's reserve, Sanity only to its owner and the GMs (sheet-sidebar.mjs `paintPartyReserves`; E24 fix G2B, general m4's Party side and security S-2; E24-11, Q-E24-3): a student's, an NPC's not in the class and a Monokuma's rows read what is left; a GM's pips toggle the reserve, a player's toggle nothing; to another player Sanity reads \"?\" with no slot left, so its maximum is not counted off the pips", async () => {
         /*
          * E24 fix G2B, 08.11.2026. The review's m4: the Party sheet skipped an NPC and a Monokuma (`strip === "none"`),
          * so their rows kept Daggerheart's marks and Sanity for everybody, while their sheets say what is left and keep
@@ -46304,7 +46304,7 @@ const INVARIANTS = [
         "{source: [incidentCard asks incidentLines, still formats victimMarks, a bystander's gate first, the meta two parts]; seats: the victim at the killer's turn and at their own, "
             + "the killer at the victim's, a GM: [whose turn, the reserve line, a Sanity number in it, a mark word]}");
     }],
-    ["R1447 - the token bars and the Party sheet as the reserve (states.mjs `reserveBar`, `wrapBarAttribute`; sheet.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student's two bars answer what is left of what maximum and are not editable, Sanity's none to a player who may not see it; a Monokuma's and an NPC's not in the class as a student's (E24 fix G2A, review m4: the sheet's one meaning), another actor's and another attribute's as Foundry answered; the wrapper marked and not stacked; the contract's row `token-bars-reserve` ok here; the Party sheet's rows the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member", async () => {
+    ["R1447 - the token bars and the Party sheet as the reserve (states.mjs `reserveBar`, `wrapBarAttribute`; sheet-sidebar.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student's two bars answer what is left of what maximum and are not editable, Sanity's none to a player who may not see it; a Monokuma's and an NPC's not in the class as a student's (E24 fix G2A, review m4: the sheet's one meaning), another actor's and another attribute's as Foundry answered; the wrapper marked and not stacked; the contract's row `token-bars-reserve` ok here; the Party sheet's rows the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member", async () => {
         /*
          * E24 C1b, 08.11.2026. Daggerheart 2.10.5's `Token#_drawBar` draws one section a point of `data.max` and fills
          * `ceil(data.value)` of them, `data` being Foundry's `TokenDocument#getBarAttribute`: a student's bar 1 and 2
@@ -46406,7 +46406,7 @@ const INVARIANTS = [
         /*
          * E95 C5, 10.11.2026: rewritten. Until E95 C4 the wrapper hid Breakdown only from a reader who may not read the
          * Sanity and drew Wounded for all (the notes below are E24's, kept for the shape of the test); the owner now
-         * wants neither icon on any token, the sheet saying both (sheet.mjs `paintStateBadges`). Red on bc750112: the
+         * wants neither icon on any token, the sheet saying both (sheet-sidebar.mjs `paintStateBadges`). Red on bc750112: the
          * owner's and a GM's Breakdown, everybody's Wounded, drawn.
          *
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
@@ -46558,7 +46558,7 @@ const INVARIANTS = [
         "[each render (a GM's first, a GM's second in the same load, a player's): Daggerheart's creator left, the inventory's groups, the Rules tab, the first step run, the steps run, the errors naming the step, the notices naming it; the steps SHEET_STEPS lacks]");
         must(names.length >= 20, `SHEET_STEPS holds ${names.length} step(s) - the sheet's injections were not read`);
     }],
-    ["R1457 - the Loadout tab is never the one shown (sheet.mjs `leaveLoadoutTab`; E24 C3b, E24-22; audit S03-47, S12-45): a sheet that renders on `loadout` is changed to the Actions tab (`features`) through the app's own `changeTab`, or by its classes and `tabGroups` where it has none; the Loadout part holds no control after a render; a sheet on another tab is left on it", async () => {
+    ["R1457 - the Loadout tab is never the one shown (sheet-fit.mjs `leaveLoadoutTab`; E24 C3b, E24-22; audit S03-47, S12-45): a sheet that renders on `loadout` is changed to the Actions tab (`features`) through the app's own `changeTab`, or by its classes and `tabGroups` where it has none; the Loadout part holds no control after a render; a sheet on another tab is left on it", async () => {
         /* E24 C3b, 08.11.2026. Stand-in roots (e24SheetRoot) with the tab bar and a Loadout part holding Daggerheart's
            kind of controls; stand-in apps with and without `changeTab`. Red on the tree before: still on loadout. */
         const who = studentActors()[0];
@@ -46593,7 +46593,7 @@ const INVARIANTS = [
                 other: { calls: [], group: "inventory", shown: "inventory", link: "inventory", part: true, controls: 0 } }),
             "[on loadout with the app's changeTab, on loadout without one, on the Inventory]: changeTab's calls, tabGroups.primary, the part shown, the link marked, the Loadout part kept, its controls");
     }],
-    ["R1458 - a tab keeps its scroll across a render (sheet.mjs `keepTabScroll`; E24 C3b, E24-22; audit S03-14): what the active `section.tab` was scrolled to is put back on the next render's, per app and per tab - another tab of the same sheet and the same tab of another sheet start at the top", async () => {
+    ["R1458 - a tab keeps its scroll across a render (sheet-fit.mjs `keepTabScroll`; E24 C3b, E24-22; audit S03-14): what the active `section.tab` was scrolled to is put back on the next render's, per app and per tab - another tab of the same sheet and the same tab of another sheet start at the top", async () => {
         /*
          * E24 C3b, 08.11.2026. jsdom lays nothing out but keeps an element's `scrollTop`, and a render is a new root here
          * (Daggerheart draws new parts into the window's root; the stand-in draws a whole new one, which also asks that
@@ -46631,7 +46631,7 @@ const INVARIANTS = [
             stableJson({ seen: { first: 0, again: 140, otherTab: 0, back: 140, features: 60, otherSheet: 0 }, last: "keepTabScroll", theme: false }),
             "[scrollTop on render: the first, the next on the same tab, another tab, back, that tab again, another sheet's same tab]; the table's last step; whether the step reads a theme");
     }],
-    ["R1459 - an empty Experience says so, and an item in hand shows both its tags (sheet.mjs `noteEmptyExperience`, `injectEquippedTools`; E24 C3b, E24-23; audit S15-02, S03-29; the owner's 28.10): no experiences - one `drpg-experience-empty` line, `DRPG.SheetNotes.noExperiences`; one - none; a Murder Weapon held ready that is also a Tool reads \"Murder Weapon · Tool - T2\" on the Equipped row, a tag each", async () => {
+    ["R1459 - an empty Experience says so, and an item in hand shows both its tags (sheet-sidebar.mjs `noteEmptyExperience`, `injectEquippedTools`; E24 C3b, E24-23; audit S15-02, S03-29; the owner's 28.10): no experiences - one `drpg-experience-empty` line, `DRPG.SheetNotes.noExperiences`; one - none; a Murder Weapon held ready that is also a Tool reads \"Murder Weapon · Tool - T2\" on the Equipped row, a tag each", async () => {
         /*
          * E24 C3b, 08.11.2026. A world student whose `items` and `system.experiences` are answered in this browser's
          * memory for the draw (own properties, taken off in a finally; nothing written), on a stand-in root that adds
@@ -46670,7 +46670,7 @@ const INVARIANTS = [
             stableJson({ none: { failed: 0, empty: [game.i18n.localize("DRPG.SheetNotes.noExperiences")], labels: held, tags }, one: { failed: 0, empty: [], labels: held, tags } }),
             "[no experiences, one]: the steps that failed; the empty Experience line; the Equipped row's label and its tags for a Murder Weapon that is also a Tool (its home listed twice)");
     }],
-    ["R1460 - the locks on the sheet (sheet.mjs `callLockNote`, `freeMovePip`, `budgetLine`; E24 C3b, E24-24; audit S03-13): under the Overflow's Silence every Hope Call tile is locked and carries `DRPG.Overflow.silenced` and the drawer is `drpg-silenced`; under Fog the free Move is a third state (`drpg-fogged`, Fog's reason) and the budget line says Fog's reason; with no Overflow running neither", async () => {
+    ["R1460 - the locks on the sheet (sheet-actions.mjs `callLockNote`, sheet-header.mjs `freeMovePip`, sheet-actions.mjs `budgetLine`; E24 C3b, E24-24; audit S03-13): under the Overflow's Silence every Hope Call tile is locked and carries `DRPG.Overflow.silenced` and the drawer is `drpg-silenced`; under Fog the free Move is a third state (`drpg-fogged`, Fog's reason) and the budget line says Fog's reason; with no Overflow running neither", async () => {
         /*
          * E24 C3b, 08.11.2026. The clock and the Overflow's stamp answered in memory (`game.settings.get` for three of the
          * module's keys, put back in a finally; nothing written), as R1192's stand-in reads Darkness; drawn for a GM on a
@@ -46853,7 +46853,7 @@ const INVARIANTS = [
         "{loads: two loads with the automations already off [their answers, the deletes, what each stand-in holds after, the syncs run]; "
             + "migration: the load that switches them off [its answer, the deletes, what each holds after]}");
     }],
-    ["R1471 - the modes' matrix (E45 C1; audit S17-37): sheet.mjs `sheetMode(actor, user)` for a student, the dead, a Monocub, an NPC not in the class and a Monokuma, each for a GM, its owner and another player - the mode, who is looking, the header, the action panel, the row buttons, Level Up, the Calls, the inventory's groups and the Equipped, Experience and biography parts, the passages, the strip, the Objection and the room tile; frozen; and drawn on stand-in roots for a GM and the owner, every part R1455 reads is what the mode says", async () => {
+    ["R1471 - the modes' matrix (E45 C1; audit S17-37): sheet-mode.mjs `sheetMode(actor, user)` for a student, the dead, a Monocub, an NPC not in the class and a Monokuma, each for a GM, its owner and another player - the mode, who is looking, the header, the action panel, the row buttons, Level Up, the Calls, the inventory's groups and the Equipped, Experience and biography parts, the passages, the strip, the Objection and the room tile; frozen; and drawn on stand-in roots for a GM and the owner, every part R1455 reads is what the mode says", async () => {
         /*
          * E45 C1, 08.11.2026. The flags answered in memory (`e24Flagged`), nothing written; the other two users are
          * passed as `user`, the drawn half takes the GM's `isGM` off for the owner as R1455 does. Red on E24's tip: no
@@ -46927,7 +46927,7 @@ const INVARIANTS = [
         equal(stableJson({ out, drawn }), stableJson({ out: want, drawn: fromMode }),
             "[each kind for a GM, its owner and another player: mode; gm, owner, viewer; header live, mark; the action panel; the six row buttons; Level Up; the Calls; groups, Equipped, Experience, biography; passages; strip; Objection; room tile; frozen] and [drawn for a GM and the owner: what R1455 reads = what the mode says]");
     }],
-    ["R1472 - the strip, the HUD's Objection control and the room tile take their gate from sheet.mjs `sheetMode` (E45 C1; the owner's A8 of 11.10): player-status.mjs `buildPlayerView`, hud.mjs `objectionControl` and room-tile.mjs `viewerRoom`, each handed a student, the dead, a Monocub, an NPC not in the class and a Monokuma, answer as the mode's `strip`, `objection` and `tile` - nothing for an NPC, whose strip and room are no student's", async () => {
+    ["R1472 - the strip, the HUD's Objection control and the room tile take their gate from sheet-mode.mjs `sheetMode` (E45 C1; the owner's A8 of 11.10): player-status.mjs `buildPlayerView`, hud.mjs `objectionControl` and room-tile.mjs `viewerRoom`, each handed a student, the dead, a Monocub, an NPC not in the class and a Monokuma, answer as the mode's `strip`, `objection` and `tile` - nothing for an NPC, whose strip and room are no student's", async () => {
         /*
          * E45 C1, 08.11.2026. The flags answered in memory (`e24Flagged`); outside a Class Trial (the tile's trial hall
          * would answer for everybody). `objectionControl` is handed the trial's phase and no floor, its state and raise
@@ -47014,7 +47014,7 @@ const INVARIANTS = [
                 monokuma: { emptyGroups: 0, limits: false, equipped: false, experience: false, bioLink: false, bioPart: false, features: true } }),
             "{student: Equipped, Experience, the biography's link and part shown; monokuma: empty groups, a group's limit, Equipped, Experience, the biography's link, its part, the Actions tab shown}");
     }],
-    ["R1474 - the redaction runs from the mode (E45 C1; anonymity.mjs `onRenderSheet`): with anonymity enforced, another player's sheet is redacted when sheet.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside the mode still closes the sheet, its root hidden - the redaction fails closed as before, and so does the mode when reading the setting throws", async () => {
+    ["R1474 - the redaction runs from the mode (E45 C1; anonymity.mjs `onRenderSheet`): with anonymity enforced, another player's sheet is redacted when sheet-mode.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside the mode still closes the sheet, its root hidden - the redaction fails closed as before, and so does the mode when reading the setting throws", async () => {
         /*
          * E45 C1, 08.11.2026. A character's stand-in nobody here owns (its `testUserPermission` answers no), drawn with
          * `isGM` off on this GM's `game.user` (R1455's owner role, here a viewer) through Foundry's `renderActorSheetV2`
@@ -47056,7 +47056,7 @@ const INVARIANTS = [
                 thrown: { redact: null, redacted: false, closed: [true], hidden: true }, settingThrows: true }, source: { mode: true, own: false } }),
             "{gm, another player, a throw in the mode: the mode's redact, the root redacted, the close's force, the root hidden; settingThrows: the mode's redact when the setting's read throws; source: onRenderSheet reads sheetMode's redact and asks no permission itself}");
     }],
-    ["R1475 - Present's gate is the mode's (E45 C1; E70's `modeAllows`): sheet.mjs `sheetMode(...).present(floor)` hides the button outside a Class Trial, for the dead and for the trial's muted dead, and holds it while another holds a floor that keeps Present to its holder with trial-floor.mjs `presentRefusal`'s line - the Present window's own text (trial.mjs) - and frees it on an open floor; `addPresentButton` and `paintPresentButton` ask the mode and no predicate", async () => {
+    ["R1475 - Present's gate is the mode's (E45 C1; E70's `modeAllows`): sheet-mode.mjs `sheetMode(...).present(floor)` hides the button outside a Class Trial, for the dead and for the trial's muted dead, and holds it while another holds a floor that keeps Present to its holder with trial-floor.mjs `presentRefusal`'s line - the Present window's own text (trial.mjs) - and frees it on an open floor; `addPresentButton` and `paintPresentButton` ask the mode and no predicate", async () => {
         /*
          * E45 C1, 08.11.2026. The facts handed to the mode (the clock's phase, the trial's record of the muted dead), the
          * flags answered in memory; a testimony floor held by another student, and a debate floor. Red on E24's tip: no
@@ -47089,7 +47089,7 @@ const INVARIANTS = [
             add: { mode: true, own: false }, paint: { mode: true, own: false } }),
             "{outside a trial; another's testimony; an open debate; muted; dead: Present shown, its held line} and the two painters asking the mode, no predicate");
     }],
-    ["R1477 - the render's own decision (sheet.mjs `renderPlan`, `installRenderPlan`; E45 C2, E45-08; audit S03-07): \"repaint\" only for `render(options)` or `render(false, options)` with renderContext \"updateActor\" and a `renderData` of repaintable resources alone (Health, Hope, both, `_id` and `_stats` aside); a flag, an item, an effect, `actions` or `armor` beside them, no arguments, `render(true, ...)`, a bare `false`, no `renderData`, `force`, `parts`, a first render and renderContext \"updateItem\" render; the wrapper repaints without the original, calls it otherwise, and calls it when the repaint throws", async () => {
+    ["R1477 - the render's own decision (sheet-repaint.mjs `renderPlan`, `installRenderPlan`; E45 C2, E45-08; audit S03-07): \"repaint\" only for `render(options)` or `render(false, options)` with renderContext \"updateActor\" and a `renderData` of repaintable resources alone (Health, Hope, both, `_id` and `_stats` aside); a flag, an item, an effect, `actions` or `armor` beside them, no arguments, `render(true, ...)`, a bare `false`, no `renderData`, `force`, `parts`, a first render and renderContext \"updateItem\" render; the wrapper repaints without the original, calls it otherwise, and calls it when the repaint throws", async () => {
         /*
          * E45 C2, 08.11.2026. The plan read pure, then the wrapper on a stand-in sheet whose prototype's `render` is the
          * one it shadows (it counts its calls and draws nothing): installed once, marked, a repaint resolving with the app
@@ -47154,7 +47154,7 @@ const INVARIANTS = [
         }), stableJson({ installed: true, marked: true, once: true, repaint: [true, 0], flag: 1, throws: [1, null, true] }),
         "the wrapper: [an own render, its mark, a second install keeping it, a repaint resolving with the app and the original's calls, the original's calls after a flag's render, a throwing repaint: the original's calls, what the render threw, an error naming the plant logged]");
     }],
-    ["R1478 - a write cut in preUpdate leaves the next render whole (sheet.mjs `installRenderPlan`; overflow.mjs and resource-guard.mjs `onPreUpdateActor`; E45 C2, E45-09; audit S03-07): on a stand-in sheet open on a student, a player's Sanity write emptied by the resource guard (the lock on) and a Hope gain emptied by Despair's Overflow, each followed by an item created on the student: the item's render reaches the sheet and its row is drawn", async () => {
+    ["R1478 - a write cut in preUpdate leaves the next render whole (sheet-repaint.mjs `installRenderPlan`; overflow.mjs and resource-guard.mjs `onPreUpdateActor`; E45 C2, E45-09; audit S03-07): on a stand-in sheet open on a student, a player's Sanity write emptied by the resource guard (the lock on) and a Hope gain emptied by Despair's Overflow, each followed by an item created on the student: the item's render reaches the sheet and its row is drawn", async () => {
         /*
          * E45 C2, 08.11.2026. The write is the module's own `preUpdateActor` chain, called as Foundry calls it before a
          * write (`Hooks.call` with the changes), nothing written: an emptied write updates nothing and renders nothing, so
@@ -47218,7 +47218,7 @@ const INVARIANTS = [
         equal(stableJson(out), stableJson({ guard: { cut: true, renders: 1, row: 1 }, overflow: { cut: true, renders: 1, row: 1 } }),
             "[a player's Sanity write under the lock, a Hope gain under Despair]: [the write emptied in preUpdate, the original renders the item's render reached, the item's rows drawn]");
     }],
-    ["R1479 - the repaint draws what the render would (sheet.mjs `repaintInPlace` through `installRenderPlan`; E45 C2, E45-10; D46 option 2): on stand-in sheets opened through the module's hook, a Hope-only update on a Monocub makes its Confusion tile affordable; a Health and Hope update on the pip layout draws the new reserve, lights the Hope Calls it pays for and rebuilds a priced tile - each with no call of the original render", async () => {
+    ["R1479 - the repaint draws what the render would (sheet-repaint.mjs `repaintInPlace` through `installRenderPlan`; E45 C2, E45-10; D46 option 2): on stand-in sheets opened through the module's hook, a Hope-only update on a Monocub makes its Confusion tile affordable; a Health and Hope update on the pip layout draws the new reserve, lights the Hope Calls it pays for and rebuilds a priced tile - each with no call of the original render", async () => {
         /*
          * E45 C2, 08.11.2026. A student whose Hope, Health and actions are answered in memory (`e45Held`, own `value`s
          * put back in a finally; the Monocub flag by `e24Flagged`), drawn for this GM on a stand-in root of the header,
@@ -48751,7 +48751,7 @@ const INVARIANTS = [
         equal(stableJson({ cap: cap && Number(cap), inRange: Boolean(box) && box[0] >= 24 && box[1] <= 32 }), stableJson({ cap: 110, inRange: true }),
             `{cap: the sheet tile's max-height; inRange: the icon's 1.15em box between 24 and 32 px (read ${stableJson(box)})} - a tile must stay 110 px and its icon 24-32 px`);
     }],
-    ["R3487 - the Move is two feet in the same places on the sheet and the strip, in and out of an Eclipse (sheet.mjs `moveSlots`, `moveFeetHtml`, `freeMovePip`; player-status.mjs `buildPlayerView`; E49 B2; the owner, 10.11: fixed layouts): out of one the free Move and a dimmed Eclipse slot; in one its two crossings lit or spent, free placement both `anywhere`; the sheet drawn out of an Eclipse, in one at noon and in one that places anywhere", async () => {
+    ["R3487 - the Move is two feet in the same places on the sheet and the strip, in and out of an Eclipse (sheet-header.mjs `moveSlots`, `moveFeetHtml`, `freeMovePip`; player-status.mjs `buildPlayerView`; E49 B2; the owner, 10.11: fixed layouts): out of one the free Move and a dimmed Eclipse slot; in one its two crossings lit or spent, free placement both `anywhere`; the sheet drawn out of an Eclipse, in one at noon and in one that places anywhere", async () => {
         /*
          * E49 B2, 11.11.2026. The owner: "dwie stópki: jedna taka jak teraz, druga w kolorze eclipse ... zależy nam na
          * stałych layoutach". Before: the sheet drew one foot from `hasFreeMove` and nothing of the Eclipse; the strip one
@@ -48805,7 +48805,7 @@ const INVARIANTS = [
             + "left and free placement; out: feet on the strip out of an Eclipse; sheet: the sheet's feet out of an Eclipse, in one at noon, in free placement} "
             + "- the Move must be two feet in the same places in every state");
     }],
-    ["R5300 - a student's action grid is drawn in the owner's order of 13.11.2026 (config.mjs `ACTION_GRID`, sheet.mjs `injectActionPanel`; E103): Search, Observe, Analyze, Infiltrate, Palm, then Projects, Facilities, Dynamic, Tamper and Direct Murder, two rows of five; the list names every universal entry of ACTIONS once", async () => {
+    ["R5300 - a student's action grid is drawn in the owner's order of 13.11.2026 (config.mjs `ACTION_GRID`, sheet-actions.mjs `injectActionPanel`; E103): Search, Observe, Analyze, Infiltrate, Palm, then Projects, Facilities, Dynamic, Tamper and Direct Murder, two rows of five; the list names every universal entry of ACTIONS once", async () => {
         /*
          * E103, 13.11.2026. The owner: "Zmieniamy tylko kolejnosc akcji u gracza" - the first row Search, Observe,
          * Analyze, Infiltrate (key `listen`), Palm; the second Project, Facilities (key `rest`), Dynamic. Until E103 the
@@ -48828,7 +48828,7 @@ const INVARIANTS = [
             stableJson({ list: want, sorted: [...universal].sort(), drawn: want }),
             "{list: config.mjs ACTION_GRID; sorted: its keys sorted, against ACTIONS' universal ones sorted; drawn: the grid's tiles on the sheet, in order}");
     }],
-    ["R5301 - a Monocub's panel draws no Move tile and keeps one tile per ability (sheet.mjs `monocubTiles`, `injectMonocubPanel`; E103): the grid holds MONOCUB.abilities' tiles in their order and no tile with an action key or the Move's prints", async () => {
+    ["R5301 - a Monocub's panel draws no Move tile and keeps one tile per ability (sheet-actions.mjs `monocubTiles`, `injectMonocubPanel`; E103): the grid holds MONOCUB.abilities' tiles in their order and no tile with an action key or the Move's prints", async () => {
         /*
          * E103, 13.11.2026. The owner: "kafel move u monocuba usuwamy". Until E103 `monocubTiles` drew `ACTIONS.move`
          * first, a tile whose press only opened the Move briefing - a Monocub moves by dragging its token and pays nothing
@@ -48853,7 +48853,7 @@ const INVARIANTS = [
         equal(stableJson(got), stableJson({ panel: true, keyed: [], prints: 0, labels: abilities }),
             "{panel: the Monocub's grid drawn; keyed: its tiles' action keys; prints: tiles wearing the Move's prints; labels: its tiles' names, in order}");
     }],
-    ["R5302 - a Monocub's two feet always read as available, by day, after a crossing and in an Eclipse, on the sheet and the strip, with the Monocub's own sentence (sheet.mjs `moveSlots`, `freeMovePip`; player-status.mjs `buildPlayerView`; E103): the first foot solid by day with the second off as everyone's, both solid in an Eclipse, `anywhere` in free placement", async () => {
+    ["R5302 - a Monocub's two feet always read as available, by day, after a crossing and in an Eclipse, on the sheet and the strip, with the Monocub's own sentence (sheet-header.mjs `moveSlots`, `freeMovePip`; player-status.mjs `buildPlayerView`; E103): the first foot solid by day with the second off as everyone's, both solid in an Eclipse, `anywhere` in free placement", async () => {
         /*
          * E103, 13.11.2026. The owner: "u monocuba zawsze zaznaczamy ruch w karcie postaci, ze jest dostepny (chodzi o
          * glif)". A Monocub pays nothing for a crossing and counts no Eclipse crossing (movement.mjs `cubStep`,
@@ -48915,7 +48915,7 @@ const INVARIANTS = [
             + "the Monocub's sheet with its free Move used, [slot:state:weight], the row lit, the tooltip opening with DRPG.Actions.cubMovesFree; "
             + "strip: the same by day, in an Eclipse with 0 left and in free placement, the row not dimmed}");
     }],
-    ["R5303 - a student's feet are as before E103 (sheet.mjs `freeMovePip`; player-status.mjs `buildPlayerView`): with the free Move used the first foot is spent and the tooltip says so, with no Monocub's sentence", async () => {
+    ["R5303 - a student's feet are as before E103 (sheet-header.mjs `freeMovePip`; player-status.mjs `buildPlayerView`): with the free Move used the first foot is spent and the tooltip says so, with no Monocub's sentence", async () => {
         /*
          * E103, 13.11.2026: the Monocub's road (R5302) must leave the student's alone. A living student of this world with
          * `freeMoveUsed` answered in memory (`e24Flagged`), drawn out of an Eclipse on a stand-in sheet and on the strip.
@@ -48984,7 +48984,7 @@ const INVARIANTS = [
         }
         equal(stableJson(wrong), "[]", "the texts that still name a Monocub's Move tile");
     }],
-    ["R3488 - the name row's buttons come from one builder with their words, and the Stop shows the table's word alone - no Safeword caption since E100 (the owner at a table, 12.11.2026) (sheet.mjs `headerButton`, `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads the table's word alone; a Monokuma's sheet draws no Stop", async () => {
+    ["R3488 - the name row's buttons come from one builder with their words, and the Stop shows the table's word alone - no Safeword caption since E100 (the owner at a table, 12.11.2026) (sheet-header.mjs `headerButton`, sheet-sidebar.mjs `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads the table's word alone; a Monokuma's sheet draws no Stop", async () => {
         /*
          * E49 B2, 11.11.2026. S03-31: "buttons without captions: the safeword shows the table's word alone, Level Up and
          * Give/Take are bare glyphs"; the remedy "a fixed small caption 'Safeword' by the word; no button on Monokuma's
@@ -49018,7 +49018,7 @@ const INVARIANTS = [
         stableJson({ advance: L("DRPG.Advance.caption"), items: L("DRPG.Items.caption"), others: true, tips: true, stop: [null, safeword()], kumaStop: false, built: true }),
         `{advance, items: the captions; others: the GM's controls without one; tips: every button's tooltip its aria-label; stop: [caption, word]; kumaStop: a Stop on Monokuma's sheet; built: the four builders through headerButton (${row.map(r => r[0]).join(",")})} - the row's buttons must say what they are`);
     }],
-    ["R3489 - the Actions panel opens on its budget and the Rules tab on Monokuma's rules (sheet.mjs `injectActionPanel`, `budgetLine`, `buildRulesPanel`; styles/danganronpa.css; E49 B2, S03-38, S03-39, S12-67): no \"Actions\" heading under the Actions tab, the budget the panel's first row and the panel named for a screen reader; the Rules panel's title is not the tab's word and its padding is the Actions panel's", async () => {
+    ["R3489 - the Actions panel opens on its budget and the Rules tab on Monokuma's rules (sheet-actions.mjs `injectActionPanel`, `budgetLine`, `buildRulesPanel`; styles/danganronpa.css; E49 B2, S03-38, S03-39, S12-67): no \"Actions\" heading under the Actions tab, the budget the panel's first row and the panel named for a screen reader; the Rules panel's title is not the tab's word and its padding is the Actions panel's", async () => {
         /*
          * E49 B2, 11.11.2026. S03-38: "the ACTIONS bar repeats the open tab and pushes the Hope Calls under the sheet's
          * edge"; S03-39 and S12-67: "the Rules tab has no inner margin and its heading repeats the tab's name". Drawn for a
@@ -49042,7 +49042,7 @@ const INVARIANTS = [
         "{heading: h3s on the Actions panel; first: the budget its first row; named: its aria-label; rulesTitle: the Rules panel's h3; tab: the tab's word; pad: the Actions and Rules panels' padding} - the panels must not repeat their tab and must sit alike");
         ok(L("DRPG.Rules.sheetTitle") !== L("DRPG.Rules.tab"), "the Rules panel's title is still the tab's word");
     }],
-    ["R3520 - in a fight the sheet's budget row says whose turn it is, in the incident card's words (sheet.mjs `budgetLine`, events.mjs `incidentTurnText`, `actingActor`; E49 B2's turn line, audit S03-30): the victim on their turn and the killer on theirs read \"your turn\" lit (`drpg-budget-mine`), the killer waiting reads the victim's name as the card does, the victim waiting \"their turn\"; the same one row in every state (a `p.drpg-budget-line`), and outside an incident the budget as before", async () => {
+    ["R3520 - in a fight the sheet's budget row says whose turn it is, in the incident card's words (sheet-actions.mjs `budgetLine`, events.mjs `incidentTurnText`, `actingActor`; E49 B2's turn line, audit S03-30): the victim on their turn and the killer on theirs read \"your turn\" lit (`drpg-budget-mine`), the killer waiting reads the victim's name as the card does, the victim waiting \"their turn\"; the same one row in every state (a `p.drpg-budget-line`), and outside an incident the budget as before", async () => {
         /*
          * E49 B2's leftover, 11.11.2026. S03-30: "the victim at the start of their turn sees only the sheet and nothing
          * says 'your turn'"; its fix: "in an incident, the turn's banner in the sheet itself". The row is the budget's (the
@@ -50682,7 +50682,7 @@ const INVARIANTS = [
          * DialogV2 draws it; at a table Foundry's) and read: the heads in order, the group rows, each character's row
          * as [Items beside the name, the Role select's value, a State select, the Level Up's words or null, the Do
          * cell's buttons] - the last for a non-student only, whose Do is empty; a student's Do is the state's own (the
-         * tier-2 tests click it). The Level Up is read against sheet.mjs `sheetMode` itself and its words against
+         * tier-2 tests click it). The Level Up is read against sheet-mode.mjs `sheetMode` itself and its words against
          * level-up.mjs `standingOffers`, so a later gate change follows. Red first on f7266b28: a hand table, no Role
          * or Level Up, the footer's one Items.
          */
@@ -50811,10 +50811,10 @@ const INVARIANTS = [
             + "after a cancelled Monokuma (back on the role the actor holds), the roads called]}");
     }],
 
-    ["R2082 - the Students window's Level Up (scripts/gm-students.mjs; E47-C8): a button exactly on the rows sheet.mjs `sheetMode(actor, game.user).levelUp` holds, its words the standing offers' count (`DRPG.Advance.standing`) or Level Up; its click is level-up.mjs `openAdvancementFor` with that row's actor, and the window comes back after", async () => {
+    ["R2082 - the Students window's Level Up (scripts/gm-students.mjs; E47-C8): a button exactly on the rows sheet-mode.mjs `sheetMode(actor, game.user).levelUp` holds, its words the standing offers' count (`DRPG.Advance.standing`) or Level Up; its click is level-up.mjs `openAdvancementFor` with that row's actor, and the window comes back after", async () => {
         /*
          * E47-C8, 09.11.2026 (the owner's 09.11 ask: "a Level Up control per row, reusing the road a GM uses today, no
-         * new road" - the sheet's GM button, sheet.mjs `injectAdvanceButton`, opens `openAdvancementFor`). Read against
+         * new road" - the sheet's GM button, sheet-header.mjs `injectAdvanceButton`, opens `openAdvancementFor`). Read against
          * `sheetMode` itself on every row the window draws; a world with no character out of the class has no row
          * whose button the gate takes away (E47-T6 marks one and reads it). The road a stand-in that answers at once,
          * so the round trip (`wireAliveRow`: close, run, open again) ends in a second window. Red first on f7266b28: no
@@ -52052,7 +52052,7 @@ const INVARIANTS = [
             glass: { free: "var(--brush)", action: "var(--brush)", gm: "var(--brush)", stress: "var(--brush)" }
         }), "{per theme: the winning background of the stripe's ::before per cost kind}");
     }],
-    ["R5434 - a Tier 0 item's Use on the GM's road wears the GM chip (E107 part 2): sheet.mjs `addUseButton` writes the chip (`.drpg-action-gm`, DRPG.Action.waitsForGm) beside the flask when a GM rules the use and not otherwise; under both themes the button takes a plain Use's background, edge and glyph colour, and the chip's edge and ink are red", async () => {
+    ["R5434 - a Tier 0 item's Use on the GM's road wears the GM chip (E107 part 2): sheet-inventory.mjs `addUseButton` writes the chip (`.drpg-action-gm`, DRPG.Action.waitsForGm) beside the flask when a GM rules the use and not otherwise; under both themes the button takes a plain Use's background, edge and glyph colour, and the chip's edge and ink are red", async () => {
         /*
          * E107 part 2, 13.11.2026. Found by E107: the button carried `drpg-gm-route` and nothing painted it - measured on the
          * style harness's sheet in Chromium, a Use on the GM's road computed exactly as a plain one in both themes - so only
@@ -52096,7 +52096,7 @@ const INVARIANTS = [
         /*
          * E100 item 1, 12.11.2026. The review's Move window had one button, Got it, and said "drag your token": the
          * sentence goes on the tile and on the HUD's Move line, and the window goes. In real code a student has no Move
-         * tile (ACTIONS.move is `kind: "panel"`); the Monocub panel draws one (sheet.mjs `monocubTiles`). Red at
+         * tile (ACTIONS.move is `kind: "panel"`); the Monocub panel draws one (sheet-actions.mjs `monocubTiles`). Red at
          * 4dfac3a9: the window opened with Got it, the tile was a button the delegate pressed, no `DRPG.Move.drag*`.
          */
         const { livingStudents } = await import("./chapter.mjs");
@@ -52116,7 +52116,7 @@ const INVARIANTS = [
         const tile = S.actionButton(actor, "move", ACTIONS.move);
         const row = P.buildPlayerView(actor)?.querySelector?.(".is-move") ?? null;
         const drag = game.i18n.localize("DRPG.Move.drag"), short = game.i18n.localize("DRPG.Move.dragShort");
-        /* The drag words stand where the drag is taken (R4472, sheet.mjs `moveDragSaid`): not in a Class Trial, which
+        /* The drag words stand where the drag is taken (R4472, sheet-actions.mjs `moveDragSaid`): not in a Class Trial, which
            01-runtests' A2 runs this in (read there at cb78cfd7: the tile and the row without them). */
         const said = S.moveDragSaid(actor);
         const read = {
@@ -52133,7 +52133,7 @@ const INVARIANTS = [
             "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
             + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
     }],
-    ["R4107 - Move's line on a Monocub's panel (E100 item 1 under the owner's rule of 12.11.2026, cut down at the owner's word the same day): with Move's window gone, a Monocub's panel draws one line of its own under its tiles reading \"Free\" / \"Za darmo\" (DRPG.Move.free, in the page's language), not the whole description and not in a tooltip; sheet.mjs `monocubMoveNote` builds it and `injectMonocubPanel` puts it there", async () => {
+    ["R4107 - Move's line on a Monocub's panel (E100 item 1 under the owner's rule of 12.11.2026, cut down at the owner's word the same day): with Move's window gone, a Monocub's panel draws one line of its own under its tiles reading \"Free\" / \"Za darmo\" (DRPG.Move.free, in the page's language), not the whole description and not in a tooltip; sheet-actions.mjs `monocubMoveNote` builds it and `injectMonocubPanel` puts it there", async () => {
         /*
          * E100, 12.11.2026. The owner on E100's review: "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji
          * NIGDY", passed on by the coordinator with "the Move tile: its description must stay visible". The Move window
@@ -52156,7 +52156,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ note: ["P", true, false, null, false], placed: true }),
             "{the note [tag, DRPG.Move.free as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
     }],
-    ["R4472 - Move's words hold where Move does (the r112 review's P2 and P4, 13.11.2026): sheet.mjs `moveDragSaid` answers no in a Class Trial and in an incident the character is in, and yes otherwise; the HUD's Move row and the Monocub's Move tile ask it; a locked Move tile says no \"Drag your token\" and takes the keyboard's focus with its words as a label; the Monocub's line says \"Free\" only while the Free Move is there, the next crossing's price after it, and the panel's repaint draws it again", async () => {
+    ["R4472 - Move's words hold where Move does (the r112 review's P2 and P4, 13.11.2026): sheet-actions.mjs `moveDragSaid` answers no in a Class Trial and in an incident the character is in, and yes otherwise; the HUD's Move row and the Monocub's Move tile ask it; a locked Move tile says no \"Drag your token\" and takes the keyboard's focus with its words as a label; the Monocub's line says \"Free\" only while the Free Move is there, the next crossing's price after it, and the panel's repaint draws it again", async () => {
         /*
          * The r112 review's P2 and P4 (REVIEW-112, 13.11.2026). E100 item 1 put "drag your token there" first in the HUD's
          * Move tooltip and "Drag your token" on the Monocub's Move tile, whatever the phase: in a Class Trial the drag is
@@ -55119,7 +55119,7 @@ const INVARIANTS = [
             t: { "S1/watch": { "": 0, Gym: 20, Hall: 10, Lab: 40 }, "S2/watch": { "": 0, Roof: 5 } },
             d: {}, cleared: 3 }), "[the fold of three students' rows, one the Mastermind's, on two scenes]");
     }],
-    ["R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM", async () => {
+    ["R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet-mode.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM", async () => {
         /*
          * E92 C0, 12.11.2026. A stand-in Spectator; `editable` is handed. Red on C0's tree: mode "student".
          */

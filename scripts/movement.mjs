@@ -2367,7 +2367,7 @@ export const TUNNEL_CROSSING = "drpgTunnelCrossing";
  * the cast's placing at a season's start and on the return from the trial (`teleportInto`) and a Clean-up's body
  * (cleanup.mjs) hand `region.teleportTokens` no option of the module's, and whether v14's puts `teleport` or a displace
  * into the update it writes is not read (LIVE-H81-03). So the writer's own browser marks the tokens around the call,
- * and the sheet's trigger (sheet.mjs `onTunnelStep`) reads no move of a marked token as a step onto a tunnel's end. The
+ * and the sheet's trigger (sheet-sidebar.mjs `onTunnelStep`) reads no move of a marked token as a step onto a tunnel's end. The
  * mark is read in the update's own hooks, which Foundry runs on the writer's browser before its update answers; a
  * teleport that answers before its update is written would not be covered - not read on v14 either.
  */
@@ -2405,7 +2405,7 @@ export function isPlacing(tokenDoc) {
  * token - the crossing's own (`TUNNEL_CROSSING`), a put-back (`REVERT`, which the gather's own fallback writes too),
  * and an update that says it is a teleport or a displace. The module's region teleports (the gather, the cast's
  * placing, a Clean-up's body) say neither: their writer's browser marks their tokens instead (`whilePlacing`, read in
- * sheet.mjs `onTunnelStep`; H81 fix C3, the review's H81-C3-R1, which found the claim "every placing write of the
+ * sheet-sidebar.mjs `onTunnelStep`; H81 fix C3, the review's H81-C3-R1, which found the claim "every placing write of the
  * module is one" false for those three). Which options v14's region teleport and a GM's own drag or teleport at a v14
  * table carry is not read: LIVE-H81-03. `ends` are
  * passages.mjs `tunnelEndsFor`'s for the token's character (none: it knows no tunnel); `from` and `to` are

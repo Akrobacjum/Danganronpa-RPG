@@ -145,7 +145,7 @@ export function registerSheetTweaks() {
  * creator. A failed step is logged under its name, and the primary GM is told once a load which steps failed, beside
  * the newer-Daggerheart warning (requirements.mjs `announceSheetSteps`) - never a player, whose console has the error.
  * `run` takes `{ app, element, fresh, mode }`, `mode` the render's `sheetMode` (E45 C1). The table is the suite's to read
- * and to plant a throwing step in (R1456); E54 moves it into the thin sheet.mjs.
+ * and to plant a throwing step in (R1456); E54 moved it into the thin sheet.mjs.
  */
 export const SHEET_STEPS = [
     ["removeSystemCreators", ({ app, element, mode }) => removeSystemCreators(app, element, mode)],

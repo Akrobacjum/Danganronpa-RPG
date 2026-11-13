@@ -4535,7 +4535,7 @@ export function scaledBox(want, vw, vh, scale) {
 
 /**
  * The height the glass sheet grows to when its Actions tab is `short` px short of its content and the window is `now`
- * px tall: two px over what the tab wants, never past a screen `vh` px tall less 48 (sheet.mjs `holdActionsTab`, which
+ * px tall: two px over what the tab wants, never past a screen `vh` px tall less 48 (sheet-fit.mjs `holdActionsTab`, which
  * hands it `window.innerHeight`). Pure; the arithmetic is the one holdActionsTab did itself until E54 (Q-E54-7, the
  * plan's default: one family decides a window's size, R4803).
  */
@@ -4545,7 +4545,7 @@ export function actionsTabHeight(now, short, vh) {
 
 /**
  * The height a sheet opened shorter than the Legacy minimum grows to, once: `SHEET_SIZE.minHeight`, never past a
- * screen `vh` px tall less 40 (sheet.mjs `growForCalls`, which hands it `window.innerHeight`). Pure; moved here from
+ * screen `vh` px tall less 40 (sheet-fit.mjs `growForCalls`, which hands it `window.innerHeight`). Pure; moved here from
  * growForCalls by E54 (Q-E54-7, R4803), the numbers as they were.
  */
 export function callsHeight(vh) {
