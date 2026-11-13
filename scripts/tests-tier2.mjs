@@ -65016,6 +65016,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await Ev.parkDirectMurder({ killerId: student.id, room: stood.room, note: "SUITE E12 fix r2-H3 declared in the dark" });
             await Ev.endEclipse({ advance: false });
             await settle();
+            await until(() => game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name), room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) }))));
             const nobody = game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name),
                 room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) });
             read = [standing, spoke, asked.length, game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(nobody))];
@@ -65821,6 +65822,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             T.setTrialExit({ sceneId: place.id, room: GYM });
             const left = await T.leaveTrialScene(hall);
             await settle();
+            await until(() => game.messages.some(m => !said.has(m.id)));
             const whispered = await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)));
             const copy = [...place.tokens].find(t => t.actorId === away.id) ?? null;
             const fencedIn = fence.filter(t => Mv.roomOfToken(place.tokens.get(t.id)) === GYM).length;
@@ -66150,6 +66152,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await withVerdictOpen(() => withAdvanceWindows(() => null,
                 () => applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] })));
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id)));
             const cards = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 2000)));
             read = [writes, getClock().phase === phase, cards.length > 0, cards.some(text => String(text).includes(over))];
         } finally {
@@ -66797,6 +66800,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 try {
                     await rolls.performAction(hana, "analyze");
                     await settle();
+                    await until(() => posted.some(message => String(contentOf(message) ?? "").includes(game.i18n.localize("DRPG.Analyze.passageSent"))) && posted.some(message => ["searchNothing", "passageFound"].includes(cardFlag(message, "sfx")?.key)));
                     heardShown = posted.map(message => [String(contentOf(message) ?? "").includes(game.i18n.localize("DRPG.Analyze.passageSent")),
                         ["searchNothing", "passageFound"].includes(cardFlag(message, "sfx")?.key)]);
                 } finally {
@@ -73914,6 +73918,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const gave = await gmGiveItemDialog(actor);
             answer();
             await settle();
+            await until(() => game.messages.contents.some(m => !messages.has(m.id) && String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(NAME))));
             const given = actor.items.find(i => !had.has(i.id) && i.id !== found?.id && i.name === NAME);
             const receipt = game.messages.contents.filter(m => !messages.has(m.id)).map(m => String(contentOf(m) ?? ""))
                 .find(text => text.includes(foundry.utils.escapeHTML(NAME))) ?? "";
@@ -76052,6 +76057,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const outcome = await P.applyProjectChange(thrower, { delta: 1 }).then(r => ({ changed: r?.changed ?? null, crossed: r?.crossed ?? null }),
                 err => ({ threw: String(err?.message ?? err) }));
             await settle();
+            await until(() => game.messages.some(m => !before.has(m.id) && String(contentOf(m)).includes("(SUITE E36 T9 apply)")));
             const told = game.messages.filter(m => !before.has(m.id) && String(contentOf(m)).includes("(SUITE E36 T9 apply)"));
             seen.apply = { outcome, bar: current(thrower), afterRan, told: told.length, toGms: told.every(m => (m.whisper ?? []).length > 0) };
 
@@ -76837,6 +76843,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             let news = fresh();
             await P.applyProjectChange(trap, { delta: 1 });
             await settle();
+            await until(() => receipts(news).length > 0);
             const posted = receipts(news);
             const awaiting = game.i18n.localize("DRPG.Bridge.awaitingRuling");
             const firstReceipt = { count: posted.length, awaiting: posted.some(m => String(contentOf(m)).includes(awaiting)),
