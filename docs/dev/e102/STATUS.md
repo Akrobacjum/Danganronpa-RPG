@@ -40,9 +40,24 @@ here, not resolved on another line's files.
 | --- | --- | --- | --- | --- | --- | --- |
 | C0-C3 (pushed 13.11) | clean | R-REGISTRY.md, settings-window.mjs, tests-tier0.mjs - all three also conflict between e101 and main alone (e101 stands on 1.2.108), none of E102's | R-REGISTRY.md (generated: `node tools/registry.mjs --write` after the merge); rest.mjs was E102's (C2's tooltip beside e100's relabelled Rest button) and is moved apart in "C2 follow-up" | R-REGISTRY.md | R-REGISTRY.md | chapter.mjs (End the chapter: claude/e64 redraws the window in two columns; this line's own, resolved when 1.2.110 is on main), plus four that e64 has with main alone |
 
+| C4-C5 and the import commits (pushed 13.11) | clean | five files where e101 reshapes a control E102 tipped (below) | none | R-REGISTRY.md | R-REGISTRY.md | none (chapter.mjs and level-up.mjs met only through the kit import, now on a line of its own) |
+
 How it was read: each branch's conflicts with origin/main alone, against its conflicts with claude/e102; only the
 difference is E102's. R-REGISTRY.md is generated and conflicts wherever two lines add R numbers.
 
 ## Open
 
-None yet.
+**E101 (GM screens) reshapes five controls E102 tipped.** Read with `git merge-tree` against origin/claude/e101 on
+13.11 (e101 at its push of that day); not resolved here, by the coordinator's rule. When e101 is on main, E102 merges
+main and re-applies:
+
+| File | e101 | E102's tooltip then |
+| --- | --- | --- |
+| gm-panel.mjs, the Debug log's footer | adds a Foundry report button and rewrites the footer | Copy and Clear keep their keys, written into e101's footer |
+| gm-panel.mjs, Students left | removes the line's Students button (the Now section's tile is the door, R4054) | `DRPG.Tips.Gm.studentsTooltip` dropped with it, or moved to the tile if the tile has none |
+| gm-team-dialog.mjs, Monokumas tab | redraws the pool column without the Monokuma checkbox column | `monokumaTooltip` dropped or moved; `despairPoolTooltip` kept on e101's select |
+| season-setup.mjs, Reset the season | removes the footer's Reset (a role button elsewhere) | `resetTheSeasonTooltip` moved to e101's button |
+| tables-editor.mjs, a table's actions | hides Rename for the tier tables on the same line | Delete's tooltip written into e101's line |
+
+Each family test (R4753, R4754) names the function that draws each key, so a key whose control is gone fails there
+until it is moved or dropped (and KEYS.json says so).
