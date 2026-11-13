@@ -19261,6 +19261,144 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "keys not refused at once with the Monocub's sentence; eclipse: Search in an Eclipse - its answer and the Monocub's sentence})");
     }],
 
+    ["one Despair Call bought from the sheet posts one card, after its effect, with its price on it (E40 item 4: R81's first rule, driven; was R81's card half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R81 (tier 0, trimmed in E40 to the refund's place) read despair.mjs
+         * `spendDespairCall` and calls.mjs `spendDespairCallFor` as text: the `announce` flag, its `if (!post) return
+         * true;`, the `{ announce: false }` at the sheet's call, the price's key on the road and `applyCall(` before
+         * `announce({`. It held a card built and never posted, or a price sentence that never reaches the card, as kept.
+         * Driven here as the fuelTheCub tests buy one: a Monokuma's pool given the price, Fuel a Monocub bought for a
+         * student marked a Monocub by its flag (`spendDespairCallFor`); read what it answered, the pool, the target's Hope
+         * (the effect), and the new chat cards that name the Call: one, carrying the price sentence. The pool, the Hope,
+         * the flag and the cards are put back.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool pays the Call");
+        const J = stableJson;
+        const D = await import("./despair.mjs");
+        const MK = await import("./monokuma.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)?.id === game.user.id) ?? MK.monokumaActors().find(a => MK.poolUserFor(a)) ?? null;
+        const pool = kuma ? MK.poolUserFor(kuma) : null;
+        must(kuma && pool, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!isEclipse() && getClock().phase !== "classTrial", "an Eclipse or a Class Trial shuts the Despair Calls - this would measure nothing");
+        const call = DESPAIR_CALLS.fuelTheCub;
+        must(call?.cost > 0, "Fuel a Monocub has no price - this would measure nothing");
+        const [who] = cast(1);
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(who._source, HOPE);
+        const flagWas = who.getFlag(MODULE_ID, FLAGS.monocub);
+        const despairWas = D.getDespair(pool.id);
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(Object.entries(despairOwedStore.entries())
+            .filter(([k]) => k === pool.id || k.startsWith(`${pool.id}:`))));
+        const label = foundry.utils.escapeHTML(call.label);
+        const price = game.i18n.format("DRPG.Despair.spent", { name: foundry.utils.escapeHTML(D.poolLabel(pool) ?? pool.name ?? "?"), cost: call.cost });
+        const had = new Set(game.messages.map(m => m.id));
+        let read = null;
+        try {
+            const owed = Object.keys(owedWas);
+            if (owed.length) await despairOwedStore.dropMany(owed);
+            await who.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(who, { [HOPE]: 0 }, { reason: "gmRuling" });
+            await D.setDespair(pool.id, call.cost);
+            await settle();
+            const bought = await spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: who } });
+            await settle();
+            const cards = game.messages.filter(m => !had.has(m.id)).map(m => String(contentOf(m) ?? "")).filter(text => text.includes(label));
+            read = [Boolean(bought), D.getDespair(pool.id), resourceValue(who, "hope") > 0, cards.length, cards.filter(text => text.includes(price)).length];
+        } finally {
+            for (const m of game.messages.filter(m => !had.has(m.id))) await m.delete();
+            await D.setDespair(pool.id, despairWas);
+            const nowOwed = Object.keys(despairOwedStore.entries()).filter(k => k === pool.id || k.startsWith(`${pool.id}:`));
+            if (nowOwed.length) await despairOwedStore.dropMany(nowOwed);
+            for (const [k, v] of Object.entries(owedWas)) await despairOwedStore.patch(k, v);
+            await trustedWrite(who, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            if (flagWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub); else await who.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            await settle();
+        }
+        equal(J(read), J([true, 0, true, 1, 1]),
+            "one Despair Call from the sheet did not post exactly one card naming it, with its price, after an effect that landed "
+            + "(bought, the pool after, the target's Hope given, the cards naming the Call, those carrying the price)");
+    }],
+
+    ["four doors a console used are shut on the side that writes: a Despair Call bought or paid there, a seal said there, a handover in the dark (E40 item 4: R144's driven rules; was R144's first half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R144 (tier 0, trimmed in E40 to what is not driven here) read `if
+         * (!game.user.isGM)` in the first 700 characters of calls.mjs `spendDespairCallFor` and in despair.mjs
+         * `spendDespairCall`, `return Boolean(await writeWorld(` in call-world.mjs `sealRoom`, and `if (isEclipse()) return`
+         * in inventory.mjs `transferRefusal`. It held a gate whose condition reads nobody (`if (!game.user.isGM && false)`)
+         * as kept. Driven here with this browser reading as a player for each road's synchronous start (`asConsole`):
+         * Fuel a Monocub bought, the same Call paid straight from the pool, a room sealed - read each answer, the pool and
+         * the seal; then a handover between two students stood alone in one room, asked of the one gate out of an Eclipse and in one. The pool, the
+         * seals, the clock and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool a console would spend");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two of the handover are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const J = stableJson;
+        const D = await import("./despair.mjs");
+        const MK = await import("./monokuma.mjs");
+        const E = await import("./eclipse.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { sealRoom, isSealed } = await import("./call-world.mjs");
+        const { transferRefusal } = await import("./inventory.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)) ?? null;
+        const pool = kuma ? MK.poolUserFor(kuma) : null;
+        must(kuma && pool, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const [from, to] = cast(2);
+        const call = DESPAIR_CALLS.fuelTheCub;
+        const room = "SUITE E40 item 4 R144 a room a console sealed";
+        must(!isSealed(room), "the suite's room is sealed already - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const despairWas = D.getDespair(pool.id);
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        let stood = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await D.setDespair(pool.id, call.cost + 2);
+            await settle();
+            const held = D.getDespair(pool.id);
+            const bought = await asConsole(() => spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: to } }));
+            const paid = await asConsole(() => D.spendDespairCall(pool.id, "fuelTheCub", { announce: false }));
+            const sealed = await asConsole(() => sealRoom(room));
+            await settle();
+            read.console = [bought ?? null, paid, sealed, D.getDespair(pool.id) === held, isSealed(room)];
+            stood = await aloneTogether(from, to, { asked: true });
+            read.daylight = await transferRefusal(from, to, { mode: "give" });
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            read.dark = await transferRefusal(from, to, { mode: "give" });
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (stood) await stood.back();
+            await setClock(was);
+            await D.setDespair(pool.id, despairWas);
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            for (const m of game.messages.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(J([read.console, read.daylight, typeof read.dark === "string" && read.dark.length > 0]), J([[null, false, false, true, false], null, true]),
+            "a console's road wrote on its own side, or the gate let a handover through in the dark ([Fuel a Monocub bought, the Call paid from the pool, "
+            + "the room sealed, the pool unmoved, the room unsealed] as a player; the gate's answer in daylight; a refusal in the Eclipse)");
+    }],
+
     ["a Monocub marked a crime witness this chapter lands Confusion like any other", async () => {
         /*
          * E33 C10; the guide p. 17, ACT-12, the owner's option B of 05.10.2026 (the plan's 2.7,
