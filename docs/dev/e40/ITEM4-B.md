@@ -35,7 +35,7 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R306 | (c) | an order with no outcome a call sees; `claimRuling` not exported; the race is tier 2's | batch 1 |
 | R376 | (c) | a census of five readers and three writers; the reset's reading is tier 2's and scenario 65's K | batch 2 |
 | R430 | (c) | a census of two readers that must not name the canvas | batch 1 |
-| R1103 | (c), not marked yet | `askWhatToAnalyze` not exported; the shown box is a stylesheet's `:has` rule |  |
+| R1103 | (c) | `askWhatToAnalyze` not exported; the shown box is a stylesheet's `:has` rule | batch 2 |
 | R1120 | (c) | a census over every module file; `createFind` and `describeFind` not exported (the pilot's reading) | batch 1 |
 | R1135 | (c) | an order in one bridge run and one audit line; scenario 30's "a console's discard" drives the roads | batch 2 |
 | R1199 | (c) | dead code (a census) and a module-private Map (`searchedBy`): would need an export of it or of `pruneSpends` | batch 2 |
@@ -73,8 +73,45 @@ R88's assertions not held by the new test, kept in tier 0 and marked: no card of
 refusal button (a census); the GM-road Observe card builds its miss with `missAction`; the miss's bookmark carries the
 marks made, not the constant (two assertions; a Reroll's undo reads it); `data.paid === "none"` (m88iii).
 
+### R89 -> "an Observe with no record on the GM tells the GMs and the player ... (was R89)"
+
+| Mutant | Old R89 | New test |
+| --- | --- | --- |
+| m89i-a: settings.mjs registers `SETTINGS.observePending` with `scope: "world"` | ok - missed | FAIL |
+| m89ii-a: the same registration keeps `scope: "client"` and adds `scope: "world"` after `default` | ok - missed | FAIL |
+| m89i-b: observe.mjs's lost road tells the owner `resolveLost` instead of `resolveLostOwner` | FAIL | FAIL |
+| m89ii-b: the owner's whisper behind `if (stranded && false)` (the key still named) | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+m89i-a is a gap in the old test, measured: its `bodyOf(settings, "SETTINGS.observePending", { length: 400 })` reaches the
+next registration, `SETTINGS.legacyObservePending`'s, whose `scope: "client"` it matched.
+
+R89's assertions not held by the new test, kept in tier 0 and marked: `readPending` and `writePending` declared, five or
+more `await writePending()` (the write-through), `readPending()` before `sweepPending()` in `resolveObserve`, and the
+bridge run handing `actorId` on. The pending Map is module-private (observe.mjs `pending`): driving a reload would need
+an export of it.
+
+### R145 -> "Analyze on the GM refuses a bullet it may not read now ... (R145's Analyze half, driven; was R145)"
+
+| Mutant of analyze.mjs `resolveAnalyze` | Old R145 | New test |
+| --- | --- | --- |
+| m145i-a: the fresh throw's `isAnalysable` refusal removed | FAIL | FAIL |
+| m145i-b: the undo's `analysedChapter !== chapter` refusal removed | FAIL | FAIL |
+| m145ii-a: the fresh refusal's condition joined by `&& false` (its text unchanged) | ok - missed | FAIL |
+| m145ii-b: the undo refusal's condition joined by `&& false` | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+R145's Stage 6 half and the clean-up undo's receipt stay in tier 0 as text (its comment says which tier-2 test drives
+Stage 6's refusals and what is not built).
+
 ## Gates
 
 - Batch 1 (R87, R88, R172, R305, R306, R430, R1120): `node --check` on both test files; `node tools/check.mjs` 19 parts,
   all green; lint 346 files, 0 problems; by name: R87's and R88's new tests 2 ran, 0 failed (10.7 s); R88, R172, R305,
   R306, R430, R1120 by `--only` 6 ran, 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (440 s; one fewer ran than the pilot's 1419: R87 gone).
+- Batch 2 (R89, R145, R39, R40, R376, R1103, R1135, R1199, R3143): `node --check` on both test files; check 19 parts, all
+  green; lint 346 files, 0 problems; by name: R89's and R145's new tests 2 ran, 0 failed (9.9 s); the nine tier-0 tests
+  by `--only` 9 ran, 0 failed. Tiers 0-1 whole, first run: 1418 ran, 1402 passed, **1 failed** (R171), 16 skipped, 0 red
+  (438 s). R171 was right: R89's new test read the Observe store's key as `SETTINGS.observePending`, a GM store's key raw
+  outside the engine. It reads `observeStore.spec.key` now (the R3712 fix's road); R171 and the test by name 0 failed,
+  and m89i-a, m89ii-a and m89ii-b, run again on the copy with the corrected test, still fail it. Lint again 0 problems. Second run: 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (429 s).

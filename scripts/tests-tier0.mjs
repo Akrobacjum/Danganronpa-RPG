@@ -2640,6 +2640,9 @@ const REGRESSIONS = [
     }],
 
     ["R40 - no action can be withdrawn from after the roll for who can see you", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census - no carry-on question after a concealment roll in the action
+           family or cleanup.mjs, none in Sabotage - and a branch of action-project.mjs `concealSabotage`, which is not
+           exported (driving its watched branch would need an export of it, or Sabotage's windows answered as a player). */
         /*
          * Dawid, 18.09. Sabotage used to ask "carry on anyway? nothing is spent yet"
          * after a failed, public concealment roll and hand the action back - while that
@@ -2668,6 +2671,11 @@ const REGRESSIONS = [
     }],
 
     ["R39 - the unfound-Key charge counts every Key Remnant that was found", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): which readers the fee, the charge and the planner's finders call. What
+           the fee counts is tier 2's: "the Key fee is the same with Save and without", "a dead student's find does not
+           count toward the Key fee", "a dead student's find is not found on the Key tab" and "a Key copy whose trace is
+           gone counts in the chapter its answer key names and not in the one its holder writes". Read here only, not
+           driven on this line: `keyPlanStatus` counting a find off the plan, and the bar taking the case's own count. */
         /*
          * F18, Dawid 17.09. "No slot" is the only option once five rows are filled, and
          * such a trace is a real Key clue - but the count that bills Despair read the
@@ -4871,6 +4879,12 @@ const REGRESSIONS = [
     }],
 
     ["R89 - an Observe declaration outlives the browser that made it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the write-through, which no call shows. The store's
+           client scope and a resolve with no record told on both screens and refunding nothing are tier 2's "an Observe
+           with no record on the GM tells the GMs and the player and gives nothing back, and the record is this browser's
+           (E40 item 4: R89's rule, driven; was R89)". Read here: every mutation of the pending Map is written through
+           (a census of `await writePending()`), the cache is read before the sweep (the Map is module-private: driving a
+           reload would need an export of it), and the resolve's run hands the packet's actor on (the bridge's run). */
         /*
          * ACT-08, 20.09. The two halves of an Observe are minutes apart - the GM
          * fixes the target, the player rolls, the answer comes back - and the
@@ -4888,13 +4902,6 @@ const REGRESSIONS = [
          * both screens instead of returning null in silence.
          */
         const sources = new Map(await otherSources());
-        const settings = stripComments(sources.get("settings.mjs") ?? "");
-        // The key is the local GM store's since E04 (1.2.63; gm-stores.mjs `observeStore`).
-        ok(/observePending: "gmObservePending"/.test(settings), "the store has no setting");
-        const reg = bodyOf(settings, "SETTINGS.observePending", { length: 400 });
-        ok(/scope: "client"/.test(reg),
-            "the pending Observes are world-scoped, so every player can read the answer key");
-
         const observe = stripComments(sources.get("observe.mjs") ?? "");
         ok(/function readPending\(/.test(observe) && /async function writePending\(/.test(observe),
             "the Map is not written through to anything");
@@ -4907,11 +4914,6 @@ const REGRESSIONS = [
         const resolve = bodyOf(observe, "export async function resolveObserve", { until: "async function undoPrevious" });
         ok(resolve.indexOf("readPending()") < resolve.indexOf("sweepPending()"),
             "the sweep runs over an unloaded cache, and then writes that nothing back");
-        ok(/resolveLost/.test(resolve) && /resolveLostOwner/.test(resolve),
-            "a resolve with no record is still silent on one screen or both");
-        ok(!/refundAction/.test(resolve),
-            "the lost road refunds an action on a socket payload's word, which is ACT-12 "
-            + "with the names changed");
 
         // The resolve's run itself (E41 fix FG3; STATUS E41 Open 13): the family's text matched 28 places of the field.
         const bridge = bridgeFn(sources, "handleObserveResolve");
@@ -5729,6 +5731,12 @@ const REGRESSIONS = [
     }],
 
     ["R145 - Analyze, Stage 6 and a clean-up's undo, judged by the rules on the GM", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is order and a receipt's arithmetic. The Analyze half is
+           tier 2's "Analyze on the GM refuses a bullet it may not read now and an undo with no throw this chapter, whatever
+           the packet says (E40 item 4: R145's Analyze half, driven; was R145)". Stage 6's refusals themselves are driven by
+           tier 2's "Stage 6's own refusals give the killer back the step they paid and no more"; read here is that each is
+           asked before the GM's fallback charge, and that a clean-up's undo takes back the attempt's own move (driving it
+           needs a clean-up thrown and taken back by a Reroll: not built on this line). */
         /*
          * E03, 24.09.2026; audit S05-40. One Analyze per bullet per chapter was the
          * sheet's rule alone; a misleading trail could point at the killer, the victim
@@ -5737,10 +5745,6 @@ const REGRESSIONS = [
          * mark earned since.
          */
         const sources = new Map(await otherSources());
-        const analyze = stripComments(sources.get("analyze.mjs") ?? "");
-        const resolve = bodyOf(analyze, "export async function resolveAnalyze(", { until: "\n}\n" });
-        ok(/!undo && !isAnalysable\(held, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
-        ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
         // The price is `chargeUnclaimed`'s since E64 (f657e7d), `spendStress` before: whichever comes first.
@@ -13629,6 +13633,9 @@ const REGRESSIONS = [
     }],
 
     ["R376 - the Key Remnants still to place, the off-plan finds, the Key fee, the autopsy and the crime-witness mark are this season's chapter's", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of five readers and three writers of a chapter's record, each
+           asking or writing the season. What they answer after a reset is tier 2's ("this season's chapter reads none of
+           last season's Key Remnants nor its autopsy nor its silence") and scenario 65's K; this holds all eight at once. */
         /*
          * E11 fix r2-H2, 1.2.73; round 2's cor COR2-2, sec S2 and goal S06-42, round 1's res R6. C12 gave
          * `sameSeason` to seven readers of a trace or the motive (R356); the side line's Key line (r1-G4)
@@ -18181,6 +18188,9 @@ const REGRESSIONS = [
     }],
 
     ["R1103 - Analyze's request field shows with Hint alone: `askWhatToAnalyze`'s request block carries `data-drpg-when=\"hint\"` and the stylesheet's rule that shows the checked row's block covers `hint` (E51 C1; E51-04, audit S02-51 (a))", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the pairing of a markup attribute and a stylesheet selector.
+           action-analyze.mjs `askWhatToAnalyze` is not exported (driving its window would need an export of it), and
+           whether the box shows is the stylesheet's `:has` rule, a layout reading the harness's cascade is not held to. */
         /*
          * E51 C1, 30.10.2026; audit S02-51 (a). The GM's hint is the one Analyze row a person reads, and the box for
          * it was shown under every row - a stash hunt or a passage asked for a sentence no GM would read. The block is
@@ -18597,6 +18607,9 @@ const REGRESSIONS = [
             + "announceRemnant writes the row, and asks for the primary; sendTraceDigest asks for the primary and drops the rows it says; whisperTraceNow drops its row; DRPG.Case.store.traceDigest exists]");
     }],
     ["R1135 - a discard's ticket is written only for a trace placed, and a discard stands only on one: bridge-runs-records.mjs `handleRemnant` calls `noteDiscardTrace` once, for a player's discard, after the Class Trial's refusal and after the trace is placed; sheet-audit.mjs `itemFindings` lets a discard-stamped deletion stand only where `takeDiscardTrace` answers (E51 fix FG5; the end review's S1)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): an order inside one bridge run and one audit line. The roads are driven by
+           scenario 30's "a console's discard" (D1-D4 and the honest road); what is read here is where the ticket is
+           written and asked, which a call shows only on the road that reaches each line. */
         /*
          * E51 fix FG5, 31.10.2026; the end review's S1. The ticket is the evidence a discard's stamp stood on nothing
          * without: written before the trial's refusal it would let D1 through again (a discard's trace in the Class
@@ -20184,6 +20197,9 @@ const REGRESSIONS = [
             "the test did not put CONFIG.Token.rulerClass back as it found it");
     }],
     ["R1199 - the search ledger keeps no dead code and no stale spend (E37 C6, E37-26; audit S07-44): search-tokens.mjs declares no `exhaust` and no module file calls one, and search-tokens.mjs `runSpend` prunes `searchedBy` of its entries older than `PLANT_WINDOW_MS` before it sets the new one", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): dead code and a module-private ledger. Whether `exhaust` is declared or
+           called is a census; the prune of `searchedBy` before `runSpend` sets its entry is seen only in that Map, which
+           search-tokens.mjs does not export (driving it would need an export of `searchedBy` or `pruneSpends`). */
         /*
          * E37 C6, 01.11.2026; E37-26, audit S07-44. `SearchTokens.exhaust` zeroed a room "for the rest of the day (project
          * 'Tidy the room')", a project that does not exist, and nothing in the module called it (tier 0's R991 names it
@@ -23098,6 +23114,9 @@ const REGRESSIONS = [
     }],
 
     ["R3143 - a body's loot is judged where its body lies, by the one gate and no second (E95 C1; E72 amend[16]): frisk.mjs `personActionRefusal` reads the body's place through body-tile.mjs `bodyPlaceOf` and its hidden flag from it, the living road the token's (`gmPlaceOf`); handover.mjs `lootBody`, inventory.mjs's loot and anonymity.mjs's greying read no room of their own and ask the one gate", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): where the gate is asked, not what it answers. The answers are tier 2's
+           ("a body's loot is judged where the body lies (E95 C1; E72 amend[16]) ..."); this holds which room readers the
+           gate and its three callers name - one gate and no second - which no call returns. */
         /*
          * E95 C1, 10.11.2026; E72 item (1): "bramka pokoju grabieży ciała w polityce transferItem ... od E67 bodyRoomOf
          * (pokój kafla, a gdy GM kafel usunie, pokój tokenu), bez drugiej bramki w handover.mjs". Read off the served

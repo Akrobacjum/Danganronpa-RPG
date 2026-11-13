@@ -38071,6 +38071,98 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "was there, the card settled)");
     }],
 
+    ["an Observe with no record on the GM tells the GMs and the player and gives nothing back, and the record is this browser's (E40 item 4: R89's rule, driven; was R89)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R89 (tier 0, trimmed in E40 to the write-through it still reads as text) read
+         * settings.mjs's registration of `SETTINGS.observePending` and observe.mjs `resolveObserve` as text: `scope:
+         * "client"` within 400 characters of the key, the two keys `resolveLost` and `resolveLostOwner` named, no
+         * `refundAction`. It passed two mutants that kept those lines: a `scope: "world"` after the client one in the same
+         * registration (the later key wins, and every player's browser holds the answer key), and the owner's whisper
+         * behind a condition that is never true (the key still named, the player told nothing). ACT-08, 20.09: a resolve
+         * with no record says so on both screens, and refunds nothing on a packet's word. Here: the scope Foundry holds
+         * for the store's key, then a student with a player resolved on the GM under a key nobody minted. Read: what the
+         * resolve answered, the GMs' card and the player's card among the new messages, and the actions moved.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the player's card goes to a student's owner");
+        const observe = await import("./observe.mjs");
+        const { observeStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        // The store's key read off its row (`observeStore.spec.key`): R171 forbids the raw key outside the engine.
+        must(observeStore?.spec?.key, "the Observe store names no key - this would measure nothing");
+        const scope = game.settings.settings.get(`${MODULE_ID}.${observeStore.spec.key}`)?.scope ?? null;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const total = 17;
+        const toGms = game.i18n.format("DRPG.Observe.resolveLost", { name: foundry.utils.escapeHTML(student.name), total });
+        const toOwner = game.i18n.localize("DRPG.Observe.resolveLostOwner");
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const fresh = () => game.messages.contents.filter(m => !since.has(m.id));
+        const actions = actionsLeft(student);
+        let read = null;
+        try {
+            const answer = await observe.resolveObserve({ key: `suite-e40-r89-${foundry.utils.randomID()}`, total, isCritical: false,
+                actorId: student.id, senderId: player(student).id, senderIsGm: false });
+            await settle();
+            await until(() => fresh().some(m => String(contentOf(m) ?? "").includes(toOwner)));
+            const cards = fresh().map(m => [String(contentOf(m) ?? ""), m.whisper ?? []]);
+            const gms = game.users.filter(u => u.isGM).map(u => u.id);
+            read = [answer, cards.some(([w, to]) => w.includes(toGms) && to.length && to.every(id => gms.includes(id))),
+                cards.some(([w, to]) => w.includes(toOwner) && to.includes(player(student).id)), actionsLeft(student) - actions];
+        } finally {
+            for (const m of fresh()) await m.delete();
+            await settle();
+        }
+        equal(stableJson([scope, read]), stableJson(["client", [null, true, true, 0]]),
+            "the Observe record reaches every browser, or a resolve with no record was silent on a screen or gave something back "
+                + "([the store's scope], then: what the resolve answered, the GMs told, the player told, actions moved)");
+    }],
+
+    ["Analyze on the GM refuses a bullet it may not read now and an undo with no throw this chapter, whatever the packet says (E40 item 4: R145's Analyze half, driven; was R145)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R145 (tier 0, trimmed in E40 to its Stage 6 half) read analyze.mjs
+         * `resolveAnalyze` as text: `!undo && !isAnalysable(held, chapter)` and `analysedChapter !== chapter` in its body.
+         * It passed mutants that kept both texts and dropped the refusals (each condition joined by `&& false`). E03,
+         * 24.09.2026; audit S05-40: one Analyze per bullet per chapter was the sheet's rule alone, and a console's packet -
+         * `undo` included - bought a second reading. Here, on the GM: a bullet missed with a 1 (locked this chapter), then
+         * asked again with a 40; a second, fresh bullet asked to undo a throw it never had. Read: the three answers, and
+         * whether the first bullet was identified by the second ask.
+         */
+        const [student] = cast(1);
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const made = [];
+        let read = null;
+        try {
+            for (const n of [1, 2]) {
+                const item = await bullets.createTruthBullet(student, { name: `SUITE E40 R145 bullet ${n}`, realType: "prep" });
+                must(item, "the fixture's bullet was not made");
+                made.push(item);
+            }
+            const [locked, fresh] = made;
+            const miss = await resolveAnalyze({ actorId: student.id, itemId: locked.id, total: 1 });
+            await settle();
+            must(miss?.success === false, `the fixture's miss did not miss: ${stableJson(miss)}`);
+            const again = await resolveAnalyze({ actorId: student.id, itemId: locked.id, total: 40, isCritical: true });
+            const undo = await resolveAnalyze({ actorId: student.id, itemId: fresh.id, total: 40, undo: true });
+            await settle();
+            const shows = student.items.get(locked.id)?.getFlag(MODULE_ID, bullets.TRUTH_BULLET_FLAGS.analyzed) ?? null;
+            read = [again?.refused ?? again, undo?.refused ?? undo, Boolean(shows)];
+        } finally {
+            for (const item of made) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["that bullet cannot be analysed now", "no Analyze of that bullet this chapter to take back", false]),
+            "Analyze on the GM read a bullet its holder may not read now, or took back a throw this chapter never had (the second "
+                + "ask of a locked bullet, an undo of a fresh one, the locked bullet identified)");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*
