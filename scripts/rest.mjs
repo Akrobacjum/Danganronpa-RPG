@@ -223,7 +223,7 @@ function currentClock() {
 }
 
 /**
- * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, or not
+ * The Rest window's two rows, each with its price and its reason for being unavailable - spent already, more than the purse holds (1.2.113), or not
  * allowed in this room. Both reasons used to be printed above a pair of buttons that stayed live regardless, so the
  * player could pick the one the list had just told them they could not have. Out of action-rest.mjs `performRest`
  * (E16 part 2 C4, 26.10.2026; audit S02-26), so the sheet's tile reads the same rows (`restShutReason`).
@@ -237,6 +237,14 @@ export function restVariants(actor) {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
         const barred = kind === "short" && sleepless;
+        /* THE PRICE GREYS THE ROW TOO (1.2.113, 13.11.2026; the owner's ask (c)). A rest its character cannot pay for - a
+           Wounded student's one action and no Burst against the Long Rest's two, or no action at all - was open here and
+           refused only by `takeRest`'s warning after the pick (measured at aabf28b8; nothing was spent). The same test
+           (`canPayFor`) and the same sentence (`DRPG.Actions.notEnough`) as that warning, so the row and the refusal say
+           one thing; `takeRest` keeps its check. Last among the reasons: the insomnia, the allowance and the room say
+           more than the purse. Tier 2 "1.2.113 the Rest window greys a rest ..." reads both rows over four purses. */
+        const cost = REST[kind].actionCost;
+        const unpaid = !canPayFor(actor, cost);
         // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
         // character's scene, the school's for one with no token (E12 fix r1-G4).
         const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
@@ -245,15 +253,16 @@ export function restVariants(actor) {
             icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
             label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
             hint: `${plural("DRPG.Action.willCost",
-                { n: REST[kind].actionCost, left: actionsLeft(actor) })} · ${
+                { n: cost, left: actionsLeft(actor) })} · ${
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
                     : elsewhere}`,
-            disabled: spent || !allowed || barred,
+            disabled: spent || !allowed || barred || unpaid,
             why: barred ? game.i18n.localize("DRPG.Rest.insomnia") : spent
                 ? game.i18n.localize(kind === "long"
                     ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
-                : elsewhere
+                : !allowed || !unpaid ? elsewhere
+                    : plural("DRPG.Actions.notEnough", { actor: actor.name, left: actionsLeft(actor), needed: cost }, "left")
         };
     });
 }

@@ -94139,6 +94139,72 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stableJson({ editDay: [day + 1, null, false], editMorning: [day + 2, "morning", null, false], next: [day + 3, "morning", true] }),
             "[Edit campaign's day + 1: [the day, the sequence playing, the ended day's board started]; Edit campaign's Night to Morning with the day + 1: [the day, the time of day, the sequence, the board started]; Next from Night: [the day, the time of day, the ended day's board playing]]");
     }],
+    ["1.2.113 the Rest window greys a rest its character cannot pay for, with the price as its reason - in a room that allows both rests, neither taken: with 2 actions both rows open; with 1 action and no Burst (a Wounded student's purse) the Long Rest greyed and its line \"... has 1 action left and needs 2.\", the Short open; with no action both greyed; with no action and a Burst both open (rest.mjs `restVariants`, as the drawn window shows it; `takeRest` refuses as before)", async () => {
+        /*
+         * 1.2.113, 13.11.2026 (the owner's ask (c)). aabf28b8 measured a Wounded student with 1 action and no Burst pick Long
+         * Rest and be refused by a warning after the pick (rest.mjs `takeRest`, `canPayFor`), nothing spent. Each rest's row
+         * in the window (`restVariants`) was greyed for the insomnia, the allowance and the room, and never for the price.
+         * On a scene of the suite's own: a room that allows both rests, a character of the suite's own standing in it with
+         * neither rest taken. Per purse [actions, Bursts]: each row as [greyed, its line is the price's], and the window as
+         * `performRest` draws it on this GM (`__dialogWindows`) - each row's input disabled and its line - then closed.
+         * Red at a43e865e: every row open, whatever the purse.
+         */
+        needs(env.dialogs(), "the Rest window is drawn and read");
+        const R = await import("./rest.mjs");
+        const RM = await import("./rooms.mjs");
+        const { performRest } = await import("./action-rest.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const title = ACTIONS.rest.label;
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const ROOM = "SUITE R113 Dorm";
+        let scene = null, actor = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE R113 rest", width: 800, height: 400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }],
+                flags: { [MODULE_ID]: { [RM.ROOM_FLAG]: true, [R.REST_FLAGS.long]: true, [R.REST_FLAGS.short]: true } }, behaviors: [] }]);
+            actor = await Actor.create({ name: "SUITE R113 rester", type: "character" });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: actor.id, actorLink: true, name: actor.name, x: 100, y: 100, width: 1, height: 1 }]);
+            await settle();
+            must(R.roomAllows(ROOM, "long", scene) && R.roomAllows(ROOM, "short", scene) && !R.restSpent(actor, "long") && !R.restSpent(actor, "short"),
+                "the room does not allow both rests, or one is taken - this would measure nothing");
+            const price = (left, needed) => plural("DRPG.Actions.notEnough", { actor: actor.name, left, needed }, "left");
+            read = {};
+            for (const [actions, bursts] of [[2, 0], [1, 0], [0, 0], [0, 1]]) {
+                await actor.update({ "system.resources.actions.value": actions, "system.resources.actions.max": 2,
+                    [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: bursts });
+                await settle();
+                const rows = R.restVariants(actor);
+                const row = kind => rows.find(r => r.value === kind);
+                const run = Promise.resolve().then(() => performRest(actor)).catch(() => null);
+                const shown = await until(() => Boolean(drawn()), 6000);
+                const inWindow = kind => {
+                    const input = drawn()?.element.querySelector(`input[name="variant"][value="${kind}"]`);
+                    const line = input?.closest("label")?.querySelector("small")?.textContent.trim() ?? null;
+                    return [Boolean(input?.disabled), line === price(actions, kind === "long" ? 2 : 1)];
+                };
+                read[`${actions}/${bursts}`] = {
+                    rows: ["short", "long"].map(kind => [Boolean(row(kind)?.disabled), row(kind)?.why === price(actions, kind === "long" ? 2 : 1)]),
+                    window: shown ? ["short", "long"].map(inWindow) : "not drawn"
+                };
+                if (drawn()) await drawn().close();
+                await Promise.race([run, wait(2000)]);
+                await settle();
+            }
+        } finally {
+            if (drawn()) await drawn().close();
+            await scene?.delete();
+            await actor?.delete();
+            await settle();
+        }
+        const open = [false, false], shut = [true, true];
+        equal(stableJson(read), stableJson({
+            "2/0": { rows: [open, open], window: [open, open] },
+            "1/0": { rows: [open, shut], window: [open, shut] },
+            "0/0": { rows: [shut, shut], window: [shut, shut] },
+            "0/1": { rows: [open, open], window: [open, open] }
+        }), "per purse [actions/Bursts]: {rows: restVariants' [Short, Long] as [greyed, its line the price's]; window: the drawn window's [Short, Long] as [input disabled, its line the price's]}");
+    }],
     ["E93-T1 - Insomnia bars the Short rest on the roller's browser and the GMs cover none (scripts/rest.mjs `restVariants`, `takeRest`, sheet-audit.mjs `restCovers`, overflow.mjs `overflowBlocksShortRest`; E93 C6, the owner's audit entry E93 (6)): with Insomnia drawn for this time of day the Rest window's Short row is greyed with the Insomnia line and `takeRest` refuses a Short rest before anything is asked or paid; the Long row is judged as before; with the darkening gone the Short row is what it was", async () => {
         /*
          * E93 C6, 12.11.2026. The darkening is written as overflow.mjs stamps it (the time of day's session, day and time
