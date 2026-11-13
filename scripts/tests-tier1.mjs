@@ -43115,11 +43115,12 @@ const INVARIANTS = [
         const rows = el => el ? [...el.querySelectorAll(".drpg-status-field")].map(r => [...r.classList].find(c => c.startsWith("is-") && c !== "is-gm") ?? "?") : null;
         /* What the GM's strip carries depends on the game's state, never on Hope (E48 K7, CI's shard 1 at 15f44581: parts A1
            and A2 run this inside an incident and a Class Trial). player-status.mjs `buildTableView`: during an Eclipse the
-           one row is "Still placing" (`is-move`); in a Class Trial or while an incident runs nobody spends the day's actions
-           (`quietActions`, R1392), so no row and no strip; otherwise "Still to act" (`is-actions`). Read from the same
-           settings here, so the expectation follows the state and the Hope half holds in every one of them. */
+           one row is "Still placing" (`is-move`); while an incident runs nobody spends the day's actions (`quietActions`,
+           R1392), so no row and no strip; otherwise "Still to act" (`is-actions`), in a Class Trial too since E100 item 10
+           (the trial quieted it from E23 C3a until then; 01-runtests' A2 read the strip standing at cb78cfd7). Read from the
+           same settings here, so the expectation follows the state and the Hope half holds in every one of them. */
         const E = await import("./eclipse.mjs");
-        const quiet = getClock().phase === "classTrial" || getSetting(SETTINGS.murderState)?.active === true;
+        const quiet = getSetting(SETTINGS.murderState)?.active === true;
         const eclipseNow = E.isEclipse();
         const gmWant = eclipseNow ? ["is-move"] : quiet ? null : ["is-actions"];
         const read = { gm: rows(strip), gmIsTable: strip ? strip.classList.contains("is-gm") : null, gmHope: rows(strip)?.includes("is-hope") ?? false,
@@ -52114,6 +52115,9 @@ const INVARIANTS = [
         const tile = S.actionButton(actor, "move", ACTIONS.move);
         const row = P.buildPlayerView(actor)?.querySelector?.(".is-move") ?? null;
         const drag = game.i18n.localize("DRPG.Move.drag"), short = game.i18n.localize("DRPG.Move.dragShort");
+        /* The drag words stand where the drag is taken (R4472, sheet.mjs `moveDragSaid`): not in a Class Trial, which
+           01-runtests' A2 runs this in (read there at cb78cfd7: the tile and the row without them). */
+        const said = S.moveDragSaid(actor);
         const read = {
             answer, asked, opened,
             briefing: Object.keys(B).includes("briefing") ? "exported" : "undefined",
@@ -52124,7 +52128,7 @@ const INVARIANTS = [
             words: [en?.DRPG?.Move?.drag, en?.DRPG?.Move?.dragShort, pl?.DRPG?.Move?.drag, pl?.DRPG?.Move?.dragShort].every(w => typeof w === "string" && w.length > 3)
         };
         equal(stableJson(read), stableJson({ answer: null, asked: 0, opened: 0, briefing: "undefined", gotIt: [null, null],
-            tile: ["DIV", null, "move", true], hud: [true, true], words: true }),
+            tile: ["DIV", null, "move", said], hud: [true, said], words: true }),
             "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
             + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
     }],
@@ -52446,7 +52450,11 @@ const INVARIANTS = [
         /* The r112 review's P1 (13.11.2026): a wounded student's maximum is written as the wounded budget
            (actions.mjs `resetActionsFor`), and the sentence took the wound off it again - "0 instead of 1" where the
            rule gives 1 instead of 2. Red at 36c50449. */
-        const hurtActor = { system: { resources: { actions: { value: base - lost, max: base - lost }, hitPoints: { value: 6, max: 6 } } } };
+        /* A wound takes its action in the phases `STATES.wounded.actionsLostIn` names (E64 C1c), not in the Class Trial
+           01-runtests' A2 runs this in (read there at cb78cfd7: "own less a wound" was the whole count): `now` is what a
+           wound takes on this clock, and the wounded stand-in's maximum is what `resetActionsFor` writes on it. */
+        const now = A.actionBudget(null, { wounded: true }).costsAction ? lost : 0;
+        const hurtActor = { system: { resources: { actions: { value: base - now, max: base - now }, hitPoints: { value: 6, max: 6 } } } };
         const hurt = E.actionsExplained({ actor: hurtActor });
         const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });
         const has = (text, words) => String(text).includes(foundry.utils.escapeHTML(words));
@@ -52457,9 +52465,9 @@ const INVARIANTS = [
         const read = {
             phase: [has(E.phaseExplanation(daily, { actor }), unit("actionAcc", base + 1)), has(E.phaseExplanation(daily), unit("actionAcc", base))],
             what: [own[0].includes(unit("action", base + 1)), rule[0].includes(unit("action", base))],
-            wounded: [own[1].includes(unit("actionAcc", Math.max(0, base + 1 - lost))), own[1].includes(unit("actionGen", base + 1))],
+            wounded: [own[1].includes(unit("actionAcc", Math.max(0, base + 1 - now))), own[1].includes(unit("actionGen", base + 1))],
             // The whole sentence: "1 action" stands in its second half too, so a part read alone would pass on a wrong first.
-            hurt: hurt[1] === game.i18n.format("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", base - lost), actions: unit("actionGen", base) }),
+            hurt: hurt[1] === game.i18n.format("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", base - now), actions: unit("actionGen", base) }),
             windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "openStateExplainer")),
                 /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "openStatusExplainer"))]
         };
