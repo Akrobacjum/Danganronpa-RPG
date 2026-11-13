@@ -1636,6 +1636,52 @@ function voteText(sources, family = VOTE_FAMILY) {
 }
 
 /**
+ * The utils's family (E54): utils.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/windows.json): windows.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of utils.mjs's text reads the family through `utilsText`
+ * (or `utilsFetch`, or `utilsBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const UTILS_FAMILY = Object.freeze(["utils.mjs", "windows.mjs"]);
+
+/** The line `utilsText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const UTILS_FAMILY_END = "const UTILS_FAMILY_END = {};";
+
+/**
+ * The utils's family's texts, raw, in UTILS_FAMILY's order, joined by the line `const UTILS_FAMILY_END = {};` (E54):
+ * what a read of utils.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function utilsText(sources, family = UTILS_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the utils's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${UTILS_FAMILY_END}\n`);
+}
+
+/** `utilsText` of the family as this browser is served it: what a `fetch` of utils.mjs's URL read while it was one file. */
+async function utilsFetch(family = UTILS_FAMILY) {
+    return utilsText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the utils's family: texts joined as `utilsText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function utilsBy(reader, family = UTILS_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the utils's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${UTILS_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the utils's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the utils's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
  * The sheet's family (E54): sheet.mjs - the facade, which keeps `registerSheetTweaks`, `SHEET_STEPS`, `runSheetSteps`, `onRenderCharacterSheet` - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/sheet.json): sheet-mode.mjs, sheet-item.mjs, sheet-repaint.mjs, sheet-fit.mjs, sheet-header.mjs, sheet-sidebar.mjs, sheet-inventory.mjs, sheet-actions.mjs.
  * Written by tools/e54/repoint.mjs from that manifest. A reader of sheet.mjs's text reads the family through `sheetText`
@@ -2679,7 +2725,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, UTILS_FAMILY, utilsText, utilsFetch, utilsBy, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
