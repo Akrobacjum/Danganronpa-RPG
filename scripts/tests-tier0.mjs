@@ -13255,7 +13255,7 @@ const REGRESSIONS = [
         /*
          * E09 C10, 08.10.2026. Two rulings of one reshape both ran - Approve and Decline on one card,
          * or two GMs' Approve - because each read the attempt's row, awaited, and wrote, and nothing
-         * marked the proposal ruled. cleanup.mjs `claimRuling` reads the row and marks it in one
+         * marked the proposal ruled. cleanup-reshape.mjs `claimRuling` reads the row and marks it in one
          * synchronous step, and every GM's ruling is run on the primary (bridge-asks.mjs
          * `askReshapeRuling`), so of two rulings there exactly one finds it unmarked. Tier 2 measures
          * the race ("two rulings of one reshape at once run once, and the second is told it was
@@ -21000,7 +21000,7 @@ const REGRESSIONS = [
          * `update(` or `delete(` on such a name; a planted pair of declarations that write a ref is named, and a clean
          * twin writing `ref.document` is not. Not caught: a ref reached through a field (`entry.token`) or through a
          * helper's answer. Red at C1a: ten declarations read a trace's token directly - bridge-guards.mjs
-         * `remnantSourceOf`, cleanup.mjs `findRemnantToken` and `undoLastCleanup`, diagnostics.mjs
+         * `remnantSourceOf`, cleanup-reshape.mjs `findRemnantToken` and cleanup.mjs `undoLastCleanup`, diagnostics.mjs
          * `diagnoseTruthBullets` (the flag), gm-stores.mjs `gmStoreHealth` (the flag), handover.mjs
          * `markBodyDisturbed`, key-remnants.mjs `saveKeyPlan`, murder-rules.mjs `undoLastCrisis`, reroll.mjs
          * `traceKept`, trial-modes.mjs `revealInStep`. Mutant c1b-m1 (gmStoreHealth back on `scene.tokens`) reads red.

@@ -1427,7 +1427,7 @@ export function traceLabel(entry = null) {
  * @param {boolean} [options.propagate=true]  `false` leaves the Truth Bullets already copied
  *   from the trace as their finders found them: the ledger takes the patch, and the token is
  *   still kept neutral (`propagatePublic`). A killer's reshape, approved, and the Reroll that
- *   takes a clean-up back pass it (cleanup.mjs `reshapeTrace`, `undoLastCleanup`; E09 C9).
+ *   takes a clean-up back pass it (cleanup-reshape.mjs `reshapeTrace`, cleanup.mjs `undoLastCleanup`; E09 C9).
  *   `true` sends the copies the fields this write changed, and nothing else (E09 fix r2-G1).
  */
 export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true } = {}) {
