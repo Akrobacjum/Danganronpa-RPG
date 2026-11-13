@@ -25096,6 +25096,27 @@ const INVARIANTS = [
         }), "[the primary leaving with a second GM here: the wait's end at once, what it sent], [the only GM leaving: still waiting, then the clock's end and its expiry] - the wait does not end at once only when another GM takes over, the lone GM's leaving ended it, or the clock told the GMs nothing");
     }],
 
+    ["R4750 - a control's tooltip comes from the kit (E102 C1, 13.11.2026; the owner's stage \"Tooltips across the module\"): ui-kit.mjs `tipText(key, data)` is the key's words in the reader's language, formatted with `data`, and \"\" for a key with no words; `tipAttr` is the ` data-tooltip=\"...\"` a tag takes, escaped, or ` title=\"...\"` with `{ title: true }`, and \"\" for a key with no words (never the raw key); a kit tab bar draws a section's `tooltip` as its tab's `data-tooltip`, and a section with none as before", async () => {
+        /* Red at 813d506d: ui-kit.mjs exports neither tipText nor tipAttr, and a tab bar drops a section's tooltip. */
+        const K = await import("./ui-kit.mjs");
+        must(typeof K.tipAttr === "function" && typeof K.tipText === "function", "ui-kit.mjs has no tipAttr or tipText - a control's tooltip has no one place");
+        const key = "DRPG.Look.stepDownBy", data = { n: '"<5>' };
+        const words = game.i18n.format(key, data);
+        must(typeof words === "string" && words !== key && words.includes('"<5>'), `${key} has no words with {n} in this language - this would measure nothing`);
+        const host = document.createElement("div");
+        host.innerHTML = `<button type="button"${K.tipAttr(key, data)}>a</button><button type="button"${K.tipAttr(key, data, { title: true })}>b</button>`
+            + K.kitTabBar([{ key: "one", label: "One", tooltip: 'Say "one"' }, { key: "two", label: "Two" }]);
+        const [a, b] = host.querySelectorAll(":scope > button");
+        const tabs = [...host.querySelectorAll('nav.drpg-tabs > button[role="tab"]')];
+        equal(stableJson({
+            text: K.tipText(key, data) === words, none: [K.tipText("DRPG.Tips.NoSuch.keyTooltip"), K.tipAttr("DRPG.Tips.NoSuch.keyTooltip")],
+            attr: [a?.dataset.tooltip === words, a?.hasAttribute("title")], title: [b?.title === words, b?.hasAttribute("data-tooltip")],
+            tabs: tabs.map(t => [t.dataset.drpgTabKey, t.textContent, t.hasAttribute("data-tooltip") ? t.dataset.tooltip : null])
+        }), stableJson({
+            text: true, none: ["", ""], attr: [true, false], title: [true, false],
+            tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
+        }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is

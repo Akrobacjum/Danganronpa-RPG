@@ -1,0 +1,3117 @@
+{
+ "about": "E102: the controls drawn with neither a tooltip nor a hint line, by file, top-level unit, kind and key (tools/tooltip-census.mjs; node tools/check.mjs tooltips). A row whose why starts \"E102 C\" is given its tooltip by that commit and cut there; a row whose why starts \"none needed\" stays, with the reason the owner's review page gave (docs/dev/e102/TOOLTIPS.json). The baseline only shrinks.",
+ "rows": [
+  {
+   "file": "scripts/action-analyze.mjs",
+   "unit": "askWhatToAnalyze",
+   "kind": "select",
+   "key": "DRPG.Analyze.whichBullet",
+   "count": 1,
+   "why": "none needed: The label names the pick, and the row's hint above says what the roll does and what a miss costs."
+  },
+  {
+   "file": "scripts/action-dynamic.mjs",
+   "unit": "askDynamicDifficulty",
+   "kind": "select",
+   "key": "DRPG.Action.difficulty",
+   "count": 1,
+   "why": "E102 C2: The number the student's roll has to beat"
+  },
+  {
+   "file": "scripts/action-dynamic.mjs",
+   "unit": "askDynamicDifficulty",
+   "kind": "select",
+   "key": "DRPG.Advance.whichTrait",
+   "count": 1,
+   "why": "E102 C2: The statistic the student rolls against"
+  },
+  {
+   "file": "scripts/action-dynamic.mjs",
+   "unit": "askDynamicDifficulty",
+   "kind": "footer",
+   "key": "DRPG.Action.dynamicRefuse",
+   "count": 1,
+   "why": "E102 C2: Turns the action down. The student loses nothing."
+  },
+  {
+   "file": "scripts/action-listen.mjs",
+   "unit": "performListen",
+   "kind": "select",
+   "key": "DRPG.Listen.which",
+   "count": 1,
+   "why": "none needed: The question above it asks which neighbouring room; the list is those rooms."
+  },
+  {
+   "file": "scripts/action-listen.mjs",
+   "unit": "performListen",
+   "kind": "footer",
+   "key": "DRPG.Action.roll",
+   "count": 1,
+   "why": "none needed: The window's one action; the briefing on the left already gives its price and what each result tells you."
+  },
+  {
+   "file": "scripts/action-menus.mjs",
+   "unit": "detailsHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C2: Shows or hides the price, the rolls and what each result does"
+  },
+  {
+   "file": "scripts/action-menus.mjs",
+   "unit": "promptForNote",
+   "kind": "textarea",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The prompt above and the placeholder already say what to write and when the GM reads it."
+  },
+  {
+   "file": "scripts/action-menus.mjs",
+   "unit": "promptForNote",
+   "kind": "footer",
+   "key": "DRPG.Action.murderParkedConfirm",
+   "count": 1,
+   "why": "E102 C2: Sends these words with your attempt. Closing the window still makes it, without them."
+  },
+  {
+   "file": "scripts/action-murder.mjs",
+   "unit": "performBetrayal",
+   "kind": "footer",
+   "key": "DRPG.Dialog.yes",
+   "count": 1,
+   "why": "none needed: The answer to the window's question; the window's text already says what the betrayal does and that it costs an action in an Eclipse."
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "performProject",
+   "kind": "select",
+   "key": "DRPG.Project.whichWork",
+   "count": 1,
+   "why": "none needed: Shown under the Work on project row, whose hint already says it pushes a project in this room."
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "performProject",
+   "kind": "select",
+   "key": "DRPG.Project.whichSabotage",
+   "count": 1,
+   "why": "none needed: Shown under the Sabotage row, whose hint already says what sabotage does and that it leaves a Remnant."
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "startProject",
+   "kind": "input",
+   "key": "DRPG.Project.namePlaceholder",
+   "count": 1,
+   "why": "none needed: The label and the example placeholder say everything."
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "startProject",
+   "kind": "select",
+   "key": "DRPG.Project.scale",
+   "count": 1,
+   "why": "E102 C2: How much work the project takes before it is done"
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "startProject",
+   "kind": "select",
+   "key": "DRPG.Project.room",
+   "count": 1,
+   "why": "E102 C2: Where the project can be worked on. Any room means anywhere."
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "startProject",
+   "kind": "select",
+   "key": "DRPG.Project.trait",
+   "count": 1,
+   "why": "E102 C2: The statistic every roll on this project uses"
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "chooseProject",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Its label asks which project (or which to sabotage); the list holds only those projects."
+  },
+  {
+   "file": "scripts/action-project.mjs",
+   "unit": "proposeProjectTrait",
+   "kind": "footer",
+   "key": "DRPG.TraitRuling.propose",
+   "count": 1,
+   "why": "none needed: The window's text already says the GM approves or changes the statistic proposed."
+  },
+  {
+   "file": "scripts/action-search.mjs",
+   "unit": "chooseSearchCategory",
+   "kind": "textarea",
+   "key": "DRPG.Action.goalSpecificPlaceholder",
+   "count": 1,
+   "why": "none needed: Its prompt, placeholder and the row's hint already say what to type and that the GM rules on it."
+  },
+  {
+   "file": "scripts/action-tamper.mjs",
+   "unit": "chooseTamper",
+   "kind": "select",
+   "key": "DRPG.Tamper.whichTrace",
+   "count": 2,
+   "why": "E102 C2: Only the Remnants here that are not Reinforced"
+  },
+  {
+   "file": "scripts/action-tamper.mjs",
+   "unit": "chooseTamper",
+   "kind": "select",
+   "key": "DRPG.Cleanup.trailWho",
+   "count": 1,
+   "why": "E102 C2: The student the false Remnant points at"
+  },
+  {
+   "file": "scripts/anonymity.mjs",
+   "unit": "auditAnonymity",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C5: Every player can still open these sheets, but no longer owns them"
+  },
+  {
+   "file": "scripts/anonymity.mjs",
+   "unit": "buildBodyLoot",
+   "kind": "dom:input",
+   "key": null,
+   "count": 1,
+   "why": "E102 C5: Ticked items are taken together with one Hand roll"
+  },
+  {
+   "file": "scripts/boundary.mjs",
+   "unit": "noFirst",
+   "kind": "footer",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The yes to a question the window asks in full (noFirst, used for \"Start it\" before an Eclipse and \"Go on\" past players not done)."
+  },
+  {
+   "file": "scripts/boundary.mjs",
+   "unit": "placementTable",
+   "kind": "footer",
+   "key": "DRPG.Eclipse.endAndAdvance",
+   "count": 1,
+   "why": "E102 C3: Ends the Eclipse and moves on to the next time of day"
+  },
+  {
+   "file": "scripts/boundary.mjs",
+   "unit": "placementTable",
+   "kind": "footer",
+   "key": "DRPG.Eclipse.endOnly",
+   "count": 1,
+   "why": "E102 C3: Ends the Eclipse and keeps the current time of day"
+  },
+  {
+   "file": "scripts/call-gm.mjs",
+   "unit": "callCardHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: A shared renderer: each caller hands in its own answer labels (Approve, Refuse, a statistic's name, Key Remnant here...), which name the ruling; a tooltip belongs to the caller's action, not here."
+  },
+  {
+   "file": "scripts/call-gm.mjs",
+   "unit": "askForRequest",
+   "kind": "textarea",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The window's prompt and placeholder, both given by the calling action, already say what to write."
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "unit": "pickMotive",
+   "kind": "textarea",
+   "key": "DRPG.Motive.demandPlaceholder",
+   "count": 1,
+   "why": "none needed: The label asks the question, the placeholder gives an example and the note under the form says all three answers are announced word for word."
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "unit": "choose",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The label is the Call's own question (Which player? Which room? ...) and the list holds only valid answers."
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "unit": "pickText",
+   "kind": "footer",
+   "key": "DRPG.Calls.next",
+   "count": 1,
+   "why": "E102 C2: Nothing is spent until you confirm in the next window."
+  },
+  {
+   "file": "scripts/call-pickers.mjs",
+   "unit": "choose",
+   "kind": "footer",
+   "key": "DRPG.Calls.next",
+   "count": 1,
+   "why": "E102 C2: Nothing is spent until you confirm in the next window."
+  },
+  {
+   "file": "scripts/calls.mjs",
+   "unit": "confirmCall",
+   "kind": "textarea",
+   "key": "DRPG.Calls.tellGmPlaceholder",
+   "count": 1,
+   "why": "none needed: Label, placeholder and the note under it (the GM must agree first) say everything."
+  },
+  {
+   "file": "scripts/calls.mjs",
+   "unit": "askHopeCallApproval",
+   "kind": "footer",
+   "key": "DRPG.Calls.approveYes",
+   "count": 1,
+   "why": "E102 C2: The player spends the Hope and the Call takes effect"
+  },
+  {
+   "file": "scripts/calls.mjs",
+   "unit": "askHopeCallApproval",
+   "kind": "footer",
+   "key": "DRPG.Calls.approveNo",
+   "count": 1,
+   "why": "none needed: The window's hint already says a refusal costs the player nothing."
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "nodeButton",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C6: Opens this node's fields to edit it"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "caseGraphHtml",
+   "kind": "button",
+   "key": "DRPG.CaseTrial.tickLabel",
+   "count": 1,
+   "why": "E102 C6: Marks this point as reached in the Class Trial; every GM sees the mark"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "caseGraphHtml",
+   "kind": "button",
+   "key": "DRPG.CaseTrial.startLabel",
+   "count": 1,
+   "why": "none needed: Already has a title, 'Start {mode} from {name}', and the reason in its place while it is greyed; that says what it does."
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "caseGraphHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C6: Shows or hides these Remnants on the map"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "nodeEditHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C6: Moves this node one place in its column; the order becomes By hand"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "caseOverviewHtml",
+   "kind": "button",
+   "key": "DRPG.CaseMap.noSchema",
+   "count": 1,
+   "why": "E102 C6: Lists what in the case does not hold together"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "caseToolsHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C6: Adds it to the case at once, with no need to Save"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "cameraHtml",
+   "kind": "button",
+   "key": "DRPG.CaseMap.zoomIn",
+   "count": 1,
+   "why": "none needed: The label says it; zoom in and out already carry titles."
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "incidentAsksHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C6: Opens New Remnant with this Remnant's room, name and words filled in"
+  },
+  {
+   "file": "scripts/case-map.mjs",
+   "unit": "incidentAsksHtml",
+   "kind": "button",
+   "key": "DRPG.CaseMap.showOnMap",
+   "count": 1,
+   "why": "E102 C6: Opens the Investigation's Map on this Remnant"
+  },
+  {
+   "file": "scripts/case-realize.mjs",
+   "unit": "previewHtml",
+   "kind": "select",
+   "key": "DRPG.CaseRealize.colRoom",
+   "count": 1,
+   "why": "none needed: The window's intro says each slot is placed in the room picked and one left on '- leave it -' stays as it is."
+  },
+  {
+   "file": "scripts/case-realize.mjs",
+   "unit": "askAtBody",
+   "kind": "footer",
+   "key": "DRPG.CaseRealize.notNow",
+   "count": 1,
+   "why": "E102 C6: Not asked again; Realization preview in the Investigation window opens it later"
+  },
+  {
+   "file": "scripts/case-realize.mjs",
+   "unit": "askAtBody",
+   "kind": "footer",
+   "key": "DRPG.CaseRealize.showPreview",
+   "count": 1,
+   "why": "E102 C6: The preview changes nothing until you press Run realization."
+  },
+  {
+   "file": "scripts/case-summary.mjs",
+   "unit": "showCaseSummary",
+   "kind": "footer",
+   "key": "DRPG.CaseSummary.send",
+   "count": 1,
+   "why": "E102 C6: Posts this summary in the chat for the whole table, once per Class Trial"
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "openDeathDialog",
+   "kind": "select",
+   "key": "DRPG.Chapter.whoDied",
+   "count": 1,
+   "why": "none needed: The label asks it; the button stays shut until a name is chosen."
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "openDeathDialog",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The label already says when to tick it, and the note below says the bullets are otherwise destroyed."
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "promoteFaintPrep",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The window's intro and note say what ticking one does."
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "openBodyDiscoveryDialog",
+   "kind": "select",
+   "key": "DRPG.Chapter.whereBody",
+   "count": 1,
+   "why": "none needed: The label asks it, and the note below says everyone is called to that room."
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "openBodyDiscoveryDialog",
+   "kind": "select",
+   "key": "DRPG.Chapter.whoseBody",
+   "count": 1,
+   "why": "none needed: The label says it is optional and its first option, 'Do not name them', says what leaving it does."
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "chapterEndForm",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each tick's label says what it does, with its count and '(cannot be undone)'; a tick with nothing to do says why."
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "chapterEndForm",
+   "kind": "checkbox",
+   "key": "DRPG.Chapter.optNoTrial",
+   "count": 1,
+   "why": "E102 C3: Moves the clock to the next chapter and ends an Investigation still open"
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "chapterEndForm",
+   "kind": "checkbox",
+   "key": "DRPG.Chapter.lastChapter",
+   "count": 1,
+   "why": "E102 C3: Raises the session number and ends an Investigation still open"
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "askStoppedEnd",
+   "kind": "footer",
+   "key": "DRPG.Chapter.finishEnd",
+   "count": 1,
+   "why": "E102 C3: Runs the steps that did not finish, in their order"
+  },
+  {
+   "file": "scripts/chapter.mjs",
+   "unit": "askStoppedEnd",
+   "kind": "footer",
+   "key": "DRPG.Chapter.dropRest",
+   "count": 1,
+   "why": "E102 C3: Gives up the unfinished steps for good. None of them runs later."
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "unit": "reshapeFields",
+   "kind": "input",
+   "key": "DRPG.Cleanup.reshapeNamePlaceholder",
+   "count": 1,
+   "why": "E102 C3: The name whoever finds this Remnant will see"
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "unit": "reshapeFields",
+   "kind": "textarea",
+   "key": "DRPG.Cleanup.reshapeTextPlaceholder",
+   "count": 1,
+   "why": "E102 C3: What whoever finds this Remnant will read about it"
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "unit": "openCleanupDialog",
+   "kind": "select",
+   "key": "DRPG.Cleanup.which",
+   "count": 1,
+   "why": "E102 C3: Reinforced Remnants are listed, but they cannot be wiped"
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "unit": "askTransform",
+   "kind": "footer",
+   "key": "DRPG.Cleanup.transformErase",
+   "count": 1,
+   "why": "none needed: The note in the window says erasing happens at once, beside the other choice."
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "unit": "openCleanupDialog",
+   "kind": "footer",
+   "key": "DRPG.Cleanup.confirm",
+   "count": 1,
+   "why": "E102 C3: Rolls to wipe the chosen Remnant away"
+  },
+  {
+   "file": "scripts/cleanup.mjs",
+   "unit": "openMoveBodyDialog",
+   "kind": "footer",
+   "key": "DRPG.Cleanup.moveConfirm",
+   "count": 1,
+   "why": "E102 C3: Rolls to drag the body into the room you picked"
+  },
+  {
+   "file": "scripts/despair.mjs",
+   "unit": "buildRow",
+   "kind": "kit:stepper",
+   "key": "DRPG.Look.stepDown",
+   "count": 1,
+   "why": "E102 C4: Takes one Despair from this pool"
+  },
+  {
+   "file": "scripts/despair.mjs",
+   "unit": "buildRow",
+   "kind": "kit:stepper",
+   "key": "DRPG.Look.stepUp",
+   "count": 1,
+   "why": "E102 C4: Adds one Despair to this pool"
+  },
+  {
+   "file": "scripts/diagnostics.mjs",
+   "unit": "openReport",
+   "kind": "footer",
+   "key": "DRPG.Diagnose.copy",
+   "count": 1,
+   "why": "none needed: The window's intro says to copy the report and send it on."
+  },
+  {
+   "file": "scripts/diagnostics.mjs",
+   "unit": "openReport",
+   "kind": "footer",
+   "key": "DRPG.Diagnose.showAgain",
+   "count": 1,
+   "why": "E102 C4: Shows this silenced warning again: {warning}"
+  },
+  {
+   "file": "scripts/enforced.mjs",
+   "unit": "askHoldAgain",
+   "kind": "footer",
+   "key": "DRPG.GiveBack.holdAgain",
+   "count": 1,
+   "why": "none needed: The window's text says what holding them again does."
+  },
+  {
+   "file": "scripts/fog-diagnostics.mjs",
+   "unit": "roomCheckHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The label says it: the map moves to the problem and pings it."
+  },
+  {
+   "file": "scripts/frisk.mjs",
+   "unit": "openAskWindow",
+   "kind": "footer",
+   "key": "DRPG.Frisk.refuse",
+   "count": 1,
+   "why": "none needed: The window's text says that if you refuse they may try to make you, and its clock says no answer is a refusal."
+  },
+  {
+   "file": "scripts/frisk.mjs",
+   "unit": "openAskWindow",
+   "kind": "footer",
+   "key": "DRPG.Frisk.allow",
+   "count": 1,
+   "why": "E102 C2: They see everything you had on you when they asked"
+  },
+  {
+   "file": "scripts/frisk.mjs",
+   "unit": "askToForce",
+   "kind": "footer",
+   "key": "DRPG.Frisk.leave",
+   "count": 1,
+   "why": "E102 C2: You let it go, and they are told so"
+  },
+  {
+   "file": "scripts/frisk.mjs",
+   "unit": "askToForce",
+   "kind": "footer",
+   "key": "DRPG.Frisk.force",
+   "count": 1,
+   "why": "none needed: The window's text already gives the roll (Body {force}+) and that the whole room will see it."
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "campaignRows",
+   "kind": "input",
+   "key": "DRPG.Clock.campaignName",
+   "count": 1,
+   "why": "E102 C4: Shown to everyone on the HUD; left empty, the world's name is used"
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "campaignRows",
+   "kind": "select",
+   "key": "DRPG.Clock.phase",
+   "count": 1,
+   "why": "E102 C4: Moving it to Class Trial opens the trial; you are asked first"
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "campaignRows",
+   "kind": "select",
+   "key": "DRPG.Clock.timeOfDay",
+   "count": 1,
+   "why": "none needed: The label and its options say what it sets."
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "endChapterPart",
+   "kind": "kit:roleButton",
+   "key": "DRPG.Chapter.endTitle",
+   "count": 1,
+   "why": "none needed: The warning box it sits in says what it does and that it asks first."
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "campaignRows",
+   "kind": "kit:stepper",
+   "key": "DRPG.Clock.chapter",
+   "count": 1,
+   "why": "E102 C4: Corrects the number only; End the chapter below ends a chapter"
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "campaignRows",
+   "kind": "kit:stepper",
+   "key": "DRPG.Clock.day",
+   "count": 1,
+   "why": "none needed: A plain counter; the label says what it holds."
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "campaignRows",
+   "kind": "kit:stepper",
+   "key": "DRPG.Clock.session",
+   "count": 1,
+   "why": "none needed: A plain counter; the label says what it holds."
+  },
+  {
+   "file": "scripts/gm-campaign.mjs",
+   "unit": "confirmCorrection",
+   "kind": "footer",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The window's text says what the yes does and what Cancel keeps."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "openItemManager",
+   "kind": "select",
+   "key": "DRPG.Items.whichCharacterHub",
+   "count": 1,
+   "why": "E102 C4: Whose items are listed below"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveExistingPane",
+   "kind": "select",
+   "key": "DRPG.Items.pickTable",
+   "count": 1,
+   "why": "E102 C4: The item table to pick from. It sets the item's category and tier."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveExistingPane",
+   "kind": "select",
+   "key": "DRPG.Items.pickExisting",
+   "count": 1,
+   "why": "none needed: The label asks it, and the list holds only the table chosen above."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveCreatePane",
+   "kind": "select",
+   "key": "DRPG.Items.category",
+   "count": 1,
+   "why": "E102 C4: What kind of item it is, which decides how the student can use it"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveCreatePane",
+   "kind": "select",
+   "key": "DRPG.Items.tier",
+   "count": 1,
+   "why": "E102 C4: Higher tiers last longer. A Tier 0 item breaks after one roll."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveCreatePane",
+   "kind": "input",
+   "key": "DRPG.Items.namePlaceholder",
+   "count": 1,
+   "why": "none needed: The label and placeholder say everything."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveCreatePane",
+   "kind": "textarea",
+   "key": "DRPG.Items.descriptionPlaceholder",
+   "count": 1,
+   "why": "none needed: The label and placeholder say everything."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "recipientRows",
+   "kind": "select",
+   "key": "DRPG.Items.recipient",
+   "count": 1,
+   "why": "none needed: The label says it; the list is the students."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "bulletShownSelect",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: Whether the holder sees its real type or has to analyze it first"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "bulletExistingPane",
+   "kind": "select",
+   "key": "DRPG.TruthBullet.pickRemnant",
+   "count": 1,
+   "why": "E102 C4: The Remnant on the map this Truth Bullet copies"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "bulletCreatePane",
+   "kind": "textarea",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each field's label and placeholder say who reads it and what goes in."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "bulletCreatePane",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each tick's label already explains its effect after the name."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "bulletCreatePane",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.namePlaceholder",
+   "count": 1,
+   "why": "none needed: The label says the player sees it, and the placeholder gives an example."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "bulletCreatePane",
+   "kind": "select",
+   "key": "DRPG.TruthBullet.realType",
+   "count": 1,
+   "why": "E102 C4: Its true type, which a passed Analyze or the chapter's end reveals"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "bulletCreatePane",
+   "kind": "select",
+   "key": "DRPG.TruthBullet.visibility",
+   "count": 1,
+   "why": "E102 C4: Sets how hard this Truth Bullet is to analyze"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "issueAutopsyDialog",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: One tick per student under 'Who receives it'; the hint above says to untick the victim."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "issueAutopsyDialog",
+   "kind": "textarea",
+   "key": "DRPG.TruthBullet.autopsyTextPlaceholder",
+   "count": 1,
+   "why": "none needed: The label and placeholder say everything."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "issueAutopsyDialog",
+   "kind": "textarea",
+   "key": "DRPG.TruthBullet.gmNotePlaceholder",
+   "count": 1,
+   "why": "none needed: The label says the player never sees it, and the placeholder says what goes in."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "takeItemDialog",
+   "kind": "select",
+   "key": "DRPG.Items.takeFromWhom",
+   "count": 1,
+   "why": "none needed: The label says it; the list is the students."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "takeItemDialog",
+   "kind": "select",
+   "key": "DRPG.Items.whichItem",
+   "count": 1,
+   "why": "none needed: The label asks it, and each option says where the item is and its state."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "takeItemDialog",
+   "kind": "checkbox",
+   "key": "DRPG.Items.whichItem",
+   "count": 1,
+   "why": "E102 C4: Leave it unticked to take the item without a word to the player"
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "gmGiveItemDialog",
+   "kind": "kit:kitTabs",
+   "key": "DRPG.Items.tabGiveExisting",
+   "count": 1,
+   "why": "none needed: Each tab's label names its pane."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveTruthBulletDialog",
+   "kind": "kit:kitTabs",
+   "key": "DRPG.TruthBullet.tabFromRemnant",
+   "count": 1,
+   "why": "none needed: Each tab's label names its pane."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "gmGiveItemDialog",
+   "kind": "footer",
+   "key": "DRPG.Items.give",
+   "count": 1,
+   "why": "E102 C4: Gives it at once. With Tell the player ticked, they get a message."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveTruthBulletDialog",
+   "kind": "footer",
+   "key": "DRPG.TruthBullet.give",
+   "count": 1,
+   "why": "E102 C4: Gives it at once. One from a Remnant shows that Remnant to its holder."
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "unit": "nextLineHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: Opens the Season checklist"
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "unit": "nextLineHtml",
+   "kind": "button",
+   "key": "DRPG.Panel.nextLabel",
+   "count": 1,
+   "why": "none needed: Its label names the step it runs (Start the Eclipse, Announce the body, ...) and the line beside it says why."
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "unit": "studentsLeftHtml",
+   "kind": "button",
+   "key": "DRPG.Panel.studentsLeft",
+   "count": 1,
+   "why": "E102 C4: Opens the student list, with each student's state and actions"
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "unit": "openFailureLog",
+   "kind": "footer",
+   "key": "DRPG.Failures.copy",
+   "count": 1,
+   "why": "E102 C4: Copies the whole log, in more detail than shown here"
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "unit": "openFailureLog",
+   "kind": "footer",
+   "key": "DRPG.Failures.clear",
+   "count": 1,
+   "why": "E102 C4: Empties this browser's log for good"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "enterCastByHand",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each label names the seat, and the intro says what the window is for."
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "openRestoreDialog",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each box's label is a full sentence saying what ticking it takes from the file."
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "runHealthCheck",
+   "kind": "footer",
+   "key": "DRPG.Case.keepMastermind",
+   "count": 1,
+   "why": "E102 C4: The picked student stays the Mastermind, and their player is told"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "runHealthCheck",
+   "kind": "footer",
+   "key": "DRPG.Case.continue",
+   "count": 1,
+   "why": "none needed: The note under the rows says what Continue does and that the GM panel keeps reminding."
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "runHealthCheck",
+   "kind": "footer",
+   "key": "DRPG.Case.restoreFromFile",
+   "count": 1,
+   "why": "E102 C4: Opens a backup file and shows what it brings back before anything changes"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "runHealthCheck",
+   "kind": "footer",
+   "key": "DRPG.Case.moveTraces",
+   "count": 1,
+   "why": "E102 C4: Moves each Remnant's hidden answer off its token into the GM records"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "runHealthCheck",
+   "kind": "footer",
+   "key": "DRPG.Case.enterCast",
+   "count": 1,
+   "why": "none needed: The label says it, and it only opens the window that asks for the cast."
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "runHealthCheck",
+   "kind": "footer",
+   "key": "DRPG.Case.clearMastermind",
+   "count": 1,
+   "why": "E102 C4: Nobody is the Mastermind until you pick one again"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "openCaseWindow",
+   "kind": "footer",
+   "key": "DRPG.Case.backup",
+   "count": 1,
+   "why": "E102 C4: Saves every GM secret of this world to a file no player should see"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "openCaseWindow",
+   "kind": "footer",
+   "key": "DRPG.Case.restoreFromFile",
+   "count": 1,
+   "why": "E102 C4: Opens a backup file and shows what it brings back before anything changes"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "enterCastByHand",
+   "kind": "footer",
+   "key": "DRPG.Case.castEnter",
+   "count": 1,
+   "why": "E102 C4: Records the cast; nothing is written without a killer and a victim"
+  },
+  {
+   "file": "scripts/gm-stores.mjs",
+   "unit": "chooseCaseFile",
+   "kind": "dom:input",
+   "key": null,
+   "count": 1,
+   "why": "none needed: An input the code clicks to open the browser's file picker; nobody points at it."
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: The Monokuma whose Despair pays. The number is what that pool can spend now"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: Gives the Hope now. The Monokuma's pool pays at the next time of day."
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "checkbox",
+   "key": "DRPG.Monocub.give",
+   "count": 1,
+   "why": "none needed: The column's head already carries the tooltip (DRPG.Monocub.silencedNote); a second copy on every row would repeat it."
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "select",
+   "key": "DRPG.Panel.stateColumn",
+   "count": 1,
+   "why": "E102 C4: Corrects the state quietly on Apply: no announcement, and the inventory stays"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "button",
+   "key": "DRPG.Panel.state",
+   "count": 1,
+   "why": "E102 C4: Opens the full death procedure for this student"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "button",
+   "key": "DRPG.Chapter.deathTitle",
+   "count": 1,
+   "why": "E102 C4: Makes this dead student a Monocub now, with Hope, Health and Sanity at zero"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "select",
+   "key": "DRPG.Panel.roleColumn",
+   "count": 1,
+   "why": "E102 C4: Changes the character's role at once, without waiting for Apply"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "kit:stepper",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: How much Despair turns into Hope, one for one"
+  },
+  {
+   "file": "scripts/gm-students.mjs",
+   "unit": "aliveTableHtml",
+   "kind": "kit:roleButton",
+   "key": "DRPG.Advance.standing",
+   "count": 1,
+   "why": "E102 C4: Opens this character's Level Up window"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "input",
+   "key": "DRPG.Despair.poolName",
+   "count": 1,
+   "why": "E102 C4: The name this Despair pool shows at the table"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "select",
+   "key": "DRPG.Despair.revokeFrom",
+   "count": 1,
+   "why": "E102 C4: The Assistant GM who loses the pool, and the Despair in it"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "checkbox",
+   "key": "DRPG.Monokuma.isMonokuma",
+   "count": 1,
+   "why": "E102 C4: Makes this character a Monokuma: no actions or Hope, Despair Calls instead"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "select",
+   "key": "DRPG.Monokuma.pool",
+   "count": 1,
+   "why": "E102 C4: The GM pool this Monokuma spends Despair from"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "kit:kitTabs",
+   "key": "DRPG.Despair.tabPools",
+   "count": 1,
+   "why": "E102 C4: Pools: which GM holds a Despair pool, and its name"
+  },
+  {
+   "file": "scripts/handbooks.mjs",
+   "unit": "HandbookApp",
+   "kind": "kit:kitTabBar",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each tab is a handbook's name; pressing it shows that handbook."
+  },
+  {
+   "file": "scripts/hud.mjs",
+   "unit": "objectionControl",
+   "kind": "dom:button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: It already carries a live tooltip: whom the Objection would be aimed at, or why it is held, and its price."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "select",
+   "key": "DRPG.Investigation.traceType",
+   "count": 1,
+   "why": "E102 C6: Its true kind, which a student learns with Analyze"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "select",
+   "key": "DRPG.Remnant.authorLabel",
+   "count": 1,
+   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "select",
+   "key": "DRPG.Investigation.difficulty",
+   "count": 1,
+   "why": "E102 C6: How hard it is to spot with Observe"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "input",
+   "key": "DRPG.Investigation.traceName",
+   "count": 1,
+   "why": "none needed: The window's closing note says the name is what a student reads on finding it."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "input",
+   "key": "DRPG.Investigation.notePlaceholder",
+   "count": 1,
+   "why": "none needed: The window's closing note says the description is what a student reads on finding it."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
+   "count": 1,
+   "why": "none needed: Its label and the window's note say it waits for the student's Analyze."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "input",
+   "key": "DRPG.Investigation.keyNotePlaceholder",
+   "count": 1,
+   "why": "none needed: Its label and placeholder (Only you read this) say everything."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openNewTrace",
+   "kind": "select",
+   "key": "DRPG.Investigation.newTraceTied",
+   "count": 1,
+   "why": "none needed: Its label already says what tying it does (survives the chapter-end sweep)."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openKeyRemnantHere",
+   "kind": "select",
+   "key": "DRPG.Investigation.visibility",
+   "count": 1,
+   "why": "E102 C6: How hard it is to spot with Observe"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openKeyRemnantHere",
+   "kind": "select",
+   "key": "DRPG.Remnant.authorLabel",
+   "count": 1,
+   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openKeyRemnantHere",
+   "kind": "input",
+   "key": "DRPG.Investigation.traceName",
+   "count": 1,
+   "why": "E102 C6: The name a student sees once they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openKeyRemnantHere",
+   "kind": "input",
+   "key": "DRPG.Investigation.notePlaceholder",
+   "count": 1,
+   "why": "E102 C6: What a student reads the moment they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openKeyRemnantHere",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
+   "count": 1,
+   "why": "E102 C6: What a student reads only after a successful Analyze"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openKeyRemnantHere",
+   "kind": "input",
+   "key": "DRPG.Investigation.keyNotePlaceholder",
+   "count": 1,
+   "why": "none needed: Its label and placeholder (Only you read this) say everything."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openKeyRemnantHere",
+   "kind": "select",
+   "key": "DRPG.Investigation.whichSlot",
+   "count": 1,
+   "why": "E102 C6: The planned clue it fills, so the plan counts it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "placeKeyRow",
+   "kind": "select",
+   "key": "DRPG.Investigation.visibility",
+   "count": 1,
+   "why": "E102 C6: How hard it is to spot with Observe"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "input",
+   "key": "DRPG.Investigation.traceName",
+   "count": 1,
+   "why": "E102 C6: The name a student sees once they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "textarea",
+   "key": "DRPG.Investigation.traceText",
+   "count": 1,
+   "why": "E102 C6: What a student reads the moment they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "textarea",
+   "key": "DRPG.Investigation.traceAnalysis",
+   "count": 1,
+   "why": "E102 C6: What a student reads only after a successful Analyze"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "select",
+   "key": "DRPG.Investigation.traceType",
+   "count": 1,
+   "why": "E102 C6: Its true kind, which a student learns with Analyze"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "select",
+   "key": "DRPG.Investigation.visibility",
+   "count": 1,
+   "why": "E102 C6: How hard it is to spot with Observe"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "checkbox",
+   "key": "DRPG.Remnant.faintColumn",
+   "count": 1,
+   "why": "E102 C6: A doubtful lead. Clear Faint Remnants can remove it, and a sweep keeps its Truth Bullets."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "select",
+   "key": "DRPG.Remnant.crimeColumn",
+   "count": 1,
+   "why": "E102 C6: Whether it belongs to the murder. A tied Remnant survives Clear Faint Remnants."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "checkbox",
+   "key": "DRPG.Remnant.reinforcedColumn",
+   "count": 1,
+   "why": "E102 C6: Nobody can clean it up with Tamper, and Clear Faint Remnants leaves it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceCells",
+   "kind": "button",
+   "key": "DRPG.Investigation.deleteTrace",
+   "count": 1,
+   "why": "E102 C6: Removes this Remnant from the map and from the case. Asks first."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceFilters",
+   "kind": "select",
+   "key": "DRPG.Investigation.filterOrder",
+   "count": 1,
+   "why": "none needed: Its two options, By room and Newest first, say what they do."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceFilters",
+   "kind": "select",
+   "key": "DRPG.Investigation.filterPlayer",
+   "count": 1,
+   "why": "none needed: A filter whose label and options (Everyone, then names) are self-evident."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceFilters",
+   "kind": "select",
+   "key": "DRPG.Investigation.filterRoom",
+   "count": 1,
+   "why": "none needed: A filter whose label and options (Anywhere, then rooms) are self-evident."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseTraceFilters",
+   "kind": "select",
+   "key": "DRPG.Investigation.filterChapter",
+   "count": 1,
+   "why": "E102 C6: Also picks the chapter the Map view draws"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseKeyCells",
+   "kind": "input",
+   "key": "DRPG.Investigation.traceName",
+   "count": 1,
+   "why": "E102 C6: The name a student sees once they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseKeyCells",
+   "kind": "textarea",
+   "key": "DRPG.Investigation.traceText",
+   "count": 1,
+   "why": "E102 C6: What a student reads the moment they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseKeyCells",
+   "kind": "textarea",
+   "key": "DRPG.Investigation.traceAnalysis",
+   "count": 1,
+   "why": "E102 C6: What a student reads only after a successful Analyze"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseKeyCells",
+   "kind": "input",
+   "key": "DRPG.Investigation.keyNoteLabel",
+   "count": 1,
+   "why": "none needed: Its label and placeholder (Only you read this) say everything."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseKeyCells",
+   "kind": "select",
+   "key": "DRPG.Investigation.onMap",
+   "count": 1,
+   "why": "E102 C6: Links this planned clue to a Key Remnant already on the map"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseKeyCells",
+   "kind": "button",
+   "key": "DRPG.Investigation.place",
+   "count": 1,
+   "why": "E102 C6: Puts this clue's Key Remnant on the map at once, in a room you pick"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseFinalPanel",
+   "kind": "select",
+   "key": "DRPG.Investigation.visibility",
+   "count": 1,
+   "why": "E102 C6: How hard it is to spot with Observe"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseFinalPanel",
+   "kind": "select",
+   "key": "DRPG.Remnant.authorLabel",
+   "count": 1,
+   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseFinalPanel",
+   "kind": "input",
+   "key": "DRPG.Remnant.finalSubject",
+   "count": 1,
+   "why": "E102 C6: The name a student sees once they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseFinalPanel",
+   "kind": "input",
+   "key": "DRPG.Investigation.notePlaceholder",
+   "count": 1,
+   "why": "E102 C6: What a student reads the moment they find it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseFinalPanel",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
+   "count": 1,
+   "why": "E102 C6: What a student reads only after a successful Analyze"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "viewSwitchHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C6: Shows the case as a map of evidence and deductions, or as tables"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "checkbox",
+   "key": "DRPG.CaseMap.noName",
+   "count": 1,
+   "why": "none needed: A checklist under its heading (Rests on or Refutes), each box named by the node it links."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "input",
+   "key": "DRPG.CaseMap.field.label",
+   "count": 1,
+   "why": "E102 C6: Its name on the map, and in the case summary the players get"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "textarea",
+   "key": "DRPG.CaseMap.field.text",
+   "count": 1,
+   "why": "E102 C6: Your words on this node. A solution's words reach the players in the case summary."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.CaseMap.field.mode",
+   "count": 1,
+   "why": "E102 C6: The Class Trial mode this node is played out in"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.Investigation.room",
+   "count": 1,
+   "why": "E102 C6: The room the Incident Remnant goes in when you place it"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "button",
+   "key": "DRPG.CaseRealize.noRoom",
+   "count": 1,
+   "why": "E102 C6: Opens New Remnant filled in from this node and tied to the murder"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "button",
+   "key": "DRPG.CaseMap.placeOnMap",
+   "count": 1,
+   "why": "E102 C6: Deletes this node from the case. Asks first."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C6: Deletes this node from the case. Asks first."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseHtml",
+   "kind": "kit:kitTabs",
+   "key": "DRPG.Investigation.tabTraces",
+   "count": 1,
+   "why": "none needed: The tabs' names (Remnants, Key Remnants, Final Truth Remnants, Who has what) say what each holds."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.Assign.save",
+   "count": 1,
+   "why": "E102 C6: Saves every field you changed, and places a Final Truth Remnant if you picked its room"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.Investigation.newTraceTitle",
+   "count": 1,
+   "why": "E102 C6: Places a Remnant of your own in a room you pick"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.TruthBullet.autopsyTitle",
+   "count": 1,
+   "why": "E102 C6: Hands the Autopsy Truth Bullet to the students you pick"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.Trial.logTitle",
+   "count": 1,
+   "why": "E102 C6: Shows who objected to whom in the Class Trial, and with what evidence"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.Chapter.bodyTitle",
+   "count": 1,
+   "why": "E102 C6: Announces to the whole table that a body was found, in a room you pick"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.CaseRealize.preview",
+   "count": 1,
+   "why": "E102 C6: Shows where the planned Key Remnants would go. Nothing changes until you run it."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.Panel.clearFaint",
+   "count": 1,
+   "why": "E102 C6: Deletes every Faint Remnant on every scene, except tied and reinforced ones. Asks first."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.Panel.sweepBullets",
+   "count": 1,
+   "why": "E102 C6: Deletes the students' Truth Bullets, except Faint ones and the Final Truth. Asks first."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "openInvestigationDashboard",
+   "kind": "footer",
+   "key": "DRPG.CaseRealize.undo",
+   "count": 1,
+   "why": "E102 C6: Removes what the realization placed, except what a student has found. Asks first."
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "buildContent",
+   "kind": "select",
+   "key": "DRPG.Advance.whichImprovement",
+   "count": 1,
+   "why": "none needed: Its options say each improvement in full (Increase Health by +1 ...)."
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "buildDetail",
+   "kind": "select",
+   "key": "DRPG.Advance.whichTrait",
+   "count": 1,
+   "why": "none needed: Labelled 'Which statistic?', each option with its current value."
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "buildDetail",
+   "kind": "select",
+   "key": "DRPG.Advance.whichExperience",
+   "count": 1,
+   "why": "none needed: Labelled 'Which experience?', each option with its current value."
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "buildDetail",
+   "kind": "input",
+   "key": "DRPG.Advance.newExperiencePlaceholder",
+   "count": 1,
+   "why": "none needed: The label and the placeholder already say what to write."
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "askWhoPicks",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "E102 C5: Who chooses this student's improvements: you, here, or the player on their sheet"
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "openAdvancement",
+   "kind": "footer",
+   "key": "DRPG.Advance.apply",
+   "count": 1,
+   "why": "E102 C5: Spends the Level Up and writes the chosen improvements onto the sheet"
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "askWhoPicks",
+   "kind": "footer",
+   "key": "DRPG.Advance.queueGive",
+   "count": 1,
+   "why": "E102 C5: Gives each Level Up as its row says. Yours open here, one after another."
+  },
+  {
+   "file": "scripts/level-up.mjs",
+   "unit": "askWhoPicks",
+   "kind": "footer",
+   "key": "DRPG.Advance.allPlayers",
+   "count": 1,
+   "why": "E102 C5: Hands every Level Up to its player, whatever the rows say"
+  },
+  {
+   "file": "scripts/mastermind.mjs",
+   "unit": "mastermindHopeBox",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: Gives the Hope now. The Monokuma's pool pays at the next time of day."
+  },
+  {
+   "file": "scripts/mastermind.mjs",
+   "unit": "openMastermindDialog",
+   "kind": "select",
+   "key": "DRPG.Mastermind.whoIs",
+   "count": 1,
+   "why": "none needed: The label asks the question and the note under it says what the choice means."
+  },
+  {
+   "file": "scripts/mastermind.mjs",
+   "unit": "mastermindHopeBox",
+   "kind": "kit:stepper",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: How much Despair turns into Hope, one for one"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "DrpgMessengerApp",
+   "kind": "textarea",
+   "key": "DRPG.Messenger.placeholder",
+   "count": 1,
+   "why": "none needed: A chat box; its placeholder says what to do."
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "DrpgMessengerApp",
+   "kind": "button",
+   "key": "DRPG.Messenger.send",
+   "count": 1,
+   "why": "none needed: A paper plane beside a chat box is self-evident, and it has an aria-label."
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "askItemEffect",
+   "kind": "checkbox",
+   "key": "DRPG.Items.effectHope",
+   "count": 1,
+   "why": "none needed: The label says it: ticked, the item is used up."
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "ruleReply",
+   "kind": "textarea",
+   "key": "DRPG.Bridge.replyPrompt",
+   "count": 1,
+   "why": "none needed: The prompt above the box says what to write and where it goes."
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "DrpgMessengerApp",
+   "kind": "kit:kitTabBar",
+   "key": "DRPG.Messenger.tabChat",
+   "count": 1,
+   "why": "E102 C5: The pre-session note the GMs read before every session"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "askItemEffect",
+   "kind": "kit:stepper",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each stepper's label says what its number is."
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "DrpgMessengerApp",
+   "kind": "dom:textarea",
+   "key": "DRPG.Note.placeholder",
+   "count": 1,
+   "why": "none needed: The intro above the box says what goes in it and who reads it."
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "DrpgMessengerApp",
+   "kind": "dom:button",
+   "key": "DRPG.Note.useTemplate",
+   "count": 1,
+   "why": "E102 C5: Fills the box with the questions the GMs want answered"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
+   "unit": "DrpgMessengerApp",
+   "kind": "dom:button",
+   "key": "DRPG.Note.save",
+   "count": 1,
+   "why": "none needed: Saves the note; the intro already says the GMs read it."
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "unit": "openMonocubDialog",
+   "kind": "checkbox",
+   "key": "DRPG.Monocub.isOne",
+   "count": 1,
+   "why": "none needed: The window's intro says ticking opts the dead player in as a Monocub."
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "unit": "openMonocubDialog",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: Whose Despair pays; the number is what that pool can spend"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "unit": "openMonocubDialog",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: Turns that much Despair into this Monocub's Hope at once, without Apply"
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "unit": "openMonocubDialog",
+   "kind": "checkbox",
+   "key": "DRPG.Monocub.silenced",
+   "count": 1,
+   "why": "none needed: Its column heading carries the tooltip that explains it, and the locked box says Tick Monocub first."
+  },
+  {
+   "file": "scripts/monocub.mjs",
+   "unit": "openMonocubDialog",
+   "kind": "kit:stepper",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: How much Despair turns into Hope, one for one"
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "unit": "askCriticalTarget",
+   "kind": "footer",
+   "key": "DRPG.Murder.criticalChoiceHp",
+   "count": 1,
+   "why": "none needed: The window's intro says both points come off one reserve, and the label names it."
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "unit": "askCriticalTarget",
+   "kind": "footer",
+   "key": "DRPG.Murder.criticalChoiceStress",
+   "count": 1,
+   "why": "none needed: The window's intro says both points come off one reserve, and the label names it."
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "unit": "afterIncident",
+   "kind": "footer",
+   "key": "DRPG.Chapter.bodyTitle",
+   "count": 1,
+   "why": "E102 C3: Opens the window that calls everyone to the body"
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "unit": "afterIncident",
+   "kind": "footer",
+   "key": "DRPG.Murder.afterGoInvestigation",
+   "count": 1,
+   "why": "E102 C3: Switches the phase to Investigation without announcing the body"
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "unit": "afterIncident",
+   "kind": "footer",
+   "key": "DRPG.TruthBullet.autopsyTitle",
+   "count": 1,
+   "why": "E102 C3: Opens the Autopsy window, with every living student ticked to receive it"
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "unit": "afterEscape",
+   "kind": "footer",
+   "key": "DRPG.Murder.escapeRemnants",
+   "count": 1,
+   "why": "E102 C3: Opens the Investigation window with the Remnants this fight left"
+  },
+  {
+   "file": "scripts/murder-rules.mjs",
+   "unit": "afterNoBody",
+   "kind": "footer",
+   "key": "DRPG.Murder.escapeRemnants",
+   "count": 1,
+   "why": "E102 C3: Opens the Investigation window with the Remnants this fight left"
+  },
+  {
+   "file": "scripts/murder-ui.mjs",
+   "unit": "openMurderDialog",
+   "kind": "select",
+   "key": "DRPG.Murder.killer",
+   "count": 1,
+   "why": "E102 C3: A killer with a finished trap ticks the trap box by itself"
+  },
+  {
+   "file": "scripts/murder-ui.mjs",
+   "unit": "openMurderDialog",
+   "kind": "select",
+   "key": "DRPG.Murder.victim",
+   "count": 1,
+   "why": "none needed: The intro says whose roll opens a trap, and a note appears when one name is in both seats."
+  },
+  {
+   "file": "scripts/murder-ui.mjs",
+   "unit": "openMurderDialog",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Its label already says what a trap changes."
+  },
+  {
+   "file": "scripts/observe.mjs",
+   "unit": "describeFind",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.name",
+   "count": 1,
+   "why": "none needed: The note above it says why the name cannot change."
+  },
+  {
+   "file": "scripts/observe.mjs",
+   "unit": "describeFind",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.name",
+   "count": 1,
+   "why": "none needed: Its label says the player sees it."
+  },
+  {
+   "file": "scripts/observe.mjs",
+   "unit": "describeFind",
+   "kind": "textarea",
+   "key": "DRPG.TruthBullet.playerTextPlaceholder",
+   "count": 1,
+   "why": "none needed: Its label and placeholder say everything."
+  },
+  {
+   "file": "scripts/observe.mjs",
+   "unit": "askWhichRemnant",
+   "kind": "footer",
+   "key": "DRPG.Observe.pickRefuse",
+   "count": 1,
+   "why": "E102 C2: The player keeps their action and finds nothing"
+  },
+  {
+   "file": "scripts/overflow.mjs",
+   "unit": "overflowSection",
+   "kind": "button",
+   "key": "DRPG.Overflow.setupIntro",
+   "count": 1,
+   "why": "E102 C2: Sets the spilled Despair back to 0, after asking"
+  },
+  {
+   "file": "scripts/overflow.mjs",
+   "unit": "overflowSection",
+   "kind": "kit:toggle",
+   "key": "DRPG.Overflow.name",
+   "count": 1,
+   "why": "E102 C2: Ticked: this can be drawn when the overflow fires"
+  },
+  {
+   "file": "scripts/palm.mjs",
+   "unit": "choosePalm",
+   "kind": "select",
+   "key": "DRPG.Steal.whoPrompt",
+   "count": 1,
+   "why": "none needed: The label asks it and the list names the students in the room."
+  },
+  {
+   "file": "scripts/palm.mjs",
+   "unit": "choosePalm",
+   "kind": "select",
+   "key": "DRPG.Steal.whatToPlant",
+   "count": 1,
+   "why": "none needed: Shown with Leave something picked, whose hint says what the item does."
+  },
+  {
+   "file": "scripts/palm.mjs",
+   "unit": "chooseStolenItem",
+   "kind": "select",
+   "key": "DRPG.Items.whichItem",
+   "count": 1,
+   "why": "none needed: The intro says to choose what to take."
+  },
+  {
+   "file": "scripts/palm.mjs",
+   "unit": "chooseStolenItem",
+   "kind": "footer",
+   "key": "DRPG.Vault.take",
+   "count": 1,
+   "why": "none needed: The intro says the Palm went perfectly and to choose what to take; the button does that."
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "unit": "adder",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C5: Adds this student to the column at once"
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "unit": "button",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C5: Deletes the passage, and every student who knew it forgets it"
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "unit": "rowHtml",
+   "kind": "kit:chip",
+   "key": "DRPG.Passage.tab.revoke",
+   "count": 1,
+   "why": "E102 C5: Takes the passage away from this student. Asks when, if they stand beside it."
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "unit": "rowHtml",
+   "kind": "kit:chip",
+   "key": "DRPG.Passage.tab.startRemove",
+   "count": 1,
+   "why": "E102 C5: Takes this student off the season-start list. What they know now stays."
+  },
+  {
+   "file": "scripts/popup.mjs",
+   "unit": "cornerButton",
+   "kind": "dom:button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: It already carries a live tooltip: the notice history, with the unread count."
+  },
+  {
+   "file": "scripts/popup.mjs",
+   "unit": "showPopup",
+   "kind": "dom:button",
+   "key": "DRPG.Panel.close",
+   "count": 1,
+   "why": "E102 C5: Dismisses this notice; the notice history keeps it"
+  },
+  {
+   "file": "scripts/projects-map.mjs",
+   "unit": "projectCard",
+   "kind": "button",
+   "key": "DRPG.Project.cardNoCondition",
+   "count": 1,
+   "why": "none needed: Its label says exactly what it opens."
+  },
+  {
+   "file": "scripts/projects-tray.mjs",
+   "unit": "addCollapseControl",
+   "kind": "dom:button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Already carries a tooltip that follows its state ('Fold the projects away' / 'Show the projects', applyCollapsed)."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "projectManagerRows",
+   "kind": "select",
+   "key": "DRPG.Project.room",
+   "count": 1,
+   "why": "none needed: The window's intro says only characters standing in a project's room can work on it or sabotage it."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "projectManagerRows",
+   "kind": "checkbox",
+   "key": "DRPG.Project.indirect",
+   "count": 1,
+   "why": "E102 C2: Marks the project as a murder by trap, secret by default"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "projectManagerRows",
+   "kind": "checkbox",
+   "key": "DRPG.Project.secret",
+   "count": 1,
+   "why": "E102 C2: Ticked, only the players ticked for it and its builder see it"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "glyphGrid",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each icon is named under it, and the note beside the grid says where the icon shows."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "checkbox",
+   "key": "DRPG.Trap.noProject",
+   "count": 1,
+   "why": "E102 C2: The trap goes off only in the evening, at night or during an Eclipse"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "checkbox",
+   "key": "DRPG.Trap.afterDark",
+   "count": 1,
+   "why": "E102 C2: The trap never goes off for the student who built it"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "input",
+   "key": "DRPG.Project.namePlaceholder",
+   "count": 1,
+   "why": "none needed: A name field with an example placeholder."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "select",
+   "key": "DRPG.Project.scale",
+   "count": 1,
+   "why": "none needed: Each option names its progress ('Standard - 4 progress')."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "select",
+   "key": "DRPG.Project.room",
+   "count": 1,
+   "why": "E102 C2: Only students standing in this room can work on it or sabotage it"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "select",
+   "key": "DRPG.Project.trait",
+   "count": 1,
+   "why": "E102 C2: The statistic rolled whenever somebody works on this project"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "E102 C2: Marks the project as a murder by trap, secret by default"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "E102 C2: Ticked, only the players ticked for it and its builder see it"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "viewerTicks",
+   "kind": "checkbox",
+   "key": "DRPG.Project.everyone",
+   "count": 1,
+   "why": "E102 C2: Ticked, this player sees the project while it is secret"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "viewerBoxes",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The note under the ticks says ticked players see the project while it is secret."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openShareDialog",
+   "kind": "select",
+   "key": "DRPG.Project.title",
+   "count": 1,
+   "why": "none needed: The list holds only the secret projects, and the intro says what sharing does."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openShareDialog",
+   "kind": "select",
+   "key": "DRPG.Project.player",
+   "count": 1,
+   "why": "none needed: Self-evident beside the intro."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectManager",
+   "kind": "footer",
+   "key": "DRPG.Assign.save",
+   "count": 1,
+   "why": "none needed: Saves the table's rooms, flags and ticks; nothing else."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectManager",
+   "kind": "footer",
+   "key": "DRPG.Project.createButton",
+   "count": 1,
+   "why": "none needed: Opens the Create a project window, as its label says."
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectManager",
+   "kind": "footer",
+   "key": "DRPG.Project.shareButton",
+   "count": 1,
+   "why": "E102 C2: Lets one more player see a secret project"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openProjectDialog",
+   "kind": "footer",
+   "key": "DRPG.Project.delete",
+   "count": 1,
+   "why": "E102 C2: Asks first, then removes the project and its progress for good"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openShareDialog",
+   "kind": "footer",
+   "key": "DRPG.Project.shareButton",
+   "count": 1,
+   "why": "E102 C2: This player sees the secret project from now on"
+  },
+  {
+   "file": "scripts/projects-ui.mjs",
+   "unit": "openShareDialog",
+   "kind": "footer",
+   "key": "DRPG.Project.revokeButton",
+   "count": 1,
+   "why": "E102 C2: This player stops seeing the secret project; its builder always sees it"
+  },
+  {
+   "file": "scripts/remnant-ring.mjs",
+   "unit": "gmRemnantCard",
+   "kind": "select",
+   "key": "DRPG.Investigation.visibility",
+   "count": 1,
+   "why": "E102 C6: How hard it is to spot with Observe"
+  },
+  {
+   "file": "scripts/remnant-ring.mjs",
+   "unit": "gmRemnantCard",
+   "kind": "select",
+   "key": "DRPG.Remnant.authorLabel",
+   "count": 1,
+   "why": "E102 C6: Counts as this student's own Remnant for Observe and Tamper"
+  },
+  {
+   "file": "scripts/remnant-ring.mjs",
+   "unit": "gmRemnantCard",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.name",
+   "count": 1,
+   "why": "none needed: Its label (Name - this is what the player sees) and the card's note say it all."
+  },
+  {
+   "file": "scripts/remnant-ring.mjs",
+   "unit": "gmRemnantCard",
+   "kind": "textarea",
+   "key": "DRPG.TruthBullet.playerTextPlaceholder",
+   "count": 1,
+   "why": "none needed: Its label and placeholder say who reads it; the card's note says when it saves."
+  },
+  {
+   "file": "scripts/requirements.mjs",
+   "unit": "announceNewerSystem",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: The Diagnostics report can bring the warning back"
+  },
+  {
+   "file": "scripts/rest.mjs",
+   "unit": "choosePicks",
+   "kind": "input",
+   "key": "DRPG.Overflow.noHopeNow",
+   "count": 1,
+   "why": "none needed: The text beside each pick says what it gives, and a blocked Breath already carries its reason as a title."
+  },
+  {
+   "file": "scripts/rest.mjs",
+   "unit": "choosePicks",
+   "kind": "footer",
+   "key": "DRPG.Action.proceed",
+   "count": 1,
+   "why": "E102 C2: Gives you the rest benefits you ticked"
+  },
+  {
+   "file": "scripts/roll-draw.mjs",
+   "unit": "cardButton",
+   "kind": "kit:roleButton",
+   "key": null,
+   "count": 1,
+   "why": "E102 C2: Gives the Hope and Despair these rolls would have moved"
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "fogMatrixRows",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The tab's intro and note say what a box means and that Apply writes it."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "checkbox",
+   "key": "DRPG.Vault.favours",
+   "count": 1,
+   "why": "none needed: Hidden; the GM points at the category's switch, which has its own tooltip."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "checkbox",
+   "key": "DRPG.Vault.hinders",
+   "count": 1,
+   "why": "none needed: Hidden; the GM points at the category's switch, which has its own tooltip."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each column is named by its heading and explained by its tab's intro or notes; Locked at start and No privacy already carry hints."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Its column heading and the tab's intro say what it sets."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "select",
+   "key": "DRPG.SearchTokens.refillRoom",
+   "count": 1,
+   "why": "none needed: Its heading and the tab's notes say what it sets and what the global pool is."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "textarea",
+   "key": "DRPG.Vault.descriptionPlaceholder",
+   "count": 1,
+   "why": "none needed: The tab's intro says who sees it and where."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomSetupContent",
+   "kind": "button",
+   "key": "DRPG.Vault.fogUncovered",
+   "count": 1,
+   "why": "none needed: The tab's note says what it ticks and that nothing changes until Apply."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomSetupContent",
+   "kind": "button",
+   "key": "DRPG.Vault.discoverAll",
+   "count": 1,
+   "why": "none needed: The tab's note says what it clears and that nothing changes until Apply."
+  },
+  {
+   "file": "scripts/room-setup.mjs",
+   "unit": "roomCells",
+   "kind": "kit:stepper",
+   "key": "DRPG.SearchTokens.spendOne",
+   "count": 1,
+   "why": "E102 C5: Changes this room's tokens at once, without Apply"
+  },
+  {
+   "file": "scripts/room-tile.mjs",
+   "unit": "paintRoomTile",
+   "kind": "dom:button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Already carries a tooltip that follows its state ('Read more' / read less, openProse)."
+  },
+  {
+   "file": "scripts/room-tile.mjs",
+   "unit": "paintTileRow",
+   "kind": "dom:button",
+   "key": "DRPG.Room.imageOpen",
+   "count": 1,
+   "why": "E102 C5: Opens the picture of this room"
+  },
+  {
+   "file": "scripts/rules.mjs",
+   "unit": "openRulesManager",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Its column heading and the intro ('tick to revoke') say it."
+  },
+  {
+   "file": "scripts/safeword.mjs",
+   "unit": "safewordDialog",
+   "kind": "footer",
+   "key": "DRPG.Safeword.stopIt",
+   "count": 1,
+   "why": "none needed: The window's question and note say what stopping does (the game pauses, every GM is told)."
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "unit": "roomGuideHtml",
+   "kind": "button",
+   "key": "DRPG.Season.roomGuide",
+   "count": 1,
+   "why": "none needed: The guide right above it says what the check reports and that it never edits the map."
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "unit": "openSeasonSetup",
+   "kind": "footer",
+   "key": "DRPG.Assign.save",
+   "count": 1,
+   "why": "none needed: Saves the form, as the label says."
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "unit": "openSeasonSetup",
+   "kind": "footer",
+   "key": "DRPG.Season.resetTitle",
+   "count": 1,
+   "why": "E102 C5: Opens the season reset, which asks before it clears anything"
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "unit": "askStartHere",
+   "kind": "footer",
+   "key": "DRPG.Season.title",
+   "count": 1,
+   "why": "none needed: The window's text names the window this opens and what it holds."
+  },
+  {
+   "file": "scripts/season-wipe.mjs",
+   "unit": "castFieldset",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each choice's label is a full sentence, and the note above explains the rest."
+  },
+  {
+   "file": "scripts/season-wipe.mjs",
+   "unit": "castFieldset",
+   "kind": "select",
+   "key": "DRPG.Season.resetCastPoint",
+   "count": 1,
+   "why": "none needed: Its choice's label says it picks the one room."
+  },
+  {
+   "file": "scripts/season-wipe.mjs",
+   "unit": "resetSeason",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The note above the boxes says what unticking does and that it is remembered."
+  },
+  {
+   "file": "scripts/season-wipe.mjs",
+   "unit": "resetSeason",
+   "kind": "input",
+   "key": "DRPG.Season.resetType",
+   "count": 1,
+   "why": "none needed: Its label says what to type."
+  },
+  {
+   "file": "scripts/settings-window.mjs",
+   "unit": "controlHtml",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each row shows its label and the first sentence of its hint, the rest as the hint's tooltip."
+  },
+  {
+   "file": "scripts/settings-window.mjs",
+   "unit": "sectionColumns",
+   "kind": "button",
+   "key": "DRPG.SettingsWindow.sectionsLabel",
+   "count": 1,
+   "why": "E102 C5: The number counts the settings in this section"
+  },
+  {
+   "file": "scripts/settings-window.mjs",
+   "unit": "controlHtml",
+   "kind": "kit:toggle",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each row shows its label and hint."
+  },
+  {
+   "file": "scripts/settings-window.mjs",
+   "unit": "controlHtml",
+   "kind": "kit:stepper",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each row shows its label and hint."
+  },
+  {
+   "file": "scripts/sheet-audit.mjs",
+   "unit": "auditButton",
+   "kind": "kit:roleButton",
+   "key": null,
+   "count": 1,
+   "why": "E102 C4: Undo: puts back what the player changed by hand"
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "knownPassageItem",
+   "kind": "button",
+   "key": "DRPG.Passage.list.shut",
+   "count": 1,
+   "why": "E102 C5: Takes you to the other end of the tunnel. It costs what a door costs."
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "knownPassageItem",
+   "kind": "button",
+   "key": "DRPG.Passage.list.cross",
+   "count": 1,
+   "why": "E102 C5: Lets somebody in your room use the passage too. It costs no action."
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "tidyBiography",
+   "kind": "dom:textarea",
+   "key": "DRPG.Sheet.biographyPlaceholder",
+   "count": 1,
+   "why": "none needed: The legend and the placeholder say what goes in it."
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "buildOpenStashSection",
+   "kind": "dom:button",
+   "key": "DRPG.Vault.rifle",
+   "count": 1,
+   "why": "none needed: The note above it says one thing may be taken from each stash, once each time of day."
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "bulletSortSwitch",
+   "kind": "dom:button",
+   "key": "DRPG.Sheet.bulletsByRoom",
+   "count": 1,
+   "why": "none needed: A two-button switch under the label 'Group by'."
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "addPresentButton",
+   "kind": "dom:button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Already has a tooltip built in code (DRPG.Trial.presentTooltip, or the reason it is held)."
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "callButton",
+   "kind": "dom:button",
+   "key": "DRPG.Overflow.silenced",
+   "count": 1,
+   "why": "none needed: Already has a tooltip built in code (its summary and lock note, callButton)."
+  },
+  {
+   "file": "scripts/sheet.mjs",
+   "unit": "actionButton",
+   "kind": "dom:button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Already has a tooltip built in code (its head, the reason it is dimmed and its bonus, actionButton)."
+  },
+  {
+   "file": "scripts/sound-panel.mjs",
+   "unit": "musicMapTable",
+   "kind": "select",
+   "key": "DRPG.Music.playlist",
+   "count": 1,
+   "why": "E102 C5: The playlist that plays in this state. Saves at once."
+  },
+  {
+   "file": "scripts/sound-panel.mjs",
+   "unit": "soundPlayPane",
+   "kind": "button",
+   "key": "DRPG.Music.makeSituational",
+   "count": 1,
+   "why": "none needed: The label names the playlist it creates and the line above says why."
+  },
+  {
+   "file": "scripts/sound-panel.mjs",
+   "unit": "soundPlayPane",
+   "kind": "button",
+   "key": "DRPG.Music.play",
+   "count": 1,
+   "why": "E102 C5: Plays the chosen track on repeat for the whole table until Reset music"
+  },
+  {
+   "file": "scripts/sound-panel.mjs",
+   "unit": "openSoundDialog",
+   "kind": "kit:kitTabs",
+   "key": "DRPG.Sound.tabPlay",
+   "count": 1,
+   "why": "none needed: Tab names (Play, Music, Effects) are self-evident."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "tableRowHtml",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Its column heading says it, and a locked box carries its own reason."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "tableRowHtml",
+   "kind": "input",
+   "key": "DRPG.Items.name",
+   "count": 1,
+   "why": "E102 C5: Saved as soon as you leave the field"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "tableRowHtml",
+   "kind": "input",
+   "key": "DRPG.Items.description",
+   "count": 1,
+   "why": "E102 C5: Saved as soon as you leave the field"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "placeResultDialog",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The window's intro says what ticking and unticking a pool does."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "itemPictureGrid",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each cell already has its name as a label and a title."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "newItemPaneHtml",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The note above the boxes explains them."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "newItemPaneHtml",
+   "kind": "checkbox",
+   "key": "DRPG.Items.tierN",
+   "count": 1,
+   "why": "none needed: The line before the boxes says they are the room tables it also appears in."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "newItemPaneHtml",
+   "kind": "input",
+   "key": "DRPG.Items.namePlaceholder",
+   "count": 1,
+   "why": "none needed: Its label and placeholder say everything."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "newItemPaneHtml",
+   "kind": "textarea",
+   "key": "DRPG.Items.descriptionPlaceholder",
+   "count": 1,
+   "why": "none needed: Its label and placeholder say it, and the note below says the finder gets it."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "newItemPaneHtml",
+   "kind": "select",
+   "key": "DRPG.Items.category",
+   "count": 1,
+   "why": "E102 C5: With the tier, decides which table the item joins; the icon follows it"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "poolPaneHtml",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Its label says it, and it asks for the new name."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "poolPaneHtml",
+   "kind": "button",
+   "key": "DRPG.Tables.renameTable",
+   "count": 1,
+   "why": "E102 C5: Deletes the shown table and every item in it, after asking"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "openItemTables",
+   "kind": "kit:kitTabs",
+   "key": "DRPG.Tables.tabTierPools",
+   "count": 1,
+   "why": "E102 C5: The tables a Search draws from, one for each category and tier"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "openItemTables",
+   "kind": "footer",
+   "key": "DRPG.Tables.addItem",
+   "count": 1,
+   "why": "E102 C5: Adds it to its tier table and to every room table ticked"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "openItemTables",
+   "kind": "footer",
+   "key": "DRPG.Tables.createTable",
+   "count": 1,
+   "why": "E102 C5: Creates an empty table with the name typed on this tab"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "openItemTables",
+   "kind": "footer",
+   "key": "DRPG.Tables.installAction",
+   "count": 1,
+   "why": "E102 C5: Builds the default tables; asks before rebuilding yours"
+  },
+  {
+   "file": "scripts/trait-ruling.mjs",
+   "unit": "rollChanged",
+   "kind": "footer",
+   "key": "DRPG.TraitRuling.pass",
+   "count": 1,
+   "why": "none needed: The label already says nothing is spent."
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "openRoundWindow",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: Moves this speaker one place earlier"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "askTrialExit",
+   "kind": "select",
+   "key": "DRPG.Floor.endTrialRoom",
+   "count": 1,
+   "why": "none needed: The paragraph above the field says where the students go and who is not moved."
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "closingButton",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: Gives the floor to the drawn speaker"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "pickClosingDialog",
+   "kind": "select",
+   "key": "DRPG.Floor.closing.pickLabel",
+   "count": 1,
+   "why": "none needed: Its label says what is picked and each option says who volunteered or already spoke."
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "confirmReveal",
+   "kind": "textarea",
+   "key": "DRPG.Reveal.textLabel",
+   "count": 1,
+   "why": "none needed: The label says it and the line above names who receives it."
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "logButton",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: Who presented what in this chapter, and who objected to whom"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "logButton",
+   "kind": "button",
+   "key": "DRPG.Trial.logTitle",
+   "count": 1,
+   "why": "E102 C3: What the class settled in this trial. Every change there is told to the table."
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "confirmNewTrial",
+   "kind": "footer",
+   "key": "DRPG.Floor.newTrialTitle",
+   "count": 1,
+   "why": "none needed: The window's question already says what a second verdict costs."
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "incidentClosedFirst",
+   "kind": "footer",
+   "key": "DRPG.Floor.incidentKeep",
+   "count": 1,
+   "why": "none needed: The window's question explains both answers."
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "incidentClosedFirst",
+   "kind": "footer",
+   "key": "DRPG.Murder.endMurder",
+   "count": 1,
+   "why": "E102 C3: Closes the incident now, and its Blackened go on the register"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "pickClosingDialog",
+   "kind": "footer",
+   "key": "DRPG.Floor.closing.pick",
+   "count": 1,
+   "why": "E102 C3: Gives the chosen student the floor for the Closing Argument"
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "hallRoomFields",
+   "kind": "input",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The fieldset's legend and hint already say it shows on everyone's room tile."
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "hallRoomFields",
+   "kind": "input",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Labelled Picture, with the picker button beside it carrying its own tooltip."
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "hallRoomFields",
+   "kind": "textarea",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Labelled Description, under the fieldset's hint."
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "scenesZoneRows",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: The hall region a token stands in to take this side in the zone modes"
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "scenesTabRows",
+   "kind": "select",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: The scene the table goes back to when the trial ends"
+  },
+  {
+   "file": "scripts/trial-scene.mjs",
+   "unit": "scenesTabRows",
+   "kind": "kit:toggle",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each toggle's label spells out what it does in full."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "questionRows",
+   "kind": "input",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Labelled Question, Zone A's answer and Zone B's answer."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "questionRows",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "E102 C3: The side the class must stand on to go to the next question"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "editDiveSet",
+   "kind": "input",
+   "key": "DRPG.Zones.dive.editor.name",
+   "count": 1,
+   "why": "none needed: A name field; its label says it."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "editDiveSet",
+   "kind": "input",
+   "key": "DRPG.Zones.dive.editor.conclusion",
+   "count": 1,
+   "why": "E102 C3: Becomes a Finding, told to the table, when the class answers every question right"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "pickerHtml",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "none needed: The line under the modes changes to say what the picked one does."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "pickerHtml",
+   "kind": "input",
+   "key": "DRPG.Zones.picker.b",
+   "count": 1,
+   "why": "none needed: Labelled; the mode's line says what the zones are for."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "pickerHtml",
+   "kind": "input",
+   "key": "DRPG.Zones.picker.thesis",
+   "count": 1,
+   "why": "E102 C3: Shown under the question while the camps argue"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "pickerHtml",
+   "kind": "select",
+   "key": "DRPG.Zones.picker.set",
+   "count": 1,
+   "why": "E102 C3: The Logic Dive set to play. The number is how many questions it holds."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "pickerHtml",
+   "kind": "button",
+   "key": "DRPG.Zones.picker.noSets",
+   "count": 1,
+   "why": "none needed: Its label, with the ellipsis, says it opens the list of sets."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "openDiveSets",
+   "kind": "button",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Opens the set's editor, as its label says."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "openDiveSets",
+   "kind": "button",
+   "key": "DRPG.Zones.dive.editor.edit",
+   "count": 1,
+   "why": "none needed: Asks before it deletes, and the question says it cannot be undone."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "findingsListHtml",
+   "kind": "button",
+   "key": "DRPG.Zones.findings.confirmedMark",
+   "count": 1,
+   "why": "E102 C3: Changes the words. The table is told what it was and what it is now."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "findingsListHtml",
+   "kind": "button",
+   "key": "DRPG.Zones.findings.edit",
+   "count": 1,
+   "why": "E102 C3: Takes the Finding off the list at once and tells the table"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "findingsListHtml",
+   "kind": "button",
+   "key": "DRPG.Zones.findings.delete",
+   "count": 1,
+   "why": "E102 C3: Tells the table that Monokuma confirms this Finding"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "askFindingText",
+   "kind": "input",
+   "key": "DRPG.Zones.findings.text",
+   "count": 1,
+   "why": "none needed: A single text field labelled Finding, under a title saying Add or Edit."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "editDiveSet",
+   "kind": "footer",
+   "key": "DRPG.Zones.dive.editor.save",
+   "count": 1,
+   "why": "none needed: Saves the set, as its label says; only the GMs see it."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "openDiveSets",
+   "kind": "footer",
+   "key": "DRPG.Zones.dive.editor.new",
+   "count": 1,
+   "why": "none needed: Opens an empty set editor, as its label says."
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "askFindingText",
+   "kind": "footer",
+   "key": "DRPG.Zones.findings.save",
+   "count": 1,
+   "why": "E102 C3: Saves the Finding and tells the table"
+  },
+  {
+   "file": "scripts/trial-zones-ui.mjs",
+   "unit": "openFindings",
+   "kind": "footer",
+   "key": "DRPG.Zones.findings.add",
+   "count": 1,
+   "why": "none needed: Opens a field for the words; the save there carries the tooltip."
+  },
+  {
+   "file": "scripts/trial.mjs",
+   "unit": "pickObjectionEvidence",
+   "kind": "select",
+   "key": "DRPG.Trial.objectionPickLabel",
+   "count": 1,
+   "why": "none needed: The line above says which Truth Bullet to choose."
+  },
+  {
+   "file": "scripts/trial.mjs",
+   "unit": "pickObjectionEvidence",
+   "kind": "textarea",
+   "key": "DRPG.Trial.commentPlaceholder",
+   "count": 1,
+   "why": "E102 C3: Your words go on the card with your Truth Bullet, for the whole table"
+  },
+  {
+   "file": "scripts/trial.mjs",
+   "unit": "repointDialog",
+   "kind": "select",
+   "key": "DRPG.Floor.repointTo",
+   "count": 1,
+   "why": "none needed: The label says what is picked."
+  },
+  {
+   "file": "scripts/trial.mjs",
+   "unit": "openObjectionLog",
+   "kind": "button",
+   "key": "DRPG.Trial.logOverruled",
+   "count": 1,
+   "why": "E102 C3: Overrules this Objection. Its price stays, and the trial goes back to where it was."
+  },
+  {
+   "file": "scripts/trial.mjs",
+   "unit": "repointDialog",
+   "kind": "footer",
+   "key": "DRPG.Floor.repoint",
+   "count": 1,
+   "why": "E102 C3: Aims the running Objection at the chosen student instead"
+  },
+  {
+   "file": "scripts/ui-columns.mjs",
+   "unit": "choiceRowHtml",
+   "kind": "input",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each row carries its own line of explanation (or the reason it cannot be picked)."
+  },
+  {
+   "file": "scripts/use-items.mjs",
+   "unit": "askWhichResource",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each choice names what it restores and how much."
+  },
+  {
+   "file": "scripts/use-items.mjs",
+   "unit": "askWhichResource",
+   "kind": "footer",
+   "key": "DRPG.Items.useConfirm",
+   "count": 1,
+   "why": "E102 C2: The item is used up, with no way back."
+  },
+  {
+   "file": "scripts/verdict.mjs",
+   "unit": "openVerdictDialog",
+   "kind": "footer",
+   "key": "DRPG.Vote.gotItRight",
+   "count": 1,
+   "why": "none needed: The window's note spells out what a right verdict does."
+  },
+  {
+   "file": "scripts/verdict.mjs",
+   "unit": "openVerdictDialog",
+   "kind": "footer",
+   "key": "DRPG.Vote.gotItWrong",
+   "count": 1,
+   "why": "none needed: The window's note spells out what a wrong verdict does, a tie included."
+  },
+  {
+   "file": "scripts/verdict.mjs",
+   "unit": "askBlackenedRule",
+   "kind": "footer",
+   "key": "DRPG.Rules.addNew",
+   "count": 1,
+   "why": "none needed: The window's note says it is announced to everyone as one of Monokuma's rules."
+  },
+  {
+   "file": "scripts/voice-panel.mjs",
+   "unit": "deviceRow",
+   "kind": "dom:select",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Labelled device pickers; each option is a device's name."
+  },
+  {
+   "file": "scripts/voice-panel.mjs",
+   "unit": "voiceFieldset",
+   "kind": "dom:input",
+   "key": "DRPG.Voice.panel.pttKey",
+   "count": 1,
+   "why": "none needed: Both choices are self-evident; the key line beside them says which key talks."
+  },
+  {
+   "file": "scripts/vote.mjs",
+   "unit": "castBallot",
+   "kind": "radio",
+   "key": null,
+   "count": 1,
+   "why": "none needed: Each row is the student's name; nothing more to say."
+  }
+ ]
+}

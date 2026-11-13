@@ -11,7 +11,7 @@ the owner's review page; the owner approves them window by window. Nothing is bu
 
 ## 2. The census (measured, 13.11.2026)
 
-`node docs/dev/e102/census.mjs` (read-only, prints JSON) rebuilds E57 prep's scanner (claude/e57-prep b7575629,
+`node tools/tooltip-census.mjs` (`docs/dev/e102/census.mjs` until C1) (read-only, prints JSON) rebuilds E57 prep's scanner (claude/e57-prep b7575629,
 `docs/dev/e57/MEASURE-coverage.md` B.1; that scanner was not committed). Its method is in its header. On 421f239:
 
 | | E57 prep (4dfac3a, 1.2.108) | this census (421f239, 1.2.109) |
@@ -114,7 +114,7 @@ for `data-tooltip`, `title` or a hint line, and the baseline is held to that rea
 - Red first: C1 commits the part with a planted fixture (a control added to a copy with no tooltip) that it must
   fail, the way `node tools/check.mjs moves` plants its pairs.
 
-The census script moves from `docs/dev/e102/census.mjs` into `tools/` in C1 (unchanged but for its paths).
+The census script moved from `docs/dev/e102/census.mjs` to `tools/tooltip-census.mjs` in C1, as functions the check part calls.
 
 Also, per window, a test in the suite (R numbers from the coordinator; `node tools/registry.mjs --next`) that opens
 the window headless and reads that each control it lists carries a non-empty `data-tooltip` in the client's language

@@ -206,6 +206,13 @@
  *             gm-panel.mjs's tiles, FUTURE, SAME, OPPOSITES), its structure
  *             red, its gaps printed - R3334-R3339 hold them red until the
  *             drawing rounds close them. Bare Node.
+ *   tooltips  the controls with no help (E102 C1; tools/tooltip-census.mjs,
+ *             whose header says what it reads and what it misreads): its
+ *             self-check of six planted sites, then every control a module
+ *             script draws with neither a tooltip nor a hint line, held to
+ *             tools/tooltip-census.json by file, unit, kind and key - red on a
+ *             new one with no row, red on a row no site needs any more (the
+ *             baseline only shrinks). Needs espree (`npm ci` in audit/harness).
  */
 
 import fs from "node:fs";
@@ -1210,7 +1217,19 @@ async function glyphs() {
     return [...misses, ...problems, ...structure];
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast, glyphs };
+/* ------------------------------ tooltips ------------------------------ */
+
+async function tooltips() {
+    try {
+        const tool = await import(url.pathToFileURL(path.join(REPO, "tools", "tooltip-census.mjs")).href);
+        return tool.check(line => console.log(line));
+    } catch (err) {
+        if (err.code === "MODULE_NOT_FOUND") return ["espree is not installed - run `npm ci` in audit/harness first"];
+        return [`the census could not run (${String(err.message).split("\n")[0]})`];
+    }
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast, glyphs, tooltips };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {
