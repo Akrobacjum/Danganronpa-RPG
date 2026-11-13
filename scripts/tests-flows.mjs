@@ -63,8 +63,10 @@
 
 export const FLOWS = Object.freeze([
     // E18 C1 (19.10.2026): a Dynamic answer goes by the primary (`dynamic.answer`), which 40 drives from the card's button.
+    // E39 C2 (13.11.2026): 99-actions drives every row of ACTIONS from p1's page, its price and its bands; still partial: the
+    // Dynamic action's difficulty is driven to the GM's card and no further there (40 and 88 answer it).
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
-        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length"], status: "partial", stage: "E39" },
+        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length", "99-actions"], status: "partial", stage: "E39" },
     // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
