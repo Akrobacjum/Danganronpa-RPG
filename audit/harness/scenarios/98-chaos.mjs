@@ -1,6 +1,6 @@
 /**
  * 98-chaos: browsers that reload or drop in the middle of things (E38, 13.11.2026; plan docs/dev/plans/E38.md on
- * claude/plan-130, its 3.2; the harness README's planned row 85, numbered 98 here).
+ * the planner's branch, its 3.2; the harness README's planned row 85, numbered 98 here).
  *
  * The seed's GM and three players, no second GM: every reload here is the only GM's, the case a table of one GM
  * meets. Each is a real `reload(who)` (cluster.mjs, E38 C1): a new process for the same user with the localStorage

@@ -1,6 +1,6 @@
 /**
  * 97-two-gms: two Gamemasters at one table, a reload and a change of primary (E38, 13.11.2026; plan
- * docs/dev/plans/E38.md on claude/plan-130, its 3.1-3.2; the harness README's planned row 82, numbered 97 here).
+ * docs/dev/plans/E38.md on the planner's branch, its 3.1-3.2; the harness README's planned row 82, numbered 97 here).
  *
  * The seed's GM and three players, and `gm2`, a second Gamemaster declared late whose id sorts after the seed
  * GM's, so the seed GM stays the primary while both are connected (utils.mjs `primaryGmId`: the smallest id of
