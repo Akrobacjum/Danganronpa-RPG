@@ -84,5 +84,21 @@ table's, and stays open.
 - **Tiers 0-1** at bd6453dd: 1379 passed, 0 failed, 16 skipped, 0 red (1394 tests, 418 s; R4931 out, R4934 in).
 - **Tier 2 by name:** the body card's two tests, every test named "Event panel", and "every control in the module's own
   chrome has a name": 25 passed, 0 failed.
-- **Not run here:** the scenarios, and the glass sweep with the empty panel standing (the curtain's blocks were read by
-  the script above, not by `glass-sweep.mjs`).
+- **Scenarios that read files gaps-111 changes**, at 1ebd590c:
+
+  | Scenario | Result |
+  | --- | --- |
+  | 14-quiet | 7/7 |
+  | 40-flow | 88/88 |
+  | 62-investigation | 51/51 |
+  | 63-class-trial | 79/79 (C2 now expects the late entry once: the owner's answer) |
+  | 66-rooms | 76/76 |
+  | 75-voice-tile | 41/41 |
+  | 76-passages | 117/118, 1 expected red (a Foundry limit, as before) |
+  | 86-frame-work | 104/104 |
+  | 87-messenger-sound | 35/35 |
+  | 93-spectator | 17/17 |
+  | 96-late-sequence | 7/7 |
+
+- **Glass sweep** (`node audit/glass-sweep.mjs`, no `--accents`) at 1ebd590c: green, 2 themes x 2 roles x 25 sizes, 46
+  with glass, 0 failing; its controls read their planted faults.
