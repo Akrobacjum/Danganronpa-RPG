@@ -338,6 +338,13 @@
         "find": "must(src.length > 20000, `${file} read nothing - this test would read nothing`);",
         "replace": "must(src.length > 2000, `${file} read nothing - this test would read nothing`);",
         "why": "the guard is against an empty read: the sheet's family is read file by file now, and its smallest file (sheet-mode.mjs, about 9700 characters, strings blanked) is under the 20000 the whole sheet.mjs cleared"
+      },
+      {
+        "test": "R4672",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "            \"sheet.mjs\": [1, \"the character sheet's biography\"],\n",
+        "replace": "            \"sheet-sidebar.mjs\": [1, \"the character sheet's biography\"],\n",
+        "why": "R4672 (on main since 1.2.111) counts the textareas each file draws; the biography's is drawn in the sidebar, which the cut moves into sheet-sidebar.mjs"
       }
     ]
   },
