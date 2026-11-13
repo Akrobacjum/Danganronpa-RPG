@@ -20,6 +20,7 @@ below under "Waits for / not built".
 | C2 (0919d66f) | **`game.drpg.checkState()`** (scripts/state-check.mjs, new): a pure `stateProblems(snapshot, clock)` and a GM-only reader of this world, each problem said on the console in English, `{ ok, problems }`, null on a player's browser; it only reads. Three invariants the module already states: world-secrets.mjs's rules, no `passage*`/`frisk*` module flag on an actor, user, token (and delta), message, item, scene, region or wall (A10/A11), and the clock's phase and counters. Tier 1 R5100 on fixtures and the suite's world; api-surface.json's row (R1560) | scripts/state-check.mjs, api.mjs, tools/api-surface.json, tests-tier1.mjs, R-REGISTRY.md |
 | C3 (b9a36767) | its two callers: once at the primary GM's ready (warnings on that GM's console only), and after every scenario in the harness (cluster.mjs: a check of its own, read on a GM still connected; noted, not failed, with no GM left or a tree without it). Its first run found 30-security's leftover (below), fixed in the scenario | scripts/module.mjs, audit/harness/cluster.mjs, scenarios/30-security.mjs |
 | C4 (9a764940) | tier 2 **E40-T3**, the phase x action matrix: the sheet's tile (`actionButton`) and the press (`performAction`) held to each other in daily life, an Eclipse, the Class Trial and a fight, for every key of ACTIONS - they agree in every cell. A fight in an Eclipse is measured unreachable both ways (no Eclipse started in a fight, no fight opened in an Eclipse); written raw, ten keys' tile and press disagreed on the sentence, which only a console reaches | scripts/tests-tier2.mjs |
+| C5 (3f72611c) | **18-trial**, the planned row: the trial step by step on the browsers that do each step - opened, real ballots from p1, p2 and p3 (Chie's player too) through the bridge, the count, a wrong verdict (DC36: nobody dead yet), the close executing once - with p1's and p2's world data and new cards scanned for the Blackened after every step (`canary.worldScan`, `canary.chatScan`); 26 checks | audit/harness/scenarios/18-trial.mjs, README row 18, tests-flows.mjs (class-trial names 18) |
 
 ## Mutants (the plan's item 6, so far)
 
@@ -36,6 +37,8 @@ below under "Waits for / not built".
 | `checkState`: the GM gate dropped; `quiet` ignored | R5100 | KILLED, each |
 | the press's trial gate letting Search through; its Eclipse gate locking Move; the tile's trial lock letting Listen through | E40-T3 | KILLED, each |
 | eclipse.mjs `startRefusal`'s incidentFirst dropped; murder-rules.mjs `openMurder`'s Eclipse refusal dropped | E40-T3 | KILLED, each |
+| the verdict's public card carrying the register's Blackened (`trialBlackenedIds`) in its flags | 18-trial | KILLED: the verdict step's world and chat scans and the close's world scan fail |
+| the same card carrying the verdict record's `blackenedIds` | 18-trial | SURVIVED - that record holds none at the card, so the mutant leaked nothing (read on the run) |
 
 A test written for the four ballot rules (E40-T2, 13.11.2026) was dropped before it was pushed: the mutants above
 showed the older test already fails on each of them, so it measured nothing new but that a player's second legal
@@ -63,6 +66,8 @@ None in the module's code by a failing test. Two readings:
 ## Test results
 
 - Baseline tiers 0-1 at 421f2395 (E39's): 1320 ran, 1305 passed, 0 failed, 16 skipped, 0 red.
+- Before the push of C5, at 3f72611c: tiers 0-1 whole 1321 ran, 1306 passed, 0 failed, 16 skipped, 0 red (414 s);
+  88-flow-length (reads tests-flows.mjs) and 18-trial, each `run-all.mjs scenarios --only NN`, green.
 - Before the push of C4, at 9a764940: tiers 0-1 whole 1321 ran, 1306 passed, 0 failed, 16 skipped, 0 red (429 s);
   tier 2 by name E40-T3, E40-T1 and "in a fight the tile says Crisis actions" 3 ran, 0 failed. No scenario reads
   tests-tier2.mjs (`git grep`).
@@ -98,9 +103,11 @@ The plan's items 2-6, in its order, with what each would take:
   shared "allowed now" predicate replacing the tile's and the press's chains (new production code; the matrix is what
   it would be held to), the trial floor's modes as a dimension (R1023 holds `modeAllows` to its three readers already),
   and `passage.*` and `action.frisk*` as columns (the A10/A11 amendments; their gates are the bridge's, not the tile's).
-- **18-trial** (item 1): the trial scenario on a FLOWS list with `playerLeakScan` after every step; the plan's amendment
-  calls it 18-trial with flows from 63, 66, 67. 63-class-trial already drives most of the trial end to end; 18-trial adds
-  the shared leak scan as an invariant and the DC36 steps (C1 covers DC36 headless in tier 2).
+- **18-trial** (item 1): built (C5) on the trial's five steps. Not in it from the plan's list: two Blackened, duplicates
+  on the card, a GM reload during the vote, a late player with ack, preselection and "Nobody", D4's offer applied once,
+  a deceased before and after discovery, the Final Trial, a second trial (D17), a reset during a suicide incident, and
+  season-wipe on a world copy; most are 63-class-trial's, 61's and 65's (63: a late player, a reload, the verdict's
+  window with "Nobody", a second trial, the Level Ups), and the rest is open.
 - **The regex tests** (item 4): the ~50 tier-0 tests that match behaviour by regex become function calls, each broken
   once before and after. A mechanical, low-risk group once counted (the plan's Q-E40-3: the tree's counts, re-counted
   when the work starts).
