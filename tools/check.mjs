@@ -211,9 +211,11 @@
  *             only, and nothing a table never reads (E59 C5a): every file is
  *             named by a module script that is not a test, a stylesheet or
  *             module.json, comments blanked - a script by any script - or is a
- *             note shipped with its reason (PACKAGE_NOTES); a planted package
- *             with two faults first. Red on 421f2395: macros/ and
- *             icons/pixel-sprite.svg. Bare Node and git.
+ *             note shipped with its reason (PACKAGE_NOTES); and what a table
+ *             reads ships (module.json's paths, a script's ./x.mjs imports,
+ *             every module file a reader names; REVIEW-111-e59 finding 1). A
+ *             planted package with eight faults first. Red on 421f2395:
+ *             macros/ and icons/pixel-sprite.svg. Bare Node and git.
  */
 
 import fs from "node:fs";
@@ -649,7 +651,7 @@ function tree() {
  * THE PACKAGE SHIPS WHAT A TABLE READS (E59 C5a, 13.11.2026; D47, E59 plan M6). release.yml builds module.zip with
  * `git archive --format=zip -o module.zip HEAD`, which leaves out what .gitattributes marks `export-ignore`. This
  * part lists that archive the same way (`git archive --format=tar --worktree-attributes HEAD`: the committed files,
- * and the working tree's .gitattributes, so an export rule is judged before its commit) and holds it to two rules:
+ * and the working tree's .gitattributes, so an export rule is judged before its commit) and holds it to three rules:
  *   - its top level is the module's: PACKAGE_TOP;
  *   - every file in it is read at a table: named in the code (comments blanked) of a module script that is not a
  *     test, a stylesheet or module.json - a path written out, or one built from a template (`icons/item-${kind}.svg`
@@ -660,6 +662,11 @@ function tree() {
  * things nothing reads: macros/ (5 files; eslint.config.mjs's own note calls them Foundry macro bodies) and
  * icons/pixel-sprite.svg (named by two stylesheet comments and by the glyph tests). A pattern with no letter of
  * its own outside the extension (`${name}.svg`) names nothing: it would read every file of its kind.
+ *   - and the other way (REVIEW-111-e59 finding 1, 13.11.2026): what a table reads ships - every path module.json
+ *     names (esmodules, scripts, styles, languages), every `./x.mjs` a shipped script imports, and every path a
+ *     shipped reader that is not a test names, where the commit holds a file of the module's (under PACKAGE_TOP) it
+ *     matches: `packageMissing`. Until then the part answered no problem with lang/pl.json, scripts/ui-kit.mjs or
+ *     fonts/ export-ignored, each a zip that does not load or draws without its fonts (measured on 68bc5f3e).
  */
 const PACKAGE_TOP = ["module.json", "README.md", "LICENSE", "lang/", "scripts/", "styles/", "icons/", "fonts/", "docs/handbooks/"];
 const PACKAGE_NOTES = {
@@ -699,9 +706,52 @@ function namedPaths(code) {
     for (const [ref] of text.matchAll(new RegExp(String.raw`[\w*.\-/]+\.(?:${PACKAGE_EXT})\b`, "g"))) {
         const p = ref.replace(/^(?:\.{1,2}\/)+/, "").replace(/^\/?modules\/[^/]+\//, "");
         if (!/[a-z]/i.test(p.replace(new RegExp(String.raw`\.(?:${PACKAGE_EXT})$`), "").replace(/\*/g, ""))) continue;
-        out.push(new RegExp(String.raw`(^|/)${p.replace(/[.+?^$()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*")}$`));
+        out.push(Object.assign(new RegExp(String.raw`(^|/)${p.replace(/[.+?^$()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*")}$`), { path: p }));
     }
     return out;
+}
+
+/**
+ * What a table reads that the package of `files` leaves out: `tracked` is every file of the commit, `readers` the
+ * shipped readers as `packageProblems` takes them. module.json's paths must ship whatever the commit holds; a script's
+ * `./x.mjs` import must ship where the commit holds scripts/x.mjs (the suite's fixtures write imports of files that
+ * do not exist - an import of a deleted file is R161's and lint's, not the package's); and a path another reader
+ * names must ship where the commit holds a file under PACKAGE_TOP it matches - every file a template matches, since
+ * the code picks one at run time (`lang/${lang}.json` reads lang/pl.json on a Polish page; module.json names English
+ * alone) - and a name that matches no file of the module's is not this rule's: a URL, a world's file, a system's.
+ * One line per file left out, by its first reader.
+ */
+function packageMissing(files, tracked, readers) {
+    const shipped = new Set(files);
+    const moduleFiles = tracked.filter(f => PACKAGE_TOP.some(t => (t.endsWith("/") ? f.startsWith(t) : f === t)));
+    const tracked1 = new Set(tracked);
+    const problems = new Map();
+    const miss = (f, why) => { if (!problems.has(f)) problems.set(f, `${f} ${why} and does not ship: take its export-ignore out of .gitattributes`); };
+    for (const { file, code } of readers) {
+        if (file === "module.json") {
+            let manifest = null;
+            try { manifest = JSON.parse(code); } catch { problems.set("module.json", "module.json does not parse - its paths could not be read"); continue; }
+            const named = [...["esmodules", "scripts", "styles"].flatMap(k => (manifest[k] ?? []).map(p => [k, p])),
+                ...(manifest.languages ?? []).map(l => ["languages", l.path])];
+            for (const [key, p] of named) {
+                const rel = String(p).replace(/^\.\//, "");
+                if (!shipped.has(rel)) miss(rel, `is named by module.json (${key})`);
+            }
+            continue;
+        }
+        if (file.endsWith(".mjs")) {
+            for (const m of code.matchAll(/(?:\bfrom|\bimport\s*\()\s*["'`]\.\/([\w-]+\.mjs)["'`]/g)) {
+                const rel = `scripts/${m[1]}`;
+                if (tracked1.has(rel) && !shipped.has(rel)) miss(rel, `is imported by ${file}`);
+            }
+        }
+        if (/^scripts\/tests[\w-]*\.mjs$/.test(file)) continue;
+        for (const re of namedPaths(code)) {
+            const wanted = moduleFiles.filter(f => re.test(f));
+            for (const f of wanted) if (!shipped.has(f)) miss(f, `is named by ${file}${re.path.includes("*") ? ` (${re.path})` : ""}`);
+        }
+    }
+    return [...problems.values()];
 }
 
 /** What a package of `files` ships that it should not: `readers` is `[{ file, code }]`, code with comments blanked. */
@@ -743,9 +793,15 @@ function packageList() {
     return tarEntries(buf);
 }
 
+/** Every file of the commit the archive is made from, export rules or not. */
+function packageTracked() {
+    return execFileSync("git", ["-C", REPO, "ls-tree", "-r", "--name-only", "HEAD"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n").filter(Boolean);
+}
+
 function pkg() {
     let entries;
-    try { entries = packageList(); }
+    let tracked;
+    try { entries = packageList(); tracked = packageTracked(); }
     catch (err) { return [`not a git checkout, or git archive failed (${String(err.message).split("\n")[0]})`]; }
     const files = entries.map(e => e.name);
     /* The self-check: a planted package of seven, four of them faults - a folder that is not the module's, an icon
@@ -758,18 +814,33 @@ function pkg() {
         [readerOf("scripts/config.mjs", "const a = `modules/${MODULE_ID}/icons/item-${kind}.svg`, b = \"icons/state-dead.svg\"; // icons/unread.svg\n"),
             readerOf("scripts/tests.mjs", "await import(\"./tests-only.mjs\"); fetch(\"icons/test-only.svg\");"),
             readerOf("styles/x.css", "/* icons/css-comment.svg */ a { color: red; }")]);
+    /* And three a table reads and the planted package leaves out (packageMissing): a language a script's template
+       reads (module.json names English alone, as the real one does), a script a shipped script imports, a font a
+       stylesheet's url() names - lang/pl.json, scripts/ui-kit.mjs and fonts/ export-ignored, the three faults the part
+       did not see on 68bc5f3e - beside a language, a script and a font that ship, and a path that names no file of
+       the module's (`icons/svg/mystery-man.svg`, Foundry's own); and a fourth, a stylesheet module.json names
+       (`styles/gone.css`), without which the self-check stayed 7/7 with module.json's road switched off. */
+    const missPlant = packageMissing(
+        ["module.json", "lang/en.json", "scripts/module.mjs", "styles/x.css", "fonts/kept.woff2"],
+        ["module.json", "lang/en.json", "lang/pl.json", "scripts/module.mjs", "scripts/ui-kit.mjs", "styles/x.css", "styles/gone.css", "fonts/kept.woff2", "fonts/gone.woff2"],
+        [readerOf("module.json", JSON.stringify({ esmodules: ["scripts/module.mjs"], styles: ["styles/x.css", "styles/gone.css"], languages: [{ path: "lang/en.json" }] })),
+            readerOf("scripts/module.mjs", "import { drpgWindow } from \"./ui-kit.mjs\"; const icon = \"icons/svg/mystery-man.svg\";\n"
+                + "const file = `modules/${MODULE_ID}/lang/${lang}.json`;\n"),
+            readerOf("styles/x.css", "@font-face { src: url(\"../fonts/kept.woff2?v=1\"); } @font-face { src: url(../fonts/gone.woff2?v=2); }")]);
+    const missPlanted = ["styles/gone.css is named by module.json", "lang/pl.json is named by scripts/module.mjs", "scripts/ui-kit.mjs is imported by", "fonts/gone.woff2 is named by styles/x.css"];
     const planted = ["macros/x.js ships", "icons/unread.svg ships", "icons/test-only.svg ships", "icons/css-comment.svg ships"];
-    const seen = planted.filter(p => plant.some(q => q.startsWith(p))).length;
+    const seen = planted.filter(p => plant.some(q => q.startsWith(p))).length + missPlanted.filter(p => missPlant.some(q => q.startsWith(p))).length;
+    const plantedCount = planted.length + missPlanted.length, plantedGave = plant.length + missPlant.length;
     const readers = packageReaders(entries);
-    const problems = packageProblems(files, readers);
+    const problems = [...packageProblems(files, readers), ...packageMissing(files, tracked, readers)];
     /* The tests' exclusion reads something: a rename of the suite's files would leave it holding nothing. */
     if (!readers.some(r => /^scripts\/tests[\w-]*\.mjs$/.test(r.file))) problems.push("no reader matches scripts/tests*.mjs - the tests' exclusion reads nothing; rename it with the suite");
     const tops = [...new Set(files.map(f => (f.includes("/") ? `${f.split("/")[0]}/` : f)))];
     if (!files.length) problems.push("the archive listed no file - this part read nothing");
-    if (seen !== planted.length || plant.length !== planted.length) problems.push(`the self-check's planted package gave ${JSON.stringify(plant)}`);
+    if (seen !== plantedCount || plantedGave !== plantedCount) problems.push(`the self-check's planted package gave ${JSON.stringify([...plant, ...missPlant])}`);
     console.log(`package: git archive HEAD (the working tree's .gitattributes): ${files.length} file(s), top level ${tops.join(" ")}; `
-        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; self-check ${seen}/${planted.length} planted fault(s) seen, `
-        + `${plant.length - seen} other(s); ${problems.length} problem(s)`);
+        + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; self-check ${seen}/${plantedCount} planted fault(s) seen, `
+        + `${plantedGave - seen} other(s); ${problems.length} problem(s)`);
     return problems;
 }
 
