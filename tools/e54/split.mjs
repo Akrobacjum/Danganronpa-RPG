@@ -253,6 +253,59 @@ for (const t of targets) {
     outputs.set(manifest.source, `${rebuilt.replace(/\n*$/, "\n")}${fam.join("\n")}\n${kept.startsWith("\n") ? "" : "\n"}${kept.replace(/\n*$/, "\n")}${text.slice(ordered[ordered.length - 1].to).replace(/^\n+/, "")}`);
 }
 
+/* ---- the references that name the source's code (tools/check.mjs part `text` reads them) ----
+   tools/text-map.mjs's SCREENS rows name a screen's entry points as "scripts/<file>:<unit>": a unit that moved is named
+   in its new file, and a row naming the whole source ("scripts/<source>:*") names each new file too, so the screen and
+   its readers stay as they were. docs/dev/text-*.json's facts name a file and a word (`fn`) the file must spell: a fact
+   on the source whose word only a new file spells now names that file - the one declaring it as a top-level name, or
+   else the first in the manifest's order that spells it; a word no file of the family spells refuses. */
+const refEdits = new Map();   // file -> new text
+{
+    const srcName = manifest.source;
+    const facadeText = outputs.get(srcName);
+    const fileOfUnit = name => declared.get(name)?.group;
+    const mapPath = path.join(REPO, "tools", "text-map.mjs");
+    if (fs.existsSync(mapPath)) {
+        let map = fs.readFileSync(mapPath, "utf8");
+        const before = map;
+        map = map.replace(new RegExp(`"${srcName.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}:([\\w$]+)"`, "g"), (all, unit) => {
+            const g = fileOfUnit(unit);
+            return g && g !== "facade" ? `"${g}:${unit}"` : all;
+        });
+        map = map.replace(new RegExp(`"${srcName.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}:\\*"`, "g"),
+            all => [all, ...targets.map(t => `"${t.file}:*"`)].join(", "));
+        if (map !== before) refEdits.set("tools/text-map.mjs", map);
+    }
+    const docsDir = path.join(REPO, "docs", "dev");
+    for (const name of fs.existsSync(docsDir) ? fs.readdirSync(docsDir).filter(n => /^text-.*\.json$/.test(n)) : []) {
+        const rel2 = `docs/dev/${name}`;
+        const raw = fs.readFileSync(path.join(docsDir, name), "utf8");
+        let data;
+        try { data = JSON.parse(raw); } catch { continue; }
+        const facts = [];
+        const walk2 = node => { if (Array.isArray(node)) node.forEach(walk2); else if (node && typeof node === "object") { if (node.file === srcName && typeof node.fn === "string") facts.push(node); Object.values(node).forEach(walk2); } };
+        walk2(data);
+        const marker = `"file": "${srcName}"`;
+        const at = [];
+        for (let i = raw.indexOf(marker); i >= 0; i = raw.indexOf(marker, i + 1)) at.push(i);
+        if (at.length !== facts.length) { if (facts.length) refuse(`${rel2}: ${facts.length} fact(s) on ${srcName} but ${at.length} "file" field(s) in its text - not rewritten by position`); continue; }
+        const spells = (t, w) => new RegExp(`(^|[^\\w$])${w.replace(/[$]/g, "\\$")}([^\\w$]|$)`).test(t);
+        let out = raw, shift = 0, changed = false;
+        facts.forEach((f, k) => {
+            if (spells(facadeText, f.fn)) return;
+            const owner = declared.get(f.fn)?.group;
+            const pick = owner && owner !== "facade" ? owner : targets.map(t => t.file).find(file => spells(outputs.get(file), f.fn));
+            if (!pick) { refuse(`${rel2}: a fact on ${srcName} names "${f.fn}", which no file of the family spells`); return; }
+            const pos = at[k] + shift;
+            const next = `"file": "${pick}"`;
+            out = out.slice(0, pos) + next + out.slice(pos + marker.length);
+            shift += next.length - marker.length;
+            changed = true;
+        });
+        if (changed) refEdits.set(rel2, out);
+    }
+}
+
 /* ---- report, and write ---- */
 const count = file => ordered.filter(st => st.group === file).length;
 console.log(`e54-split: ${manifest.source}: ${ordered.filter(x => !x.import).length} declaration(s) read; facade keeps ${count("facade")}; `
@@ -265,6 +318,10 @@ if (problems.length) {
 for (const [file, out] of outputs) {
     const lineCount = out.split("\n").length - 1;
     console.log(`e54-split: ${DRY ? "would write" : "wrote"} ${file} (${lineCount} lines)`);
+    if (!DRY) fs.writeFileSync(path.join(REPO, file), out);
+}
+for (const [file, out] of refEdits) {
+    console.log(`e54-split: ${DRY ? "would point" : "pointed"} ${file}'s references to ${manifest.source} at the family`);
     if (!DRY) fs.writeFileSync(path.join(REPO, file), out);
 }
 console.log(`e54-split: ${DRY ? "applies; nothing written (--dry)" : "done"}`);
