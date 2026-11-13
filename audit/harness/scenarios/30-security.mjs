@@ -3002,6 +3002,37 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         && Boolean(heard.card) && heard.card.includes("Botan Kage"), JSON.stringify({ rooms, listened, armed, heard }));
 
     /*
+     * 7n'. A TAMPER'S NUMBER TELLS NO BODY THE ROLLER MAY NOT KNOW (the E101 line's review of 1.2.110, V3, 13.11.2026).
+     * E64 C1a gave the fresh scene's -3 to an unfound body of this chapter; a GM counted its whole deaths store and a
+     * player's browser its own copy, so a hit between the two numbers told the player a body lies unfound. Here a death of
+     * this chapter the GMs keep and p1 may not know (Botan's, no row naming p1): p1's own browser reads its default (no
+     * arguments) and the GM scores Aiko's threshold; the two must be one number. Read only where the fresh scene can stand
+     * on the body alone (no incident, no body found, a phase with a fresh scene). Red at 12a7e309: the GM 9, p1 12.
+     */
+    const freshPlant = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { CLEANUP } = await import("${repoUrl}/scripts/config.mjs");
+        const { murderState } = await import("${repoUrl}/scripts/murder.mjs");
+        const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        const clock = (await import("${repoUrl}/scripts/clock.mjs")).getClock() ?? {};
+        const p1 = game.users.find(u => !u.isGM && game.actors.get("${ids.aiko}").testUserPermission(u, "OWNER"));
+        const open = !murderState()?.active && !bodyDiscovery() && !(CLEANUP.freshScene?.until ?? []).includes(clock.phase)
+            && !game.actors.get("${ids.botan}").testUserPermission(p1, "OWNER");
+        if (open) await S.deathStore.patch("${ids.botan}", { chapter: clock.chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+        return { open };`, { timeout: 30000 });
+    await settle(800);
+    const freshOnP1 = await p1.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        return { bonus: C.freshSceneBonus(), dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")) };`);
+    const freshOnGm = await gm.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const read = { dc: C.cleanupDc("subtle", game.actors.get("${ids.aiko}")), whole: C.freshSceneBonus() };
+        await S.deathStore.drop("${ids.botan}");
+        return read;`, { timeout: 30000 });
+    await settle(300);
+    check("SECURITY: a Tamper's threshold on the GM is the one its roller's own browser shows - no body the roller may not know lowers it",
+        freshPlant.open && freshOnGm.whole > 0 && freshOnP1.bonus === 0 && freshOnP1.dc === freshOnGm.dc,
+        JSON.stringify({ freshPlant, freshOnP1, freshOnGm }));
+
+    /*
      * 7o. A CONSOLE'S STARTING SHEET (E29 C2, 05.10.2026; audit S03-45, its code part). Setting
      * a student up writes the maxima, Health, Sanity and Hope and stamps the season's baseline;
      * putting a sheet back to that baseline writes the traits and the advance counter. Both are on
@@ -6182,6 +6213,178 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         await botan.update({ "system.resources.actions.value": ${JSON.stringify(cubSetup.had[0])}, "system.resources.hope.value": ${JSON.stringify(cubSetup.had[1])} });
         const bt = canvas.scene.tokens.find(t => t.actorId === botan.id);
         if (bt && ${JSON.stringify(Boolean(cubSetup.was))}) await bt.update(${JSON.stringify(cubSetup.was ?? {})});
+        return true;`, { timeout: 60000 });
+    await settle(300);
+
+    /*
+     * FORGERIES OF A DEAD STUDENT'S ANSWER TO THE INVITATION (E72 C6, 12.11.2026; DC17, DC18). The Monocub Rule is taken
+     * by the dead student's own player: `monocub.answer` is judged on its owner (`owns`), and on the GMs' row of the
+     * invitation (`cubStore`), never on the packet. The GM marks Botan (p2's) dead and invites him, with p2's windows
+     * held shut so p2 does not answer first. Then p1's console accepts for Botan in p2's name (refused for ownership,
+     * told; Botan no Monocub, the invitation still open); the GM withdraws the invitation; and p2's console accepts for
+     * Botan with none open (refused, told `refused`; Botan no Monocub). The control - p2's yes from the Rule's window -
+     * is 33-bridge-paths A20.
+     */
+    phase("forgeries of a dead student's answer to the invitation", { flow: "monocub-invite" });
+    const p2Auto = await p2.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readInvite = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}"); const row = S.cubStore.get(b.id) ?? null;
+        return { cub: Mc.isMonocub(b), invite: Boolean(row?.invite), accepted: row?.acceptedRule ?? null };`;
+    const inviteSetup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}");
+        globalThis.__s30inviteRow = foundry.utils.deepClone(S.cubStore.get(b.id) ?? null);
+        await C.markDeceased(b);
+        return { open: await Mc.offerMonocub(b) };`, { timeout: 60000 });
+    await settle(800);
+    const inviteForged = await forge("monocub.answer", { actorId: ids.botan, accept: true }, readInvite);
+    check("SECURITY: p1 accepting the Monocub Rule for p2's dead Botan is refused for ownership and told - Botan no Monocub, the invitation still open",
+        inviteSetup.open === true && inviteForged.unchanged && inviteForged.forOwnership && inviteForged.after.cub === false
+            && inviteForged.after.invite === true && inviteForged.told.some(r => r.what === "monocub.answer"),
+        JSON.stringify({ inviteSetup, inviteForged }), { flow: "monocub-invite" });
+    await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); return await Mc.cancelMonocubOffer(game.actors.get("${ids.botan}"));`);
+    await settle(500);
+    const inviteBefore = await gm.eval(readInvite);
+    await p2.eval(`
+        if (!globalThis.__inviteToldHook) {
+            globalThis.__inviteToldHook = true; globalThis.__inviteTold = [];
+            game.socket.on("${SOCKET}", payload => {
+                if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__inviteTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+            });
+        }
+        globalThis.__inviteTold.length = 0;
+        game.socket.emit("${SOCKET}", { action: "monocub.answer", userId: game.user.id, requestId: "SECINVITENONE", actorId: "${ids.botan}", accept: true },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(900);
+    const inviteNone = { before: inviteBefore, after: await gm.eval(readInvite),
+        told: await p2.eval(`return globalThis.__inviteTold.filter(t => t[0] === "SECINVITENONE");`) };
+    check("SECURITY: p2 accepting the Monocub Rule for its own Botan with no invitation open is refused and told - Botan no Monocub",
+        JSON.stringify(inviteNone.before) === JSON.stringify(inviteNone.after) && inviteNone.after.cub === false && inviteNone.after.invite === false
+            && JSON.stringify(inviteNone.told) === JSON.stringify([["SECINVITENONE", "bridge.refused", "refused"]]),
+        JSON.stringify(inviteNone), { flow: "monocub-invite" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}");
+        if (Mc.isMonocub(b)) await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        const was = globalThis.__s30inviteRow; delete globalThis.__s30inviteRow;
+        if (was) await S.cubStore.patch(b.id, was);
+        else if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        return true;`, { timeout: 60000 });
+    await p2.eval(`const was = ${JSON.stringify(p2Auto)}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(300);
+
+    /*
+     * FORGERIES OF A BRIBE (E72 C15 and its end review, 12.11.2026). `bribe.offer` is judged on the payer's owner (`owns`
+     * actorId) and `bribe.answer` on the Monocub's (`owns` cubId), the offer read from the GMs' row (`cubStore`'s
+     * `bribes`), never the packet. The GM makes Botan (p2's), dead, a Monocub and gives Chie (p3's) 2 Hope, with p2's
+     * windows held shut so p2 answers nothing. From consoles: p1 offers Botan a Bribe in Chie's name (refused for
+     * ownership, told; no offer open, Chie's Hope as it was); the GM opens an offer of Chie's itself, and p1 accepts it
+     * for Botan (refused for ownership, told; the offer still open, nothing paid); p2 accepts for its own Botan an offer
+     * not open (refused, told `refused`; nothing paid). The control - p1's offer and p2's yes in the window - is
+     * 33-bridge-paths A21.
+     */
+    phase("forgeries of a Bribe", { flow: "monocub-bribe" });
+    const p2BribeAuto = await p2.eval(`const was = globalThis.__dialogAuto; globalThis.__dialogAuto = false; return was ?? null;`);
+    const readBribe = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        return { open: Object.keys(S.cubStore.get(b.id)?.bribes ?? {}).length, purse: Mc.purseOf(b), hope: c.system.resources.hope.value };`;
+    const bribeSetup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        globalThis.__s30bribe = { row: foundry.utils.deepClone(S.cubStore.get(b.id) ?? null), hope: c.system.resources.hope.value, bHope: b.system.resources.hope.value };
+        await C.markDeceased(b);
+        await Mc.setMonocub(b, true);
+        await RG.trustedWrite(c, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+        return { cub: Mc.isMonocub(b) };`, { timeout: 60000 });
+    await settle(800);
+    const offerForged = await forge("bribe.offer", { actorId: ids.chie, cubId: ids.botan }, readBribe);
+    check("SECURITY: p1 offering p2's Monocub Botan a Bribe in p3's Chie's name is refused for ownership and told - no offer open, Chie's Hope as it was",
+        bribeSetup.cub === true && offerForged.unchanged && offerForged.forOwnership && offerForged.after.open === 0
+            && offerForged.told.some(r => r.what === "bribe.offer"),
+        JSON.stringify({ bribeSetup, offerForged }), { flow: "monocub-bribe" });
+    const bribeId = await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        return (await Mc.offerBribeOnGm({ actorId: "${ids.chie}", cubId: "${ids.botan}" }))?.bribeId ?? null;`, { timeout: 60000 });
+    await settle(800);
+    const answerForged = await forge("bribe.answer", { cubId: ids.botan, bribeId, accept: true }, readBribe);
+    check("SECURITY: p1 accepting for p2's Monocub Botan a Bribe open to him is refused for ownership and told - the offer still open, nothing paid",
+        Boolean(bribeId) && answerForged.unchanged && answerForged.forOwnership && answerForged.after.open === 1 && answerForged.after.purse === 0
+            && answerForged.after.hope === 2 && answerForged.told.some(r => r.what === "bribe.answer"),
+        JSON.stringify({ bribeId, answerForged }), { flow: "monocub-bribe" });
+    const bribeBefore = await gm.eval(readBribe);
+    await p2.eval(`
+        if (!globalThis.__bribeToldHook) {
+            globalThis.__bribeToldHook = true; globalThis.__bribeTold = [];
+            game.socket.on("${SOCKET}", payload => {
+                if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__bribeTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+            });
+        }
+        globalThis.__bribeTold.length = 0;
+        game.socket.emit("${SOCKET}", { action: "bribe.answer", userId: game.user.id, requestId: "SECBRIBENONE", cubId: "${ids.botan}", bribeId: "SECBRIBENONE0000", accept: true },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(900);
+    const bribeNone = { before: bribeBefore, after: await gm.eval(readBribe),
+        told: await p2.eval(`return globalThis.__bribeTold.filter(t => t[0] === "SECBRIBENONE");`) };
+    check("SECURITY: p2 accepting for its own Monocub Botan a Bribe that is not open is refused and told - nothing paid",
+        JSON.stringify(bribeNone.before) === JSON.stringify(bribeNone.after)
+            && JSON.stringify(bribeNone.told) === JSON.stringify([["SECBRIBENONE", "bridge.refused", "refused"]]),
+        JSON.stringify(bribeNone), { flow: "monocub-bribe" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const b = game.actors.get("${ids.botan}"), c = game.actors.get("${ids.chie}");
+        const was = globalThis.__s30bribe; delete globalThis.__s30bribe;
+        if (Mc.isMonocub(b)) await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        if (was?.row) await S.cubStore.patch(b.id, was.row);
+        await RG.trustedWrite(c, { "system.resources.hope.value": was?.hope ?? 0 }, { reason: "gmRuling" });
+        await RG.trustedWrite(b, { "system.resources.hope.value": was?.bHope ?? 0 }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await p2.eval(`const was = ${JSON.stringify(p2BribeAuto)}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(300);
+
+    /*
+     * FORGED ASKS AT THE MASTERMIND'S DOOR (E91 C4, C5; D038, 12.11.2026). `mastermind.lairLock` and `passage.lairSeal` are
+     * judged on the sender's own character (`owns` actorId), then on the primary whether that character is the Mastermind
+     * and the sender the owner the door names (`actsAsMastermind`), the lair the GMs' record's. The GM makes Chie (p3's)
+     * the Mastermind with a room of the scene as the lair and cuts a tunnel from it to another room. From p1's console:
+     * each action in Chie's name (refused for ownership, told) and in Aiko's, p1's own, who is not the Mastermind
+     * (refused, told `refused` and nothing more: the role is not said); the lair's lock and the tunnel as they were each
+     * time. The control - p3 locks the Gym and seals its tunnel - is 33-bridge-paths A22.
+     */
+    phase("forged asks at the Mastermind's door", { flow: "mastermind-door" });
+    const doorSetup = await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const R = await import("${repoUrl}/scripts/rooms.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        const centre = name => { const r = R.roomRegions(scene, name)[0]?.shapes?.[0]; return r?.type === "rectangle" ? { x: r.x + r.width / 2, y: r.y + r.height / 2, level: null } : null; };
+        const rooms = R.roomNames(scene).filter(n => centre(n) && !M.isLocked(scene, n));
+        const [lair, beyond] = rooms;
+        globalThis.__s30door = { actorId: MM.mastermindActor()?.id ?? null, room: MM.mastermindLair(), lair };
+        await MM.setMastermind(game.actors.get("${ids.chie}"), { room: lair });
+        const passageId = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [centre(lair), centre(beyond)] }, { scene });
+        globalThis.__s30door.passageId = passageId;
+        return { lair, beyond, passageId };`, { timeout: 60000 });
+    await settle(800);
+    const readLairDoor = `const M = await import("${repoUrl}/scripts/movement.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        return { locked: M.isLocked(game.scenes.get("${IDS.scene}"), ${JSON.stringify(doorSetup?.lair ?? "")}), state: P.PASSAGE_STORES.map.get(${JSON.stringify(doorSetup?.passageId ?? "")})?.state ?? null };`;
+    const lockForChie = await forge("mastermind.lairLock", { actorId: ids.chie, lock: true }, readLairDoor);
+    const lockForAiko = await forge("mastermind.lairLock", { actorId: ids.aiko, lock: true }, readLairDoor);
+    const sealForChie = await forge("passage.lairSeal", { actorId: ids.chie, passageId: doorSetup?.passageId ?? "" }, readLairDoor);
+    const sealForAiko = await forge("passage.lairSeal", { actorId: ids.aiko, passageId: doorSetup?.passageId ?? "" }, readLairDoor);
+    const plainRefusal = (f, action) => f.unchanged && !f.forOwnership && f.reasons.length === 1 && /nothing was carried out/.test(f.reasons[0])
+        && f.told.some(t => t.what === action);
+    check("SEC-D038: p1's forged lock of the Mastermind's room and seal of the passage at its door, in Chie's name and in Aiko's, change nothing - Chie's refused for ownership, Aiko's refused with nothing carried out and no reason (E91 C4, C5)",
+        Boolean(doorSetup?.passageId) && lockForChie.before.locked === false && lockForChie.before.state === "secret"
+            && lockForChie.unchanged && lockForChie.forOwnership && sealForChie.unchanged && sealForChie.forOwnership
+            && plainRefusal(lockForAiko, "mastermind.lairLock") && plainRefusal(sealForAiko, "passage.lairSeal"),
+        JSON.stringify({ doorSetup, lockForChie, lockForAiko, sealForChie, sealForAiko }), { flow: "mastermind-door" });
+    await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const was = globalThis.__s30door; delete globalThis.__s30door;
+        if (was?.passageId) await P.deletePassage(was.passageId);
+        if (was?.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room ?? null });
+        else await MM.clearMastermind();
         return true;`, { timeout: 60000 });
     await settle(300);
 

@@ -67,8 +67,9 @@ import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
-import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
-import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./gm-stores.mjs";
+import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";
+import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark, deathStore } from "./gm-stores.mjs";
+import { readMine } from "./gm-store.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState, remnantPublic,
     remnantById, sceneOfRemnant
@@ -377,7 +378,18 @@ export function cleanupDc(visibility, actor) {
     const base = CLEANUP.dc[visibility];
     if (base === undefined) return null;
     const tool = CLEANUP.toolTierReducesDc ? cleaningTier(actor) : 0;
-    return Math.max(0, base - tool - freshSceneBonus());
+    return atLeastFloor(base - tool - freshSceneBonus({ actor }));
+}
+
+/**
+ * NO CLEAN-UP BELOW 8 (E64 C1b, 12.11.2026; the owner's DA12 of 05.10, audit S18-06; default taken, owner to
+ * confirm): a clean-up's threshold after every relief - the tool's tier, the fresh scene and a reshape's 3 - is at
+ * least `CLEANUP.minDc`. Until 1.2.105 the reliefs stopped only at 0, so a Hidden trace reshaped with a Tier 3 tool in
+ * a fresh scene needed 9 - 3 - 3 - 3 = 0: any roll. Read on the GM where it scores (`cleanupVerdict`) and wherever the
+ * number is shown (the briefing's ladder and the roll window read `cleanupDc` too), so the two cannot differ.
+ */
+export function atLeastFloor(n) {
+    return Math.max(Number(CLEANUP.minDc) || 0, n);
 }
 
 /**
@@ -393,7 +405,7 @@ export function cleanupDc(visibility, actor) {
  * lower than the one in the handbook. A discount nobody is told about is not a
  * discount, it is a bug they will report.
  */
-export function freshSceneBonus() {
+export function freshSceneBonus({ clock, found, incident, deaths, actor = null } = {}) {
     const rule = CLEANUP.freshScene;
     if (!rule?.bonus) return 0;
     try {
@@ -401,14 +413,50 @@ export function freshSceneBonus() {
         // since D5 that is no longer the same event as the phase moving. The
         // record is cleared when Stage 7 starts, which is exactly when the
         // phase read below takes over.
-        if (bodyDiscovery()) return 0;
-        const phase = getClock().phase;
-        return rule.until?.includes(phase) ? 0 : rule.bonus;
+        if (found === undefined ? bodyDiscovery() : found) return 0;
+        const now = clock ?? getClock();
+        if (rule.until?.includes(now.phase)) return 0;
+        /*
+         * ONLY WHERE THERE IS A SCENE TO BE FRESH (E64 C1a, 12.11.2026; audit S05-60; default taken, owner to
+         * confirm). Until 1.2.105 the -3 held whenever no body had been found and the phase was not Stage 7 or the
+         * trial: on any ordinary afternoon with no killing at all, so a Tamper in Daily Life read 9/12/15/18 as
+         * 6/9/12/15. The warm scene is a killing's: a running incident (`murderState`), or a body of this chapter
+         * that nobody has found yet - a row of the GMs' deaths store (a player's copy on a player, which holds the
+         * bodies that user may know: the killer's own victim is one). `rule.onlyWith` names the two; a rule that
+         * names neither keeps the old reading. The arguments stand in for the world, so tier 1 R3950 asks a table.
+         */
+        const need = rule.onlyWith ?? [];
+        if (!need.length) return rule.bonus;
+        const running = incident === undefined ? Boolean(murderState()?.active) : Boolean(incident);
+        if (need.includes("incident") && running) return rule.bonus;
+        if (need.includes("unfoundBody") && unfoundBodyIn(now.chapter, deaths, actor)) return rule.bonus;
+        return 0;
     } catch {
         // No clock is not a fresh scene. Failing towards the harder number is
         // the safe direction: it never hands out a discount nobody earned.
         return 0;
     }
+}
+
+/**
+ * A body of this chapter nobody has found (E64 C1a): a row of the deaths `{ actorId: { chapter, ... } }` - the GMs'
+ * store on a GM, this user's copy on a player (settings.mjs `pendingDeath` reads them the same way) - whose chapter is
+ * the clock's. `deaths` stands in for the world in a test.
+ *
+ * ON A GM, THE BODIES THE ROLLER MAY KNOW (the E101 line's review of 1.2.110, V3, 13.11.2026). A player's copy holds only
+ * the deaths that user may know (incident-store.mjs `deathsFor`, by `knowsOfDeath`), so a GM that counted its whole store
+ * gave the -3 for a body the roller's player may not know: the window showed the higher number, the GM scored the lower,
+ * and a roll between the two came back a hit that told the player a body lies unfound. With `actor` - the roller, which
+ * `cleanupDc` hands in - a GM counts only the rows one of that character's players may know, by the same rule the copy is
+ * built by, so both browsers read one number. A character no player owns (a GM's own) reads the whole store, as before.
+ */
+function unfoundBodyIn(chapter, deaths, actor = null) {
+    let rows = deaths ?? (game.user?.isGM ? deathStore.entries() : readMine("deaths")) ?? {};
+    if (deaths === undefined && game.user?.isGM && actor) {
+        const players = (game.users ?? []).filter(user => !user.isGM && actor.testUserPermission?.(user, "OWNER"));
+        if (players.length) rows = Object.fromEntries(Object.entries(rows).filter(([id, row]) => players.some(user => knowsOfDeath(user, id, row))));
+    }
+    return Object.values(rows).some(row => row && typeof row === "object" && (row.chapter ?? 1) === (chapter ?? 1));
 }
 
 /** The tier of the readied Cleaning Tool, or 0 for bare hands. */
@@ -612,11 +660,11 @@ export async function attemptCleanup(actor, tokenId, {
         try {
             const relief = mode === "transform" ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
             const listed = Number.isFinite(Number(dc)) && dc !== null && dc !== "" ? Number(dc) : null;
-            if (listed !== null) return Math.max(0, listed - relief);
+            if (listed !== null) return atLeastFloor(listed - relief);
             const data = remnantData(findRemnantToken(tokenId));
             if (!data || data.reinforced) return null;
             const base = cleanupDc(data.visibility, actor);
-            return base === null ? null : Math.max(0, base - relief);
+            return base === null ? null : atLeastFloor(base - relief);
         } catch { return null; }
     })();
 
@@ -1423,7 +1471,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
     /*
      * LYING IS EASIER THAN ERASING (Z5) - the transform road takes its relief
      * off the same threshold, after the tool and after the fresh-scene window.
-     * Clamped at zero by `cleanupDc`; taken here rather than inside it because
+     * Held to `CLEANUP.minDc` (E64 C1b) after it; taken here rather than inside `cleanupDc` because
      * a discount that depends on WHICH action was attempted is not a property
      * of the trace.
      */
@@ -1431,7 +1479,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
     const relief = transforming ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
     const dc = (() => {
         const base = cleanupDc(data.visibility, held);
-        return base === null ? null : Math.max(0, base - relief);
+        return base === null ? null : atLeastFloor(base - relief);
     })();
     const success = isCritical || (dc !== null && total >= dc);
     const band = isCritical ? "critical" : (success ? (withHope ? "hope" : "despair") : "failure");
@@ -1756,8 +1804,8 @@ export async function resolveCleanup({
         // step arrived to say it was paid on the client (T-1). The free attempt
         // is spent on it too: an attempt, hit or miss (`consumeFreeCleanup`).
         const free = replayFree || await consumeFreeCleanup(actor);
-        if (!validPrice(price) && !free) await spendStress(actor);
-        if (free) await waivePrice(actor, validPrice(price), by);
+        if (!validPrice(price, { viaAction }) && !free) await chargeUnclaimed(actor, { viaAction });
+        if (free) await waivePrice(actor, validPrice(price, { viaAction }), by);
         // An attempt that kept no receipt, as the refusal below (E08+E28 C3; audit S05-44).
         await forgetAttempt(actorId);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
@@ -1817,10 +1865,14 @@ export async function resolveCleanup({
     // THE SERVER-SIDE PRICE - see the long note in `resolveStageSix`. A client
     // that paid the chain and says which step is not charged again; a packet with
     // no claim pays the Sanity here, as every packet used to.
-    const paidStep = validPrice(price);
+    let paidStep = validPrice(price, { viaAction });
     const free = replayFree || await consumeFreeCleanup(actor);
     receipt.free = free;
-    if (!paidStep && !free) receipt.stressMoved += await spendStress(actor);
+    if (!paidStep && !free) {
+        const charged = await chargeUnclaimed(actor, { viaAction });
+        receipt.stressMoved += charged.stress;
+        paidStep = charged.step;
+    }
     if (free) receipt.stressMoved -= await waivePrice(actor, paidStep, by);
     // What the report says was paid: the step the client claimed, with the
     // amount read off the table rather than off the packet - and nothing for
@@ -1948,7 +2000,12 @@ export function freeTonightText() {
  * not take.
  */
 export function tamperPriceSkip(actor) {
-    return isCleaner(actor) ? ["action"] : [];
+    /*
+     * NO SANITY OUTSIDE THE KILLER'S NIGHT (E64, 12.11.2026; the owner's answer: "limit znika, Tamper kosztuje 1
+     * akcje, domyslnie bez Sanity" - "Zgoda"). Anyone else's Tamper skips the chain's Sanity step: one action, and
+     * with none left no Tamper. Until 1.2.105 the chain went on to 1 Sanity (T-1). The killer's own Stage 6 keeps D3.
+     */
+    return isCleaner(actor) ? ["action"] : ["stress"];
 }
 
 /**
@@ -2410,9 +2467,9 @@ export async function resolveStageSix({
      * here, exactly as it was before. One price per attempt, and the GM decides
      * which when the claim is missing.
      */
-    const paidStep = validPrice(price);
+    let paidStep = validPrice(price, { viaAction });
     const free = await consumeFreeCleanup(actor);
-    if (!paidStep && !free) await spendStress(actor);
+    if (!paidStep && !free) paidStep = (await chargeUnclaimed(actor, { viaAction })).step;
     if (free) await waivePrice(actor, paidStep, by);
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
@@ -2549,11 +2606,13 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
      *
      * So the destination is chosen up front, before the roll, and travels as
      * `targetId`. The roll still decides WHETHER it moves; it no longer decides
-     * where. `def.rooms` stays in the table as the reach - the picker offers the
-     * rooms connected to this one - and the random walk is gone.
+     * where. `def.rooms` is the reach - a critical's 2, any other hit's 1 (E64 C4,
+     * `bodyLanding`) - and the random walk is gone.
      */
-    const reachable = await bodyDestinations(here.scene, here.room);
-    let room = reachable.includes(chosenRoom) ? chosenRoom : reachable[0];
+    // The reach is the band's (E64 C4): a critical's two rooms, one on any other hit (`bodyLanding`).
+    const reach = await bodyReach(here.scene, here.room);
+    const landing = bodyLanding(reach, chosenRoom, Number(def.rooms?.[band]) || 1);
+    const room = landing.room;
 
     if (!room) {
         // Nowhere to take it. Said out loud rather than silently leaving the
@@ -2590,6 +2649,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
         return;
     }
     done.push(game.i18n.format("DRPG.Cleanup.bodyMoved", { room }));
+    if (landing.short) done.push(game.i18n.format("DRPG.Cleanup.bodyShort", { room, far: chosenRoom }));
 
     const visibility = def.remnant?.[band] ?? "evident";
     const left = await dropRemnant(actor, {
@@ -2989,8 +3049,31 @@ async function undoLastCleanup(actor, tokenId) {
  * than from the packet - there is nothing to gain by claiming "stress" and a lot
  * to gain by claiming five of it.
  */
-function validPrice(price) {
-    return PRICE_CHAINS.tamper.steps.find(step => step.pay === price) ?? null;
+function validPrice(price, { viaAction = false } = {}) {
+    /*
+     * THE SANITY STEP IS NO CLAIM ON AN ORDINARY TAMPER (E64, 12.11.2026; the owner's answer: it costs no Sanity).
+     * Read by the road, `viaAction` - the Tamper tile's door, which the killer's own Stage 6 never claims (action-tamper.mjs
+     * `performTamper`: `viaAction = !stageSix`) - and not by whether the incident still runs: an honest killer's Sanity
+     * paid in Stage 6 arriving after the GM closed it is still the step it paid (tier 2 "a clean-up that reaches the GM
+     * once its Stage 6 is over ..."). A refund asks without the road (`refundRefused`): `paidBack` gives back only what
+     * the GMs saw paid, and nobody's browser pays Sanity for an ordinary Tamper (`tamperPriceSkip`).
+     */
+    return PRICE_CHAINS.tamper.steps.find(step => step.pay === price && !(viaAction && step.pay === "stress")) ?? null;
+}
+
+/**
+ * The price of an attempt whose packet claims no step it may (E64, 12.11.2026): what the road's chain starts with -
+ * the Sanity on the killer's own Stage 6 road (D3), an action through the Tamper tile (`viaAction`), whose Tamper costs
+ * no Sanity since the owner's answer. Until then a packet with no claim paid the Sanity on every road. Answers `{ stress, step }`:
+ * the Sanity moved, for the receipt a Reroll takes back, and the action step taken, which then stands as the paid one.
+ */
+async function chargeUnclaimed(actor, { viaAction = false } = {}) {
+    if (!viaAction) return { stress: await spendStress(actor), step: null };
+    // By `import()`, as this file reaches actions.mjs elsewhere (`undoLastCleanup`'s `takeBackRefund`).
+    const { spendAction } = await import("./actions.mjs");
+    const paid = await spendAction(actor, 1, { quiet: true });
+    // The step it took stands as the attempt's paid step, so a critical hands back the action, not a Sanity mark nobody paid.
+    return { stress: 0, step: paid ? PRICE_CHAINS.tamper.steps.find(step => step.pay === "action") ?? null : null };
 }
 
 /**
@@ -3401,14 +3484,43 @@ export async function openCleanupDialog(actor) {
  * already read as "there is nowhere to take it" - the honest answer.
  */
 async function bodyDestinations(scene, room) {
-    if (!room) return [];
+    return (await bodyReach(scene, room)).near;
+}
+
+/**
+ * HOW FAR A BODY CAN BE CARRIED (E64 C4, 12.11.2026; U06-config-rules-07, the amend of 26.09; default taken, owner to
+ * confirm). `near`: the rooms connected to `room` (movement.mjs `neighbouringRooms`, the same road a step takes, so the
+ * map's lists, its walls and its floors decide as they do for a Move); `far`: the rooms two away - connected to a near
+ * room, not to `room` itself - with `via`, the near room each is reached through (the first in the near list's order).
+ * Nobody's bedroom on either list, and none carried through: a body behind somebody's door names a suspect. Until
+ * 1.2.105 only `near` existed and `ACTIONS`' `moveBody.rooms.critical: 2` was read by nothing. The killer's scene, for
+ * the neighbours and for whose bedroom each is (E12 C2a).
+ */
+export async function bodyReach(scene, room) {
+    if (!room) return { near: [], far: [], via: {} };
     const { neighbouringRooms } = await import("./movement.mjs");
     const { vaultOwnerOf } = await import("./vault.mjs");
-    // The killer's scene, for the neighbours and for whose bedroom each is (E12 C2a): both
-    // read the camera's scene until 1.2.74.
-    return neighbouringRooms(scene, room)
-        .filter(r => r !== room)
-        .filter(r => !vaultOwnerOf(r, scene));
+    const open = r => r !== room && !vaultOwnerOf(r, scene);
+    const first = neighbouringRooms(scene, room).filter(r => r !== room);
+    const near = first.filter(open);
+    const via = {};
+    for (const step of near) {
+        for (const r of neighbouringRooms(scene, step)) {
+            if (open(r) && !first.includes(r) && !Object.hasOwn(via, r)) via[r] = step;
+        }
+    }
+    return { near, far: Object.keys(via), via };
+}
+
+/**
+ * Where a body carried towards `chosen` ends up on this band (E64 C4): a near room on any hit; a far room on a band
+ * whose reach (`def.rooms`) is 2 - a critical - and on any other hit the near room it is reached through, as far as
+ * the killer got; anything else the first near room, as before. Pure, for tier 1 R3957.
+ */
+export function bodyLanding({ near = [], far = [], via = {} } = {}, chosen, reach = 1) {
+    if (near.includes(chosen)) return { room: chosen, short: false };
+    if (far.includes(chosen)) return reach >= 2 ? { room: chosen, short: false } : { room: via[chosen] ?? near[0] ?? null, short: true };
+    return { room: near[0] ?? null, short: false };
 }
 
 /**
@@ -3427,7 +3539,8 @@ export async function openMoveBodyDialog(actor) {
     }
 
     const here = locateActor(actor);
-    const rooms = await bodyDestinations(here?.scene, here?.room ?? "");
+    // Both reaches, before the roll (E64 C4): the far rooms under their own heading, a critical's alone.
+    const { near: rooms, far } = await bodyReach(here?.scene, here?.room ?? "");
 
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNowhere"));
@@ -3447,7 +3560,9 @@ export async function openMoveBodyDialog(actor) {
             <label>${game.i18n.localize("DRPG.Cleanup.moveWhere")}
                 <select name="room">${rooms.map(r =>
                     `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`
-                ).join("")}</select></label>
+                ).join("")}${far.length ? `<optgroup label="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Cleanup.moveFar"))}">${far.map(r =>
+                    `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`).join("")}</optgroup>` : ""}</select></label>
+            ${far.length ? `<p class="notes">${game.i18n.localize("DRPG.Cleanup.moveFarNote")}</p>` : ""}
         </form>`,
         footer: {
             primary: {

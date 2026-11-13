@@ -610,6 +610,38 @@ async function inConsoleWindow(student, player, { honest = {}, forged, paths, du
 }
 
 /** What `paths` hold on `actor`'s sheet now, and what puts them back as they were (an absent module flag unset; E29 fix r2-H24). */
+/*
+ * THE TWO STATISTICS A LEVEL UP'S RISE OF A MAXIMUM COMES WITH (E64 C6, 12.11.2026; the owner's DA39). Until 1.2.105 the
+ * Level Up tests picked "+1 Health" and "+1 Sanity", which are no options now; they pick a point in Body (`strength`,
+ * +1 to the Health maximum with it) and in Head (`knowledge`, +1 to the Sanity maximum), so the rises they count are
+ * the same, and put these two statistics back with the rest.
+ */
+const LEVEL_UP_POINTS = ["system.traits.strength.value", "system.traits.knowledge.value"];
+
+/*
+ * IN THE KILLER'S OWN STAGE 6 (E64, 12.11.2026). An ordinary Tamper costs no Sanity since the owner's answer (R3959),
+ * so the tests of a clean-up's Sanity - its receipt, the GMs' credit, a Reroll's rewind - run where it is still the price:
+ * `killer` kills `victim` with a Finishing blow, `run` cleans up on the killer's road (`viaAction: false`), and the
+ * incident is closed and the victim brought back after.
+ */
+async function inOwnStageSix(killer, victim, run) {
+    const M = await import("./murder.mjs");
+    const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+    const S = await import("./gm-stores.mjs");
+    try {
+        await fightOpen(M, killer, victim);
+        await turnFor(M, killer, "finishingBlow");
+        await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+        return await run();
+    } finally {
+        if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+    }
+}
+
 function sheetAsFound(actor, paths) {
     const was = Object.fromEntries(paths.map(path => [path, foundry.utils.getProperty(actor._source, path)]));
     return async () => {
@@ -2589,7 +2621,20 @@ async function withBodyTile(run) {
             await settle();
             must(tile && B.bodyRoomOf(body) === tileRoom && Mv.roomOfToken(bodyToken) === fixture.room,
                 `the body's tile could not be laid in ${tileRoom} with its token in ${fixture.room} - this would measure nothing`);
-            await run({ taker, body, player, tile, room: fixture.room, tileRoom, standTaker, drawn });
+            /* AND FOUND ALREADY (E72 C3, 12.11.2026): since C3 a walk-in finds a body where its tile lies (chapter.mjs
+               `checkBodyFound`, body-tile.mjs `bodyPlaceOf`), so a taker and a third student stood in the tile's room were
+               the discovery's two. The body these tests loot is one the class has found: its stamp this chapter, put back. */
+            const { getClock } = await import("./clock.mjs");
+            const { seasonEpoch, SETTINGS } = await import("./settings.mjs");
+            const found = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            const key = `${seasonEpoch()}:${getClock().chapter}`;
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...found, [key]: [...(found[key] ?? []),
+                { victimIds: [body.id], deaths: { [body.id]: deathRecord(body)?.deathId ?? null }, room: tileRoom, sceneId: scene.id, by: "suite" }] });
+            try {
+                await run({ taker, body, player, tile, room: fixture.room, tileRoom, standTaker, drawn });
+            } finally {
+                await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, found);
+            }
         });
     } finally {
         if (tile && scene.tiles?.has(tile.id)) await tile.delete();
@@ -9970,12 +10015,17 @@ const SCENARIOS = [
          * Read: the faces, the record's `used.loaded`, and whether the Call is still armed. C12a
          * loaded the die already; until C12b the GM left the Call armed. Since E15 C5 (D16) the die
          * loaded is Hope or Fear at random and the record names it (`used.at`): the faces are read
-         * loaded die first, so a loaded draw reads 12 and the script's first face whichever it was.
+         * loaded die first, so a loaded draw reads 12 and the script's first face whichever it was. Since E64 (D052) a
+         * Loaded Die that did not hold is armed again under a new nonce (call-effects.mjs `giveBackLoadedDie`), so
+         * "still armed" reads any Free Critical this test did not find armed, under whatever nonce. On 1.2.110's
+         * candidate (CI run 43352869429, suite 7/8) the drawn road read the faces off a 2.12 config bare
+         * (roll-draw.mjs `throwDrawn`): the loaded draw came up 12 and was recorded not loaded, its Call armed again.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
         const E = await import("./call-effects.mjs");
         const before = new Set(E.armedCallsShown(theirs).map(c => c.nonce));
+        const freshCriticals = () => E.armedCallsShown(theirs).filter(c => c.grants === "critical" && !before.has(c.nonce)).map(c => c.nonce);
         await E.armCall(theirs, { key: "freeCrit", kind: "hope", grants: "critical" });
         const nonce = E.armedCallsShown(theirs).find(c => c.grants === "critical" && !before.has(c.nonce))?.nonce ?? null;
         must(nonce, "the Loaded Die was not armed - this would measure nothing");
@@ -9985,13 +10035,13 @@ const SCENARIOS = [
                 const F = await drawnForPlayer(player, theirs, { faces: { hope: 3, fear: 5 }, edit: p => ({ ...p, loaded: mark, calls: [mark] }) });
                 try {
                     const faces = F.record?.used?.at === "fear" ? [F.record.fear, F.record.hope] : [F.record?.hope ?? null, F.record?.fear ?? null];
-                    read.push([...faces, F.record?.used?.loaded ?? null, E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
+                    read.push([...faces, F.record?.used?.loaded ?? null, freshCriticals().length > 0]);
                 } finally {
                     await F.putBack();
                 }
             }
         } finally {
-            if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.consumeCallsByNonce(theirs, [nonce]);
+            if (freshCriticals().length) await E.consumeCallsByNonce(theirs, freshCriticals());
         }
         equal(stableJson(read), stableJson([[12, 3, true, false], [3, 5, false, false]]),
             "the GM did not load an armed Loaded Die, loaded one nothing armed, or left the one it loaded armed (per draw: the loaded die or Hope, the other, loaded, still armed)");
@@ -15963,7 +16013,7 @@ const SCENARIOS = [
          * stands in. The first: a packet asking a repair of 8, naming a roll the record says came to
          * 13. The second: the player's bookmark of a roll first (as `roll.bookmark` arrives), then a
          * packet asking 8 naming that roll, which the record says came to 5. Read: the codes, the
-         * first's freeze and the size of its repair, the GM's line saying the packet's 8 lost to 3;
+         * first's freeze and the size of its repair, the GM's line saying the packet's 8 lost to 2 (3 until E64's S02-75);
          * the second's freeze, and the target and repair on the roll's row. Red at C15's runtime: a
          * repair of 8, and the miss freezes.
          */
@@ -15987,9 +16037,9 @@ const SCENARIOS = [
                 trait: "eye", experiences: [], context: { penalty: 0, relief: 0 } }, player.id, { send: () => {} });
             const second = await F.ask("project.sabotage", { targetId: missed, difficulty: 8, rollId: five.id, penalty: 0, relief: 0 });
             const row = store.get(actor.id) ?? null;
-            equal(stableJson([[first, F.P.isFrozen(hit), repair?.start ?? null, watch.count("said difficulty 8; the GMs' record of its roll says 3,")],
+            equal(stableJson([[first, F.P.isFrozen(hit), repair?.start ?? null, watch.count("said difficulty 8; the GMs' record of its roll says 2,")],
                 [second, F.P.isFrozen(missed), row?.messageId === five.id, row?.facts?.targetProjectId ?? null, row?.facts?.repairId ?? null]]),
-            stableJson([[null, true, 3, 1], [null, false, true, missed, null]]),
+            stableJson([[null, true, 2, 1], [null, false, true, missed, null]]),
             "the repair was the packet's, or the miss froze, or did not name its target on its roll's row (code, frozen, repair, logged; code, frozen, row's roll, target, repair)");
         } finally {
             watch.stop();
@@ -16267,7 +16317,7 @@ const SCENARIOS = [
             await B.ask({ action: "remnant.place", requestId: "suite-r2h3-trace", rollId: B.message.id,
                 data: { sourceActor: actor.id, action: "sabotage", type: "prep", visibility: "subtle", sceneId: scene.id, subject: "Suite r2-H3 Sabotage" } });
             const left = scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.subject === "Suite r2-H3 Sabotage").map(d => d.visibility);
-            equal(stableJson([code, F.P.isFrozen(project), repair?.start ?? null, left]), stableJson([null, true, 3, ["subtle"]]),
+            equal(stableJson([code, F.P.isFrozen(project), repair?.start ?? null, left]), stableJson([null, true, 2, ["subtle"]]),
                 "the trace of a Sabotage whose repair froze its project was banded without the relief its repair used (code, frozen, repair, trace's band)");
         } finally {
             for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
@@ -17137,7 +17187,1463 @@ const SCENARIOS = [
             "a target in another room was not refused on the GM before the dice, or the Monocub was refunded or not told (codes, answered, a roll, dice drawn, Hope after, told)");
     }],
 
-    ["a Confusion paid a moment before an Eclipse opened lands on the GM while the picker is shut", async () => {
+    ["a Monocub's Confusion is paid on the GM after its conditions: one carried out takes one action and one Hope there, one refused takes nothing (E72 C1)", async () => {
+        /*
+         * E72 C1, 12.11.2026; audit S18-50, the owner's DC13 and D39. The Monocub's browser paid the action and the Hope
+         * before it asked the GM (monocub.mjs `performCubAbility`), and the GM refused with no refund. A player's packet
+         * through the bridge's runner (`judge`, as the Monocub's player sent it) now is the whole road: (a) a Monocub
+         * with two actions and two Hope helps a student alone in its room - the GM takes one action and one Hope; (b)
+         * the same Monocub with no Hope sends it again - refused on the GM, no roll answered, nothing armed, the actions
+         * as they were. Read: actions and Hope after each, whether each answer held a roll, and Confusions armed.
+         * Red at f22a7e8's runtime: (a) took nothing ([2, 2]), (b) was carried out with no Hope.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        needs(world.atLeast("livingStudents", 2), "a Monocub and a target");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const [target] = livingStudents().filter(a => a.id !== cub.id);
+        const { back } = await aloneTogether(cub, target);
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const nonces = new Set(pendingCalls(target).map(entry => entry.nonce));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const send = async (requestId) => {
+            let answer = null;
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId, actorId: cub.id, key: "meddle", targetId: target.id, choice: "help" },
+                player(cub).id, { send: (to, reply) => { if (reply?.action === "bridge.done") answer = reply.value ?? null; } });
+            await settle();
+            return [cub.system.resources.actions.value, cub.system.resources.hope.value, Boolean(answer?.roll)];
+        };
+        let carried = null, refused = null, armed = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
+            await settle();
+            carried = await send("suite-e72-c1-paid");
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 0 });
+            await settle();
+            const before = pendingCalls(target).filter(entry => entry.key === "meddle" && !nonces.has(entry.nonce)).length;
+            refused = await send("suite-e72-c1-nohope");
+            armed = pendingCalls(target).filter(entry => entry.key === "meddle" && !nonces.has(entry.nonce)).length - before;
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson([carried, refused, armed]), stableJson([[1, 1, true], [2, 0, false], 0]),
+            "the GM did not take the price of a Confusion it carried out, or carried out one with no Hope (carried: actions, Hope, a roll; refused: the same; Confusions armed by the refused one)");
+    }],
+
+    ["the crime witness's mark is the GMs' row and its owner's copy, not an actor flag (E72 C2)", async () => {
+        /*
+         * E72 C2, 12.11.2026; audit S18-51. `setSilenced` wrote the actor flag `silencedChapter`, which every browser
+         * holds: every console read which Monocub had seen the crime. Now the mark is the row's `witness` in the GMs'
+         * store `cubStore` (monocub.mjs `cubRowOf`), and its owner is sent a copy. A Monocub with a player is marked on
+         * this GM. Read: whether it reads marked, the flag on the actor, the store's row (its chapter), and once cleared,
+         * whether it still reads marked and the row's mark. Red at f22a7e8's runtime: gm-stores.mjs has no cubStore, and
+         * the mark is the flag.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player to send the copy to");
+        const M = await import("./monocub.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        let marked = null, cleared = null;
+        try {
+            ok(cubStore && typeof cubStore.get === "function", "gm-stores.mjs has no cubStore - the Monocubs' record is not built (E72 C2)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await M.setSilenced(cub, true);
+            await settle();
+            marked = [M.isCrimeSilenced(cub), cub.getFlag(MODULE_ID, FLAGS.silencedChapter) ?? null, cubStore.get(cub.id)?.witness?.chapter ?? null];
+            await M.setSilenced(cub, false);
+            await settle();
+            cleared = [M.isCrimeSilenced(cub), cubStore.get(cub.id)?.witness ?? null];
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (cub.getFlag(MODULE_ID, FLAGS.silencedChapter) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson([marked, cleared]), stableJson([[true, null, getClock().chapter], [false, null]]),
+            "the crime witness's mark is not the GMs' row, or it is still the actor's flag ([marked, the flag, the row's chapter], [marked after clearing, the row's mark])");
+    }],
+
+    ["a Monocub in a murder's room is marked a crime witness: one there at the opening, one who walks in, not one elsewhere (E72 C2)", async () => {
+        /*
+         * E72 C2, 12.11.2026; audit S18-57, the guide p. 17. Nothing marked a Monocub who saw the crime: the GM ticked a
+         * box, and `maybeThirdParty` (murder-rules.mjs) returned at every dead student. A killer and a victim stood alone
+         * in a room, a Monocub stood with them, and a second Monocub elsewhere; the fight opens (`fightOpen`): the first
+         * is marked at the opening (`markWitnessesAt`). Its mark cleared, it steps out and walks back in while the fight
+         * runs: marked again (`cubSawIncident`), and it takes no seat. Read: each mark, the second Monocub's, and the
+         * incident's third. Red at f22a7e8's runtime: no mark at all.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 4), "a killer, a victim and two Monocubs stood in rooms by their tokens");
+        needs(env.primaryGm(), "the incident's watch is the primary GM's (`maybeThirdParty`)");
+        const MU = await import("./murder.mjs");
+        const MC = await import("./monocub.mjs");
+        const MV = await import("./movement.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const [killer, victim, cub, far] = cast(4);
+        const scene = canvas?.scene;
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id);
+        const cubToken = tokenOf(cub), farToken = tokenOf(far);
+        must(cubToken && farToken, "a Monocub has no token on the scene on screen - this would measure nothing");
+        const was = [cubToken, farToken].map(t => ({ x: t.x, y: t.y }));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const { room, back } = await aloneTogether(killer, victim);
+        const elsewhere = MV.allRooms(scene).find(r => r !== room);
+        const rows = [cub, far].map(a => [a.id, foundry.utils.deepClone(cubStore?.get(a.id) ?? null)]);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = {};
+        try {
+            for (const a of [cub, far]) await a.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cubToken.update(MV.positionIn(room, cubToken), PLACE);
+            await farToken.update(MV.positionIn(elsewhere, farToken), PLACE);
+            await settle();
+            await fightOpen(MU, killer, victim);
+            await settle();
+            read.atOpening = [MC.isCrimeSilenced(cub), MC.isCrimeSilenced(far)];
+            await MC.setSilenced(cub, false);
+            await cubToken.update(MV.positionIn(elsewhere, cubToken), PLACE);
+            await settle();
+            await cubToken.update(MV.positionIn(room, cubToken), PLACE);
+            await until(() => MC.isCrimeSilenced(cub), 3000);
+            read.walkedIn = [MC.isCrimeSilenced(cub), MC.isCrimeSilenced(far), MU.murderState()?.thirdId ?? null];
+        } finally {
+            for (const [i, t] of [cubToken, farToken].entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const a of [cub, far]) await a.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (cubStore) {
+                for (const [id, row] of rows) {
+                    if (row) await cubStore.patch(id, row);
+                    else if (cubStore.has(id)) await cubStore.drop(id);
+                }
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson(read), stableJson({ atOpening: [true, false], walkedIn: [true, false, null] }),
+            "a Monocub in the murder's room was not marked a crime witness at the opening or when it walked in, or one elsewhere was, or it took a seat");
+    }],
+
+    ["a student takes one Monocub move per time of day and two per game day, a failed one counted, the rest refused with their code and nothing paid (E72 C4)", async () => {
+        /*
+         * E72 C4, 12.11.2026; audit S18-59, the owner's DC32 = 2. Nothing held how often one student could be a Monocub's
+         * target: a Monocub with the Hope could Hinder the same student every action. The row's `caps` are counted per
+         * target on the GM (`cubTargetStore`, monocub.mjs `cubCapRefusal`). A Monocub with five actions and five Hope,
+         * alone with a target; the GM's dice scripted to 2 and 3 (a 5, a failed move). Through the bridge's runner as the
+         * Monocub's player sent it: (a) a move - carried out and failed, its price taken; (b) a second this time of day -
+         * refused, told `capReached`, nothing taken. Then the rule asked of another time of day of this day (none), and the
+         * row written as two moves today in another time of day: (c) a move now - refused, told `capDay`; and the rule of
+         * another day (none). Read: the codes told, a roll answered, the price each took. Red at f22a7e8's runtime: (b)
+         * and (c) carried out.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        needs(world.atLeast("livingStudents", 2), "a Monocub and a target");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { confusionStore, cubTargetStore } = await import("./gm-stores.mjs");
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const [target] = livingStudents().filter(a => a.id !== cub.id);
+        const { back } = await aloneTogether(cub, target);
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const confusionWas = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const capWas = foundry.utils.deepClone(cubTargetStore?.get(target.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const real = CONFIG.Dice.randomUniform;
+        const clock = getClock() ?? {};
+        const others = ["morning", "noon", "afternoon", "evening", "night"].filter(t => t !== clock.timeOfDay);
+        const send = async (requestId) => {
+            const told = [];
+            let answer = null;
+            const before = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+            const script = [2, 3].map(face => 1 - (face - 0.5) / 12);
+            CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+            try {
+                await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId, actorId: cub.id, key: "meddle", targetId: target.id, choice: "hinder" },
+                    player(cub).id, { send: (to, reply) => {
+                        if (reply?.action === "bridge.refused") told.push(reply.reason);
+                        if (reply?.action === "bridge.done") answer = reply.value ?? null;
+                    } });
+            } finally { CONFIG.Dice.randomUniform = real; }
+            await settle();
+            return [told, Boolean(answer?.roll), before[0] - cub.system.resources.actions.value, before[1] - cub.system.resources.hope.value];
+        };
+        const read = {};
+        try {
+            ok(typeof M.cubCapRefusal === "function" && cubTargetStore, "monocub.mjs has no cubCapRefusal or gm-stores.mjs no cubTargetStore - the caps are not built (E72 C4)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 5, "system.resources.hope.value": 5 });
+            if (cubTargetStore.has(target.id)) await cubTargetStore.drop(target.id);
+            await settle();
+            read.first = await send("suite-e72-c4-first");
+            read.second = await send("suite-e72-c4-second");
+            const row = MONOCUB.abilities.meddle;
+            const slot = { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day, timeOfDay: others[0] };
+            read.laterToday = M.cubCapRefusal(row, target, slot);
+            await cubTargetStore.patch(target.id, { ...slot, slot: 1, today: 2 });
+            read.third = await send("suite-e72-c4-third");
+            read.tomorrow = M.cubCapRefusal(row, target, { ...slot, day: (Number(clock.day) || 0) + 1, timeOfDay: clock.timeOfDay });
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            if (cubTargetStore) {
+                if (capWas) await cubTargetStore.patch(target.id, capWas);
+                else if (cubTargetStore.has(target.id)) await cubTargetStore.drop(target.id);
+            }
+            if (confusionStore) {
+                if (confusionWas) await confusionStore.patch(target.id, { calls: confusionWas.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson(read), stableJson({ first: [[], true, 1, 1], second: [["capReached"], false, 0, 0], laterToday: null,
+            third: [["capDay"], false, 0, 0], tomorrow: null }),
+            "a student's share of Monocub moves is not held: [codes told, a roll answered, actions taken, Hope taken] for a first move, a second this time of day and a third today; the rule later today and tomorrow");
+    }],
+
+    ["Redeem gives a Monocub +1 Hope once a game day at no price, and is refused the second time and at full Hope with nothing paid (E72 C5)", async () => {
+        /*
+         * E72 C5, 12.11.2026; audit S18-60, the owner's DC22. A Monocub had no road to Hope but a GM's conversion. Redeem
+         * is a row of the Monocub's table now (`MONOCUB.abilities.redeem`): one action, +1 Hope, once a game day, shut at
+         * full Hope (`CUB_BLOCKS`), carried out on the GM. On this GM, a Monocub with three actions and two Hope redeems
+         * (a), redeems again (b), and - its row's day set to another day, its Hope full - redeems (c). Read: the answer,
+         * actions and Hope after each. Red at f22a7e8's runtime: no such row ("no such Monocub ability").
+         */
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const warned = ui.notifications.warn;
+        const read = {};
+        const redeem = async () => {
+            const out = await M.performCubAbility(cub, "redeem", { targetId: cub.id, choice: "redeem" });
+            await settle();
+            return [Boolean(out?.done), cub.system.resources.actions.value, cub.system.resources.hope.value];
+        };
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 3, "system.resources.hope.value": 2 });
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            ui.notifications.warn = () => null;
+            read.a = await redeem();
+            read.b = await redeem();
+            await cubStore.patch(cub.id, { redeemDay: { chapter: getClock().chapter, epoch: seasonEpoch(), day: (Number(getClock().day) || 0) - 1 } });
+            await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
+            await settle();
+            read.c = await redeem();
+        } finally {
+            ui.notifications.warn = warned;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        const full = resourceMax(cub, "hope");
+        // CHANGED ON PURPOSE (12.11.2026; the owner on DRPG-D1, "Redeem tez za darmo"): Redeem costs no action. Was [2, 3].
+        equal(stableJson(read), stableJson({ a: [true, 3, 3], b: [false, 3, 3], c: [false, 3, full] }),
+            "Redeem did not give +1 Hope at no price once a game day, or was carried out again or at full Hope ([done, actions, Hope] after each)");
+    }],
+
+    ["Ask for Hope posts one card in the Monocub's thread, keeps one ask open at a time, and a GM's Give 1 pays from that GM's Despair and closes it (E72 C5)", async () => {
+        /*
+         * E72 C5, 12.11.2026; audit S18-60. A Monocub could not ask for Hope through the module. Ask for Hope is a free row
+         * of the Monocub's table: the GM posts a card in the Monocub's thread with Give 1, Give 2 and Not now (call-gm.mjs
+         * `callGm`), ruled once (messenger-app.mjs `cubGiveHope`, `claimCard`) by `answerHopeAsk`, which pays from the
+         * answering GM's Despair (`convertDespairToHope`). On this GM, with five Despair in its pool and none owed: a
+         * Monocub with no Hope asks (a), asks again while the first is open (b), and the GM gives 1 (c). Read: the answer,
+         * the new cards naming the ask, the row's open mark, the Monocub's Hope. Red at f22a7e8's runtime: no such row.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player whose thread the card goes to");
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const { cubStore, despairOwedStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        ok(D.monokumas().some(u => u.id === game.user.id), "this GM holds no Despair pool to give from - this would measure nothing");
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const title = game.i18n.localize("DRPG.Monocub.askTitle");
+        const cards = () => game.messages.contents.filter(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(foundry.utils.escapeHTML(title))).length;
+        const warned = ui.notifications.warn;
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (cubStore?.has(cub.id)) await cubStore.drop(cub.id);
+            await despairOwedStore.drop(game.user.id);
+            await D.setDespair(game.user.id, 5);
+            await settle();
+            ui.notifications.warn = () => null;
+            const a = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+            await settle();
+            read.a = [Boolean(a?.done), cards(), Boolean(cubStore.get(cub.id)?.askOpen)];
+            const b = await M.performCubAbility(cub, "askHope", { targetId: cub.id, choice: "ask" });
+            await settle();
+            read.b = [Boolean(b?.done), cards()];
+            const words = await M.answerHopeAsk(cub, 1);
+            await settle();
+            read.c = [typeof words === "string", cub.system.resources.hope.value, cubStore.get(cub.id)?.askOpen ?? null];
+        } finally {
+            ui.notifications.warn = warned;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            await despairOwedStore.drop(game.user.id);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson({ a: [true, 1, true], b: [false, 1], c: [true, 1, null] }),
+            "Ask for Hope did not post one card and keep one ask open, or a GM's Give 1 did not pay and close it ([done, cards, open] for the ask, the second ask, the Give 1: [words, Hope, open])");
+    }],
+
+    ["a Monocub is made by its player's acceptance of the Monocub Rule: the State list sends an invitation, a decline closes it, an acceptance makes the Monocub, and an answer to no invitation makes nobody one (E72 C6)", async () => {
+        /*
+         * E72 C6, 12.11.2026; audit S18-61, the owner's DC17 and DC18. The Students window's Invite button and its State
+         * list made a Monocub straight away (`setMonocub`), with no word from the player. Now both send an invitation
+         * (monocub.mjs `offerMonocub`, the GMs' row), and the player's answer is the bridge action `monocub.answer`. A dead
+         * student with a player (the flag alone, as E51-T21 marks one): the State list's Monocub applied (a); the player
+         * declines (b); invited again by the button's road and accepted (c); the same answer sent again (d). Read: a
+         * Monocub, an invitation open, the codes told, the Rule's acceptance kept. Red at f22a7e8's runtime: (a) made a
+         * Monocub at once.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a dead student with a player to answer");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const M = await import("./monocub.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [actor] = livingStudents().filter(player);
+        const names = [FLAGS.deceased, FLAGS.monocub];
+        const flagsWas = Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(actor.getFlag(MODULE_ID, f))]));
+        const tracks = ["hope", "hitPoints", "stress"].filter(k => Number.isFinite(actor.system?.resources?.[k]?.value));
+        const tracksWas = Object.fromEntries(tracks.map(k => [`system.resources.${k}.value`, actor.system.resources[k].value]));
+        const rowWas = foundry.utils.deepClone(cubStore?.get(actor.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const clock = getClock();
+        const answer = async (accept, requestId) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.answer", requestId, actorId: actor.id, accept },
+                player(actor).id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await settle();
+            return told;
+        };
+        const state = () => [M.isMonocub(actor), Boolean(cubStore?.get(actor.id)?.invite)];
+        const read = {};
+        const info = ui.notifications.info;
+        try {
+            await actor.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            if (cubStore?.has(actor.id)) await cubStore.drop(actor.id);
+            await settle();
+            ui.notifications.info = () => null;
+            await applyAliveStates({ [actor.id]: { state: "monocub" } });
+            await settle();
+            read.a = state();
+            read.b = [await answer(false, "suite-e72-c6-decline"), ...state()];
+            ok(typeof M.offerMonocub === "function", "monocub.mjs has no offerMonocub - the invitation is not built (E72 C6)");
+            await M.offerMonocub(actor);
+            await settle();
+            read.c = [await answer(true, "suite-e72-c6-accept"), ...state(), Boolean(cubStore.get(actor.id)?.acceptedRule)];
+            read.d = [await answer(true, "suite-e72-c6-again"), ...state()];
+            // (e) The E72 fix round (review #6): an invitation still open when its student lives again. The acceptance is
+            // refused and closes it, and no Rule is kept; before, the row kept the Rule and the player was told "accepted".
+            await actor.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await actor.unsetFlag(MODULE_ID, FLAGS.deceased);
+            if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
+            await cubStore.patch(actor.id, { invite: { at: Date.now(), by: game.user.id } });
+            await settle();
+            read.e = [await answer(true, "suite-e72-c6-revived"), ...state(), Boolean(cubStore.get(actor.id)?.acceptedRule)];
+        } finally {
+            ui.notifications.info = info;
+            for (const f of names) {
+                if (flagsWas[f] === undefined || flagsWas[f] === null) await actor.unsetFlag(MODULE_ID, f);
+                else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
+            }
+            if (tracks.length) await actor.update(tracksWas);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(actor.id, rowWas);
+                else if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
+            }
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+        }
+        equal(stableJson(read), stableJson({ a: [false, true], b: [[], false, false], c: [[], true, false, true], d: [["refused"], true, false],
+            e: [["refused"], false, false, false] }),
+            "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
+    }],
+
+    ["a wrong verdict tells the case's dead and the chapter's crime witnesses among the Monocubs, and no other Monocub, that the killer walks free (E72 C7)", async () => {
+        /*
+         * E72 C7, 12.11.2026; audit S18-58, the owner's DC16. A wrong verdict told the Monocubs nothing, and the ones who
+         * know the killer could act for or against them. A step of the wrong verdict (verdict.mjs `remindOnWrongVerdict`,
+         * `VERDICT_STEPS.wrong`'s "remind") sends each Monocub this case's death made (dead this chapter, not executed)
+         * and each the chapter marked a crime witness one veiled card, and lists them in the GMs' summary. Three Monocubs
+         * of the cast: dead this chapter; dead last chapter and marked a witness; dead last chapter and not marked. Read:
+         * who was told, in the cast's order, and the summary's line. Red at f22a7e8's runtime: no such step.
+         */
+        const [victim, witness, other] = cast(3);
+        const V = await import("./verdict.mjs");
+        const M = await import("./monocub.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const clock = getClock();
+        const names = [FLAGS.deceased, FLAGS.monocub];
+        const was = [victim, witness, other].map(a => [a, Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(a.getFlag(MODULE_ID, f))])),
+            foundry.utils.deepClone(cubStore?.get(a.id) ?? null)]);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let told = null;
+        const context = { lines: [] };
+        try {
+            ok(typeof V.remindOnWrongVerdict === "function", "verdict.mjs has no remindOnWrongVerdict - the wrong verdict's card is not built (E72 C7)");
+            const died = chapter => ({ chapter, day: clock.day, timeOfDay: clock.timeOfDay, epoch: seasonEpoch() });
+            await victim.setFlag(MODULE_ID, FLAGS.deceased, died(clock.chapter));
+            await witness.setFlag(MODULE_ID, FLAGS.deceased, died(clock.chapter - 1));
+            await other.setFlag(MODULE_ID, FLAGS.deceased, died(clock.chapter - 1));
+            for (const a of [victim, witness, other]) {
+                await a.setFlag(MODULE_ID, FLAGS.monocub, true);
+                if (cubStore.has(a.id)) await cubStore.drop(a.id);
+            }
+            await cubStore.patch(witness.id, { witness: { chapter: clock.chapter, epoch: seasonEpoch() } });
+            await settle();
+            told = await V.remindOnWrongVerdict(context);
+        } finally {
+            for (const [a, flags, row] of was) {
+                for (const f of names) {
+                    if (flags[f] === undefined || flags[f] === null) await a.unsetFlag(MODULE_ID, f);
+                    else await a.setFlag(MODULE_ID, f, flags[f]);
+                }
+                if (cubStore) {
+                    if (row) await cubStore.patch(a.id, row);
+                    else if (cubStore.has(a.id)) await cubStore.drop(a.id);
+                }
+            }
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+        }
+        equal(stableJson([[...(told ?? [])].sort(), context.lines.length]), stableJson([[victim.name, witness.name].sort(), 1]),
+            "a wrong verdict did not tell exactly the case's dead and the chapter's witnesses among the Monocubs ([who was told, the summary's lines])");
+    }],
+
+    ["the Monocub's tiles say why they are shut: Redeem used today, the Hope full, an Ask for Hope open; none when free to use (E72 C9)", async () => {
+        /*
+         * E72 C9, 12.11.2026; audit S18-62, DC22. The sheet's Monocub tiles dimmed only on the price (actions, Hope), so
+         * Redeem used today and an open Ask for Hope looked pressable until the GM refused them. The tile asks the row's
+         * blocks this browser can answer (monocub.mjs `cubBlockSaid`, read by sheet.mjs `abilityButton`). A Monocub with
+         * two Hope and nothing used (a); Redeem used today (b); an Ask for Hope open (c); the Hope full (d). Read: each
+         * tile's sentence for Redeem and Ask for Hope (that the tile reads it is R3803's). Red at f22a7e8's runtime: no
+         * cubBlockSaid.
+         */
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(typeof M.cubBlockSaid === "function", "monocub.mjs has no cubBlockSaid - the tiles do not say why they are shut (E72 C9)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.hope.value": 2 });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            const say = () => [M.cubBlockSaid(cub, MONOCUB.abilities.redeem), M.cubBlockSaid(cub, MONOCUB.abilities.askHope)];
+            read.a = say();
+            const clock = getClock();
+            await cubStore.patch(cub.id, { redeemDay: { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day } });
+            read.b = say();
+            await cubStore.patch(cub.id, { redeemDay: null, askOpen: true });
+            read.c = say();
+            await cubStore.patch(cub.id, { askOpen: null });
+            await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
+            await settle();
+            read.d = say();
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.hope.value": was });
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ a: [null, null], b: ["DRPG.Monocub.redeemUsed", null], c: [null, "DRPG.Monocub.askStillOpen"],
+            d: ["DRPG.Monocub.hopeFull", "DRPG.Monocub.hopeFull"] }),
+            "a Monocub's tile does not say why it is shut ([Redeem's, Ask for Hope's sentence] free, Redeem used, an ask open, the Hope full)");
+    }],
+
+    ["the Event panel says Redeem is waiting to a Monocub's own player alone, and not once it is used today or the Hope is full (E72 C9)", async () => {
+        /*
+         * E72 C9, 12.11.2026; audit S18-62, the plan's C9 ("Redeem waiting" in Events for the owner). events.mjs
+         * `redeemCard(user)` answers the card for the Monocubs `user` owns whose Redeem is free to use (monocub.mjs
+         * `cubBlockSaid`, the tile's own reading), or null. A Monocub with two Hope and nothing used, read for its player
+         * (a) and for a GM (b); Redeem used today (c); the Hope full (d). Read: the card's kind and its line naming the
+         * Monocub, or null. Red at f837c2f's runtime: no redeemCard.
+         */
+        const [cub] = cast(1);
+        needs(world.ownedByPlayer(cub), "a player who owns the Monocub, whose screen the card is for");
+        const EV = await import("./events.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const player = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(typeof EV.redeemCard === "function", "events.mjs has no redeemCard - the Event panel does not say Redeem is waiting (E72 C9)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.hope.value": 2 });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            const card = user => { const c = EV.redeemCard(user); return c ? [c.kind, c.sub === cub.name] : null; };
+            read.a = card(player);
+            read.b = card(game.user);
+            const clock = getClock();
+            await cubStore.patch(cub.id, { redeemDay: { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day } });
+            read.c = card(player);
+            await cubStore.patch(cub.id, { redeemDay: null });
+            await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
+            await settle();
+            read.d = card(player);
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.hope.value": was });
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ a: ["redeemHope", true], b: null, c: null, d: null }),
+            "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
+    }],
+
+    ["the Event panel tells a Monocub's own player that a Bribe waits and that its Ghost Bet stands, naming the payer and the student bet on, and draws neither for a GM or once both are gone (E72 C19, the owner's option A)", async () => {
+        /*
+         * E72 C19, 12.11.2026; the owner's option A. events.mjs `bribeWaitCard(user)` and `betCard(user)` answer a card for
+         * the Monocub `user` owns while its record holds an open offer or a bet (the sheet panel's reading, monocub.mjs
+         * `cubPanelLines`), or null. A Monocub with an offer from a stand-in payer and a bet on another student, read for
+         * its player (a) and for a GM (b); both gone (c). Read: the kind, the Monocub on the line, the name on the meta.
+         * Red at 848b449's runtime: no bribeWaitCard, no betCard.
+         */
+        const [cub, other] = cast(2);
+        needs(world.ownedByPlayer(cub), "a player who owns the Monocub, whose screen the cards are for");
+        const EV = await import("./events.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const player = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        const cards = user => [typeof EV.bribeWaitCard === "function" ? EV.bribeWaitCard(user) : "none", typeof EV.betCard === "function" ? EV.betCard(user) : "none"]
+            .map(c => (c && typeof c === "object" ? [c.kind, c.sub === cub.name, String(c.meta ?? "")] : c));
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await cubStore.patch(cub.id, { bribes: { SUITEC19BRIBE: { from: other.id, fromName: "SUITE C19 Payer", cost: 1, at: Date.now() } },
+                bet: { targetId: other.id, value: 3, at: Date.now() } });
+            await settle();
+            read.a = cards(player);
+            read.b = cards(game.user);
+            await cubStore.patch(cub.id, { bribes: null, bet: null });
+            await settle();
+            read.c = cards(player);
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            await settle();
+        }
+        const said = (key, name) => game.i18n.format(key, { name });
+        equal(stableJson(read), stableJson({
+            a: [["bribeHope", true, said("DRPG.Events.bribeWaitMeta", "SUITE C19 Payer")], ["betHope", true, said("DRPG.Events.betMeta", other.name)]],
+            b: [null, null], c: [null, null]
+        }), "the part B cards are not drawn for the Monocub's player alone while an offer waits and a bet stands ([kind, names the Monocub, the meta] for its player, a GM, both gone)");
+    }],
+
+    ["the Monocub's panel says part B's state - offers waiting, Bounties open, its own Ghost Bet - and the GMs are flagged a Bribe from this chapter's killer and a pair's third accepted Bribe (E72 C19)", async () => {
+        /*
+         * E72 C19, 12.11.2026; the plan's C19 (the panel for part B; the log's flags). monocub.mjs `cubPanelLines(actor)`
+         * answers what the panel draws under the tiles from the row as this browser holds it (the owner's copy, or the
+         * GMs' row): each Bribe waiting (`kind` "offer", with its id for the panel's Accept and Refuse), each open Bounty
+         * ("bounty") and the Monocub's own Ghost Bet ("bet"); the bet now rides in the copy (`copyRowOf`). The GMs are
+         * whispered a flag (`bribeFlags`) when a Bribe accepted comes from this chapter's Blackened, and when it is the
+         * third accepted of one pair. A Monocub, a payer and a student; the payer recorded this chapter's Blackened for
+         * the second part. Read: the lines' kinds and names; the flags of three accepted Bribes. Red at 43c5362: no
+         * cubPanelLines, no flags.
+         */
+        const [cub, payer, other] = cast(3);
+        needs(world.ownedByPlayer(cub), "the Monocub's player");
+        needs(world.ownedByPlayer(payer), "the payer's player");
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const had = [cub, payer].map(a => a.system.resources.hope.value);
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const blackWas = foundry.utils.deepClone(S.blackenedStore?.entries?.() ?? {});
+        const read = {};
+        try {
+            ok(typeof M.cubPanelLines === "function" && typeof M.bribeFlags === "function", "monocub.mjs has no cubPanelLines or bribeFlags (E72 C19)");
+            if (typeof M.cubPanelLines !== "function" || typeof M.bribeFlags !== "function") return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await trustedWrite(payer, { "system.resources.hope.value": 5 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+            await S.bountyStore.patch(other.id, { by: game.user.id, reward: 1, at: 1, targetName: other.name });
+            await S.cubStore.patch(cub.id, { bet: { targetId: other.id, value: 3, at: 1 } });
+            read.lines = M.cubPanelLines(cub).map(line => [line.kind, line.name ?? null]);
+            read.copied = M.copyRowOf(M.cubsFor(owner(cub).id).cubs[cub.id])?.bet ?? null;
+            await S.bountyStore.drop(other.id);
+            await S.cubStore.patch(cub.id, { bet: null, bribes: null });
+            const accept = async () => {
+                const offer = await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+                await M.answerBribeOnGm({ cubId: cub.id, bribeId: offer?.bribeId, accept: true }, owner(cub));
+                await S.cubStore.patch(cub.id, { purse: 0 });
+            };
+            const chapter = getClock().chapter;
+            const flagsOf = () => M.bribeFlags(cub, payer);
+            await accept();
+            read.first = flagsOf();
+            await S.blackenedStore.patch(payer.id, { chapter, epoch: seasonEpoch(), at: 1 });
+            await accept();
+            read.second = flagsOf();
+            await accept();
+            read.third = flagsOf();
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            for (const [i, a] of [cub, payer].entries()) await trustedWrite(a, { "system.resources.hope.value": had[i] }, { reason: "gmRuling" });
+            if (S.bountyStore?.has?.(other.id)) await S.bountyStore.drop(other.id);
+            if (S.blackenedStore?.has?.(payer.id) && !Object.hasOwn(blackWas, payer.id)) await S.blackenedStore.drop(payer.id);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            lines: [["offer", payer.name], ["bounty", other.name], ["bet", other.name]], copied: { targetName: other.name, value: 3 },
+            first: [], second: ["killer"], third: ["killer", "third"]
+        }), "the panel's lines or the GMs' flags are not part B's ({the lines: [kind, name]; the bet in the copy; the flags after the first, second and third accepted Bribe of the pair, the payer this chapter's Blackened from the second})");
+    }],
+
+    ["a Ghost Bet names a student for the window's Hope, one bet a Monocub, shut to a crime witness, paid into the purse only when a right verdict sentences that student, its cards naming nobody else (E72 C18)", async () => {
+        /*
+         * E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; defaults, owner may revise: free to place,
+         * one bet a Monocub until the next verdict, the value fixed when it is placed. The row `bet` (config.mjs
+         * MONOCUB.abilities); its value is the window (monocub.mjs `betWindowNow`: 4 before this chapter's body is
+         * announced, 3 after, 2 in the Class Trial before the vote, 1 while the vote is open, 0 once it closed); blocked
+         * for one placed (`betPlaced`), a Monocub whose own case is open (`ownCase`) and a crime witness (`crimeWitness`);
+         * settled by the verdict's step "bets" (`settleBets`). A Monocub and two students. Read: the windows in the four
+         * states; a bet on A placed (its value); a second refused; the block's sentence for a witness; a right verdict
+         * sentencing A (the purse, the bet gone); a bet on B and a wrong verdict (nothing paid). Red at 3f87a53: no bet.
+         */
+        const [cub, a, b] = cast(3);
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const had = { actions: cub.system.resources.actions.value, hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(Boolean(MONOCUB.abilities.bet) && typeof M.settleBets === "function" && typeof M.betWindowNow === "function",
+                "no Ghost Bet: MONOCUB.abilities.bet, monocub.mjs settleBets or betWindowNow is missing (E72 C18)");
+            if (!MONOCUB.abilities.bet || typeof M.settleBets !== "function") return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 3, "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            const chapter = getClock().chapter;
+            const set = async (phase, vote = null) => {
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase, eclipse: false });
+                await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...(getSetting(SETTINGS.trialProgress) ?? {}), chapter, vote, verdictApplied: false });
+                await settle();
+                return M.betWindowNow({ announced: false });
+            };
+            read.windows = [await set("dailyLife"), M.betWindowNow({ announced: true }), await set("classTrial"),
+                await set("classTrial", { open: true }), await set("classTrial", { open: false, closedAt: 1 })];
+            await set("dailyLife");
+            const bet = async target => M.cubAbilityOnGm({ actorId: cub.id, key: "bet", targetId: target.id, choice: "bet" });
+            await S.cubStore.patch(cub.id, { witness: { chapter, epoch: seasonEpoch() } });
+            read.witness = [M.cubBlockSaid(cub, MONOCUB.abilities.bet), Boolean(await bet(a))];
+            await S.cubStore.patch(cub.id, { witness: null });
+            // The value is the window when it is placed: the world's own announcement state, read live.
+            const window = M.betWindowNow();
+            read.placed = [Boolean(await bet(a)), S.cubStore.get(cub.id)?.bet?.targetId === a.id, S.cubStore.get(cub.id)?.bet?.value === window && window > 0];
+            read.second = Boolean(await bet(b));
+            read.right = [await M.settleBets({ record: { correct: true, executedIds: [a.id] } }), M.purseOf(cub) === window, Boolean(S.cubStore.get(cub.id)?.bet)];
+            await bet(b);
+            read.wrong = [await M.settleBets({ record: { correct: false, executedIds: [b.id] } }), M.purseOf(cub) === window, Boolean(S.cubStore.get(cub.id)?.bet)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.actions.value": had.actions, "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            windows: [4, 3, 2, 1, 0], placed: [true, true, true], second: false, witness: ["DRPG.Monocub.betWitness", false],
+            right: [1, true, false], wrong: [0, true, false]
+        }), "a Ghost Bet is not windowed, placed, blocked or settled as DC12/DC31 ask ({the windows: before the announcement, after, in the trial, the vote open, "
+            + "closed; a bet on A: placed, on A, its value; a second; a witness's block and its bet refused; a right verdict on A: [winners, purse, a bet left]; a wrong one: the same})");
+    }],
+
+    ["a move to order costs only its action: the Monocub's next Confusion after it accepted a Bribe this time of day takes no Hope, the one after it does, and an order lapses at the turn (E72 C17)", async () => {
+        /*
+         * E72 C17, 12.11.2026; the owner's DC34 ("a move done to order costs only the action"); defaults, owner may revise:
+         * an accepted Bribe orders one move of that Monocub this time of day (`cubStore`'s `order`), the row's
+         * `executionCost` is what that move costs (config.mjs MONOCUB.abilities: Confusion and Tinker, one action and no
+         * Hope), and `settleBribes` lapses an order unused at the turn. A payer with Hope, a Monocub with 3 actions and 2
+         * Hope, alone with a student. Read: [actions, Hope] after a Confusion with no order; after the Bribe's yes, a
+         * Confusion; a second; then an order left to lapse. Red at c33e556: every Confusion took a Hope.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "a Monocub, its target and a payer stood by their tokens");
+        const [cub, target, payer] = cast(3);
+        needs(world.ownedByPlayer(cub), "the Monocub's player");
+        needs(world.ownedByPlayer(payer), "the payer's player");
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const had = [cub, payer].map(a => ({ actions: a.system.resources.actions.value, hope: a.system.resources.hope.value }));
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const capWas = foundry.utils.deepClone(S.cubTargetStore?.get(target.id) ?? null);
+        const real = CONFIG.Dice.randomUniform;
+        let back = null;
+        const read = {};
+        try {
+            ok(Boolean(MONOCUB.abilities.meddle?.executionCost), "config.mjs MONOCUB.abilities.meddle has no executionCost - a move to order costs its Hope (E72 C17)");
+            ({ back } = await aloneTogether(cub, target));
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 4, "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+            await trustedWrite(payer, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            const state = () => [cub.system.resources.actions.value, M.cubHopeTotal(cub)];
+            const confusion = async () => {
+                if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+                const script = [2, 3].map(face => 1 - (face - 0.5) / 12);
+                CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+                try { await M.cubAbilityOnGm({ actorId: cub.id, key: "meddle", targetId: target.id, choice: "help" }); } finally { CONFIG.Dice.randomUniform = real; }
+                await settle();
+                return state();
+            };
+            read.plain = await confusion();
+            const offer = await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+            await M.answerBribeOnGm({ cubId: cub.id, bribeId: offer?.bribeId, accept: true }, owner(cub));
+            read.accepted = state();
+            read.ordered = await confusion();
+            read.after = await confusion();
+            const again = await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+            await M.answerBribeOnGm({ cubId: cub.id, bribeId: again?.bribeId, accept: true }, owner(cub));
+            await M.settleBribes();
+            read.lapsed = Boolean(S.cubStore.get(cub.id)?.order);
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            for (const [i, a] of [cub, payer].entries()) {
+                await trustedWrite(a, { "system.resources.actions.value": had[i].actions, "system.resources.hope.value": had[i].hope }, { reason: "gmRuling" });
+            }
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            if (capWas) await S.cubTargetStore.patch(target.id, capWas);
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ plain: [3, 1], accepted: [3, 2], ordered: [2, 2], after: [1, 1], lapsed: false }),
+            "a move to order is not priced as DC34 asks ({[actions, Hope] after a plain Confusion, the Bribe's yes, the ordered one, the next; an unused order after the turn})");
+    }],
+
+    ["a Bounty is the GMs' and the Monocubs' alone: its Despair owed to the next time of day, claimed by the first Monocub whose Confusion hinders the student, its Hope into that Monocub's purse, lapsing unclaimed (E72 C16)", async () => {
+        /*
+         * E72 C16, 12.11.2026; the owner's DC27 = 2, DC40 ("Bounty the one exception: secret, for Monocubs and GMs, 1 Despair
+         * through the debt buffer, 1 Hope to the purse"). Defaults, owner may revise: claimed by a Confusion that hinders
+         * the student and lands; lapsing at the next time of day. config.mjs DESPAIR_CALLS.bounty; monocub.mjs `postBounty`
+         * (the GM's pool owes it: despair.mjs `oweDespair`), `claimBounty` (from `scoreMeddle`), `lapseBounties`; the open
+         * Bounties are the GMs' (gm-stores.mjs `bountyStore`) and every Monocub's owner's copy carries them. A GM with 3
+         * Despair, a Monocub and a living student alone in a room. Read: the post's answer, the pool and what it owes, the
+         * Bounties open, the Monocub's copy; a Help that lands (no claim) and a Hinder that lands (the claim) with scripted
+         * dice, the purse after each; a second Bounty lapsing; one on a Monocub and one with no Despair to spend. Red at
+         * fd831cf: no Bounty.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "a Monocub and a student stood in one room by their tokens");
+        const [cub, target] = cast(2);
+        needs(world.ownedByPlayer(cub), "the Monocub's player, whose copy carries the Bounty");
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const cubUser = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const had = { actions: cub.system.resources.actions.value, hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const capWas = foundry.utils.deepClone(S.cubTargetStore?.get(target.id) ?? null);
+        const real = CONFIG.Dice.randomUniform;
+        let back = null;
+        const read = {};
+        try {
+            ok(Boolean(DESPAIR_CALLS.bounty) && ["postBounty", "claimBounty", "lapseBounties"].every(f => typeof M[f] === "function") && Boolean(S.bountyStore),
+                "no Bounty: DESPAIR_CALLS.bounty, monocub.mjs postBounty, claimBounty or lapseBounties, or gm-stores.mjs bountyStore is missing (E72 C16)");
+            if (!DESPAIR_CALLS.bounty || typeof M.postBounty !== "function" || !S.bountyStore) return;
+            ({ back } = await aloneTogether(cub, target));
+            await D.setDespair(game.user.id, 3);
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 4, "system.resources.hope.value": 4 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            const open = () => Object.keys(S.bountyStore.entries() ?? {}).length;
+            const confusion = async (choice, faces) => {
+                // Each move as the student's first this time of day (the caps are C4's, read elsewhere).
+                if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+                const script = faces.map(face => 1 - (face - 0.5) / 12);
+                CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+                try { await M.cubAbilityOnGm({ actorId: cub.id, key: "meddle", targetId: target.id, choice }); } finally { CONFIG.Dice.randomUniform = real; }
+                await settle();
+                return [M.purseOf(cub), open()];
+            };
+            // The copy's stamp moves with the Bounties (E72 fix round, review #2): the owner's combine takes only a newer answer.
+            const stampNow = () => M.cubsFor(cubUser.id).stamps[cub.id] ?? 0;
+            const stamps = [stampNow()];
+            read.posted = [Boolean(await M.postBounty(game.user.id, target)), D.getDespair(game.user.id), D.owedOf(game.user.id), open(),
+                (M.copyRowOf(M.cubsFor(cubUser.id).cubs[cub.id])?.bounties ?? []).map(b => b.targetName === target.name)];
+            stamps.push(stampNow());
+            read.again = Boolean(await M.postBounty(game.user.id, target));
+            read.help = await confusion("help", [6, 7]);
+            read.hinder = await confusion("hinder", [6, 7]);
+            await M.postBounty(game.user.id, target);
+            stamps.push(stampNow());
+            read.lapsed = [await M.lapseBounties(), open()];
+            stamps.push(stampNow());
+            read.stampsRise = [stamps[1] > stamps[0], stamps[3] > stamps[2]];
+            read.onCub = Boolean(await M.postBounty(game.user.id, cub));
+            await D.setDespair(game.user.id, D.owedOf(game.user.id));
+            read.broke = Boolean(await M.postBounty(game.user.id, target));
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            for (const id of Object.keys(S.bountyStore?.entries?.() ?? {})) await S.bountyStore.drop(id);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.actions.value": had.actions, "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            const { confusionStore } = S;
+            if (confusionStore?.has?.(target.id)) await confusionStore.drop(target.id);
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            if (capWas) await S.cubTargetStore.patch(target.id, capWas);
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            posted: [true, 3, 1, 1, [true]], again: false, help: [0, 1], hinder: [1, 0], lapsed: [1, 0], stampsRise: [true, true], onCub: false, broke: false
+        }), "a Bounty is not posted, owed, claimed or lapsed as DC27/DC40 ask ({the post: [answer, pool, owed, open, the copy names the student]; "
+            + "the copy's stamp newer after a post and after a lapse; "
+            + "a second on the same student; after a landing Help and a landing Hinder: [purse, open]; the lapse: [lapsed, open]; on a Monocub; with nothing to spend})");
+    }],
+
+    ["Hope given from Despair to a Monocub counts its purse toward the limit: an Ask for Hope or Fuel fills the sheet only up to the limit less the purse (E72 fix round)", async () => {
+        /*
+         * E72 fix round, 12.11.2026; the end review's #5 and the owner's DC37 (a Monocub's Hope is its sheet's and its
+         * purse's, 6 at most). despair.mjs `creditHopeFromDespair`, the one road of an Ask for Hope's answer and of Fuel a
+         * Monocub, held only the sheet to its maximum: a purse of 2 and a sheet of 3 took 3 more. A Monocub with a purse
+         * of 2 and a sheet of 3; this GM's pool with 5. Read: what 5 asked grants, and the sum after. Red before the fix:
+         * the maximum less 3 granted.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a Monocub");
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const hope = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await settle();
+            must(await M.addToPurse(cub, 2) === 2, "the purse could not take 2 - this would measure nothing");
+            await trustedWrite(cub, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            await D.setDespair(game.user.id, 5);
+            await settle();
+            const max = resourceMax(cub, "hope");
+            must(max >= 5, `the Monocub's Hope maximum is ${max} - this would measure nothing`);
+            read.granted = await D.convertDespairToHope(game.user.id, cub, 5);
+            await settle();
+            read.total = M.cubHopeTotal(cub);
+            read.want = { granted: max - 5, total: max };
+        } finally {
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson([read.granted, read.total]), stableJson([read.want?.granted, read.want?.total]),
+            "a Despair grant to a Monocub took the sheet to its maximum with the purse beside it ([granted, sheet and purse])");
+    }],
+
+    ["two Monocubs' Confusions on one student at once take one share of its time of day: the second is capped and pays nothing (E72 fix round)", async () => {
+        /*
+         * E72 fix round, 12.11.2026; the end review's #4. The student's share (E72 C4, `cubCapRefusal`) was read under a
+         * lock a Monocub, and noted (`noteCubMove`) after the price's awaits: two Monocubs on one student in step both
+         * passed one share a time of day. Now the share's check, the price and the note take one lock a target. Two
+         * Monocubs with 2 actions and 2 Hope and a student in one room. Read: the two answers ([done, capped]) and the
+         * actions both have left. Red before the fix: both done.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two Monocubs and a student stood in one room by their tokens");
+        const [a, b, target] = cast(3);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const had = [a, b].map(x => ({ actions: x.system.resources.actions.value, hope: x.system.resources.hope.value }));
+        const rows = [a, b].map(x => foundry.utils.deepClone(S.cubStore?.get(x.id) ?? null));
+        const capWas = foundry.utils.deepClone(S.cubTargetStore?.get(target.id) ?? null);
+        const tokenB = canvas.scene.tokens.find(t => t.actorId === b.id);
+        const wasB = tokenB ? { x: tokenB.x, y: tokenB.y } : null;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const real = CONFIG.Dice.randomUniform;
+        let back = null;
+        const read = {};
+        try {
+            let room;
+            ({ room, back } = await aloneTogether(a, target));
+            must(tokenB, "the second Monocub has no token - this would measure nothing");
+            await tokenB.update(positionIn(room, tokenB), PLACE);
+            for (const x of [a, b]) {
+                await x.setFlag(MODULE_ID, FLAGS.monocub, true);
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                await trustedWrite(x, { "system.resources.actions.value": 2, "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+            }
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            await settle();
+            let i = 0;
+            CONFIG.Dice.randomUniform = () => 1 - (((i++ % 2) ? 7 : 6) - 0.5) / 12;
+            const outs = await Promise.all([a, b].map(x => M.cubAbilityOnGm({ actorId: x.id, key: "meddle", targetId: target.id, choice: "help" })));
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            read.answers = outs.map(o => (o?.done ? "done" : o?.capped ? "capped" : "other")).sort();
+            read.actions = [a, b].map(x => x.system.resources.actions.value).sort();
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            for (const [i, x] of [a, b].entries()) {
+                await x.unsetFlag(MODULE_ID, FLAGS.monocub);
+                await trustedWrite(x, { "system.resources.actions.value": had[i].actions, "system.resources.hope.value": had[i].hope }, { reason: "gmRuling" });
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                if (rows[i]) await S.cubStore.patch(x.id, rows[i]);
+            }
+            const { confusionStore } = S;
+            if (confusionStore?.has?.(target.id)) await confusionStore.drop(target.id);
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            if (capWas) await S.cubTargetStore.patch(target.id, capWas);
+            if (tokenB && wasB && canvas.scene.tokens.has(tokenB.id)) await tokenB.update(wasB, PLACE);
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ answers: ["capped", "done"], actions: [1, 2] }),
+            "two Confusions at once on one student both took its share ({the answers; the actions left})");
+    }],
+
+    ["two Bribes one payer cannot pay from one Hope, a purse's writes in step take nothing from each other, a Bribe answered once the role is gone pays nothing, and a refund holds the limit (E72 fix round)", async () => {
+        /*
+         * E72 fix round, 12.11.2026; the end review's #3 and #6. A Bribe's yes was serialised per Monocub only: two
+         * Monocubs answering one payer's offers together each read the payer's 1 Hope and each wrote 0, so 2 Hope went
+         * into purses for 1 paid; and the purse's writers (the price, a Bribe, a refund) each read the purse before an
+         * await. Now the payer's check and payment take one lock a payer, and every purse write one lock a Monocub. A
+         * payer with 1 Hope; two Monocubs with nothing. Read: [the payer's Hope, both purses] after both yeses at once;
+         * then the purse after three additions at once; then a yes from a student no longer a Monocub. Red before the
+         * fix: [0, 1, 1]; the additions lost; the third yes paid.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "a payer and two Monocubs");
+        const [payer, a, b] = cast(3);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const had = [payer, a, b].map(x => x.system.resources.hope.value);
+        const rows = [a, b].map(x => foundry.utils.deepClone(S.cubStore?.get(x.id) ?? null));
+        const read = {};
+        try {
+            for (const x of [a, b]) {
+                await x.setFlag(MODULE_ID, FLAGS.monocub, true);
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                await trustedWrite(x, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            }
+            await trustedWrite(payer, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            await settle();
+            const offers = [await M.offerBribeOnGm({ actorId: payer.id, cubId: a.id }), await M.offerBribeOnGm({ actorId: payer.id, cubId: b.id })];
+            must(offers.every(o => o?.bribeId), "the two offers were refused - this would measure nothing");
+            await Promise.all([a, b].map((x, i) => M.answerBribeOnGm({ cubId: x.id, bribeId: offers[i].bribeId, accept: true })));
+            await settle();
+            read.both = [payer.system.resources.hope.value, M.purseOf(a), M.purseOf(b)];
+            if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+            await Promise.all([1, 1, 1].map(n => M.addToPurse(a, n)));
+            read.added = M.purseOf(a);
+            await trustedWrite(payer, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+            const late = await M.offerBribeOnGm({ actorId: payer.id, cubId: b.id });
+            await b.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await settle();
+            const answer = await M.answerBribeOnGm({ cubId: b.id, bribeId: late?.bribeId, accept: true });
+            read.gone = [Boolean(answer?.accepted), payer.system.resources.hope.value, M.purseOf(b)];
+            // A refund to the sheet is held to the limit less the purse (the second review's #4): a purse of 2 and a sheet at
+            // the limit less 2, given 1 back, stay at the limit.
+            if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+            await trustedWrite(a, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await M.addToPurse(a, 2);
+            const { resourceMax } = await import("./character.mjs");
+            const max = resourceMax(a, "hope");
+            await trustedWrite(a, { "system.resources.hope.value": max - 2 }, { reason: "gmRuling" });
+            await M.refundCubHope(a, { purse: 0, sheet: 1 });
+            await settle();
+            read.refund = [M.cubHopeTotal(a) - max, M.purseOf(a)];
+        } finally {
+            for (const [i, x] of [a, b].entries()) {
+                await x.unsetFlag(MODULE_ID, FLAGS.monocub);
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                if (rows[i]) await S.cubStore.patch(x.id, rows[i]);
+            }
+            for (const [i, x] of [payer, a, b].entries()) await trustedWrite(x, { "system.resources.hope.value": had[i] }, { reason: "gmRuling" });
+            await settle();
+        }
+ok(read.both?.[0] === 0 && read.both[1] + read.both[2] === 1, `two Bribes paid from one Hope put more than it into the purses: ${stableJson(read.both)}`);
+equal(read.added, 3, "three additions to a purse at once lost one");
+        equal(stableJson(read.gone), stableJson([false, 1, 0]), "a Bribe answered after the role was gone was paid ([accepted, payer's Hope, purse])");
+        equal(stableJson(read.refund), stableJson([0, 2]), "a refund to the sheet took a Monocub past its limit with the purse beside it ([total less the limit, purse])");
+    }],
+
+    ["a Bribe is offered to a Monocub and paid only on its yes, from the payer's Hope into the Monocub's purse, one open offer a pair, refused offers and lapsed ones costing nothing (E72 C15)", async () => {
+        /*
+         * E72 C15, 12.11.2026; the owner's DC25, DC26, DC39 (defaults, owner may revise: 1 Hope, any Monocub, lapsing at the
+         * next time of day). A living student's Hope Call Bribe (config.mjs HOPE_CALLS.bribe) offers a Monocub its price; the
+         * offer waits in the Monocub's row (gm-stores.mjs `cubStore`'s `bribes`, which its owner's copy carries), and is
+         * paid only when the Monocub's player accepts it, on the primary in one step: the payer's Hope down, the
+         * Monocub's purse up (monocub.mjs `offerBribeOnGm`, `answerBribeOnGm`); `settleBribes` lapses what is open at
+         * each time of day. A payer with 3 Hope and a Monocub with none, each with its player. Read, after each step:
+         * the answer, the payer's Hope, the Monocub's purse, the offers open. Red at f1ee74a: no Bribe.
+         */
+        needs(world.atLeast("playerAccounts", 2), "the payer's player and the Monocub's player");
+        const owned = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const [payer, cub] = cast(2);
+        needs(world.ownedByPlayer(payer), "the payer's player");
+        needs(world.ownedByPlayer(cub), "the Monocub's player");
+        const M = await import("./monocub.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const hadHope = [payer.system.resources.hope.value, cub.system.resources.hope.value];
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(Boolean(HOPE_CALLS.bribe) && typeof M.offerBribeOnGm === "function" && typeof M.answerBribeOnGm === "function"
+                && typeof M.settleBribes === "function", "no Bribe: HOPE_CALLS.bribe, monocub.mjs offerBribeOnGm, answerBribeOnGm or settleBribes is missing (E72 C15)");
+            if (!HOPE_CALLS.bribe || typeof M.offerBribeOnGm !== "function") return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(payer, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            const [payerUser, cubUser] = [owned(payer), owned(cub)];
+            const state = () => [payer.system.resources.hope.value, M.purseOf(cub), Object.keys(cubStore.get(cub.id)?.bribes ?? {}).length];
+            const offer = async () => M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, payerUser);
+            const answer = async (bribeId, accept, by = cubUser) => M.answerBribeOnGm({ cubId: cub.id, bribeId, accept }, by);
+            const first = await offer();
+            read.offered = [Boolean(first?.bribeId), ...state()];
+            // The offer reaches the Monocub's player's copy, the payer's name and the price, and no copy of the payer's.
+            read.copy = [stableJson(M.copyRowOf(M.cubsFor(cubUser.id).cubs[cub.id])?.bribes ?? null)
+                === stableJson({ [first?.bribeId]: { fromName: payer.name, cost: 1 } }), M.cubsFor(payerUser.id).cubs[cub.id] ?? null];
+            read.again = [Boolean((await offer())?.bribeId), ...state()];
+            read.byPayer = [Boolean((await answer(first?.bribeId, true, payerUser))?.accepted), ...state()];
+            read.accepted = [Boolean((await answer(first?.bribeId, true))?.accepted), ...state()];
+            read.twice = [Boolean((await answer(first?.bribeId, true))?.accepted), ...state()];
+            const second = await offer();
+            read.refused = [(await answer(second?.bribeId, false))?.accepted ?? null, ...state()];
+            await offer();
+            read.lapsed = [await M.settleBribes(), ...state()];
+            read.notCub = Boolean((await M.offerBribeOnGm({ actorId: cub.id, cubId: payer.id }, cubUser))?.bribeId);
+            // An offer needs the price when it is made; one the payer can no longer pay when it is accepted closes unpaid.
+            await trustedWrite(payer, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            read.broke = Boolean((await offer())?.bribeId);
+            await trustedWrite(payer, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            const poor = await offer();
+            await trustedWrite(payer, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            read.poor = [Boolean(poor?.bribeId), Boolean((await answer(poor?.bribeId, true))?.accepted), ...state()];
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(payer, { "system.resources.hope.value": hadHope[0] }, { reason: "gmRuling" });
+            await trustedWrite(cub, { "system.resources.hope.value": hadHope[1] }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            if (rowWas) await cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            offered: [true, 3, 0, 1], copy: [true, null], again: [false, 3, 0, 1], byPayer: [false, 3, 0, 1], accepted: [true, 2, 1, 0], twice: [false, 2, 1, 0],
+            refused: [false, 2, 1, 0], lapsed: [1, 2, 1, 0], notCub: false, broke: false, poor: [true, false, 0, 1, 0]
+        }), "a Bribe is not offered, paid or closed as DC25/DC26 ask ({each step: [its answer], the payer's Hope, the Monocub's purse, the offers open})");
+    }],
+
+    ["a Monocub's purse is spent before its sheet, counts toward the Hope limit, is given back where it was paid from and is sent to its owner (E72 C14)", async () => {
+        /*
+         * E72 C14, 12.11.2026; the owner's DC37. A Monocub's Hope is its sheet's and its purse's (the GMs' row, `cubStore`'s
+         * `purse`), the Hope a Bribe or a Bounty pays it (C15, C16). A Monocub with 1 Hope on the sheet and 2 in the purse:
+         * the total (`cubHopeTotal`); a price of 1, then of 2 (`spendCubHope`: the purse first), each answer and the two
+         * places after it; the second given back (`refundCubHope`), whence it came; 3 more into the purse with the sheet at
+         * 4 of 6 (`addToPurse`, held to the limit: 2 go in); the full Hope's sentence then (`cubBlockSaid`, Redeem's row);
+         * the owner's copy's purse (`cubsFor`). Red at 51df7b4: no purse.
+         */
+        const [cub] = cast(1);
+        needs(world.ownedByPlayer(cub), "a player who owns the Monocub, whose copy is read");
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const player = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        let max = null;
+        try {
+            const fns = ["cubHopeTotal", "spendCubHope", "refundCubHope", "addToPurse"];
+            ok(fns.every(f => typeof M[f] === "function"), `monocub.mjs has no ${fns.filter(f => typeof M[f] !== "function").join(", ")} - a Monocub has no purse (E72 C14)`);
+            if (!fns.every(f => typeof M[f] === "function")) return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await cubStore.patch(cub.id, { purse: 2 });
+            await settle();
+            const where = () => [cub.system.resources.hope.value, M.purseOf(cub)];
+            read.total = M.cubHopeTotal(cub);
+            read.one = [await M.spendCubHope(cub, 1), ...where()];
+            const two = await M.spendCubHope(cub, 2);
+            read.two = [two, ...where()];
+            await M.refundCubHope(cub, two);
+            read.back = where();
+            max = resourceMax(cub, "hope");
+            await trustedWrite(cub, { "system.resources.hope.value": max - 2 }, { reason: "gmRuling" });
+            await cubStore.patch(cub.id, { purse: 0 });
+            read.added = [await M.addToPurse(cub, 3), ...where(), M.cubHopeTotal(cub) === max];
+            read.full = M.cubBlockSaid(cub, MONOCUB.abilities.redeem);
+            // As the owner keeps it (`copyRowOf`, the player's side): until C15 that side dropped the purse.
+            read.copy = typeof M.copyRowOf === "function" ? M.copyRowOf(M.cubsFor(player.id).cubs[cub.id])?.purse ?? null : null;
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": was }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            if (rowWas) await cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            total: 3,
+            one: [{ purse: 1, sheet: 0 }, 1, 1], two: [{ purse: 1, sheet: 1 }, 0, 0], back: [1, 1],
+            added: [2, max - 2, 2, true], full: "DRPG.Monocub.hopeFull", copy: 2
+        }), "the purse is not spent first, does not count toward the limit, is not given back where it came from or not sent to the owner "
+            + "({total; each price: what it took from where, then [sheet, purse]; after the refund; 3 into the purse at the limit less 2: how many went in, [sheet, purse], the total at the limit; Redeem's sentence; the owner's copy's purse})");
+    }],
+
+    ["who worked on a project this time of day is the GMs' row, written for a player's, a Call's and a Reroll's progress and not for a GM's own, a Monocub's or a step back (E72 C13)", async () => {
+        /*
+         * E72 C13, 12.11.2026; the owner's DC23 ("a living worker this time of day"). gm-stores.mjs `projectWorkStore` is
+         * written by projects.mjs `applyProjectChange` after a change that moved the bar forward, for the kinds that are
+         * a student's own work. One project of the suite's; five changes through the one entry, each naming a character
+         * of its own: a GM's +1 ("gm"), a Monocub's ("monocub"), a player's -1, then a player's +1, a Call's and a
+         * Reroll's. Read: the characters `workersNow` names after each. Red at b22d2d0: no store, no `workersNow`.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const [a, b, c, d, e] = ["SUITEE72C13WGM00", "SUITEE72C13WCUB0", "SUITEE72C13WBACK", "SUITEE72C13WPLAY", "SUITEE72C13WCALL"];
+        const f = "SUITEE72C13WRERO";
+        let id = null;
+        const read = [];
+        try {
+            ok(typeof P.workersNow === "function" && Boolean(S.projectWorkStore), "projects.mjs has no workersNow or gm-stores.mjs no projectWorkStore (E72 C13)");
+            if (typeof P.workersNow !== "function" || !S.projectWorkStore) return;
+            id = (await P.createProject({ name: "SUITE E72 C13 work", target: 10, room: null }))?.id ?? null;
+            must(id, "could not create a project - this would measure nothing");
+            await P.applyProjectChange(id, { delta: 2 }, { by: { kind: "gm", actorId: a } });
+            const steps = [["gm", 1, a], ["monocub", 1, b], ["player", -1, c], ["player", 1, d], ["call", 1, e], ["reroll", 1, f]];
+            for (const [kind, delta, actorId] of steps) {
+                await P.applyProjectChange(id, { delta }, { by: { kind, actorId } });
+                read.push(P.workersNow(id));
+            }
+        } finally {
+            if (id) {
+                await P.deleteProject(id).catch(() => {});
+                if (S.projectWorkStore?.has?.(id)) await S.projectWorkStore.drop(id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[], [], [], [d], [d, e], [d, e, f]]),
+            "the work this time of day is not the student's own forward changes ([the workers named after a GM's +1, a Monocub's, a player's -1, a player's +1, a Call's, a Reroll's])");
+    }],
+
+    ["a Monocub's Tinker moves a public project in its room that a living student worked on this time of day: 12 or more is +1 or -1, a double gives the Hope back, a project it would finish holds one short, and a secret project, one nobody worked on or an unknown id is refused with nothing paid (E72 C13)", async () => {
+        /*
+         * E72 C13, 12.11.2026; audit S18-52, S18-64, the owner's DC23, DC24, DC35. Tinker is the Monocub's Confusion aimed at
+         * a project (the inventory's row 73, its own row `tinker` of config.mjs MONOCUB.abilities): a public, unfinished,
+         * unfrozen project in the Monocub's room that a living student worked on this time of day (gm-stores.mjs
+         * `projectWorkStore`, written by the one entry `applyProjectChange` for a player's, a Call's or a Reroll's progress);
+         * 1 action and 1 Hope, taken on the GM after the conditions; 12 or more moves it +1 or -1 (`kind` "monocub"); a double
+         * gives the Hope back. A project it would finish holds one short (default, owner may revise: no completion card, no
+         * trap armed). A Monocub and a living worker alone in a room with four projects of the suite's: public (worked on),
+         * idle (nobody worked), edge (worked on, one short of its target) and secret (worked on). Read: the picker's list;
+         * then, with scripted dice, each move's answer and [public's progress, edge's progress, actions, Hope] after it.
+         * Red at b22d2d0: no tinker row.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "a Monocub and a living worker stood in one room by their tokens");
+        const [cub, worker] = cast(2);
+        const M = await import("./monocub.mjs");
+        const P = await import("./projects.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const S = await import("./gm-stores.mjs");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const had = { actions: cub.system.resources.actions.value, hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const real = CONFIG.Dice.randomUniform;
+        const made = [];
+        let back = null;
+        const read = {};
+        try {
+            ok(Boolean(MONOCUB.abilities?.tinker), "config.mjs MONOCUB.abilities has no tinker row - a Monocub cannot Tinker (E72 C13)");
+            if (!MONOCUB.abilities?.tinker) return;
+            ({ back } = await aloneTogether(cub, worker));
+            const where = (await import("./movement.mjs")).locateActor(cub)?.room ?? null;
+            const make = async (name, target, secret = false) => {
+                const project = await P.createProject({ name: `SUITE E72 C13 ${name}`, target, room: where, secret });
+                must(project?.id, "could not create a project - this would measure nothing");
+                made.push(project.id);
+                return project.id;
+            };
+            const ids = { public: await make("public", 6), idle: await make("idle", 6), edge: await make("edge", 2), secret: await make("secret", 6, true) };
+            for (const id of [ids.public, ids.edge, ids.secret]) await P.addProgress(id, 1, { actorId: worker.id, kind: "player" });
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 5, "system.resources.hope.value": 4 }, { reason: "gmRuling" });
+            await settle();
+            const nameOf = id => Object.keys(ids).find(k => ids[k] === id) ?? "other";
+            read.listed = (await M.cubTargets(cub, "tinker")).map(p => nameOf(p.id)).sort();
+            const progress = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+            const state = () => [progress(ids.public), progress(ids.edge), actionsLeft(cub), cub.system.resources.hope.value];
+            const tinker = async (id, choice, faces) => {
+                const script = faces.map(face => 1 - (face - 0.5) / 12);
+                CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+                let out = null;
+                try { out = await M.cubAbilityOnGm({ actorId: cub.id, key: "tinker", targetId: id, choice }); } finally { CONFIG.Dice.randomUniform = real; }
+                await settle();
+                return [out ? [out.total, out.isCritical] : null, ...state()];
+            };
+            read.help = await tinker(ids.public, "help", [6, 7]);
+            read.double = await tinker(ids.public, "hinder", [5, 5]);
+            read.hinder = await tinker(ids.public, "hinder", [6, 7]);
+            read.edge = await tinker(ids.edge, "help", [6, 7]);
+            read.secret = await tinker(ids.secret, "help", [6, 7]);
+            read.idle = await tinker(ids.idle, "help", [6, 7]);
+            read.unknown = await tinker("SUITEE72C13NONE0", "help", [6, 7]);
+            // A double on a move to order, which paid no Hope, gives none back (E72 fix round, review #1).
+            const clock = getClock() ?? {};
+            await S.cubStore.patch(cub.id, { order: { chapter: clock.chapter ?? null, epoch: seasonEpoch(), day: clock.day ?? null,
+                timeOfDay: clock.timeOfDay ?? null } });
+            await settle();
+            read.ordered = await tinker(ids.public, "help", [5, 5]);
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            for (const id of made) if (S.projectWorkStore?.has?.(id)) await S.projectWorkStore.drop(id);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.actions.value": had.actions, "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore) {
+                if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+                else if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            }
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            listed: ["edge", "idle", "public"],
+            help: [[13, false], 2, 1, 4, 3], double: [[10, true], 2, 1, 3, 3], hinder: [[13, false], 1, 1, 2, 2],
+            edge: [[13, false], 1, 1, 1, 1], secret: [null, 1, 1, 1, 1], idle: [null, 1, 1, 1, 1], unknown: [null, 1, 1, 1, 1],
+            ordered: [[10, true], 1, 1, 0, 1]
+        }), "Tinker's list or a move is not as DC23/DC24 ask ({the list; each move: [total, double] or refused, then [public's progress, "
+            + "edge's progress, actions, Hope]})");
+    }],
+
+    ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in the neutral code and words, not a Seal's (E72 C10; the 1.2.110 review's V1)", async () => {
+        /*
+         * E72 C10, 12.11.2026; the owner's amendments of 28.10, 04.11 and 06.11; Q-E72-5's default. A Monocub paid for a
+         * crossing like a living student, and walked into a murder's room. movement.mjs `crossingVerdict` lets a Monocub
+         * cross to a connected room whatever its budget, and on a GM judging a player's step refuses it the room a running
+         * incident happens in with the Seal's refusal ("roomSealed", `DRPG.Calls.sealedBlocked`); a GM's own move is not
+         * refused. A killer and a victim alone in a room, the fight open; a Monocub with no action, no Free Move and the
+         * movement cost on, in a connected room. Read: the verdict for a step to another connected room, and for the step
+         * into the murder's room as a player's (keyed) and as a GM's. Red at f22a7e8's runtime: no budget; the murder's
+         * room let through.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "a killer, a victim and a Monocub stood in rooms by their tokens");
+        const MU = await import("./murder.mjs");
+        const MV = await import("./movement.mjs");
+        const [killer, victim, cub] = cast(3);
+        const scene = canvas.scene;
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const { room, back } = await aloneTogether(killer, victim);
+        // The free step on a plain scene of the suite's own (no document: nothing is written), a Hall and a Study across
+        // one wall, as "a corner is not a door; ..." builds one; the harness's rooms are drawn with no shared wall. The
+        // murder's room is asked on the real scene from any other room: the seal's check stands before the walls' rule.
+        const R = await import("./rooms.mjs");
+        const plain = (name, x, y) => ({ id: `suite-e72-c10-${name}`, name, behaviors: [], levels: new Set(), bounds: { x, y, width: 400, height: 400 },
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true }[key] : undefined) });
+        const fake = { id: "suite-e72-c10-scene", name: "SUITE E72 C10", grid: { size: 100 }, regions: new Set([plain("Hall", 1000, 1000), plain("Study", 1000, 580)]) };
+        const pair = MV.neighbouringRooms(fake, "Hall").includes("Study") ? ["Hall", "Study"] : null;
+        const from = MV.allRooms(scene).find(r => r !== room) ?? null;
+        const chargeWas = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const was = cub.system.resources.actions.value;
+        const moveWas = cub.getFlag(MODULE_ID, FLAGS.freeMoveUsed);
+        const read = {};
+        try {
+            must(pair && from, "no two connected rooms on the suite's plain scene, or no room but the murder's - this would measure nothing");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 0 });
+            await cub.setFlag(MODULE_ID, FLAGS.freeMoveUsed, true);
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            await fightOpen(MU, killer, victim);
+            await settle();
+            const player = { gm: false, mastermind: false };
+            read.free = MV.crossingVerdict(cub, pair[0], pair[1], fake, null, { mover: player, keyed: true });
+            read.murderRoom = MV.crossingVerdict(cub, from, room, scene, null, { mover: player, keyed: true });
+            read.byGm = MV.crossingVerdict(cub, from, room, scene, null, { mover: { gm: true, mastermind: false }, keyed: true });
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was });
+            if (moveWas === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.freeMoveUsed);
+            else await cub.setFlag(MODULE_ID, FLAGS.freeMoveUsed, moveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeWas);
+            await back();
+        }
+        /* Not a Seal's words since the 1.2.110 review's V1 (13.11.2026, changed on purpose): Seals are the world setting
+           `sealedRooms`, which every browser holds, so "sealed" for a room that list does not hold named the murder's room
+           to the Monocub's player. The refusal is the neutral one (`cannotNow`, "That cannot be done now."), which a
+           crossing also gets for a room not connected, a bedroom without its key and a dead character. Red at 12a7e309:
+           roomSealed and the Seal's sentence. The room is not in the world's Seals here (read). */
+        const neutral = { code: "cannotNow", text: game.i18n.localize("DRPG.Bridge.why.cannotNow") };
+        const call = await import("./call-world.mjs");
+        must(!call.isSealed(room), "the murder's room is sealed in the world as well - this would not tell the two apart");
+        // The refusal's mark keeps the primary's put-back (movement.mjs `ruleOf`), and the line its player's browser says for it is the neutral one.
+        const { sentBackLine } = await import("./movement-audit.mjs");
+        equal(stableJson([read.free, read.murderRoom?.code ?? read.murderRoom, read.murderRoom?.text ?? null, read.murderRoom?.rule ?? null,
+            sentBackLine({ code: read.murderRoom?.code }), read.byGm]),
+            stableJson([true, neutral.code, neutral.text, "murderRoom", neutral.text, true]),
+            "a Monocub paid for a crossing, or walked into a murder's room, or was told something no public fact explains, or a GM's move was refused ([free step, the murder room's code and words, its put-back mark, the put-back's line on the player, a GM's move])");
+    }],
+
+    ["a Monocub's owner is sent every room the class found under the Monocub's own row, not who found which, and not the Mastermind's (E72 C10)", async () => {
+        /*
+         * E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11. A Monocub's player saw only the rooms its own
+         * character had found. The section a GM sends a player (gm-stores.mjs `fogSectionFor`) now joins every student's
+         * found rooms under each Monocub's own row, the Mastermind's left out. Three students of the cast: A found two
+         * rooms of the suite's, the Mastermind (picked for the test) a third, and the Monocub none; read the section the
+         * Monocub's player would be sent: the Monocub's row's rooms, whether any key names A or the Mastermind, and a
+         * living student's player's section (A's player: no row of the Monocub). Red at f22a7e8's runtime: the Monocub's
+         * row empty.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and a student, each with a player");
+        const S = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const withPlayers = livingStudents().filter(player);
+        const [cub, finder] = withPlayers;
+        const lead = livingStudents().find(a => a.id !== cub.id && a.id !== finder.id && player(a)?.id !== player(cub)?.id);
+        must(lead && player(finder)?.id !== player(cub)?.id, "no third student, or the Monocub and the finder share a player - this would measure nothing");
+        const scene = canvas.scene;
+        const keys = [`${scene.id}/${finder.id}`, `${scene.id}/${lead.id}`, `${scene.id}/${cub.id}`];
+        const was = keys.map(k => [k, foundry.utils.deepClone(S.discoveryStore.get(k) ?? null)]);
+        const pickWas = foundry.utils.deepClone(S.mastermindStore.get(RECORD) ?? null);
+        let read = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            for (const k of keys) if (S.discoveryStore.has(k)) await S.discoveryStore.drop(k);
+            await S.discoveryStore.patch(keys[0], { "SUITE E72 Den": true, "SUITE E72 Loft": true });
+            await S.discoveryStore.patch(keys[1], { "SUITE E72 Lair": true });
+            await S.mastermindStore.patch(RECORD, { actorId: lead.id });
+            const cubSection = S.fogSectionFor(player(cub));
+            const finderSection = S.fogSectionFor(player(finder));
+            read = {
+                rooms: Object.keys(cubSection.e?.[keys[2]] ?? {}).filter(r => r.startsWith("SUITE E72")).sort(),
+                names: Object.keys(cubSection.e ?? {}).some(k => k === keys[0] || k === keys[1]),
+                finderSeesCub: Object.hasOwn(finderSection.e ?? {}, keys[2])
+            };
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            for (const [k, row] of was) {
+                if (row) await S.discoveryStore.patch(k, row);
+                else if (S.discoveryStore.has(k)) await S.discoveryStore.drop(k);
+            }
+            if (pickWas) await S.mastermindStore.patch(RECORD, pickWas);
+            else await S.mastermindStore.patch(RECORD, { actorId: null });
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ rooms: ["SUITE E72 Den", "SUITE E72 Loft"], names: false, finderSeesCub: false }),
+            "a Monocub's owner is not sent the class's rooms under the Monocub's row, or is told who found them, or the Mastermind's ([the Monocub's rooms, another student's row sent, a living player sent the Monocub's row])");
+    }],
+
+    ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the
          * Class Trial) are asked on the picker and before paying, never on the GM: a Meddle paid
@@ -17146,6 +18652,13 @@ const SCENARIOS = [
          * (`cubAbilityDialog`) answers null and says the Eclipse's sentence, and the GM-side run
          * (`cubAbilityOnGm`) of a Hinder scripted to 13 lands a -1 on the target. Red under the
          * mutant that asks the locks on the GM (the run answers null, nothing armed).
+         *
+         * CHANGED ON PURPOSE BY E72 C1 (12.11.2026; audit S18-50, DC13): the price is taken on the
+         * GM after the conditions now, so the reason the GM asked no lock (a Hope paid on the
+         * Monocub's browser and lost) is gone, and the GM asks the locks before it pays. Read now:
+         * the picker shut with the Eclipse's sentence, the GM-side run answering null with no roll,
+         * no Confusion armed, and the Monocub's actions and Hope as they were (2 and 2). Red at
+         * f22a7e8's runtime: the run answered 13 with a roll and armed a -1.
          */
         const [cub, target] = cast(2);
         const M = await import("./monocub.mjs");
@@ -17163,9 +18676,11 @@ const SCENARIOS = [
         const warned = ui.notifications.warn;
         const real = CONFIG.Dice.randomUniform;
         const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
-        let picker = "unasked", out = null, armed = null;
+        const wasPaid = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        let picker = "unasked", out = null, armed = null, kept = null;
         try {
             await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
             await E.startEclipse();
             await settle();
             must(E.isEclipse(), "the Eclipse did not start");
@@ -17178,8 +18693,10 @@ const SCENARIOS = [
             CONFIG.Dice.randomUniform = real;
             await settle();
             armed = pendingCalls(target).find(entry => entry.key === "meddle" && !nonces.has(entry.nonce)) ?? null;
+            kept = [cub.system.resources.actions.value, cub.system.resources.hope.value];
         } finally {
             ui.notifications.warn = warned;
+            await cub.update({ "system.resources.actions.value": wasPaid[0], "system.resources.hope.value": wasPaid[1] });
             CONFIG.Dice.randomUniform = real;
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             if (confusionStore) {
@@ -17189,9 +18706,9 @@ const SCENARIOS = [
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
             await back();
         }
-        equal(stableJson([picker, seen.includes(locked), out?.total ?? null, Boolean(out?.roll), armed ? [armed.grants, armed.amount] : null]),
-            stableJson([null, true, 13, true, ["bonus", -1]]),
-            "in an Eclipse the picker was not shut with the Eclipse's sentence, or the GM-side run refused a paid Confusion (picker, said, the answer's total, a roll answered, the Call armed)");
+        equal(stableJson([picker, seen.includes(locked), out?.total ?? null, Boolean(out?.roll), armed ? [armed.grants, armed.amount] : null, kept]),
+            stableJson([null, true, null, false, null, [2, 2]]),
+            "in an Eclipse the picker was not shut with the Eclipse's sentence, or the GM carried out a Confusion or took its price (picker, said, the answer's total, a roll answered, the Call armed, actions and Hope after)");
     }],
 
     ["a Monocub marked a crime witness this chapter lands Confusion like any other", async () => {
@@ -18121,7 +19638,9 @@ const SCENARIOS = [
         const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
         let F = null;
         try {
-            const [item] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C2 bandage", type: "loot", system: { quantity: 2 } }]);
+            // A Tier 1 usable: an item of no tier is a Tier 0 thing, whose use waits for the GM and is no item used (E64, D003).
+            const [item] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C2 bandage", type: "loot", system: { quantity: 2 },
+                flags: { [MODULE_ID]: { category: "usable", tier: 1 } } }]);
             F = await playerRollBookmark(player, killer, "crisis", {}, { record: { total: 20 } });
             const used = await F.ask({ action: "murder.crisis", requestId: "suite-e08c2-use", actorId: killer.id, key: "useItem",
                 total: 20, isCritical: false, withHope: true, usedItemId: item.id, before: { hp: 5, stress: "2", qty: 2, extra: 9 }, rollId: F.message.id });
@@ -20090,6 +21609,9 @@ const SCENARIOS = [
     }],
 
     ["a refused attempt does not leave the previous one's receipt", async () => {
+        const [who, victim] = cast(2);
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        return inOwnStageSix(who, victim, async () => {
         /*
          * E08+E28 C3, 03.10.2026; audit S05-44. A clean-up refused - here the trace reinforced
          * between two attempts - kept no receipt of its own and left the previous attempt's, so a
@@ -20098,26 +21620,25 @@ const SCENARIOS = [
          * refused, then that attempt's Reroll. Read: the row after the refusal, the Reroll's
          * answer, the Sanity it moved, and the fixture's traces standing before and after it.
          */
-        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
-        const [who] = cast(1);
+        // E64: in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity.
         const S = await import("./gm-stores.mjs");
         const { setRemnantSecret } = await import("./remnants.mjs");
         const F = await cleanupFixture(who, "SUITE E08 C3 a trace reinforced between two attempts");
         try {
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
             await who.update({ "system.resources.stress.value": 0 });
-            const miss = await F.scrub(0, { price: null });
+            const miss = await F.scrub(0, { viaAction: false, price: null });
             await settle();
             must(miss && !miss.removed && who.system.resources.stress.value === 1,
                 `the first attempt did not miss at a Sanity's price: ${stableJson([miss, who.system.resources.stress.value])}`);
             await setRemnantSecret(F.trace, { reinforced: true });
-            const refused = await F.scrub(30, { price: null });
+            const refused = await F.scrub(30, { viaAction: false, price: null });
             await settle();
             must(refused?.reinforced === true, `the second attempt was not refused: ${stableJson(refused)}`);
             const row = S.cleanupAttemptStore?.has(who.id) ?? null;
             const left = F.since(0).filter(tid => F.scene.tokens.get(tid));
             const before = who.system.resources.stress.value;
-            const replay = await F.scrub(30, { price: null, undo: true });
+            const replay = await F.scrub(30, { viaAction: false, price: null, undo: true });
             await settle();
             equal(stableJson([row, replay ?? null, who.system.resources.stress.value - before, F.since(0).filter(tid => F.scene.tokens.get(tid))]),
                 stableJson([false, null, 0, left]),
@@ -20126,6 +21647,7 @@ const SCENARIOS = [
         } finally {
             await F.putBack();
         }
+        });
     }],
 
     ["a Fear on a neutral roll feeds the right Monokuma", async () => {
@@ -21852,7 +23374,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["at Night the opening roll carries its die: advantage for a direct killer, disadvantage for a trap's victim, none by day", async () => {
+    ["at Night the opening roll carries its die: advantage for a direct killer, none for a trap's victim (since E64, S02-75), none by day", async () => {
         /*
          * E32+E07 fix r2-G1, 03.10.2026; the round-2 correctness review's M1. The opening is a
          * supporting roll (`remember: false`), so the shield that keeps every Call off it hid the
@@ -21901,7 +23423,7 @@ const SCENARIOS = [
                 });
             }
             equal(stableJson([seen, [killer, victim].map(a => C.pendingCalls(a).length)]),
-                stableJson([[["night", "killer", 1, 0], ["night", "victim", -1, 0], ["noon", "killer", 0, 0], ["noon", "victim", 0, 0]], [1, 1]]),
+                stableJson([[["night", "killer", 1, 0], ["night", "victim", 0, 0], ["noon", "killer", 0, 0], ["noon", "victim", 0, 0]], [1, 1]]),
                 "an opening at Night lost its die or had the wrong one, one at Noon had a die, or a Call reached the opening or was spent on it (each throw: time, side, the situation's dice, the Calls seen; then the Calls left)");
         } finally {
             for (const actor of [killer, victim]) await C.consumeCalls(actor);
@@ -23567,7 +25089,8 @@ const SCENARIOS = [
         const { deferAdvancement } = await import("./level-up.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
         const pair = [holder, other];
-        const before = new Map(pair.map(a => [a.id, { max: a.system?.resources?.hitPoints?.max ?? 0, advances: a.getFlag(MODULE_ID, FLAGS.advances) ?? 0 }]));
+        const before = new Map(pair.map(a => [a.id, { max: a.system?.resources?.hitPoints?.max ?? 0, advances: a.getFlag(MODULE_ID, FLAGS.advances) ?? 0,
+            points: Object.fromEntries(LEVEL_UP_POINTS.map(path => [path, foundry.utils.getProperty(a._source, path) ?? 0])) }]));
         const titles = new Map(pair.map(a => [game.i18n.format("DRPG.Advance.title", { actor: a.name }), a.id]));
         const writes = new Map();
         const hook = Hooks.on("updateActor", a => { if (before.has(a.id)) writes.set(a.id, (writes.get(a.id) ?? 0) + 1); });
@@ -23581,7 +25104,7 @@ const SCENARIOS = [
             const from = new Set(game.messages.map(m => m.id));
 
             const asked = await withVerdictOpen(() => withAdvanceWindows(
-                entry => (titles.has(entry.title) ? Array.from({ length: entry.picks }, () => ({ option: "hp" })) : null),
+                entry => (titles.has(entry.title) ? Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" })) : null),
                 () => applyVerdict({ correct: true, executedIds: [], blackenedIds: [] })));
             await settle();
             const picked = id => asked.filter(e => titles.get(e.title) === id).map(e => e.picks);
@@ -23600,7 +25123,7 @@ const SCENARIOS = [
             Hooks.off("updateActor", hook);
             for (const a of pair) {
                 await trustedWrite(a, { "system.resources.hitPoints.max": before.get(a.id).max,
-                    [`flags.${MODULE_ID}.${FLAGS.advances}`]: before.get(a.id).advances }, { reason: "gmRuling" });
+                    [`flags.${MODULE_ID}.${FLAGS.advances}`]: before.get(a.id).advances, ...before.get(a.id).points }, { reason: "gmRuling" });
             }
             await deferredOfferStore.dropMany([holder.id, dead.id].filter(id => deferredOfferStore.has(id)));
             await reviveCharacter(dead, { quiet: true });
@@ -23639,7 +25162,7 @@ const SCENARIOS = [
         must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
             "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(holder, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(holder, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
         const sheet = path => foundry.utils.getProperty(holder._source, path) ?? 0;
         const ids = new Set(living.map(a => a.id));
@@ -23673,7 +25196,7 @@ const SCENARIOS = [
             const hp = sheet(HP_MAX), advances = sheet(ADVANCES);
             writes = 0;
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C7${foundry.utils.randomID(8)}`, actorId: holder.id,
-                picks: Array.from({ length: 4 }, () => ({ option: "hp" })), offerId: offer?.id ?? null }, owner, { send: () => {} });
+                picks: Array.from({ length: 4 }, () => ({ option: "trait", trait: "strength" })), offerId: offer?.id ?? null }, owner, { send: () => {} });
             await settle();
             equal(stableJson([sheet(HP_MAX) - hp, sheet(ADVANCES) - advances, writes, offersOf(holder).length]), stableJson([4, 1, 1, 0]),
                 "the Blackened's one offer was not spent as four picks in one write and one step of advances (rise, advances, writes, offers left)");
@@ -23920,12 +25443,12 @@ const SCENARIOS = [
         living.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
         const first = living[0];
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES])]));
+        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS])]));
         const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
         const before = new Map(living.map(a => [a.id, advances(a)]));
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
         const levelUps = a => offersOf(a).length + advances(a) - before.get(a.id);
-        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "hp" }));
+        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" }));
         const settings = game.settings, own = Object.getOwnPropertyDescriptor(settings, "set"), set = settings.set;
         const records = [];
         const unwrap = () => {
@@ -24240,7 +25763,7 @@ const SCENARIOS = [
         const holder = living.find(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
         const owner = ownerIdsOf(holder).find(id => game.users.get(id)?.active);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = living.map(a => sheetAsFound(a, [HP_MAX, ADVANCES]));
+        const putBack = living.map(a => sheetAsFound(a, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]));
         const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
         const before = new Map(living.map(a => [a.id, advances(a)]));
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
@@ -24248,7 +25771,7 @@ const SCENARIOS = [
         const i18n = game.i18n, format = i18n.format, notes = ui.notifications, error = notes.error, warn = notes.warn, drop = S.offerStore.drop;
         const told = [];
         const spend = offer => G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10G1${foundry.utils.randomID(8)}`, actorId: holder.id,
-            picks: [{ option: "hp" }], offerId: offer?.id ?? null }, owner, { send: () => {} });
+            picks: [{ option: "trait", trait: "strength" }], offerId: offer?.id ?? null }, owner, { send: () => {} });
         i18n.format = function (key, ...rest) {
             if (key === "DRPG.Advance.chatTitle") throw new Error("the Level Up's card is refused for this test");
             return format.call(this, key, ...rest);
@@ -24262,7 +25785,7 @@ const SCENARIOS = [
             return warn.call(notes, message, ...rest);
         };
         try {
-            await withVerdictOpen(() => withAdvanceWindows(entry => Array.from({ length: entry.picks }, () => ({ option: "hp" })),
+            await withVerdictOpen(() => withAdvanceWindows(entry => Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" })),
                 () => applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }), "gm"));
             await settle();
             equal(stableJson([living.map(a => [a.name, advances(a) - before.get(a.id), offersOf(a).length]), told.filter(([, line]) => line === failed).length]),
@@ -24329,7 +25852,7 @@ const SCENARIOS = [
         must(!S.offerStore.has(student.id) && !S.deferredOfferStore.has(student.id),
             `${student.name} holds an offer or a waiting Level Up already - this would read it, not the one made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const sheet = path => foundry.utils.getProperty(student._source, path) ?? 0;
         const offersOf = () => L.offerList(S.offerStore.get(student.id));
         // The refusals a packet is told, by their kind (bridge-guards.mjs REASON_PATTERNS).
@@ -24352,7 +25875,7 @@ const SCENARIOS = [
             const hp = sheet(HP_MAX), advances = sheet(ADVANCES);
             const gate = new Promise(resolve => { release = resolve; });
             const held = gmMeansWrite(student, () => gate);
-            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "hp" })),
+            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "trait", trait: "strength" })),
                 offerId: offer?.id ?? null }, player.id);
             // The apply's road to the queue awaits nothing slow (cached imports, synchronous checks); 400 ms is room to spare.
             await wait(400);
@@ -24410,7 +25933,7 @@ const SCENARIOS = [
         must(!S.offerStore.has(student.id) && !S.deferredOfferStore.has(student.id),
             `${student.name} holds an offer or a waiting Level Up already - this would read it, not the one made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const sheet = path => foundry.utils.getProperty(student._source, path) ?? 0;
         const offersOf = () => L.offerList(S.offerStore.get(student.id));
         // The refusals a packet is told, by their kind (bridge-guards.mjs REASON_PATTERNS).
@@ -24431,7 +25954,7 @@ const SCENARIOS = [
             const taking = take(offer?.id ?? null);
             // Each road reaches the store's wait through cached imports and synchronous checks; 200 ms is room to spare.
             await wait(200);
-            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "hp" })),
+            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "trait", trait: "strength" })),
                 offerId: offer?.id ?? null }, player.id);
             await wait(400);
             const whileWaiting = [sheet(HP_MAX) - hp, sheet(ADVANCES) - advances];
@@ -26933,11 +28456,14 @@ const SCENARIOS = [
          * ON THE KIT (E47-C4, 09.11.2026): WHO HAS WHAT is a `dataTable`, its count cells and heads the kit's `num`
          * (`drpg-num` until then) and its Breakdown cell the `case-breakdown` column's (a `notes` cell until then); the
          * builders' rows are the tables' body rows, read the same way.
+         * BY NAME (E64-inv, 12.11.2026): the Breakdown cell lists each Truth Bullet by name with its real kind (R3968), so
+         * the kinds' "(2)" is read as a bullet's name and its kind's label in brackets, still with no "×".
          */
         needs(env.dialogs(), "the Who has what heading is read off the drawn dashboard");
         const I = await import("./investigation.mjs");
         const students = typeof I.caseStudentRows === "function"
-            ? I.caseStudentRows([{ actor: { name: "SUITE C16 student" }, total: 3, keys: 1, unidentified: 2, types: { neutral: 2, key: 1 } }])
+            ? I.caseStudentRows([{ actor: { name: "SUITE C16 student" }, total: 3, keys: 1, unidentified: 2, types: { neutral: 2, key: 1 },
+                named: [{ name: "SUITE C16 a ticket", real: "key" }, { name: "SUITE C16 a scarf", real: "neutral" }, { name: "SUITE C16 a note", real: null }] }])
             : "";
         const traces = typeof I.caseTraceRows === "function"
             ? I.caseTraceRows([{ token: { id: "TOKC16TRACE00001" }, scene: { id: "SCN0000000000001" }, data: { type: "neutral", public: {} } }], new Map())
@@ -26958,7 +28484,8 @@ const SCENARIOS = [
             await win.close();
         }
         const breakdown = host.querySelector("td.drpg-data-col-case-breakdown")?.textContent ?? "";
-        equal(stableJson([host.querySelectorAll("td.num").length, /\(2\)/.test(breakdown) && !/×/.test(breakdown),
+        const { TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        equal(stableJson([host.querySelectorAll("td.num").length, breakdown.includes(`SUITE C16 a ticket (${TRUTH_BULLET_TYPES.key.label})`) && !/×/.test(breakdown),
             hint("text").length > 0, hint("analysis").length > 0 && hint("analysis").length <= 30, heads]),
         stableJson([3, true, true, true, [3, true]]),
         "Who has what or the Traces tab still draws wide counts, a ×count, no description hint or a long analysis one, or a Really heading with no word on it (count cells, breakdown, description hint, analysis hint, [count headings, Really tooltip])");
@@ -27315,6 +28842,39 @@ const SCENARIOS = [
             await S.setCaseMeta(chapter, { askedAt: null }).catch(() => {});
         }
         equal(JSON.stringify(counts), JSON.stringify([0, 1, 0]), "[question windows after a rehearsal, after the first body, after a second]");
+    }],
+
+    ["E99 next: the case's ticks are a trial's - a second Class Trial in the chapter starts with none, and the first trial's ticks are not read in it", async () => {
+        /*
+         * E99 next, 12.11.2026 (the coordinator: "the ticks per trial, not per chapter ... like summaryShown"). A deduction
+         * of this chapter ticked under one trial's stamp (the record's `trialStartedAt`, which every trial's entry writes
+         * afresh); then the record names a second trial: the tick is not read, and a tick under the second is (one row per
+         * node: the second trial's tick is the row's now). The record is put back raw. Red at 9ca7fcc: the ticks were the chapter's,
+         * so the second trial read the first trial's tick.
+         */
+        const S = await import("./case-schema.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const chapter = getClock().chapter;
+        const id = "deduction-suitee99next";
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const at = stamp => game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter, trialStartedAt: stamp });
+        const seen = [];
+        try {
+            await at(1700000000000);
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 next" });
+            await S.setCaseTick(chapter, id, true);
+            seen.push(S.caseTicks(chapter)[id] === true);
+            await at(1700000100000);
+            seen.push(S.caseTicks(chapter)[id] === true);
+            await S.setCaseTick(chapter, id, true);
+            seen.push(S.caseTicks(chapter)[id] === true);
+        } finally {
+            await at(1700000000000).catch(() => {});
+            await S.setCaseTick(chapter, id, false).catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+        equal(JSON.stringify(seen), JSON.stringify([true, false, true]), "[ticked in the first trial, read in the second, ticked in the second]");
     }],
 
     ["E99 C4: a Present card of a copy of a Remnant on the schema marks it presented and hints the deduction it carries, without a tick", async () => {
@@ -33908,6 +35468,96 @@ const SCENARIOS = [
             + "an action whose GM left during the roll kept its price, took a search token, posted, or was not told once");
     }],
 
+    ["a GM's own Search for something specific whose card is not posted gives back the action and the room's search token (E91 C7, D072)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D072 ("the search token does not come back when the card is not
+         * published"). action-search.mjs `searchSpecific` gave the action back when its call on the GM was not posted
+         * (`abort`), and the room's token, taken after the dice, stayed taken. On a GM's own browser the token is the
+         * GM's to give back (`SearchTokens.giveBack`), and is now. A student stood alone in a room, its Search run from
+         * this GM's browser; the call's thread card refused by a `preCreateChatMessage` hook, so `callGm` answers false.
+         * Read: the actions and the room's tokens it kept taken. Red before C7: one token taken. A player's browser holds
+         * no road back once the last GM has gone (the spend's request id stays in the bridge); that case is not changed.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE, MODULE_ID } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [student] = cast(1);
+        const ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const had = foundry.utils.getProperty(student, ACTS);
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const windows = answerWindows((cfg, root) => {
+            const pick = root.querySelector('input[name="variant"][value="specific"]');
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const request = root.querySelector('[name="request"]');
+                if (request) request.value = "SUITE E91 C7 a spare key";
+            }
+            return press(cfg, root);
+        });
+        const errors = console.error;
+        const stood = await standAlone(student);
+        let blocked = 0, read = null;
+        const hook = Hooks.on("preCreateChatMessage", doc => {
+            if (doc?.flags?.[MODULE_ID]?.thread) { blocked++; return false; }
+            return true;
+        });
+        try {
+            console.error = () => {};
+            await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
+            student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total }, options: { roll: { trait: "eye" } } } });
+            const where = locateActor(student);
+            const left = SearchTokens.left(where?.room ?? null, where?.scene ?? null);
+            const before = actionsLeft(student);
+            await rolls.performAction(student, "search");
+            await settle(300);
+            read = [before - actionsLeft(student), left - SearchTokens.left(where?.room ?? null, where?.scene ?? null)];
+        } finally {
+            Hooks.off("preCreateChatMessage", hook);
+            console.error = errors;
+            windows.restore();
+            delete student.rollTrait;
+            for (const message of game.messages.contents.filter(m => !seen.has(m.id))) await message.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await student.update({ [ACTS]: had });
+            await stood.back();
+        }
+        must(blocked > 0, "no thread card was asked for - the Search did not reach its call, and this measures nothing");
+        equal(stableJson(read), stableJson([0, 0]), "[actions kept spent, the room's tokens kept taken] - a Search whose card was not posted kept its token");
+    }],
+
+    ["the Dynamic action's difficulty window names the character as its sheet does, by the GMs' actor, never by a packet's name (E91 C7, D076)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D076 ("the Dynamic window and the sheet name the character
+         * differently"). action-dynamic.mjs `askDynamicDifficulty` wrote `actorName`, the name the player's browser put in
+         * the packet (`dynamic.difficulty`'s `actorName`, kept on the card's data as `name`): a name the asker's copy held
+         * or any text, where the sheet shows the actor's own. Now the window reads the actor by id (the card's `by`), the
+         * packet's name only when no actor is found. The window's content read with Foundry's DialogV2.wait handed in,
+         * nothing answered. Red before C7: the packet's name.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        const [student] = cast(1);
+        const { askDynamicDifficulty } = await import("./action-rolls.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let seen = "";
+        try {
+            D.wait = async cfg => { seen = typeof cfg?.content === "string" ? cfg.content : cfg?.content?.innerHTML ?? ""; return null; };
+            await askDynamicDifficulty({ description: "SUITE E91 C7", actorName: "SUITE E91 C7 another name", actorId: student.id, room: null });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(seen.includes("SUITE E91 C7"), "the window was not drawn - this would measure nothing");
+        equal(stableJson([seen.includes(foundry.utils.escapeHTML(student.name)), seen.includes("another name")]), stableJson([true, false]),
+            "[the sheet's name, the packet's name] in the Dynamic window - it names the character by the packet");
+    }],
+
     ["a returning reader is given the line written for them: a GM keeps a card's uncut words beside its own and cuts them for each asker, at its post and at its rewrite (E18 fix e1-G6)", async () => {
         /*
          * E18 fix e1-G6, 24.10.2026; the end review's E18-END-6 and F5 (STATUS's C4 gap 1). A GM gave a returning reader
@@ -34029,6 +35679,57 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([true, [true, true], [true, true]]),
             "[the card went to the asker's thread], [each owner among an old roll's readers], [each owner in the incident's audience] - a co-owner's question went to the other owner's thread, or a co-owner was left off a reader list");
+    }],
+
+    ["a GM's ruling on a card goes to the thread the card is in: a co-owner's card is answered in the co-owner's thread (E91 C6, D078)", async () => {
+        /*
+         * E91 C6, 12.11.2026; the owner's deferred item D078 (threads). Since E18 fix e1-G7 a co-owner's question goes to
+         * the co-owner's thread, but the ruling on it went to the first owner's (messenger-app.mjs's rules asked
+         * `ownerOf`): the asker never read the answer. A student with a player is given a second owner (put back
+         * after); a card in that second owner's thread with Decline (`callGm`'s `thread`), pressed by this GM. Read:
+         * the threads the new notes went to. Red before C6: the first owner's.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a second player to share the student");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player");
+        const { isPrimaryGm, ownerOf, forcedDeletion } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const student = livingStudents().find(a => ownerOf(a)?.active);
+        must(student, "no living student has a connected player - this would measure nothing");
+        const first = ownerOf(student);
+        const second = game.users.find(u => !u.isGM && u.id !== first.id && u.active);
+        must(second, "no second connected player - this would measure nothing");
+        const ownership = foundry.utils.deepClone(student.ownership ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const info = ui.notifications.info;
+        let granted = false, read = null;
+        try {
+            ui.notifications.info = () => null;
+            await student.update({ [`ownership.${second.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+            granted = true;
+            await settle();
+            const asker = [first, second].find(u => u.id !== ownerOf(student)?.id);
+            await callGm(student, { title: "E91 C6", body: "<p>E91 C6 a project</p>", thread: asker.id,
+                actions: [{ action: "declineProject", label: "Decline", data: { by: student.id } }] });
+            await settle();
+            const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "thread") === asker.id);
+            must(card, "no card was posted in the asker's thread - this would measure nothing");
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await pressCard(card, "declineProject", { by: student.id });
+            await settle();
+            const notes = game.messages.contents.filter(m => !before.has(m.id) && cardFlag(m, "thread"));
+            read = notes.map(m => (cardFlag(m, "thread") === asker.id ? "asker" : "other"));
+        } finally {
+            ui.notifications.info = info;
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            if (granted) await student.update({ [`ownership.${second.id}`]: second.id in ownership ? ownership[second.id] : forcedDeletion() });
+            await (await import("./sheet-audit.mjs")).sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["asker"]), "the ruling's note did not go to the thread its card was in, or went to more than one");
     }],
 
     ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask, once its wait could have run out, ends it, as interrupted, the target's window withdrawn and a yes after it not kept; a refusal's open force ends as 'Leave it' does; a GM whose socket comes back drops its asks (E18 C7)", async () => {
@@ -39365,12 +41066,13 @@ const SCENARIOS = [
                 "a critical paid with an action healed a Sanity mark nobody spent");
             equal(who.system.resources.actions.value, 2, "the action was not handed back");
 
-            // ---- paid with a Sanity mark ----------------------------------
+            // ---- a Sanity claim, which an ordinary Tamper cannot pay (E64) -
+            // Since the owner's answer of 12.11.2026 an ordinary Tamper costs no Sanity (cleanup.mjs `tamperPriceSkip`):
+            // the claim is no claim, the GM charges the action (`chargeUnclaimed`) and the critical hands that back.
             await who.update({
                 "system.resources.actions.value": 1,
-                "system.resources.stress.value": 1
+                "system.resources.stress.value": 2
             });
-            await who.update({ "system.resources.stress.value": 2 });
             await settle();
             token = await fixture();
             await cleanup.resolveCleanup({
@@ -39378,9 +41080,9 @@ const SCENARIOS = [
                 isCritical: true, withHope: true, viaAction: true, price: "stress"
             });
             await settle();
-            equal(who.system.resources.stress.value, 1, "the Sanity mark was not lifted");
+            equal(who.system.resources.stress.value, 2, "an ordinary Tamper's Sanity claim moved the Sanity track");
             equal(who.system.resources.actions.value, 1,
-                "a critical paid with Sanity handed back an action as well");
+                "the action charged for a Sanity claim was not handed back by the critical, or another came with it");
 
             // ---- a claim the table does not know --------------------------
             await who.update({
@@ -39402,8 +41104,8 @@ const SCENARIOS = [
             equal(who.system.resources.stress.value, 2,
                 "a forged price claim did not pay the GM-side Sanity");
 
-            // ---- and a packet with no claim at all pays it ----------------
-            await who.update({ "system.resources.stress.value": 0 });
+            // ---- and a packet with no claim at all pays it: an action (E64) -
+            await who.update({ "system.resources.stress.value": 0, "system.resources.actions.value": 1 });
             await settle();
             token = await fixture();
             await cleanup.resolveCleanup({
@@ -39411,8 +41113,8 @@ const SCENARIOS = [
                 isCritical: false, withHope: true, viaAction: true
             });
             await settle();
-            equal(who.system.resources.stress.value, 1,
-                "a packet claiming nothing was not charged the Sanity the client never paid");
+            equal(stableJson([who.system.resources.stress.value, who.system.resources.actions.value]), "[0,0]",
+                "a packet claiming nothing was not charged the action the client never paid, or was charged Sanity [marks, actions]");
         } finally {
             for (const item of made) {
                 try { await item.delete(); } catch { /* already gone */ }
@@ -40341,12 +42043,15 @@ const SCENARIOS = [
             readings.ballotsOut = await read();
             await record({ vote: vote(false), voteClosed: true });
             readings.counted = await read();
-            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            // E99 next (12.11.2026): after the verdict the case summary is the next step until it is out, then the chapter's end.
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: null });
+            readings.summaryNext = await read();
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: 1700000000000 });
             readings.verdictIn = await read();
             readings.endAfterVerdict = await endAsks();
             readings.hallAfterVerdict = await endAsks(true);
             await phase("dailyLife");
-            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: 1700000000000 });
             readings.ended = await read();
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
@@ -40368,6 +42073,7 @@ const SCENARIOS = [
             debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
             ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
             counted: [["verdict"], "open", lead("verdict"), 3, 0],
+            summaryNext: [["caseSummary"], "open", lead("caseSummary"), 3, 0],
             verdictIn: [["close"], "open", lead("chapterEnd"), 3, 0],
             endAfterVerdict: ["wait", true],
             hallAfterVerdict: ["wait", true],
@@ -41611,6 +43317,52 @@ const SCENARIOS = [
             + "(3) two more roads, one after a lost stamp: execution cards, the stamp; (4) a verdict after End the trial: dead, the cause, the stamp, cards; "
             + "(5) an old record's Finish: the stage, the sentenced dead, cards; (6) after the reset's take-back: dead, cards, the sentence");
     }],
+    ["an execution in the Final Trial posts the execution card, naming the executed, as an ordinary trial's does (E72 C11; D102)", async () => {
+        /*
+         * E72 C11, 12.11.2026; the owner's D102 of 31.10 ("an execution in the Final Trial posts the execution card"), the
+         * audit's line all there is of it (Q-E72-7). trial-progress.mjs `postExecutionCard` posted no card for a Final
+         * Trial's sentence - only the sound - so a Final execution reached the table as the defeat's banner alone. A Final
+         * verdict whose sentence waits (`sentencePending`, the GMs' store naming A for that verdict), carried out at the
+         * trial's exit (`executeAtExit`). Read: the execution cards posted, each public or not, with its sound, and whether
+         * one names A executed. Red at 7ab4cc6: no card. A, the clock, the record and the store are put back.
+         */
+        needs(env.primaryGm(), "a sentence is carried out on the primary GM");
+        const [A] = cast(1);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { verdictStore } = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const esc = foundry.utils.escapeHTML;
+        must(!isDeadForGm(A), `${A.name} is dead before the verdict - this would measure nothing`);
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        await verdictStore.whenHydrated();
+        const kept = foundry.utils.deepClone(verdictStore.record());
+        const seen = new Set(game.messages.map(m => m.id));
+        let read = null;
+        try {
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", final: true, by: game.user.id, at: 4343, done: [], failed: [], sentencePending: true }, executedAt: null, execution: null });
+            await verdictStore.patch(RECORD, { finalAt: 4343, finalSentenced: [A.id] });
+            await V.executeAtExit({ chapter });
+            await settle();
+            const cards = game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, "executionCard"));
+            read = [isDeadForGm(A), cards.length, cards.map(m => (m.whisper?.length ?? 0) === 0), cards.map(m => m.getFlag(MODULE_ID, "sfx")?.key ?? null),
+                cards.some(m => String(m.content ?? "").includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(A.name) })))];
+        } finally {
+            if (isDeadForGm(A)) await reviveCharacter(A, { quiet: true });
+            await verdictStore.patch(RECORD, { finalAt: kept.finalAt ?? null, finalSentenced: kept.finalSentenced ?? [] });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, 1, [true], ["execution"], true]),
+            "a Final Trial's execution posts no execution card, or not one public card with its sound naming the executed "
+            + "([executed, cards, each public, each card's sound, one names the executed])");
+    }],
+
     ["a sentence that could not be carried out is carried out when asked again and leaves no body to find, a Final sentence this browser does not hold is told to the GMs, and the trial's size counts every player of a student who takes part (E70 fix p1-G2)", async () => {
         /*
          * E70 fix p1-G2, 28.10.2026; the review's BEH-2, BEH-6 = E70P1-R16, E70P1-R10, E70P1-R08 (goal). Read on this
@@ -42432,6 +44184,8 @@ const SCENARIOS = [
          * Everything is put back.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 2), "Present's copies go to the other participants, two connected players' students");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the Share of (0) is asked of two students stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM, which posts the card and mints the copies - this would measure nothing");
         const T = await import("./truth-bullets.mjs");
@@ -42483,12 +44237,20 @@ const SCENARIOS = [
                there (5), and the row a console sends is refused on the primary with a closed reason - no copy for O. NOT red
                at 2fc865ac (measured): handover.mjs `verify` asks inventory.mjs `transferRefusal` mode "give", which refuses
                in a Class Trial ("that waits until the Class Trial is over", cannotNow) - the review's road was closed
-               already; this holds it closed. */
+               already; this holds it closed. Since E64 (D001) a give asks frisk.mjs `personActionRefusal`, which reads the
+               room before the trial: P and O in two rooms were refused as not there ("notThere", 1.2.110's first CI run,
+               43352869429, suite 6/8), a refusal that says nothing of the trial. So P and O stand alone together in one
+               room (`aloneTogether`) for this step, and the trial is what refuses. */
             const shareSent = [];
-            await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
-                { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
-            await sheetAuditIdle();
-            await settle();
+            const stood = await aloneTogether(P.actor, O.actor, { asked: true });
+            try {
+                await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
+                    { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
+                await sheetAuditIdle();
+                await settle();
+            } finally {
+                await stood.back();
+            }
             read.share = [shareSent, O.actor.items.filter(ofTrace).length];
 
             /* (1) Without the analysis. */
@@ -48522,7 +50284,7 @@ const SCENARIOS = [
         const player = playerOf(student);
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the two made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         // A row of the answer is a list since C6, one offer before it.
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
@@ -48532,11 +50294,11 @@ const SCENARIOS = [
             await L.offerAdvancement(student, "standard");
             await L.offerAdvancement(student, "standard");
             read.push(told().length);
-            await L.applyAdvancement(student, [{ option: "hp" }]);
+            await L.applyAdvancement(student, [{ option: "trait", trait: "strength" }]);
             read.push(told().length);
             const [first] = told();
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }], offerId: first?.id ?? null }, player.id, { send: () => {} });
+                picks: [{ option: "trait", trait: "strength" }], offerId: first?.id ?? null }, player.id, { send: () => {} });
             const left = told();
             read.push(left.length, left.some(offer => offer.id === first?.id), advances() - before);
         } finally {
@@ -48572,7 +50334,7 @@ const SCENARIOS = [
         const player = playerOf(student);
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the two made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         // A row of the answer is a list since C6, one offer before it.
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
@@ -48591,7 +50353,7 @@ const SCENARIOS = [
             const takenId = taken?.slice("take:".length) ?? null;
             const refusals = [];
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }], offerId: takenId }, player.id,
+                picks: [{ option: "trait", trait: "strength" }], offerId: takenId }, player.id,
             { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
             const left = told();
             read = [drawn, windows.map(w => w.choices.filter(value => value.startsWith("take:")).length), refusals, advances() - before,
@@ -48629,7 +50391,7 @@ const SCENARIOS = [
         const player = playerOf(student);
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the one written here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const shown = () => told().map(offer => [offer.id ?? null, offer.kind]);
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
@@ -48641,7 +50403,7 @@ const SCENARIOS = [
             await L.offerAdvancement(student, "reinforced");
             const both = shown().map(([, kind]) => kind);
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }], offerId: old[0]?.[0] ?? null }, player.id, { send: () => {} });
+                picks: [{ option: "trait", trait: "strength" }], offerId: old[0]?.[0] ?? null }, player.id, { send: () => {} });
             read = [old, both, shown().map(([, kind]) => kind), advances() - before, (row => row && Object.hasOwn(row, "kind") ? row.kind : "absent")(S.offerStore.get(student.id))];
         } finally {
             if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
@@ -48669,7 +50431,7 @@ const SCENARIOS = [
         const [student] = livingStudents().filter(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
         const before = advances();
         const said = [];
@@ -48680,7 +50442,7 @@ const SCENARIOS = [
         try {
             const offered = await L.offerAdvancement(student, "standard");
             const held = S.offerStore.has(student.id);
-            const windows = await withAnsweredWindows(({ kind, choices }) => kind === "advance" ? [{ option: "hp" }]
+            const windows = await withAnsweredWindows(({ kind, choices }) => kind === "advance" ? [{ option: "trait", trait: "strength" }]
                 : { value: choices.includes("player") ? "player" : "standard" }, () => L.openAdvancementFor(student));
             const nobody = game.i18n.format("DRPG.Advance.nobodyPlays", { name: student.name });
             read = [offered, held, said.filter(line => line === nobody).length, windows.map(w => w.kind), advances() - before,
@@ -48991,6 +50753,42 @@ const SCENARIOS = [
                 gone: (report, { T, sceneId, tokenId }) => !S.trialCastStore.has(T.castKey(sceneId, tokenId)),
                 back: ({ T, sceneId, tokenId, actorId }) => S.trialCastStore.get(T.castKey(sceneId, tokenId))?.reveal === false
                     && T.castRow(S.trialCastStore.entries(), sceneId, actorId, seasonEpoch(), tokenId)?.reveal === false
+            },
+            // The Monocubs' record and their moves on each student (E72 C2, C4): a witness's mark of another season's
+            // chapter, which reads as no mark, and a count of another day, which counts nothing.
+            cubs: {
+                seed: async () => {
+                    await S.cubStore.patch(holder.id, { witness: { chapter: 99, epoch: -1 } });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.cubStore.has(id),
+                back: id => S.cubStore.get(id)?.witness?.chapter === 99 && S.cubStore.get(id)?.witness?.epoch === -1
+            },
+            cubTargets: {
+                seed: async () => {
+                    await S.cubTargetStore.patch(holder.id, { chapter: 99, epoch: -1, day: 1, timeOfDay: "morning", slot: 1, today: 1 });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.cubTargetStore.has(id),
+                back: id => S.cubTargetStore.get(id)?.chapter === 99 && S.cubTargetStore.get(id)?.today === 1
+            },
+            // An open Bounty (E72 C16): on the holder, a reward of 99, posted by nobody of this world.
+            bounties: {
+                seed: async () => {
+                    await S.bountyStore.patch(holder.id, { by: "SUITEE72NOBODY00", reward: 99, at: 1, targetName: "SUITE bounty" });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.bountyStore.has(id),
+                back: id => S.bountyStore.get(id)?.reward === 99
+            },
+            // Who worked on a project this time of day (E72 C13): a row of another season's chapter, which counts nothing.
+            projectWork: {
+                seed: async () => {
+                    await S.projectWorkStore.patch("SUITEE05BACKUPPJ", { chapter: 99, epoch: -1, day: 1, timeOfDay: "morning", actorIds: [holder.id] });
+                    return "SUITEE05BACKUPPJ";
+                },
+                gone: (report, id) => !S.projectWorkStore.has(id),
+                back: id => S.projectWorkStore.get(id)?.chapter === 99 && S.projectWorkStore.get(id)?.actorIds?.[0] === holder.id
             },
             // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
             eclipseMoves: {
@@ -50297,6 +52095,8 @@ const SCENARIOS = [
         must(trait, "the student has no traits to raise");
         const path = `system.traits.${trait}.value`, value = () => foundry.utils.getProperty(student._source, path);
         const was = value();
+        // Since E64 C6 a point in Head, Body or Leg raises a maximum with it (LEVEL_UP_TRAIT_RESOURCES); put back with the rest.
+        const maxima = sheetAsFound(student, ["system.resources.hitPoints.max", "system.resources.stress.max"]);
         await sheetAuditIdle();
         let read = null;
         try {
@@ -50310,6 +52110,7 @@ const SCENARIOS = [
         } finally {
             await student.update({ [path]: was });
             await sheetAuditIdle();
+            await maxima();
         }
         equal(stableJson(read), stableJson([true, was + 1, "putBack", was + 1, was + 1]),
             "the GM's Level Up was not the student's new mark: a player's next write went back past it, or was not put back");
@@ -51456,14 +53257,21 @@ const SCENARIOS = [
         const { grantItem } = await import("./inventory.mjs");
         const bonus = value => ({ system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
         let tool = null, seen = null;
-        // A write made aside on the GM, then handed to the judge with the player's id, as its hook would be: put back or not, and its rows.
+        /* A write made aside on the GM, then handed to the judge with the player's id, as its hook would be: put back or not, and its rows.
+           ITS ROWS ARE THE ONES ITS JUDGEMENT ADDED (13.11.2026, CI run 43377699418, suite 4/8 on 03b293f5, red on this test). They were
+           read as every row stamped at or after the round began (`row.at >= from`), and the five rounds follow each other closely: here
+           the round before's row was 2 to 172 ms older than the next round's start (median 3, 132 rounds read, 13.11.2026), so a round
+           that began in the millisecond its forerunner's row was stamped counted that row as its own. With the GM's clock read to 50 ms,
+           the same window read the rounds' rows doubled, red 3 of 3 ([true,["true:itemEffects.T","true:itemEffects.T"]] for the
+           change); read by the ids the round added, green 3 of 3 on the same clock. That this was CI's red is not measured: its results
+           file, which holds the reading, could not be fetched here. */
         const judged = async (kind, write, changes = {}) => {
-            const from = Date.now();
+            const before = new Set(Object.keys(sheetWriteStore.entries() ?? {}));
             const effect = await write();
             const verdict = await judgeWrite(kind, effect, changes, player.id);
             await sheetAuditIdle();
-            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id
-                && row.at >= from && row.verdict === "putBack");
+            const rows = Object.entries(sheetWriteStore.entries() ?? {}).filter(([id, row]) => !before.has(id) && row?.actorId === student.id
+                && row.userId === player.id && row.verdict === "putBack").map(([, row]) => row);
             return [verdict?.verdict === "putBack", rows.map(row => `${row.itemId === tool.id}:${Object.keys(row.change ?? {})
                 .map(path => path.split(".").slice(0, 2).join(".").replace(tool.id, "T")).join(",")}`)];
         };
@@ -52156,12 +53964,14 @@ const SCENARIOS = [
     }],
 
     ["a clean-up a Reroll takes back takes the credit its price left, so the player's refund of the same is flagged", async () => {
+        const [who, victim] = cast(2);
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        return inOwnStageSix(who, victim, async () => {
         /* A clean-up whose packet names no step paid, so the GM charges its Sanity (cleanup.mjs `spendStress`), then
            its Reroll, whose replay names the step the fixture's client paid: the attempt's Sanity comes back through
            `undoLastCleanup` and nothing is charged again. */
-        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
-        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
-        const [who] = cast(1);
+        // E64: in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity.
         const player = game.users.find(u => !u.isGM);
         const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(who._source, STRESS));
         const F = await cleanupFixture(who, "SUITE E29 H6 a trace scrubbed and rerolled");
@@ -52171,11 +53981,11 @@ const SCENARIOS = [
             must(Number(who.system.resources?.stress?.max) >= 3, "the student's Sanity cannot take the attempt's mark over one");
             await who.update({ [STRESS]: 1 });
             await auditFromScratch(who);
-            await F.scrub(0, { price: null });
+            await F.scrub(0, { viaAction: false, price: null });
             await settle();
             const charged = marks(), paid = await creditHeld(who, "stress");
             must(charged > 1 && paid >= 1, `the fixture's attempt took no Sanity the GMs' credit holds: ${stableJson({ charged, paid })}`);
-            await F.scrub(30, { undo: true });
+            await F.scrub(30, { viaAction: false, undo: true });
             await settle();
             must(marks() === 1, `the Reroll did not give the attempt's Sanity back, or charged it again: ${marks()} marks`);
             read = await refundAfterGiveBack(who, "stress", player);
@@ -52184,9 +53994,14 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([0, "flagged"]),
             "a clean-up's Sanity given back by its Reroll left the price in the credit, or the player's refund of the same stood on it (the credit left, the verdict)");
+        });
     }],
 
     ["a Reroll of a critical clean-up neither mints nor loses the step its give-back handed over", async () => {
+        const [who, victim] = cast(2);
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose writes are judged");
+        return inOwnStageSix(who, victim, async () => {
         /*
          * E09 fix r2-G8, 09.10.2026. A critical clean-up's give-back is held to the GMs' credit since this fix
          * (cleanup.mjs `handBack`), and a Reroll replays the attempt over a rewind (`undoLastCleanup`) that takes back
@@ -52200,9 +54015,7 @@ const SCENARIOS = [
          * and the Reroll takes the Burst. Read: each one's means after the critical and after its Reroll.
          * Red at 8303625 (its runtime with these tests): the numbers are in fix r2-G8's commit message.
          */
-        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
-        needs(world.atLeast("playerAccounts", 1), "a player account whose writes are judged");
-        const [who] = cast(1);
+        // E64: in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity.
         const player = game.users.find(u => !u.isGM);
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const { actionsMax } = await import("./actions.mjs");
@@ -52227,11 +54040,11 @@ const SCENARIOS = [
                 await auditFromScratch(who);
                 if (paid !== null) await asPlayerWrite(who, { [path]: paid }, player, { reason: path === STRESS ? "price" : "spend" });
                 await sheetAuditIdle();
-                await F.scrub(30, { isCritical: true, price, grant });
+                await F.scrub(30, { viaAction: false, isCritical: true, price, grant });
                 await settle();
                 await sheetAuditIdle();
                 const once = value(path);
-                await F.scrub(30, { isCritical: again, price, grant, undo: true });
+                await F.scrub(30, { viaAction: false, isCritical: again, price, grant, undo: true });
                 await settle();
                 await sheetAuditIdle();
                 read.push([once, value(path)]);
@@ -52244,6 +54057,7 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[1, 1], [top, top - 1], [top - 1, top - 1], [1, 0]]),
             "a Reroll of a critical clean-up minted the step its give-back handed over, lost it, or took one nothing gave "
                 + "(the marks paid and Rerolled into a critical, the actions paid, the actions not paid, the Bursts paid: after the critical, after the Reroll)");
+        });
     }],
 
     ["a Reroll of a clean-up takes back the attempt's own Sanity and not a write that landed while it ran", async () => {
@@ -52263,13 +54077,26 @@ const SCENARIOS = [
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
-        const [who] = cast(1);
+        /*
+         * IN THE KILLER'S OWN STAGE 6 SINCE E64 (12.11.2026): an ordinary Tamper costs no Sanity any more (the owner's
+         * answer; R3959), so the Sanity receipts this test reads are the killer's own clean-up's alone. `who` kills
+         * `victim` with a Finishing blow first and cleans up through the same road; the incident is closed after.
+         */
+        const [who, victim] = cast(2);
         const player = game.users.find(u => !u.isGM);
+        const M = await import("./murder.mjs");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const S = await import("./gm-stores.mjs");
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(who._source, STRESS)) || 0;
         must(Number(who.system.resources?.stress?.max) >= 4, `${who.name}'s Sanity cannot take three marks - this would measure nothing`);
         const had = marks(), fixtures = [], read = [];
         try {
+            await fightOpen(M, who, victim);
+            await turnFor(M, who, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: who.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
             for (const [label, by, price, critical, again] of [["cleared", -1, "stress", false, true], ["marked", 1, "stress", false, true],
                 ["charged", -1, null, false, false], ["handed back", -1, "stress", true, false]]) {
                 const F = await cleanupFixture(who, `SUITE r2-G10 a write while a clean-up runs, ${label}`);
@@ -52290,7 +54117,7 @@ const SCENARIOS = [
                     return create.call(this, data, ...rest);
                 };
                 try {
-                    await F.scrub(critical ? 30 : 0, { isCritical: critical, price });
+                    await F.scrub(critical ? 30 : 0, { viaAction: false, isCritical: critical, price });
                 } finally {
                     if (own) Object.defineProperty(ChatMessage, "create", own);
                     else delete ChatMessage.create;
@@ -52299,13 +54126,16 @@ const SCENARIOS = [
                 await sheetAuditIdle();
                 must(landed !== null, `the GM's write did not land while the attempt ran (${label})`);
                 const once = marks();
-                await F.scrub(30, { isCritical: again, price, undo: true });
+                await F.scrub(30, { viaAction: false, isCritical: again, price, undo: true });
                 await settle();
                 await sheetAuditIdle();
                 read.push([once, marks(), await creditHeld(who, "stress")]);
             }
         } finally {
             for (const F of fixtures.reverse()) await F.putBack();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(who.id)) await S.usedToolStore.drop(who.id);
             await who.update({ [STRESS]: had });
             await sheetAuditIdle();
         }
@@ -52394,11 +54224,11 @@ const SCENARIOS = [
          * as scenario 30 refuses one, and the rewind runs as reroll.mjs `settleCrisis` runs it, into a miss with Hope.
          * `settleCrisis` comes after the Reroll's payment, which writes the Hope from the GMs' value (fix r2-H5) and so
          * takes off a forged Hope heard before it: this one is heard between the payment and the rewind. Then a
-         * clean-up attempted at 3 Sanity marks is charged on the GM; the console lowers the Sanity maximum to 1,
-         * refused the same way, and the clean-up's Reroll takes the attempt back. Read: the Hope, the Health marks and
-         * the Sanity marks, each on the sheet and in the GMs' mark. At e253b3a (06.10.2026, e29run/r2h23red): [[4, 4,
-         * 1, 1], [1, 1]] - the most Hope (6) less the use's 2, not the GMs' 3 less it; and 1 Health mark and 1 Sanity
-         * mark where the maxima the GMs hold put back 4 and 3.
+         * clean-up attempted at 3 Sanity marks is charged on the GM (in the killer's own Stage 6 since E64, below); the
+         * console lowers the Sanity maximum to 1, refused the same way, and the clean-up's Reroll takes the attempt back.
+         * Read: the Hope, the Health marks and the Sanity marks, each on the sheet and in the GMs' mark. At e253b3a
+         * (06.10.2026, e29run/r2h23red): [[4, 4, 1, 1], [1, 1]] - the most Hope (6) less the use's 2, not the GMs' 3 less
+         * it; and 1 Health mark and 1 Sanity mark where the maxima the GMs hold put back 4 and 3.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
         needs(world.atLeast("sceneOnScreen"), "the clean-up's trace is placed on the scene on screen");
@@ -52469,12 +54299,17 @@ const SCENARIOS = [
             await trustedWrite(killer, was, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
+        /* The clean-up in the killer's own Stage 6 (`inOwnStageSix`), the one road where a Tamper still takes Sanity since
+           E64 (R3959: an ordinary Tamper costs an action and no Sanity). On the Tamper tile's road, where it ran until
+           this fix, the attempt took none: "the fixture's attempt took no Sanity - this would measure nothing: 3 marks" (1.2.110's first
+           CI run, 43352869429, suite 7/8). The clean-up's take-back is the same `undoLastCleanup` on either road. */
+        await inOwnStageSix(killer, victim, async () => {
         const F = await cleanupFixture(killer, "SUITE E29 H23 a trace scrubbed and rerolled");
         try {
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
             await killer.update({ [SANITY]: 3 });
             await auditFromScratch(killer);
-            await F.scrub(0, { price: null });
+            await F.scrub(0, { viaAction: false, price: null });
             await settle();
             must(sheet(SANITY) > 3, `the fixture's attempt took no Sanity - this would measure nothing: ${sheet(SANITY)} marks`);
             refuseBack();
@@ -52483,7 +54318,7 @@ const SCENARIOS = [
             must(forged?.verdict === "putBack" && sheet(SANITY_MAX) === 1 && marked("stress").max === most.stress,
                 `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
                     stableJson([forged?.verdict ?? null, sheet(SANITY_MAX), marked("stress")])}`);
-            await F.scrub(30, { undo: true });
+            await F.scrub(30, { viaAction: false, undo: true });
             await settle();
             await allowBack();
             cleanup = [sheet(SANITY), marked("stress").value ?? null];
@@ -52493,6 +54328,9 @@ const SCENARIOS = [
             if (sheet(SANITY_MAX) !== was[SANITY_MAX]) await trustedWrite(killer, { [SANITY_MAX]: was[SANITY_MAX] }, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
+        });
+        await trustedWrite(killer, was, { reason: "gmRuling" });
+        await sheetAuditIdle();
         equal(stableJson([crisis, cleanup]), stableJson([[1, 1, 4, 4], [3, 3]]),
             "a Reroll's take-back read a Hope or a maximum a player's console wrote that the GMs' audit had not put back "
             + "(the crisis's Hope and Health marks, the clean-up's Sanity marks; each on the sheet and in the GMs' mark)");
@@ -52644,13 +54482,13 @@ const SCENARIOS = [
         const at = path => foundry.utils.getProperty(student._source, path);
         must([HP_MAX, SAN_MAX, TRAIT, EXP].every(path => typeof at(path) === "number"), `${student.name} has no Health or Sanity maximum, no ${
             trait} or no experience to raise - this would measure nothing: ${stableJson([HP_MAX, SAN_MAX, TRAIT, EXP].map(at))}`);
-        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES, ...LEVEL_UP_POINTS]);
         const [hp, san, stat, exp, advances] = [at(HP_MAX), at(SAN_MAX), at(TRAIT), at(EXP), at(ADVANCES) ?? 0];
         let read = null;
         try {
             read = await inConsoleWindow(student, player(student), { forged: { [HP_MAX]: hp + 3, [SAN_MAX]: san + 3, [TRAIT]: stat + 2, [EXP]: exp + 2,
                 [ADVANCES]: advances + 5 }, paths: [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES] },
-            () => applyAdvancement(student, [{ option: "hp" }, { option: "stress" }, { option: "trait", trait }, { option: "experienceUp", experience }]));
+            () => applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, { option: "trait", trait }, { option: "experienceUp", experience }]));
         } finally {
             await putBack();
         }
@@ -52680,7 +54518,7 @@ const SCENARIOS = [
         const at = path => foundry.utils.getProperty(student._source, path);
         must(typeof at(HP_MAX) === "number" && typeof at(TRAIT) === "number",
             `${student.name} has no Health maximum or no ${trait} to raise - this would measure nothing: ${stableJson([at(HP_MAX), at(TRAIT)])}`);
-        const putBack = sheetAsFound(student, [HP_MAX, TRAIT, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, TRAIT, ADVANCES, ...LEVEL_UP_POINTS]);
         const [hp, stat] = [at(HP_MAX), at(TRAIT)];
         const unprepare = preparedAs(student, system => {
             system.resources.hitPoints.max += 5;
@@ -52692,7 +54530,7 @@ const SCENARIOS = [
             // (no class's hit points, no pick), the two readings agree and this measures nothing there.
             if (unprepare) must(student.system.resources.hitPoints.max === hp + 5 && foundry.utils.getProperty(student.system, `traits.${trait}.value`) === stat + 1,
                 `the preparation the test stands in for did not take - this would measure nothing: ${stableJson([student.system.resources.hitPoints.max, hp])}`);
-            await applyAdvancement(student, [{ option: "hp" }, { option: "trait", trait }]);
+            await applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "trait", trait }]);
             read = [at(HP_MAX), at(TRAIT)];
         } finally {
             unprepare?.();
@@ -52742,7 +54580,7 @@ const SCENARIOS = [
         must(typeof at(EXP) === "number", `${student.name} has no experience to raise - this would measure nothing: ${stableJson(at(EXP))}`);
         const NOBODY = "E10C8NOSUCHEXP01", NO_STAT = "e10c8NoStatistic";
         const JUNK = [`system.experiences.${NOBODY}`, `system.traits.${NO_STAT}`];
-        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES, ...LEVEL_UP_POINTS]);
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const before = at(ADVANCES) ?? 0, exp = at(EXP);
         const gained = () => (at(ADVANCES) ?? 0) - before;
@@ -52750,7 +54588,7 @@ const SCENARIOS = [
             const refusals = [];
             const [offer] = told();
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C8${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }, { option: "stress" }, last], offerId: offer?.id ?? null }, player.id,
+                picks: [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, last], offerId: offer?.id ?? null }, player.id,
             { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
             return refusals;
         };
@@ -52763,7 +54601,7 @@ const SCENARIOS = [
             }
             const gm = [];
             for (const last of [{ option: "trait", trait: NO_STAT }, { option: "experienceUp" }]) {
-                gm.push(await L.applyAdvancement(student, [{ option: "hp" }, { option: "stress" }, last], "reinforced"));
+                gm.push(await L.applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, last], "reinforced"));
             }
             const after = [told().length, gained(), JUNK.map(path => at(path) !== undefined)];
             const good = await spend({ option: "experienceUp", experience });
@@ -52808,7 +54646,7 @@ const SCENARIOS = [
         const FORGED = "E10C8FORGEDEXP01", PATH = `system.experiences.${FORGED}.value`;
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
         const at = path => foundry.utils.getProperty(student._source, path);
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const before = at(ADVANCES) ?? 0;
         const refusals = [];
@@ -52820,7 +54658,7 @@ const SCENARIOS = [
                 await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C8${foundry.utils.randomID(8)}`, actorId: student.id,
                     picks: [{ option: "experienceUp", experience: FORGED }], offerId: offer?.id ?? null }, player.id,
                 { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
-                applied = await L.applyAdvancement(student, [{ option: "hp" }, { option: "experienceUp", experience: FORGED }]);
+                applied = await L.applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "experienceUp", experience: FORGED }]);
             });
             read = [held, told().length, refusals, applied, (at(ADVANCES) ?? 0) - before];
         } finally {
@@ -52853,7 +54691,7 @@ const SCENARIOS = [
         const [student] = livingStudents();
         const R = "system.resources", HP_MAX = `${R}.hitPoints.max`, SAN_MAX = `${R}.stress.max`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
         const at = path => foundry.utils.getProperty(student._source, path);
-        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
         const warn = ui.notifications.warn, warned = [];
@@ -52865,7 +54703,7 @@ const SCENARIOS = [
             D.wait = async cfg => {
                 if (!(cfg?.classes ?? []).includes("drpg-advance")) return null;
                 content = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
-                return [{ option: "hp" }, { option: "stress" }, { option: "experienceUp" }];
+                return [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, { option: "experienceUp" }];
             };
             ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
             answered = await L.openAdvancement(student, "reinforced");
@@ -54997,7 +56835,9 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsBefore);
             read.push(three(cub), three(student));
         } finally {
-            await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            // The mark is the GMs' row since E72 C2 (`cubStore`), where it was the flag.
+            const { cubStore } = await import("./gm-stores.mjs");
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
             if (!wasCub) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
             await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsBefore);
             for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
@@ -55126,7 +56966,9 @@ const SCENARIOS = [
         D.wait = async cfg => {
             if ((cfg?.classes ?? []).includes("drpg-window-trial")) {
                 const button = (cfg.buttons ?? []).find(b => b.action === "verdict");
-                consoles.push({ label: button?.label ?? null, closed: button?.disabled === true });
+                // Closed: greyed, or - since E99 round 7 (the owner, 12.11.2026) - not offered at all once the verdict is
+                // applied, the Verdict being a step of the flow; either way no second verdict from the console.
+                consoles.push({ label: button?.label ?? null, closed: !button || button.disabled === true });
                 opened.push("console");
                 return consoles.length === 1 ? "verdict" : null;
             }
@@ -58046,7 +59888,8 @@ const SCENARIOS = [
         const [living, cub] = cast(2);
         const R = await import("./remnants.mjs");
         const { keysToPlace, keyPlanStatus, keyFeeOf, recordCaseKeys } = await import("./investigation.mjs");
-        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { keyPlanStore, cubStore } = await import("./gm-stores.mjs");
+        const cubRowWas = foundry.utils.deepClone(cubStore.get(cub.id) ?? null);
         const { nextStep } = await import("./gm-panel.mjs");
         const { createTruthBullet, issueAutopsy, bulletsOf, secretOf, setSecret, dropSecret } = await import("./truth-bullets.mjs");
         const { isCrimeSilenced, setSilenced } = await import("./monocub.mjs");
@@ -58117,14 +59960,15 @@ const SCENARIOS = [
             await place();
             await gmStoresIdle();
             after.ownKeyLine = line();
-            // As 1.2.72 wrote them: the answer key with no season, the mark the bare chapter.
+            // As 1.2.72 wrote them: the answer key with no season, the mark the bare chapter - since E72 C2 the mark is
+            // the GMs' row, and a bare chapter is what the lift keeps of an old flag (`liftCubWitness`: epoch null).
             await setSecret(autopsy.uuid, { epoch: null });
-            await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
-            await cub.setFlag(MODULE_ID, FLAGS.silencedChapter, chapter);
+            await cubStore.patch(cub.id, { witness: { chapter, epoch: null } });
             await gmStoresIdle();
             legacy = { line: line(), silenced: isCrimeSilenced(cub) };
         } finally {
-            if (cub.getFlag(MODULE_ID, FLAGS.silencedChapter) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            if (cubRowWas) await cubStore.patch(cub.id, cubRowWas);
+            else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
             for (const item of made) {
                 try { await dropSecret(item.uuid); } catch { /* nothing filed */ }
                 try { await item.delete(); } catch { /* already gone */ }
@@ -63833,6 +65677,68 @@ const SCENARIOS = [
             ["found, then a jump", { searched: true, found: true }, "found", { lost: true }, null], ["being put back", "notThere", null]], [false, false, true], 1]),
             "[each step as what, the answer, Hana's cell (Botan's for the show); the judge's standing after each jump; the cards] - a search or a show read the room of the token's document where the GMs do not read her, or a jump kept a find its Reroll took back");
     }],
+    ["a Find Passage the primary GM refuses after its price was taken gives the price back (E91 C2, D053)", async () => {
+        /*
+         * E91 C2, 12.11.2026; the owner's deferred item D053. action-analyze.mjs `locatePassage` gave the price back only
+         * when no GM was online: the answer of `requestPassageFind` was not read, so a search the primary refused kept it.
+         * A Find Stash beside it gives it back on any refusal (E16 fix e1-G2). The road: a student in daily life with 2
+         * actions picks Find Passage in the Analyze window (Foundry's DialogV2.wait handed in, as A10-7 does); the Class
+         * Trial opens as the "walls gone over" card is made - after the price, before the primary judges - so the
+         * primary refuses ("the Class Trial is in session"). Read: [actions, Hope, Sanity's stress] before and after.
+         * Red before C2: one action short.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        const [student] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const ACT = await import("./actions.mjs");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const purse = () => [ACT.actionsLeft(student), student.system.resources.hope?.value ?? null, student.system.resources.stress?.value ?? null];
+        const kept = { actions: ACT.actionsLeft(student) };
+        const api = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(api, "wait");
+        const warn = ui.notifications.warn;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        let opened = null, hook = null;
+        const read = {};
+        try {
+            api.wait = async () => ({ value: "passage", form: document.createElement("form"), trait: null });
+            ui.notifications.warn = () => null;
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await ACT.setActions(student, 2);
+            await settle();
+            // The roll's own message, which comes after the price (the card that follows is veiled: its words are not in it).
+            read.seen = [];
+            hook = Hooks.on("preCreateChatMessage", doc => {
+                read.seen.push(String(doc?.content ?? "").slice(0, 160));
+                if (!opened && String(doc?.content ?? "").includes("dice-roll")) {
+                    read.atRoll = purse();
+                    opened = student.setFlag(MODULE_ID, FLAGS.monocub, true);
+                }
+            });
+            const before = purse();
+            await rolls.performAction(student, "analyze");
+            if (opened) await opened;
+            await settle();
+            read.refusalSet = Boolean(opened);
+            read.purse = [before, purse()];
+            read.backWhole = read.purse[1][0] === before[0] && read.atRoll?.[0] === before[0] - 1;
+        } finally {
+            if (hook !== null) Hooks.off("preCreateChatMessage", hook);
+            if (own) Object.defineProperty(api, "wait", own); else delete api.wait;
+            ui.notifications.warn = warn;
+            if (opened) await opened.catch(() => {});
+            await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: clock.phase, eclipse: Boolean(clock.eclipse) });
+            await ACT.setActions(student, kept.actions);
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        }
+        must(read.refusalSet, `the refusal was not set up between the price and the search - this would measure nothing: ${stableJson(read.seen)}`);
+        ok(read.backWhole, `a Find Passage refused on the primary kept its price ([before, after]: ${stableJson(read.purse)}; at the roll ${stableJson(read.atRoll)})`);
+    }],
+
     ["A10-7 stash - a Find Stash's Reroll replays its search on the GM: 12 to 17 opens one hidden stash, 17 to 12 the find stands, and 12 to 17 again opens no second one", async () => {
         /*
          * E80 C4 (S16-19; P1-16). The harm: a student who misses a Find Stash and buys a Reroll that beats 16 pays 3 Hope
@@ -69250,8 +71156,10 @@ const SCENARIOS = [
                 await settle();
             });
             const landed = victim.items.find(i => i.name === KNIFE) ?? null;
+            // CHANGED ON PURPOSE BY E91 C8 (12.11.2026; D090, the owner's answer to E35 Q5): one stowed, not two - the
+            // victim's own Tool goes into the hand without a word, the knife stays stowed. Was: two stowed, no hand.
             read.plant = [out?.done ?? null, out?.seen ?? null, landed ? INV.isStashed(landed) : null, landed ? isEquipped(landed) : null,
-                stowedInGroup(victim, group).length, await reachedPlayersOf(victim, sent)];
+                stowedInGroup(victim, group).length, isEquipped(victim.items.get(one.id)), await reachedPlayersOf(victim, sent)];
             must(!INV.canCarry(victim, "tool").ok, "the victim's slots are not full after the Plant - the quiet grant would measure nothing");
             read.grant = await withStashIn(fixture.room, victim, async () => {
                 let given = null;
@@ -69267,8 +71175,69 @@ const SCENARIOS = [
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ plant: [true, false, false, false, 2, [0, 0, 0]], grant: [true, [0, 0, 0]] }),
+        equal(stableJson(read), stableJson({ plant: [true, false, false, false, 1, true, [0, 0, 0]], grant: [true, [0, 0, 0]] }),
             "an unseen Plant or a quiet grant reached the victim, or the planted knife went into their hand ([done, seen, the knife stashed, in a hand, the victim's stowed Gear, [packets, cards, redraws] at the victim's player]; [the grant stashed, what reached them])");
+    }],
+
+    ["a Gear arriving unseen into pockets that already hold one stowed and a knife in the hand leaves the knife held, readies nothing and tells the victim nothing (E91 C8 guard, the second review's #1)", async () => {
+        /*
+         * E91 C8's guard, 12.11.2026; the second end review's #1, the coordinator's order. Under quiet, inventory.mjs
+         * `keepGearShape` readied the victim's other stowed piece (D090) through use-items.mjs `toggleEquipped`, which puts
+         * down whatever is in the hand: a knife held, a Gear planted unseen beside one stowed, and the knife went down with
+         * no word - the incident reading another weapon in their hand. Now the other piece is readied only when the hand is
+         * empty; a held piece is never put down, and two stay stowed (as before D090) with the GM's log saying so.
+         * Reached how: every piece a hand can hold shares one group of two slots, one stowed at most, so a Plant into a
+         * held knife and a stowed Tool is refused for full pockets (measured here first: done false); the quiet branch is
+         * reached by a GM's quiet grant past the slots (`grantItem` with `override` and `quiet`), the same road
+         * `keepGearShape` takes. Two students alone together; the victim holds a knife and has one Tool stowed; a Tool
+         * granted quietly. Read: the knife still held, the stowed Tool still stowed, the granted Tool stowed, and what
+         * reached the victim's player. Red before the guard: the knife put down, the old Tool in the hand.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the Plant reads - this would measure nothing");
+                const INV = await import("./inventory.mjs");
+        const { isEquipped, toggleEquipped } = await import("./use-items.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const [planter, victim] = cast(2);
+        const players = [ownerIdsOf(planter), ownerIdsOf(victim)];
+        must(players[0].length && players[1].length && !players[0].some(id => players[1].includes(id)),
+            "the planter and the victim are not each another player's - what reaches whom would measure nothing");
+        const fixture = await aloneTogether(planter, victim);
+        const KNIFE = "SUITE E91 guard a held knife", STOWED = "SUITE E91 guard a stowed Tool", PLANTED = "SUITE E91 guard a planted Tool";
+        const NAMES = [KNIFE, STOWED, PLANTED], flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        must(group && ITEM_CATEGORIES.crimeTool?.limitGroup === group, "a knife and a Tool share no group of slots - the shape this reads is not there");
+        const inGroup = i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === group;
+        const stashed = [], read = {};
+        try {
+            for (const i of victim.items.filter(i => inGroup(i) && !INV.isStashed(i))) {
+                stashed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const knife = await INV.grantItem(victim, { name: KNIFE, category: "crimeTool", tier: 1, override: true, quiet: true });
+            await toggleEquipped(victim, knife, { shape: true });
+            const one = await INV.grantItem(victim, { name: STOWED, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(knife && one && isEquipped(victim.items.get(knife.id)) && !isEquipped(victim.items.get(one.id)),
+                "the victim does not hold the knife with one Tool stowed - this would measure nothing");
+            let out = null;
+            const sent = await sentDuring(async () => {
+                out = await INV.grantItem(victim, { name: PLANTED, category: "tool", tier: 1, override: true, quiet: true });
+                await settle();
+            });
+            const landed = victim.items.find(i => i.name === PLANTED) ?? null;
+            read.plant = [Boolean(out), isEquipped(victim.items.get(knife.id)), isEquipped(victim.items.get(one.id)),
+                landed ? isEquipped(landed) : null, await reachedPlayersOf(victim, sent)];
+        } finally {
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            for (const [i, was] of stashed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ plant: [true, true, false, false, [0, 0, 0]] }),
+            "a Gear arriving unseen put down the knife the victim held, readied another piece, or told them ([arrived, the knife held, the old Tool held, the planted Tool held, [packets, cards, redraws]])");
     }],
 
     ["a stash rifled unseen does not redraw its owner's sheet, for a whole item or a piece of a stack; a clumsy hand's does (E35-T8, S08-34)", async () => {
@@ -69447,7 +71416,7 @@ const SCENARIOS = [
         }), "a road into full hands moved what its policy keeps, kept what it moves, or told its asker another road's line, or none (per road, with no stash of the taker's and with one: [the taker's copies, of them in a stash, the giver still holds it, the lines the asker's players read, the lines the other student's read])");
     }],
 
-    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
+    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a give (since E64, D001), a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
         /*
          * E14 part 1 C1, 24.10.2026; E14-01, E14-02, E14-05. The harm: inventory.mjs `transferItem`, the one road an item
          * changes owner by since E35, judged nothing of where the two stood or whether they lived - each caller kept its
@@ -69576,8 +71545,9 @@ const SCENARIOS = [
             control: all("moved"), apart: all("notThere"), roads: [...all("notThere"), "notThere"],
             takerDead: all("cannotNow"), giverDead: all("cannotNow"), keptFromPlayer: "moved",
             eclipse: all("cannotNow"), classTrial: all("cannotNow"),
-            monocubGiver: ["moved", "cannotNow", "cannotNow"], monokumaTaker: ["moved", "cannotNow", "notThere"],
-            hiddenTaker: ["moved", "moved", "notThere"]
+            // A give through the person gate since E64 (D001): a Monocub giving, a Monokuma or a hidden token taking are refused as a Plant is.
+            monocubGiver: all("cannotNow"), monokumaTaker: ["notThere", "cannotNow", "notThere"],
+            hiddenTaker: ["notThere", "moved", "notThere"]
         }), "a move was not judged by the one gate as the GMs read the two (per case, give, steal, Plant: the code each refusal is told with, or moved; the roads across two rooms: the code each hands on, or what it answered)");
     }],
 
@@ -70155,7 +72125,7 @@ const SCENARIOS = [
             + "(the owner's second, stashed key made before the second)], the owner, whether the holder opens the door");
     }],
 
-    ["a bedroom given away from the console takes the old owner's keys as Room Setup does, and a copy the old owner gave stays with its holder, named to the GM and its text naming the new owner; a key text a GM wrote is left (E14 fix e1-G2, S08-11)", async () => {
+    ["a bedroom given away from the console takes the old owner's keys as Room Setup does, and every copy of the key goes with the room too, its holder named to the GM and told; the new owner's key names the new owner (E14 fix e1-G2, S08-11; E64 D008)", async () => {
         /*
          * E14 fix e1-G2, 24.10.2026; the review's E14R-1, E14R-2, E14R-09 and E14R-08. C2 took the old owner's keys only in
          * Room Setup's Apply (room-setup.mjs `applyRoomRows`), so `game.drpg.setVaultRoom(room, { owner })`, the console road
@@ -70167,6 +72137,9 @@ const SCENARIOS = [
          * third's text rewritten as a GM might; then the Dorm given to the second by `setVaultRoom`. Read: each one's keys
          * to the Dorm, whether the second's and the third's texts name the old owner or the new, and the GM's notices.
          * Red at b355cb03 (g2-red.log): the old owner kept the key, no notice named a copy, the copy named the old owner.
+         * E64, D008 (the owner's default, confirmed 12.11.2026): the copies go with the room. The third's copy - its text a
+         * GM's own, which changes nothing - is taken, the GM told who lost one ("keyCopiesTakenGm") and the third whispered
+         * ("keyCopyTakenBack"). Red at e42bbe0: the copy stayed, and the GM was told to take it by hand ("keyCopiesGm").
          */
         const V = await import("./vault.mjs");
         const R = await import("./rooms.mjs");
@@ -70178,6 +72151,7 @@ const SCENARIOS = [
         const keysTo = actor => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === ROOM);
         const read = {};
         const said = [];
+        const had = new Set(game.messages.contents.map(m => m.id));
         const own = Object.getOwnPropertyDescriptor(ui.notifications, "info"), info = ui.notifications.info;
         await G.withGmStoreWorld(`suite-e14g2-${foundry.utils.randomID(8)}`, async () => {
             let setup = null;
@@ -70200,9 +72174,17 @@ const SCENARIOS = [
                 const text = who => String(keysTo(who)[0]?.system?.description ?? "");
                 read.keys = [owner, heir, third].map(who => keysTo(who).length);
                 read.owner = V.vaultOwnerOf(ROOM, setup) === heir.id;
-                read.texts = [[text(heir).includes(heir.name), text(heir).includes(owner.name)], text(third) === OWN_TEXT];
+                read.texts = [text(heir).includes(heir.name), text(heir).includes(owner.name)];
                 read.told = [said.some(m => m === game.i18n.format("DRPG.Vault.keyTakenGm", { actor: owner.name, room: ROOM })),
-                    said.some(m => m === game.i18n.format("DRPG.Vault.keyCopiesGm", { room: ROOM, holders: third.name }))];
+                    said.some(m => m === game.i18n.format("DRPG.Vault.keyCopiesTakenGm", { room: ROOM, holders: third.name }))];
+                const back = game.i18n.format("DRPG.Vault.keyCopyTakenBack", { room: ROOM });
+                const { wordsOf, contentOf } = await import("./secret.mjs");
+                let whispered = false;
+                for (const m of game.messages.contents.filter(m => !had.has(m.id) && (m.whisper ?? []).some(id => !game.users.get(id)?.isGM
+                    && third.testUserPermission?.(game.users.get(id), "OWNER")))) {
+                    if ((contentOf(m) || String(await wordsOf(m, 1500) ?? "")).includes(back)) whispered = true;
+                }
+                read.whispered = !back.includes("DRPG.Vault") && whispered;
             } finally {
                 if (own) Object.defineProperty(ui.notifications, "info", own);
                 else delete ui.notifications.info;
@@ -70214,10 +72196,10 @@ const SCENARIOS = [
                 await settle();
             }
         });
-        equal(stableJson(read), stableJson({ keys: [0, 1, 1], owner: true, texts: [[true, false], true], told: [true, true] }),
-            "a bedroom given away by setVaultRoom left the old owner a key, or a copy went unnamed or kept the old owner's name ([keys to the room of "
-            + "the old owner, the new, a third holding a copy]; the room's owner the new; [the new owner's key names the new owner, still names the "
-            + "old], the third's own text kept; [the GM told the old owner's key was taken, told who still holds a copy])");
+        equal(stableJson(read), stableJson({ keys: [0, 1, 0], owner: true, texts: [true, false], told: [true, true], whispered: true }),
+            "a bedroom given away by setVaultRoom left the old owner a key or a copy with its holder, or the GM was not told who lost one ([keys to "
+            + "the room of the old owner, the new, a third holding a copy]; the room's owner the new; [the new owner's key names the new owner, still "
+            + "names the old]; [the GM told the old owner's key was taken, told who lost a copy]; the copy's holder whispered)");
     }],
 
     ["the dead keep their hands still: a dead student's sheet offers no Use, Ready, Discard, Put away or Take out, on a death the GMs keep too; useItem, toggleEquipped, discardBroken, stow and retrieve refuse before any question; the GMs do not count a dead one's use, nor let its count, a break or a retrieve stand (E14-T4, S08-12, S08-30)", async () => {
@@ -70287,8 +72269,12 @@ const SCENARIOS = [
                     override: true, quiet: true, ...data });
                 const tools = { category: "tool", goal: undefined };
                 const stashed = { location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } };
-                const kit = await make("kit"), control = await make("control kit"), spent = await make("spent kit"), tool = await make("tool", tools);
+                // The broken tool first (E91 C8, D090): a quiet arrival into pockets with one working piece of Gear stowed and
+                // an empty hand readies that piece (inventory.mjs `keepGearShape`), so the broken one, made second, readied the
+                // tool and the dead's Ready below had nothing to refuse ("the tool is readied", 1.2.110's first CI run, 43352869429).
+                // A working tool arriving beside a broken one has nothing it can ready: both stay stowed, as until E91.
                 const broken = await make("broken", { ...tools, extraFlags: { [INV.ITEM_FLAGS.broken]: true } });
+                const kit = await make("kit"), control = await make("control kit"), spent = await make("spent kit"), tool = await make("tool", tools);
                 const kept = await make("kept", stashed), taken = await make("taken", stashed);
                 must(kit && control && spent && tool && broken && kept && taken && INV.isStashed(kept) && INV.isStashed(taken),
                     "the fixture's items were not made, or not put in the stash - this would measure nothing");
@@ -73988,6 +75974,8 @@ const SCENARIOS = [
          * actions after each, whether the cards to the target's player carry the sentence for what happened,
          * and how many cards the 13 sent that player. At 0edb82de the first two said the action came back
          * or was wasted, and the 13 sent two cards (the Call's own notice and Confusion's).
+         * Since E72 C1 the GM takes the price before it throws, so the Monocub is given the action and the Hope of
+         * each run first (`pay`), and its own are put back.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player to be sent the words");
         const { cubAbilityOnGm } = await import("./monocub.mjs");
@@ -74008,8 +75996,13 @@ const SCENARIOS = [
         const monoWas = cub._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
         const real = CONFIG.Dice.randomUniform;
         const read = {};
+        const cubWas = [cub._source.system.resources[ACTIONS_RESOURCE].value, cub._source.system.resources.hope.value];
         const run = async (faces, choice, actions) => {
             await target.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: actions });
+            await cub.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: 1, "system.resources.hope.value": 1 });
+            // E72 C4: one move on a student per time of day; each run here is a fresh one, its count dropped first.
+            const { cubTargetStore } = await import("./gm-stores.mjs");
+            if (cubTargetStore.has(target.id)) await cubTargetStore.drop(target.id);
             await settle();
             const script = faces.map(face => 1 - (face - 0.5) / 12);
             let out = null;
@@ -74043,6 +76036,7 @@ const SCENARIOS = [
             }
             if (monoWas === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
             else await cub.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await cub.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: cubWas[0], "system.resources.hope.value": cubWas[1] });
             if (actionsWas !== undefined) await target.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsWas });
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
             await back();
@@ -74379,67 +76373,6 @@ const SCENARIOS = [
             + "the pools' first header; a student not ticked: its \"-\" hidden, its select hidden; per student (assigned, nobody, never): the "
             + "fallback's class, the option shown; asterisks; \"Outside every pool: 1\"; the assignments after a rename and a student ticked; "
             + "the never-assigned student's pool picked: the option shown is its plain name, still dim, the pool counted; saved: their row names the pool]");
-    }],
-
-    ["the Monocubs window and the silence say the rule the GM ticks (E15-T8): short headers, the note on the Silenced column, a locked box until the row is a Monocub; the badge says what the tick posts", async () => {
-        /*
-         * E15 C6, 25.10.2026; E15-31, E15-32, audit S13-10, S13-17. A student killed in public
-         * (`killCharacter`) so the window has a row, then the Monocubs window opened (`openMonocubDialog`,
-         * drawn). Read: the headers' words; the Silenced header's tooltip; whether the note still stands
-         * under the table; the dead student's Silenced box (locked, its tooltip) before and after its
-         * Monocub box is ticked; then Cancel. And the words, EN as this browser reads them: the sheet's
-         * badge against the title of the card the tick posts, and whether its tooltip says Confusion still
-         * works. The student is revived and its tracks put back. At the C5 commit the headers were
-         * sentences, the box a "-" and the badge "Cannot speak". The pool sentences (S13-12) are words a
-         * test would read in one language only: parity holds their Polish twins, the review their sense.
-         */
-        const M = await import("./monocub.mjs");
-        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
-        const [who] = cast(1);
-        const R = "system.resources";
-        const keys = ["hope", "hitPoints", "stress", "actions"];
-        const tracksWas = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
-        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-monocubs"));
-        const t = key => game.i18n.localize(key);
-        const read = {};
-        let dead = false, answer = null;
-        try {
-            dead = Boolean(await killCharacter(who, { secret: false, keepBullets: true }));
-            must(dead, `${who.name}'s death could not be published - this would measure nothing`);
-            await settle();
-            answer = Promise.resolve().then(() => M.openMonocubDialog()).catch(() => null);
-            await until(() => open()[0]?.element, 6000);
-            const root = open()[0]?.element;
-            must(root, "the Monocubs window did not open - this would measure nothing");
-            const heads = [...root.querySelectorAll("thead th")];
-            read.headers = heads.map(th => th.textContent.trim());
-            read.tooltip = heads[4]?.dataset?.tooltip ?? null;
-            read.noteBelow = [...root.querySelectorAll("p.notes")].some(p => p.textContent.includes(t("DRPG.Monocub.silencedNote")));
-            const box = root.querySelector(`[name="silenced:${CSS.escape(who.id)}"]`);
-            read.locked = [box?.disabled ?? null, box?.dataset?.tooltip ?? null];
-            const cub = root.querySelector(`[name="cub:${CSS.escape(who.id)}"]`);
-            cub.checked = true;
-            cub.dispatchEvent(new Event("change", { bubbles: true }));
-            read.unlocked = box?.disabled ?? null;
-            root.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
-            await answer;
-        } finally {
-            for (const app of open()) await app.close();
-            await answer;
-            if (dead) await reviveCharacter(who, { quiet: true });
-            await who.update(Object.fromEntries(keys.filter(k => tracksWas[k] !== null).map(k => [`${R}.${k}`, tracksWas[k]])));
-            await settle();
-        }
-        read.badge = [t("DRPG.Monocub.silencedBadge") === t("DRPG.Monocub.silenceTitle"), t("DRPG.Monocub.silencedTooltip").includes("Confusion")];
-        equal(stableJson(read), stableJson({
-            headers: ["DRPG.Monocub.student", "DRPG.Monocub.isOne", "DRPG.Monocub.hope", "DRPG.Monocub.giveHopeColumn", "DRPG.Monocub.silenced"].map(t),
-            tooltip: t("DRPG.Monocub.silencedNote"),
-            noteBelow: false,
-            locked: [true, t("DRPG.Monocub.tickFirst")],
-            unlocked: false,
-            badge: [true, true]
-        }), "the Monocubs window or the silence does not say the rule [the headers; the Silenced header's tooltip; the note under the table; "
-            + "a dead student's Silenced box: locked, its tooltip; once Monocub is ticked: locked; the badge: the tick's title, Confusion named]");
     }],
 
     ["E16-T21 - Dynamic says 'beat N' where a band's number is shown, and passes from that number (audit S13-30, the owner's D16)", async () => {
@@ -76913,6 +78846,12 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
             await step("an action, then a time of day", { actions: 2 }, { [ACTIONS]: 1 }, { between: async () => { await nextTime(); } });
             await step("a Sprint, then a time of day", { sprint: 1 }, { [F(FLAGS.freeMoveGrants)]: 0 }, { between: async () => { await nextTime(); } });
+            // E64, D059 (the owner's default, confirmed 12.11.2026): the free Move is a time of day's, so one taken before a
+            // boundary is not given back into the next, whose own free Move was spent already. Red before E64: given back.
+            await step("the free Move, then a time of day whose own was spent", { free: true }, { [F(FLAGS.freeMoveUsed)]: true }, { between: async () => {
+                await nextTime();
+                await student.update({ [F(FLAGS.freeMoveUsed)]: true });
+            } });
 
             // Through the bridge's row: the player's ask refused, nothing given; this GM's (a second GM's arrives so) given.
             const judged = async (senderId, requestId) => {
@@ -76975,6 +78914,7 @@ const SCENARIOS = [
             ["crossing rooms costs nothing", "none", "given", "300,300", 1, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
             ["an action, then a time of day", "action", "given", "300,300", 2, true, 0, 0, "alreadyDone", ["back", "price"]],
             ["a Sprint, then a time of day", "sprint", "given", "300,300", 2, true, 1, 0, "alreadyDone", ["back", "price"]],
+            ["the free Move, then a time of day whose own was spent", "free", "given", "300,300", 2, false, 0, 0, "alreadyDone", ["back", "noPrice"]],
             ["an Eclipse's crossing", "eclipse", "given", "300,300", 0, "alreadyDone", ["back", "price"]],
             ["an Eclipse's crossing, given back in the next Eclipse", "eclipse", "given", "300,300", 1, "alreadyDone", ["back", "noPrice"]],
             ["a tunnel's action", "action", "given", "200,200", 2, false, 0, 0, "alreadyDone", ["back", "price"]]],
@@ -79181,10 +81121,10 @@ const SCENARIOS = [
         const words = String(message ? contentOf(message) ?? "" : "");
         const whisper = [...(message?.whisper ?? [])].sort();
         for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
-        equal(stableJson({ title: titles[0], dc: roll?.dc ?? null, needed: words.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n: 10 }))),
+        equal(stableJson({ title: titles[0], dc: roll?.dc ?? null, needed: words.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Action.needed", { n: ACTIONS.palm.threshold }))),
             whisper: stableJson(whisper) === stableJson([...new Set([...gmIds(), ...ownerIdsOf(student)])].sort()) }), stableJson({
-            title: A.palmTitle("hand"), dc: 10, needed: true, whisper: true
-        }), "[the window's title]; [the roll's dc]; [the card says needed 10]; [the card went to the GMs and the owners]");
+            title: A.palmTitle("hand"), dc: ACTIONS.palm.threshold, needed: true, whisper: true
+        }), "[the window's title]; [the roll's dc]; [the card says needed the steal's number (12 since E64)]; [the card went to the GMs and the owners]");
     }],
 
     ["E51-T7 - a free crisis take is not shown as a roll: the critical Self-defence's free Survive prints no \"0 >= N\" and says it worked with no roll, and its tracker line holds no score (E51 C1; E51-14)", async () => {
@@ -79678,109 +81618,8 @@ const SCENARIOS = [
         }
     }],
 
-    ["E51-T15 - Clear Faint and Sweep say what they cleared in the Investigation Dashboard: each button's run answers its count (\"N Faint Remnants cleared.\", \"N Truth Bullets swept.\") and the dashboard it reopens shows the line above its live region, outside what a redraw rebuilds (E51 C5; E51-34, audit S05-55; E51 fix FG9)", async () => {
-        /*
-         * E51 C5, 31.10.2026; audit S05-55. After Clear Faint Remnants the dashboard came back looking as it did before:
-         * the count was a toast, gone in seconds. The button's run (investigation.mjs `runDashboardButton`, exported for
-         * the suite) answers what it did, and the dashboard the button reopens says it above `.drpg-case-live`, outside
-         * what a redraw rebuilds. Clear Faint deletes every Faint trace nobody tied in the world, so the run is handed
-         * this test's one Faint trace (`tokens`, the suite's own fixtures, as `neutralTraceNames` takes them) and the
-         * world's others are counted before and after. The confirm is answered yes; the dashboard is opened as the
-         * button's road reopens it, and its line read with where it stands. Red at C5's parent: no exported
-         * `runDashboardButton`, and no line.
-         *
-         * AND SWEEP (E51 fix round FG9, 31.10.2026; review goal G9: Sweep's answer was read by no test). Sweep deletes
-         * every Truth Bullet the sweep does not spare, every student's, so the run is handed this test's student
-         * (`actors`, as chapter.mjs `sweepTruthBullets` takes them): one of the cast with nothing to sweep is given one
-         * Neutral bullet, the confirm answered yes, and the run's answer, the bullet and the reopened dashboard's line
-         * read as Clear Faint's. Red at the fix round's parent: the run did not hand `actors` on and swept the world's.
-         */
-        needs(env.dialogs(), "the dashboard is read off its drawn window");
-        needs(world.atLeast("sceneOnScreen"), "the Faint trace is placed on the scene on screen");
-        const I = await import("./investigation.mjs");
-        const R = await import("./remnants.mjs");
-        const { plural } = await import("./utils.mjs");
-        const scene = canvas?.scene;
-        const faintElsewhere = () => Array.from(game.scenes).flatMap(s => R.remnantsOn(s)).filter(t => R.remnantData(t)?.faint).map(t => t.id).sort();
-        // Sweep's student, asked of the world before anything is written: one of the cast with nothing the sweep would take.
-        const C = await import("./chapter.mjs");
-        const T = await import("./truth-bullets.mjs");
-        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
-        const free = [];
-        for (const a of cast(3)) if (!(await C.sweepPlan({ actors: [a] })).remove.length) free.push(a);
-        must(free.length, "every student of the cast holds a bullet the sweep would take - this would measure nothing");
-        const before = faintElsewhere();
-        const trace = await R.placeRemnant({ type: "prep", visibility: "evident", faint: true, tiedToCrime: false, scene, x: 50, y: 50, note: "SUITE E51-T15 a Faint trace" });
-        must(trace, "the Faint trace was not placed - this would measure nothing");
-        const D = foundry.applications.api.DialogV2;
-        const own = Object.getOwnPropertyDescriptor(D, "confirm"), ownWait = Object.getOwnPropertyDescriptor(D, "wait");
-        const said = plural("DRPG.Panel.faintCleared", { n: 1 });
-        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
-        const read = {};
-        let answer = null;
-        try {
-            D.wait = kitQuestions(D.wait);
-            D.confirm = () => Promise.resolve(true);
-            const ran = typeof I.runDashboardButton === "function" ? await I.runDashboardButton("clearFaint", { tokens: [trace] }) : null;
-            read.ran = ran?.said ?? null;
-            read.gone = !scene.tokens.has(trace.id);
-            read.others = stableJson(faintElsewhere()) === stableJson(before);
-            if (ran) {
-                const seen = new Set(open());
-                answer = Promise.resolve().then(() => I.openInvestigationDashboard({ said: ran.said })).catch(() => null);
-                await until(() => open().some(a => !seen.has(a) && a.element), 6000);
-                const app = open().find(a => !seen.has(a)) ?? null;
-                const line = () => app?.element?.querySelector(".drpg-case-result") ?? null;
-                read.shown = [line()?.textContent.trim() ?? null, Boolean(line() && !line().closest(".drpg-case-live"))];
-            }
-            const source = fnSource(stripComments((await moduleSources()).get("investigation.mjs") ?? ""), "openInvestigationDashboard");
-            read.road = /runDashboardButton\(action\)/.test(source) && /said:\s*ran\.said/.test(source);
-        } finally {
-            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
-            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
-            for (const a of open()) await a.close();
-            await answer;
-            if (scene.tokens.has(trace.id)) {
-                await R.dropRemnantSecret(trace);
-                await scene.deleteEmbeddedDocuments("Token", [trace.id]);
-            } else await R.dropRemnantSecret(trace);
-        }
-        // Sweep, on one student with one Neutral bullet and nothing else to sweep.
-        const [student] = free;
-        const swept = plural("DRPG.Panel.sweptBullets", { n: 1 });
-        let bullet = null, again = null;
-        try {
-            D.wait = kitQuestions(D.wait);
-            D.confirm = () => Promise.resolve(true);
-            bullet = await T.createTruthBullet(student, { name: "SUITE E51-T15 a bus ticket", playerText: "SUITE E51-T15" });
-            must(bullet, "the fixture's bullet was not made - this would measure nothing");
-            await sheetAuditIdle();
-            const ran = await I.runDashboardButton("sweepBullets", { actors: [student] });
-            read.sweep = [ran?.said ?? null, !student.items.has(bullet.id)];
-            if (ran?.said) {
-                const seen = new Set(open());
-                again = Promise.resolve().then(() => I.openInvestigationDashboard({ said: ran.said })).catch(() => null);
-                await until(() => open().some(a => !seen.has(a) && a.element), 6000);
-                const app = open().find(a => !seen.has(a)) ?? null;
-                const line = app?.element?.querySelector(".drpg-case-result") ?? null;
-                read.sweep.push(line?.textContent.trim() ?? null, Boolean(line && !line.closest(".drpg-case-live")));
-            }
-        } finally {
-            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
-            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
-            for (const a of open()) await a.close();
-            await again;
-            if (bullet) {
-                if (student.items.has(bullet.id)) await student.items.get(bullet.id).delete();
-                await T.dropSecret(bullet.uuid);
-            }
-            await sheetAuditIdle();
-        }
-        equal(stableJson(read), stableJson({ ran: said, gone: true, others: true, shown: [said, true], road: true, sweep: [swept, true, swept, true] }),
-            "[what the button's run answers; this test's Faint trace gone; the world's other Faint traces as they were; the reopened dashboard's line and whether "
-                + "it stands outside the live region; the dashboard's road hands the run's answer to the window it reopens]; [Sweep: what its run answers, the "
-                + "bullet gone, the reopened dashboard's line and whether it stands outside the live region]");
-    }],
+    /* E51-T15 (Clear Faint and Sweep said their count in the Investigation Dashboard) left with the two buttons: E64-inv,
+       12.11.2026, the owner's pick of the Investigation review - End the chapter runs both clean-ups (R3967). */
 
     ["E51-T16 - a debate opened with -60 runs 30 s and remembers 30, one opened again from a record of 10 s runs 30, and the API's 5 s runs 30 (E51 C6; E51-36, audit S06-45)", async () => {
         /*
@@ -80279,10 +82118,15 @@ const SCENARIOS = [
                 else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
             }
             if (tracks.length) await actor.update(tracksWas);
+            // The mark is the GMs' row since E72 C2 (`cubStore`).
+            const { cubStore } = await import("./gm-stores.mjs");
+            if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
             await settle();
             for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
         }
-        equal(stableJson(read), stableJson([1, true, true, plural("DRPG.Panel.stateSaved", { n: 1 })]),
+        /* CHANGED ON PURPOSE BY E72 C6 (12.11.2026; DC17): the State list's Monocub sends an invitation (`offerMonocub`), so
+           the row is no Monocub yet and has no silence to take; it is still one character changed. */
+        equal(stableJson(read), stableJson([1, false, false, plural("DRPG.Panel.stateSaved", { n: 1 })]),
             "[the count applyAliveStates answered; a Monocub; silenced; the toast's words for that count]");
     }],
     ["E51-T28 - the Projects window shows the select of the picked row alone, in both themes, and reads the hidden one after: Work on project shows \"Which project?\", Sabotage \"Sabotage which project?\", Propose neither, and a Work and a Sabotage each throw for the project picked in their own select (E51 fix FG4; the owner's item of 31.10)", async () => {
@@ -82829,13 +84673,13 @@ const SCENARIOS = [
         const X = living.find(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
         must(X, "no living student a connected player owns - the moment of an offer cannot be read");
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES])]));
+        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS])]));
         const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
         const before = new Map(living.map(a => [a.id, advances(a)]));
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
         const levelUps = a => offersOf(a).length + advances(a) - before.get(a.id);
         const waited = a => offersOf(a).reduce((n, offer) => n + offer.deferred, 0);
-        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "hp" }));
+        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" }));
         const hasGiving = (S.verdictStore.spec?.fields ?? []).includes("giving");
         await S.verdictStore.whenHydrated();
         const keptGiving = foundry.utils.deepClone(S.verdictStore.record()?.giving ?? null);
@@ -83005,7 +84849,8 @@ const SCENARIOS = [
                 await S.verdictStore.patch(RECORD, { giving: kept.giving ?? null, finalGiven: kept.finalGiven ?? null });
             }
         }
-        const done = ["finalSentence", "finalCard", "finalClose", "finalExecution", "mastermind"];
+        const done = ["finalSentence", "finalCard", "finalClose", "finalExecution", "finalBets", "mastermind"];
+        // CHANGED ON PURPOSE (E72, 12.11.2026): the Final's Ghost Bets settle in "finalBets", done beside the stopped Level Ups (R3815).
         equal(stableJson(reading), stableJson({
             stopped: ["applying", ["finalLevelUps"], done, label, 0, true, [true, true]],
             finished: ["done", [], 1, LEVEL_UP.reinforced.picks, false, true, null],
@@ -86399,6 +88244,207 @@ const SCENARIOS = [
             + "the English reason or a raw key}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
+    ["E72 C8 Silence now - a GM's Silence now moves a kept death's voice out of its room: the cast's `silencedDead` written, read through the incident's state by `deathVoiceGone` (false before, true after), kept out of the victim's player's copy, and a second press writes nothing (E72 C8, the plan's A9)", async () => {
+        /*
+         * E72 C8, 12.11.2026. In a GM-store world of its own: a student standing as a kept death (the suite's `deadForGm`
+         * and `published`, so no death is written to the world) in the running incident's cast. `deathVoiceGone` asked
+         * with the cast holding it, before and after incident-store.mjs `silenceDeadNow`; the state read through
+         * `readCast()`, the half of `murderState()` the primary reads it from. Red at f05fe96: no `silenceDeadNow`.
+         */
+        const [student] = cast(1);
+        const I = await import("./incident-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const V = await import("./voice.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const read = await G.withGmStoreWorld(`suite-e72-c8-${foundry.utils.randomID(8)}`, async () => {
+            // While an incident runs, `murderState()` is the world half and `readCast()` (no incident runs here, so the
+            // world half is a stand-in: the cast's fields are what is measured).
+            const facts = () => ({ state: { active: true, ...I.readCast() }, hydrated: true, cast: new Set([student.id]), witnessed: false, announced: async () => false });
+            const before = await V.deathVoiceGone(student, facts());
+            const silence = typeof I.silenceDeadNow === "function" ? I.silenceDeadNow : async () => "no silenceDeadNow";
+            const kept = { deadForGm: () => true, published: () => false };
+            const first = await silence(student, kept);
+            await settle();
+            const after = await V.deathVoiceGone(student, facts());
+            const again = await silence(student, kept);
+            const living = await silence(student, { deadForGm: () => false, published: () => false });
+            const player = ownerOf(student);
+            const copy = I.castFor(player?.id ?? "", { ...S.castStore.record(), victimId: student.id });
+            return { before, first, written: Boolean(S.castStore.record()?.silencedDead?.[student.id]), after, again, living,
+                inCopy: Object.hasOwn(copy ?? {}, "silencedDead") };
+        });
+        equal(stableJson(read), stableJson({ before: false, first: true, written: true, after: true, again: false, living: false, inCopy: false }),
+            "Silence now does not move a kept death's voice ([deathVoiceGone before, the write, the cast's field, deathVoiceGone after, a second press, "
+            + "a living student, the field in the player's copy])");
+    }],
+
+    ["D038 lair lock - the Mastermind's player locks and opens their room with the GM's own lock: the same flag Room Setup's writer puts on another room, the same card when it opens, nothing for another player's ask (E91 C4, D038)", async () => {
+        /*
+         * E91 C4, 12.11.2026; the owner's "Budujemy" for D038, the coordinator's default: the lock must not be a tell. On a
+         * scene of the suite's own (a Lair and a Hall, each a room), in a GM-store world of its own: a student the suite's
+         * player owns made the Mastermind with the Lair. Asked as the bridge's run asks it (mastermind.mjs `lockLair`,
+         * `asker` the sender): another user first (refused, nothing written), then the Mastermind's player locks it, and
+         * the GM locks the Hall through Room Setup's writer (vault-store.mjs `writeRoomLock`); the module flags each room's
+         * pieces gained are compared. Then both open: the card each posts, its room's name taken out, compared. Red at
+         * 5c93301: no `lockLair`.
+         */
+        needs(env.primaryGm(), "the lock is written on the primary GM alone");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the Mastermind's player is the one the suite has");
+        const { ownerOf } = await import("./utils.mjs");
+        const asker = ownerOf(student);
+        const MM = await import("./mastermind.mjs");
+        const V = await import("./vault-store.mjs");
+        const R = await import("./rooms.mjs");
+        const M = await import("./movement.mjs");
+        const G = await import("./gm-store.mjs");
+        const LAIR = "SUITE D038 Lair", HALL = "SUITE D038 Hall";
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const seen = new Set(game.messages.map(m => m.id));
+        const flagsOf = (scene, name) => R.roomRegions(scene, name).map(r => stableJson(r.flags?.[MODULE_ID] ?? {}));
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE D038 the lair", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(LAIR, 0), room(HALL, 600)]);
+            read = await G.withGmStoreWorld(`suite-d038-lock-${foundry.utils.randomID(8)}`, async () => {
+                must(await MM.setMastermind(student, { room: LAIR }), "the student was not made the Mastermind - this would measure nothing");
+                await settle();
+                const lock = typeof MM.lockLair === "function" ? MM.lockLair : async () => ({ refused: "no lockLair" });
+                const other = await lock({ actorId: student.id, lock: true }, { asker: { id: "SUITED038OTHER", isGM: false, active: true } });
+                const after = [M.isLocked(scene, LAIR)];
+                const before = { lair: flagsOf(scene, LAIR), hall: flagsOf(scene, HALL) };
+                const locked = await lock({ actorId: student.id, lock: true }, { asker });
+                const lockedNow = M.isLocked(scene, LAIR);
+                await V.writeRoomLock(scene, HALL, true);
+                await settle();
+                const flags = { lair: flagsOf(scene, LAIR), hall: flagsOf(scene, HALL) };
+                const cards = () => game.messages.filter(m => !seen.has(m.id)).map(m => String(m.content ?? ""));
+                const opened = await lock({ actorId: student.id, lock: false }, { asker });
+                await settle();
+                const lairCard = cards();
+                await V.writeRoomLock(scene, HALL, false);
+                await settle();
+                const hallCard = cards().slice(lairCard.length);
+                return {
+                    other: [typeof other?.refused === "string" && other.refused.startsWith("nothing was carried out: "), ...after],
+                    locked: [locked?.locked ?? locked, lockedNow],
+                    // What each room's pieces gained: the same keys and values but for the room's own name (none here).
+                    same: stableJson(flags.lair) === stableJson(flags.hall) && stableJson(before.lair) === stableJson(before.hall),
+                    opened: [opened?.locked ?? opened, M.isLocked(scene, LAIR)],
+                    cards: [lairCard.length, hallCard.length, lairCard[0]?.replace(LAIR, "ROOM") === hallCard[0]?.replace(HALL, "ROOM")]
+                };
+            });
+        } finally {
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (scene) await scene.delete();
+        }
+        equal(stableJson(read), stableJson({ other: [true, false], locked: [true, true], same: true, opened: [false, false], cards: [1, 1, true] }),
+            "the Mastermind's lock is not the GM's lock ([another's ask refused, the Lair then unlocked; the Mastermind's lock written and read by the door; "
+            + "the Lair's flags as the Hall's under Room Setup's writer; opened and read open; one card each, the same but the room])");
+    }],
+
+    ["D038 lair seal - the Mastermind's player seals a passage at their door by the tab's own close; one with no side in the lair, or another player's ask, closes nothing; a GM opens it again (E91 C5, D038)", async () => {
+        /*
+         * E91 C5, 12.11.2026. On a scene of the suite's own (a Lair, a Hall, a Bath), in a GM-store world of its own: the
+         * Mastermind's student and two tunnels, Lair-Hall and Hall-Bath. Asked as the bridge's run asks it (passages-gm.mjs
+         * `sealLairPassage`): another user on the Lair's tunnel, the Mastermind's player on the Bath's (no side in the
+         * Lair), then on the Lair's; each tunnel's state read, and the GMs' log row of the close. Then the tab's Open on it.
+         * Red at 5c93301: no `sealLairPassage`.
+         */
+        needs(env.primaryGm(), "a passage is closed on the primary GM alone");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the Mastermind's player is the one the suite has");
+        const { ownerOf } = await import("./utils.mjs");
+        const asker = ownerOf(student);
+        const MM = await import("./mastermind.mjs");
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE D038 the seal", width: 1800, height: 600, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room("SUITE D038S Lair", 0), room("SUITE D038S Hall", 600), room("SUITE D038S Bath", 1200)]);
+            read = await G.withGmStoreWorld(`suite-d038-seal-${foundry.utils.randomID(8)}`, async () => {
+                must(await MM.setMastermind(student, { room: "SUITE D038S Lair" }), "the student was not made the Mastermind - this would measure nothing");
+                await settle();
+                const lairWay = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 300, y: 300, level: null }, { x: 900, y: 300, level: null }] }, { scene });
+                const bathWay = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 900, y: 200, level: null }, { x: 1500, y: 300, level: null }] }, { scene });
+                must(typeof lairWay === "string" && typeof bathWay === "string", "the tunnels were not made - this would measure nothing");
+                const state = id => P.PASSAGE_STORES.map.get(id)?.state ?? null;
+                const seal = typeof P.sealLairPassage === "function" ? P.sealLairPassage : async () => ({ refused: "no sealLairPassage" });
+                const refusedOf = out => typeof out?.refused === "string" && out.refused.startsWith("nothing was carried out: ");
+                const other = await seal({ actorId: student.id, passageId: lairWay }, { asker: { id: "SUITED038OTHER", isGM: false, active: true } });
+                const far = await seal({ actorId: student.id, passageId: bathWay }, { asker });
+                const steps = [[refusedOf(other), state(lairWay)], [refusedOf(far), state(bathWay)]];
+                const done = await seal({ actorId: student.id, passageId: lairWay }, { asker });
+                await settle();
+                const logged = Object.values(P.PASSAGE_STORES.log.entries?.() ?? {}).some(row => row?.passageId === lairWay && row?.what === "close" && row?.actorId === student.id);
+                steps.push([done?.sealed ?? done, state(lairWay), state(bathWay)]);
+                await P.openPassage(lairWay);
+                await settle();
+                steps.push(state(lairWay));
+                return { steps, logged };
+            });
+        } finally {
+            if (scene) await scene.delete();
+        }
+        equal(stableJson(read), stableJson({ steps: [[true, "secret"], [true, "secret"], [true, "closed", "secret"], "secret"], logged: true }),
+            "the Mastermind's seal is not the tab's close ([another's ask refused, the Lair's tunnel open; the Bath's refused and open; the Lair's sealed, "
+            + "closed, the Bath's open; the tab's Open opens it], the GMs' log row of the close)");
+    }],
+
+    ["Room setup's Fog tab draws the Mastermind's column as knowing every room, its boxes ticked and shut, and Discover all or Hide all leaves them (E91 C4, D067)", async () => {
+        /*
+         * E91 C4, 12.11.2026; the owner's deferred item D067 ("the other places that read discoveredFor for the
+         * Mastermind"). The discovery ledger keeps no row of the Mastermind's walks (fog.mjs `recordDiscovery`), and every
+         * reader of it that asks for them counts every room as known (`myDiscoveredRooms`, `roomEnteredByMe`,
+         * projects.mjs `hasStoodIn`, passages-gm.mjs `roomNamerFor`) - but Room setup's Fog tab, which drew the
+         * Mastermind's column empty, a GM's tick writing cells nobody reads. Now the column is drawn ticked and disabled,
+         * its tooltip `DRPG.Vault.fogMastermind`, and the tab's two buttons pass it by. In a GM-store world of the suite's
+         * own: a Mastermind and another student; the window's content read, nothing applied. Red before C4: the
+         * Mastermind's boxes as the other's.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const [mm, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const G = await import("./gm-store.mjs");
+        const MM = await import("./mastermind.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let read = null;
+        await G.withGmStoreWorld(`suite-e91c4-${foundry.utils.randomID(8)}`, async () => {
+            await MM.setMastermind(mm);
+            await settle();
+            let form = null;
+            D.wait = async cfg => {
+                form = document.createElement("form");
+                if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                return null;
+            };
+            try { await V.openRoomSetupDialog({ tab: "fog" }); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            await settle();
+            must(form, "Room setup drew no window - this would measure nothing");
+            const boxes = id => [...form.querySelectorAll('input[type="checkbox"][name^="fog:"]')].filter(b => b.name.endsWith(`:${id}`));
+            must(boxes(mm.id).length > 0 && boxes(other.id).length > 0, "the Fog tab has no column for the two - this would measure nothing");
+            const tip = game.i18n.localize("DRPG.Vault.fogMastermind");
+            read = {
+                mastermind: boxes(mm.id).every(b => b.hasAttribute("checked") && b.disabled && b.getAttribute("data-tooltip") === tip),
+                other: boxes(other.id).some(b => b.disabled || b.getAttribute("data-tooltip") === tip),
+                tip: !tip.startsWith("DRPG.")
+            };
+        });
+        // The two buttons are wired on the live window (no window is drawn here): read off room-setup.mjs, comments blanked.
+        const src = stripComments((await moduleSources()).get("room-setup.mjs") ?? "");
+        const wire = bodyOf(src, "function wireFogButtons(root) {", { until: "\n}\n" });
+        read.buttons = /if\s*\(\s*box\.disabled\s*\)\s*continue/.test(wire);
+        equal(stableJson(read), stableJson({ mastermind: true, other: false, tip: true, buttons: true }),
+            "the Fog tab does not draw the Mastermind's column as knowing every room ({the Mastermind's boxes ticked, shut and told why; another's shut or told; the words exist; the buttons pass a shut box by})");
+    }],
+
     ["E46-T1 - Room setup opened on a scene while the GM views another (E46-C2a; E46-05, R119, near a road): Apply with nothing changed writes no region; one change on each room tab (Bedrooms' owner, Doors' lock, Searching's seal, Rests' short rest, Stashes' cell, Description's words, Fog's box) writes only its own field and only on the scene it was opened on; Apply with the Passages tab drawn writes no region (its buttons write at once), and the Scenes tab's school linked writes the scene roles and no region (E46-C2b); drawn on the GM, the footer is Apply and Cancel after every tab", async () => {
         /*
          * E46-C2a. Two scenes of the suite's own, each a room of one name (as R119's tier-2 test builds them), in a
@@ -86678,7 +88724,9 @@ const SCENARIOS = [
             if (fresh.length) await ChatMessage.deleteDocuments(fresh);
             await settle();
         }
-        const zone = ["chapterEnd", "end", "toggleFinal"];
+        // An ordinary trial runs in each state: End of chapter only at its step and no Start the Final Trial (the owner,
+        // 12.11.2026; E99 round 7, R3918), so the destructive zone is End the trial alone.
+        const zone = ["end"];
         const ended = read.ended?.step ?? "?";
         equal(stableJson(read), stableJson({
             discussion: { step: "openDebate", right: ["openDebate"], close: "close", zone, enter: false, panel: true, lead: "openDebate" },
@@ -88838,6 +90886,148 @@ const SCENARIOS = [
         }), JSON.stringify({ mood: [mood, true], added: [], numbers: [], hits: 0 }),
             "[the clock's mood, one of the three words; a field the write added beside the word; a field holding an input or the share; what the world-secrets rule finds]");
     }],
+    ["E110 day boards A - the curtain clock's Morning Eclipse ends on the end-of-day board (eclipse.mjs `startEclipse`, `endEclipse`; transitions.mjs `onClockHeard`; the owner's report at a real table on 1.2.109): at Night the Morning Eclipse is opened and ended with the advance, as the clock's right chevron and the panel's Eclipse button do; the clock lands on the next morning stamped for its boards, and this browser plays the end-of-day board of the day that ended", async () => {
+        /*
+         * 12.11.2026. The owner, at a real table on 1.2.109: the boards never played on the curtain clock. Its road is
+         * `endEclipse({ advance: true })`, one write of the Eclipse's end, the morning and the day + 1, which
+         * transitions.mjs read as the Eclipse's turn alone. Driven on this GM with the game's own calls, the day put at a
+         * number no other test plays (the sequence engine starts one board per event); the board read as it starts, then
+         * cut, so it hands on to nothing. Put back: the clock, every character's actions, the Eclipse's moves, the seals,
+         * the restrictions, the motive, the search tokens, the body's record, the round and the table's switch; the day's
+         * popups dismissed. Red at 1ff4bc77: no board.
+         */
+        needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
+        const E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs"), S = await import("./gm-stores.mjs");
+        const { actingStudents } = await import("./monokuma.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState() && !bodyDiscovery(), "an incident or a body's hold is open - no Eclipse starts there, and this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const rowsWas = new Map(actingStudents().map(a => [a.id, foundry.utils.deepClone(S.eclipseMoveStore.get(a.id) ?? null)]));
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!popupsWas.has(card)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const day = 8000 + Math.floor(Math.random() * 999);
+        const read = {};
+        let key = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (settingsWas.sequences === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            Q.endSequence("cut");
+            await setClock({ phase: "dailyLife", timeOfDay: "night", day, refilledFor: null });
+            await settle();
+            // the jump to the test's day is a move of its own, and whatever it played is not this test's
+            Q.endSequence("cut");
+            const night = getClock();
+            key = `dayEnd:${night.season ?? ""}:${day}:${night.session ?? ""}`;
+            await E.startEclipse();
+            await settle();
+            read.dark = [isEclipse(), getClock().timeOfDay, getClock().day];
+            await E.endEclipse({ advance: true });
+            await until(() => Q.sequenceNow()?.kind === "dayEnd", 6000).catch(() => {});
+            read.board = Q.sequenceNow()?.key ?? null;
+            read.started = Q.sequenceStarted("dayEnd", key);
+            const now = getClock();
+            read.clock = [now.eclipse === true, now.timeOfDay, now.day, now.dayBoard ?? null];
+            Q.endSequence("cut");
+        } finally {
+            Q.endSequence("cut");
+            dismiss();
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [id, row] of rowsWas) {
+                if (row) await S.eclipseMoveStore.patch(id, row);
+                else await S.eclipseMoveStore.drop(id);
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await settle();
+            Q.endSequence("cut");
+            dismiss();
+        }
+        equal(stableJson(read), stableJson({ dark: [true, "night", day], board: key, started: true, clock: [false, "morning", day + 1, day + 1] }),
+            "[the Eclipse open at Night on the day; the board playing as the Eclipse ended; this browser started the ended day's board; the clock after: [Eclipse, time of day, day, the boards' stamp]]");
+    }],
+    ["E110 day boards B - a day moved in Edit campaign plays no board, and Next time of day from Night still does (gm-campaign.mjs `applyCampaignForm`; clock.mjs `advanceTimeOfDay`, `setClock`; the owner's rule of 12.11.2026: the boards play on the clock on the curtain, on the GM panel's Next time of day and on the chapter end with the next morning, and never on Edit campaign - a correction): the day + 1 at the same hour and Night to Morning with the day + 1, each through Edit campaign's Apply, start no board; Next time of day from Night starts the end-of-day board", async () => {
+        /*
+         * 12.11.2026. Driven on this GM: the clock put at a day no other test plays, then Edit campaign's Apply as its
+         * window hands it on (`applyCampaignForm` with `readClockForm`'s fields, the refill box off), twice; then the clock
+         * at Night and the advance the panel's Next time of day runs after its round (`advanceTimeOfDay`, the search tokens
+         * and the card left alone). Each board is read by the event it would start (`sequenceStarted`). Put back as "E110
+         * day boards A" puts back. Red at 1ff4bc77: both of Edit campaign's moves played the boards.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        const C = await import("./clock.mjs"), G = await import("./gm-campaign.mjs"), Q = await import("./sequence.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!popupsWas.has(card)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const day = 8000 + Math.floor(Math.random() * 999);
+        const keyOf = c => `dayEnd:${c.season ?? ""}:${c.day}:${c.session ?? ""}`;
+        const form = patch => { const c = getClock(); return { campaignName: c.campaignName ?? "", chapter: Number(c.chapter) || 1, day: Number(c.day) || 1,
+            phase: c.phase, session: Number(c.session) || 1, timeOfDay: c.timeOfDay, reset: false, ...patch }; };
+        const quiet = () => new Promise(r => setTimeout(r, 1500));
+        const read = {};
+        try {
+            if (settingsWas.sequences === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            Q.endSequence("cut");
+            await setClock({ phase: "dailyLife", timeOfDay: "noon", day, refilledFor: null });
+            await settle();
+            // the jump to the test's day is a move of its own, and whatever it played is not this test's
+            Q.endSequence("cut");
+            const noon = getClock();
+            await G.applyCampaignForm(form({ day: day + 1 }));
+            await settle(); await quiet();
+            read.editDay = [getClock().day, Q.sequenceNow()?.kind ?? null, Q.sequenceStarted("dayEnd", keyOf(noon))];
+            await setClock({ timeOfDay: "night" });
+            await settle();
+            const night = getClock();
+            await G.applyCampaignForm(form({ day: day + 2, timeOfDay: "morning" }));
+            await settle(); await quiet();
+            read.editMorning = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.kind ?? null, Q.sequenceStarted("dayEnd", keyOf(night))];
+            Q.endSequence("cut");
+            await setClock({ timeOfDay: "night" });
+            await settle();
+            const last = getClock();
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await until(() => Q.sequenceNow()?.kind === "dayEnd", 6000).catch(() => {});
+            read.next = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.key ?? null, keyOf(last)];
+            Q.endSequence("cut");
+        } finally {
+            Q.endSequence("cut");
+            dismiss();
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await settle();
+            Q.endSequence("cut");
+            dismiss();
+        }
+        equal(stableJson({ ...read, next: read.next ? [read.next[0], read.next[1], read.next[2] === read.next[3]] : null }),
+            stableJson({ editDay: [day + 1, null, false], editMorning: [day + 2, "morning", null, false], next: [day + 3, "morning", true] }),
+            "[Edit campaign's day + 1: [the day, the sequence playing, the ended day's board started]; Edit campaign's Night to Morning with the day + 1: [the day, the time of day, the sequence, the board started]; Next from Night: [the day, the time of day, the ended day's board playing]]");
+    }],
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*
          * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`
@@ -88872,6 +91062,382 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, experience: "E49 save" }),
             "the character after the save: the three hidden fields, the statistic changed in the window, the experience");
+    }],
+    ["E64 D052 - a Loaded Die that did not hold gives its Call back: armed again under a new nonce, the owner told, and the next roll loads", async () => {
+        /*
+         * E64, D052 (the owner's default, confirmed 12.11.2026). E16-T35's setting: two action rolls on this GM, the
+         * first with the Hope and Fear dice's faces mapped as a dice method that ignores the sample (7 and 4), so the
+         * Loaded Die does not hold; the second on the harness's dice. Read after each: the student's armed critical
+         * Calls (their nonces), whether a card says "loadedDieBack", and the roll's Free Critical. Red before E64: the
+         * Call was spent by the first roll, so none was armed after it and the second roll was an honest one.
+         */
+        const [who] = cast(1);
+        const { appendArmedCall, pendingCalls, consumeCalls } = await import("./call-effects.mjs");
+        const { wordsOf, contentOf } = await import("./secret.mjs");
+        const dice = game.system?.api?.dice?.diceTypes ?? {};
+        must(typeof dice.HopeDie === "function" && typeof dice.FearDie === "function",
+            "Daggerheart's Hope and Fear die classes are not here - the method's faces could not be set and this would measure nothing");
+        const back = game.i18n.format("DRPG.Calls.loadedDieBack", { name: foundry.utils.escapeHTML(who.name) });
+        must(!back.includes("DRPG.Calls"), "the loadedDieBack text is not in the language file");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const first = foundry.utils.randomID();
+        const own = [dice.HopeDie, dice.FearDie].map(C => [C, Object.getOwnPropertyDescriptor(C.prototype, "mapRandomFace")]);
+        const criticals = () => pendingCalls(who).filter(entry => entry?.grants === "critical").map(entry => entry.nonce);
+        const read = [];
+        try {
+            must(await appendArmedCall(who, { key: "freeCrit", kind: "hope", grants: "critical", nonce: first }),
+                "the Free Critical was not armed - this would measure nothing");
+            for (const method of ["another method", "randomUniform"]) {
+                const seen = new Set(game.messages.contents.map(m => m.id));
+                if (method !== "randomUniform") {
+                    dice.HopeDie.prototype.mapRandomFace = () => 7;
+                    dice.FearDie.prototype.mapRandomFace = () => 4;
+                }
+                let r = null;
+                try {
+                    r = await neutralRoll(who, { remember: true, faces: { hope: 5, fear: 3 } });
+                } finally {
+                    for (const [C, d] of own) {
+                        if (d) Object.defineProperty(C.prototype, "mapRandomFace", d); else delete C.prototype.mapRandomFace;
+                    }
+                }
+                await settle();
+                const said = [];
+                for (const m of game.messages.contents.filter(m => !seen.has(m.id))) said.push(contentOf(m) || String(await wordsOf(m, 1500) ?? ""));
+                const armed = criticals();
+                read.push({ method, free: r?.outcome?.freeCritical ?? null, armed: armed.length, newNonce: armed.length === 1 && armed[0] !== first,
+                    told: said.some(t => t.includes(back)) });
+            }
+        } finally {
+            await consumeCalls(who);
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson([
+            { method: "another method", free: false, armed: 1, newNonce: true, told: true },
+            { method: "randomUniform", free: true, armed: 0, newNonce: false, told: false }
+        ]), `a Loaded Die that did not hold did not give its Call back, or one that held did [per roll: its Free Critical, the critical Calls armed after it, under a new nonce, the "loadedDieBack" card]: ${stableJson(read)}`);
+    }],
+    ["E64 D001 - a give goes through the same person gate as a steal, a Plant and a loot: a hidden token, a Monocub on either side and a Monokuma giving are refused, the two standing together pass", async () => {
+        /*
+         * E64, D001 (the owner's word of 12.11.2026: fixed). inventory.mjs `transferRefusal` asked frisk.mjs
+         * `personActionRefusal` for a steal, a Plant and a loot, and for a give only the Eclipse, the Class Trial, a death
+         * and movement.mjs `sameRoom` - so a give reached a token the GMs had hidden, a Monocub, and was made by a Monokuma.
+         * Two students stood alone in one room (`aloneTogether`, as A11-9), each case read as the bridge's code
+         * (`reasonOf`), null where the gate lets it through. Red before E64: the hidden token and the Monocub cases read null.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the giver and the taker, each a token on the scene on screen");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const { transferRefusal } = await import("./inventory.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        const [giver, taker] = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+        must(giver && taker, "no two living students on the scene - this would measure nothing");
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id);
+        const gate = async () => {
+            const why = await transferRefusal(giver, taker, { mode: "give" });
+            return why === null ? null : reasonOf(why);
+        };
+        const read = {};
+        const flagsWere = [giver, taker].flatMap(who => [FLAGS.monocub, FLAGS.monokuma].map(key => [who, key, who.getFlag(MODULE_ID, key)]));
+        const stood = await aloneTogether(giver, taker);
+        try {
+            read.control = await gate();
+            await takerToken.update({ hidden: true });
+            await settle();
+            read.hidden = await gate();
+            await takerToken.update({ hidden: false });
+            await settle();
+            for (const [who, key, label] of [[taker, FLAGS.monocub, "monocubTaking"], [giver, FLAGS.monocub, "monocubGiving"], [giver, FLAGS.monokuma, "monokumaGiving"]]) {
+                const was = who.getFlag(MODULE_ID, key);
+                await who.setFlag(MODULE_ID, key, true);
+                await settle();
+                read[label] = await gate();
+                if (was === undefined) await who.unsetFlag(MODULE_ID, key); else await who.setFlag(MODULE_ID, key, was);
+                await settle();
+            }
+            read.after = await gate();
+        } finally {
+            if (takerToken.hidden) await takerToken.update({ hidden: false });
+            for (const [who, key, was] of flagsWere) {
+                if (who.getFlag(MODULE_ID, key) === was) continue;
+                if (was === undefined) await who.unsetFlag(MODULE_ID, key); else await who.setFlag(MODULE_ID, key, was);
+            }
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ control: null, hidden: "notThere", monocubTaking: "cannotNow", monocubGiving: "cannotNow",
+            monokumaGiving: "cannotNow", after: null }),
+            `a give was let through where a steal or a Plant is refused, or refused standing together [the code per case]: ${stableJson(read)}`);
+    }],
+    ["E64 D003 - a Tier 0 item's Use an item waits for the GM's ruling: the crisis records no item used, says the use waits, and the item stays", async () => {
+        /*
+         * E64, D003 (the owner's word of 12.11.2026: fixed). A Tier 0 item is used creatively: use-items.mjs
+         * `useCreatively` asks the GM and answers `{ pending: true }`, and the player's browser sent the item's id as used
+         * (murder-rules.mjs `afterCrisisRoll`), so the GM's crisis receipt named it used ("The item goes in."), and a
+         * Reroll would put back a thing nobody had spent. Here a killer's Use an item with a Tier 0 item scored on the GM
+         * as its packet arrives (its id named), then read: the receipt's used item, whether a new card says the use
+         * waits ("useItemAsked") and none says it went in, and the item still on the sheet with its count. Red before
+         * E64: the receipt named the item and the card said it went in.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { wordsOf, contentOf } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const asked = game.i18n.localize("DRPG.Murder.useItemAsked"), went = game.i18n.localize("DRPG.Murder.useItemWorked");
+        must(!asked.startsWith("DRPG."), "the useItemAsked text is not in the language file");
+        const had = new Set([...killer.items, ...victim.items].map(item => item.id));
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        let read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            const [thing] = await killer.createEmbeddedDocuments("Item", [{ name: "Tier 2 E64 D003 curtain cord", type: "loot", system: { quantity: 1 },
+                flags: { [MODULE_ID]: { category: "usable", tier: 0 } } }]);
+            await turnFor(M, killer, "useItem");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 20, isCritical: false, withHope: true, usedItemId: thing.id });
+            await settle();
+            const said = [];
+            for (const m of game.messages.contents.filter(m => !seen.has(m.id))) said.push(contentOf(m) || String(await wordsOf(m, 1500) ?? ""));
+            read = {
+                receipt: M.murderState()?.lastCrisis?.usedItemId ?? null,
+                asked: said.some(t => t.includes(asked)), went: said.some(t => t.includes(went)),
+                kept: Number(killer.items.get(thing.id)?.system?.quantity ?? 0)
+            };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const actor of [killer, victim]) {
+                const made = actor.items.filter(item => !had.has(item.id)).map(item => item.id);
+                if (made.length) await actor.deleteEmbeddedDocuments("Item", made);
+            }
+            for (const m of game.messages.contents.filter(m => !seen.has(m.id))) await m.delete().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ receipt: null, asked: true, went: false, kept: 1 }),
+            `a Tier 0 Use an item was counted as used before the GM ruled [the receipt's used item, the card says it waits, the card says it went in, the item's count]: ${stableJson(read)}`);
+    }],
+    ["E64 D039 and D034 - a Repair an item's size is held to its item's tier at the completion, unless the GM chose another size in the approval window, which the GMs' half records", async () => {
+        /*
+         * E64, D039 and D034 (the owner's word of 12.11.2026: fixed; the details are this stage's defaults). The approval
+         * window opens on the size the item's tier asks (projects-ui.mjs `presetApproval`, passages-gm.mjs `presetScale`:
+         * Trivial for Tier 0 and 1, Complex for 2 and 3), and the GM may pick another; until E64 nothing kept that the GM
+         * had, and the completion mended whatever the project's size. D039: the window's Create keeps the size the GM
+         * picked in the GMs' half (`target.sizedByGm`), null where it is the tier's. D034: at the completion the item's
+         * tier as the GMs hold it then asks its size again (inventory.mjs `repairItem`'s `size`), and a smaller project
+         * mends nothing and tells the GMs why - unless the GM chose that size. A broken Tier 1 tool of one student's: two
+         * approvals through the window (the tier's 3 kept; 8 picked), read the record; then two projects of 3 made
+         * directly, the tool raised to Tier 3 before each ends, one recorded as the GM's 3: read the tool broken or not.
+         * Red before E64: no `sizedByGm`, and both completions mended.
+         */
+        const [mine] = cast(1);
+        needs(world.ownedByPlayer(mine), "the builder is a player's student");
+        const PR = await import("./projects.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const INV = await import("./inventory.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const createTitle = game.i18n.localize("DRPG.Project.createTitle");
+        const projects = [], owned = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        let pick = null;
+        const windows = answerWindows((cfg, root) => {
+            if ((cfg?.window?.title ?? "") !== createTitle) return null;
+            const opened = Number([...(root.querySelector('select[name="target"]')?.options ?? [])].find(o => o.selected)?.value ?? NaN);
+            return { name: "SUITE E64 D039 approved", target: pick ?? opened, room: null, trait: "hand", murder: false, condition: "",
+                trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
+                passageTo: null, passage: null, description: "SUITE E64 D039 its words" };
+        });
+        const approve = async (item, size) => {
+            pick = size;
+            const before = new Set(PR.allProjects().map(p => p.id));
+            await UI.openProjectDialog({ preset: { name: "SUITE E64 D039", target: 3, room: null, trait: "hand", indirectMurder: false, condition: "",
+                preset: "repairItem", to: item.id, by: mine.id } });
+            const made = PR.allProjects().filter(p => !before.has(p.id));
+            projects.push(...made.map(p => p.id));
+            return made[0] ? [made[0].start ?? null, PR.secretsOf(made[0].id).target?.sizedByGm ?? null] : null;
+        };
+        const tool = async name => {
+            const item = await INV.grantItem(mine, { name, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, `"${name}" was not given - this would measure nothing`);
+            owned.push(item);
+            await INV.breakItem(item);
+            return item;
+        };
+        const read = {};
+        try {
+            const first = await tool("SUITE E64 D039 spanner");
+            await sheetAuditIdle();
+            read.window = [await approve(first, null), await approve(first, 8)];
+            for (const id of projects.splice(0)) await PR.deleteProject(id);
+            read.completion = [];
+            for (const sizedByGm of [null, 3]) {
+                const item = await tool(`SUITE E64 D034 wrench ${sizedByGm ?? "tier"}`);
+                const made = await PR.createProject({ name: `SUITE E64 D034 Repair ${sizedByGm ?? "tier"}`, target: 3, trait: "hand", by: mine.id,
+                    presetTarget: { preset: "repairItem", itemId: item.id, sizedByGm } });
+                must(made?.id, "the repair was not made - this would measure nothing");
+                projects.push(made.id);
+                await trustedWrite(item, { [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.tier}`]: 3 }, { reason: "gmRuling" });
+                await sheetAuditIdle();
+                const done = await PR.applyProjectChange(made.id, { delta: 3 }, { by: { kind: "gm", userId: game.user.id } });
+                await settle();
+                await sheetAuditIdle();
+                read.completion.push([done?.crossed ?? null, INV.isBroken(item)]);
+            }
+            // A piece of the reason with no apostrophe in it, which the card escapes.
+            const why = game.i18n.localize("DRPG.Passage.why.repairTooSmall").split(", and it asks")[0].split("tier ").at(-1);
+            must(why.length > 20, "the repairTooSmall text is not in the language file, or reads otherwise - this would measure nothing");
+            read.told = posted.some(m => (m.whisper ?? []).length && m.whisper.every(id => game.users.get(id)?.isGM)
+                && String(contentOf(m) ?? "").includes(why));
+        } finally {
+            windows.restore();
+            Hooks.off("createChatMessage", heard);
+            for (const id of projects.splice(0)) await PR.deleteProject(id).catch(() => {});
+            await sheetAuditIdle();
+            for (const item of owned) if (item.parent?.items?.has(item.id)) await item.parent.deleteEmbeddedDocuments("Item", [item.id]).catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ window: [[3, null], [8, 8]], completion: [[true, true], [true, false]], told: true }),
+            "a repair's size was not recorded as the GM's, or not held to its item's tier at the completion ([the window's size kept, 8 picked: the project's "
+            + "size, the recorded GM's size]; [a project of 3 for a tool raised to Tier 3, then the same recorded as the GM's: crossed, the tool still broken]; "
+            + `the GMs told why): ${stableJson(read)}`);
+    }],
+    ["1.2.110 V3 - a Tamper's fresh scene counts on the GM only the unfound bodies its roller's player may know, as that player's own copy does (scripts/cleanup.mjs `freshSceneBonus`, `cleanupDc`; incident-store.mjs `knowsOfDeath`; the E101 line's review of 1.2.110, V3, 13.11.2026): with a body of this chapter in the GMs' deaths that one player may know (its row names them) and another may not, the GM's threshold for the first takes the -3 and for the second does not, which is what the second player's own browser reads (it holds no row of that body); with no roller the GMs' whole store counts", async () => {
+        /*
+         * The review's V3. E64 C1a gave the fresh scene's -3 to an unfound body of this chapter, read on a GM from the GMs'
+         * whole deaths store and on a player from that player's copy (gm-stores.mjs `deathCopy`, built by incident-store.mjs
+         * `deathsFor` with `knowsOfDeath`). A player who may not know of the body saw the higher number while the GM scored the
+         * lower, so a roll between the two came back a hit and told them a body lies unfound. Here, on the GM: a row of the
+         * deaths store for one fixture student, this chapter, naming a second student's player as knowing it; a third student's
+         * player names no row. Read through the scoring's own road, `cleanupDc(visibility, actor)`, for the knower and the
+         * other, and what the other's copy would hold (`deathsFor`). No incident runs and no body is found (read). The row is
+         * dropped after. Red at 12a7e309: both thresholds took the -3.
+         */
+        const C = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { deathsFor } = await import("./incident-store.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const [dead, knower, other] = cast(3);
+        const ownerOf = actor => game.users.find(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+        const [knowerUser, otherUser] = [ownerOf(knower), ownerOf(other)];
+        must(knowerUser && otherUser && knowerUser.id !== otherUser.id && !dead.testUserPermission?.(otherUser, "OWNER"),
+            "two fixture students with players of their own, neither owning the dead - this would measure nothing");
+        must(!murderState()?.active && !bodyDiscovery(), "an incident runs or a body is found - the fresh scene would not stand on the body alone");
+        must(!(CLEANUP.freshScene?.until ?? []).includes(getClock().phase), "the clock stands in a phase with no fresh scene - this would measure nothing");
+        const bonus = Number(CLEANUP.freshScene?.bonus) || 0;
+        must(bonus > 0 && (CLEANUP.freshScene?.onlyWith ?? []).includes("unfoundBody"), "the rule gives no fresh scene for an unfound body - this would measure nothing");
+        const visibility = "subtle";
+        const had = deathStore.has(dead.id);
+        must(!had, "the fixture student is already dead in the GMs' store");
+        const read = {};
+        try {
+            await deathStore.patch(dead.id, { chapter: getClock().chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [knowerUser.id] });
+            await settle();
+            read.thresholds = [C.cleanupDc(visibility, knower), C.cleanupDc(visibility, other)];
+            read.bonus = [C.freshSceneBonus({ actor: knower }), C.freshSceneBonus({ actor: other }), C.freshSceneBonus()];
+            read.otherCopy = Object.keys(deathsFor(otherUser.id).deaths).includes(dead.id);
+            read.otherOwnReading = C.freshSceneBonus({ deaths: deathsFor(otherUser.id).deaths });
+        } finally {
+            if (deathStore.has(dead.id)) await deathStore.drop(dead.id);
+            await settle();
+        }
+        const full = C.atLeastFloor(CLEANUP.dc[visibility] - (CLEANUP.toolTierReducesDc ? C.cleaningTier(other) : 0));
+        must(C.cleaningTier(knower) === C.cleaningTier(other), "the two fixture students hold cleaning tools of different tiers - their thresholds would differ anyway");
+        equal(stableJson(read), stableJson({ thresholds: [C.atLeastFloor(full - bonus), full], bonus: [bonus, 0, bonus], otherCopy: false, otherOwnReading: 0 }),
+            "{thresholds: [the knower's, the other's]; bonus: [the knower's, the other's, with no roller]; otherCopy: the body in the other's copy; otherOwnReading: the other's copy's reading} - the GM's fresh scene follows what the roller may know");
+    }],
+    ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima and each change is the GM's to confirm: a pick taken back hands out a statistic point on an offer limited to statistics, a past Head, Body or Leg point gets its rise, a change left unticked stays; the world is asked once; a pick of another option on that offer is refused", async () => {
+        /*
+         * E64, the owner's DRPG-D1 of 12.11.2026 ("Rekompensujemy by lvl upy byly spojne"; "Akceptuje nowe E64"; "Co do
+         * level upow - A) i B), oba wymagajace potwierdzenia gma do kazdego przypadku"). A Level Up writes its rises
+         * straight onto the sheet and counts `advances`, so no pick is recorded; a sheet the module set up
+         * (`initCharacter`: Health 4, Sanity 6 and the season's stamp `sheetAtStart`) shows its old picks as the maxima
+         * above those. One student's sheet, stamped here: Health max 6 with 6 marks (two old Health picks), Sanity max 7
+         * (one old Sanity pick), Body and Head each a point above the stamp. The window (`offerDa39Migration`) answered as
+         * a GM would: every box ticked but the second Health pick. Read: the plan's row, the boxes drawn, the sheet after,
+         * the offer it left (its picks, limited to statistics), whether a later load asks again, and the GMs' answer to a
+         * player's picks on that offer with a new experience among them. Red at 7242cce: one confirm for the whole list, no
+         * box per change.
+         */
+        needs(env.primaryGm(), "the pass and the offers are the primary GM's");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the offer is a player's to answer");
+        const L = await import("./level-up.mjs");
+        const present = typeof L.da39MigrationPlan === "function" && typeof L.offerDa39Migration === "function";
+        ok(present, "level-up.mjs has no DA39 migration");
+        if (!present) return;
+        const { handleAdvancement } = await import("./bridge-runs-acts.mjs");
+        const { offerStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const R = "system.resources", T = "system.traits";
+        const putBack = sheetAsFound(student, [`${R}.hitPoints.max`, `${R}.hitPoints.value`, `${R}.stress.max`, `${R}.stress.value`,
+            `${T}.strength.value`, `${T}.knowledge.value`, `flags.${MODULE_ID}.${FLAGS.sheetAtStart}`, `flags.${MODULE_ID}.${FLAGS.da39Rises}`]);
+        const rowWas = foundry.utils.deepClone(offerStore.get(student.id) ?? null);
+        const migratedWas = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
+        const title = game.i18n.localize("DRPG.Advance.da39.title");
+        const drawn = [];
+        const windows = answerWindows((cfg, root) => {
+            if ((cfg?.window?.title ?? "") !== title) return null;
+            const names = [...root.querySelectorAll(`[data-drpg-da39="${student.id}"] input[type="checkbox"]`)].map(input => input.name);
+            drawn.push(names.map(name => name.split(".").slice(2).join(".")));
+            return { ticked: names.filter(name => !name.endsWith(".hpOld.1")) };
+        });
+        const read = {};
+        try {
+            const traits = Object.fromEntries(["agility", "strength", "finesse", "instinct", "presence", "knowledge"]
+                .map(key => [key, Number(student._source.system.traits?.[key]?.value) || 0]));
+            await trustedWrite(student, { [`${R}.hitPoints.max`]: 6, [`${R}.hitPoints.value`]: 6, [`${R}.stress.max`]: 7, [`${R}.stress.value`]: 0,
+                [`${T}.strength.value`]: traits.strength + 1, [`${T}.knowledge.value`]: traits.knowledge + 1,
+                [`flags.${MODULE_ID}.${FLAGS.sheetAtStart}`]: { traits, experiences: {}, at: Date.now(), levelUpsMarked: true },
+                [`flags.${MODULE_ID}.${FLAGS.da39Rises}`]: null }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            const plan = (await L.da39MigrationPlan()).filter(entry => entry.actorId === student.id);
+            const row = plan[0] ?? null;
+            read.row = row ? [row.hpOld, row.sanOld, row.hpRetro, row.sanRetro, row.points, row.hpMax, row.stressMax] : null;
+            await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, false);
+            await L.offerDa39Migration(plan);
+            await sheetAuditIdle();
+            await settle();
+            read.boxes = drawn[0] ?? null;
+            const s = student._source.system.resources;
+            read.sheet = [s.hitPoints.max, s.hitPoints.value, s.stress.max, s.stress.value];
+            const offer = L.standingOffers(student).at(-1) ?? null;
+            read.offer = offer ? [L.offerPicks(offer), offer.only ?? null] : null;
+            /* The player's side (the E101 line's review of 1.2.110, V2, 13.11.2026): the copy the primary sends the owner
+               (`offersFor`), as the owner's browser keeps it (`ownerCopyOf`, the road `receiveOffers` takes), and the picker
+               that browser draws from it (`playerPickerBody`, the body `openAdvancement` draws for a player). Until the review
+               the copy kept `{ id, kind, extra }` alone, so the player's picker offered every option. Red at 12a7e309: no
+               `ownerCopyOf` or `playerPickerBody`, and the copy sent without `only`. */
+            const sent = offer ? L.offersFor(ownerOf(student)?.id)?.offers?.[student.id]?.offers ?? [] : [];
+            const kept = typeof L.ownerCopyOf === "function" ? L.ownerCopyOf({ offers: sent }).find(o => o.id === offer?.id) ?? null : null;
+            const picker = document.createElement("div");
+            if (kept && typeof L.playerPickerBody === "function") picker.innerHTML = L.playerPickerBody(student, kept);
+            read.player = [sent.find(o => o.id === offer?.id)?.only ?? null, kept?.only ?? null,
+                [...new Set([...picker.querySelectorAll('select[name$=".option"] option')].map(o => o.value))]];
+            read.done = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
+            read.askedAgain = typeof L.startDa39Migration === "function" ? await L.startDa39Migration() : "none";
+            const out = offer ? await handleAdvancement({ actorId: student.id, offerId: offer.id,
+                picks: [{ option: "experienceNew", name: "SUITE E64 DA39" }, { option: "trait", trait: "strength" }] },
+                ownerOf(student), {}) : null;
+            read.refused = out?.refused ?? null;
+        } finally {
+            windows.restore();
+            if (rowWas) await offerStore.patch(student.id, rowWas); else if (offerStore.has(student.id)) await offerStore.drop(student.id);
+            await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, migratedWas);
+            await putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ row: [2, 1, 1, 1, 3, 5, 7],
+            boxes: ["hpOld.0", "hpOld.1", "sanOld.0", "rise-knowledge.0", "rise-strength.0"],
+            sheet: [6, 6, 7, 0], offer: [2, "trait"], player: ["trait", "trait", ["trait"]], done: true, askedAgain: null, refused: "that offer is for statistics only" }),
+            "[the plan's row: old Health picks, old Sanity picks, Health and Sanity rises owed to past points, the points handed out, the new maxima]; "
+            + "the window's boxes for the student; [the sheet after every box but the second Health pick: Health max, its marks, Sanity max, its marks]; "
+            + "[the offer's picks, what it is limited to]; [the owner's copy as sent, as kept, the options its picker draws]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
     }],
 ];
 

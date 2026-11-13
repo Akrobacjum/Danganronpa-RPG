@@ -22,7 +22,8 @@ import { MODES } from "./floor-machine.mjs";
 import { caseSchemaStore, keyPlanStore, caseTickStore } from "./gm-stores.mjs";
 import { remnantsOn, remnantData, keyOf } from "./remnants.mjs";
 import { getClock } from "./clock.mjs";
-import { sameSeason } from "./settings.mjs";
+import { sameSeason, SETTINGS } from "./settings.mjs";
+import { MODULE_ID } from "./config.mjs";
 
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
@@ -345,21 +346,39 @@ export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), 
     return out;
 }
 
-/** The chapter's ticks at its trial (E99 C3): node id -> true, on a GM; empty on any other browser. */
+/*
+ * THE TICKS ARE A TRIAL'S (E99 next, 12.11.2026; the plan's Q-E99-9 and C3: "a second trial in the chapter starts with
+ * none"). Each row carries the trial it was ticked in - the trial record's `trialStartedAt`, which every trial's entry
+ * writes afresh (trial-progress.mjs `TRIAL_RECORD`) - and only the rows of the chapter's current trial are read, so a
+ * second Class Trial in the chapter starts with no ticks and the first trial's stay where they were, unread, until the
+ * season's reset cuts the store. Read off the record's world setting here, not through trial-progress.mjs, which this
+ * leaf does not import. A row ticked before this stamp existed carries none and reads under a record with none.
+ */
+function trialStamp(chapter) {
+    try {
+        const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        return stored.chapter === chapter ? (stored.trialStartedAt ?? null) : null;
+    } catch {
+        return null;
+    }
+}
+
+/** The chapter's ticks at its current trial (E99 C3; a trial's since E99 next): node id -> true, on a GM; empty on any other browser. */
 export function caseTicks(chapter) {
     if (!game.user?.isGM) return {};
     const prefix = `${chapter}:`;
+    const trial = trialStamp(chapter);
     const out = {};
     for (const [key, row] of Object.entries(caseTickStore.entries() ?? {})) {
-        if (key.startsWith(prefix) && row?.ticked === true) out[key.slice(prefix.length)] = true;
+        if (key.startsWith(prefix) && row?.ticked === true && (row.trial ?? null) === trial) out[key.slice(prefix.length)] = true;
     }
     return out;
 }
 
-/** Tick or untick one node at the trial, on a GM (E99 C3): `{ ticked, by, at }`. Answers the row, or null. */
+/** Tick or untick one node at the trial, on a GM (E99 C3): `{ ticked, by, at, trial }`. Answers the row, or null. */
 export async function setCaseTick(chapter, nodeId, ticked) {
     if (!game.user?.isGM || !Number.isInteger(chapter) || !validNodeId(nodeId)) return null;
     const key = caseKeyOf(chapter, nodeId);
-    await caseTickStore.patch(key, { ticked: Boolean(ticked), by: game.user.id, at: Date.now() });
+    await caseTickStore.patch(key, { ticked: Boolean(ticked), by: game.user.id, at: Date.now(), trial: trialStamp(chapter) });
     return caseTickStore.get(key) ?? null;
 }

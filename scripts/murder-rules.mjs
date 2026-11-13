@@ -65,7 +65,7 @@
 
 import {
     MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, TIMING,
-    USABLE_EFFECTS
+    USABLE_EFFECTS, DEFENSE, TRAITS
 } from "./config.mjs";
 import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { isDeadForGm, SETTINGS } from "./settings.mjs";
@@ -234,10 +234,31 @@ function isFreeTake(def, side, state) {
  * `applyCrisisAction`, which scores the total against it on the GM's own state - the window's number is what the
  * player is told, never what is judged.
  */
-export function crisisThreshold(key, state = murderState()) {
+export function crisisThreshold(key, state = murderState(), { traitOf } = {}) {
     const def = CRISIS_ACTIONS[key];
     if (!def || def.noRoll) return null;
-    return key === "finishingBlow" ? finishingBlowThreshold(state) : def.threshold ?? null;
+    if (key === "finishingBlow") return finishingBlowThreshold(state);
+    const base = def.threshold ?? null;
+    return base === null ? null : base + crisisDefense(key, state, { traitOf });
+}
+
+/**
+ * WHAT THE OTHER SIDE'S DEFENCE ADDS (E64, 12.11.2026; DA6/DA23, config.mjs `DEFENSE`): for a row with `defense`, the
+ * defender's statistic (`TRAITS[trait].dh`) held to 0..`DEFENSE.cap`, read off the defender as this browser holds them -
+ * on the GM, where the action is judged, the GMs'; 0 for any other row, or with no incident or defender. The menu, the
+ * roll window and the GM's judgement all read it through `crisisThreshold`, so the three cannot differ. `traitOf(id, dh)`
+ * stands in for the actors in a test. The opening never reads it (MURDER_OPENING has no `defense`; R3961).
+ */
+export function crisisDefense(key, state = murderState(), { traitOf } = {}) {
+    const rule = CRISIS_ACTIONS[key]?.defense;
+    const cap = Math.max(0, Number(DEFENSE.cap) || 0);
+    if (!rule || !state || !cap) return 0;
+    const id = rule.side === "victim" ? state.victimId : rule.side === "killer" ? state.killerId : null;
+    const dh = TRAITS[rule.trait]?.dh;
+    if (!id || !dh) return 0;
+    const read = traitOf ?? ((actorId, stat) => game.actors?.get(actorId)?.system?.traits?.[stat]?.value);
+    const value = Number(read(id, dh));
+    return Number.isFinite(value) ? Math.max(0, Math.min(cap, value)) : 0;
 }
 
 /** Crisis actions this actor may take right now, with their hindered flags. */
@@ -291,6 +312,8 @@ export function availableCrisisActions(actor, state = murderState()) {
                 // it falls as the victim runs out of Health. `null` for the three
                 // decisions that have no dice at all.
                 threshold: crisisThreshold(key, state),
+                // What of that number is the other side's defence (E64; `crisisDefense`), so the tile can say why.
+                defense: crisisDefense(key, state),
                 hindered: (hindered[key] ?? 0) > 0,
                 // Self-defence gates the victim's two ways out, and closes
                 // itself once it lands. `blocked` already means "you may not
@@ -350,6 +373,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         indirect,
         selfInflicted,
         killerId, victimId, thirdId: null, thirdSide: null, lastCrisis: null, swung: null,
+        // Nobody's voice moved by a GM's Silence now yet (E72 C8; gm-stores.mjs CAST_FIELDS).
+        silencedDead: null,
         // Who walked in and walked out again (`thirdLeaves`): nobody yet.
         departed: [],
         // The statistic a GM picked for the opening (E32+E07 C11c): the opener's, or none
@@ -591,6 +616,22 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
  * (`victimUnderAttackBy`). A trap's victim is still told only that the trap closed: its
  * builder is not in the room, and their copy of the cast holds no name (`castFor`).
  */
+/**
+ * THE MONOCUBS IN THE ROOM AT THE OPENING (E72 C2, 12.11.2026; audit S18-57): marked crime witnesses (monocub.mjs
+ * `markWitnessesAt`), a trap's scene as a fight's. After the stage is written and told, and in its own try: a mark that
+ * fails must not roll the incident back.
+ */
+async function markCubWitnesses(state) {
+    try {
+        const victim = game.actors.get(state?.victimId ?? "");
+        if (!victim) return;
+        const { markWitnessesAt } = await import("./monocub.mjs");
+        await markWitnessesAt(victim);
+    } catch (err) {
+        error("Could not mark the Monocubs who saw the incident open", err);
+    }
+}
+
 async function tellVictimTheIncidentBegan(state) {
     try {
         const victim = game.actors.get(state?.victimId ?? "");
@@ -725,6 +766,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     }
     await tellGms(prose[band], { keys });
     await tellVictimTheIncidentBegan(murderState());
+    await markCubWitnesses(murderState());
     return { success: true, band, keys };
 }
 
@@ -778,6 +820,7 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
         await tellGms(def.failure);
         await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.indirectBegins")}</p>`);
         await tellVictimTheIncidentBegan(murderState());
+        await markCubWitnesses(murderState());
         return { success: false, started: true };
     }
 
@@ -1660,6 +1703,21 @@ async function applyCrisisAction({
             { choice: again.choice ?? null, resource: again.usedFor ?? null }, held));
     }
 
+    /* A TIER 0 USE WAITS FOR THE GM (E64, D003; the owner's word of 12.11.2026). A Tier 0 item is used creatively: the
+       player's browser asks the GM (use-items.mjs `useCreatively`, which answers `{ pending: true }`) and names the item, and
+       until E64 the receipt took it as used ("The item goes in."), so a Reroll put back a thing nobody had spent. Read as
+       the GMs hold the item (`held`, `usedCreatively`): such a use is no item used here - not on the receipt, so no
+       Reroll gives it back - and the card says the use waits; the GM's ruling on the ask uses it up, as any Tier 0 use. */
+    let askedItemId = null;
+    if (usedItemId) {
+        const { usedCreatively } = await import("./use-items.mjs");
+        const named = held.items?.get(usedItemId) ?? null;
+        if (named && usedCreatively(named)) {
+            askedItemId = usedItemId;
+            usedItemId = null;
+        }
+    }
+
     // What this roll swung (`swungWeapon`): the damage is read off it, the Despair
     // wears it, and Stage 6 ruins it. A replay swings the receipt's weapon or none: until
     // fix r1-G3 (02.10.2026; review S-m3) a first throw that swung nothing fell through
@@ -1754,8 +1812,8 @@ async function applyCrisisAction({
         if (def.usesItem) {
             receipt.usedItemId = usedItemId;
             receipt.hopeGranted = usedItemId ? hopeGranted : 0;
-            done.push(game.i18n.localize(usedItemId
-                ? "DRPG.Murder.useItemWorked" : "DRPG.Murder.useItemFumbled"));
+            done.push(game.i18n.localize(usedItemId ? "DRPG.Murder.useItemWorked"
+                : askedItemId ? "DRPG.Murder.useItemAsked" : "DRPG.Murder.useItemFumbled"));
         }
         await applyHindrance(state, def, band, done);
         promised = await applyUnlocks(state, def, key, band, done);
@@ -3161,10 +3219,20 @@ function checkVictimNow() {
 async function maybeThirdParty(tokenDoc) {
     const state = murderState();
     if (!state || state.stage !== "incident") return;
-    if (state.indirect) return;          // nothing to interrupt
 
     const actor = tokenDoc?.actor;
     if (!actor || actor.type !== "character") return;
+    /* A MONOCUB WHO WALKS IN SAW THE CRIME (E72 C2, 12.11.2026; audit S18-57): asked before the indirect and the dead
+       returns below, so a trap's scene marks one too; a Monocub interrupts nothing and takes no seat. */
+    const { isMonocub } = await import("./monocub.mjs");
+    if (isMonocub(actor)) {
+        if (!tokenDoc.hidden && await inIncidentRoom(tokenDoc, state)) {
+            const { cubSawIncident } = await import("./monocub.mjs");
+            await cubSawIncident(actor);
+        }
+        return;
+    }
+    if (state.indirect) return;          // nothing to interrupt
     // Anybody already in it. Moving around the room they are standing in is not
     // walking into it - and that includes the third party themselves, who used
     // to be covered by an early return on `state.thirdId` that also swallowed
@@ -3181,16 +3249,7 @@ async function maybeThirdParty(tokenDoc) {
     // concerned - the same rule `othersInRoom` applies.
     if (tokenDoc.hidden) return;
 
-    const { lawfulRoomOf, locateActor } = await import("./movement.mjs");
-    const scene = locateActor(game.actors.get(state.victimId));
-    if (!scene?.room) return;
-    // Same scene, same room. Two rooms of the same name on two maps are not
-    // one room - `sameRoom` makes the same distinction for a handover. And
-    // the room the witness judge lets them count in (E12 C12, the owner's
-    // Q3 a): a player's console that put the token there past the rules
-    // walks nobody in, until it stands somewhere lawful.
-    if (tokenDoc.parent?.id !== scene.scene?.id) return;
-    if (lawfulRoomOf(tokenDoc) !== scene.room) return;
+    if (!await inIncidentRoom(tokenDoc, state)) return;
 
     // The guide gives the scene one third party. The second one to walk in is
     // the fourth person in the room, and at four this stops being a murder
@@ -3205,6 +3264,20 @@ async function maybeThirdParty(tokenDoc) {
     }
 
     await thirdPartyEnters(actor);
+}
+
+/**
+ * Does this token stand in the incident's room - the victim's? Same scene, same room. Two rooms of the same name on
+ * two maps are not one room - `sameRoom` makes the same distinction for a handover. And the room the witness judge
+ * lets them count in (E12 C12, the owner's Q3 a): a player's console that put the token there past the rules walks
+ * nobody in, until it stands somewhere lawful. Cut out of `maybeThirdParty` by E72 C2, which asks it for a Monocub too.
+ */
+async function inIncidentRoom(tokenDoc, state) {
+    const { lawfulRoomOf, locateActor } = await import("./movement.mjs");
+    const scene = locateActor(game.actors.get(state.victimId));
+    if (!scene?.room) return false;
+    if (tokenDoc.parent?.id !== scene.scene?.id) return false;
+    return lawfulRoomOf(tokenDoc) === scene.room;
 }
 
 /** Somebody walked in. The guide gives them a free resolution action. */

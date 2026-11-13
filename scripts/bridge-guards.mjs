@@ -162,7 +162,9 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer", "spectator"
+    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer", "spectator",
+    // E72 C4: a Monocub's move on a student who has had its share (monocub.mjs `cubCapRefusal`).
+    "capReached", "capDay"
 ]);
 
 /**
@@ -197,6 +199,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no token was spent under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
+    // E64: an offer of statistic points alone (the DA39 migration; bridge-runs-acts.mjs `handleAdvancement`).
+    ["badRequest", /^that offer is for statistics only$/],
     ["badRequest", /^a new experience has no name$/],
     ["badRequest", /^a pick raises a statistic that is not one$/],
     ["missing", /^a pick raises an experience the character does not have$/],
@@ -266,6 +270,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionBlocked", /^that action is blocked$/],
     // E32+E07 C11a: an action the incident took away, or never gave that side (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is not open to that character now$/],
+    // E72 C4 (DC32 = 2): one Monocub move on a student per time of day, two per day (monocub.mjs `cubCapRefusal`).
+    ["capReached", /^that student has had a Monocub's move this time of day$/],
+    ["capDay", /^that student has had two Monocub moves today$/],
     // E51 C1: an action the incident took away, kept in the list struck through and refused (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is denied by the incident$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],

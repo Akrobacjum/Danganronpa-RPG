@@ -18,6 +18,8 @@
  *            found for her, and she is nobody in Aiko's room (`othersInRoom`);
  *   board    the end-of-day board on p3's browser holds the day's heading and the school's mood alone, and p1's keeps
  *            its own day (sequence.mjs `playDayEnd`, `dayEndBoardFor`);
+ *   road     the Morning Eclipse ended with the advance at Night, as the clock on the curtain ends it: p1's browser and
+ *            p3's start the end-of-day board (transitions.mjs `onClockHeard`; the owner's report on 1.2.109);
  *   back     the GM makes her a student again: p3's microphone as it was found, the class's rooms off her map,
  *            p3's browser no Spectator's.
  * Everything is put back: the role, the token, the cells, the Mastermind, p3's permission.
@@ -219,6 +221,52 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             && Boolean(pl) && pl.title === pl.want && pl.sub === true && pl.yours === true && pl.mood === "uneasy",
             JSON.stringify({ boardP3, boardP1 }));
 
+        phase("road");
+        /* The owner's report at a real table on 1.2.109 (12.11.2026): the boards never played on the clock on the curtain.
+           Its road, driven on the GM with the game's own calls - the clock at Night on a day no other part plays, the
+           Morning Eclipse opened and ended with the advance (eclipse.mjs `startEclipse`, `endEclipse`), as the clock's
+           right chevron does - and read on p1's and p3's browsers: each starts the end-of-day board of the day that ended
+           (sequence.mjs `sequenceStarted`), the Spectator's too; then the boards cut. What the road moved is put back
+           here, and again in the finally below if this part threw. Red at 1ff4bc77: no board on either browser. */
+        const road = await gm.eval(`const E = ${imp("eclipse.mjs")}, C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}, M = ${imp("monokuma.mjs")}, Q = ${imp("sequence.mjs")};
+            const SET = (${imp("settings.mjs")}).SETTINGS;
+            const keep = ["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"];
+            globalThis.__e110Road = { clock: foundry.utils.deepClone(C.getClock()),
+                actions: game.actors.filter(a => a.type === "character").map(a => [a.id, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]),
+                rows: M.actingStudents().map(a => [a.id, foundry.utils.deepClone(G.eclipseMoveStore.get(a.id) ?? null)]),
+                settings: Object.fromEntries(keep.map(k => [k, foundry.utils.deepClone(game.settings.get("danganronpa-rpg", SET[k]) ?? null)])) };
+            if (globalThis.__e110Road.settings.sequences === false) await game.settings.set("danganronpa-rpg", SET.sequences, true);
+            const day = 7000 + Math.floor(Math.random() * 999);
+            await C.setClock({ phase: "dailyLife", timeOfDay: "night", day, refilledFor: null });
+            await new Promise(r => setTimeout(r, 800));
+            const night = C.getClock();
+            await E.startEclipse();
+            const dark = E.isEclipse?.() ?? C.getClock().eclipse === true;
+            await E.endEclipse({ advance: true });
+            const now = C.getClock();
+            return { key: "dayEnd:" + (night.season ?? "") + ":" + day + ":" + (night.session ?? ""), dark, after: [now.eclipse === true, now.timeOfDay, now.day - day, now.dayBoard === now.day] };`, { timeout: 60000 });
+        const boardHeard = c => c.eval(`const Q = ${imp("sequence.mjs")};
+            for (let i = 0; i < 60 && !Q.sequenceStarted("dayEnd", ${JSON.stringify(road?.key ?? "")}); i++) await new Promise(r => setTimeout(r, 100));
+            const started = Q.sequenceStarted("dayEnd", ${JSON.stringify(road?.key ?? "")});
+            Q.endSequence("cut");
+            return started;`);
+        const roadP1 = await boardHeard(p1), roadP3 = await boardHeard(p3);
+        const putBack = async () => gm.eval(`const E = ${imp("eclipse.mjs")}, C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}, Q = ${imp("sequence.mjs")};
+            const SET = (${imp("settings.mjs")}).SETTINGS, was = globalThis.__e110Road;
+            if (!was) return false;
+            Q.endSequence("cut");
+            if (C.getClock().eclipse === true) await E.endEclipse({ advance: false });
+            await C.setClock(was.clock);
+            for (const [id, value, max] of was.actions) await game.actors.get(id)?.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            for (const [id, row] of was.rows) { if (row) await G.eclipseMoveStore.patch(id, row); else await G.eclipseMoveStore.drop(id); }
+            for (const [k, value] of Object.entries(was.settings)) if (value !== null) await game.settings.set("danganronpa-rpg", SET[k], value);
+            delete globalThis.__e110Road;
+            return true;`, { timeout: 60000 });
+        await putBack();
+        check("road: the Morning Eclipse ended with the advance at Night - the clock on the curtain - starts the end-of-day board on p1's browser and on the Spectator's",
+            road?.dark === true && JSON.stringify(road.after) === JSON.stringify([false, "morning", 1, true]) && roadP1 === true && roadP3 === true,
+            JSON.stringify({ road, roadP1, roadP3 }));
+
         phase("back");
         const back = await gm.eval(`const GS = ${imp("gm-students.mjs")}, M = ${imp("monokuma.mjs")};
             const chie = game.actors.get("${IDS.chie}");
@@ -236,6 +284,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             && p3After.secret === false,
             JSON.stringify({ back, after, p3After }));
     } finally {
+        // the road's clock and what it moved, when its part threw before it put them back
+        await gm.eval(`const E = ${imp("eclipse.mjs")}, C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")};
+            const SET = (${imp("settings.mjs")}).SETTINGS, was = globalThis.__e110Road;
+            if (!was) return false;
+            if (C.getClock().eclipse === true) await E.endEclipse({ advance: false });
+            await C.setClock(was.clock);
+            for (const [id, value, max] of was.actions) await game.actors.get(id)?.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            for (const [id, row] of was.rows) { if (row) await G.eclipseMoveStore.patch(id, row); else await G.eclipseMoveStore.drop(id); }
+            for (const [k, value] of Object.entries(was.settings)) if (value !== null) await game.settings.set("danganronpa-rpg", SET[k], value);
+            delete globalThis.__e110Road;
+            return true;`, { timeout: 60000 }).catch(() => null);
         for (const c of [p3, p1]) {
             await c.eval(`if (globalThis.__liveKit?.installed === true) { __liveKit.uninstall(); (${imp("voice-tile.mjs")}).refreshVoiceTile(); } return true;`).catch(() => null);
         }

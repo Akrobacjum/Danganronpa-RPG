@@ -50,7 +50,7 @@ export { dynamicRulingOf } from "./bridge-runs-records.mjs";
 export { BRIDGE_ACTIONS } from "./bridge-table.mjs";
 export {
     requestOpeningResult, requestOfferRecord, requestCardPost, requestBodyLoot, requestPassageShare,
-    requestPassageCross, requestRefundCrossing, requestPassageFind, requestObject, requestEvidence, requestWithdraw,
+    requestPassageCross, requestLairLock, requestLairSeal, requestRefundCrossing, requestPassageFind, requestObject, requestEvidence, requestWithdraw,
     requestRepoint, requestTrialGm, requestClaim, requestTrialSide, requestTrialKeyword, requestPresent, requestTurn, requestReadyOpen, requestReadyAnswer,
     requestReadyEnd, requestArmCall, sendDespairToPrimary, requestOverflowAdd, requestOverflowClear, requestDespairSet,
     requestDespairAll, requestDespairRoster, requestOverflowTake, requestOverflowCheck, requestSabotage,
@@ -59,7 +59,7 @@ export {
     answerHopeCall, askReshapeRuling, answerDynamic, requestHopeCallApproval, requestDynamicDifficulty,
     requestTraitRuling, requestObserveTarget, requestCleanableTraces, requestObserveResolve, requestAnalyzeResolve,
     requestAdvancement, requestShareBullet, requestGiveItem, requestCrisisResult, requestRollBookmark, requestReroll,
-    requestCleanup, requestParkMurder, requestBetrayal, requestCubAbility, requestVaultSteal, requestSteal,
+    requestCleanup, requestParkMurder, requestBetrayal, requestCubAbility, requestCubAnswer, requestBribeOffer, requestBribeAnswer, requestVaultSteal, requestSteal,
     requestFriskUnseen, requestFriskAsk, requestFriskAnswer, requestFriskFollow, requestPlant, requestStashSearch,
     requestProjectProgress, requestProjectShare, claimCard
 } from "./bridge-asks.mjs";

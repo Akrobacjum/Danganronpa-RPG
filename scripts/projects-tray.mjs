@@ -314,8 +314,13 @@ const watchedLists = new WeakSet();
 export function markTrayMore(root) {
     const list = root?.querySelector?.(".countdowns-container");
     if (!list) return false;
+    /* ROWS BELOW, NOT ANY OVERFLOW (gaps, the owner's table on 1.2.108: one project's name darker and fading). The mark
+       read any overflow past 1 px, and a list of one project that overflows by a few pixels of something that is no row
+       faded its only row. More stands below only when at least half a row overflows - the first row's own height, read
+       where there is a layout; with none (headless), past 1 px as before. A sixth row overflows by a whole row. R3983. */
     const mark = () => {
-        const more = list.scrollHeight - list.clientHeight - list.scrollTop > 1;
+        const row = list.querySelector(".countdown-container")?.offsetHeight || 0;
+        const more = list.scrollHeight - list.clientHeight - list.scrollTop > Math.max(1, row / 2);
         list.toggleAttribute("data-drpg-more", more);
         return more;
     };
