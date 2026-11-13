@@ -19171,7 +19171,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, false, false, true], order: [true, false] }),
             "{the width Season setup states; it at the root's 16 px is at least 780 px; [Save, a Pre-season checks button in the footer, Reset the season destructive, Cancel]; [a Season setup tile, a Mastermind tile]}");
     }],
-    ["R3580 - Season setup is the one place a season is set up, in its order (E49 A1e; the owner, 11.11 and 12.11.2026): season-setup.mjs `openSeasonSetup` draws Edit campaign (and, since E101 item 5, the scenes part under it) in the body that scrolls - one block, `fieldset.drpg-setup-campaign` named \"Edit campaign\", holding Edit campaign's six fields in their order, the safeword, the refill box and End the chapter's destructive button at its foot, each field once in the window - and under it, pinned (`.drpg-kit-pinned`, the body's next sibling), the GM panel's tiles for Despair Flow, The Mastermind, Killing game rules and the Season checklist, each with its icon and its window's title; no checklist row; the footer is Save (primary), Reset the season (destructive) and Cancel, and nothing else", async () => {
+    ["R3580 - Season setup is the one place a season is set up, in its order (E49 A1e; the owner, 11.11 and 12.11.2026): season-setup.mjs `openSeasonSetup` draws Edit campaign (and, since E101 item 5, the scenes part under it) in the body that scrolls - one block, `fieldset.drpg-setup-campaign` named \"Edit campaign\", holding Edit campaign's six fields in their order, the safeword, the refill box and End the chapter's destructive button at its foot, each field once in the window - and under it, pinned (`.drpg-kit-pinned`, the body's next sibling), the GM panel's tiles for Despair Flow, The Mastermind, Killing game rules and the Season checklist, each with its icon and its window's title; no checklist row; the footer is Save (primary) and Cancel, and nothing else (Reset the season left it in E101 for its warning frame in the body, R4055)", async () => {
         /*
          * E49 A1e. The owner, 11.11.2026: Season setup "becomes the one place for setting up the season": at its top Edit
          * campaign, "the first thing seen", with the fields Season setup had of its own that Edit campaign has too (the
@@ -49563,7 +49563,7 @@ const INVARIANTS = [
         const actor = { system: { resources: { actions: { value: base + 1, max: base + 1 }, hitPoints: { value: 0, max: 6 } } } };
         /* The r112 review's P1 (13.11.2026): a wounded student's maximum is written as the wounded budget
            (actions.mjs `resetActionsFor`), and the sentence took the wound off it again - "0 instead of 1" where the
-           rule gives 1 instead of 2. Red at 9ddd2ef5. */
+           rule gives 1 instead of 2. Red at 36c50449. */
         const hurtActor = { system: { resources: { actions: { value: base - lost, max: base - lost }, hitPoints: { value: 6, max: 6 } } } };
         const hurt = E.actionsExplained({ actor: hurtActor });
         const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });

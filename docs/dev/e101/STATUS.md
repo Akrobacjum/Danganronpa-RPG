@@ -94,3 +94,31 @@ sweep. Not this line's: e93's Polish tab name "Facilities" (`DRPG.Vault.tabFacil
 ## Keys left in the lang files
 
 Not read by the code after item 2, kept so the texts line's edits of them merge: `DRPG.Season.note`, `DRPG.Season.step.sound`, `hint.sound`, `step.hallTokens`, `hint.hallTokens`, `DRPG.Panel.seasonChecks`, `DRPG.Panel.checksSetup`, `DRPG.Fog.checksScenes`, `DRPG.Monokuma.isMonokuma`. One sweep removes them once the lines are merged.
+
+## The r112 review's fixes (REVIEW-112, e93 line bfed7ead; 13.11.2026)
+
+The coordinator's list from the e93 line's read of r112 at d2aa9940, fixed on claude/r112 after the 1.2.109 merge, red
+first where a test can say it. One commit each, or a few lows together.
+
+| Finding | Commit | Red first | What changed |
+| --- | --- | --- | --- |
+| S1 (high) | 36c50449 | E101-T10 (tier 2): the old hall active and given the way back | Season setup writes the scenes before `applyCampaignForm`, so a Save that enters the trial enters the hall it links |
+| S2 | 36c50449 | E101-T11 (tier 2): the typed campaign name lost | a clash or a hall lock drops the scenes part alone, warns, and writes the rest |
+| P1 | 2895e28e | R4106's wounded case | Wounded's sentence: both numbers from `actionBudget` |
+| G1, G2, G3 | f0e5cf87 | R4105 (infiltrate: no key) | Infiltrate's rows say Roll (Dash, Shut, Keep Watch) or Next (Listen, Tail, Force, Pick); R4105 names Tail, Force, Pick and counts `chooseVariant`'s callers; R4105's title and E100's STATUS say Grant |
+| S3, S4, S8 (part) | 318935b9 | - (texts) | five texts name Season setup (four in new keys: texts-e71 rewrites the old ones); roomsVision's light the right way round (read in fog.mjs first); api.mjs comment |
+| P2, P4 | 59e1997a | R4472 | `moveDragSaid`: no "drag" in a trial or an incident; a locked Move tile without the line, focusable, labelled; the Monocub's Free line follows its Free Move |
+| S5 | 9f36f34d | R1514's Season setup stand-in | the checklist's exclusion names its own class |
+| S6 | 4ce28ad0 | R4473 | Despair Flow keeps the pool of a row it drew no select for |
+| S7 | 77eb1074 | R4470's neighbours reading | the neighbours' rules in a `<details>` |
+| P3 | f4feb42c | - (tests) | R4109, R4110, R4112 must read a rule first; R4110 compares the chosen tab's drawn brush with an unchosen one's |
+| G4, P5, handbook | d6bbb2a8 | - (docs) | E100's button rule named as O11's exception; the stale `briefing()` comment; the GM handbook's further checks, No privacy on Rooms, the zones in Season setup |
+
+Decided by default, as the coordinator set it: Tail keeps Roll. After the press a GM picks the statistic
+(trait-ruling.mjs `traitFor`) and the two rolls then follow on their own, so the press does more than send a request.
+
+Left for after texts-e71 (it rewrites the lines beside them): the GM handbook's section 1 step 4 (line 46) and the
+checklist table's rows; `DRPG.Season.step.hallTokens` and `hint.hallTokens` (read by no code; texts-e71 edits them);
+the old keys `Floor.startTrialNoHall`, `TrialScene.hallDark`, `noWayBack` and `Season.hint.scenes`, read by no code
+since 318935b9. R3580's title (the reviewer's S8) now says what its body holds: the footer Save and Cancel, Reset the
+season in its frame in the body since E101.
