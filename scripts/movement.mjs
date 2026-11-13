@@ -932,7 +932,8 @@ function standingHere(tokenDoc, { lawful = true, last = null, told = false, reas
  * one write reads as a jump between two rooms that do not touch.
  */
 function ruleOf(verdict) {
-    if (verdict?.rule === "bedroomShut" || verdict?.rule === "corpse") return "cannotNow";
+    // "murderRoom": a Monocub refused a running murder's room (`restrictedFrom`, the 1.2.110 review's V1), put back as the Seal it read as until then.
+    if (verdict?.rule === "bedroomShut" || verdict?.rule === "corpse" || verdict?.rule === "murderRoom") return "cannotNow";
     return verdict?.code !== "cannotNow" && RULE_CODES.includes(verdict?.code) ? verdict.code : null;
 }
 
@@ -1954,12 +1955,19 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
         if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
             if (isLocked(scene, to)) return refusal(keyed, "doorLocked", game.i18n.localize("DRPG.Move.locked"));
             if (isSealed(to)) return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
-            /* A MURDER'S ROOM SHUTS TO A MONOCUB, AND READS AS A SEAL (E72 C10, 12.11.2026; the owner's amendment of 06.11):
-               the same code and words, so a Monocub cannot tell a running murder from a Seal. Judged where the incident's
-               room is known - a GM's browser, judging a player's step (`mover`) - and never a GM's own move; a Monocub
-               already inside is not crossing into it. */
+            /* A MURDER'S ROOM SHUTS TO A MONOCUB, IN THE NEUTRAL WORDS (E72 C10, 12.11.2026; the owner's amendment of 06.11;
+               the 1.2.110 review's V1, 13.11.2026). Judged where the incident's room is known - a GM's browser, judging a
+               player's step (`mover`) - and never a GM's own move; a Monocub already inside is not crossing into it. It read as
+               a Seal until the review, so that a Monocub could not tell a running murder from one; but Seals are the world
+               setting `sealedRooms`, which every browser holds, and "sealed" for a room that list does not hold named the
+               murder's room. So it is `cannotNow` with that code's own sentence, which a crossing also gets for a room not
+               connected, a bedroom without its key and a dead character: nothing the world shows is contradicted by it.
+               What stays: the refusal itself says the room is shut to this Monocub now, which the rule (no Monocub into a
+               running murder's room) cannot avoid while it refuses. */
             if (isMonocubActor(actor) && game.user?.isGM && !(mover ? mover.gm : true) && to === incidentRoomForGm(scene)) {
-                return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
+                // Marked, so the primary still puts the token back as for a door's rule (`ruleOf`); the mark stays on the GM
+                // (movement-audit.mjs `markOf` sends a player only a bedroom's and a body's).
+                return refusal(keyed, "cannotNow", game.i18n.localize("DRPG.Bridge.why.cannotNow"), "murderRoom");
             }
             // Somebody's bedroom. The owner walks in; anybody else needs the
             // key they were given - see the note on keys in vault.mjs. A GM

@@ -18524,7 +18524,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "edge's progress, actions, Hope]})");
     }],
 
-    ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in a Seal's code and words (E72 C10)", async () => {
+    ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in the neutral code and words, not a Seal's (E72 C10; the 1.2.110 review's V1)", async () => {
         /*
          * E72 C10, 12.11.2026; the owner's amendments of 28.10, 04.11 and 06.11; Q-E72-5's default. A Monocub paid for a
          * crossing like a living student, and walked into a murder's room. movement.mjs `crossingVerdict` lets a Monocub
@@ -18576,10 +18576,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeWas);
             await back();
         }
-        const sealed = { code: "roomSealed", text: game.i18n.format("DRPG.Calls.sealedBlocked", { room }) };
-        equal(stableJson([read.free, read.murderRoom?.code ?? read.murderRoom, read.murderRoom?.text ?? null, read.byGm]),
-            stableJson([true, sealed.code, sealed.text, true]),
-            "a Monocub paid for a crossing, or walked into a murder's room, or was told something a Seal does not say, or a GM's move was refused ([free step, the murder room's code and words, a GM's move])");
+        /* Not a Seal's words since the 1.2.110 review's V1 (13.11.2026, changed on purpose): Seals are the world setting
+           `sealedRooms`, which every browser holds, so "sealed" for a room that list does not hold named the murder's room
+           to the Monocub's player. The refusal is the neutral one (`cannotNow`, "That cannot be done now."), which a
+           crossing also gets for a room not connected, a bedroom without its key and a dead character. Red at 12a7e309:
+           roomSealed and the Seal's sentence. The room is not in the world's Seals here (read). */
+        const neutral = { code: "cannotNow", text: game.i18n.localize("DRPG.Bridge.why.cannotNow") };
+        const call = await import("./call-world.mjs");
+        must(!call.isSealed(room), "the murder's room is sealed in the world as well - this would not tell the two apart");
+        // The refusal's mark keeps the primary's put-back (movement.mjs `ruleOf`), and the line its player's browser says for it is the neutral one.
+        const { sentBackLine } = await import("./movement-audit.mjs");
+        equal(stableJson([read.free, read.murderRoom?.code ?? read.murderRoom, read.murderRoom?.text ?? null, read.murderRoom?.rule ?? null,
+            sentBackLine({ code: read.murderRoom?.code }), read.byGm]),
+            stableJson([true, neutral.code, neutral.text, "murderRoom", neutral.text, true]),
+            "a Monocub paid for a crossing, or walked into a murder's room, or was told something no public fact explains, or a GM's move was refused ([free step, the murder room's code and words, its put-back mark, the put-back's line on the player, a GM's move])");
     }],
 
     ["a Monocub's owner is sent every room the class found under the Monocub's own row, not who found which, and not the Mastermind's (E72 C10)", async () => {
