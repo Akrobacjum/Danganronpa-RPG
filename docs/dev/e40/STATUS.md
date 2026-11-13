@@ -90,6 +90,8 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- Before the push of item 5 batch 3 (13.11.2026): its 11 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
+  problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 2 (13.11.2026): its 6 tests by name, 0 failed (25 s); `node tools/check.mjs` 19/19;
   lint 0 problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 1 and the R3712 fix (13.11.2026): the 27 tests holding batch 1's sites by name, 31
@@ -173,9 +175,15 @@ The plan's items 2-6, in its order, with what each would take:
   - Batch 2: the next 25 sites in file order, read one by one: 6 expect a card and got the wait (5 tests that read a
     card or a refusal's words, and one that waits for the hook's ruling); 19 are clean-ups, hook windows or absences and
     were left alone.
+  - Batch 3: the next 25: 11 expect a card and got the wait; 14 are a stage's `must`, absences (a refusal that posts
+    nothing, an allowance that sends nothing), settles inside a window already awaited, or a read through an async
+    helper (`until()` takes a synchronous check, so a promise would read as true at once). The timeout check caught
+    three wrong first drafts: inside `withVerdictCarriedOut` the execution card is not posted yet (DC36: the sentence is
+    carried out at the trial's exit), so a wait for it timed out every time; those three wait for the verdict card alone.
   - Each new wait found its card: `until()` returns false at its deadline and fails nothing, so a wrong predicate would
     only make a test slower. Measured on a copy where every wait right after a settle throws on a timeout (47 such
-    pairs in the file, batches 1 and 2 among them): the 33 tests holding batch 1's and 2's sites, 0 failed.
+    pairs in the file, batches 1 and 2 among them): the 33 tests holding batch 1's and 2's sites, 0 failed; batch 3's 11
+    tests, 0 failed once the three verdict waits were corrected.
   - Left: the rest of the chat-card group (found again after each batch by a script over the file, not by stale line
     numbers), and the 194 hook and notice sites, not started.
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its

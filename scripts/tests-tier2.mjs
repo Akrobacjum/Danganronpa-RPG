@@ -23284,6 +23284,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const before = new Set(game.messages.map(m => m.id));
         await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 99, isCritical: false, withHope: false });
         await settle();
+        await until(() => game.messages.some(m => !before.has(m.id)));
         const def = CRISIS_ACTIONS.selfDefence;
         const said = await Promise.all(game.messages.filter(m => !before.has(m.id)).map(m => wordsOf(m, 2000)));
         const card = said.map(String).find(w => w.includes(`<h3>${def.label} - `)) ?? "";
@@ -23530,6 +23531,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-c11b-pick", actorId: killer.id, kind: "crisis",
                 key: "weaponAttack", variant: null }, mine.id, { send: () => null });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
             const card = game.messages.contents.find(m => !had.has(m.id));
             must(String(contentOf(card) ?? "").includes('data-drpg-call="pickTrait"'), "no statistic card was posted for the fixture's request");
             const press = async (trait, rewritten = null) => {
@@ -25285,6 +25287,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             asked = await withVerdictOpen(() => withAdvanceWindows(() => null,
                 () => applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] })));
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "veiled") === true));
             const cards = game.messages.filter(m => !from.has(m.id));
             equal(stableJson([writes, killer.system?.resources?.hitPoints?.max ?? null, killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0]),
                 stableJson([0, hpMax, advances]), "the wrong verdict wrote on the surviving Blackened (writes, maximum Health, advances)");
@@ -25573,6 +25576,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await withAdvanceWindows(() => null,
                     () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return { panel: trialCard({ phase: "classTrial", chapter: getClock().chapter }), stage: V.trialProgress().verdict?.stage ?? null };
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -25826,6 +25830,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "a GM who is not the primary finished the verdict, or was not told whom to ask (answer, stage, told)");
             await Promise.all([V.finishVerdict(), V.finishVerdict()]);
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id)));
             const said = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000)));
             equal(stableJson([V.trialProgress().verdict?.stage ?? null, said.filter(words => String(words ?? "").includes(title)).length]),
                 stableJson(["done", 1]), "two presses of Finish on the primary did not finish the verdict once (stage, summaries)");
@@ -26561,6 +26566,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict(answer));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return V.trialProgress().verdict?.stage ?? null;
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -26602,6 +26608,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [killer.id], blackenedIds: [killer.id] }));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return V.trialProgress().verdict?.stage ?? null;
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -26654,6 +26661,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 };
                 await V.applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] });
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && !(m.whisper?.length) && !m.blind));
             }));
             const fresh = game.messages.filter(m => !from.has(m.id) && !(m.whisper?.length) && !m.blind);
             const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
@@ -26722,6 +26730,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const stage = await withVerdictCarriedOut(async () => {
                 await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: false, executedIds: [victim.id], blackenedIds: [] }));
                 await settle();
+                await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "verdictCard") != null));
                 return V.trialProgress().verdict?.stage ?? null;
             });
             const fresh = game.messages.filter(m => !from.has(m.id));
@@ -26876,6 +26885,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await E.parkDirectMurder({ killerId: killer.id, room: stood.room, note: NOTE, proposed: "hand" });
             await settle();
+            await until(() => game.messages.contents.slice(from).some(m => contentOf(m).includes(NOTE)));
             const card = game.messages.contents.slice(from).find(m => contentOf(m).includes(NOTE));
             must(card, "the declaration's card was not posted in the GMs' log");
             const root = document.createElement("div");
@@ -28306,6 +28316,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 made.push(item);
                 const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 1 });
                 await settle();
+                await until(() => game.messages.contents.some(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(title)));
                 const fresh = game.messages.contents.filter(m => !seen.has(m.id));
                 for (const m of fresh) seen.add(m.id);
                 const words = fresh.map(m => String(contentOf(m) ?? "")).filter(w => w.includes(title)).at(-1) ?? "";
