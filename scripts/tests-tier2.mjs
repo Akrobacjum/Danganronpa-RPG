@@ -95238,6 +95238,60 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             crossings: [1, 1, 0, 0], counted: [1, 1, 3], end: [1, null, 4], theirs: "notYours", noRoll: "rollUnknown" }),
             "{low, kept: [answer, the row]; start: [posts taken, the post is the watcher's room, cards so far]; crossings: [in, out, elsewhere, no Eclipse]; counted: [entered, left, cards so far]; end: [summaries, the row, cards so far]; theirs; noRoll} - a watch on the GMs' record of its roll");
     }],
+    ["1.2.113 Keep Watch missed with Despair takes 1 Sanity - judged as the primary judges the player's `watch.declare`, a Body roll below the watch's number with Despair on the GMs' record marks one Sanity whatever the packet claims; a miss with Hope marks none, and so does a kept watch (watch-gm.mjs `declareWatch`; the player handbook's Keep Watch)", async () => {
+        /*
+         * 1.2.113, 13.11.2026. The player handbook's Keep Watch: "A failure with Despair takes 1 Sanity". A read-only audit
+         * did not find where the code charges it; measured here on the bridge's road, as E74-T4 drives it: the player's
+         * packet judged on the primary (`G.judge`), the roll a message of the character's with the GMs' record of it
+         * (`recordFor`) - the record's `total`, `isCritical` and `withHope` are what the run reads (bridge-guards.mjs
+         * `ROLL_INTO`), so the packet here claims a 20 with Hope on every ask and the record decides. E74-T9 asks
+         * `declareWatch` directly; this one goes through the table. Sanity is Daggerheart's `stress`: a mark is +1 on its
+         * value. Not red first: at a2b233d2 the code charges it (watch-gm.mjs `declareWatch`, E74 C6); this pins it.
+         */
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { player, actor } = await playerInRoom();
+        const path = "system.resources.stress.value";
+        const max = Number(actor.system?.resources?.stress?.max) || 0;
+        must(max >= 2, `${actor.name}'s Sanity holds fewer than two marks - this would measure nothing`);
+        const was = Number(foundry.utils.getProperty(actor, path)) || 0;
+        const made = [], told = [];
+        const ask = async (total, withHope) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, "keepWatch", { total, withHope });
+            made.push({ message, kept });
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "watch.declare", requestId: `W113${foundry.utils.randomID(8)}`, actorId: actor.id,
+                total: 20, isCritical: false, withHope: true, rollId: message.id }, player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            return [reply?.action === "bridge.refused" ? reply.reason : reply?.value?.kept ?? null, Number(foundry.utils.getProperty(actor, path)) || 0];
+        };
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            await trustedWrite(actor, { [path]: 0 }, { reason: "gmRuling" });
+            await settle();
+            const low = INFILTRATE.keepWatch.dc - 1;
+            read.despair = await ask(low, false);
+            read.hope = await ask(low, true);
+            read.keptDespair = await ask(INFILTRATE.keepWatch.dc, false);
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && m.speaker?.actor === actor.id)) await m.delete();
+            await trustedWrite(actor, { [path]: was }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ despair: [false, 1], hope: [false, 1], keptDespair: [true, 1] }),
+            "Keep Watch's Sanity ([kept, Sanity marked after]: a miss with Despair, then a miss with Hope, then a kept watch with Despair)");
+    }],
     ["E74-T5 - Room setup's Broken column shows a forced lock and mends it (scripts/room-setup.mjs, movement.mjs `roomBroken`, `setRoomBroken`; E74 C5, Q-E74-4): a room broken open draws its Broken box ticked and a room not broken unticked; an Apply with the box unticked mends the lock (the flag off on every piece), and the room's GM lock is left as it was", async () => {
         /*
          * E74 C5, 12.11.2026. Room setup is answered as E46-T1 answers it: `DialogV2.wait` stood in for, the form drawn from
