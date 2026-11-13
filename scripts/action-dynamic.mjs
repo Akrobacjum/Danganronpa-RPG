@@ -26,7 +26,7 @@ import { traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipAttr, tipText } from "./ui-kit.mjs";
 
 export function dynamicDef() {
     return {
@@ -331,9 +331,9 @@ export async function askDynamicDifficulty({ description, actorName, room, propo
                     <blockquote>${foundry.utils.escapeHTML(description ?? "")}</blockquote>
                     ${Object.hasOwn(TRAITS, proposed ?? "") ? `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed].label }))}</p>` : ""}
                     <label>${game.i18n.localize("DRPG.Action.difficulty")}
-                        <select name="tier">${rows}</select></label>
+                        <select name="tier"${tipAttr("DRPG.Tips.Actions.difficultyTooltip")}>${rows}</select></label>
                     <label>${game.i18n.localize("DRPG.Advance.whichTrait")}
-                        <select name="trait">${Object.entries(TRAITS)
+                        <select name="trait"${tipAttr("DRPG.Tips.Actions.statisticTooltip")}>${Object.entries(TRAITS)
                             .map(([k, t]) => `<option value="${k}"${k === proposed ? " selected" : ""}>${t.label}</option>`).join("")}</select></label>
                   </form>`,
         footer: {
@@ -344,7 +344,7 @@ export async function askDynamicDifficulty({ description, actorName, room, propo
                     return { tier: Number(f.tier.value), trait: f.trait.value };
                 }
             },
-            secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Action.dynamicRefuse") }]
+            secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), tooltip: tipText("DRPG.Tips.Actions.refuseTooltip") }]
         },
         rejectClose: false
     });

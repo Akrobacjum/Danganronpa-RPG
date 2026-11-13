@@ -10,30 +10,6 @@
    "why": "none needed: The label names the pick, and the row's hint above says what the roll does and what a miss costs."
   },
   {
-   "file": "scripts/action-dynamic.mjs",
-   "unit": "askDynamicDifficulty",
-   "kind": "select",
-   "key": "DRPG.Action.difficulty",
-   "count": 1,
-   "why": "E102 C2: The number the student's roll has to beat"
-  },
-  {
-   "file": "scripts/action-dynamic.mjs",
-   "unit": "askDynamicDifficulty",
-   "kind": "select",
-   "key": "DRPG.Advance.whichTrait",
-   "count": 1,
-   "why": "E102 C2: The statistic the student rolls against"
-  },
-  {
-   "file": "scripts/action-dynamic.mjs",
-   "unit": "askDynamicDifficulty",
-   "kind": "footer",
-   "key": "DRPG.Action.dynamicRefuse",
-   "count": 1,
-   "why": "E102 C2: Turns the action down. The student loses nothing."
-  },
-  {
    "file": "scripts/action-listen.mjs",
    "unit": "performListen",
    "kind": "select",
@@ -51,27 +27,11 @@
   },
   {
    "file": "scripts/action-menus.mjs",
-   "unit": "detailsHtml",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C2: Shows or hides the price, the rolls and what each result does"
-  },
-  {
-   "file": "scripts/action-menus.mjs",
    "unit": "promptForNote",
    "kind": "textarea",
    "key": null,
    "count": 1,
    "why": "none needed: The prompt above and the placeholder already say what to write and when the GM reads it."
-  },
-  {
-   "file": "scripts/action-menus.mjs",
-   "unit": "promptForNote",
-   "kind": "footer",
-   "key": "DRPG.Action.murderParkedConfirm",
-   "count": 1,
-   "why": "E102 C2: Sends these words with your attempt. Closing the window still makes it, without them."
   },
   {
    "file": "scripts/action-murder.mjs",
@@ -107,30 +67,6 @@
   },
   {
    "file": "scripts/action-project.mjs",
-   "unit": "startProject",
-   "kind": "select",
-   "key": "DRPG.Project.scale",
-   "count": 1,
-   "why": "E102 C2: How much work the project takes before it is done"
-  },
-  {
-   "file": "scripts/action-project.mjs",
-   "unit": "startProject",
-   "kind": "select",
-   "key": "DRPG.Project.room",
-   "count": 1,
-   "why": "E102 C2: Where the project can be worked on. Any room means anywhere."
-  },
-  {
-   "file": "scripts/action-project.mjs",
-   "unit": "startProject",
-   "kind": "select",
-   "key": "DRPG.Project.trait",
-   "count": 1,
-   "why": "E102 C2: The statistic every roll on this project uses"
-  },
-  {
-   "file": "scripts/action-project.mjs",
    "unit": "chooseProject",
    "kind": "select",
    "key": null,
@@ -152,22 +88,6 @@
    "key": "DRPG.Action.goalSpecificPlaceholder",
    "count": 1,
    "why": "none needed: Its prompt, placeholder and the row's hint already say what to type and that the GM rules on it."
-  },
-  {
-   "file": "scripts/action-tamper.mjs",
-   "unit": "chooseTamper",
-   "kind": "select",
-   "key": "DRPG.Tamper.whichTrace",
-   "count": 2,
-   "why": "E102 C2: Only the Remnants here that are not Reinforced"
-  },
-  {
-   "file": "scripts/action-tamper.mjs",
-   "unit": "chooseTamper",
-   "kind": "select",
-   "key": "DRPG.Cleanup.trailWho",
-   "count": 1,
-   "why": "E102 C2: The student the false Remnant points at"
   },
   {
    "file": "scripts/anonymity.mjs",
@@ -242,36 +162,12 @@
    "why": "none needed: The label is the Call's own question (Which player? Which room? ...) and the list holds only valid answers."
   },
   {
-   "file": "scripts/call-pickers.mjs",
-   "unit": "pickText",
-   "kind": "footer",
-   "key": "DRPG.Calls.next",
-   "count": 1,
-   "why": "E102 C2: Nothing is spent until you confirm in the next window."
-  },
-  {
-   "file": "scripts/call-pickers.mjs",
-   "unit": "choose",
-   "kind": "footer",
-   "key": "DRPG.Calls.next",
-   "count": 1,
-   "why": "E102 C2: Nothing is spent until you confirm in the next window."
-  },
-  {
    "file": "scripts/calls.mjs",
    "unit": "confirmCall",
    "kind": "textarea",
    "key": "DRPG.Calls.tellGmPlaceholder",
    "count": 1,
    "why": "none needed: Label, placeholder and the note under it (the GM must agree first) say everything."
-  },
-  {
-   "file": "scripts/calls.mjs",
-   "unit": "askHopeCallApproval",
-   "kind": "footer",
-   "key": "DRPG.Calls.approveYes",
-   "count": 1,
-   "why": "E102 C2: The player spends the Hope and the Call takes effect"
   },
   {
    "file": "scripts/calls.mjs",
@@ -576,22 +472,6 @@
    "key": "DRPG.Frisk.refuse",
    "count": 1,
    "why": "none needed: The window's text says that if you refuse they may try to make you, and its clock says no answer is a refusal."
-  },
-  {
-   "file": "scripts/frisk.mjs",
-   "unit": "openAskWindow",
-   "kind": "footer",
-   "key": "DRPG.Frisk.allow",
-   "count": 1,
-   "why": "E102 C2: They see everything you had on you when they asked"
-  },
-  {
-   "file": "scripts/frisk.mjs",
-   "unit": "askToForce",
-   "kind": "footer",
-   "key": "DRPG.Frisk.leave",
-   "count": 1,
-   "why": "E102 C2: You let it go, and they are told so"
   },
   {
    "file": "scripts/frisk.mjs",
@@ -1906,30 +1786,6 @@
    "why": "none needed: Its label and placeholder say everything."
   },
   {
-   "file": "scripts/observe.mjs",
-   "unit": "askWhichRemnant",
-   "kind": "footer",
-   "key": "DRPG.Observe.pickRefuse",
-   "count": 1,
-   "why": "E102 C2: The player keeps their action and finds nothing"
-  },
-  {
-   "file": "scripts/overflow.mjs",
-   "unit": "overflowSection",
-   "kind": "button",
-   "key": "DRPG.Overflow.setupIntro",
-   "count": 1,
-   "why": "E102 C2: Sets the spilled Despair back to 0, after asking"
-  },
-  {
-   "file": "scripts/overflow.mjs",
-   "unit": "overflowSection",
-   "kind": "kit:toggle",
-   "key": "DRPG.Overflow.name",
-   "count": 1,
-   "why": "E102 C2: Ticked: this can be drawn when the overflow fires"
-  },
-  {
    "file": "scripts/palm.mjs",
    "unit": "choosePalm",
    "kind": "select",
@@ -2035,43 +1891,11 @@
   },
   {
    "file": "scripts/projects-ui.mjs",
-   "unit": "projectManagerRows",
-   "kind": "checkbox",
-   "key": "DRPG.Project.indirect",
-   "count": 1,
-   "why": "E102 C2: Marks the project as a murder by trap, secret by default"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "projectManagerRows",
-   "kind": "checkbox",
-   "key": "DRPG.Project.secret",
-   "count": 1,
-   "why": "E102 C2: Ticked, only the players ticked for it and its builder see it"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
    "unit": "glyphGrid",
    "kind": "radio",
    "key": null,
    "count": 1,
    "why": "none needed: Each icon is named under it, and the note beside the grid says where the icon shows."
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectDialog",
-   "kind": "checkbox",
-   "key": "DRPG.Trap.noProject",
-   "count": 1,
-   "why": "E102 C2: The trap goes off only in the evening, at night or during an Eclipse"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectDialog",
-   "kind": "checkbox",
-   "key": "DRPG.Trap.afterDark",
-   "count": 1,
-   "why": "E102 C2: The trap never goes off for the student who built it"
   },
   {
    "file": "scripts/projects-ui.mjs",
@@ -2088,46 +1912,6 @@
    "key": "DRPG.Project.scale",
    "count": 1,
    "why": "none needed: Each option names its progress ('Standard - 4 progress')."
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectDialog",
-   "kind": "select",
-   "key": "DRPG.Project.room",
-   "count": 1,
-   "why": "E102 C2: Only students standing in this room can work on it or sabotage it"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectDialog",
-   "kind": "select",
-   "key": "DRPG.Project.trait",
-   "count": 1,
-   "why": "E102 C2: The statistic rolled whenever somebody works on this project"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectDialog",
-   "kind": "checkbox",
-   "key": null,
-   "count": 1,
-   "why": "E102 C2: Marks the project as a murder by trap, secret by default"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectDialog",
-   "kind": "checkbox",
-   "key": null,
-   "count": 1,
-   "why": "E102 C2: Ticked, only the players ticked for it and its builder see it"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "viewerTicks",
-   "kind": "checkbox",
-   "key": "DRPG.Project.everyone",
-   "count": 1,
-   "why": "E102 C2: Ticked, this player sees the project while it is secret"
   },
   {
    "file": "scripts/projects-ui.mjs",
@@ -2168,38 +1952,6 @@
    "key": "DRPG.Project.createButton",
    "count": 1,
    "why": "none needed: Opens the Create a project window, as its label says."
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectManager",
-   "kind": "footer",
-   "key": "DRPG.Project.shareButton",
-   "count": 1,
-   "why": "E102 C2: Lets one more player see a secret project"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openProjectDialog",
-   "kind": "footer",
-   "key": "DRPG.Project.delete",
-   "count": 1,
-   "why": "E102 C2: Asks first, then removes the project and its progress for good"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openShareDialog",
-   "kind": "footer",
-   "key": "DRPG.Project.shareButton",
-   "count": 1,
-   "why": "E102 C2: This player sees the secret project from now on"
-  },
-  {
-   "file": "scripts/projects-ui.mjs",
-   "unit": "openShareDialog",
-   "kind": "footer",
-   "key": "DRPG.Project.revokeButton",
-   "count": 1,
-   "why": "E102 C2: This player stops seeing the secret project; its builder always sees it"
   },
   {
    "file": "scripts/remnant-ring.mjs",
@@ -2248,22 +2000,6 @@
    "key": "DRPG.Overflow.noHopeNow",
    "count": 1,
    "why": "none needed: The text beside each pick says what it gives, and a blocked Breath already carries its reason as a title."
-  },
-  {
-   "file": "scripts/rest.mjs",
-   "unit": "choosePicks",
-   "kind": "footer",
-   "key": "DRPG.Action.proceed",
-   "count": 1,
-   "why": "E102 C2: Gives you the rest benefits you ticked"
-  },
-  {
-   "file": "scripts/roll-draw.mjs",
-   "unit": "cardButton",
-   "kind": "kit:roleButton",
-   "key": null,
-   "count": 1,
-   "why": "E102 C2: Gives the Hope and Despair these rolls would have moved"
   },
   {
    "file": "scripts/room-setup.mjs",
@@ -3056,14 +2792,6 @@
    "key": null,
    "count": 1,
    "why": "none needed: Each choice names what it restores and how much."
-  },
-  {
-   "file": "scripts/use-items.mjs",
-   "unit": "askWhichResource",
-   "kind": "footer",
-   "key": "DRPG.Items.useConfirm",
-   "count": 1,
-   "why": "E102 C2: The item is used up, with no way back."
   },
   {
    "file": "scripts/verdict.mjs",

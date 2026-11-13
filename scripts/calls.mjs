@@ -23,6 +23,7 @@ import { announce, whisperToOwner, log, error, esc, proseOf } from "./utils.mjs"
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass } from "./call-pickers.mjs";
 import { alreadyOpen } from "./live.mjs";
+import { tipText } from "./ui-kit.mjs";
 
 /* The GM's approval window of a Call asked on the GM's own side (`askHopeCallApproval`): one at a time (D176). */
 const APPROVAL_CLASS = "drpg-call-hope-approval";
@@ -793,7 +794,7 @@ export async function askHopeCallApproval(payload = {}) {
         </div>`,
         // M14's card (E21 C5a): It applies the primary, Not this time - the GM's no, an answer - a secondary on the left.
         footer: {
-            primary: { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes") },
+            primary: { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes"), tooltip: tipText("DRPG.Tips.Actions.itAppliesTooltip") },
             secondary: [{ action: "no", label: game.i18n.localize("DRPG.Calls.approveNo") }]
         },
         once: APPROVAL_CLASS

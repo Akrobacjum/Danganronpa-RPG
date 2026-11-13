@@ -1808,6 +1808,41 @@
         "waiting": "Czeka"
       }
     },
+    "Tips": {
+        "Actions": {
+            "difficultyTooltip": "Wynik, który rzut ucznia musi przebić",
+            "statisticTooltip": "Statystyka, na którą rzuca uczeń",
+            "refuseTooltip": "Odrzuca akcję. Uczeń nic nie traci.",
+            "doItTooltip": "Daje ci zaznaczone korzyści odpoczynku",
+            "detailsTooltip": "Pokazuje albo chowa koszt, rzuty i to, co daje każdy wynik",
+            "makeTheAttemptTooltip": "Wysyła te słowa razem z próbą. Zamknięcie okna też ją podejmuje, tylko bez nich.",
+            "scaleTooltip": "Ile pracy wymaga projekt, zanim będzie gotowy",
+            "roomTooltip": "Gdzie można pracować nad projektem. Dowolny pokój znaczy wszędzie.",
+            "requiredWorkTooltip": "Statystyka, której używa każdy rzut na ten projekt",
+            "itAppliesTooltip": "Gracz wydaje Hope, a Call zaczyna działać",
+            "letThemLookTooltip": "Zobaczą wszystko, co miałeś przy sobie w chwili prośby",
+            "leaveItTooltip": "Odpuszczasz, a ta osoba się o tym dowiaduje",
+            "nextTooltip": "Nic nie wydajesz, dopóki nie potwierdzisz w następnym oknie.",
+            "indirectMurderAProjectTooltip": "Oznacza projekt jako morderstwo przez pułapkę, domyślnie tajne",
+            "secretAProjectSTooltip": "Zaznaczony: widzą go tylko zaznaczeni przy nim gracze i budujący",
+            "onlyAfterDarkTooltip": "Pułapka odpala tylko wieczorem, w nocy albo w czasie Eclipse",
+            "notTheOneWhoTooltip": "Pułapka nigdy nie odpala dla ucznia, który ją zbudował",
+            "room2Tooltip": "Tylko uczniowie stojący w tym pokoju mogą nad nim pracować albo go sabotować",
+            "requiredWork2Tooltip": "Statystyka, na którą rzuca każdy, kto pracuje nad tym projektem",
+            "aPlayerSOnTooltip": "Zaznaczony gracz widzi ten projekt, dopóki jest tajny",
+            "shareTooltip": "Pozwala kolejnemu graczowi widzieć tajny projekt",
+            "deleteTooltip": "Najpierw pyta, potem na dobre usuwa projekt razem z postępem",
+            "share2Tooltip": "Od teraz ten gracz widzi tajny projekt",
+            "revokeAccessTooltip": "Ten gracz przestaje widzieć tajny projekt; budujący widzi go zawsze",
+            "useItTooltip": "Przedmiot zostaje zużyty bez możliwości cofnięcia.",
+            "clearTheOverflowTooltip": "Zeruje rozlany Despair, po pytaniu",
+            "onPerRuleTooltip": "Zaznaczone: to może zostać wylosowane, gdy overflow odpala",
+            "grantAllGrantNoneTooltip": "Daje Hope i Despair, które te rzuty by przesunęły",
+            "whichRemnantEraseATooltip": "Tylko Remnanty z tego pokoju, które nie są Reinforced",
+            "frameStudentTooltip": "Uczeń, na którego wskazuje fałszywy Remnant",
+            "nothingMatchesRefuseTooltip": "Gracz zachowuje akcję i nic nie znajduje"
+        }
+    },
     "Look": {
       "language": "Język",
       "title": "Ustawienia",

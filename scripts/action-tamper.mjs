@@ -27,6 +27,7 @@ import { plural, esc } from "./utils.mjs";
 import { equippedFor } from "./use-items.mjs";
 import { briefingBlock, tamperThresholdFacts } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
+import { tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * TAMPER
@@ -123,16 +124,16 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
         // the branch below reads by name, not by position.
         extra: `${erasable.length ? `<label class="drpg-specific-note" data-drpg-when="cover">
                 <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
-                <select name="trace">${erasable.map(t =>
+                <select name="trace"${tipAttr("DRPG.Tips.Actions.whichRemnantEraseATooltip")}>${erasable.map(t =>
                     `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
             </label>
             <label class="drpg-specific-note" data-drpg-when="reshape">
                 <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
-                <select name="reshapeTrace">${erasable.map(t =>
+                <select name="reshapeTrace"${tipAttr("DRPG.Tips.Actions.whichRemnantEraseATooltip")}>${erasable.map(t =>
                     `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
             </label>` : ""}${candidates.length ? `<label class="drpg-specific-note" data-drpg-when="frame">
                 <span>${game.i18n.localize("DRPG.Cleanup.trailWho")}</span>
-                <select name="who">${candidates.map(a =>
+                <select name="who"${tipAttr("DRPG.Tips.Actions.frameStudentTooltip")}>${candidates.map(a =>
                     `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
             </label>` : ""}`
     });

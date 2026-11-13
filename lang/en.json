@@ -1723,6 +1723,41 @@
         "waiting": "Waiting"
       }
     },
+    "Tips": {
+        "Actions": {
+            "difficultyTooltip": "The number the student's roll has to beat",
+            "statisticTooltip": "The statistic the student rolls against",
+            "refuseTooltip": "Turns the action down. The student loses nothing.",
+            "doItTooltip": "Gives you the rest benefits you ticked",
+            "detailsTooltip": "Shows or hides the price, the rolls and what each result does",
+            "makeTheAttemptTooltip": "Sends these words with your attempt. Closing the window still makes it, without them.",
+            "scaleTooltip": "How much work the project takes before it is done",
+            "roomTooltip": "Where the project can be worked on. Any room means anywhere.",
+            "requiredWorkTooltip": "The statistic every roll on this project uses",
+            "itAppliesTooltip": "The player spends the Hope and the Call takes effect",
+            "letThemLookTooltip": "They see everything you had on you when they asked",
+            "leaveItTooltip": "You let it go, and they are told so",
+            "nextTooltip": "Nothing is spent until you confirm in the next window.",
+            "indirectMurderAProjectTooltip": "Marks the project as a murder by trap, secret by default",
+            "secretAProjectSTooltip": "Ticked, only the players ticked for it and its builder see it",
+            "onlyAfterDarkTooltip": "The trap goes off only in the evening, at night or during an Eclipse",
+            "notTheOneWhoTooltip": "The trap never goes off for the student who built it",
+            "room2Tooltip": "Only students standing in this room can work on it or sabotage it",
+            "requiredWork2Tooltip": "The statistic rolled whenever somebody works on this project",
+            "aPlayerSOnTooltip": "Ticked, this player sees the project while it is secret",
+            "shareTooltip": "Lets one more player see a secret project",
+            "deleteTooltip": "Asks first, then removes the project and its progress for good",
+            "share2Tooltip": "This player sees the secret project from now on",
+            "revokeAccessTooltip": "This player stops seeing the secret project; its builder always sees it",
+            "useItTooltip": "The item is used up, with no way back.",
+            "clearTheOverflowTooltip": "Sets the spilled Despair back to 0, after asking",
+            "onPerRuleTooltip": "Ticked: this can be drawn when the overflow fires",
+            "grantAllGrantNoneTooltip": "Gives the Hope and Despair these rolls would have moved",
+            "whichRemnantEraseATooltip": "Only the Remnants here that are not Reinforced",
+            "frameStudentTooltip": "The student the false Remnant points at",
+            "nothingMatchesRefuseTooltip": "The player keeps their action and finds nothing"
+        }
+    },
     "Look": {
       "language": "Language",
       "title": "Settings",

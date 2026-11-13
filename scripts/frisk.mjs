@@ -21,7 +21,7 @@ import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, plural } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 
@@ -1083,7 +1083,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
             rejectClose: false,
             footer: {
                 primary: { action: "refuse", label: game.i18n.localize("DRPG.Frisk.refuse") },
-                secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow") }]
+                secondary: [{ action: "allow", label: game.i18n.localize("DRPG.Frisk.allow"), tooltip: tipText("DRPG.Tips.Actions.letThemLookTooltip") }]
             },
             render: (event, dialog) => {
                 open.dialog = dialog;
@@ -1119,7 +1119,7 @@ async function askToForce(def, forceMs) {
             body: `<p>${plural("DRPG.Frisk.forceText", { force: esc(def?.frisk?.threshold ?? ""), s: Math.round(forceMs / 1000) }, "s")}</p>`,
             rejectClose: false,
             footer: {
-                primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave") },
+                primary: { action: "leave", label: game.i18n.localize("DRPG.Frisk.leave"), tooltip: tipText("DRPG.Tips.Actions.leaveItTooltip") },
                 secondary: [{ action: "force", label: game.i18n.localize("DRPG.Frisk.force") }]
             },
             render: (event, dialog) => {

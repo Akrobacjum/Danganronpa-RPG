@@ -25,7 +25,7 @@ import {
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { error, markFired, markLanguage, serialWrite } from "./utils.mjs";
-import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode } from "./ui-kit.mjs";
+import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode, tipAttr, tipText } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
@@ -327,9 +327,9 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
             room: `<select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
                 roomSelectOptions(rooms, roomOf(p.id) ?? "")}</select>`,
             murder: `<input type="checkbox" name="murder.${p.id}" aria-label="${rowName("DRPG.Project.indirect", p)}"
-                       ${isIndirectMurder(p.id) ? "checked" : ""} />`,
+                       ${isIndirectMurder(p.id) ? "checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderAProjectTooltip")} />`,
             secret: `<input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
-                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""} />`,
+                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip")} />`,
             edit: `<button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
                         data-tooltip="${t("DRPG.Project.editTitle")}">
                     <i class="fa-solid fa-pen-to-square" inert></i>
@@ -629,7 +629,7 @@ export async function openProjectManager() {
             primary: { action: "save", label: game.i18n.localize("DRPG.Assign.save"), callback: (e, b, d) => readManager(d, projects) },
             secondary: [
                 { action: "new", label: game.i18n.localize("DRPG.Project.createButton") },
-                { action: "share", label: game.i18n.localize("DRPG.Project.shareButton") }
+                { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.shareTooltip") }
             ],
             close: { role: "cancel", action: "cancel" }
         },
@@ -966,12 +966,12 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             field: `<select name="triggerTarget" id="${idOf("trigger-target")}">${emptyOption("DRPG.Trap.noProject")}${targetOptions}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="afterDark"${
-                    startTrigger?.afterDark ? " checked" : ""} /> ${
+                    startTrigger?.afterDark ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.onlyAfterDarkTooltip")} /> ${
                     t("DRPG.Trap.afterDark")}</label>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="notBuilder"${
                     (startTrigger?.notBuilder ?? TRAP_MODIFIERS.notBuilder.default)
-                        ? " checked" : ""} /> ${
+                        ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.notTheOneWhoTooltip")} /> ${
                     t("DRPG.Trap.notBuilder")}</label>` },
         { label: t("DRPG.Project.condition"), id: idOf("condition"),
             field: `<input type="text" name="condition" id="${idOf("condition")}"
@@ -990,18 +990,18 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         descriptionField(start?.description ?? ""),
         { full: glyphGrid(start?.glyph ?? null) },
         { label: t("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${offScale}${scaleOptions}</select>` },
-        { label: t("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}">${roomOptions}</select>` },
-        { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required>${traitOptions}</select>` },
+        { label: t("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.room2Tooltip")}>${roomOptions}</select>` },
+        { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWork2Tooltip")}>${traitOptions}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder"${
-                    start?.indirectMurder ? " checked" : ""} /> ${
+                    start?.indirectMurder ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderAProjectTooltip")} /> ${
                     t("DRPG.Project.indirect")}</label>` },
         { full: `<div class="drpg-trap-fields" data-drpg-when-murder>${trapRows}</div>` },
         ...(passageOf ? [{ full: passageFieldset(passageOf) }] : []),
         ...(ownedOf ? [{ full: ownedFieldset(ownedOf) }] : []),
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
-                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""} /> ${
+                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip")} /> ${
                     t("DRPG.Project.secret")}</label>` },
         ...(players.length ? [{ full: `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${t("DRPG.Project.visibleTo")}</legend>
@@ -1066,7 +1066,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         body: content,
         footer: {
             primary: save,
-            destructive: editing ? [{ action: "delete", label: game.i18n.localize("DRPG.Project.delete") }] : [],
+            destructive: editing ? [{ action: "delete", label: game.i18n.localize("DRPG.Project.delete"), tooltip: tipText("DRPG.Tips.Actions.deleteTooltip") }] : [],
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
         },
         // DialogV2 discards `content` and rebuilds it from a string, so the
@@ -1550,7 +1550,7 @@ function viewerTicks(players, checked, project, { locked = false } = {}) {
     const known = new Set(checked);
     const lock = locked ? ` disabled data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Project.everyone"))}"` : "";
     return Object.fromEntries(players.map(user => [`viewer-${user.id}`,
-        `<input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${lock}
+        `<input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${lock}${locked ? "" : tipAttr("DRPG.Tips.Actions.aPlayerSOnTooltip")}
                aria-label="${foundry.utils.escapeHTML(`${user.name}: ${project.name}`)}" />`]));
 }
 
@@ -1619,8 +1619,8 @@ export async function openShareDialog(preselectId = null) {
                 <select name="player">${playerOptions}</select></label>
         </form>`,
         footer: {
-            primary: { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), callback: (e, b, d) => read(d, false) },
-            destructive: [{ action: "revoke", label: game.i18n.localize("DRPG.Project.revokeButton"), callback: (e, b, d) => read(d, true) }],
+            primary: { action: "share", label: game.i18n.localize("DRPG.Project.shareButton"), tooltip: tipText("DRPG.Tips.Actions.share2Tooltip"), callback: (e, b, d) => read(d, false) },
+            destructive: [{ action: "revoke", label: game.i18n.localize("DRPG.Project.revokeButton"), tooltip: tipText("DRPG.Tips.Actions.revokeAccessTooltip"), callback: (e, b, d) => read(d, true) }],
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
         },
         rejectClose: false

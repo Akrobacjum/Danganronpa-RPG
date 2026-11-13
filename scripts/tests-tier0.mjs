@@ -22025,7 +22025,7 @@ const REGRESSIONS = [
         const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
         const runs = (list, i) => list.filter((k, n) => k !== list[n - 1]);
         const read = (html, buttons = []) => ({
-            keys: runs([...String(html).matchAll(/\[\[k:([^\]]+)\]\]/g)].map(m => m[1])),
+            keys: runs([...String(html).matchAll(/\[\[k:([^\]]+)\]\]/g)].map(m => m[1]).filter(k => !k.startsWith("DRPG.Tips."))),   // a tooltip (E102) is no label
             fields: runs([...String(html).matchAll(/ name="([^"]+)"/g)].map(m => m[1].replace(/\.R2077[A-Z0-9]+$/, ".<id>"))),
             footer: buttons.map(b => b.action)
         });

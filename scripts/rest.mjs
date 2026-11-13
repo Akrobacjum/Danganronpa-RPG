@@ -26,7 +26,7 @@ import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 // the last piece, and a piece drawn and marked after the room was set up took its rest away.
 import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, tipText } from "./ui-kit.mjs";
 
 /** Flags set on a Scene Region. */
 export const REST_FLAGS = {
@@ -369,6 +369,7 @@ async function choosePicks(kind, count) {
             primary: {
                 action: "ok",
                 label: game.i18n.localize("DRPG.Action.proceed"),
+                tooltip: tipText("DRPG.Tips.Actions.doItTooltip"),
                 callback: (e, b, d) => Array.from(d.element.querySelectorAll("[name=pick]:checked")).map(i => i.value)
             },
             close: "cancel"

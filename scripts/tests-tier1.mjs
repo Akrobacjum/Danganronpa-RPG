@@ -25117,6 +25117,56 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 31 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key)", async () => {
+        /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. */
+        const TIPS = [
+            ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
+            ["DRPG.Tips.Actions.statisticTooltip","action-dynamic.mjs","askDynamicDifficulty"],
+            ["DRPG.Tips.Actions.refuseTooltip","action-dynamic.mjs","askDynamicDifficulty"],
+            ["DRPG.Tips.Actions.doItTooltip","rest.mjs","choosePicks"],
+            ["DRPG.Tips.Actions.detailsTooltip","action-menus.mjs","detailsHtml"],
+            ["DRPG.Tips.Actions.makeTheAttemptTooltip","action-menus.mjs","promptForNote"],
+            ["DRPG.Tips.Actions.scaleTooltip","action-project.mjs","startProject"],
+            ["DRPG.Tips.Actions.roomTooltip","action-project.mjs","startProject"],
+            ["DRPG.Tips.Actions.requiredWorkTooltip","action-project.mjs","startProject"],
+            ["DRPG.Tips.Actions.itAppliesTooltip","calls.mjs","askHopeCallApproval"],
+            ["DRPG.Tips.Actions.letThemLookTooltip","frisk.mjs","openAskWindow"],
+            ["DRPG.Tips.Actions.leaveItTooltip","frisk.mjs","askToForce"],
+            ["DRPG.Tips.Actions.nextTooltip","call-pickers.mjs","pickText"],
+            ["DRPG.Tips.Actions.indirectMurderAProjectTooltip","projects-ui.mjs","projectManagerRows"],
+            ["DRPG.Tips.Actions.secretAProjectSTooltip","projects-ui.mjs","projectManagerRows"],
+            ["DRPG.Tips.Actions.onlyAfterDarkTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.notTheOneWhoTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.room2Tooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.requiredWork2Tooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.aPlayerSOnTooltip","projects-ui.mjs","viewerTicks"],
+            ["DRPG.Tips.Actions.shareTooltip","projects-ui.mjs","openProjectManager"],
+            ["DRPG.Tips.Actions.deleteTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.share2Tooltip","projects-ui.mjs","openShareDialog"],
+            ["DRPG.Tips.Actions.revokeAccessTooltip","projects-ui.mjs","openShareDialog"],
+            ["DRPG.Tips.Actions.useItTooltip","use-items.mjs","askWhichResource"],
+            ["DRPG.Tips.Actions.clearTheOverflowTooltip","overflow.mjs","overflowSection"],
+            ["DRPG.Tips.Actions.onPerRuleTooltip","overflow.mjs","overflowSection"],
+            ["DRPG.Tips.Actions.grantAllGrantNoneTooltip","roll-draw.mjs","cardButton"],
+            ["DRPG.Tips.Actions.whichRemnantEraseATooltip","action-tamper.mjs","chooseTamper"],
+            ["DRPG.Tips.Actions.frameStudentTooltip","action-tamper.mjs","chooseTamper"],
+            ["DRPG.Tips.Actions.nothingMatchesRefuseTooltip","observe.mjs","askWhichRemnant"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 31, "lang/en.json has not the family's 31 keys under DRPG.Tips.Actions");
+        const fits = w => typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23;
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            const read = new RegExp(`tip(?:Attr|Text)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            return !(read && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is
@@ -34042,7 +34092,7 @@ const INVARIANTS = [
         const code = stripComments(actionText(sources));
         const labelOf = (fn, name) => {
             const body = fnSource(code, fn) ?? "";
-            const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}">`));
+            const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}"(?:\\$\\{tipAttr\\([^)]*\\)\\})?>`));
             return m ? m[1] ?? "always" : "no such select";
         };
         equal(JSON.stringify({
@@ -47987,7 +48037,7 @@ const INVARIANTS = [
         must(actor, "no actor to name on the cards - this would measure nothing");
         const HP = "system.resources.hitPoints.value";
         const node = html => Object.assign(document.createElement("div"), { innerHTML: html });
-        const buttons = root => [...root.querySelectorAll("button")].map(b => [b.textContent, Object.entries(b.dataset).filter(([k]) => k !== "drpgRole").map(([k, v]) => `${k}=${v}`).join(" "),
+        const buttons = root => [...root.querySelectorAll("button")].map(b => [b.textContent, Object.entries(b.dataset).filter(([k]) => k !== "drpgRole" && k !== "tooltip").map(([k, v]) => `${k}=${v}`).join(" "),
             b.dataset.drpgRole ?? null, b.classList.contains(b.dataset.drpgRole === "gmRoute" ? "drpg-role-gm-route" : "drpg-role-secondary")]);
         const L = key => game.i18n.localize(key);
         const away = node(D.awayRollsCard("<li>line</li>"));

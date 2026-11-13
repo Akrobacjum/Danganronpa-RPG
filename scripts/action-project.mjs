@@ -49,7 +49,7 @@ import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
-import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
+import { drpgWindow, formGrid, helpText, box, tipAttr } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * PROJECTS
@@ -262,9 +262,9 @@ export async function startProject(actor) {
             { label: game.i18n.localize("DRPG.Project.name"), id: idOf("name"),
                 field: `<input type="text" name="name" id="${idOf("name")}" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus />` },
             descriptionField(""),
-            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}">${scaleOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}">${roomOptions}</select>` },
-            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required>${projectTraitOptions()}</select>` },
+            { label: game.i18n.localize("DRPG.Project.scale"), id: idOf("target"), field: `<select name="target" id="${idOf("target")}"${tipAttr("DRPG.Tips.Actions.scaleTooltip")}>${scaleOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.room"), id: idOf("room"), field: `<select name="room" id="${idOf("room")}"${tipAttr("DRPG.Tips.Actions.roomTooltip")}>${roomOptions}</select>` },
+            { label: game.i18n.localize("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWorkTooltip")}>${projectTraitOptions()}</select>` },
             { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>` },
             { label: game.i18n.localize("DRPG.Project.condition"), id: idOf("condition"),
