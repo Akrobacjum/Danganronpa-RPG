@@ -261,4 +261,45 @@ quick green; tiers 0-1 1375 passed, 0 failed, 16 skipped, 0 red.
 - A comment that names where its code stands moves with the code and says what it said: utils.mjs `windowWidthFor`'s
   header ("Here and not in the kit because R168 reads it here") is now in windows.mjs. moved-only holds every moved line
   to its text, so such sentences are for the stage's comment sweep, not for these scripts.
-- The code.md rows for the new files are the coordinator's (Q-E54-8).
+- The code.md rows for the new files: written on the 1.2.112 landing line (below), with the owner's consent to that one
+  file (13.11.2026).
+
+## E54 rebuilt on 1.2.112 (main a2b233d2), 13.11.2026
+
+The landing line for 1.2.113: claude/e54-land-112, pushed at c6e4e5ed, 36 commits on a2b233d2 - the 12 behaviour
+commits cherry-picked, the tooltip census's gate (da276909), the seven cuts (split, repoint, comment sweep: 21
+commits), six headers corrected (91bb2443) and code.md's rows (c6e4e5ed, E1). The earlier landing line (on a31e7a3b,
+8cf9ca43) stays as it is.
+
+| Proof | Read |
+| --- | --- |
+| moved-only, each split | 8 part(s), all green, all seven |
+| quick, after each cut and at the end | green |
+| tiers 0-1, after each cut and at the end | 1510 passed, 0 failed, 16 skipped, 0 red |
+| the cut's golden (`audit/glass-golden.mjs`, 23 sizes, 276 cuts) | byte for byte the same as a2b233d2's, 924348 bytes |
+| `audit/glass-sweep.mjs` | SWEEP GREEN: 2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing (46 min here, 13.11; the a31e7a3b line's run was not timed, so no comparison) |
+
+What 1.2.112 asked of the tools, each fixed on this line before the run that went green:
+
+- key-remnants: `keyPlanExtras` is gone from 1.2.112's investigation.mjs; the manifest's stay is optional (`function?`).
+- The sheet cut: R4754 reads a `[file, name]` pair written without a blank, which repoint's pair rule did not match
+  (now blank-tolerant), and `check tooltips` read the census rows of moved functions as new rows. repoint carries a
+  census row's `file` with its function (3f847c23), and the census's check against main's copy counts a row by its
+  unit, kind and key (da276909, on the landing line: tools/tooltip-census.mjs). That second change is a gate's, and
+  is a default for the coordinator to review, not a settled one. Its message's reading ("with the eight rows
+  moved") was taken with the rows moved by a scratch script; the landing run then moved them with repoint's rule and
+  read `check tooltips` green in quick on every cut.
+- The comment sweep's tables: built again on the landing line's base (sweep-build: 1352 comment lines read, 244 false;
+  315 test texts, 61 false).
+
+Six headers the split wrote were wrong against the landed files (found writing code.md's rows): sheet-inventory.mjs
+(`guardRow`, the create buttons), sheet-fit.mjs (did not name `removeSystemCreators`), glass-geometry.mjs (the voice
+settle and the turns are glass-blocks.mjs's; glass.mjs exported none of its names), glass.mjs's note, windows.mjs
+(W3's half) and chapter.mjs ("the next session"). Fixed in the manifests (1b77763c) and on the landing line (91bb2443).
+
+Messages: the landing line's 36 carry [skip ci], end on the two trailers (a cherry-pick's "(cherry picked from ...)"
+line now stands above them; on the a31e7a3b line it stood after), and name no branch by its ref.
+
+main moved after the base: ceb9e9c8 (1.2.112's death fade fix, scripts/death-fade.mjs, the gate's record and the
+release notes). merge-tree against it: clean. death-fade.mjs imports nothing the cuts moved (settings.mjs keeps
+`SETTINGS`, `getSetting`, `isDeadForGm`). Not run on the merged tree.
