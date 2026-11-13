@@ -1,7 +1,7 @@
 # E40 - status (the work line of E39 and E40)
 
 Updated 13.11.2026. The plan is `docs/dev/plans/E40.md` on the planner's branch `plan-130` (read whole). Same branch as
-E39 (`claude/e39-40`), same R range R5100-R5199, same rules. E39's commits are below this file in the branch; E40 starts
+E39 (this branch), same R range R5100-R5199, same rules. E39's commits are below this file in the branch; E40 starts
 at C1 here. Scenario 18-trial (the README's planned row) is this stage's, as is any new tier-2 test (named, not
 R-numbered).
 
