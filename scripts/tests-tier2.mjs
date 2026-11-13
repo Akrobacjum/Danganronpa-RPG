@@ -30013,6 +30013,111 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "{the node's fields in order; the empty picture's preview; the row's picture after the close; world data holding the planned picture before the give; the Give window's picture; the given Truth Bullet's picture; the scan's control: items holding it after the give}");
     }],
 
+    ["planned Truth Bullet to Everyone: its node's recipient offers Everyone, kept at the close; its Give opens on Everyone and gives each living student their own copy (the dead, a Monocub and a Spectator none), the plan marked given once; a copy refused for one student gives the rest, names who got none and leaves the plan not given (1.2.113; the owner, 13.11.2026: \"In planned bullets I'm missing a 'give it to everyone' option\")", async () => {
+        /*
+         * investigation.mjs `schemaEditor`'s planned Truth Bullet, `givePlannedBullet` -> gm-items.mjs
+         * `giveTruthBulletDialog` with config.mjs `RECIPIENT_EVERYONE` -> `giveToEveryone`, which runs the window's own
+         * `giveBulletNow` once per student of chapter.mjs `livingStudentsForGm`. Fixtures: of four students, the third dead
+         * for the GMs (the deaths store) and back as a Monocub (its flag), the fourth a Spectator (its flag); both put back
+         * after. A plan set to Everyone in its node and closed; given through its window; every character's new Truth
+         * Bullets counted and the plan's `given` read. Then a second plan to Everyone with a `preCreateItem` hook refusing
+         * the first living student's item (as another module could): the others get theirs, the window answers no, the
+         * warning names the student and the plan stays not given. Every new bullet, the rows, the hook and the flags are
+         * taken away. Red at 68057fcf: no Everyone to pick, so one student got one copy.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const C = await import("./config.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const EVERYONE = C.RECIPIENT_EVERYONE;
+        const students = studentActors();
+        must(students.length >= 4 && students.slice(0, 4).every(a => !deathStore.has(a.id)), "four living students are needed - this would measure nothing");
+        const cub = students[2], spectator = students[3];
+        const chapter = I.keyPlan().chapter;
+        const ids = ["bullet-suiteeveryonea", "bullet-suiteeveryoneb"];
+        const characters = game.actors.filter(a => a.type === "character");
+        const before = new Map(characters.map(a => [a.id, new Set(TB.bulletsOf(a).map(i => i.uuid))]));
+        const fresh = a => TB.bulletsOf(a).filter(i => !before.get(a.id)?.has(i.uuid));
+        const counts = () => Object.fromEntries(characters.map(a => [a.id, fresh(a).length]).filter(([, n]) => n));
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const flagsWere = { cub: cub.getFlag(MODULE_ID, FLAGS.monocub), spectator: spectator.getFlag(MODULE_ID, FLAGS.spectator) };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        const seen = {};
+        let win = null, hook = null, dead = false, living = [];
+        const give = async id => {
+            const giving = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            const picked = giveWindow()?.element?.querySelector('select[name="recipient"]')?.value ?? null;
+            giveWindow()?.element?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            const answer = await Promise.race([giving, wait(8000).then(() => "timeout")]);
+            await gmStoresIdle();
+            return { picked, answer };
+        };
+        try {
+            await deathStore.patch(cub.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            dead = true;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await spectator.setFlag(MODULE_ID, FLAGS.spectator, true);
+            living = livingStudentsForGm().map(a => a.id);
+            must(living.length >= 2, "fewer than two living students once the fixtures stand - this would measure nothing");
+            for (const id of ids) await S.setCaseNode(chapter, id, { kind: "bullet", label: `SUITE everyone ${id.slice(-1)}`, tell: false });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const base = `case:${chapter}:${ids[0]}`;
+            root?.querySelector(`[data-drpg-node="${ids[0]}"]`)?.click();
+            await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
+            const select = win.field(`${base}:recipient`);
+            must(select, "the planned Truth Bullet's node did not open with its recipient");
+            seen.option = [...select.options].find(o => o.value === EVERYONE)?.textContent.trim() ?? null;
+            select.value = EVERYONE;
+            root.querySelector(".drpg-case-edit:not([hidden]) [data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.recipient === EVERYONE, 4000).catch(() => {});
+            seen.stored = S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.recipient ?? null;
+            await win.close();
+            win = null;
+            const first = await give(ids[0]);
+            seen.first = { picked: first.picked, answer: first.answer, copies: counts(), given: Number.isFinite(S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.given) };
+            // the second plan, Everyone written in its row, one living student's copy refused
+            const before2 = counts();
+            await S.setCaseNode(chapter, ids[1], { recipient: EVERYONE });
+            await gmStoresIdle();
+            const refused = living[0];
+            hook = Hooks.on("preCreateItem", item => (item.parent?.id === refused ? false : undefined));
+            ui.notifications.warn = (msg, ...rest) => { warned.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+            const second = await give(ids[1]);
+            const after2 = counts();
+            seen.second = { answer: second.answer, added: Object.fromEntries(Object.entries(after2).map(([id, n]) => [id, n - (before2[id] ?? 0)]).filter(([, n]) => n)),
+                named: warned.some(m => m.includes(game.actors.get(refused)?.name ?? "\u0000")), given: S.caseNodeOf(S.caseRows(chapter).rows[ids[1]])?.given ?? null };
+        } finally {
+            ui.notifications.warn = warn;
+            if (hook !== null) Hooks.off("preCreateItem", hook);
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const a of characters) for (const item of fresh(a)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            for (const id of ids) await S.dropCaseNode(chapter, id).catch(() => {});
+            if (dead && deathStore.has(cub.id)) await deathStore.drop(cub.id);
+            if (flagsWere.cub === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagsWere.cub);
+            if (flagsWere.spectator === undefined) await spectator.unsetFlag(MODULE_ID, FLAGS.spectator); else await spectator.setFlag(MODULE_ID, FLAGS.spectator, flagsWere.spectator);
+            await gmStoresIdle();
+        }
+        const one = list => Object.fromEntries(list.map(id => [id, 1]));
+        equal(stableJson(seen), stableJson({
+            option: game.i18n.localize("DRPG.Items.everyone"),
+            stored: EVERYONE,
+            first: { picked: EVERYONE, answer: true, copies: one(living), given: true },
+            second: { answer: false, added: one(living.slice(1)), named: true, given: null }
+        }), "{the node's Everyone option; the row's recipient after the close; the first give: the window's recipient, its answer, each character's new Truth Bullets, the plan given; the second, one copy refused: its answer, the copies it added, the warning naming the student, the plan's given}");
+    }],
+
     ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~01:05: the case plans its Autopsy on a node of its own

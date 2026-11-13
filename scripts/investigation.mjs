@@ -25,7 +25,7 @@
 
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL,
-    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, itemIcon } from "./config.mjs";
+    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc, itemIcon, RECIPIENT_EVERYONE } from "./config.mjs";
 import { SETTINGS, isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
@@ -2652,7 +2652,9 @@ function schemaEditor(graph, node) {
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
         const check = (field, key, on) => editRow(L(key), `<input type="checkbox" name="${esc(name(field))}" aria-label="${esc(L(key))}"${on ? " checked" : ""} />`);
         const recipients = `<option value=""${node.recipient ? "" : " selected"}>${esc(L("DRPG.CaseMap.noRecipient"))}</option>`
-            + studentActors().map(a => `<option value="${esc(a.id)}"${a.id === node.recipient ? " selected" : ""}>${esc(a.name)}</option>`).join("");
+            + studentActors().map(a => `<option value="${esc(a.id)}"${a.id === node.recipient ? " selected" : ""}>${esc(a.name)}</option>`).join("")
+            // every living student, a copy each (1.2.113; config.mjs `RECIPIENT_EVERYONE`)
+            + `<option value="${RECIPIENT_EVERYONE}"${node.recipient === RECIPIENT_EVERYONE ? " selected" : ""}>${esc(L("DRPG.Items.everyone"))}</option>`;
         return [
             ...(node.sent ? [`<p class="drpg-case-info-note">${esc(L("DRPG.CaseMap.bulletGiven"))}</p>`] : []),
             editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
@@ -3293,7 +3295,8 @@ export async function runDashboardButton(action) {
  * A PLANNED TRUTH BULLET GIVEN (E104): the Give Truth Bullet window (gm-items.mjs `giveTruthBulletDialog`) opens on Write
  * new with every field the plan holds, on its planned recipient (else the first student, which the window shows), and
  * the GM gives it there; given, the plan is marked so (`given`). The window refuses one with no name, as ever. Answers
- * whether it was given.
+ * whether it was given. A plan to Everyone (1.2.113) opens on Everyone, and is marked only when every living student got
+ * a copy: the window names those who did not, and the plan stays to be given again.
  */
 async function givePlannedBullet(chapter, id, row) {
     const { giveTruthBulletDialog } = await import("./gm-items.mjs");

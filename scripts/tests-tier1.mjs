@@ -8281,6 +8281,18 @@ const INVARIANTS = [
             asks: [true, true, true]
         }), "[the store's name, key, kind, reset group, backup, sync and that any GM may write it; its setting's scope and config; on a player's engine the row and what was stored; the gate from a player, on a player's browser, from a GM; each writer asks for a GM]");
     }],
+    ["R5831 - a Truth Bullet everyone holds is still one input (1.2.113; the owner, 13.11.2026: \"give it to everyone\"): case-schema.mjs `reachability` counts an input once however many students hold it - a deduction on two inputs, one held by four students who are not the culprit and one held by nobody, holds 1 of 2 and is not reachable; each input held by one student makes it reachable", async () => {
+        /* Pure over a graph and holders the test writes. A guard, not red first: the reading is unchanged by
+           "Everyone"; it is held here so that a copy per student never turns into an input per student. */
+        const S = await import("./case-schema.mjs");
+        const graph = { nodes: [{ id: "b", evidence: true }, { id: "k", evidence: true }, { id: "d", evidence: false }],
+            edges: [{ kind: "input", from: "b", to: "d" }, { kind: "input", from: "k", to: "d" }] };
+        const everyone = S.reachability(graph, { b: ["s1", "s2", "s3", "s4"] }, { culpritId: "s5", living: ["s1", "s2", "s3", "s4", "s5"] });
+        const each = S.reachability(graph, { b: ["s1"], k: ["s2"] }, { culpritId: "s5", living: ["s1", "s2", "s3", "s4", "s5"] });
+        equal(stableJson({ everyone: everyone.d, holders: everyone.b.holders.length, each: each.d.reachable }),
+            stableJson({ everyone: { held: 1, of: 2, needed: 2, reachable: false }, holders: 4, each: true }),
+            "{the deduction with the bullet held by four; that bullet's holders; the deduction with each input held by one}");
+    }],
     ["R5830 - a Planned Truth Bullet keeps its picture (1.2.113; the owner, 13.11.2026, \"yes\" to a picture field like a planned Remnant's): case-schema.mjs `caseNodeOf` reads a bullet row's `img` as written, \"\" when it has none, as it reads a planned Remnant's and a planned Final Truth's, and a kind that plans no picture (a deduction) still reads null", async () => {
         /* Pure over three rows the test writes in memory; nothing stored. Red at 1ffc6fc2: a bullet's `img` read null,
            so a picture picked in its node would have been dropped at the next read. */
