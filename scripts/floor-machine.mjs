@@ -45,7 +45,7 @@ export const MODES = Object.freeze({ debate: "debate", objection: "objection", r
  * trial-modes.mjs `turnOnPrimary`) and the turn's length. The round stays on the floor through an Objection's
  * exchange (every row spreads the floor), so the exchange's end can resume it.
  */
-export const ROUND_MODES = Object.freeze([MODES.testimony, MODES.panic]);
+const ROUND_MODES = Object.freeze([MODES.testimony, MODES.panic]);
 
 /** Whether `mode` is a round's: Testimony or Panic Round. */
 export function isRoundMode(mode) {

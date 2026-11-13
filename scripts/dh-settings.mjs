@@ -57,7 +57,7 @@ import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 export const WINDOW_CLASS = "drpg-window-dh-settings";
 
 /** The class on a hidden field's wrapper (with `hidden`). */
-export const UNUSED_CLASS = "drpg-dh-unused";
+const UNUSED_CLASS = "drpg-dh-unused";
 
 /** Every field the Details and Experiences tabs draw (Daggerheart 2.6.5), with where the module reads it or "unused". */
 export const SETTINGS_FIELDS = Object.freeze([
@@ -75,7 +75,7 @@ export const SETTINGS_FIELDS = Object.freeze([
 export const UNUSED_FIELDS = Object.freeze(SETTINGS_FIELDS.filter(field => !field.used).map(field => field.name));
 
 /** The window's width: `--drpg-popup`'s 34rem, read as WINDOW_WIDTHS's rows are (ui-kit.mjs `kitWidth`). */
-export const WINDOW_REM = 34;
+const WINDOW_REM = 34;
 
 export function settingsWidth() {
     const root = typeof getComputedStyle === "function" && globalThis.document?.documentElement ? getComputedStyle(document.documentElement) : null;

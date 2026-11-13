@@ -23,7 +23,7 @@ import { MODULE_ID } from "./config.mjs";
 import { spectatorViewer, spectatorUserIds, talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { error, log, isPrimaryGm } from "./utils.mjs";
 
-export const SPECTATOR_BODY_CLASS = "drpg-spectator";
+const SPECTATOR_BODY_CLASS = "drpg-spectator";
 
 /**
  * THE "SPECTATOR TALK" SWITCH's one write (E92 C6): the player's own User flag (scripts/spectator.mjs

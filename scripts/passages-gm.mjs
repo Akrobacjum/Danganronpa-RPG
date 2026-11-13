@@ -439,8 +439,9 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
  * the open or in secret as any project, D37). The owner's three of 15.10 since C5 (the owner, 15.10; the stage's Q2 of
  * 19.10: "Tak"): Seal the passage, Hand, and Close the breach, Body - the statistics of their counterparts, which the GM
  * may change at the approval - both Complex; Repair an item, Hand, whose size is the item's tier's (`byTier`: tier 0-1
- * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, is E68's
- * `PROJECT_KINDS`, which this table goes into.
+ * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, was to be a
+ * kind of E68's project table, which this table would go into; E68 shipped (1.2.104) with no such table, and the presets
+ * are read from here (action-project.mjs).
  */
 export const PASSAGE_PRESETS = Object.freeze({
     secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
@@ -986,7 +987,7 @@ export function passageResetTally({ stores = PASSAGE_STORES, scenes = game.scene
  * (D36). A project's breach (E15 part 2 C3) is a hole in a world's wall, not a row the cut can take: every one is
  * closed first, its wall given back, read off the walls themselves, before anything of the group's own goes.
  */
-export async function clearSeasonPassages() {
+async function clearSeasonPassages() {
     await closeEveryBreach();
     await passagesAfterReset();
 }
@@ -2539,8 +2540,8 @@ async function noteFindFact({ actorId, rollId, by, place = null }) {
  * measured: a fifth of a cell is a slip of the hand, half a cell reaches into the room beyond the
  * thickest wall the seeded maps draw. A stretch shorter than `PICK_SHORTEST` is a double click.
  */
-export const PICK_RADIUS = 20;
-export const PICK_REACH = 50;
+const PICK_RADIUS = 20;
+const PICK_REACH = 50;
 export const PICK_SHORTEST = 8;
 const PROBES = [0.35, 0.6, 0.85, 1];
 
@@ -2829,7 +2830,7 @@ async function tuck(dialog, away) {
 }
 
 /** The pick's stretch on the overlay's layer "pick": the start, the snapped pointer and the line between; nothing for none. */
-export function drawPickLayer({ first = null, at = null, ok = true } = {}) {
+function drawPickLayer({ first = null, at = null, ok = true } = {}) {
     const layer = overlayLayer("pick");
     if (!layer) return;
     clearLayer(layer);

@@ -21,7 +21,7 @@
 
 const EPS = 0.004;
 /** The screen the new panes' size is read at (E61 round 5): at it and below, the standing panes' middle area; above it, that grown with the screen's area. */
-export const REFERENCE_SCREEN = [1366, 768];
+const REFERENCE_SCREEN = [1366, 768];
 /* above it, a grid cell's area over the target, and the target over the standing panes' middle grown with the screen:
    read on the harness's cuts at 1440x900, 1600x900, 1920x1080 and 2560x1440, eight seeds each (12.11.2026), as the pair
    that keeps the new panes' median share of the screen within a tenth of 1366x768's (R3719) */
@@ -32,7 +32,7 @@ const centroid = poly => { const n = poly.length; return [poly.reduce((s, q) => 
 const dedupe = poly => poly.filter((q, i) => { const p = poly[(i + poly.length - 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.01; });
 
 /** A convex polygon split by the line through (px, py) with normal (nx, ny): [side >= 0, side < 0] (glass.mjs `split`). */
-export function splitPoly(poly, px, py, nx, ny) {
+function splitPoly(poly, px, py, nx, ny) {
   const A = [], B = [];
   const side = ([x, y]) => (x - px) * nx + (y - py) * ny;
   for (let i = 0; i < poly.length; i++) {
@@ -84,7 +84,7 @@ function simplify(poly) {
 }
 
 /** The smallest inner angle of a convex polygon, in degrees. */
-export function minAngle(P) {
+function minAngle(P) {
   return Math.min(...P.map((q, i) => {
     const a = P[(i + P.length - 1) % P.length], c = P[(i + 1) % P.length], u = [a[0] - q[0], a[1] - q[1]], v = [c[0] - q[0], c[1] - q[1]];
     return Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (Math.hypot(...u) * Math.hypot(...v) || 1)))) * 180 / Math.PI;

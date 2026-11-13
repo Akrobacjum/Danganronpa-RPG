@@ -19,9 +19,9 @@ import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
 import { launcher, drpgWindow, box } from "./ui-kit.mjs";
-import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
+import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
-import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
+import { flagsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
@@ -687,27 +687,6 @@ function keepPanelFresh(dialog) {
         watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark] }
     });
 }
-
-/**
- * Announce (or end) the Final Trial. World-scoped and public on purpose - the
- * table already knows the endgame trial is happening the moment it starts;
- * only the Mastermind's identity stays hidden, and that lives elsewhere.
- */
-/**
- * Alive / dead / Monocub, in one place, in both directions.
- *
- * The module already had every one of these operations and no honest way to
- * reach them. `A character dies` only kills; the Monocub dialog only opts in
- * somebody the module already believes is dead; and `reviveCharacter` existed
- * solely on `game.drpg`. So a GM who mis-clicked a death, or wanted to bring
- * somebody back as a Monocub on the spot rather than after a trial, was writing
- * console commands mid-session.
- *
- * Deliberately does NOT re-run the death procedure. `killCharacter` destroys an
- * inventory and cannot be undone, and this is the repair tool - it moves the two
- * flags and nothing else. Killing somebody properly is still `A character dies`,
- * one section up, where the warning about the inventory lives.
- */
 
 /**
  * Everything this client has failed at since the page loaded.

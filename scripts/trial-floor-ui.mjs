@@ -872,7 +872,7 @@ export function barLabel(op, step = TRIAL.modes.gm.adjustSeconds) {
 }
 
 /** Whether an Objection or its rebuttal holds the floor in a running Class Trial: Enter presses nothing then. */
-export function exchangeRuns(floor = trialFloor()) {
+function exchangeRuns(floor = trialFloor()) {
     return getClock().phase === "classTrial" && Boolean(floor) && floor.mode !== FLOOR_MODES.debate;
 }
 

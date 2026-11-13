@@ -2,7 +2,7 @@
  * Danganronpa RPG - the stash's reach.
  * ---------------------------------------------------------------------------
  * What a character does at a stash, and what a GM judges of it: whether this is
- * their own stash, here (`myStashHere`, `atOwnVault`); putting an item away and
+ * their own stash, here (`myStashHere`); putting an item away and
  * taking one out (`stow`, `retrieve`) with the refusals both give
  * (`tellNotHere`, `refuseTheDead`); the stashes open to a character in a room
  * (`openStashesHere`, `openStashHere`); the rifle - its window, its key and its
@@ -53,12 +53,6 @@ export async function myStashHere(actor) {
     const place = locateActor(actor);
     if (!place?.room) return null;
     return stashIn(place.room, actor.id, place.scene) ? place.room : null;
-}
-
-/** Whether this character stands in one of its own stashes (`myStashHere`). Not on `game.drpg`, and nothing in the
- *  module calls it (E52 C6, S01-52: this comment named it there as a compatibility entry). */
-export async function atOwnVault(actor) {
-    return Boolean(await myStashHere(actor));
 }
 
 /**

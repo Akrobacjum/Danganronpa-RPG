@@ -274,7 +274,7 @@ export function registerHud() {
  * typed there would be written to the marks. This stays for any other bar a student's token is
  * pointed at (Hope, say), which the attribute leaves as Foundry answers it.
  */
-export function stillTokenBars(app, element) {
+function stillTokenBars(app, element) {
     try {
         if (game.user?.isGM || getSetting(SETTINGS.lockPlayerResources) === false) return;
         const actor = app?.actor ?? app?.document?.actor ?? null;

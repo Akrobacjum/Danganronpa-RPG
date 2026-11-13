@@ -209,7 +209,7 @@ export function knownPassages() {
  * The known passages on one scene, `[{ id, ...row }]`, on one floor when one is named (a row on no floor in
  * particular is on each). `known` is the suite's (R556): rows of its own in the copy's shape.
  */
-export function secretRowsOn(sceneId, level = null, { known = knownPassages() } = {}) {
+function secretRowsOn(sceneId, level = null, { known = knownPassages() } = {}) {
     return Object.entries(isPlain(known) ? known : {})
         .filter(([, row]) => row?.sceneId === sceneId && onLevelOf(row, level))
         .map(([id, row]) => ({ id, ...row }));
@@ -448,7 +448,7 @@ export function cutSegment(wall, open, tolerance = PASSAGE_TOLERANCE) {
  * leaf imports no more (R560). Whether Foundry 14 holds a GM's own drag to the walls at all is not
  * measured here (foundryvtt.com cannot be read from this machine): LIVE-E79-08.
  */
-export function passageSegmentsFor(config, { known, gm = game.user?.isGM } = {}) {
+function passageSegmentsFor(config, { known, gm = game.user?.isGM } = {}) {
     if (Array.isArray(config?.drpgPassages)) {
         return config.drpgPassages.map(seg => segmentOf(seg?.id ?? null, { passageWallId: seg?.wallId, passageSeg: seg }))
             .filter(seg => seg?.wallId);

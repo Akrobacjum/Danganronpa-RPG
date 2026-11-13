@@ -505,13 +505,13 @@ export async function zeroAllDespair() {
  * (`zeroAllDespair`, on the primary since E37 C7), then every student's Hope back to the start (season-setup.mjs
  * `wipeStudent`'s `despair` part).
  */
-export async function clearSeasonDespair(ctx) {
+async function clearSeasonDespair(ctx) {
     await zeroAllDespair();
     await ctx.everyStudent("despair");
 }
 
 /** What the reset window counts of the Despair: the pools holding any (season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonDespair() {
+function tallySeasonDespair() {
     let held = 0;
     try {
         held = Object.values(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {}).filter(v => Number(v) > 0).length;
@@ -943,7 +943,6 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
  * WIDGET
  * ========================================================================== */
 
-/** Build or rebuild the Despair rows. Safe to call repeatedly. */
 /**
  * THE NAME COLUMN IS AS WIDE AS THE LONGEST NAME (Dawid, 22.09: "napisy w despair pool nachodza
  * na ikonki i sa przez to uciete").
@@ -966,6 +965,9 @@ function fitNameColumn(wrapper) {
     if (widest > 0) wrapper.style.setProperty("--drpg-despair-name-w", `${Math.ceil(widest) + 2}px`);
 }
 
+/**
+ * Build or rebuild the Despair rows. Safe to call repeatedly.
+ */
 export function renderDespairBar() {
     try {
         // the module's own stack on a narrow screen, Foundry's top bar on a desk
@@ -1143,7 +1145,7 @@ function buildRow(user) {
 
     // Everyone has a reading now (D3): the pool's count is shown on every
     // client, so the pips that were just paid animate on every client too.
-    // Only the OVERFLOW stays masked for a player - see `renderOverflowCaption`.
+    // Only the OVERFLOW stays masked for a player - see `buildOverflowCaption`.
     const spent = spentSince("despair", user.id, held);
 
     const row = document.createElement("div");

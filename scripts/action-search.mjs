@@ -695,7 +695,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
 }
 
 /** The statistic a Search is checked against and needs no card for (DA49). */
-export const SEARCH_DEFAULT = "eye";
+const SEARCH_DEFAULT = "eye";
 
 /**
  * The statistic a Search rolls, `{ trait, byGm }`, or null when it is not to be rolled (E68 C6, 10.11.2026; DA2, DA49).

@@ -729,7 +729,7 @@ export async function clearSeasonDeaths(ctx) {
 }
 
 /** What the reset window counts of the deaths: the students dead for the GMs (season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonDeaths() {
+function tallySeasonDeaths() {
     return [plural("DRPG.Season.resetDead", { n: studentActors().filter(isDeadForGm).length })];
 }
 
@@ -1338,8 +1338,8 @@ export async function announceBody(row) {
  * (`Hooks.callAll`) and stops nobody else's.
  */
 export const BODY_ANNOUNCED_HOOK = "drpgBodyAnnounced";
-export const BODY_ANNOUNCED_WAIT_MS = 1500;
-export const BODY_ANNOUNCED_STALE_MS = 60000;
+const BODY_ANNOUNCED_WAIT_MS = 1500;
+const BODY_ANNOUNCED_STALE_MS = 60000;
 const announcedSeen = new Set();
 let announcedPrimed = false;
 let announcedReadyAt = 0;
@@ -1353,7 +1353,7 @@ function announcedRowKey(key, row) {
  * The hook's payload for `row`, filed under `key` (E95 C4): the stamp's fields and its key's, nothing else; and
  * `rehearsal: true` where the stamp carries it (E95 fix RV-12), which only the suite's stamps do.
  */
-export function bodyAnnouncedPayload(key, row) {
+function bodyAnnouncedPayload(key, row) {
     const [epoch, chapter] = String(key).split(":").map(Number);
     const payload = { chapter, epoch, victimIds: [...(row?.victimIds ?? [])], room: row?.room ?? null, sceneId: row?.sceneId ?? null,
         at: row?.at ?? null, by: row?.by ?? null };
@@ -1970,12 +1970,6 @@ export async function sweepTruthBullets({ actors = null } = {}) {
 }
 
 /**
- * The GM's end-of-chapter panel.
- *
- * One screen with counts, because two of these three cannot be undone and a GM
- * deserves to see the number before it happens rather than after.
- */
-/**
  * Take this chapter's planted Key Remnants off the map.
  *
  * NOTHING DID THIS, AND NOTHING COULD. A Key Remnant is placed `reinforced` and
@@ -2093,6 +2087,12 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
         </form>`;
 }
 
+/**
+ * The GM's end-of-chapter panel.
+ *
+ * One screen with counts, because two of these three cannot be undone and a GM
+ * deserves to see the number before it happens rather than after.
+ */
 export async function openChapterEndDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -2249,7 +2249,7 @@ let endRunning = false;
  * Until 1.2.97 an end kept no record: a step that failed was named and the GMs told to finish by hand, and ending the
  * chapter again - the one road back - redid every step (E42-T4, measured at cef11276: the session and the day moved twice).
  */
-export function chapterEndRecord() {
+function chapterEndRecord() {
     return game.settings.get(MODULE_ID, SETTINGS.chapterEnd) ?? {};
 }
 

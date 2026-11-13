@@ -74,7 +74,7 @@ export function cleanEffect(raw) {
 }
 
 /** An action's effects, cleaned (`cleanEffect`), at most `maxEffects`. Pure. */
-export function cleanEffects(list) {
+function cleanEffects(list) {
     return (Array.isArray(list) ? list : []).map(cleanEffect).filter(Boolean).slice(0, FACILITIES.maxEffects);
 }
 

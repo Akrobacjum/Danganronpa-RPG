@@ -238,7 +238,7 @@ export async function tellOnlookers(actor, victim, html, { body = false } = {}) 
  * wear, no roles and no identity, so an item a trap is planted on reads byte for byte as a clean one (the trap's only
  * mark is the identity the GMs' `trapLedger` keeps). A key is in the pocket under its own name, 'Key - {room}'.
  */
-export function friskLine(item) {
+function friskLine(item) {
     const category = ITEM_CATEGORIES[item?.getFlag?.(MODULE_ID, "category")]?.label ?? "";
     const tier = item?.getFlag?.(MODULE_ID, "tier");
     const count = Number(item?.system?.quantity) || 1;
@@ -251,7 +251,7 @@ export function friskLine(item) {
  * What a searcher sees of `target`'s pockets: the heading and a `<ul>` of `friskLine`s, or the empty pocket's line.
  * The same for every student - the Mastermind's pockets read as anybody's.
  */
-export function friskListHtml(target, pockets) {
+function friskListHtml(target, pockets) {
     return listOfLines(target, (pockets ?? []).map(friskLine));
 }
 
@@ -449,7 +449,7 @@ const FRISK_ASK = "frisk.ask";
 /** primary -> the same people: the ask is answered or over, its window closes. */
 const FRISK_CANCEL = "frisk.cancel";
 /** The outcomes that end an ask before its row is written, the action handed back by the searcher's browser. */
-export const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youBusy", "isBody"]);
+const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youBusy", "isBody"]);
 /**
  * The outcomes whose action the searcher's browser hands back, by what it paid (action-pipeline.mjs `abort`, its receipt):
  * those above, and an ask `interrupted` with no dice thrown. Handed back there and not by the primary, which cannot tell
@@ -458,9 +458,9 @@ export const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youB
  * nobody waits any more (a page reloaded), so its card says only that the moment has passed, and the browser that hands
  * the action back says it is back (`DRPG.Frisk.actionBack`; E80 fix r2-G1, the review's fx-1).
  */
-export const FRISK_HANDED_BACK = Object.freeze([...FRISK_REFUNDED, "interrupted"]);
+const FRISK_HANDED_BACK = Object.freeze([...FRISK_REFUNDED, "interrupted"]);
 /** How long past its force's clock a refused or unanswered row waits for the follow that ends it (`TIMING.friskMarginMs`). */
-export const FRISK_MARGIN_MS = TIMING.friskMarginMs;
+const FRISK_MARGIN_MS = TIMING.friskMarginMs;
 
 /** The pairs asked, `searcherId>targetId`, with the time of day they were asked in: one ask a pair a time of day (chosen). */
 const askedPairs = new Map();
@@ -1055,7 +1055,7 @@ export function friskPacketRefusal(payload, senderId, { me = game.user, users = 
 }
 
 /** A `frisk.ask` or `frisk.cancel` on this browser; answers whether it was taken. */
-export async function onFriskPacket(payload, senderId) {
+async function onFriskPacket(payload, senderId) {
     if (![FRISK_ASK, FRISK_CANCEL].includes(payload?.action)) return false;
     const why = friskPacketRefusal(payload, senderId);
     if (why) {

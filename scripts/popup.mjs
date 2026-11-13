@@ -43,7 +43,7 @@ import { MESSAGE_FLAG, plural, debug, markLanguage } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP, reducedMotion } from "./motion.mjs";
 import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
-import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
+import { wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
 
 import { setTip } from "./ui-kit.mjs";
 

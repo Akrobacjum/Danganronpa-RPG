@@ -128,7 +128,7 @@ export const MODE_STARTS = Object.freeze({
 });
 
 /** The reasons a mode has no start button (MODE_STARTS). */
-export const MODE_START_REASONS = Object.freeze(["raisedByPlayer"]);
+const MODE_START_REASONS = Object.freeze(["raisedByPlayer"]);
 
 /**
  * THE MODES' CENSUS (E99 C2; pure): what is wrong between the trial's modes (`modes`, floor-machine.mjs MODES), their
@@ -438,7 +438,7 @@ export function inClassTrial() {
  * The actors of `ids` whose player is not connected - a round's speaker with nobody at the keyboard passes at once
  * (E70-45; the GM's spare student is one: no player owns it). Read on the primary at the step.
  */
-export function absentOf(ids = []) {
+function absentOf(ids = []) {
     return (Array.isArray(ids) ? ids : []).filter(id => {
         const actor = game.actors.get(id ?? "");
         return !actor || !game.users.some(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
@@ -458,7 +458,7 @@ function floorCtx(floor, now = serverNow()) {
  * hall's zones are there; the start's card names the mode, its question and the two zones' answers. The floor written,
  * or null.
  */
-export async function zoneStartInStep(event) {
+async function zoneStartInStep(event) {
     if (!isPrimaryGm() || !inClassTrial()) return null;
     const floor = trialFloor();
     const ctx = { ...floorCtx(floor), ...zoneCtxOf(null), stands: snapshotStands() };
@@ -1041,7 +1041,7 @@ export async function openObjectionInStep(objectorId, targetId, { pending = fals
      * PENDING, OR WITH ITS EVIDENCE (E79 C16, 1.2.79). A player's Objection opens the floor before its Truth Bullet
      * is chosen (trial.mjs `objectOnPrimary`, the owner's rule of 17.10.2026): `pending` gives the objector
      * `TRIAL.objectionPickSeconds` to fill the card `messageId` names, and the minute starts at the fill
-     * (`fillObjection`). Every other caller - the GM's card road (`seizeFloor`), the API, the suite - opens it with
+     * (`fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`). Every other caller - the GM's card road (`seizeFloor`), the API, the suite - opens it with
      * its evidence, as before.
      */
     /*
@@ -1127,7 +1127,10 @@ export async function fillObjection(objectorId, messageId) {
     return floorStep("fill", { actorId: objectorId, messageId });
 }
 
-/** `fillObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`). */
+/**
+ * The fill's judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`, its one road;
+ * `fillObjection` above, which would ask it through the floor's op `fill`, has no caller).
+ */
 export async function fillObjectionInStep(objectorId, messageId) {
     // Under the heartbeat's latch (`advancing`): a fill read inside the seconds and written after the lapse would
     // turn the debate the lapse wrote into an objection's floor with nobody's card on it.
@@ -1184,7 +1187,7 @@ export async function withdrawObjection(objectorId, messageId) {
 }
 
 /** `withdrawObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary. */
-export async function withdrawObjectionInStep(objectorId, messageId) {
+async function withdrawObjectionInStep(objectorId, messageId) {
     if (!game.user.isGM || advancing) return null;
     const floor = trialFloor();
     if (!pendingFor(floor, objectorId, messageId)) return null;
@@ -1210,7 +1213,7 @@ export async function repointObjection(targetId) {
 }
 
 /** `repointObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary. */
-export async function repointObjectionInStep(targetId) {
+async function repointObjectionInStep(targetId) {
     const floor = trialFloor();
     if (floor?.mode !== FLOOR_MODES.objection) return null;
     if (targetRefusal(floor.holderId, targetId, floor)) return null;
@@ -1311,7 +1314,7 @@ export async function endFloorInStep({ withdraw = true } = {}) {
  * ends the floor as a rebuttal's own end does - the exchange is over and the trial is back in discussion, not in a
  * debate nobody opened. Told in chat ("The GM ends the {mode}."). In a step of `SEIZE_KEY` on the primary.
  */
-export async function endModeInStep() {
+async function endModeInStep() {
     const floor = trialFloor();
     if (!floor) return null;
     return commitFloor(floor, nextFloor(floor, { type: "endMode" }, floorCtx(floor)), "endMode");

@@ -111,6 +111,19 @@ export const ITEM_FLAGS = {
 };
 
 /**
+ * Does finding this thing leave a trace? The rule of D-28.08: a trace is
+ * evidence of having handled an OBJECT, so it is read off what was found -
+ * the category plus the roles the table entry declared - and never off the
+ * intention. One copy, used by the Search and by the Reroll that replays it.
+ * The roles are config.mjs `ACTIONS.search.leavesRemnant.onlyFor`, read here
+ * rather than spelt a second time (E41 C1b; audit S02-64).
+ */
+export function leavesTraceFor(category, roles = []) {
+    const all = new Set([category, ...(roles ?? [])]);
+    return ACTIONS.search.leavesRemnant.onlyFor.some(role => all.has(role));
+}
+
+/**
  * The flags a COPY of an item has to carry to still be the same object.
  *
  * An item that changes hands is not moved, it is recreated on the other person
@@ -124,19 +137,6 @@ export const ITEM_FLAGS = {
  * per-item state has one place to be added to instead of two to be
  * remembered in.
  */
-/**
- * Does finding this thing leave a trace? The rule of D-28.08: a trace is
- * evidence of having handled an OBJECT, so it is read off what was found -
- * the category plus the roles the table entry declared - and never off the
- * intention. One copy, used by the Search and by the Reroll that replays it.
- * The roles are config.mjs `ACTIONS.search.leavesRemnant.onlyFor`, read here
- * rather than spelt a second time (E41 C1b; audit S02-64).
- */
-export function leavesTraceFor(category, roles = []) {
-    const all = new Set([category, ...(roles ?? [])]);
-    return ACTIONS.search.leavesRemnant.onlyFor.some(role => all.has(role));
-}
-
 export function preservedFlags(item) {
     const flags = {};
     if (isBroken(item)) {
@@ -713,24 +713,6 @@ export function carriedFor(actor, role) {
 }
 
 /**
- * Create a found item on the character.
- *
- * Refuses when the category is full rather than silently exceeding the limit -
- * the carry limits (see LIMIT_GROUPS: one shared two-slot Gear group) are the rule.
- *
- * @param {object} [options.extraFlags]  Further module flags written in the same
- *   creation. Truth Bullets carry a good deal more than a category and a tier,
- *   and patching them on afterwards would leave a moment - one database write
- *   long, but a real one - where a Truth Bullet exists with no type at all.
- * @param {string} [options.reason]  the creation's reason and `ref`, as `wearItem`'s
- * @param {object} [options.counted]  the receiver as the GMs hold its items (sheet-audit.mjs
- *   `actorAsHeld`), where a GM's copy road read it so (E29 fix r2-H18): the carry cap is
- *   counted on it rather than on `actor`'s document, which a player's console can have
- *   written a moment before - a slot emptied by a stash its put-back undoes. The item is
- *   still created on `actor`.
- * @returns {Promise<Item|null>}
- */
-/**
  * THE OLD TIER 3 WORDING ON ITEMS ALREADY MADE (E14 fix e1-G5, 24.10.2026; the review's E14R-08). C5 changed what a tier
  * 3 usable does (3 of its kind, no choice and no Hope: the owner of 15.10), and `grantItem` writes the effect into an
  * item's description once, when it is made - so a world upgraded with tier 3 usables made before C5 kept "Restores 2
@@ -739,7 +721,7 @@ export function carriedFor(actor, role) {
  * it, in English or in Polish (`OLD_TIER_THREE`), is given today's for its kind (`USABLE_KIND_EFFECTS`, else
  * `TIER_EFFECTS`), by a GM's ruling. Any other text - a GM's, a table's - is left. Answers how many were rewritten.
  */
-export const OLD_TIER_THREE = Object.freeze([
+const OLD_TIER_THREE = Object.freeze([
     "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.",
     "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
 ]);
@@ -765,6 +747,24 @@ export async function refreshTierThreeWording() {
     return rewritten;
 }
 
+/**
+ * Create a found item on the character.
+ *
+ * Refuses when the category is full rather than silently exceeding the limit -
+ * the carry limits (see LIMIT_GROUPS: one shared two-slot Gear group) are the rule.
+ *
+ * @param {object} [options.extraFlags]  Further module flags written in the same
+ *   creation. Truth Bullets carry a good deal more than a category and a tier,
+ *   and patching them on afterwards would leave a moment - one database write
+ *   long, but a real one - where a Truth Bullet exists with no type at all.
+ * @param {string} [options.reason]  the creation's reason and `ref`, as `wearItem`'s
+ * @param {object} [options.counted]  the receiver as the GMs hold its items (sheet-audit.mjs
+ *   `actorAsHeld`), where a GM's copy road read it so (E29 fix r2-H18): the carry cap is
+ *   counted on it rather than on `actor`'s document, which a player's console can have
+ *   written a moment before - a slot emptied by a stash its put-back undoes. The item is
+ *   still created on `actor`.
+ * @returns {Promise<Item|null>}
+ */
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
     roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false, reason = "gmRuling", ref = null,
@@ -909,6 +909,18 @@ export async function grantItem(actor, {
 }
 
 /**
+ * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
+ * can be held ready (not broken), else the first working piece stowed beside it, else null (E14 part 1 C5; S08-36).
+ * Pure over the actor's items.
+ */
+export function readyForShape(actor, item, group) {
+    if (item && !isBroken(item)) return item;
+    return (actor?.items ?? []).find(other => other.id !== item?.id && !isBroken(other) && !isStashed(other)
+        && ITEM_CATEGORIES[other.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group
+        && !other.getFlag(MODULE_ID, "equipped")) ?? null;
+}
+
+/**
  * ONE IN A HAND, ONE STOWED, NEVER TWO STOWED - on the way IN as well (D4,
  * Dawid 13.09; audit ITEM-04).
  *
@@ -933,18 +945,6 @@ export async function grantItem(actor, {
  * is readied. With no other piece that can be held ready, or a hand already holding one (never put down: E91 C8's
  * guard), two stay stowed and the GM's log says so, as before.
  */
-/**
- * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
- * can be held ready (not broken), else the first working piece stowed beside it, else null (E14 part 1 C5; S08-36).
- * Pure over the actor's items.
- */
-export function readyForShape(actor, item, group) {
-    if (item && !isBroken(item)) return item;
-    return (actor?.items ?? []).find(other => other.id !== item?.id && !isBroken(other) && !isStashed(other)
-        && ITEM_CATEGORIES[other.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group
-        && !other.getFlag(MODULE_ID, "equipped")) ?? null;
-}
-
 export async function keepGearShape(actor, item, { quiet = false } = {}) {
     try {
         const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);

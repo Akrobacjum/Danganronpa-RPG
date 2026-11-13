@@ -1231,7 +1231,7 @@ export async function resetLedger() {
  * still carry. Both are the group - the same fact, stored in two places - each tried (`everyPart`), and the store's
  * players are sent the cleared rows (`resetLedger`).
  */
-export async function clearSeasonDiscovered() {
+async function clearSeasonDiscovered() {
     await everyPart(() => game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {}), () => resetLedger());
 }
 
@@ -3946,7 +3946,7 @@ function stopDrift() {
  */
 
 /** The fewest milliseconds between two pictures of the drift: ten a second at most (E88-08). */
-export const RASTER_STEP_MS = 100;
+const RASTER_STEP_MS = 100;
 
 /** The drift's state: the offset as it accumulates (`raw`) and the one the tiles show (`shown`), on a clock of its own. */
 export function driftState() {
@@ -4074,7 +4074,7 @@ function onScreen(node) {
 
 /**
  * Let `node` (the raster's group or the backdrop) draw its picture in its place: its own render, kept, draws it live
- * whenever the picture is not the frame's, and the render into the picture itself (`heldBusy` on the node).
+ * whenever the picture is not the frame's, and the render into the picture itself (`drpgHeldDrawing` on the node).
  */
 export function holdStill(node, kind) {
     if (!node || node.drpgHeldRender) return;

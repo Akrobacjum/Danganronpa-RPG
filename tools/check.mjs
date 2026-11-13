@@ -9,8 +9,8 @@
  * later is not a new script somebody forgets to call. Each part prints its own
  * numbers - what it read as well as what it found, because a part that read
  * nothing has proved nothing - and the exit code is 1 when any part is red.
- * Only `names`, `moves` and `text` need `npm ci` in audit/harness (they parse
- * with espree; `text` since E65 C10, for the screen map); the rest are bare
+ * Only `names`, `moves`, `text` and `comments` need `npm ci` in audit/harness (they
+ * parse with espree; `text` since E65 C10, for the screen map); the rest are bare
  * Node, so release.yml runs `stamps notes` before installing anything.
  *
  * Parts:
@@ -202,6 +202,15 @@
  *             hand, is red. Bare Node. The nine remnant-*.svg took the tool's
  *             spelling that day, after a pixel comparison in Chromium at 256,
  *             64 and 240 px read every pixel equal.
+ *   comments  the comments lint (E56 C1; tools/comments-lint.mjs, whose header says
+ *             what it reads, carried from the prep-54 line's 0271bfb2): its
+ *             self-check on a planted fixture and the budget's ratchet first, then
+ *             every module file of scripts/ counted - backticked names in comments
+ *             that no code, language key or stylesheet holds, and two JSDoc blocks
+ *             over one declaration - and held to tools/comment-budget.json: red
+ *             above a row, and red below it until the row is lowered in the same
+ *             commit (`node tools/comments-lint.mjs --write`), so the count only
+ *             falls. Needs espree (`npm ci` in audit/harness).
  *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
  *             header says what it reads): its self-check, then every pair of
  *             tools/contrast-pairs.json in its theme from the tokens the sheets
@@ -1512,6 +1521,16 @@ async function icons() {
     return [...problems, ...(blind ? ["the check answers no problem for an empty set of pictures - it would read nothing and pass"] : [])];
 }
 
+/* -------------------------------- comments -------------------------------- */
+
+/* THE COMMENTS LINT (E56 C1): tools/comments-lint.mjs reads the files and holds the budget. */
+async function comments() {
+    const { commentsLint } = await import(url.pathToFileURL(path.join(REPO, "tools", "comments-lint.mjs")).href);
+    const { problems, summary } = await commentsLint(REPO);
+    console.log(summary);
+    return problems;
+}
+
 /* -------------------------------- contrast -------------------------------- */
 
 /* THE CONTRAST (E44 C1c, 04.11.2026; D29 = 2): the arithmetic is tests-css.mjs's, which R1312 runs on the served files. */
@@ -1578,6 +1597,8 @@ if (LANG_DIR === "" || (LANG_DIR !== null && LANG_DIR.startsWith("--"))) {
 /* `package` (E59 C5a) is registered on a line of its own, not in PARTS' list: three lines adding a part each rewrote that
    one line on 13.11.2026 (prep-54's comments, project-token-icon's icons and this), and a merge of any two conflicted. */
 PARTS.package = pkg;
+// E56 C1: on its own line, as `package` is, so a line that adds a part to PARTS above does not meet this one.
+PARTS.comments = comments;
 const unknown = asked.filter(name => !PARTS[name]);
 if (unknown.length) {
     console.log(`check: no part named ${unknown.join(", ")} (parts: ${Object.keys(PARTS).join(", ")})`);

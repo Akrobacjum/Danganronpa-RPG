@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
-import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, whisperToGms, localeFormat } from "./utils.mjs";
+import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, localeFormat } from "./utils.mjs";
 import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
@@ -49,7 +49,7 @@ const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
  * world's items, `Scene.<id>...` by the scene. A row whose actor was deleted in this
  * world reads as another world's and is left in the old key, where it was.
  */
-export function uuidInThisWorld(uuid) {
+function uuidInThisWorld(uuid) {
     const [kind, id] = String(uuid ?? "").split(".");
     if (kind === "Actor") return Boolean(game.actors?.has(id));
     if (kind === "Item") return Boolean(game.items?.has(id));
@@ -1718,7 +1718,7 @@ export const discoveryStore = defineGmStore({
  * rows on this browser (`discoveryMine`) are taken in weak on every load (`claim`):
  * the only copy of the ledger outside the GMs', which the primary's rebuild asks for.
  */
-export function fogCombine(held, offered, { cut = 0 } = {}) {
+function fogCombine(held, offered, { cut = 0 } = {}) {
     if (sectionProblem(offered?.value)) return null;
     const before = mergeSections(held?.value ?? null, null, discoveryStore.spec);
     const merged = mergeSections(before, offered.value, discoveryStore.spec);
@@ -1822,11 +1822,6 @@ export function spectatorFogSection(section, watcherId, { mastermindId = null } 
         out.t[key] = { "": 0, ...Object.fromEntries([...rooms].map(([room, c]) => [room, c.s])) };
     }
     return out;
-}
-
-/** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
-export function gmStoreLegacyChanged(name) {
-    return gmStoreByName(name)?.legacyChanged() ?? false;
 }
 
 /** Take what changed in a store's old key since the upgrade, by the rules on the handle's `reclaim`. */

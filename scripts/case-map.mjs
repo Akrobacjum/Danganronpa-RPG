@@ -23,7 +23,7 @@ import { esc, plural } from "./utils.mjs";
 import { REMNANT_TYPES, TRUTH_BULLET_TYPES } from "./config.mjs";
 import { caseRows, caseNodeOf } from "./case-schema.mjs";
 import { remnantById } from "./remnants.mjs";
-import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
+import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
    places the drawn nodes at their measured size and moves the camera; read here, and by E99, under these names. */
@@ -42,7 +42,7 @@ export function nodeState(node, finders = null) {
 }
 
 /** The token id of a ledger key `sceneId.tokenId` (the bullets' answer keys name the token, investigation.mjs). */
-export function tokenIdOf(key) {
+function tokenIdOf(key) {
     const s = String(key ?? "");
     const dot = s.indexOf(".");
     return dot < 0 ? s : s.slice(dot + 1);
@@ -221,7 +221,7 @@ export function problemText(p, graph) {
  * WHAT A NODE SAYS WHEN IT IS OPEN (the side panel's reading until the E97 fix, now on the node itself): its state, room,
  * who left it and who holds a copy, its trial mode and reach, "only the culprit", and each problem naming it. Text only.
  */
-export function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [], rows = true } = {}) {
+function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [], rows = true } = {}) {
     if (!node) return "";
     const r = reachOf(node, reach?.[node.id]);
     const ev = node.evidence ? reach?.[node.id] : null;

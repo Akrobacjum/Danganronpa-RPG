@@ -134,7 +134,7 @@ export const HIDDEN_NAME = "???";
  * player, so a cleared chat log took the project out of the tray; the copy is the player's own client setting, which
  * no chat action touches, and is asked again at every load.
  */
-export function toldSight(countdownId) {
+function toldSight(countdownId) {
     const held = projectSightCopy.read()?.[countdownId];
     if (!held || typeof held !== "object") return null;
     return { in: held.in === true, name: typeof held.name === "string" ? held.name : null };
@@ -357,7 +357,7 @@ const LIST_NOT_HERE = "the GMs' list of who sees it has not reached this browser
  * public one wrote an ownership map that hid it from everybody but the one player, while its metadata still
  * called it public - so the tray and the pickers disagreed about who could see it, and nothing ever resealed it.
  */
-export function shareChange(countdownId, userId) {
+function shareChange(countdownId, userId) {
     if (!isSecret(countdownId)) return null;
     const ids = sharedIds(countdownId);
     if (!ids) return { refused: LIST_NOT_HERE };
@@ -365,7 +365,7 @@ export function shareChange(countdownId, userId) {
 }
 
 /** A player taken back off a secret project: the GMs' list without them (S17-31), the map the same for everyone. */
-export function unshareChange(countdownId, userId) {
+function unshareChange(countdownId, userId) {
     if (!isSecret(countdownId)) return null;
     const ids = sharedIds(countdownId);
     if (!ids) return { refused: LIST_NOT_HERE };

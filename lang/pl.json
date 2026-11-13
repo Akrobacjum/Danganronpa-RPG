@@ -651,8 +651,6 @@
         "many": "Ile trwa ta pora dnia. Bursztyn po {first} minutach, czerwień po {second}.",
         "other": "Ile trwa ta pora dnia. Bursztyn po {first} minutach, czerwień po {second}."
       },
-      "bodyFound": "Znaleziono ciało",
-      "bodyFoundTooltip": "Znaleziono ciało, a Investigation jeszcze nie trwa: rozpoczyna je GM.",
       "stillToAct": "Zostały akcje",
       "stillToActTooltip": "Uczniowie, którym zostały akcje. Lista po lewej pokazuje, którzy.",
       "stillPlacing": "Jeszcze się ustawiają",
@@ -1029,7 +1027,6 @@
         "analyze": "np. Analizuję podarty materiał z korytarza.",
         "directMurder": "Kogo, gdzie i jak - tak, jak uzgodniono wcześniej."
       },
-      "analyzeGm": "Oceń to według tabeli Analyze dla tego Truth Bulleta. Porażka blokuje ten Truth Bullet do końca rozdziału.",
       "murderNobody": "Nie ma tu kogo zabić. Próba przepada; spróbuj o innej porze dnia.",
       "murderWitness": {
         "one": "Nie jesteś z ofiarą sam na sam - zobaczyłaby to {n} inna osoba. Próba przepada; spróbuj o innej porze dnia.",
@@ -1041,13 +1038,6 @@
       "sabotageSeen": "Widać, jak {actor} grzebie przy projekcie w: {room}.",
       "sabotageWatched": "{actor} robi coś przy projekcie {project} w: {room}, a wszyscy tu widzą mniej więcej co.",
       "sabotageWatchedAnon": "{actor} robi coś przy jakimś projekcie w: {room}, a wszyscy tu widzą mniej więcej co.",
-      "costCrossings": {
-        "one": "{left} / {max} przejście",
-        "few": "{left} / {max} przejścia",
-        "many": "{left} / {max} przejść",
-        "other": "{left} / {max} przejść"
-      },
-      "costAnyRoom": "dowolny pokój",
       "tierShort": "Tier {tier}",
       "situationAfterRoll": "{n} przez sytuację: liczy się wynik {total}.",
       "waitsForGm": "GM",
@@ -1220,7 +1210,6 @@
       "discardKept": "{item} wciąż jest przy tobie.",
       "tabGive": "Daj",
       "tabTake": "Zabierz",
-      "giveNote": "Przedmiot z tabel albo własny, Truth Bullet, albo klucz do pokoju.",
       "takeNote": "Cokolwiek ma w rękach albo w skrytce - także Truth Bullets i klucze do cudzych pokoi.",
       "giveWhat": "Co",
       "whatItem": "Przedmiot",
@@ -1775,7 +1764,6 @@
       },
       "holdingRound": "{mode}: mówi {who} - {seconds} s. Następny: {next}.",
       "holdingRoundLast": "{mode}: mówi {who} - {seconds} s, ostatnia tura.",
-      "startTestimony": "Testimony",
       "startPanic": "Panic Round",
       "endRound": "Zakończ rundę",
       "closing": {
@@ -2080,18 +2068,8 @@
       }
     },
     "Look": {
-      "language": "Język",
-      "title": "Ustawienia",
       "launcherTooltip": "Ustawienia",
-      "legend": "Wygląd",
-      "theme": "Motyw",
-      "uiScale": "Skala interfejsu",
       "uiScaleAuto": "Ten ekran ({w} x {h}) sam z siebie rysuje w {auto}% skali 1440p; z suwakiem {total}%.",
-      "pixelFont": "Czcionka pikselowa",
-      "pulse": "Puls szkła",
-      "reducedMotion": "Ograniczone animacje",
-      "ticker": "Nazwa stanu za zegarem",
-      "blur": "Szkło rozmywa mapę",
       "messengerSound": "Dźwięki komunikatora",
       "stepUp": "O jeden więcej",
       "stepDown": "O jeden mniej",
@@ -2100,9 +2078,7 @@
       "atMost": "Najwyżej {n}",
       "atLeast": "Co najmniej {n}",
       "note": "Wszystko w tym oknie należy do tej przeglądarki. Nikt inny nie widzi ani nie słyszy różnicy.",
-      "redraw": "Przerysuj szkło",
       "uiScaleSlider": "Ten ekran ma {w} x {h}. Monokuma Legacy bierze sam suwak: {slider}%.",
-      "contrast": "Wysoki kontrast",
       "contrastAuto": "Twój system już prosi o większy kontrast, więc to jest włączone bez względu na przełącznik."
     },
     "Sound": {
@@ -2962,10 +2938,7 @@
       },
       "manageTitle": "Ustawienia pokoi",
       "manageTitleOn": "Ustawienia pokoi - {scene}",
-      "manageIntro": "Wszystko, czym jest pokój, jeden rodzaj faktów na zakładkę. Zastosuj zapisuje każdą zakładkę naraz, niezależnie od tego, która jest widoczna.",
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
-      "bedroomsIntro": "Czyja jest każda sypialnia. Jeden uczeń, jedna sypialnia. Czy skrytka jest ukryta, ustawiasz na zakładce Skrytki.",
-      "doorsIntro": "Które drzwi są teraz zamknięte i które zaczynają sezon zamknięte. Reset sezonu przywraca każde drzwi do kolumny startowej.",
       "roomRatio": "{rooms}. Żyjący uczniowie: {living} ({per} pokoju na głowę). Sezon zbudowano na {target} na ucznia, więc ta obsada potrzebuje {want}.",
       "roomCensus": {
         "one": "{n} wspólny pokój (bez sypialni i pokoi „Bez prywatności”, zamknięte liczone)",
@@ -2988,7 +2961,6 @@
       "searchIntro": "Z czego losuje przeszukanie każdego pokoju, ile ma Search Tokenów i czego sensownie w nim szukać.",
       "room": "Pokój",
       "owner": "Czyja sypialnia",
-      "concealed": "Skrytka ukryta",
       "concealedShort": "ukryta",
       "table": "Losuje z",
       "favours": "Dobre miejsce, by szukać",
@@ -3008,7 +2980,6 @@
         "many": "Zmieniono {count} pokoi na scenie {scene}.",
         "other": "Zmieniono {count} pokoi na scenie {scene}."
       },
-      "tabBedrooms": "Sypialnie",
       "tabRooms": "Pokoje",
       "applyLine": "Zastosuj zapisuje wszystkie zakładki naraz. Tajne przejścia, przyciski Search Tokenów i akcje w pokoju działają od razu, bez Zastosuj.",
       "roomsIntro": "Które regiony są pokojami, czyja jest każda sypialnia i które nie liczą się jako prywatne. Jeden uczeń, jedna sypialnia.",
@@ -3018,7 +2989,6 @@
       "tabDoors": "Drzwi",
       "tabPassages": "Tajne przejścia",
       "tabSearching": "Przeszukiwanie",
-      "tabRest": "Odpoczynki",
       "tabFacilities": "Facilities",
       "tabDescription": "Opis",
       "descriptionColumn": "Jak wygląda",
@@ -3077,7 +3047,6 @@
       "isRoomHint": "Czy ten region jest pokojem. Region z zachowaniem teleportu albo zmiany poziomu, albo narysowany przez gracza, nie może nim być.",
       "notSharedColumn": "Bez prywatności",
       "notSharedHint": "Nie licz tego regionu do liczby pokoi na gracza. Nie zmienia żadnej zasady.",
-      "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko liczbę pokoi - linię z proporcją powyżej, ten sam wiersz w Ustawieniach sezonu i Kontrolę przed sezonem; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela.",
       "neighboursColumn": "Sąsiedzi",
       "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Puste: decydują ściany (wyszarzone nazwy).",
       "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał. Pokój, któremu listy i ściany nie dały żadnego sąsiada, nie ma żadnych drzwi. Pokój bez listy, którego nie wpisał żaden inny i który nie styka się z żadnym pokojem, nawet narożnikiem, nie jest sprawdzany: można z niego przejść do dowolnego pokoju.",
@@ -4107,7 +4076,6 @@
       "markedOut": "{name} jest poza klasą: bez akcji, głosów i Level Upów.",
       "markedIn": "{name} znów jest uczniem.",
       "npcLine": "Poza klasą: bez akcji, głosów i Level Upów.",
-      "candidates": "Postaci bez gracza to {names}. Jeśli któraś z nich to NPC, oznacz ją na jej karcie jako Poza klasą.",
       "deathMark": "Nie żyje",
       "deadStill": "Poza Class Trial nadal mówisz przy stole. Podczas Class Trial twój mikrofon jest wyłączony i nie oddajesz głosu."
     },
@@ -8450,7 +8418,6 @@
         "remnant": "Remnant"
       },
       "state": {
-        "sent": "Wysłany",
         "held": "U graczy",
         "onMap": "Na mapie",
         "planned": "W planie"
@@ -8458,7 +8425,6 @@
       "slotNumber": "Miejsce {n}",
       "noName": "(bez nazwy)",
       "leftBy": "zostawił: {name}",
-      "panelKind": "Rodzaj",
       "panelState": "Stan",
       "panelRoom": "Pokój",
       "panelAuthor": "Zostawił (tylko GM-owie)",
@@ -8472,7 +8438,6 @@
       "sumDeductions": "Wnioski",
       "sumCounters": "Kontry",
       "noSchema": "Nie ma jeszcze żadnego wniosku.",
-      "cycle": "Te wejścia tworzą koło, więc mapa ich nie rysuje: {nodes}.",
       "noMode": "- bez trybu rozprawy -",
       "nothingToRefute": "Nie ma jeszcze wniosku do obalenia.",
       "removeNode": "Usuń ze sprawy",

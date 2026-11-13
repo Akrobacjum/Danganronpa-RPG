@@ -249,7 +249,7 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
  * ----------------------------------------------------------------------------------------------------------------- */
 
 /** The projects that repair the lock of `room` on the scene `sceneId`, as the GMs hold them (their secret half's `target`). */
-export async function lockRepairsOf(sceneId, room) {
+async function lockRepairsOf(sceneId, room) {
     const { allProjects } = await import("./projects.mjs");
     const { secretsOf } = await import("./projects-secrecy.mjs");
     return allProjects().filter(p => {

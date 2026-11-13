@@ -32,7 +32,7 @@ import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
 import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf } from "./zone-machine.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { isPrimaryGm, serialWrite, serverNow, error, log, esc } from "./utils.mjs";
+import { isPrimaryGm, serialWrite, serverNow, error, esc } from "./utils.mjs";
 
 /** The floor as stored, for the readers here that may not import trial-floor.mjs (it imports this file). */
 function storedFloor() {
@@ -126,7 +126,7 @@ export function snapshotStands(hall = trialScene(), participants = trialParticip
  * The hall's tokens back on their stands, in one write of the hall on the primary GM (`stands` as `snapshotStands`
  * kept them): only a token still there and not on its stand. Answers how many it moved.
  */
-export async function returnToStands(stands, hall = trialScene()) {
+async function returnToStands(stands, hall = trialScene()) {
     if (!isPrimaryGm() || !hall || !stands || typeof stands !== "object") return 0;
     const rows = Object.entries(stands).flatMap(([id, at]) => {
         const token = hall.tokens?.get?.(id);
@@ -391,7 +391,3 @@ export function zoneCardWords(words = {}) {
     return Object.fromEntries(Object.entries(words ?? {}).map(([k, v]) => [k, esc(String(v ?? ""))]));
 }
 
-/** Log a line about the zones (the primary's). */
-export function zoneLog(line) {
-    log(`Zones: ${line}`);
-}

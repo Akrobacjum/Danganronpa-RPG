@@ -16,7 +16,7 @@
  * advance while one is running; it sits between them.
  */
 
-import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
+import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
@@ -25,7 +25,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, ec
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, log, error, plural, cardHead, esc, isPrimaryGm,
+import { announce, whisperToOwner, whisperToOwnerOnly, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy, timedCrossingsOf } from "./gm-stores.mjs";
@@ -1108,7 +1108,8 @@ async function recordMove(actor, to = null) {
  * With `card: false` the card is not posted here but handed back as `tell`, for a crossing
  * this GM has still to write (E80 fix r1-G2; the review's E80-C2-5 = E80-C3-9): a 'Go through'
  * is counted before the primary moves the token (movement.mjs `settleCrossingOnGm`), and a
- * card posted then stayed when the write failed and the count was taken back (`unrecordMove`),
+ * card posted then stayed when the write failed and the count was taken back (`uncountCrossingInStep`,
+ * through movement.mjs `refundCrossingOnGm`),
  * telling the owner the student had crossed into a room the token never reached. The caller
  * calls `tell()` once the write stands (passages-gm.mjs `crossTunnel`).
  *
@@ -1178,15 +1179,10 @@ export async function countCrossingInStep(actorId, { to = null, card = true, mad
  * Take one counted crossing back, GM side (E80 C2, 18.10.2026): a 'Go through' the primary counted
  * (`applyRecordedMove`, movement.mjs `settleCrossingOnGm`) and could not write, so the token never moved.
  * The owner is sent their copy again. That crossing's veiled card was never posted: it waits for the write
- * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back.
+ * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back. Runs inside a
+ * step of the character's `crossingKey`, `crossTunnel`'s (movement.mjs `refundCrossingOnGm`, its one road; the
+ * step of its own beside it, which nothing called, went in E56 C6).
  */
-export async function unrecordMove(actorId) {
-    if (!game.user.isGM) return false;
-    await eclipseMoveStore.whenHydrated();
-    return serialWrite(crossingKey(actorId), () => uncountCrossingInStep(actorId));
-}
-
-/** `unrecordMove`'s, inside a step of the character's `crossingKey`: its own, or `crossTunnel`'s (`refundCrossingOnGm`). */
 export async function uncountCrossingInStep(actorId) {
     if (!game.user.isGM) return false;
     await eclipseMoveStore.whenHydrated();
@@ -1384,7 +1380,7 @@ export async function liftEclipseMoves() {
 }
 
 /** Every crossing this GM's browser holds, of any Eclipse, taken away (the season reset). */
-export async function clearEclipseMoves() {
+async function clearEclipseMoves() {
     if (!game.user.isGM) return;
     if (isPrimaryGm()) await eclipseMoveStore.clear();
     else await eclipseMoveStore.dropMany(Object.keys(eclipseMoveStore.entries()));
@@ -1395,7 +1391,7 @@ export async function clearEclipseMoves() {
  * crossings are a GM store since E05: the reset's cut takes them on every GM and every owner's copy, and this clears
  * what this browser holds. Each is named for its Eclipse, so none would count in the new season.
  */
-export async function clearSeasonEclipseMoves() {
+async function clearSeasonEclipseMoves() {
     await clearEclipseMoves();
 }
 

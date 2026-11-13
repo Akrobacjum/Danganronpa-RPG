@@ -630,7 +630,7 @@ const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOIC
    is compact, as the GM's is. */
 const VOICE_FULL = 114, VOICE_MIN = 42;
 /** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
-export const OPEN_AREAS = [];
+const OPEN_AREAS = [];
 
 /* AN EMPTY PANE LETS THE MAP THROUGH (E49 B1, S12-64; the owner's amend [1]). A pane cut for a block that is not
    there - the notice tile between notices, a GM's bar on a player's screen, any block measured as absent - was painted
@@ -667,7 +667,7 @@ const voiceWall = W => W - (PIN.rail ?? 0);
  * stacked screen, which puts it in the tiles' row, or Monokuma Legacy). Upright here; `buildColumn`
  * settles it against its column's turn (`settleVoice`).
  */
-export function voicePlacement(W, H, tray) {
+function voicePlacement(W, H, tray) {
   if (!tray || !document.getElementById("drpg-voice-tile") || narrowLayout()) return null;
   if (!document.body.classList.contains("drpg-theme-stained-glass")) return null;
   const w = Math.round(VOICE_WIDE * noteTile().w * uiScale()), y = Math.round(tray.y + trayCapacity(tray) + VOICE_SEAM);
@@ -1540,7 +1540,7 @@ function hitStack() {
   };
 }
 /** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
-export function debugGlass() {
+function debugGlass() {
   /* `panes` and `live` are here for one question: does the pane cut for a block actually
      straddle the block? A tone missing from `panes` means that block lost its pane to a
      neighbour's column; a pane whose x0/x1 do not sit either side of the block's live box
@@ -1983,7 +1983,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          (C3's Open 6: about 90 px at 2000x1072, Chromium, the glass harness, `?windows=off`). Where the tile's
          pane, centred on the side, starts below the tiles' run (`coreY[1]`, the band's foot) where it enters the
          band, the tile stands at the screen's own wall as it does without the rail, and its pane and the pane over
-         it run into the wall (`tailHug` below); the strip is cut around them (`cutStrips`). A rail whose run
+         it run into the wall (`railHug` below); the strip is cut around them (`cutStrips`). A rail whose run
          reaches the tile's rows keeps the tile at the pin, as C3 left it. */
       const rb = ctx.railBands?.right, hugsR = c.x1 + PAD_SIDE > W - HUG;
       if (!hugsR && rb && rb.real !== false && rb.coreY && Number.isFinite(rb.band)) {
@@ -3757,7 +3757,7 @@ export const FLASH_KF = (() => {
   return out;
 })();
 const meanOf = poly => [poly.reduce((s, q) => s + q[0], 0) / poly.length, poly.reduce((s, q) => s + q[1], 0) / poly.length];
-/* the panes from the centre of the screen outward (MK-R1 `byCentre`): the order a phase's colour and its flash take */
+/* the panes from the centre of the screen outward (the MK-R1 design's name for it was byCentre): the order a phase's colour and its flash take */
 function centreOrder(panes, W, H) {
   const cx = W / 2 || 1, cy = H / 2 || 1;
   const dist = panes.map(p => { const [x, y] = meanOf(p.poly); return Math.hypot((x - cx) / cx, (y - cy) / cy); });

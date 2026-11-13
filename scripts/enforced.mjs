@@ -327,7 +327,7 @@ async function rtcDockOn(row) {
  * @param {object} [was]     the record so far (`rtcDockBefore`); `{}` or nothing before the first hold
  * @returns {object}
  */
-export function rtcDockRecord(client, row, was) {
+function rtcDockRecord(client, row, was) {
     const had = was && typeof was === "object" ? was : {};
     const fields = { ...(had.fields ?? {}) }, users = { ...(had.users ?? {}) };
     let added = false;
@@ -356,7 +356,7 @@ export function rtcDockRecord(client, row, was) {
  *
  * @returns {[string, *][]}
  */
-export function rtcDockGiveBack(client, record) {
+function rtcDockGiveBack(client, record) {
     const out = [];
     for (const [key, value] of Object.entries(record?.fields ?? {})) {
         if (value !== null && value !== undefined && client?.[key] !== value) out.push([key, value]);
@@ -529,7 +529,7 @@ const LOST_PERMISSIONS = { FILES_BROWSE: "DRPG.Enforced.lost.browse", FILES_UPLO
  *
  * @returns {{ role: string, permissions: string[] }[]}
  */
-export function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind === "permissions")) {
+function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind === "permissions")) {
     const roles = CONST.USER_ROLES;
     const before = name => Array.isArray(stored?.[name]) ? stored[name]
         : Array.isArray(inForce?.[name]) ? inForce[name] : [roles.ASSISTANT, roles.GAMEMASTER];
@@ -878,7 +878,7 @@ export async function giveBackFoundry({ user = game.user } = {}) {
 }
 
 /** Let the module hold its settings again (a GM): the switch off; each browser's `onChange` holds them. */
-export async function holdFoundryAgain() {
+async function holdFoundryAgain() {
     if (!game.user?.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.foundryGivenBack, false);
     await onGivenBackChanged();

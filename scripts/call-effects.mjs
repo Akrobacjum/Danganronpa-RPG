@@ -555,14 +555,6 @@ export function spentByGm(nonce) {
     return typeof nonce === "string" && (gmSpent.get(nonce) ?? -Infinity) >= Date.now() - GM_SPENT_MS;
 }
 
-/**
- * The single-slot name, kept so a caller written before CALL-02 still spends
- * every armed Call rather than none. Answers with the first one spent.
- */
-export async function consumeCall(actor) {
-    return (await consumeCalls(actor))[0] ?? null;
-}
-
 /** Does this character have permission for a given roll control right now? */
 export function grants(actor, what) {
     return pendingCalls(actor).some(entry => entry.grants === what);
@@ -664,7 +656,7 @@ async function spendConfusions(actor, spent) {
  * GM: one user's own characters' Confusions, and only those, with a stamp per character
  * they own - the newest decision about its row, 0 for one this browser never held.
  */
-export function confusionsFor(userId) {
+function confusionsFor(userId) {
     const user = game.users.get(userId);
     const confusions = {}, stamps = {};
     if (!game.user?.isGM || !user || user.isGM) return { confusions, stamps };
@@ -678,7 +670,7 @@ export function confusionsFor(userId) {
 }
 
 /** GM: send one user their Confusions. Addressed, and only while they are here; nothing while the suite holds the stores. */
-export function sendConfusionsTo(userId) {
+function sendConfusionsTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     const { confusions, stamps } = confusionsFor(userId);
@@ -706,7 +698,7 @@ export async function retellConfusions() {
 }
 
 /** Owner: take a GM's answer where it is newer (`confusionCopy`), for this user's own characters only. */
-export async function receiveConfusions(confusions, stamps) {
+async function receiveConfusions(confusions, stamps) {
     const mine = {}, own = {};
     const shape = entry => entry && typeof entry === "object" && typeof entry.grants === "string" && typeof entry.nonce === "string"
         ? { key: CONFUSION, kind: typeof entry.kind === "string" ? entry.kind : null, grants: entry.grants,

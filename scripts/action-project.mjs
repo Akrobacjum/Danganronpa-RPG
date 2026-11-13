@@ -818,20 +818,6 @@ export async function hideProjectTraces(actor, project, progress, lines) {
 }
 
 /**
- * Pick a project from an explicit list, and - only when at least one
- * candidate leaves the required trait open - the trait to use for it, in the
- * SAME window instead of a second one immediately after.
- *
- * Used to be two sequential dialogs every time: which project, then (when
- * the project had no fixed trait) which trait. The trait field costs nothing
- * to show up front - it is simply ignored once the chosen project turns out
- * to have one fixed, exactly as the old second dialog would never have
- * appeared in that case either.
- *
- * @returns {Promise<{project: object, trait: string}|null>} null on cancel,
- *   or if the resolved trait is empty (no trait allowed at all).
- */
-/**
  * One project as an <option>: its name, how far along it is, and where.
  *
  * `disableComplete` is only ever set by Work on Project. A finished project is
@@ -923,6 +909,20 @@ async function proposeProjectTrait(actor, project, listed) {
     return answer?.proposed ? answer : null;
 }
 
+/**
+ * Pick a project from an explicit list, and - only when at least one
+ * candidate leaves the required trait open - the trait to use for it, in the
+ * SAME window instead of a second one immediately after.
+ *
+ * Used to be two sequential dialogs every time: which project, then (when
+ * the project had no fixed trait) which trait. The trait field costs nothing
+ * to show up front - it is simply ignored once the chosen project turns out
+ * to have one fixed, exactly as the old second dialog would never have
+ * appeared in that case either.
+ *
+ * @returns {Promise<{project: object, trait: string}|null>} null on cancel,
+ *   or if the resolved trait is empty (no trait allowed at all).
+ */
 async function chooseProject(list, promptKey, actor, def, { disableComplete = false } = {}) {
     const projectOptions = projectOptionsHtml(list, { disableComplete });
 

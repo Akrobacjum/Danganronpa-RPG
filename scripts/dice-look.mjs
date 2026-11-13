@@ -300,7 +300,7 @@ function displayOf(user, { here = false } = {}) {
  * Daggerheart preset, the names the looks it can read use that it has not registered, and the last throws it was
  * handed. Read only.
  */
-export function browserLook({ looks = [] } = {}) {
+function browserLook({ looks = [] } = {}) {
     const dsn = game.modules.get(DSN);
     const preset = dhPresetHere();
     const version = game.system?.version ?? null;

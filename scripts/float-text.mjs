@@ -42,12 +42,12 @@
  */
 
 /** The windows whose textareas float: the module's (the kit's frame, the panels, the messenger) and an actor's sheet. */
-export const FLOAT_SCOPE = ".application.drpg-ui, .application.drpg-panel, .application.drpg-messenger, .application.sheet.actor";
+const FLOAT_SCOPE = ".application.drpg-ui, .application.drpg-panel, .application.drpg-messenger, .application.sheet.actor";
 /** The class on a floating field and on the placeholder that holds its place. */
-export const FLOAT_CLASS = "drpg-float-text";
-export const HOLD_CLASS = "drpg-float-text-hold";
+const FLOAT_CLASS = "drpg-float-text";
+const HOLD_CLASS = "drpg-float-text-hold";
 /** The tallest a floating field grows, as a share of the screen's height; past it, it scrolls inside. */
-export const CAP_SHARE = 0.6;
+const CAP_SHARE = 0.6;
 /** The gap kept between a floating field and the screen's edges, in px. */
 export const EDGE_PX = 8;
 const GROW_MS = 120;

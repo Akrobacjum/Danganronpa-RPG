@@ -9,9 +9,9 @@
  * under the rail's).
  *
  * WHO SEES THE INCIDENT. The killing is shown to its participants and to the
- * GM, and to nobody else - the same rule `buildIncident` in hud.mjs applied,
- * read from ownership rather than from `game.user.character` (see the note
- * there). A spectator's screen shows no card at all, not a redacted one: the
+ * GM, and to nobody else - the rule hud.mjs's incident row applied before it
+ * moved here (hud.mjs, the note on the rows that went), read from ownership
+ * rather than from `game.user.character`. A spectator's screen shows no card at all, not a redacted one: the
  * fact that an incident is running is itself part of what the killer is
  * hiding.
  *
@@ -26,7 +26,7 @@ import { pairOf, reserveLine } from "./murder-ui.mjs";
 import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
-import { roomOfActor, locateActor } from "./movement.mjs";
+import { locateActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
@@ -46,8 +46,8 @@ const WIDGET_ID = "drpg-events";
  * This panel used to be Stained Glass only, and the four standing threats went
  * back to being rows of the clock under Monokuma Legacy so that theme "stayed
  * exactly the look it was". What that actually bought was two implementations
- * of the same four facts - `motiveCard` here and `buildMotive` in hud.mjs, and
- * so on - and a Legacy screen that was missing information, not just styling:
+ * of the same four facts - `motiveCard` here and a motive row in hud.mjs, and
+ * so on (hud.mjs's rows went in that change) - and a Legacy screen that was missing information, not just styling:
  *
  *   the opening roll     no row at all
  *   the Despair overflow no row at all
@@ -66,7 +66,7 @@ const WIDGET_ID = "drpg-events";
  * a11y sweep and the suite name when they ask whether this panel is a thing,
  * and a predicate that is true everywhere is cheaper to read than an absence.
  */
-export function eventsWindowActive() {
+function eventsWindowActive() {
     return true;
 }
 
@@ -133,11 +133,6 @@ function assemblyCard() {
 }
 
 /**
- * The open incident, for its participants and the GM only. Ownership decides
- * who is a participant - see hud.mjs `buildIncident` for why not
- * `game.user.character`.
- */
-/**
  * A murder that has opened but not yet reached its incident: the GM's own card, and the
  * participants'. The panel showed nothing for the whole opening stage, which on the GM's
  * screen read as "the Event panel does not show at a murder".
@@ -188,6 +183,11 @@ function openingCard() {
         meta: game.i18n.localize("DRPG.Events.openingMeta")
     };
 }
+/**
+ * The open incident, for its participants and the GM only. Ownership decides
+ * who is a participant, not `game.user.character` (the rule of the header's
+ * "WHO SEES THE INCIDENT").
+ */
 function incidentCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
     /*

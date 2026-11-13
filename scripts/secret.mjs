@@ -658,13 +658,6 @@ export function cardWriter(message) {
 }
 
 /**
- * What a card SAYS on this client.
- *
- * Every reader of `message.content` in this module goes through here, because
- * a reader that does not is a reader that shows the stub - and the stub is a
- * dash. See the R15 criterion, which exists to keep that true.
- */
-/**
  * Anyone waiting for a card's words to arrive, by message id - a list: a popup, a
  * sound and the Chat pip wait for the same card's words (E06 C6), and a single
  * waiter per card let the last one to ask push the others out, to be answered
@@ -720,6 +713,13 @@ export function wordsOf(message, ms = WORDS_CEILING_MS) {
     });
 }
 
+/**
+ * What a card SAYS on this client.
+ *
+ * Every reader of `message.content` in this module goes through here, because
+ * a reader that does not is a reader that shows the stub - and the stub is a
+ * dash. See the R15 criterion, which exists to keep that true.
+ */
 export function contentOf(message) {
     return secretHtml(message) ?? message?.content ?? "";
 }

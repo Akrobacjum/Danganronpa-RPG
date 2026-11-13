@@ -676,16 +676,16 @@ function drawDayStart(ctx, board) {
     anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
 }
 
-/**
- * The start-of-day board on this browser, from the clock's one event of a new day (transitions.mjs, E62's `newDay`):
- * on every connected browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). `students` defaults to the cast as
- * monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
- */
 /** The start-of-day board's event key: the season, the day and the session. */
 export function dayStartKey(clock) {
     return `day:${clock?.season ?? ""}:${Number(clock?.day) || 0}:${clock?.session ?? ""}`;
 }
 
+/**
+ * The start-of-day board on this browser, from the clock's one event of a new day (transitions.mjs, E62's `newDay`):
+ * on every connected browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). `students` defaults to the cast as
+ * monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
+ */
 export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn() } = {}) {
     if (!clock || !ready) return null;
     const cast = students ?? (await import("./monokuma.mjs")).studentActors();
@@ -703,7 +703,7 @@ export function morningLineOf(text) {
     const line = String(text ?? "").replace(/\s+/g, " ").trim().slice(0, MORNING_LINE_MAX);
     return line || null;
 }
-export const MORNING_LINE_MAX = 200;
+const MORNING_LINE_MAX = 200;
 
 /**
  * What a move of the clock folds into its one write for the morning line and the mood (E94 C1, C4; clock.mjs

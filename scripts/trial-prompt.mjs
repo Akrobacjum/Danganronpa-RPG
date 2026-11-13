@@ -211,7 +211,7 @@ async function tick() {
 }
 
 /** Start or stop the participant's clock to match the floor; called on every write of the floor (and at ready). */
-export async function renderTrialPrompt() {
+async function renderTrialPrompt() {
     try {
         const { trialFloor } = await import("./trial-floor.mjs");
         const floor = trialFloor();

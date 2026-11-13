@@ -60,7 +60,6 @@ export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = 
     });
 }
 
-/** Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`). */
 /** Shut the Door (E74 C2): the Body roll named by its message; answers `{ room }` as `.value`. */
 export function requestDoorShut({ actorId, total = 0, rollId = null }) {
     const packet = { actorId, total, rollId };
@@ -110,6 +109,9 @@ export function requestTailStart({ tailerId, targetId, total = 0, isCritical = f
     });
 }
 
+/**
+ * Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`).
+ */
 export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))

@@ -14,7 +14,7 @@
  */
 
 /** The payload's roles, in the order its list holds them. */
-export const SUMMARY_ROLES = Object.freeze(["evidence", "deduction", "counter", "solution"]);
+const SUMMARY_ROLES = Object.freeze(["evidence", "deduction", "counter", "solution"]);
 
 /**
  * `graph` of case-schema.mjs `graphOf`; `ticks` node id -> true (case-schema.mjs `caseTicks`); `found` the evidence

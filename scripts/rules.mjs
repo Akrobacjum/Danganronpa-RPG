@@ -326,7 +326,7 @@ export async function clearSeasonMotive() {
  * reset zeroes. Ticked by default like every other group, and a GM who wants to carry them over unticks the box. An
  * empty ARRAY, because that is the setting's type.
  */
-export async function clearSeasonRules() {
+async function clearSeasonRules() {
     await game.settings.set(MODULE_ID, SETTINGS.killingGameRules, []);
 }
 

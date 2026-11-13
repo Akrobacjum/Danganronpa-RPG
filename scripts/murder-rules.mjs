@@ -598,6 +598,22 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
 }
 
 /**
+ * THE MONOCUBS IN THE ROOM AT THE OPENING (E72 C2, 12.11.2026; audit S18-57): marked crime witnesses (monocub.mjs
+ * `markWitnessesAt`), a trap's scene as a fight's. After the stage is written and told, and in its own try: a mark that
+ * fails must not roll the incident back.
+ */
+async function markCubWitnesses(state) {
+    try {
+        const victim = game.actors.get(state?.victimId ?? "");
+        if (!victim) return;
+        const { markWitnessesAt } = await import("./monocub.mjs");
+        await markWitnessesAt(victim);
+    } catch (err) {
+        error("Could not mark the Monocubs who saw the incident open", err);
+    }
+}
+
+/**
  * Tell the victim the incident has started.
  *
  * Everything about Stage 4 was reported to the GMs and to nobody else, so the
@@ -618,22 +634,6 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
  * (`victimUnderAttackBy`). A trap's victim is still told only that the trap closed: its
  * builder is not in the room, and their copy of the cast holds no name (`castFor`).
  */
-/**
- * THE MONOCUBS IN THE ROOM AT THE OPENING (E72 C2, 12.11.2026; audit S18-57): marked crime witnesses (monocub.mjs
- * `markWitnessesAt`), a trap's scene as a fight's. After the stage is written and told, and in its own try: a mark that
- * fails must not roll the incident back.
- */
-async function markCubWitnesses(state) {
-    try {
-        const victim = game.actors.get(state?.victimId ?? "");
-        if (!victim) return;
-        const { markWitnessesAt } = await import("./monocub.mjs");
-        await markWitnessesAt(victim);
-    } catch (err) {
-        error("Could not mark the Monocubs who saw the incident open", err);
-    }
-}
-
 async function tellVictimTheIncidentBegan(state) {
     try {
         const victim = game.actors.get(state?.victimId ?? "");

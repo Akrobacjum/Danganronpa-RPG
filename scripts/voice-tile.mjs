@@ -301,7 +301,7 @@ export function applyDockHidden(hidden) {
  *
  * @returns {HTMLElement}
  */
-export function ensureVoiceTile() {
+function ensureVoiceTile() {
     let tile = document.getElementById(TILE_ID);
     if (!tile) {
         tile = buildVoiceTile();
@@ -640,7 +640,7 @@ function inRoom(watch, userId, gone = null) {
  * @param {object} [watch]
  * @param {object} [gone]  a participant the Room has just said left
  */
-export function voiceStep(watch = live, gone = null) {
+function voiceStep(watch = live, gone = null) {
     if (!watch) return;
     if (watch.shown && !inRoom(watch, watch.shown, gone)) clearSpeaker(watch);
     watch.speakers = watch.speakers.filter(id => inRoom(watch, id, gone));
@@ -884,7 +884,7 @@ function paintWord(watch, face) {
  * voice-client.mjs began or ended a move of the Room (`drpgVoiceApplying`): every tile in the document says it,
  * without waiting for an event of the Room, which still says "connected" while the move takes it down (E79 C15).
  */
-export function onVoiceApplying() {
+function onVoiceApplying() {
     for (const tile of document.querySelectorAll(".drpg-voice-tile")) {
         const watch = watches.get(tile);
         if (watch) paintWord(watch, painted.get(tile)?.face === true);
@@ -1198,7 +1198,7 @@ function mutedFor(mutes, settings, userId) {
  * @param {number} volume
  * @returns {number}
  */
-export function sliderOfVolume(volume) {
+function sliderOfVolume(volume) {
     const value = volumeOf(volume) ?? 1, helper = foundry.audio?.AudioHelper;
     return volumeOf(typeof helper?.volumeToInput === "function" ? helper.volumeToInput(value) : value) ?? value;
 }
@@ -1582,7 +1582,7 @@ export function closeVoiceList(watch = live, { focus = true } = {}) {
 }
 
 /** The speaker button's click: the list opened, or closed when it is open. */
-export function toggleVoiceList(watch = live) {
+function toggleVoiceList(watch = live) {
     if (watch?.list && !watch.list.hidden) return closeVoiceList(watch);
     return Boolean(openVoiceList(watch));
 }
