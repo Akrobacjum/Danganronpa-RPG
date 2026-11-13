@@ -10353,7 +10353,7 @@ const INVARIANTS = [
          * E09 fix r1-G3 (08.10.2026; the round-1 goal review's G3a): the Key fee. A trial opens
          * on whichever GM moved the phase (clock.mjs `reconcilePhase`), and the fee counts by the
          * GMs' marks, which are the primary's: the opening asks the charge of the primary
-         * (investigation.mjs `askToChargeForUnfoundKeys`). Red before the fix: no such request,
+         * (key-remnants.mjs `askToChargeForUnfoundKeys`). Red before the fix: no such request,
          * and the phase change charged on its own GM (scenario 62's phase P drives it on gm2).
          */
         const { createWaiter } = await import("./bridge-guards.mjs");
@@ -31760,7 +31760,7 @@ const INVARIANTS = [
          * E70 C9, 28.10.2026; E70-61, E70-62. The harm: a GM's Enter in the Reveal's window hands every participant a Key
          * Remnant the table never found - something no button undoes - and a count recomputed at the Reveal would let a
          * Key found or placed after the fee change what Monokuma may show. `revealLeft` reads the fee's own count
-         * (`paid`, investigation.mjs `chargeForUnfoundKeys`) and the rows revealed; the window is read through
+         * (`paid`, key-remnants.mjs `chargeForUnfoundKeys`) and the rows revealed; the window is read through
          * DialogV2.wait answered as Enter answers it, with the default button's action, then put back. Nothing is
          * written: the window answers before any reveal is asked. Whether Enter in Foundry's own DialogV2 on v14 presses
          * the default the window names is LIVE-E70-10. Red at 713fe35b: no `revealLeft`, no `confirmReveal`.

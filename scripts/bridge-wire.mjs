@@ -52,7 +52,7 @@ export const ACTION_OVERFLOW_CHECK = "overflow.check";
 export const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 export const ACTION_AUDIT_DECIDE = "audit.decide";
-/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */
+/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; key-remnants.mjs `askToChargeForUnfoundKeys`). */
 export const ACTION_KEYS_CHARGE = "keys.charge";
 /** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
 export const ACTION_VOTE_RUN = "vote.run";

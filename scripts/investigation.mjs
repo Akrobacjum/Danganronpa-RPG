@@ -1510,7 +1510,7 @@ function zoneRows(node, name) {
     ];
 }
 
-/** Two field values the same: both blank, or equal as JSON (the Key plan's `same`, investigation.mjs `setKeyPlan`). */
+/** Two field values the same: both blank, or equal as JSON (the Key plan's `same`, key-remnants.mjs `setKeyPlan`). */
 const sameValue = (a, b) => ((a ?? "") === "" && (b ?? "") === "") || JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /** The schema's fields the GM changed, read off the form as the Table's are: `[{ chapter, id, fields: { field: { value,

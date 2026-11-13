@@ -1397,7 +1397,7 @@ export const KEY_REMNANTS = {
      * option 1). `unfoundBar` is the guide's four; a case whose opening gave
      * three Key Remnants (`MURDER_OPENING`, a critical) is charged below three,
      * so a table that found all three owes nothing. The rule is
-     * investigation.mjs `keyFeeOf`, which also says what counts as found.
+     * key-remnants.mjs `keyFeeOf`, which also says what counts as found.
      *
      * PER MONOKUMA, NOT SPLIT BETWEEN THEM (trap 116). The guide writes "obaj
      * Monokuma" with two GMs in mind, which reads either way at four. It is
