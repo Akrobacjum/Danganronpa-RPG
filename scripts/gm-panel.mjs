@@ -98,8 +98,9 @@ export function registerGmChrome() {
  * (`drpg-gm-hotbar`) in every theme too; the owner asked for both gone again (DZ5, 12.10.2026:
  * "niepotrzebne", on a tablet under Stained Glass), so the base sheet now hides them from
  * everybody in every theme - the hotbar as in 1.2.73, and the navigation under Legacy as Stained
- * Glass already did for the GM. Scenes switch from the Scenes tab; the five macros the repository
- * carries (macros/) and a GM's own run from the Macro Directory.
+ * Glass already did for the GM. Scenes switch from the Scenes tab; a GM's macros run from the Macro
+ * Directory - among them the five the repository keeps in macros/, which module.zip leaves out since
+ * E59 C5a (.gitattributes): a GM who wants them takes them from the repository, not the install.
  * Since E77 C5 the rail and the sidebar stand in the GM's two Foundry windows (foundry-windows.mjs). Re-read then
  * (13.10.2026): neither selector names a column of Foundry's, nor does any rule danganronpa.css keys on these
  * two classes, and `markGmChrome` searches the whole document - so both are found and styled in the windows too.
