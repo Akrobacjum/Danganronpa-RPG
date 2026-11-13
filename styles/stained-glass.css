@@ -4067,6 +4067,11 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
 body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
     --drpg-stat-mark-size: 28px;
 }
+/* The width the widest statistic needs under the glass, its 28 px mark inside its plate: "Shadow" 115 px in Chromium
+   (danganronpa.css, "THE HEADER AT ANY WIDTH"; the glass's slider factor is 1). */
+body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
+    --drpg-trait-need: 7.5rem;
+}
 body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark > i.drpg-stat-glyph {
     width: 24px;
     height: 24px;

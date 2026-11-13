@@ -57097,6 +57097,49 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
+    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of equal columns", async () => {
+        /*
+         * Red at ceb9e9c8 (1.2.112). Daggerheart's name is `flex: 1` (a 0 basis) with `word-break: break-word`
+         * (header.less:44-53 at 2.12.8, unchanged since 2.6.5), so beside the name row's buttons it shrinks to one glyph's
+         * width: the captioned Level Up and Give / take (sheet.mjs `headerButton`, 1.2.105) stand `flex: 0 0 auto` and,
+         * in Legacy's pixel face at 1.15em, take 480 px of a row of 392 (a 667 px sheet) or 545 (the default 850). And the
+         * statistics' plates are `width: 100%` with the mark's room added as padding (1.2.105's `drpg-stat-named`), so
+         * each ran 18-24 px past its column into the next, and the next one's mark stood on it. Chromium, Daggerheart
+         * 2.12.8's stylesheet built from its source with the module's sheets (no Foundry stylesheet): before, Legacy's
+         * name 34 x 310 px at 667 and 58.6 x 310 at 850, seven lines; the statistics 100 px past the header at 667, in
+         * both themes. The cascade is the sheets' text; the drawing is the commit's measurement.
+         */
+        const C = await styleCascade();
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const DH = ".application.sheet.daggerheart.actor.dh-style.character .character-header-sheet";
+        const planted = [
+            [`${DH} .name-row`, [["display", "flex"], ["justify-content", "space-between"]]],
+            [`${DH} .name-row h1`, [["display", "flex"], ["flex", "1"], ["word-break", "break-word"]]],
+            [`${DH} .character-traits`, [["display", "flex"], ["justify-content", "space-between"]]],
+            [`${DH} .character-traits .trait`, [["display", "flex"], ["min-width", "4.375rem"]]],
+            [`${DH} .character-traits .trait .trait-name`, [["width", "100%"], ["white-space", "nowrap"]]]
+        ].map(([selector, decls]) => ({ selector, file: "daggerheart 2.12.8 header.less", decls: decls.map(([property, value]) => ({ property, value, important: false })) }));
+        C.rules.unshift(...planted);
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme === "legacy" ? "drpg-theme-monokuma-legacy drpg-pixel-font" : "drpg-theme-stained-glass";
+            const app = body.appendChild(Object.assign(document.createElement("div"), { className: "application sheet daggerheart actor dh-style character" }));
+            const content = app.appendChild(Object.assign(document.createElement("section"), { className: "window-content" }));
+            const header = content.appendChild(Object.assign(document.createElement("header"), { className: "character-header-sheet" }));
+            const row = header.appendChild(Object.assign(document.createElement("div"), { className: "name-row" }));
+            const name = row.appendChild(Object.assign(document.createElement("h1"), { className: "actor-name input" }));
+            const traits = header.appendChild(Object.assign(document.createElement("div"), { className: "character-traits" }));
+            const trait = traits.appendChild(Object.assign(document.createElement("div"), { className: "trait" }));
+            trait.dataset.attribute = "presence";
+            const plate = trait.appendChild(Object.assign(document.createElement("div"), { className: "trait-name drpg-stat-named" }));
+            const v = (el, names) => C.winner(el, names)?.value ?? null;
+            return [v(row, "flex-wrap"), v(name, ["flex", "flex-basis"]), v(name, "word-break"), v(name, "overflow-wrap"),
+                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"])];
+        };
+        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center"];
+        equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
+            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column]");
+    }],
 ];
 
 /**

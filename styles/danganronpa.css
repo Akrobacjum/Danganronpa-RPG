@@ -8021,6 +8021,50 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
     content: none;
 }
 
+/* THE HEADER AT ANY WIDTH (13.11.2026; the owner's screenshot of 1.2.112: a 667 px sheet under Monokuma Legacy, the name
+   drawn one letter a line, the statistics' glyphs over their neighbours' names). Two causes, both the module's, neither
+   Daggerheart's: its header is the same at 2.12.8 as at 2.6.5 (header.hbs, header.less). The name is Daggerheart's
+   `flex: 1` (a 0 basis) with `word-break: break-word`, and since 1.2.105 the name row also holds the captioned Level Up
+   and Give / take (sheet.mjs `headerButton`), which never shrink: in Legacy's pixel face at 1.15em they took 480 px of a
+   row of 392 (a 667 px sheet) or 545 (the default 850), and the name took what was left - 34 and 58.6 px, seven lines.
+   And the statistics' plates are `width: 100%` with the mark's room added as padding (1.2.105, above), so each ran
+   18-24 px past its column into the next one, the next one's mark on it, and the six ran 100 px past the header at 667.
+   Now the name row wraps and the name is sized by its words, breaking inside one only when that word is wider than the
+   row: the buttons go to a second line before the name gives way. A named plate holds its mark's room inside its width.
+   The statistics stand on a grid of equal columns, each statistic centred in its own at the width its widest name needs
+   (`--drpg-trait-need`: "Shadow" with its mark, 106 px under Legacy and 115 under the glass, measured in Chromium), six
+   columns where six fit and three where they do not (the `min()` turns negative once the row is wider than six), and the
+   row as wide as six need, which Daggerheart's 38.5rem was not. Daggerheart's selectors with `body` before them: one
+   element over its (0,8,1). R5760 reads the cascade; the drawing is the commit's measurement (Chromium, Daggerheart
+   2.12.8's stylesheet built from its source, no Foundry stylesheet). */
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .name-row {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 4px;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .name-row h1.actor-name {
+    flex: 1 1 auto;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
+    box-sizing: border-box;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits {
+    --drpg-trait-gap: 0.5rem;
+    --drpg-trait-need: calc(6.75rem * var(--drpg-slider-scale, 1));
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(max(calc((100% - 5 * var(--drpg-trait-gap)) / 6),
+        min(calc((100% - 2 * var(--drpg-trait-gap)) / 3), calc((6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap) - 100%) * 999))), 1fr));
+    gap: 0.5rem var(--drpg-trait-gap);
+    max-width: calc(6 * var(--drpg-trait-need) + 5 * var(--drpg-trait-gap));
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait {
+    justify-self: center;
+    width: min(100%, var(--drpg-trait-need));
+    min-width: 0;
+}
+
 .application.sheet.actor .glassy,
 .application.sheet.actor .legend {
     background: var(--drpg-fill) !important;
