@@ -32422,6 +32422,40 @@ const INVARIANTS = [
         ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
     }],
 
+    ["R4474 - the wrong verdict's card goes to the Monocubs of the case it judged (scripts/monocub.mjs `wrongVerdictTouches`, verdict.mjs `remindOnWrongVerdict`, `readSentence`; the E101 line's review of 1.2.110, V4, 13.11.2026): a death of this season's chapter since the verdict before this one, not an execution, and a crime witness marked since it, are told; the first case's dead and witness at the chapter's second trial, last season's dead of the same chapter number and the executed are not; a mark from before the field (no `sinceVerdict`) reads as before", async () => {
+        /*
+         * The review's V4. E72 C7 told "the case's own dead" by `death.chapter === clock.chapter` alone, with no season and
+         * no verdict: at a chapter's second trial the first case's Monocub was told too, and after a reset that keeps the
+         * Monocubs, last season's dead of the same chapter number. Pure readings on rows of the suite's own, so tier 1 changes
+         * nothing; the verdict's own wiring read in source (the step keeps the verdict before it in its record, since the
+         * sentence step writes this verdict's stamp first). Red at 12a7e309: no `wrongVerdictTouches`.
+         */
+        const M = await import("./monocub.mjs");
+        must(typeof M.wrongVerdictTouches === "function", "monocub.mjs exports no wrongVerdictTouches");
+        const now = { chapter: 3, epoch: "E2", before: 1000 };
+        const first = { chapter: 3, epoch: "E2", before: null };
+        const death = (extra = {}) => ({ death: { chapter: 3, epoch: "E2", ...extra } });
+        const witness = (extra = {}) => ({ death: null, witness: { chapter: 3, epoch: "E2", ...extra } });
+        const read = {
+            thisCase: M.wrongVerdictTouches(death({ sinceVerdict: 1000 }), now),
+            firstCaseAtSecond: M.wrongVerdictTouches(death({ sinceVerdict: null }), now),
+            firstCaseAtFirst: M.wrongVerdictTouches(death({ sinceVerdict: null }), first),
+            lastSeason: M.wrongVerdictTouches(death({ sinceVerdict: 1000, epoch: "E1" }), now),
+            executed: M.wrongVerdictTouches(death({ sinceVerdict: 1000, cause: "executed" }), now),
+            otherChapter: M.wrongVerdictTouches(death({ sinceVerdict: 1000, chapter: 2 }), now),
+            witnessThis: M.wrongVerdictTouches(witness({ sinceVerdict: 1000 }), now),
+            witnessFirst: M.wrongVerdictTouches(witness({ sinceVerdict: null }), now),
+            witnessLastSeason: M.wrongVerdictTouches(witness({ sinceVerdict: 1000, epoch: "E1" }), now),
+            witnessOld: M.wrongVerdictTouches({ death: null, witness: 3 }, first),
+            nobody: M.wrongVerdictTouches({ death: null, witness: null }, now)
+        };
+        const src = stripComments((await moduleSources()).get("verdict.mjs") ?? "");
+        must(src.length > 5000, "verdict.mjs was not read");
+        read.wired = [/wrongVerdictTouches\(/.test(fnSource(src, "remindOnWrongVerdict")), /verdictBefore/.test(fnSource(src, "readSentence"))];
+        equal(stableJson(read), stableJson({ thisCase: true, firstCaseAtSecond: false, firstCaseAtFirst: true, lastSeason: false, executed: false,
+            otherChapter: false, witnessThis: true, witnessFirst: false, witnessLastSeason: false, witnessOld: true, nobody: false, wired: [true, true] }),
+            "{who the wrong verdict's card reaches: this case's dead; the first case's at the second trial, at its own; last season's; the executed; another chapter's; a witness of this case, of the first, of last season, an old mark; nobody; wired: [the step asks it, the sentence keeps the verdict before]}");
+    }],
     ["R3815 - the Final Trial's verdict settles the Ghost Bets: a step finalBets after the card and before the pick is cleared, the bet won only on the executed Mastermind (E72, the coordinator's bug of 12.11)", async () => {
         /*
          * E72, 12.11.2026; the coordinator's note of 12.11 ("the Final Trial runs no 'bets' step, so a Ghost Bet there stays
