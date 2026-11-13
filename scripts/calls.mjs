@@ -19,7 +19,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
-import { announce, whisperToOwner, log, error, esc, proseOf } from "./utils.mjs";
+import { announce, whisperToOwner, log, error, esc, proseOf, gmIds } from "./utils.mjs";
 // The Call windows' one builder and their header (E51 C2): call-pickers.mjs imports nothing of this file back.
 import { callWindow, callHeader, callWindowClass, callRowsHtml, pickedRow, callPriceShort } from "./call-pickers.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -471,11 +471,13 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
         // Despair is now spent. Applying the effect is separated from the
         // announcement above so a failure in one cannot cost the other.
         let done = [];
+        let secret = [];
         let failed = false;
         try {
             const { applyCall } = await import("./call-effects.mjs");
             const result = await applyCall(actor, key, "despair", choice);
             done = result.lines;
+            secret = result.secret ?? [];
             failed = result.failed;
         } catch (err) {
             error(`${call.label} was paid for but its effect failed`, err);
@@ -525,6 +527,18 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")} - ${esc(call.label)}</h3>${body}`,
             flags: { [MODULE_ID]: { popupTone: "fear", sfx: { key: "despairCall", gm: true } } }
         });
+        /* WHAT THE PUBLIC CARD LEAVES OUT (privacy line 2, #5; the owner's rule of 13.11.2026): a secret project's line -
+           its name and its progress - on a veiled card to the GMs and those who may know the project (call-effects.mjs
+           `progressEffect`), its document every browser's in nobody's voice, its words theirs alone. A failure is logged:
+           the Call has landed and its public card is posted. */
+        for (const { line, whisper } of secret) {
+            try {
+                await announce({ content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")} - ${esc(call.label)}</h3><ul><li>${esc(line)}</li></ul>`,
+                    whisper: [...new Set([...gmIds(), ...(whisper ?? [])])], veiled: true });
+            } catch (err) {
+                error(`Could not tell the insiders of ${call.label}'s secret project`, err);
+            }
+        }
 
         Hooks.callAll("drpgDespairCall", { actor, user, key, call, note, choice });
         return call;

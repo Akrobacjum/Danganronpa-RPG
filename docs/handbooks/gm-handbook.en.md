@@ -348,7 +348,7 @@ A Reroll keeps more of what it takes back. Close the breach and Repair an item a
 
 ### 6.2 Despair Calls (`DESPAIR_CALLS`)
 
-Spent from a Monokuma's sheet, out of the pool that Monokuma draws on, and always announced to the whole table. Locked during an Eclipse and during a Class Trial. A Call that would change nothing is refused before it is paid, and if the effect fails the Despair is refunded.
+Spent from a Monokuma's sheet, out of the pool that Monokuma draws on, and always announced to the whole table. The card names no secret project and no Chained student's room: Game Integrity or Patronage on a secret project tells the table only that a project's progress changes, and you and those in on the project get the line with its name and progress on a card of your own; the Chained student's own notice names the room. Locked during an Eclipse and during a Class Trial. A Call that would change nothing is refused before it is paid, and if the effect fails the Despair is refunded.
 
 | Call | Cost | Effect |
 |---|---|---|

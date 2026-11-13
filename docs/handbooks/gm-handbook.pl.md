@@ -348,7 +348,7 @@ Reroll zachowuje więcej z tego, co cofa. Close the breach i Repair an item są 
 
 ### 6.2 Despair Calls (`DESPAIR_CALLS`)
 
-Wydawane z arkusza Monokumy, z puli, z której ten Monokuma czerpie, i zawsze ogłaszane całemu stołowi. Zablokowane podczas Eclipse i podczas Class Trial. Call, który niczego by nie zmienił, jest odrzucany, zanim zostanie opłacony, a jeśli efekt się nie powiedzie, Despair wraca.
+Wydawane z arkusza Monokumy, z puli, z której ten Monokuma czerpie, i zawsze ogłaszane całemu stołowi. Karta nie podaje tajnego projektu ani pokoju ucznia z Chained: Game Integrity albo Patronage na tajnym projekcie mówi stołowi tylko, że zmienia się postęp projektu, a ty i ci, którzy o projekcie wiedzą, dostajecie wiersz z jego nazwą i postępem na osobnej karcie; pokój podaje własne powiadomienie ucznia z Chained. Zablokowane podczas Eclipse i podczas Class Trial. Call, który niczego by nie zmienił, jest odrzucany, zanim zostanie opłacony, a jeśli efekt się nie powiedzie, Despair wraca.
 
 | Call | Koszt | Efekt |
 |---|---|---|

@@ -86374,6 +86374,109 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "fuel: Fuel a Monocub - [bought, Hope, its cards as above]; dark: under the Despair darkening - [a conversion granted, the Call "
             + "bought, its effect failed, Hope, owed]}");
     }],
+    ["a Despair Call's public card names no secret project and no Chained room (privacy line 2, #5; the owner's rule of 13.11.2026): Patronage on a secret project says 'a project' to the table with no name and no numbers, and its whole line goes veiled to the GMs and the project's insiders alone; Chained leaves the room to the target's own notice", async () => {
+        /*
+         * Privacy line 2 (#5), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. A Despair Call's card is public (calls.mjs `spendDespairCallFor`), and on the GM's
+         * browser that buys it a secret project's name is the secret one (projects-secrecy.mjs `shownName`): Game
+         * Integrity or Patronage on a secret project put its name and its progress in front of the table, and Chained put
+         * the target's room there. A Monokuma's pool of this GM's (or the first), a secret project created here with this
+         * suite's player in on it, and another connected player who is not; Patronage bought on it, then Chained on a
+         * student who stands in a room. Read: the public card (no whisper) - whether it holds the project's name, its
+         * progress as "n/target" or "+2", the public line, and Chained's room and target; the veiled cards - whether their words
+         * name the project and who besides the GMs they went to; the target's own notice - whether it names the room.
+         * Red at af9792c5: the public card names the project and its progress, no veiled card, and the room on the card.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool pays the Calls");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a player in on the project, as Foundry names only connected ones");
+        const D = await import("./despair.mjs");
+        const M = await import("./monokuma.mjs");
+        const P = await import("./projects.mjs");
+        const S = await import("./secret.mjs");
+        const GS = await import("./gm-stores.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { contentOf } = S;
+        const { roomOfActor } = await import("./movement.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const kuma = M.monokumaActors().find(a => M.poolUserFor(a)?.id === game.user.id) ?? M.monokumaActors().find(a => M.poolUserFor(a)) ?? null;
+        const donor = kuma ? M.poolUserFor(kuma) : null;
+        must(kuma && donor, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const outsider = game.users.find(u => !u.isGM && u.active && u.id !== player.id) ?? null;
+        must(outsider, "no second connected player who is not in on the project - this would measure nothing");
+        const room = roomOfActor(other);
+        must(typeof room === "string" && room.length >= 3, `${other.name} stands in no named room - this would measure nothing`);
+        const role = id => (id === player.id ? "insider" : id === outsider.id ? "outsider" : game.users.get(id)?.isGM ? "gm" : ownerIdsOf(other).includes(id) ? "target" : `other ${id}`);
+        const NAME = "Suite PV5 the quiet plan";
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const phase = getClock().phase ?? "dailyLife";
+        const despairWas = D.getDespair(donor.id);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const fresh = () => {
+            const out = { messages: made.slice(marks.made), packets: packets.slice(marks.packets) };
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const publicOf = messages => messages.filter(m => !(m.whisper?.length) && m.getFlag(MODULE_ID, "veiled") !== true).map(m => String(contentOf(m) ?? ""));
+        const veiledOf = ({ messages, packets: sent }) => messages.filter(m => m.getFlag(MODULE_ID, "veiled") === true).map(m => [
+            Boolean(S.secretHtml(m)?.includes(esc(NAME))),
+            [...new Set(sent.filter(p => p.id === m.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort()]);
+        let id = null;
+        const read = {};
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [player.id] }))?.id ?? null;
+            must(id && P.isSecret(id), "could not create a secret project - this would measure nothing");
+            await D.setDespair(donor.id, DESPAIR_CALLS.favoriteProject.cost + DESPAIR_CALLS.chained.cost);
+            await settle();
+            fresh();
+            const bought = Boolean(await spendDespairCallFor(kuma, "favoriteProject", { choice: { project: id } }));
+            await settle();
+            const now = P.allProjects().find(p => p.id === id);
+            const patronage = fresh();
+            read.patronage = { bought, progress: now?.current ?? null,
+                // Its numbers as the receipt says them: "n/target" for a bar a GM's write moved, "+2" for progress sent.
+                public: publicOf(patronage.messages).map(text => [text.includes(esc(NAME)),
+                    /\b\d+\/\d+\b/.test(text) || text.includes(`+${DESPAIR_CALLS.favoriteProject.progress}`),
+                    text.includes(esc(game.i18n.localize("DRPG.Calls.progressSecret")))]),
+                veiled: veiledOf(patronage) };
+            const chainedBought = Boolean(await spendDespairCallFor(kuma, "chained", { choice: { target: other } }));
+            await settle();
+            const chained = fresh();
+            const notice = chained.messages.filter(m => m.whisper?.length && m.getFlag(MODULE_ID, "veiled") !== true && ownerIdsOf(other).some(u => m.whisper.includes(u)));
+            read.chained = { bought: chainedBought,
+                public: publicOf(chained.messages).map(text => [text.includes(esc(room)), text.includes(esc(other.name))]),
+                notice: notice.map(m => String(contentOf(m) ?? "").includes(esc(room))) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            if (id && GS.projectWorkStore?.has?.(id)) await GS.projectWorkStore.drop(id);
+            await D.setDespair(donor.id, despairWas);
+            for (const m of made) await game.messages.get(m.id)?.delete().catch(() => {});
+            await setClock({ phase });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            patronage: { bought: true, progress: 2, public: [[false, false, true]], veiled: [[true, ["insider"]]] },
+            chained: { bought: true, public: [[false, true]], notice: [true] }
+        }), "{patronage: [bought, the project's progress, public cards: [names the project, says its n/target or +2, says 'a project'], veiled cards: [names the project, its readers besides the GMs]]; chained: [bought, public cards: [names the room, names the target], the target's notice names the room]}");
+    }],
+
     ["E37-T7 - Daggerheart's own whole writes of the countdowns wait in the projects' queue (E37 C6, E37-29; the deferred D100): a model of the system's `updateCountdowns` (read the setting, wait, write it whole), wrapped by projects-ui.mjs `wrapCountdownUpdate` and called while a project's step holds `COUNTDOWNS_KEY`, leaves the project's +1 standing; so do the tray menu's Delete and Reveal of a row that is no project", async () => {
         /*
          * E37 C6, 01.11.2026; E37-29, D100 ("Daggerheart's whole writes inside the key", deferred 31.10). Since E36 every

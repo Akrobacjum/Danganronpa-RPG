@@ -22871,7 +22871,9 @@ const REGRESSIONS = [
          * matched by the grep and is not counted.
          * Red first on 15f44581: chat-card.mjs absent, no helper takes a card, 0 card sites.
          * Privacy line 2 (#7, 13.11.2026): frisk.mjs `tellOnlookers` adds two sites of the forms its `tellWitnesses` and
-         * `cardToGms` already take (a `message` and a `built`): the room's line is one sentence, as theirs is.
+         * `cardToGms` already take (a `message` and a `built`): the room's line is one sentence, as theirs is. Privacy
+         * line 2 (#5): calls.mjs `spendDespairCallFor` adds a `message`, the veiled card of a secret project's line, in the
+         * Despair Call card's own words.
          */
         const WHY = {
             action: "the action card: its own header (action-report.mjs cardHead) and outcome, painted by private-rolls.mjs paintChatCard",
@@ -22893,7 +22895,7 @@ const REGRESSIONS = [
             "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
-            "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
+            "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 2},
             // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
             "case-summary.mjs": {"message": 1},
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},

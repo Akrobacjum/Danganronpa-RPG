@@ -474,9 +474,9 @@ Every roll of yours that lands with Despair feeds the pool of the Monokuma who w
 | Feed the Overflow | 1 | Pours Despair into the overflow that darkens the world. |
 | Behind Closed Doors | 2 | Seals a room for one time of day. |
 | Paranoia | 2 | You lose 2 Sanity. |
-| Chained | 3 | You cannot leave your room until the time of day ends. |
-| Game Integrity | 3 | Removes 2 progress from a project. |
-| Patronage | 3 | Adds 2 progress to a project. |
+| Chained | 3 | You cannot leave your room until the time of day ends. The table is not told which room; you are. |
+| Game Integrity | 3 | Removes 2 progress from a project. On a secret project, only those in on it learn which, and how far it stands. |
+| Patronage | 3 | Adds 2 progress to a project. On a secret project, only those in on it learn which, and how far it stands. |
 | Pain | 4 | You lose 2 Health. |
 | Silence | 4 | You cannot spend Hope Calls until the time of day ends. |
 | Contraband | 4 | Destroys any one item. |

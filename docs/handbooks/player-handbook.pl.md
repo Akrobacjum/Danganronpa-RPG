@@ -474,9 +474,9 @@ Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje
 | Feed the Overflow | 1 | Wlewa Despair do overflow, który zaciemnia świat. |
 | Behind Closed Doors | 2 | Pieczętuje pokój na jedną porę dnia. |
 | Paranoia | 2 | Tracisz 2 Sanity. |
-| Chained | 3 | Nie możesz opuścić pokoju do końca pory dnia. |
-| Game Integrity | 3 | Odejmuje 2 postępu projektowi. |
-| Patronage | 3 | Dodaje 2 postępu projektowi. |
+| Chained | 3 | Nie możesz opuścić pokoju do końca pory dnia. Stół nie dowiaduje się, w którym pokoju; ty tak. |
+| Game Integrity | 3 | Odejmuje 2 postępu projektowi. Przy tajnym projekcie tylko ci, którzy o nim wiedzą, dowiadują się, któremu, i ile ma postępu. |
+| Patronage | 3 | Dodaje 2 postępu projektowi. Przy tajnym projekcie tylko ci, którzy o nim wiedzą, dowiadują się, któremu, i ile ma postępu. |
 | Pain | 4 | Tracisz 2 Health. |
 | Silence | 4 | Nie możesz wydawać Hope Calli do końca pory dnia. |
 | Contraband | 4 | Niszczy dowolny jeden przedmiot. |
