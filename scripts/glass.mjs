@@ -2600,7 +2600,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
    * empty sheet and every block stands upright. A full-width pane has nowhere to
    * lean to.
    */
-  function stackShapes(host, W, H, rnd, boxes, given = null) {
+  function stackShapes(W, H, rnd, boxes, page) {
+    const open = [];   // the areas the cut leaves open on purpose (`board`): the callers write them to OPEN_AREAS (E54 G3)
     let pieces = [[[0, 0], [W, 0], [W, H], [0, H]]];
     /* one cut: a line through (px, py) at `ang`, applied to the pieces `only` admits.
        Restricting it to some of the pieces is still a partition - each piece is either
@@ -2652,8 +2653,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        it. The box's top edge, padded, ran 12 px up into the strip's row, and the strip's right
        end stood on the tray's glass: twelve block failures, at the one stacked width the
        sweep reported any. A block inside narrow.mjs's column is a row whatever its width. */
-    const column = host.querySelector(COLUMN_SEL);
-    const inStack = b => Boolean(column) && (b.els ?? []).some(e => column.contains(e));
+    const { inStack } = page;   // `stackPage`: whether a block's elements stand in narrow.mjs's column
     let rows = boxes.filter(b => b.r && (b.w > W * 0.5 || inStack(b))).sort((p, q) => p.y - q.y);
     const loose = boxes.filter(b => !rows.includes(b) && b.r);
 
@@ -2664,10 +2664,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        board, with the block it was cut for nowhere near it: four blockFails at 620 px
        of height, twenty at 640 x 360, measured. Every row is cut down to the part of
        it the stack actually shows, and a row with nothing left is not a row. */
-    const frame = document.getElementById("drpg-curtain")?.getBoundingClientRect();
-    const seen = host.querySelector(COLUMN_SEL)?.getBoundingClientRect();
+    const seen = page.seen;   // `stackPage`: the column's box on the page, and the curtain's top it is read from
     if (seen) {
-      const lo = seen.top - (frame?.top ?? 0), hi = seen.bottom - (frame?.top ?? 0);
+      const lo = seen.top - page.frameTop, hi = seen.bottom - page.frameTop;
       rows = rows.map(b => {
         const y0 = Math.max(b.y, lo), y1 = Math.min(b.y + b.h, hi);
         if (y1 - y0 <= 20) return null;
@@ -2746,12 +2745,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        screen and painted as a stained one). */
     const fieldTop = yBase - rise - 1;
     const inField = p => bbox(p).y0 >= fieldTop;
-    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
-    // `given` is a test's: two bands' inner edges, the scene rail's and the tab rail's (`cutBoxes`)
-    const bands = given ?? [
-      railBox(host, cv, W, "#scene-controls", 0, null),
-      railBox(host, cv, W, "#sidebar-tabs", 1, null)
-    ];
+    const bands = page.bands;   // `stackPage`: the scene rail's and the tab rail's, or a test's two inner edges
     const strips = [];
     bands.forEach((band, side) => {
       if (!band || band.real === false || !Number.isFinite(band.band)) return;
@@ -2760,7 +2754,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     });
     pieces = pieces.filter(p => {
       if (!p || claimed.has(p) || !inField(p) || strips.some(own => own(p))) return true;
-      if (p.length >= 3 && area(p) > 12) OPEN_AREAS.push({ name: "board", poly: p });
+      if (p.length >= 3 && area(p) > 12) open.push({ name: "board", poly: p });
       return false;
     });
 
@@ -2792,7 +2786,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         rot: (x, y) => [x, y], px: 0, py: 0, s: 0,
         depthL: 0, depthR: 0, farL: [b.x, b.y + b.h], farR: [b.x + b.w, b.y + b.h]
       })),
-      bot: [], rings: [], tiles: {}
+      bot: [], rings: [], tiles: {}, open
     };
     return kept;
   }
@@ -2811,7 +2805,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   function curtainShapes(host, W, H, rnd, boxes, FW) {
     VOICE.box = null; OPEN_AREAS.length = 0;
     // a stacked layout is a different shape and gets a different cut; see stackShapes
-    if (narrowLayout()) return stackShapes(host, W, H, rnd, boxes);
+    if (narrowLayout()) { const panes = stackShapes(W, H, rnd, boxes, stackPage(host, W)); OPEN_AREAS.push(...panes.meta.open); return panes; }
     return deskShapes(host, W, H, rnd, boxes, FW);
   }
   /* THE TWO BANDS' SECTIONS MEET, THEY DO NOT CROSS (E23 fix G2, 08.11.2026; STATUS E23 Open 30 and 90, the end review's
@@ -3145,6 +3139,27 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   /* AND THE RAIL'S BAND (E96 C4; R3122): `{ band }` stands in for the tab rail's band as `railBox` measures it on
      the page (`band`, `coreY`, `x0`..`y1`, `core`, `real: true`), which the cut reads to stand the voice tile at the
      wall under the rail's run; the test's road, as `rail` is. Put back after the cut. */
+  /* THE STACK'S PAGE, MEASURED FOR ITS CUT (E54 G3, 13.11.2026; the plan's F6). What `stackShapes` read off the page
+     itself until E54, read here and handed to it, so the cut reads its arguments alone: which blocks stand in narrow.mjs's
+     column (`inStack`, from the blocks' elements), the part of the column the stack shows (`seen`, its box, and
+     `frameTop`, the curtain's top it is measured from) and the two rails' bands, the scene rail's and the tab rail's
+     (`railBox`), or a test's two inner edges (`given`, from `cutBoxes`). Read in the order the cut read them; a read
+     changes nothing on the page (`railBox` puts back the transform it lifts to measure). */
+  function stackPage(host, W, given = null) {
+    const column = host.querySelector(COLUMN_SEL);
+    const frame = document.getElementById("drpg-curtain")?.getBoundingClientRect();
+    const seen = host.querySelector(COLUMN_SEL)?.getBoundingClientRect();
+    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+    return {
+      inStack: b => Boolean(column) && (b.els ?? []).some(e => column.contains(e)),
+      seen: seen ? { top: seen.top, bottom: seen.bottom } : null,
+      frameTop: frame?.top ?? 0,
+      bands: given ?? [
+        railBox(host, cv, W, "#scene-controls", 0, null),
+        railBox(host, cv, W, "#sidebar-tabs", 1, null)
+      ],
+    };
+  }
   export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null, rail = null, band = null } = {}) {
     const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0), pin = PIN.rail, pinBand = PIN.band;
     if (rail != null) PIN.rail = rail;
@@ -3153,7 +3168,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const given = boxes.map(b => ({ sel: BLOCKS.find(k => k.cls === b.cls)?.sel ?? null, ...b }));
       VOICE.box = null; OPEN_AREAS.length = 0;
       const host = document.createElement("div");
-      const panes = stacked ? stackShapes(host, W, H, rng(seed), given, bands ?? [null, null]) : deskShapes(host, W, H, rng(seed), given, W);
+      const panes = stacked ? stackShapes(W, H, rng(seed), given, stackPage(host, W, bands ?? [null, null])) : deskShapes(host, W, H, rng(seed), given, W);
+      if (stacked) OPEN_AREAS.push(...panes.meta.open);
       return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: { ...cutCheck(panes, OPEN_AREAS, W, H), ...cutParts(panes, W, H) },
                rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
     } finally {
