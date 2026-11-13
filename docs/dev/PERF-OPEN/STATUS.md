@@ -193,3 +193,22 @@ a table that load is most likely paid at boot: not confirmed, and worth about 10
 So nothing further is fixed in this round: the first-open costs this line can measure are the ones the warming (above)
 already moves, and what is left is jsdom's or a single locale load. The rest is the table's reading,
 `game.drpg.openTimes()` (LIVE-PERF-OPEN-01).
+
+## Ready for 1.2.111? (13.11.2026, the coordinator's question)
+
+The line holds what the sections above say: `scripts/open-cost.mjs` (the idle warming and `game.drpg.openTimes()`),
+its registration in module.mjs, R4200-R4204, probes 09 and 80, and three reviews of other lines for 1.2.111
+(REVIEW-111.md, docs only). Nothing of the code changed after 44cceb51; f111fd50 and the two reviews are a probe and docs.
+
+One thing finished here: the registry stamped R4200-R4203 "E61" and R4204 "E64" (`--write` stamps the first stage not
+shipped when it runs); E61 shipped in 1.2.109 and this line is not in it. Set by hand to 1.2.111, which `--write` keeps.
+
+Runs on 0fafef1b, the head before this note (13.11.2026, this container, 4 cores): `npm run quick` green (17 parts);
+tiers 0-1 in full 1325 tests, 1310 passed, 0 failed, 16 skipped, 0 red, 489 s; 00-boot 33/33; 86-frame-work 104/104.
+
+For the merge: with the float-text line, module.mjs conflicts on two adjacent imports (`registerOpenCost` here,
+`registerFloatText` there); keep both, each registered where its own line puts it (module.mjs `safely(...)`, float-text
+at init, open-cost at ready). docs/dev/R-REGISTRY.md conflicts with float-text, e97-98-fix, r3551 and
+project-token-icon: the generator's file, written again at the merge. Clean with main and the two e59 fix lines.
+
+Still open, at a table only: LIVE-PERF-OPEN-01, and the two questions under "What is open" above.

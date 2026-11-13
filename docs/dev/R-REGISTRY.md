@@ -1267,11 +1267,11 @@ Next free: R4205. Reserved and unused: none.
 | R3914 | 1 | E99 | the gap before the unrelated evidence is as tall as its fold (E99 round 5, 12.11.2026: under glass the fold took two lines, 60 px, of the 39 the empty row left under its line, and lay over the first unrelated Remnant - pl, the Map and the trial's schema, read by audit/case-map-sweep.mjs): case-view.mjs `mapPlace` given the gap's measured height `gapH` places the first column's next node at least `gapH` and a row's gap under the gap's middle, and never nearer than one pitch; the other columns and a gap of no height as before |
 | R3915 | 1 | E99 | the Class Trial console's compact frame has one threshold, in settings.mjs (E99 round 6, 12.11.2026; the owner's "Zgadzam sie na zmiany w oknach class trial"): BREAKPOINTS.low is 800 and `lowScreen` is true under it and false at it and above (an unmeasured 0 is not low); `applyTheme` stamps `drpg-low` from `lowScreen` and the screen's watch re-applies the theme when it changes; the module's sheets key the console's compact title and footer off `body.drpg-low` and repeat no height in a media query |
 | R3916 | 1 | E99 | the case summary goes out once a trial and is heard (E99 C7; the plan's Q-E99-9 and Q-E99-7, built in the round of 12.11.2026): trial-progress.mjs `TRIAL_RECORD` has a `summaryShown` row that lives a trial (blank null, the entry writes null), so it is in the blank and in another GM's whitelist; case-summary.mjs reads and writes it, not a row of the GMs' ticks store, and its card carries `sfx: "caseSummary"`; config.mjs `SFX_EVENTS.caseSummary` is an incident sound with its label and hint in both languages |
-| R4200 | 0 | E61 | a window's file that would be fetched on its first open is fetched at idle after ready instead |
-| R4201 | 0 | E61 | the open times are read first open against later ones, and the templates off the classes' parts |
-| R4202 | 1 | E61 | the files a window reaches only by import() are fetched at idle after ready, each without an error |
-| R4203 | 0 | E61 | a warming step waits for the browser's idle time with no deadline, so a busy page is never pushed |
-| R4204 | 0 | E64 | a warming step waits while a sequence, a curtain's turn or a transition plays, and goes on after it |
+| R4200 | 0 | 1.2.111 | a window's file that would be fetched on its first open is fetched at idle after ready instead |
+| R4201 | 0 | 1.2.111 | the open times are read first open against later ones, and the templates off the classes' parts |
+| R4202 | 1 | 1.2.111 | the files a window reaches only by import() are fetched at idle after ready, each without an error |
+| R4203 | 0 | 1.2.111 | a warming step waits for the browser's idle time with no deadline, so a busy page is never pushed |
+| R4204 | 0 | 1.2.111 | a warming step waits while a sequence, a curtain's turn or a transition plays, and goes on after it |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 
