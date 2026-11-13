@@ -125,6 +125,9 @@ before by design).
 
 ### Defaults taken (the coordinator's 13.11: they stand, on the owner's list)
 
+The owner confirmed the C3b defaults on 13.11.2026, relayed by the coordinator: "E62 c3b wszystko sie zgadza". The
+coordinator takes 874f7706 as C3b's head for 1.2.112.
+
 1. The Spectator's token is not Foundry-hidden (that hides it from its owner too): the module hides it from other players
    as E92 does. The spec said `hidden: true`.
 2. After the publication the link is `FLAGS.watcherOf` on the Spectator; it names a public death only.
