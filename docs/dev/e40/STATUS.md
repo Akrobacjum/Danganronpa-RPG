@@ -32,7 +32,9 @@ None.
 ## Test results
 
 - Baseline tiers 0-1 at 421f2395 (E39's): 1320 ran, 1305 passed, 0 failed, 16 skipped, 0 red.
-- E40-T1 alone: 1 ran, 0 failed (10 s). Before the push: see the next update.
+- Before the push, at 3752cc66: tiers 0-1 whole 1320 ran, 1305 passed, 0 failed, 16 skipped, 0 red (386 s); E40-T1 by
+  name 1 ran, 0 failed (9 s); 63-class-trial (the trial driven end to end) green, 114 s. No scenario reads
+  tests-tier2.mjs by name (`git grep`); 01-runtests runs it whole in CI's shards.
 
 ## Waits for / not built on this line yet
 
