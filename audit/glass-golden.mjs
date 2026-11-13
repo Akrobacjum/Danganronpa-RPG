@@ -4,7 +4,7 @@
  *     node audit/glass-golden.mjs --capture --boxes <file> [--root <tree>] [--chromium <executable>] [--sizes WxH,...]
  *     node audit/glass-golden.mjs --boxes <file> --out <file> [--against <file>] [--root <tree>] [--chromium <executable>]
  *
- * The glass cut's partitions (glass.mjs `windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands`)
+ * The glass cut's partitions (glass-geometry.mjs `windowShapes`, `stackShapes`, `deskShapes`, `curtainShapes`, `meetBands`)
  * are given explicit arguments and return values one at a time, each a commit that must change no cut. This is the
  * reading that holds it: glass.mjs `cutBoxes`, the road a test has into the cut, over every size of
  * audit/glass-sweep.mjs's SIZES x {the desk, the stack} x seeds 1, 2, 3 x {no rail, a rail and its band}, the answers
