@@ -105,7 +105,7 @@ function markdown(main, checks, tips) {
         L.push(`| Line (tip, base, commits ahead) | ${names.join(" | ")} |`, `| --- | ${names.map(() => "---").join(" | ")} |`);
         for (const t of tips) {
             if (t.error || !t.b) { L.push(`| \`${t.ref.replace(/^origin\/claude\//, "")}\` (${t.sha}) | ${names.map(() => "not read").join(" | ")} |`); continue; }
-            const base = ids(t.b), mine = ids(t.m);
+            const base = t.b, mine = t.m;
             const cell = n => { const add = [...mine[n]].filter(x => !base[n].has(x)).length, gone = [...base[n]].filter(x => !mine[n].has(x)).length; return add || gone ? `+${add} -${gone}` : "0"; };
             L.push(`| \`${t.ref.replace(/^origin\/claude\//, "")}\` (${t.sha}, ${t.base}, ${t.ahead}) | ${names.map(cell).join(" | ")} |`);
         }
@@ -156,8 +156,10 @@ if (argv.includes("--lines")) {
     const bases = new Map();
     for (const t of lineTips()) {
         try {
-            if (!bases.has(t.base)) { bases.set(t.base, measureRef(t.base)); console.log(`e56: read base ${t.base}`); }
-            tips.push({ ...t, m: measureRef(t.ref), b: bases.get(t.base) });
+            /* Only each tree's item ids are kept (`ids`): its whole lists, for every tip and base at once, took the run past
+               node's 2 GB heap at the 19th tip of 59 (13.11.2026, exit 134). */
+            if (!bases.has(t.base)) { bases.set(t.base, ids(measureRef(t.base))); console.log(`e56: read base ${t.base}`); }
+            tips.push({ ...t, m: ids(measureRef(t.ref)), b: bases.get(t.base) });
             console.log(`e56: read ${t.ref} (${t.sha}, base ${t.base})`);
         }
         catch (err) { tips.push({ ...t, error: String(err.message).split("\n")[0] }); console.log(`e56: ${t.ref} not read (${String(err.message).split("\n")[0]})`); }
