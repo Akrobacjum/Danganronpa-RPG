@@ -53822,11 +53822,14 @@ const INVARIANTS = [
             edited: null, editedNone: null, road: "motion", unmarked: "motion"
         }), "[the mark by the write: a road in and out, Edit campaign in and out, no crossing, the next morning; which roads say so in source; the entry for a crossing marked false, then nothing playing; marked true; unmarked]");
     }],
-    ["R4424 - a chapter's end that closes the trial and opens the next morning plays the exit first, then the day's boards (scripts/transitions.mjs `onClockHeard`; scripts/sequence.mjs `whenTrialExitEnds`; the owner's decision of 12.11.2026, every default accepted): heard as one run of the clock's row, the exit plays and the end-of-day board waits for it; heard as two runs - the trial's end, then the morning while the exit plays - the exit is not cut and the board starts when it ends; a new day with no exit asked for starts its board at once", async () => {
+    ["R4424 - a chapter's end that closes the trial and opens the next morning plays the exit first, then the day's boards (scripts/transitions.mjs `onClockHeard`; scripts/sequence.mjs `whenTrialExitEnds`; the owner's decision of 12.11.2026, every default accepted): heard as one run of the clock's row, the exit plays and the end-of-day board waits for it; heard as two runs - the trial's end, then the morning while the exit plays - the exit is not cut and the board starts when it ends; a new day with no exit asked for starts its board at once - since 13.11.2026 the start-of-day board alone, the end-of-day board being Night's start's", async () => {
         /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was no sequence and the board started at once, and since
            a sequence cuts the one running, a board started during an exit would have cut it. Each new morning carries the
            boards' stamp (`dayBoard`), as the chapter end's next morning and the roll-over write it: since the 1.2.110 line
-           (merged into 1.2.111 on 13.11.2026) a day moved without it - Edit campaign's - plays no board (R4400, R4401). */
+           (merged into 1.2.111 on 13.11.2026) a day moved without it - Edit campaign's - plays no board (R4400, R4401).
+           NIGHT'S START (13.11.2026; the owner's rule of that day): the end-of-day board moved to Night's start, and the
+           chapter end's morning stamps the day it closes for it (`nightBoard`), so both of its runs still play the end
+           board first; Next from Night (no such stamp) plays the start board alone. Red at ceb9e9c8: no `nightBoard`. */
         const S = await import("./sequence.mjs"), T = await import("./transitions.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
         const day = 700 + (Date.now() % 100), tag = `R4424:${Date.now()}`, read = {};
@@ -53838,7 +53841,7 @@ const INVARIANTS = [
             S.endSequence("cut");
             // one run: the trial's end and the next morning in one reading of the clock
             T.onClockHeard(c(day, "night", "classTrial"), { on: false, still: true });
-            T.onClockHeard(c(day + 1, "morning", "dailyLife", { trialEndedAt: `${tag}a`, dayBoard: day + 1 }), { on: true, still: true, keep: false });
+            T.onClockHeard(c(day + 1, "morning", "dailyLife", { trialEndedAt: `${tag}a`, dayBoard: day + 1, nightBoard: day }), { on: true, still: true, keep: false });
             await until(() => kind() !== null, 3000);
             read.oneFirst = kind();
             await wait(400);
@@ -53850,7 +53853,7 @@ const INVARIANTS = [
             T.onClockHeard(c(day + 1, "night", "classTrial"), { on: false, still: true });
             T.onClockHeard(c(day + 1, "night", "dailyLife", { trialEndedAt: `${tag}b` }), { on: true, still: true, keep: false });
             await until(() => kind() === "trialExit", 3000);
-            T.onClockHeard(c(day + 2, "morning", "dailyLife", { trialEndedAt: `${tag}b`, dayBoard: day + 2 }), { on: true, still: true, keep: false });
+            T.onClockHeard(c(day + 2, "morning", "dailyLife", { trialEndedAt: `${tag}b`, dayBoard: day + 2, nightBoard: day + 1 }), { on: true, still: true, keep: false });
             await wait(400);
             read.twoStill = kind();
             S.endSequence("skipped");
@@ -53868,7 +53871,7 @@ const INVARIANTS = [
             body.classList.toggle("drpg-reduced-motion", wasReduced);
             if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
         }
-        equal(stableJson(read), stableJson({ oneFirst: "trialExit", oneStill: "trialExit", oneThen: "dayEnd", twoStill: "trialExit", twoThen: "dayEnd", alone: "dayEnd" }),
+        equal(stableJson(read), stableJson({ oneFirst: "trialExit", oneStill: "trialExit", oneThen: "dayEnd", twoStill: "trialExit", twoThen: "dayEnd", alone: "dayStart" }),
             "[one run: what plays first, still after 400 ms, then; two runs: what plays 400 ms after the morning was heard, then once the exit was skipped; a new day with no exit]");
     }],
     ["R5380 - the closing curtain stands under the open windows, the title and its band over them (styles/danganronpa.css THE SEQUENCES; the owner's ask of 13.11.2026: \"zamkniecie kurtyny niech bedzie pod otwartymi oknami, napis i jego tlo na otwartych oknach\"): read through the module's cascade in both themes, on a desk and a stacked screen, for the trial's entry and its exit with the glass and with the lids, the host is no box of its own (`display: contents`), its curtain layer is fixed under Foundry's window layer (`--z-index-window` less 2) and over every other z-index the module's sheets state under that layer, and takes the clicks it covers; its title layer is fixed at 99980, over every window, and lets the clicks through; the notice stack stands over the curtain - under the windows under Stained Glass, over them under Monokuma Legacy; the verdict's cut-in and the day's boards keep the one host at 99980; every window open on this page stands between the two layers", async () => {
@@ -54322,26 +54325,30 @@ const INVARIANTS = [
             inputs: ["despair", "hope", "monocubHope", "overflow", true], published: true, read: true
         }), "[the bars; the bands for each set of inputs; bars handed in; the three words; a number refused, a word kept; the GM's four inputs; the inputs read the one cast by the published death, the Monocubs and the count; the advance reads them and writes the word]");
     }],
-    ["R3724 - the Night's own summary folds into the end-of-day board (scripts/day-summary.mjs `nightFoldsIntoBoard`, `sumUp`; E94 C3, the plan's Q-E94-5 default): with the table's switch on, the summary of the day's last time of day closed by the roll-over to the next morning (the clock stamped for the boards, `dayBoard`) or by the Morning Eclipse opened at Night is not put up - the board holds the whole day and keeps a card of it; with the switch off, at any other Eclipse's start, at a Night to Morning moved by hand and at any other time of day it is put up as before", async () => {
-        /* E94 C3, 12.11.2026. Red at 7bbbd3c: day-summary.mjs has no nightFoldsIntoBoard.
-           THE ECLIPSE'S ROAD AND THE STAMP (12.11.2026, the owner's report on 1.2.109): the boards play at the Morning
-           Eclipse's end too, and only on a real roll-over (`dayBoard`, R4400, R4401). So the Night's summary folds at the
-           Morning Eclipse's start at Night - put up there, the board at the Eclipse's end showed the same rows again - and
-           a Night to Morning moved by hand, which plays no board now, keeps its summary. Red at 1ff4bc77 on both. */
+    ["R3724 - the Evening's own summary folds into the end-of-day board, which plays when Night begins (scripts/day-summary.mjs `eveningFoldsIntoBoard`, `sumUp`; E94 C3, the plan's Q-E94-5 default; the owner's rule of 13.11.2026): with the table's switch on, the summary of the Evening closed by the move into Night stamped for the board (`nightBoard`) or by the Night Eclipse opened at Evening is not put up - the board holds the day up to Night and keeps a card of it; with the switch off, at any other Eclipse's start, at an Evening to Night moved by hand, and for the Night and any other time of day it is put up", async () => {
+        /* E94 C3, 12.11.2026. Red at 7bbbd3c: day-summary.mjs had no nightFoldsIntoBoard.
+           THE ECLIPSE'S ROAD AND THE STAMP (12.11.2026, the owner's report on 1.2.109): the Night's summary folded at the
+           Morning Eclipse's start, and a Night to Morning moved by hand kept its summary. Red at 1ff4bc77 on both.
+           NIGHT'S START (13.11.2026; the owner's rule of that day: the end-of-day board "after the Night Eclipse (that is,
+           at the start of Night)"): the board moved from the roll-over to Night's start, so the summary it holds is the
+           Evening's, and the Night's is put up at the Morning Eclipse's start or the roll-over. Red at ceb9e9c8: no
+           eveningFoldsIntoBoard. */
         const D = await import("./day-summary.mjs"), { TIMES_OF_DAY } = await import("./config.mjs");
-        if (typeof D.nightFoldsIntoBoard !== "function") { ok(false, "day-summary.mjs has no nightFoldsIntoBoard"); return; }
-        const last = TIMES_OF_DAY[TIMES_OF_DAY.length - 1], first = TIMES_OF_DAY[0];
+        if (typeof D.eveningFoldsIntoBoard !== "function") { ok(false, "day-summary.mjs has no eveningFoldsIntoBoard"); return; }
+        const last = TIMES_OF_DAY[TIMES_OF_DAY.length - 1], evening = TIMES_OF_DAY[TIMES_OF_DAY.length - 2], first = TIMES_OF_DAY[0];
         const sources = await moduleSources();
         const sum = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "sumUp");
         equal(stableJson([
-            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 4, dayBoard: 4 }, true),
-            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 4, dayBoard: 4 }, false),
-            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: last, eclipse: true }, true),
-            D.nightFoldsIntoBoard({ timeOfDay: first }, { timeOfDay: TIMES_OF_DAY[1] }, true),
-            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 4, dayBoard: 3 }, true),
-            D.nightFoldsIntoBoard({ timeOfDay: TIMES_OF_DAY[3] }, { timeOfDay: TIMES_OF_DAY[3], eclipse: true }, true),
-            /nightFoldsIntoBoard\(window, clock\)\) return/.test(sum)
-        ]), stableJson([true, false, true, false, false, false, true]), "[the night at the roll-over with the boards' stamp, switch on; switch off; the Morning Eclipse's start at Night; another time of day; Night to Morning by hand (no stamp on the new day); an Evening Eclipse's start; sumUp asks it]");
+            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: 4 }, true),
+            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: 4 }, false),
+            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: evening, eclipse: true }, true),
+            D.eveningFoldsIntoBoard({ timeOfDay: first }, { timeOfDay: TIMES_OF_DAY[1] }, true),
+            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: null }, true),
+            D.eveningFoldsIntoBoard({ timeOfDay: evening }, { timeOfDay: last, day: 4, nightBoard: 3 }, true),
+            D.eveningFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: last, eclipse: true }, true),
+            D.eveningFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first, day: 5, dayBoard: 5 }, true),
+            /eveningFoldsIntoBoard\(window, clock\)\) return/.test(sum)
+        ]), stableJson([true, false, true, false, false, false, false, false, true]), "[Evening to Night with the board's stamp, switch on; switch off; the Night Eclipse's start at Evening; another time of day; Evening to Night by hand (no stamp); a stamp from an older day; the Night at the Morning Eclipse's start; the Night at the roll-over; sumUp asks it]");
     }],
     ["R3725 - the clock stamps when the day began (scripts/clock.mjs `setClock`; E94 C3): a write that moves the day sets `dayStartedAt` to the new time of day's own stamp, or the server's clock, unless the write sets it itself; the end-of-day board reads its rows from it", async () => {
         /* E94 C3, 12.11.2026. Red at 7bbbd3c: setClock writes no dayStartedAt. The write itself is tier 2's (tiers 0-1 write no setting). */
@@ -54354,62 +54361,31 @@ const INVARIANTS = [
             read: /before\?\.dayStartedAt/.test(fnSource(seq, "dayEndReads"))
         }), stableJson({ stamp: true, read: true }), "[setClock stamps dayStartedAt on a new day; the board reads it]");
     }],
-    ["R4400 - the Morning Eclipse's end on the curtain clock is a new day, and its boards play; a day moved by hand plays none (scripts/transitions.mjs `transitionFor`, `onClockHeard`; the owner's report at a real table on 1.2.109 and their rule of 12.11.2026): an Eclipse that ends at Night into the next Morning, day 3 to day 4, is the Eclipse's turn and names the new day, an Eclipse that ends on the same day names none; heard with the clock's `dayBoard` stamp on the new day, the end-of-day board plays, still under reduced motion; a day moved without the stamp - Edit campaign's correction - and a stamp left from an older day play nothing", async () => {
+    ["R4400 - the Morning Eclipse's end on the curtain clock is the Eclipse's turn and names the new day, and plays no board: its start-of-day board played at its start (scripts/transitions.mjs `transitionFor`, `boardsOf`; the owner's report at a real table on 1.2.109 and their rules of 12.11 and 13.11.2026): an Eclipse that ends at Night into the next Morning, day 3 to day 4, is the Eclipse's turn and names the new day, an Eclipse that ends on the same day names none, Next from Night is a new day; the Morning Eclipse's end with the stamp plays no board, Next from Night with it the start-of-day board, and without it - Edit campaign's correction, a stamp from an older day - nothing", async () => {
         /* 12.11.2026. Red at 1ff4bc77: `transitionFor` answered the Eclipse's end before it read the day, so the curtain
-           clock's road (and the GM panel's Eclipse button) never named the new day and never played the boards, while
-           Edit campaign's day + 1 did. Hand-built clocks, read on this browser alone (DOM only, R3712). */
-        const S = await import("./sequence.mjs");
+           clock's road never named the new day and never played the boards.
+           13.11.2026 (the owner's rule of that day: "The start-of-day animation should show at the start of the Morning
+           Eclipse, and the end-of-day one after the Night Eclipse (that is, at the start of Night)"): the boards left the
+           Morning Eclipse's end. Read pure here; driven through `onClockHeard` in R5890. Red at ceb9e9c8: no `boardsOf`. */
         const T = await import("./transitions.mjs");
+        if (typeof T.boardsOf !== "function") { ok(false, "transitions.mjs has no boardsOf"); return; }
         const c = (day, timeOfDay, extra = {}) => ({ season: "R4400", session: day, day, timeOfDay, phase: "dailyLife", eclipse: false, ...extra });
         const pick = t => (t ? [t.kind, t.newDay === true] : null);
-        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
-        /* A DAY NO RUN OF THIS PAGE HAS PLAYED (13.11.2026; release run 43397715368, suite 1/8 red on 44f9d690 where CI
-           run 43394616656 on the same tree was green). A sequence starts once per key on a page (sequence.mjs
-           `playSequence`, `started`), and this test's keys are its days. The day was 700 + Date.now() % 200, and shard 1
-           runs tiers 0-1 four times in one GM boot (01-runtests A1, A2, A3, C): a later run on an earlier run's day found
-           its board started already - eclipseRoad null, or the next morning's board, which a board not played hands on to
-           (`playDayEnd`). With the GM's clock read to 200 ms (a probe, not committed) and R4400 run three times in one
-           boot: run 1 green, run 2 red reading "day:R4400:701:701", run 3 red reading null. So the day is the first from
-           700, in steps of 3, whose three days' boards - this road's, Edit campaign's and Night to Morning's - this page
-           has not started: a board held null by a key played before would read as a board never asked for. */
-        const fresh = d => [d, d + 1, d + 2].every(n => !S.sequenceStarted("dayEnd", `dayEnd:R4400:${n}:${n}`)
-            && !S.sequenceStarted("dayStart", `day:R4400:${n + 1}:${n + 1}`));
-        let day = 700;
-        while (!fresh(day)) day += 3;
-        const read = {};
-        read.pure = {
-            morningEclipse: pick(T.transitionFor(c(3, "night", { eclipse: true }), c(4, "morning"))),
-            nightEclipse: pick(T.transitionFor(c(3, "evening", { eclipse: true }), c(3, "night"))),
-            panelNext: pick(T.transitionFor(c(3, "night"), c(4, "morning")))
-        };
-        try {
-            body.classList.add("drpg-reduced-motion");
-            S.endSequence("cut");
-            // the curtain clock's road: Night, the Morning Eclipse opened, then its end into the next morning with the stamp
-            T.onClockHeard(c(day, "night"), { on: false, still: true });
-            T.onClockHeard(c(day, "night", { eclipse: true }), { on: false, still: true });
-            T.onClockHeard(c(day + 1, "morning", { dayBoard: day + 1 }), { on: true, still: true, keep: false });
-            await until(() => S.sequenceNow()?.kind === "dayEnd", 3000).catch(() => {});
-            read.eclipseRoad = S.sequenceNow()?.key ?? null;
-            S.endSequence("cut");
-            // Edit campaign's day + 1 at the same hour: no stamp on the new day
-            T.onClockHeard(c(day + 1, "noon", { dayBoard: day + 1 }), { on: false, still: true });
-            T.onClockHeard(c(day + 2, "noon", { dayBoard: day + 1 }), { on: true, still: true, keep: false }); await settle();
-            read.editDay = S.sequenceNow();
-            // and Night to Morning by hand, the day + 1 with it, a stamp from an older day standing
-            T.onClockHeard(c(day + 2, "night", { dayBoard: day + 1 }), { on: false, still: true });
-            T.onClockHeard(c(day + 3, "morning", { dayBoard: day + 1 }), { on: true, still: true, keep: false }); await settle();
-            read.editMorning = S.sequenceNow();
-        } finally {
-            S.endSequence("cut");
-            // the page's clock seen again as the world's, so no test after this reads a turn from a hand-built one
-            T.onClockHeard(getClock(), { on: false, still: true });
-            body.classList.toggle("drpg-reduced-motion", wasReduced);
-        }
-        equal(stableJson(read), stableJson({
+        const boards = (before, after) => T.boardsOf(T.transitionFor(before, after), before, after);
+        equal(stableJson({
+            pure: {
+                morningEclipse: pick(T.transitionFor(c(3, "night", { eclipse: true }), c(4, "morning"))),
+                nightEclipse: pick(T.transitionFor(c(3, "evening", { eclipse: true }), c(3, "night"))),
+                panelNext: pick(T.transitionFor(c(3, "night"), c(4, "morning")))
+            },
+            eclipseEnd: boards(c(3, "night", { eclipse: true, dayBoard: 4 }), c(4, "morning", { dayBoard: 4 })),
+            next: boards(c(3, "night"), c(4, "morning", { dayBoard: 4 })),
+            editDay: boards(c(4, "noon"), c(5, "noon", { dayBoard: 4 })),
+            editMorning: boards(c(5, "night", { dayBoard: 4 }), c(6, "morning", { dayBoard: 4 }))
+        }), stableJson({
             pure: { morningEclipse: ["eclipseOut", true], nightEclipse: ["eclipseOut", false], panelNext: ["newDay", false] },
-            eclipseRoad: `dayEnd:R4400:${day}:${day}`, editDay: null, editMorning: null
-        }), "[the Morning Eclipse's end, a Night Eclipse's end and Next from Night as [kind, names the new day]; the board played on the Eclipse's end with the stamp; Edit campaign's day + 1; Night to Morning by hand under an older stamp]");
+            eclipseEnd: null, next: "start", editDay: null, editMorning: null
+        }), "[the Morning Eclipse's end, a Night Eclipse's end and Next from Night as [kind, names the new day]; the boards of the Morning Eclipse's end with the stamp; of Next from Night with it; of Edit campaign's day + 1; of Night to Morning by hand under an older stamp]");
     }],
     ["R4401 - only a real roll-over stamps the day's boards (scripts/sequence.mjs `dayStartPatch`; scripts/clock.mjs `advanceTimeOfDay`, `setClock`; scripts/chapter.mjs, the chapter end's next morning; scripts/gm-campaign.mjs `applyCampaignForm`; scripts/settings.mjs `DEFAULT_CLOCK`; the owner's rule of 12.11.2026): the roll-over's patch names the new day as `dayBoard`, any other move names none; the advance hands its new day in; the chapter end's next morning stamps its day; `setClock` takes the stamp away from any write that moves the day without naming it, so Edit campaign's correction - which never names it - is silent; the clock's defaults hold the field, so tier 2's restore of a whole clock writes it back", async () => {
         /* 12.11.2026. Red at 1ff4bc77: no `dayBoard` anywhere. The writes themselves are tier 2's ("E110 day boards"). */
@@ -54433,6 +54409,111 @@ const INVARIANTS = [
             defaults: Object.hasOwn(DEFAULT_CLOCK, "dayBoard") ? DEFAULT_CLOCK.dayBoard : "missing"
         }), stableJson({ rollOver: 7, other: false, advance: true, chapterEnd: true, cleared: true, campaign: false, defaults: null }),
             "[the roll-over's stamp; another move's patch names none; the advance hands its day in; the chapter end stamps its morning; setClock clears it on an unstamped day move; Edit campaign names none; the default]");
+    }],
+    ["R5890 - the day's boards play where the owner put them, once each, on this browser (scripts/transitions.mjs `boardsOf`, `onClockHeard`; scripts/sequence.mjs `playDayStart`, `playDayEnd`, `dayStartClock`; the owner's rule of 13.11.2026: \"The start-of-day animation should show at the start of the Morning Eclipse, and the end-of-day one after the Night Eclipse (that is, at the start of Night)\"): the Night Eclipse's start plays nothing and its end the end-of-day board of the day; the Morning Eclipse's start the start-of-day board of the day + 1 with the GM's morning line, and its end nothing; Evening to Night with no Eclipse the end-of-day board; Night to Morning with no Eclipse the start-of-day board with its line; Edit campaign's Night and Morning, with no stamp or an older one, nothing", async () => {
+        /* 13.11.2026. Red at ceb9e9c8: the Night Eclipse's end and Evening to Night played nothing, the Morning Eclipse's
+           start nothing, and its end both boards back to back. Hand-built clocks heard on this browser alone (DOM only,
+           R3712), under reduced motion; each move read by the boards it started - the sequence engine's counters by kind
+           (perf-counters.mjs `sequence.dayEnd`, `sequence.dayStart`) - and the start board's still frame read as it
+           stands. A sequence starts once per key on a page, so the day is the first from 900, in steps of 4, whose keys
+           this page has not started (R4400's lesson of 13.11.2026: shard 1 runs tiers 0-1 four times in one boot). */
+        const S = await import("./sequence.mjs"), T = await import("./transitions.mjs"), P = await import("./perf-counters.mjs");
+        if (typeof S.dayStartClock !== "function") { ok(false, "sequence.mjs has no dayStartClock"); return; }
+        const c = (day, timeOfDay, extra = {}) => ({ season: "R5890", session: day, day, timeOfDay, phase: "dailyLife", eclipse: false, ...extra });
+        const fresh = d => [d, d + 1, d + 2, d + 3].every(n => !S.sequenceStarted("dayEnd", `dayEnd:R5890:${n}:${n}`)
+            && !S.sequenceStarted("dayStart", `day:R5890:${n}:${n}`));
+        let d = 900;
+        while (!fresh(d)) d += 4;
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const counts = () => { const n = P.snapshot(); return [n["sequence.dayEnd"] ?? 0, n["sequence.dayStart"] ?? 0]; };
+        const board = () => {
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            return host?.dataset.drpgSequence === "dayStart"
+                ? [host.querySelector(".drpg-seq-day-title")?.textContent ?? null, host.querySelector(".drpg-seq-announce")?.lastChild?.textContent ?? null] : null;
+        };
+        const read = {};
+        /* One move: the clocks heard before it with the switch off (they move this page's `seen` and play nothing), then
+           the move with it on; [end boards started, start boards started, the start board standing, if any]. */
+        const move = async (name, lead, after) => {
+            for (const clock of lead) T.onClockHeard(clock, { on: false, still: true });
+            S.endSequence("cut");
+            const was = counts();
+            T.onClockHeard(after, { on: true, still: true, keep: false });
+            await settle(); await new Promise(r => setTimeout(r, 300));
+            const now = counts();
+            read[name] = [now[0] - was[0], now[1] - was[1], board()];
+            S.endSequence("cut");
+        };
+        try {
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            await move("nightEclipseStart", [c(d, "evening")], c(d, "evening", { eclipse: true }));
+            await move("nightEclipseEnd", [], c(d, "night", { nightBoard: d }));
+            await move("morningEclipseStart", [], c(d, "night", { eclipse: true, nightBoard: d, dayBoard: d + 1, morningLine: "Line one" }));
+            await move("morningEclipseEnd", [], c(d + 1, "morning", { dayBoard: d + 1, morningLine: "Line one" }));
+            await move("eveningToNight", [c(d + 1, "evening", { dayBoard: d + 1 })], c(d + 1, "night", { dayBoard: d + 1, nightBoard: d + 1 }));
+            await move("nightToMorning", [], c(d + 2, "morning", { dayBoard: d + 2, morningLine: "Line two" }));
+            // Edit campaign: Evening to Night with no stamp, Night to Morning with the day + 1 under an older stamp
+            await move("editNight", [c(d + 2, "evening", { dayBoard: d + 2 })], c(d + 2, "night", { dayBoard: d + 2 }));
+            await move("editMorning", [], c(d + 3, "morning", { dayBoard: d + 2 }));
+        } finally {
+            S.endSequence("cut");
+            T.onClockHeard(getClock(), { on: false, still: true });
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        const title = n => game.i18n.format("DRPG.Sequence.dayTitle", { day: n });
+        equal(stableJson(read), stableJson({
+            nightEclipseStart: [0, 0, null], nightEclipseEnd: [1, 0, null],
+            morningEclipseStart: [0, 1, [title(d + 1), "Line one"]], morningEclipseEnd: [0, 0, null],
+            eveningToNight: [1, 0, null], nightToMorning: [0, 1, [title(d + 2), "Line two"]],
+            editNight: [0, 0, null], editMorning: [0, 0, null]
+        }), "[each move: [end-of-day boards started, start-of-day boards started, the start board's title and morning line]]");
+    }],
+    ["R5891 - what the boards' new places write, and where (scripts/sequence.mjs `dayStartPatch`, `dayStartClock`, `startBoardStamped`, `lateSequence`; scripts/clock.mjs `advanceTimeOfDay`, `openingDayPatch`, `setClock`; scripts/eclipse.mjs `startEclipse`, `endEclipse`; scripts/settings.mjs `DEFAULT_CLOCK`; the owner's rule of 13.11.2026): the Morning Eclipse's start writes the roll-over's patch for the day it leads into - the morning line, the mood and the stamp of the day + 1 - and its end only keeps the stamp, so the line is neither written nor cleared twice; a move into Night works the mood out and stamps the end-of-day board on its day; the board during the Morning Eclipse is the next day's, under the key its end lands on; a late browser finds it by that key; `setClock` takes the Night stamp away from an unstamped move of the time of day or the day, and the Eclipse ended without advancing gives the line back to the draft", async () => {
+        /* 13.11.2026. Red at ceb9e9c8: no `opened`, no `nightFalls`, no `nightBoard`, no `dayStartClock`. The writes on a real
+           clock are tier 2's ("E113 day boards C"). */
+        const S = await import("./sequence.mjs");
+        const { DEFAULT_CLOCK } = await import("./settings.mjs");
+        if (typeof S.dayStartClock !== "function" || typeof S.startBoardStamped !== "function") { ok(false, "sequence.mjs has no dayStartClock or startBoardStamped"); return; }
+        const sources = await moduleSources();
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        const set = bodyOf(clockSrc, "export async function setClock(", { until: "\nexport " });
+        const advance = bodyOf(clockSrc, "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        const start = bodyOf(eclipse, "export async function startEclipse(", { until: "\nexport " });
+        const end = bodyOf(eclipse, "export async function endEclipse(", { until: "\nexport " });
+        must(set.length > 500 && advance.length > 500 && start.length > 500 && end.length > 500, "a source was not read - this reads nothing");
+        const eclipseNight = { season: 1, day: 3, session: 7, timeOfDay: "night", eclipse: true, dayBoard: 4, eclipseStartedAt: 1000, morningLine: "Hi" };
+        const late = S.lateSequence({ clock: eclipseNight, now: 2000, played: {} });
+        equal(stableJson({
+            opening: S.dayStartPatch({ rolledOver: true, draft: " Wake up ", mood: "calm", day: 4 }),
+            atEnd: S.dayStartPatch({ rolledOver: true, opened: true, draft: "", mood: "uneasy", before: { morningLine: "Wake up" }, day: 4 }),
+            atEndNewLine: S.dayStartPatch({ rolledOver: true, opened: true, draft: "Later", day: 4 }),
+            nightFalls: S.dayStartPatch({ rolledOver: false, nightFalls: true, mood: "spilling", before: {}, day: 3 }),
+            noon: S.dayStartPatch({ rolledOver: false, mood: "calm", before: { morningLine: "x" }, day: 3 }),
+            shown: (({ day, session, timeOfDay }) => [day, session, timeOfDay])(S.dayStartClock(eclipseNight)),
+            plain: S.dayStartClock({ day: 3, timeOfDay: "night", eclipse: false }).day,
+            eveningEclipse: S.dayStartClock({ day: 3, timeOfDay: "evening", eclipse: true }).day,
+            stamped: [S.startBoardStamped(eclipseNight), S.startBoardStamped({ ...eclipseNight, dayBoard: 3 }), S.startBoardStamped({ day: 4, dayBoard: 4 }), S.startBoardStamped({ day: 4, timeOfDay: "night", dayBoard: 5 })],
+            key: [S.dayStartKey(S.dayStartClock(eclipseNight)), S.dayStartKey({ season: 1, day: 4, session: 8 })],
+            late: late ? [late.kind, late.key, late.at] : null,
+            writes: {
+                advance: /opened/.test(advance) && /nightFalls/.test(advance),
+                start: /openingDayPatch\(/.test(start) && /\.\.\.morning\.patch/.test(start),
+                endGivesBack: /morningLineDraft, closing\.morningLine/.test(end),
+                cleared: /patch\.nightBoard === undefined/.test(set) && /next\.nightBoard = null/.test(set)
+            },
+            defaults: Object.hasOwn(DEFAULT_CLOCK, "nightBoard") ? DEFAULT_CLOCK.nightBoard : "missing"
+        }), stableJson({
+            opening: { morningLine: "Wake up", mood: "calm", dayBoard: 4 },
+            atEnd: { dayBoard: 4 }, atEndNewLine: { dayBoard: 4, morningLine: "Later" },
+            nightFalls: { mood: "spilling", nightBoard: 3 }, noon: { morningLine: null },
+            shown: [4, 8, "morning"], plain: 3, eveningEclipse: 3,
+            stamped: [true, false, true, false],
+            key: ["day:1:4:8", "day:1:4:8"],
+            late: ["dayStart", "day:1:4:8", 1000],
+            writes: { advance: true, start: true, endGivesBack: true, cleared: true },
+            defaults: null
+        }), "[the Morning Eclipse's start patch; its end's; its end's with a line written since; a move into Night; another move; the board's day, session and time during the Morning Eclipse; another Night; a Night Eclipse; the start stamp read on four clocks; the keys at the start and the end; the late road during the Eclipse; the writes; the default]");
     }],
     ["R4402 - the day's boards wear the frame of the module's ordinary windows, in both themes (styles/danganronpa.css, styles/stained-glass.css; the owner's report at a real table on 1.2.109: the boards' frame was pink): read through the module's cascade, the end-of-day and start-of-day boards win the same edge and the same shadow as a module window - Monokuma Legacy's one-pixel window edge and its drop shadow, Stained Glass's window glass (the inset highlights, the accent's glow, the drop shadow); the trial's band and the \"spilling\" mood word keep the sequences' band colour", async () => {
         /* 12.11.2026. Red at 1ff4bc77: the boards' edge was three units of `--drpg-seq-band` (Stained Glass's Despair pink,
@@ -54909,8 +54990,9 @@ const INVARIANTS = [
             remember: [null, game.i18n.localize("DRPG.Sequence.weRemember"), null], alive: [2, 3], noLine: true, noStrike: true, centred: true
         }), "[the day's title; the cast in its order; who is drawn dead; their words; alive of total; no empty morning line; no rule strikes a name; the rise keeps the board centred]");
     }],
-    ["R3715 - a new day plays its board once on every browser that hears it, and nowhere else (scripts/transitions.mjs `onClockHeard`, scripts/sequence.mjs `playDayStart`; E94 C2, MK-R2 #8): night to a new morning starts the board, still under reduced motion, nothing with the table's switch off; the same day heard again starts nothing; an hour that is not a new day plays no board; the board lets the table's clicks through; the Sound window has the row \"Start of the day\" in both languages", async () => {
-        /* E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no playDayStart. */
+    ["R3715 - a new day plays its board once on every browser that hears it, and nowhere else (scripts/transitions.mjs `onClockHeard`, scripts/sequence.mjs `playDayStart`; E94 C2, MK-R2 #8): night to a new morning starts the board, still under reduced motion, nothing with the table's switch off; the same day heard again starts nothing; an hour that is not a new day plays no board; the board lets the table's clicks through; the Sound window has the row \"Start of the day\" in both languages; since 13.11.2026 no end-of-day board before it (the owner's rule of that day: that board is Night's start's)", async () => {
+        /* E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no playDayStart.
+           13.11.2026: the roll-over plays the start-of-day board alone (R5890). Red at ceb9e9c8: the end board first. */
         const S = await import("./sequence.mjs");
         const T = await import("./transitions.mjs");
         const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
@@ -54933,12 +55015,10 @@ const INVARIANTS = [
             S.endSequence("cut");
             // primed with the switch off: the jump from the clock this module saw last plays nothing
             T.onClockHeard(c(day, "night"), { on: false, still: true });
-            // E94 C3 (12.11.2026): the day that ended has its board first, which hands on to the new day's when it ends
+            // the new day's board alone since 13.11.2026 (the day that ended had its board when Night began)
             T.onClockHeard(c(day + 1, "morning"), { on: true, still: true, keep: false });
-            await until(() => S.sequenceNow()?.key === `dayEnd:R3715:${day}:${day}`, 3000);
-            read.endFirst = S.sequenceNow();
-            S.endSequence("skipped");
-            await until(() => S.sequenceNow()?.key === `day:R3715:${day + 1}:${day + 1}`, 3000);
+            await until(() => S.sequenceNow() !== null, 3000).catch(() => {});
+            read.endFirst = S.sequenceStarted("dayEnd", `dayEnd:R3715:${day}:${day}`);
             read.started = S.sequenceNow();
             read.through = getComputedStyle(document.getElementById(S.SEQUENCE_HOST_ID) ?? body).pointerEvents;
             S.endSequence("cut");
@@ -54954,8 +55034,8 @@ const INVARIANTS = [
         }
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         read.row = [SFX_EVENTS.dayStart?.category ?? null, typeof pl.DRPG?.Config?.SFX_EVENTS?.dayStart?.label === "string"];
-        equal(stableJson(read), stableJson({ endFirst: { kind: "dayEnd", key: `dayEnd:R3715:${day}:${day}`, mode: "still" }, started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
-            "[the ended day's board first; a new day's board after it; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
+        equal(stableJson(read), stableJson({ endFirst: false, started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
+            "[the ended day's board started; the new day's board; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
     }],
     /* ==========================================================================
      * E92 - THE SPECTATOR (plan docs/dev/plans/E92.md on claude/plan-130; docs/dev/e92/CENSUS.md)

@@ -18,7 +18,7 @@
  *            found for her, and she is nobody in Aiko's room (`othersInRoom`);
  *   board    the end-of-day board on p3's browser holds the day's heading and the school's mood alone, and p1's keeps
  *            its own day (sequence.mjs `playDayEnd`, `dayEndBoardFor`);
- *   road     the Morning Eclipse ended with the advance at Night, as the clock on the curtain ends it: p1's browser and
+ *   road     the Night Eclipse ended with the advance at Evening, as the clock on the curtain ends it: p1's browser and
  *            p3's start the end-of-day board (transitions.mjs `onClockHeard`; the owner's report on 1.2.109);
  *   back     the GM makes her a student again: p3's microphone as it was found, the class's rooms off her map,
  *            p3's browser no Spectator's.
@@ -224,11 +224,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
         phase("road");
         /* The owner's report at a real table on 1.2.109 (12.11.2026): the boards never played on the clock on the curtain.
-           Its road, driven on the GM with the game's own calls - the clock at Night on a day no other part plays, the
-           Morning Eclipse opened and ended with the advance (eclipse.mjs `startEclipse`, `endEclipse`), as the clock's
-           right chevron does - and read on p1's and p3's browsers: each starts the end-of-day board of the day that ended
+           Its road, driven on the GM with the game's own calls - the clock at Evening on a day no other part plays, the
+           Night Eclipse opened and ended with the advance (eclipse.mjs `startEclipse`, `endEclipse`), as the clock's
+           right chevron does - and read on p1's and p3's browsers: each starts the end-of-day board of the day that ends
            (sequence.mjs `sequenceStarted`), the Spectator's too; then the boards cut. What the road moved is put back
-           here, and again in the finally below if this part threw. Red at 1ff4bc77: no board on either browser. */
+           here, and again in the finally below if this part threw. Red at 1ff4bc77: no board on either browser.
+           13.11.2026 (the owner's rule of that day: the end-of-day board "after the Night Eclipse (that is, at the start
+           of Night)"): the road was the Morning Eclipse's, whose end plays no board now (scenario 97). */
         const road = await gm.eval(`const E = ${imp("eclipse.mjs")}, C = ${imp("clock.mjs")}, G = ${imp("gm-stores.mjs")}, M = ${imp("monokuma.mjs")}, Q = ${imp("sequence.mjs")};
             const SET = (${imp("settings.mjs")}).SETTINGS;
             const keep = ["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"];
@@ -238,14 +240,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
                 settings: Object.fromEntries(keep.map(k => [k, foundry.utils.deepClone(game.settings.get("danganronpa-rpg", SET[k]) ?? null)])) };
             if (globalThis.__e110Road.settings.sequences === false) await game.settings.set("danganronpa-rpg", SET.sequences, true);
             const day = 7000 + Math.floor(Math.random() * 999);
-            await C.setClock({ phase: "dailyLife", timeOfDay: "night", day, refilledFor: null });
+            await C.setClock({ phase: "dailyLife", timeOfDay: "evening", day, refilledFor: null });
             await new Promise(r => setTimeout(r, 800));
             const night = C.getClock();
             await E.startEclipse();
             const dark = E.isEclipse?.() ?? C.getClock().eclipse === true;
             await E.endEclipse({ advance: true });
             const now = C.getClock();
-            return { key: "dayEnd:" + (night.season ?? "") + ":" + day + ":" + (night.session ?? ""), dark, after: [now.eclipse === true, now.timeOfDay, now.day - day, now.dayBoard === now.day] };`, { timeout: 60000 });
+            return { key: "dayEnd:" + (night.season ?? "") + ":" + day + ":" + (night.session ?? ""), dark, after: [now.eclipse === true, now.timeOfDay, now.day - day, now.nightBoard === now.day] };`, { timeout: 60000 });
         const boardHeard = c => c.eval(`const Q = ${imp("sequence.mjs")};
             for (let i = 0; i < 60 && !Q.sequenceStarted("dayEnd", ${JSON.stringify(road?.key ?? "")}); i++) await new Promise(r => setTimeout(r, 100));
             const started = Q.sequenceStarted("dayEnd", ${JSON.stringify(road?.key ?? "")});
@@ -264,8 +266,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             delete globalThis.__e110Road;
             return true;`, { timeout: 60000 });
         await putBack();
-        check("road: the Morning Eclipse ended with the advance at Night - the clock on the curtain - starts the end-of-day board on p1's browser and on the Spectator's",
-            road?.dark === true && JSON.stringify(road.after) === JSON.stringify([false, "morning", 1, true]) && roadP1 === true && roadP3 === true,
+        check("road: the Night Eclipse ended with the advance at Evening - the clock on the curtain - starts the end-of-day board on p1's browser and on the Spectator's",
+            road?.dark === true && JSON.stringify(road.after) === JSON.stringify([false, "night", 0, true]) && roadP1 === true && roadP3 === true,
             JSON.stringify({ road, roadP1, roadP3 }));
 
         phase("back");
