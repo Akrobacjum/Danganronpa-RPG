@@ -23737,6 +23737,66 @@ const SCENARIOS = [
         }
     }],
 
+    ["the verdict sentences but kills nobody; the condemned dies when the trial closes (E40-T1, DC36)", async () => {
+        /*
+         * E40 C1, 13.11.2026; the plan's DC36 ("the verdict kills nobody; the condemned dies when the trial is closed"),
+         * E70 C4. A wrong verdict naming the accused is applied in the Class Trial: the accused is still alive, the record
+         * holds the sentence (`verdict.sentenced`), and the public card says the execution waits for the trial's end
+         * (`executionPending`), not that it has happened. Then the trial closes (vote.mjs `executeAtExit`): the accused
+         * dies, the record is stamped (`executedAt`), and one execution card is posted. Read on this GM (the primary),
+         * two states of the one actor - alive after the verdict, dead after the close - so a change that killed at the
+         * verdict, or never at the close, is caught. The two halves are what the mutants break (sentenceOf -> null leaves
+         * the accused alive at the close; the card's classTrial branch dropped says executionNow at the verdict).
+         */
+        const [accused] = cast(2), killer = cast(2)[1];
+        const V = await import("./vote.mjs");
+        const { executeAtExit, trialProgress } = V;
+        const { isDeceased } = await import("./chapter.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { reviveCharacter } = await import("./chapter.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const clock = foundry.utils.deepClone(getClock());
+        const from = new Set(game.messages.map(m => m.id));
+        const dead = id => isDeceased(flagsHeldNow(game.actors.get(id)));
+        const saidOf = async flag => {
+            const cards = game.messages.filter(m => !from.has(m.id) && m.getFlag(MODULE_ID, flag));
+            const said = await Promise.all(cards.map(m => wordsOf(m, 1000)));
+            return said.map(String);
+        };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await withVerdictOpen(async () => {
+                await withAdvanceWindows(() => null,
+                    () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
+                await settle();
+                const record = trialProgress();
+                const verdictCards = await saidOf("verdictCard");
+                /* THE VERDICT, IN THE TRIAL: nobody dead, the sentence held, the card says the execution waits. */
+                equal(stableJson([dead(accused.id), (record.verdict?.sentenced ?? []).includes(accused.id), record.executedAt ?? null,
+                    verdictCards.some(text => text.includes(game.i18n.format("DRPG.Vote.executionPending", { names: esc(accused.name) }))),
+                    verdictCards.some(text => text.includes(game.i18n.format("DRPG.Vote.executionNow", { names: esc(accused.name) })))]),
+                    stableJson([false, true, null, true, false]),
+                    "the verdict killed the accused, did not hold the sentence, or said the execution happened now (dead, sentenced, executedAt, saysPending, saysNow)");
+                /* THE TRIAL CLOSES: the accused dies, the record is stamped, one execution card is posted. */
+                const done = await executeAtExit();
+                await settle();
+                const executionCards = await saidOf("executionCard");
+                equal(stableJson([dead(accused.id), Boolean(trialProgress().executedAt), (done?.executed ?? []).includes(accused.id),
+                    executionCards.filter(text => text.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))).length]),
+                    stableJson([true, true, true, 1]),
+                    "the trial's close did not execute the accused once and stamp the record (dead, executedAt, done, cards)");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await reviveCharacter(accused, { quiet: true });
+            await deferredOfferStore.drop(killer.id);
+            for (const m of game.messages.filter(m => !from.has(m.id))) { try { await m.delete(); } catch { /* gone */ } }
+            await settle();
+        }
+    }],
+
     ["a wrong verdict's card names the executed and never the Blackened", async () => {
         /* E10 C5, 1.2.71; audit S06-06; ledger V6. The verdict was a whisper to the GMs and the
            execution's card went to them alone as well: the class never read its own verdict, the
