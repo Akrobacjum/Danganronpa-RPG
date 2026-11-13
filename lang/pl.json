@@ -3811,6 +3811,7 @@
       "usedOk": "{action}: zrobione.",
       "usedFailed": "{action}: nie wyszło. Akcja jest zużyta na tę porę dnia.",
       "traceNote": "Akcja w pokoju: {action}",
+      "shieldTook": "Ochrona przed Despair postaci {name} zabrała punkt tego rzutu: nie przybyło Despair.",
       "closed": "Ktoś już tego użył o tej porze dnia.",
       "noActions": "Za mało akcji.",
       "shut": {

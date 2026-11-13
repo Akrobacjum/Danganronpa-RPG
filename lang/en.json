@@ -3543,6 +3543,7 @@
       "usedOk": "{action}: done.",
       "usedFailed": "{action}: it did not work. The action is used for this time of day.",
       "traceNote": "Room action: {action}",
+      "shieldTook": "{name}'s protection from Despair took this roll's point: no Despair was gained.",
       "closed": "Someone used this already this time of day.",
       "noActions": "Not enough actions.",
       "shut": {

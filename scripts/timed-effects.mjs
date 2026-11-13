@@ -116,6 +116,14 @@ export async function takeDespairShield(actor, message = null) {
     tellOwners(actor);
     if (message?.setFlag) await message.setFlag(MODULE_ID, "despairShielded", true).catch(err => error("Could not mark a shielded roll", err));
     log(`${actor.name}'s protection from Despair stopped a roll's point.`);
+    /* The GMs are told (the audit's A113-C6-1, 13.11.2026): the roll's card says "with Despair" and the pool does not move,
+       so with the console line alone a GM could not tell why. A whisper to the GMs; the players are told no more. */
+    try {
+        const { whisperToGms } = await import("./utils.mjs");
+        await whisperToGms(`<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Facility.shieldTook", { name: actor.name }))}</p>`);
+    } catch (err) {
+        error("Could not tell the GMs a protection from Despair took a roll's point", err);
+    }
     return true;
 }
 

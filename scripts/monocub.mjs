@@ -1772,13 +1772,17 @@ function tellEveryCub() {
     for (const actor of monocubActors()) tellCubOwners(actor.id);
 }
 
-/** GM: every Monocub's player told, on a veiled card, and the GMs. */
-async function tellBounty(key, data) {
+/**
+ * GM: every Monocub's player told, on a veiled card, and the GMs. `gmOnly`, a sentence the GMs' card adds: a posted
+ * Bounty's Despair owed (the audit's A113-C6-2, 13.11.2026: the card named the reward alone and no bar moved, so a GM
+ * read the Bounty as free; despair.mjs `despairRowOf` draws the debt on a GM's bar).
+ */
+async function tellBounty(key, data, gmOnly = "") {
     const esc = foundry.utils.escapeHTML;
     const text = `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, data))}</p>`;
     for (const actor of monocubActors()) await whisperToOwner(actor, text, { veiled: true });
     const { whisperToGms } = await import("./utils.mjs");
-    await whisperToGms(text);
+    await whisperToGms(gmOnly ? `${text}<p>${esc(gmOnly)}</p>` : text);
 }
 
 /** GM: a Bounty on `target`, owed from `userId`'s pool (the Despair Call). Answers the Bounty, or null when refused. */
@@ -1807,7 +1811,8 @@ async function postBountyNow(userId, target) {
     const bounty = { by: userId, reward, at: serverNow(), targetName: target.name };
     await bountyStore.patch(target.id, bounty);
     tellEveryCub();
-    await tellBounty("bountyPosted", { name: target.name, reward });
+    await tellBounty("bountyPosted", { name: target.name, reward },
+        plural("DRPG.Despair.owedGiven", { n: cost, pool: D.poolLabel(game.users.get(userId) ?? null) }));
     log(`A Bounty of ${reward} Hope on ${target.name}, owed ${cost} Despair.`);
     return bounty;
 }
