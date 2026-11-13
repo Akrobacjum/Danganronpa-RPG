@@ -48,7 +48,8 @@ run against a real Foundry (its README says so first).
    in the suite, and the workflow refuses to build when one lags.
 2. Write `.github/release-notes/vX.Y.Z.md` (`node tools/check.mjs notes`). Its
    "## Checked" section says what was measured and, on a line starting
-   "- Not checked in a real Foundry", what was not.
+   "- Not checked in a real Foundry", what was not. Then `node tools/changelog.mjs --write`:
+   CHANGELOG.md is built from the notes, and `check notes` is red until it is written again.
 3. In the same commit, `node tools/stages.mjs ship EXX [EYY ...]` marks every
    stage of the train shipped, as one version on one date. It refuses while a
    marker in the suite still names one of them, and from then on every red
@@ -61,7 +62,8 @@ run against a real Foundry (its README says so first).
 6. Before a release, look up the current Daggerheart version. `verified` in
    `module.json` names only a version the suite has passed on at a real table;
    the manifest states no `maximum` (decision D1), so a newer Daggerheart loads
-   and the module warns the GM once per version.
+   and the module warns the GM once per version. Raising `verified` changes, in the same commit, the
+   README's compatibility row and every handbook line that names the verified version.
 7. `main` is the release branch: merge on green CI only. The tag is created
    there, and the workflow refuses a dispatch from anywhere else.
 8. Actions ▸ Release, dispatched on `main` with the tag (and a title for the
