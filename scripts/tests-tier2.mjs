@@ -76620,6 +76620,143 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     // E40 item 4, slice D: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
     // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["a deferred assembly is held on its own scene, not the one on screen, and an order whose room is gone is cleared and said (E40 item 4: R83's rule, driven; was R83)", async () => {
+        /*
+         * E40 item 4 (slice D), 13.11.2026; CALL-18 (20.09). R83 (tier 0) read call-world.mjs as text: `sceneId: scene.id`
+         * in `scheduleGather`, `game.scenes.get(order.sceneId)` and `gatherEveryone(order.room, scene)` in
+         * `runPendingGather`, `gatherEveryone`'s `onScene` parameter and its `[...scene.tokens]`. It passed a mutant that
+         * kept each of those texts and read the camera after all (`gatherEveryone` taking `canvas.scene` before its
+         * `onScene`), and one whose order stored `scene.id && canvas.scene?.id`. Here the rule is driven: a scene of the
+         * suite's own, not on screen, holds a room the scene on screen has not and one student's token; the assembly is
+         * called there (`scheduleGather` with that scene), the order made ripe (another time of day, the rest as written),
+         * and `runPendingGather` run. Then an order for a room that scene does not hold. Read: the order's scene, what
+         * the run answered, the order cleared, where the token stands, and the refusal told. The harness's regions have
+         * no `teleportTokens`, so the run takes call-world.mjs `fallbackGather` (R99's road) on the order's scene.
+         */
+        const CE = await import("./call-effects.mjs");
+        const R = await import("./rooms.mjs");
+        const [student] = cast(1);
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE E40 R83 a room of another scene", GONE = "SUITE E40 R83 a room that is not there";
+        must(home, "no scene is on screen - the camera could not be told from the order's scene, and this would measure nothing");
+        must(!CE.pendingGather(), "an assembly is already pending - its order would be read as this test's");
+        must(!R.roomRegions(home, ROOM).length, `the scene on screen holds "${ROOM}" - this would measure nothing`);
+        const warn = ui.notifications.warn, told = [];
+        let away = null, read = null;
+        try {
+            away = await Scene.create({ name: "SUITE E40 R83 another scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await away.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [token] = await away.createEmbeddedDocuments("Token", [{ actorId: student.id, name: student.name, x: 1800, y: 800 }]);
+            must(token, "the student's token could not be put on the suite's scene - this would measure nothing");
+            await settle();
+            must(canvas?.scene === home, "the camera moved to the suite's scene - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return null; };
+            const record = await CE.scheduleGather(ROOM, "Suite", { scene: away });
+            await settle();
+            const ripe = order => game.settings.set(MODULE_ID, SETTINGS.pendingGather, { ...order, timeOfDay: `${order.timeOfDay} (suite: an earlier time of day)` });
+            await ripe(CE.pendingGather());
+            const held = await CE.runPendingGather();
+            await settle();
+            const placed = away.tokens.get(token.id);
+            const moved = [placed?.x, placed?.y].join(",") !== "1800,800";
+            await ripe({ ...record, room: GONE });
+            const gone = await CE.runPendingGather();
+            await settle();
+            read = [record?.sceneId === away.id, held, moved, gone, Boolean(CE.pendingGather()),
+                told.filter(text => text === game.i18n.format("DRPG.Calls.gatherRoomGone", { room: GONE })).length];
+        } finally {
+            ui.notifications.warn = warn;
+            if (CE.pendingGather()) await CE.cancelGather();
+            await away?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, { room: ROOM, moved: 1 }, true, null, false, 1]),
+            "[the order names the scene it was called on; what the ripe run answered; the student's token moved on that scene; what the run answered "
+            + "for a room that scene does not hold; an order still pending; how often the room's going was told]");
+    }],
+
+    ["the Legacy sheet's factor is the slider alone, published on both roots, and 1 under the glass, beside the other two factors (E40 item 4: R62's rule, driven; was R62)", async () => {
+        /*
+         * E40 item 4 (slice D), 13.11.2026; W-2 (Dawid 19.09). R62 (tier 0) read settings.mjs `applyTheme` as text: the
+         * two `setProperty("--drpg-legacy-scale"` writes, `theme === "stainedGlass" ? 1 : sliderScale()`, no `typeScale`
+         * on the factor's line, and the two other tokens named. It passed a mutant that kept each text and published the
+         * slider times the screen term after all (`... && effectiveScale()`). Here applyTheme is driven, through the two
+         * client settings that call it (the theme, the slider at 120 %), in both themes; read off both roots: the Legacy
+         * factor against the slider alone (`sliderScale`) and 1 under the glass, and the geometry and type factors
+         * (`effectiveScale`, `typeScale`) on both roots, as published. The sheets' half of R62 (no sheet drawn at one
+         * size reads the type factor) stays in tier 0 as text. The two settings are this browser's, put back after.
+         */
+        const S = await import("./settings.mjs");
+        const was = { theme: getSetting(SETTINGS.theme), scale: getSetting(SETTINGS.uiScale) };
+        const roots = token => [document.body.style.getPropertyValue(token), document.documentElement.style.getPropertyValue(token)];
+        const read = {}, want = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, 1.2);
+            for (const theme of ["monokumaLegacy", "stainedGlass"]) {
+                await game.settings.set(MODULE_ID, SETTINGS.theme, theme);
+                S.applyTheme();
+                read[theme] = { legacy: roots("--drpg-legacy-scale"), ui: roots("--drpg-ui-scale"), type: roots("--drpg-type-scale") };
+                const legacy = String(theme === "stainedGlass" ? 1 : S.sliderScale());
+                want[theme] = { legacy: [legacy, legacy], ui: Array(2).fill(String(S.effectiveScale())), type: Array(2).fill(String(S.typeScale())) };
+            }
+            read.measures = [S.sliderScale(), S.sliderScale() !== S.effectiveScale() || S.sliderScale() !== S.typeScale()];
+            want.measures = [1.2, true];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.theme, was.theme);
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, was.scale ?? 1);
+            S.applyTheme();
+        }
+        equal(stableJson(read), stableJson(want),
+            "per theme, the three factors on [body, html]: the Legacy factor is not the slider alone under Monokuma Legacy or not 1 under the glass, "
+            + "or a factor is missing from a root; measures: [the slider, the slider differs from a screen-term factor here]");
+    }],
+
+    ["a window under the glass arrives by its contents' fade, never its own: the window grows with no opacity of its own and each child fades in (E40 item 4: R95's rule, driven; was R95)", async () => {
+        /*
+         * E40 item 4 (slice D), 13.11.2026; Dawid, 21.09 ("the blur behind the window appears with a visible delay"):
+         * an ancestor with opacity below 1 is a Backdrop Root, so a window that faded itself in drew its glass sharp
+         * until the last frame. R95 (tier 0) read motion.mjs `animateWindowIn` as text: no `opacity` between `play(el,`
+         * and `ARRIVE())` in its glass branch, and a loop over `el.children` fading each. It passed a mutant that kept
+         * that text and faded the window through a second `play` after the loop. Here a window is opened under the
+         * Stained Glass theme with the browser's `Element.prototype.animate` recorded for the render (jsdom has none of
+         * its own: `play` would draw nothing), and the entrance read: the keyframes asked of the window element and of
+         * each of its children. The theme is this browser's, put back after.
+         */
+        const M = await import("./motion.mjs");
+        const was = getSetting(SETTINGS.theme);
+        const proto = Element.prototype, own = Object.getOwnPropertyDescriptor(proto, "animate");
+        const asked = [];
+        let dialog = null, read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.theme, "stainedGlass");
+            await settle();
+            must(M.glassOn(), "the Stained Glass theme did not take - the glass branch would not run, and this would measure nothing");
+            must(M.ENTER() > 0, "the entrance takes no time here (no motion token read, or reduced motion) - nothing would be played, and this would measure nothing");
+            proto.animate = function (keyframes) { asked.push([this, keyframes]); return { finished: Promise.resolve(), cancel() {}, finish() {} }; };
+            dialog = new foundry.applications.api.DialogV2({ window: { title: "E40 R95 entrance" }, classes: ["drpg-panel", "drpg-window-e40-r95"],
+                content: "<p>R95</p>", buttons: [{ action: "ok", label: "OK" }] });
+            await dialog.render({ force: true });
+            const el = dialog.element;
+            must(el?.children?.length, "the window drew no element with children - this would measure nothing");
+            const fades = frames => (Array.isArray(frames) ? frames : []).some(frame => "opacity" in (frame ?? {}));
+            const onWindow = asked.filter(([node]) => node === el);
+            const children = [...el.children];
+            read = { window: [onWindow.length > 0, onWindow.some(([, frames]) => fades(frames))],
+                children: children.map(child => asked.some(([node, frames]) => node === child && fades(frames))) };
+            read.expected = { window: [true, false], children: children.map(() => true) };
+        } finally {
+            if (own) Object.defineProperty(proto, "animate", own);
+            else delete proto.animate;
+            await dialog?.close({ animate: false }).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.theme, was);
+            await settle();
+        }
+        const { expected, ...seen } = read;
+        equal(stableJson(seen), stableJson(expected),
+            "{window: [the window element was animated, a frame of its own carries an opacity]; children: [each child faded in]} - under the glass the window fades itself, or its contents do not fade");
+    }],
+
 
     ["who sees a project is judged in the step (E36-T7): a revoke held in the queue with a share behind it ends without the revoked player and with the shared one, two shares queued together both land, and a seal from a window that listed the viewers keeps a player shared since the window drew them", async () => {
         /*

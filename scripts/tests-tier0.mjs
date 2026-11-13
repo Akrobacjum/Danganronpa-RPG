@@ -1022,6 +1022,11 @@ const REGRESSIONS = [
     }],
 
     ["R1330 - the notice history is on the kit (E44 C5; E44-19, the 11.10 amend A7): its window is a DrpgApp whose one scrolling region is the list, its foot the kit's footer with Clear on the left as destructive and never the default and Close on the right in one word, its chips the kit's chips and its empty list the kit's empty state; it keeps what A7 keeps - RAISED when raised, one keepLive and only on the list, redrawn from the history's change, a kept card drawn lazily through noticeSnapshot, no card, no sound - and no sheet names the window's class or the classes the kit replaced, and no sheet but components.css styles its parts", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the window's composition is the subject: which kit builders it is made
+           of, the scrolling region it names, what it never calls, and which sheets style its parts - a census of the
+           code and of the stylesheets. Its two outcomes a call could show (RAISED when raised, a kept card drawn
+           through noticeSnapshot) sit inside reads of the class's shape; driving them would open the window in tier 2
+           (not built in E40 item 4). */
         /*
          * E44 C5, 04.11.2026; the 11.10 amend A7 ("E44 moves the window onto the kit ... and in the same commit removes
          * the window's blocks from danganronpa.css, stained-glass.css and narrow.css"; what it keeps, by name). Read
@@ -2452,6 +2457,12 @@ const REGRESSIONS = [
             "applyVerdict no longer refuses a second verdict itself");
     }],
     ["R31 - Room Setup's Apply writes only what the GM changed, and refuses before writing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the Apply's rules are partly driven already (tier 2 "Room Setup's fog
+           edit keeps the rooms found while the window was open" and the E46-T1 test's Apply that writes no region with
+           nothing changed). What this keeps is the code's shape: no Room Setup code calls `saveDiscoveryMatrix` (a
+           call nothing may make), the form compares with `defaultChecked`, the one-bedroom check stands before the
+           fog's write (an order: a refused Apply driven end to end through the window was not built here), and the
+           bulk buttons are no DialogV2 button and no `data-action` (the markup's shape). */
         /*
          * ROOM-01, ROOM-02 and ROOM-03 (17.09). Apply wrote the Fog tab's open-time
          * snapshot over the scene's whole ledger, so rooms found while the window was
@@ -3411,6 +3422,10 @@ const REGRESSIONS = [
     }],
 
     ["R54 - the clock's chevrons hold one press at a time, and report a failure", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the author's own reason below holds: the double press is a race between
+           a rebuild and a dispatched click, and hud.mjs `control` is not exported, so a driven test would either win
+           the race by luck or need an export of `control` (rule 2). The order read (born disabled, the guard before
+           the await, the catch reporting, the latch by class) stays the code's shape. */
         /*
          * HUD-01 and HUD-03, 19.09. Double-clicking the Eclipse chevron opened the
          * Eclipse and closed it again: the handler disabled its own button, and the
@@ -3695,6 +3710,10 @@ const REGRESSIONS = [
     }],
 
     ["R61 - Monokuma Legacy states the whole ladder, and no rung is floored above its own size", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its subject is the stylesheet's declarations (each rung of the Legacy
+           ladder in rem, following the slider, its floor capped at its own size), not code: a computed size needs
+           layout and a root font size, which the harness has not (jsdom's cascade does not resolve `max()`/`min()` of
+           custom properties). */
         /*
          * W-2. Foundry sizes its chrome from `--font-size-*` and Daggerheart's sheet
          * reads the same ladder 223 times, so the ladder is what this theme
@@ -3747,6 +3766,12 @@ const REGRESSIONS = [
     }],
 
     ["R62 - the scale factor is published once, on both roots, and the glass is pinned at 1", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to what stays a reading of the source. `applyTheme` is driven in
+           tier 2 by "the Legacy sheet's factor is the slider alone, published on both roots, and 1 under the glass, beside
+           the other two factors (E40 item 4: R62's rule, driven; was R62)", which fails two mutants that kept every text
+           this test read. Left: the census of the two sheets drawn at one size - neither reads the type factor, which
+           carries the screen term - a property of the stylesheets' text that no call shows (the harness lays out
+           nothing). */
         /*
          * W-2. Three factors now, and they are not interchangeable: geometry takes
          * the slider times the screen, type under the glass takes the slider times a
@@ -3754,22 +3779,6 @@ const REGRESSIONS = [
          * drawn at one size for every screen, so wiring in the screen term would have
          * shrunk every Legacy label by 15 % at 1080p the day it shipped.
          */
-        const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
-        const apply = bodyOf(settings, "export function applyTheme", { until: "function scaleWindow" });
-        ok(apply.length > 400, "applyTheme has moved or gone");
-
-        ok(/document\.body\.style\.setProperty\("--drpg-legacy-scale"/.test(apply)
-            && /document\.documentElement\.style\.setProperty\("--drpg-legacy-scale"/.test(apply),
-            "the factor is not published on both roots - the `:root` rungs need the second one");
-        ok(/theme === "stainedGlass" \? 1 : sliderScale\(\)/.test(apply),
-            "the factor is no longer the slider alone under Legacy and 1 under the glass");
-        ok(!/legacyScale[^;]*typeScale/.test(apply),
-            "the factor was wired to the type scale, which carries the screen term");
-
-        for (const token of ["--drpg-ui-scale", "--drpg-type-scale"]) {
-            ok(apply.includes(token), `${token} stopped being published - three factors, three writes`);
-        }
-
         for (const sheet of ["danganronpa.css", "base.css"]) {
             const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(lfText);
             ok(!css.includes("var(--drpg-type-scale"),
@@ -3856,6 +3865,14 @@ const REGRESSIONS = [
     }],
 
     ["R65 - a window that closes to come back does not answer its opener first", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to what stays a reading of the source. What handOff does is
+           driven by R167 (tier 1, spy windows): the close asked without its transition, the work run once the close has
+           resolved and answered, a close that throws or refuses still running the work - so its `.then`/`.catch` read is
+           gone from here. Left: handOff's body names no `await` (a mutant with `await null` at its head kept R167 green:
+           the promise is still returned at once, so the rule is the code's shape, not an outcome a call can see), and the
+           Students window's half - a row hands over and does not close the window itself, and the opener returns the
+           round trip before the Apply path reads the answer: an order inside `openWhoIsAliveDialog` that only a tier-2
+           test opening the window and pressing a row would drive (not built in E40 item 4). */
         /*
          * F7, 20.09. `DialogV2.wait` resolves the moment its window closes, whoever
          * closed it - so a row button that closed the Players window, ran a
@@ -3877,8 +3894,6 @@ const REGRESSIONS = [
         ok(!/\bawait\b/.test(body),
             "handOff awaits the close, so the opener's promise resolves before the round "
             + "trip is registered - which is the whole defect");
-        ok(/\.then\(/.test(body) && /\.catch\(/.test(body),
-            "handOff no longer builds the round trip in the same turn, or it can reject");
 
         const row = bodyOf(panel, "function wireAliveRow(", { until: "function wireAliveTable(" });
         ok(row.length > 200, "wireAliveRow has moved or gone");
@@ -3896,6 +3911,11 @@ const REGRESSIONS = [
     }],
 
     ["R66 - the Players window writes what it was told, and offers the Despair that is left", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): not converted in E40 item 4: its first half (`applyAliveStates` driven
+           by the answer it is handed, a missing `silenced` key leaving a silence, a repair through `markDeceased`)
+           could be driven in tier 2 with fixtures of the Students window's answer, and its second (the donors built on
+           each redraw, the live watch left wide) needs the window open in tier 2; neither was built in this slice, so
+           it stays as read, for a later pass. */
         /*
          * F15, 20.09. Two halves of one mistake - reading the world once and using
          * it later.
@@ -4131,6 +4151,10 @@ const REGRESSIONS = [
     }],
 
     ["R71 - the cue pane is built on every redraw, not baked when the window opened", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): not converted in E40 item 4: what it guards (the cue pane rebuilt when
+           a sound joins the cue playlist) is behaviour, drivable only by opening the Sound window in tier 2 and
+           creating a playlist sound; that was not built in this slice. The keepLive options it reads (`settings: []`,
+           the three hooks, `after` rewiring) stay as read until then. */
         /*
          * F17, 20.09. The Play pane was three constants and a template read once, so
          * a track dragged into the cue playlist in the Playlists sidebar - which is
@@ -4211,6 +4235,11 @@ const REGRESSIONS = [
     }],
 
     ["R73 - a window reopened from its own answer closes the old copy first", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to what stays a reading of the source. What `reopen` does is
+           driven by R5171 (spy windows: only the copies of the class closed, without a transition, all of them before the
+           opener runs, and the opener's answer handed back). Left: the census of the item tables' window - the three paths
+           that warn and go straight back to it use `reopen`, and none calls `openItemTables` directly - which is a count
+           of call sites in the code, not an outcome one call shows. */
         /*
          * LIVE-REOPEN-01, 20.09, and the measurement is the whole finding: at the first
          * statement after `await DialogV2.wait(...)` the window is still rendered and
@@ -4219,14 +4248,6 @@ const REGRESSIONS = [
          * window - are not, and they opened nothing at all.
          */
         const sources = new Map(await otherSources());
-        const live = stripComments(sources.get("live.mjs") ?? "");
-        const body = bodyOf(live, "export async function reopen", { until: "\nexport " });
-        ok(/await app\.close\(\{ animate: false \}\)/.test(body),
-            "reopen does not wait for the old copy to go, or it waits on a transition that "
-            + "may never come");
-        ok(body.indexOf("app.close(") < body.indexOf("opener()"),
-            "reopen opens before it closes, which is the defect with an extra window");
-
         // E41 C8 (1.2.97): tables.mjs's code left it for tables-pools.mjs and tables-editor.mjs; the item tables' family's text (the kit's `tablesText`).
         const tables = stripComments(tablesText(sources));
         const tail = bodyOf(tables, "typeof action.newPool === \"string\"");
@@ -4235,6 +4256,44 @@ const REGRESSIONS = [
             + "reopen");
         ok(!/^\s*return openItemTables\(\{ preset \}\);/m.test(tail),
             "one of those paths reopens directly again, so it opens nothing");
+    }],
+
+    ["R5171 - a window reopened from its own answer closes the old copy first: `reopen` closes every open window of the class, without its transition, waits for each close before it calls the opener, leaves every other window standing, and answers what the opener answered (E40 item 4: R73's first half, driven)", async () => {
+        /*
+         * LIVE-REOPEN-01, 20.09, R73's first half: at the first statement after `await DialogV2.wait(...)` the window is
+         * still rendered and still connected, so `alreadyOpen` refuses, and a branch that goes straight back to the window
+         * opened nothing. E40 item 4 (slice D), 13.11.2026: R73 read live.mjs `reopen` as text (`await app.close({ animate:
+         * false })` before `opener()`); a loop that closed every window but the class's kept both reads true. Driven here
+         * with spy windows put in Foundry's register of open windows for the call and taken out after (nothing drawn,
+         * nothing in the world): two of the class, one of another; each close takes 10 ms and leaves the register, as a
+         * real one does. Read: which spies were closed and how, which stood at each call of the opener (one call), and what reopen answered.
+         */
+        const { reopen } = await import("./live.mjs");
+        const CLASS = "drpg-suite-r5171";
+        const instances = foundry.applications.instances;
+        must(instances && typeof instances.set === "function", "Foundry's register of open windows is not a map here - this would measure nothing");
+        const closed = [];
+        const spy = (id, classes) => ({ id, options: { classes }, close: async options => {
+            await wait(10);
+            closed.push(`${id} ${JSON.stringify(options ?? null)}`);
+            instances.delete(id);
+        } });
+        const spies = [spy("drpgSuiteR5171a", [CLASS]), spy("drpgSuiteR5171b", ["drpg-window", CLASS]), spy("drpgSuiteR5171c", ["drpg-window-other"])];
+        const standing = [];
+        let answer = null;
+        try {
+            for (const s of spies) instances.set(s.id, s);
+            answer = await reopen(CLASS, () => {
+                standing.push(spies.filter(s => instances.has(s.id)).map(s => s.id));
+                return "R5171 reopened";
+            });
+        } finally {
+            for (const s of spies) instances.delete(s.id);
+        }
+        equal(JSON.stringify([closed.sort(), standing, answer]), JSON.stringify([
+            ['drpgSuiteR5171a {"animate":false}', 'drpgSuiteR5171b {"animate":false}'], [["drpgSuiteR5171c"]], "R5171 reopened"]),
+        "[the spies closed and how; the spies standing at each call of the opener (once); what reopen answered] - the old copy is not closed first, "
+            + "is closed with its transition, another window is closed, or the opener's answer is lost");
     }],
 
     ["R74 - a Season setup row hands over instead of answering", async () => {
@@ -4381,6 +4440,11 @@ const REGRESSIONS = [
     }],
 
     ["R77 - every student stands on a frame, and yours is bone", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the frame is drawn on the canvas with PIXI (`drawRect`, a container at
+           the token's bottom, the hairline of the curtain), which the harness has not (`env.canvas` is false
+           headless), and own-ring.mjs `frameOf`, `isMine` and `hourColour` are not exported (would need an export of
+           each to drive the colour and ownership rules, rule 2). The registration order and the stylesheet's absent
+           token are the code's and the sheet's shape. */
         /*
          * W-6 (Dawid, 18.09): a player's token is lost in a room - a bedroom holds a
          * bed, a desk, two Remnants and four students, all drawn at the same size out
@@ -4440,6 +4504,12 @@ const REGRESSIONS = [
     }],
 
     ["R78 - the clock names what THIS client is hearing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to what stays a reading of the source. Its first half is driven
+           elsewhere: what this browser hears against what the document says, by R5170 (`nowPlayingHere` on fixtures), and
+           the band kept through a stop and a renderHud, by R122 (`paintTrackLine` and `renderHud` on the clock). What is
+           left is which hooks registerHud wakes the band on and that a track change does not rebuild the clock (a hook's
+           listener cannot be told from another's by a call: the HUD's are anonymous), and the stylesheet's two rules for
+           the band (its own rule, and no scroll under reduced motion; the harness lays out nothing). */
         /*
          * N-1 (Dawid, 20.09): a scrolling band on the clock with the name of the
          * track that is playing.
@@ -4452,25 +4522,9 @@ const REGRESSIONS = [
          * `sound.sound` is this browser's own audio node; `sound.playing` is the
          * document's opinion, and reading the second one is the defect.
          */
-        const sources = new Map(await otherSources());
-        const music = stripComments(sources.get("music.mjs") ?? "");
-        const body = bodyOf(music, "export function nowPlayingHere", { until: "\n}" });
-        ok(/sound\.sound\?\.playing/.test(body),
-            "the reader asks the document what is playing instead of this browser");
-        ok(!/playlist\.playing/.test(body),
-            "the reader is back on the world's opinion, which is the leak");
-
         // E41 C7b (1.2.97): the stopwatch and the clock it shows left hud.mjs; the HUD's family's text (the kit's `hudText`).
-        const hud = stripComments(hudText(sources));
-        ok(/function paintTrackLine\(/.test(hud), "the clock has no band to paint");
-        ok(/drpg-hud-track/.test(hud), "the band has no class, so the stylesheet cannot reach it");
-        /* AND THE BAND IS NEVER TAKEN AWAY (E23 C2a, 07.11.2026; request A1, S10-28, D9 option 1). At 2b866dde a stop
-           removed the node (`existing?.remove()`), and `renderHud` threw it away with the rest of the clock: the clock
-           lost a line when nothing played, the curtain was cut again for it, and between two tracks of one playlist
-           the band went and came back with the 3 s interval. Both functions read with comments blanked. */
-        const paint = fnSource(hud, "paintTrackLine"), render = fnSource(hud, "renderHud");
-        ok(!/\.remove\(\)/.test(paint), "paintTrackLine removes a node (`.remove()`), so the band leaves the clock when nothing plays");
-        ok(!/hud\.replaceChildren\(\)/.test(render), "renderHud empties the whole clock (`hud.replaceChildren()`), so the band is thrown away and its title starts its scroll again");
+        const hud = stripComments(hudText(new Map(await otherSources())));
+        ok(hud.length > 1000, "the HUD's family did not load");
         const wiring = bodyOf(hud, "export function registerHud", { length: 2000 });
         for (const hook of ["updatePlaylistSound", "deletePlaylistSound"]) {
             ok(wiring.includes(hook), `the band does not wake on ${hook}`);
@@ -4484,6 +4538,35 @@ const REGRESSIONS = [
         ok(/\.drpg-hud-track \{/.test(css), "the band has no rule of its own");
         ok(/drpg-reduced-motion .drpg-hud-track > span \{\s*animation: none/.test(css),
             "the band goes on scrolling under reduced motion");
+    }],
+
+    ["R5170 - the clock's band names what this browser hears, not what the document says: a sound its playlist marks playing with no audio of its own playing here is not named, one this browser plays is, and the document's playlist flag names nothing (E40 item 4: R78's first half, driven)", async () => {
+        /*
+         * N-1 (Dawid, 20.09), R78's safety half. Playback is driven by the primary GM through `playAll()`, a document
+         * update, so in the ordinary case every client hears the same thing - but a sound can be started on one client
+         * alone, and what a GM listens to while they set a murder up must not have its name appear on a player's clock.
+         * `sound.sound` is this browser's own audio node; `sound.playing` (and `playlist.playing`) the document's opinion.
+         * E40 item 4 (slice D), 13.11.2026: R78 read `nowPlayingHere` as text (`sound.sound?.playing` present,
+         * `playlist.playing` absent); a reader that asked `sound.sound?.playing || sound.playing` kept both regexes true.
+         * Driven here as R824 drives it: music.mjs `nowPlayingHere` takes what it reads as an argument, so fakes, no
+         * world. Read per case: the track it names.
+         */
+        const M = await import("./music.mjs");
+        const read = playlists => M.nowPlayingHere({ cueId: null, mine: [], channel: 1, murder: null, playlists })?.track ?? null;
+        const list = (id, playing, sounds) => ({ id, name: `R5170 ${id}`, mode: 0, playing, sounds });
+        const docOnly = { name: "R5170 the document's", playing: true, volume: 1, sound: null };
+        const docPaused = { name: "R5170 paused here", playing: true, volume: 1, sound: { playing: false, volume: 1 } };
+        const heard = { name: "R5170 heard here", playing: false, volume: 1, sound: { playing: true, volume: 1 } };
+        equal(JSON.stringify([
+            ["the document says playing, no audio here", read([list("A", true, [docOnly])])],
+            ["the document says playing, the audio here paused", read([list("B", true, [docPaused])])],
+            ["the audio here plays, the document says not", read([list("C", false, [heard])])],
+            ["the document's playlist beside the heard one", read([list("A", true, [docOnly, docPaused]), list("C", false, [heard])])]]), JSON.stringify([
+            ["the document says playing, no audio here", null],
+            ["the document says playing, the audio here paused", null],
+            ["the audio here plays, the document says not", "R5170 heard here"],
+            ["the document's playlist beside the heard one", "R5170 heard here"]]),
+        "the track the band names for each case - a name from the document's opinion is the leak R78 guards");
     }],
 
     ["R79 - a Level Up may be handed over, and the writing stays the GM's", async () => {
@@ -4669,6 +4752,13 @@ const REGRESSIONS = [
     }],
 
     ["R83 - a deferred assembly remembers its scene, and is not cleared until it can be held", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to what stays a reading of the source. The rule is driven in
+           tier 2 by "a deferred assembly is held on its own scene, not the one on screen, and an order whose room is gone
+           is cleared and said (E40 item 4: R83's rule, driven; was R83)": the order's scene, the run on it, the token
+           moved there by the fallback, a gone room cleared and told - it fails four mutants that kept every text this
+           test read. Left: the clear standing after the room's check. With the order's scene read right, a clear before
+           the check has no outcome a call can see (a mutant adding one before it kept both this test and the driven one
+           green: this reads the last clear, which stays after it), so it is the code's order alone. */
         /*
          * CALL-18, 20.09. `runPendingGather` cleared the order first - deliberately,
          * so a throw could not fire it twice - and then called `gatherEveryone`, which
@@ -4679,42 +4769,19 @@ const REGRESSIONS = [
          * no repair anywhere in the module - `gatherEveryone` is not on `game.drpg`.
          */
         const world = stripComments(new Map(await otherSources()).get("call-world.mjs") ?? "");
-
-        const schedule = bodyOf(world, "export async function scheduleGather", { until: "export async function runPendingGather" });
-        ok(/sceneId: scene\.id/.test(schedule),
-            "the order does not remember which scene its room is on");
-
         const run = fnSource(world, "runPendingGather");
-        ok(/game\.scenes\.get\(order\.sceneId\)/.test(run),
-            "the order is carried out on whichever scene this GM is looking at");
+        ok(run.length > 200, "runPendingGather was not read - this would measure nothing");
         // `lastIndexOf`: the refusal branch does its own clear, and the one that
         // matters here is the last - the clear standing in front of the work.
         ok(run.indexOf("if (!region)") < run.lastIndexOf("writeGather(null)"),
             "the order is cleared before anybody has checked that it can be held");
-        ok(/gatherRoomGone/.test(run),
-            "a room that has gone is cleared in silence, so the GM never learns why nothing "
-            + "happened");
-        ok(/gatherEveryone\(order\.room, scene\)/.test(run),
-            "the scene is worked out and then not passed on");
-
-        const gather = fnSource(world, "gatherEveryone");
-        ok(/gatherEveryone\(room, onScene = null[,)]/.test(gather),
-            "the scene cannot be handed to it, so a deferred assembly has no way to say where");
-        ok(/\[\.\.\.scene\.tokens\]/.test(gather),
-            "the cast is read off the canvas, which only holds the scene somebody is looking at");
-        /* BOTH FUNCTIONS, BY NAME (E34 fix r1-G2, 07.10.2026; review r1 m4). Until E34 C2 this
-           read was `bodyOf` from gatherEveryone to the end of call-effects.mjs, so it took in
-           `fallbackGather`, which gatherEveryone hands the cast to when the region's teleport
-           throws. C2's `fnSource` stopped at gatherEveryone's own end: measured on 63b1908, a
-           `canvas.tokens.placeables` read planted in fallbackGather left this test green.
-           `bodyOf` to the end of call-world.mjs would cover it only while fallbackGather stays
-           the file's last function; read by name, either one leaving the file stops the test
-           instead. */
-        ok(!/canvas\.tokens\.placeables/.test(gather + fnSource(world, "fallbackGather")),
-            "the canvas reading is back");
     }],
 
     ["R84 - a request that never went is not reported as sent, and a tile states the rule", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its last four assertions already read the live text (the hint through
+           `game.i18n`). The rest is the code's shape: `promptAndCallGm` answers null when `callGm` answered false -
+           which needs no GM connected on the browser running the suite, and the suite runs on a GM's - and the
+           proposal's own `if (sent === false) return null;` and the tile's threshold read from the rule's constant. */
         /*
          * ACT-15 and ACT-16, 20.09.
          *
@@ -4983,19 +5050,41 @@ const REGRESSIONS = [
          *
          * So the case dashboard came back undressed after a filter change, and so did
          * the trial console on every tick and the Players table after a death.
+         *
+         * E40 item 4 (slice D), 13.11.2026: driven, where it read live.mjs's rebuild and chrome.mjs's listener as text
+         * (a listener that dressed nothing, `dressChrome(null)`, kept every regex true). A region of a window of the
+         * test's own, outside any Foundry window, is redrawn through `keepLive` by a hook name nothing else knows
+         * (LIVE_PROBE, as tier 1's live-region tests do). Its heading "A suite" is what chrome.mjs dresses in both
+         * themes (`markLoneInitials`: `drpg-lone-initial`). Read: the region was rebuilt, its `after` saw the new
+         * nodes undressed, and the new nodes stand dressed once the rebuild is over - the hook fired, after `after`,
+         * on the new nodes, and chrome.mjs's listener dressed them. Nothing in the world is written.
          */
-        const sources = new Map(await otherSources());
-        const live = stripComments(sources.get("live.mjs") ?? "");
-        const rebuild = bodyOf(live, "const rebuild = (force = false)", { until: "const schedule =" });
-        ok(rebuild.length > 200, "keepLive's rebuild has moved or gone");
-        ok(/Hooks\.callAll\("drpgWindowUpdated", next\)/.test(rebuild),
-            "a rebuilt region is never announced, so nothing can dress it");
-        ok(rebuild.indexOf("if (after) after(next)") < rebuild.indexOf("drpgWindowUpdated"),
-            "the region is dressed before it has wired its own controls");
-
-        const chrome = stripComments(sources.get("chrome.mjs") ?? "");
-        ok(/Hooks\.on\("drpgWindowUpdated"/.test(chrome),
-            "the listener this hook exists for is gone, so firing it decorates nothing");
+        const { keepLive } = await import("./live.mjs");
+        const PROBE = "drpgSuiteLiveProbe";
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px;opacity:0";
+        const build = () => `<div class="drpg-t-dressed"><h3>A suite</h3></div>`;
+        host.innerHTML = build();
+        document.body.appendChild(host);
+        const dressed = node => node?.querySelector("h3")?.classList.contains("drpg-lone-initial") ?? null;
+        const seen = { after: [] };
+        const app = { element: host, options: { window: { title: "R90" } } };
+        const stop = keepLive(app, { region: ".drpg-t-dressed", build, delay: 0, watch: { hooks: [PROBE] }, after: next => seen.after.push(dressed(next)) });
+        try {
+            const first = host.querySelector(".drpg-t-dressed");
+            first.querySelector("h3").classList.remove("drpg-lone-initial");
+            Hooks.callAll(PROBE);
+            await wait(140);
+            const next = host.querySelector(".drpg-t-dressed");
+            seen.rebuilt = Boolean(next) && next !== first;
+            seen.dressed = dressed(next);
+        } finally {
+            stop();
+            host.remove();
+        }
+        equal(JSON.stringify(seen), JSON.stringify({ after: [false], rebuilt: true, dressed: true }),
+            "{after: what the region's `after` saw (dressed) at each rebuild; rebuilt: the region was drawn again; dressed: the new nodes are dressed "
+            + "once the rebuild is over} - a rebuilt region is not announced, is announced before it wired itself, or nothing dresses it");
     }],
 
     ["R91 - the GM can state that a trace exists", async () => {
@@ -5378,30 +5467,6 @@ const REGRESSIONS = [
         const firstRead = body.search(/\bpub\./);
         ok(firstRead < 0 || (declared >= 0 && declared < firstRead),
             "gmRemnantCard reads `pub` before declaring it, so every GM's trace card throws");
-    }],
-
-    ["R95 - a window under glass arrives frosted, not sharp and then frosted", async () => {
-        /*
-         * Dawid, 21.09: "the blur behind the window appears with a visible delay".
-         * The glass is `backdrop-filter` on the window's children, and an ancestor
-         * with opacity below 1 is a Backdrop Root - so while the WINDOW faded in, the
-         * glass had nothing to blur and drew the map sharp, snapping to frosted on
-         * the frame the opacity reached 1. Measured on a paused entrance: header
-         * sharpness 22.5 / 23.1 / 24.2 at 50 / 90 / 99 percent, 17.3 at the end;
-         * after, 17.2 / 18.8 / 18.0 / 16.7.
-         *
-         * The rule is structural, so it is read: under glass nothing may fade the
-         * window element itself.
-         */
-        const src = stripComments(new Map(await otherSources()).get("motion.mjs") ?? "");
-        const fn = bodyOf(src, "function animateWindowIn(", { until: "\nfunction " });
-        const glass = bodyOf(fn, "if (glassOn())", { until: "return;" });
-        ok(glass.length > 40, "the entrance no longer has a glass branch");
-        const onWindow = bodyOf(glass, "play(el,", { until: "ARRIVE())" });
-        ok(onWindow.length > 0 && !/opacity/.test(onWindow),
-            "the window itself fades in under glass, so its glass is blind until the last frame");
-        ok(/for \(const child of el\.children\)[\s\S]{0,80}opacity: 0/.test(glass),
-            "nothing fades the window's contents in, so they appear all at once");
     }],
 
     ["R96 - a project token opens a card that names only what its reader knows", async () => {
@@ -13154,6 +13219,10 @@ const REGRESSIONS = [
     }],
 
     ["R291 - every row of the GMs' roll list has a fixture in tier 2 and every fixture a row", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census pairing two texts: the GMs' roll list (config.mjs
+           `LEGAL_ROLL_MODIFIERS`) and tier 2's fixtures (`MODIFIER_FIXTURES`, a constant of tests-tier2.mjs read as
+           source) and roll-draw.mjs `situationReading`'s branches. The fixtures are not importable from tier 0 and
+           `situationReading` is not exported (would need an export of it, rule 2). */
         /*
          * E33 C3, 07.10.2026; the stage plan's 2.3. Tier 2 drives every row of config.mjs
          * `LEGAL_ROLL_MODIFIERS`, and every branch of its `situation` row as roll-draw.mjs
@@ -13183,6 +13252,10 @@ const REGRESSIONS = [
     }],
 
     ["R300 - each silence has one name: isCrimeSilenced in monocub.mjs, isCallSilenced in call-effects.mjs, isSilenced only as api.mjs's alias (D39)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of names over every module file: each silence's reader
+           declared once, in its own file, the old name only as api.mjs's alias, neither imported under another. The
+           reason is the test's own, below: a name that is no longer exported is `undefined` until it is called, so no
+           call that does not reach it can see it. */
         /*
          * E33 C9 (D39; audit S09-48, S03-46). Two rules carried the name `isSilenced`
          * until 1.2.69: the crime-witness marker on a Monocub (monocub.mjs; information
@@ -13803,6 +13876,9 @@ const REGRESSIONS = [
     }],
 
     ["R119 - Room Setup writes to the scene it was opened on: every read and write it makes is handed that scene, Apply's included", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of Room Setup's calls: every call it makes to a function that
+           takes a scene is handed the window's, and the camera is read once. The tier-2 test it names drives where the
+           writes land; this holds the shape over every call, which no single call shows. */
         /*
          * E12 C4, 11.10.2026; plan-E12 V2, V10 and G3, audit S08-16; the A5 project's reserved R119,
          * here because a tier-2 test carries no number (tools/registry.mjs) - the tier-2 "Room Setup
@@ -13866,6 +13942,10 @@ const REGRESSIONS = [
     }],
 
     ["R118 - a project's room, a gather, a body and a Final Truth are placed on their own scene, never the one on screen", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census over fourteen files: none of the roads that place a project's
+           room, a gather, a body or a Final Truth reads the camera or calls a camera fallback without handing it the
+           scene. The harm is driven by the tier-2 tests it names; what this holds is that no such read exists in any
+           of them, which no single call shows. */
         /*
          * E12 C5, 11.10.2026; plan-E12 V1 and section 4's C5, audit S11-15; the A5 project's
          * reserved R118, here because a tier-2 test carries no number (tools/registry.mjs) - the
@@ -14009,6 +14089,9 @@ const REGRESSIONS = [
     }],
 
     ["R383 - the renderer's background is the fog's ink only while the fog is on screen: set after a paint, given back when the fog stands down", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the renderer's background is not measurable here (the harness's
+           renderer has no background: client-entry.mjs, a screen size and a view), and fog.mjs `repaintFog`, `stand`
+           and `armRendererFailsafe` are not exported; it reads which function sets and which gives back the colour. */
         /*
          * E12 C7, 11.10.2026; audit S07-11. `armRendererFailsafe` set the renderer's clear colour to
          * the palette's ink on every `canvasReady` - with the room fog switched off, and on a scene
@@ -15820,6 +15903,8 @@ const REGRESSIONS = [
             + "and no longer with \" - your roll\"]");
     }],
     ["R806 - the hint of the switch for one dice look says only what holds whoever opened the world first: the look is fixed the first time the game runs with it on, as the GM's handbook says, in both languages (E16)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its subject is two texts agreeing: the setting's hint in both languages
+           and the GM's handbook's line on it - words, not code; nothing calls the hint. */
         /*
          * E16 fix r1-G2 of round r1d, 19.10.2026 (finding fd2-3). DRPG.Settings.forceDiceLook.hint named the full
          * Gamemaster "whose browser first ran the game with this on as the primary GM". dice-sync.mjs `lookSource`
@@ -16024,6 +16109,10 @@ const REGRESSIONS = [
             "[the drawing hands `gm` to the stretches and to the tunnels; the words say 'Secret passage from' and 'Secret passage to'; the room beyond is movement.mjs `passageRooms`; the overlay drawn again once it has loaded; drawn again on a region created, changed and deleted, a behaviour made or taken off one, and a scene's update of its regions (H82 fix r1); that redraw a quarter second after the last]");
    }],
     ["R945 - a GM's frame is cut on a GM's own board from the GMs' own rows (H82-05): fog-doorways.mjs `gmPassageGaps` takes `gm` from `game.user?.isGM` and asks it first; in their own bodies it, `withPassageGhosts`, `traceGhostStretches`, fog-reveal.mjs `ghostStyle` and `flashOutline` and fog.mjs `redrawFrameSoon` name no emit, no write of a flag, setting, store, document or chat message and no reader of a player's copy (what they call is not read: on a player's browser `flashOutline` reaches the copy through a knower's `doorwayEdges` and `tunnelMarks`), and passages.mjs `secretSegmentsOn`, the GM's cut's one read of rows, names no emit or write and reads `knownPassages()`, the GMs' open rows on a GM's browser (R554); `flashOutline` cuts its edges as `withPassageGhosts(doorwayEdges(...), gaps)` with `gaps` its `gmPassageGaps(...)`, `traceOutlineGapped` leaves the cut out, and `doorwayEdges` reads none of it, so the map's checks and a player's frame read the map as before; and fog.mjs draws a GM's frame again from one `clientSettingChanged` listener, on the GMs' passage rows, behind a GM's gate, a quarter second after the last change", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the GM's frame: none of six functions emits or writes, none
+           reads a player's copy, the gate is the user's role in `gmPassageGaps`' parameters, and fog.mjs has one gated
+           listener. R943, R944 and scenario 76 C drive the cut and the gate; this holds the absence of a write or a
+           copy read over the bodies, which no call shows. */
         /*
          * H82-05 (23.10.2026). A secret passage is the GMs' and its knowers' (D2, D38): a frame cut by every passage would be
          * the whole map of them on any browser that drew it, and a Mastermind player's copy names every passage, so the gate
@@ -16352,6 +16441,9 @@ const REGRESSIONS = [
     }],
 
     ["R846 - a private card to a student's owners goes to every player who owns it: whisperToOwner and whisperToOwnerOnly read ownerIdsOf, and every caller that names its own readers is listed with its reason (E18 C5; S01-33, amend 2)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the helpers' half is driven by tier 2's "a private card to a student's
+           owners ..." (the test names it); what this holds is a census of every caller of the two helpers that names
+           its own readers, each listed with its reason - a count over the module's files that no call shows. */
         /*
          * E18 C5, 20.10.2026; audit S01-33, the owner's amend 2 (E18-22, E18-23). The two helpers addressed the card to
          * `ownerOf`'s one player, so a co-owner read none of its student's private cards; they read `ownerIdsOf` now (tier
@@ -18705,6 +18797,10 @@ const REGRESSIONS = [
                 + "trace's student and subject; itemFindings' discard line asks takeDiscardTrace of the student and the held name before it stands; both exported]");
     }],
     ["R1127 - every GM number field is a kit stepper read through utils.mjs `wholeNumber`: each `stepper({ name` of the module's windows has its row in this test's table, the field keeps its name, the reader is found and every line that reads the field's value asks `wholeNumber(`; no module file but ui-kit.mjs writes an `<input type=\"number\"`, and a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61; E44 C4b, E44-16, S10-66)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census: every kit stepper of the module's windows against the test's
+           table of fields, every line that reads a field's value asking `wholeNumber(`, no raw `<input type="number"`
+           outside ui-kit.mjs - a count over every file. What `wholeNumber` does with a value is a call (R1128, tier
+           1); which fields are read through it is the code's shape. */
         /*
          * E51 C7, 31.10.2026; audit S10-61. The GM's number fields were read with `Number(v) || 1` and the like, so
          * `min="1" step="1"` held nothing a typed value did not: "Day -2" or "Day 2.5" went to the clock as typed in
@@ -22120,6 +22216,9 @@ const REGRESSIONS = [
             "{row: README row 71's layers, state and stage; layers: the file's export; parts: the letters it begins}");
     }],
     ["R1483 - the harness's render after a write is named unconfirmed (E45 C3a, E45-15; STAGE E45 \"71-sheet\"): versions.mjs's `UNCONFIRMED` lists LIVE-E45-01, client-entry.mjs's `renderApps` cites it, and README's \"What the harness cannot do\" names the model", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its subject is three texts of the harness and its README agreeing
+           (versions.mjs's UNCONFIRMED list, client-entry.mjs's note on `renderApps`, the README's section) -
+           documentation of an assumption, not module behaviour. */
         /* E45 C3a, 08.11.2026. The render on an update is modelled from v13/v14 notes, not v14's source: every results
            file lists the unconfirmed ids (versions.mjs `readVersions`), so a scenario's green on the model says which
            assumption it stands on. Red first on 52955be4: none of the three. */
