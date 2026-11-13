@@ -1636,6 +1636,52 @@ function voteText(sources, family = VOTE_FAMILY) {
 }
 
 /**
+ * The glass's family (E54): glass.mjs - the facade, which keeps everything else - and the files its
+ * code moved into, in the order of the split's manifest (tools/e54/glass.json): glass-geometry.mjs, glass-blocks.mjs.
+ * Written by tools/e54/repoint.mjs from that manifest. A reader of glass.mjs's text reads the family through `glassText`
+ * (or `glassFetch`, or `glassBy` over a helper of its own) and follows each file here without a repoint of its own.
+ */
+const GLASS_FAMILY = Object.freeze(["glass.mjs", "glass-geometry.mjs", "glass-blocks.mjs"]);
+
+/** The line `glassText` puts between two files: `topLevelFunction`'s second end, so no cut runs on into the next file. */
+const GLASS_FAMILY_END = "const GLASS_FAMILY_END = {};";
+
+/**
+ * The glass's family's texts, raw, in GLASS_FAMILY's order, joined by the line `const GLASS_FAMILY_END = {};` (E54):
+ * what a read of glass.mjs's whole text read while it was one file. A reader strips the comments itself, as it did; a
+ * `fnSource` or `topLevelFunction` of the text cuts a function in its own file. A file of the family that is not among
+ * `sources` refuses by `must`, by name.
+ */
+function glassText(sources, family = GLASS_FAMILY) {
+    const map = sources instanceof Map ? sources : new Map(sources);
+    const gone = family.filter(file => typeof map.get(file) !== "string" || !map.get(file).length);
+    must(!gone.length, `${gone.join(", ")}, of the glass's family, ${gone.length > 1 ? "are" : "is"} not among the sources - this reads nothing of ${gone.length > 1 ? "them" : "it"}`);
+    return family.map(file => map.get(file)).join(`\n${GLASS_FAMILY_END}\n`);
+}
+
+/** `glassText` of the family as this browser is served it: what a `fetch` of glass.mjs's URL read while it was one file. */
+async function glassFetch(family = GLASS_FAMILY) {
+    return glassText(await Promise.all(family.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])), family);
+}
+
+/**
+ * A test's own reader of one file, run over every file of the glass's family: texts joined as `glassText` joins them,
+ * sets united. An empty text, an empty union or a reader that answers anything else refuses by `must`.
+ */
+function glassBy(reader, family = GLASS_FAMILY) {
+    const parts = family.map(file => [file, reader(file)]);
+    if (parts.every(([, value]) => typeof value === "string")) {
+        const empty = parts.filter(([, value]) => !value.length).map(([file]) => file);
+        must(!empty.length, `${empty.join(", ")}, of the glass's family, read as nothing - this reads nothing of ${empty.length > 1 ? "them" : "it"}`);
+        return parts.map(([, value]) => value).join(`\n${GLASS_FAMILY_END}\n`);
+    }
+    must(parts.every(([, value]) => value instanceof Set), "a reader of the glass's family answered neither a text nor a set for every file");
+    const all = new Set(parts.flatMap(([, value]) => [...value]));
+    must(all.size > 0, "the glass's family read as an empty set - this reads nothing");
+    return all;
+}
+
+/**
  * The chapter's family (E54): chapter.mjs - the facade, which keeps everything else - and the files its
  * code moved into, in the order of the split's manifest (tools/e54/chapter.json): body.mjs, death.mjs.
  * Written by tools/e54/repoint.mjs from that manifest. A reader of chapter.mjs's text reads the family through `chapterText`
@@ -2909,7 +2955,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, CHAPTER_FAMILY, chapterText, chapterFetch, chapterBy, CLEANUP_FAMILY, cleanupText, cleanupFetch, cleanupBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, SETTINGS_FAMILY, settingsText, settingsFetch, settingsBy, UTILS_FAMILY, utilsText, utilsFetch, utilsBy, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeCrawlSources, bridgeDeclarationCalls, bridgeCut, bridgeLookup, bridgeCrawl, bridgeFamily, bridgeRead, bridgeFn, bridgeText, censusFile, BRIDGE_FAMILY_END, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, GLASS_FAMILY, glassText, glassFetch, glassBy, CHAPTER_FAMILY, chapterText, chapterFetch, chapterBy, CLEANUP_FAMILY, cleanupText, cleanupFetch, cleanupBy, INVESTIGATION_FAMILY, investigationText, investigationFetch, investigationBy, SETTINGS_FAMILY, settingsText, settingsFetch, settingsBy, UTILS_FAMILY, utilsText, utilsFetch, utilsBy, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
