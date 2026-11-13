@@ -57140,6 +57140,39 @@ const INVARIANTS = [
         equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
             "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column]");
     }],
+    ["R5761 - a disabled field in Foundry's and other modules' windows reads as disabled in both themes and an enabled one is left as it was (the owner, 13.11.2026, on Dice So Nice's colour fields, which it disables itself unless the colorset is custom - module/ui/DiceConfig.js `toggleCustomColors`, 6.4.5): read through the module's cascade on Dice So Nice's markup (partial-appearance.hbs: a text field and its `input[type=color]` twin) in its ApplicationV2 frame, a disabled text field, colour field and select take the not-allowed cursor and a lowered opacity, the colour field greyed (`grayscale`), Legacy's disabled text its dim ink; the enabled ones take none of it", async () => {
+        /*
+         * Red at ceb9e9c8 (1.2.112): Legacy painted every field of a foreign window Bone on Ink with no disabled state,
+         * so a disabled text field was drawn as the enabled one (Chromium, Dice So Nice's style.css with the module's
+         * sheets: colour, ground and opacity equal), and neither theme gave a disabled field the not-allowed cursor; the
+         * colour swatch was dimmed by Dice So Nice's own `opacity: 0.3` alone, which the table's sheets can outrank.
+         */
+        const C = await styleCascade();
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme === "legacy" ? "drpg-theme-monokuma-legacy drpg-pixel-font" : "drpg-theme-stained-glass";
+            const app = body.appendChild(Object.assign(document.createElement("div"), { id: "dice-config", className: "application dice-so-nice" }));
+            app.appendChild(Object.assign(document.createElement("header"), { className: "window-header" }));
+            const fields = app.appendChild(Object.assign(document.createElement("section"), { className: "window-content" }))
+                .appendChild(Object.assign(document.createElement("div"), { className: "form-fields" }));
+            const make = (tag, type, disabled) => {
+                const el = fields.appendChild(document.createElement(tag));
+                if (type) el.type = type;
+                el.disabled = disabled;
+                return el;
+            };
+            const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const looks = el => [v(el, "cursor"), v(el, "opacity"), v(el, "filter")];
+            const on = [make("input", "text", false), make("input", "color", false), make("select", null, false)];
+            const off = [make("input", "text", true), make("input", "color", true), make("select", null, true)];
+            return { on: on.map(looks), off: off.map(looks), ink: [v(on[0], "color") !== v(off[0], "color")] };
+        };
+        const want = { on: [[null, null, null], [null, null, null], [null, null, null]],
+            off: [["not-allowed", "0.5", null], ["not-allowed", "0.35", "grayscale(1)"], ["not-allowed", "0.5", null]], ink: [true] };
+        equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
+            "[Legacy, Stained Glass: the enabled text, colour and select fields' cursor, opacity and filter; the disabled ones'; a disabled text field's ink not an enabled one's]");
+    }],
 ];
 
 /**
