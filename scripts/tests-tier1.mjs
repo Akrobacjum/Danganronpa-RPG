@@ -19050,6 +19050,11 @@ const INVARIANTS = [
             first: tabs[0] ?? null,
             rooms: heads("bedrooms"), ratio: Boolean(pane("bedrooms")?.querySelector("[data-drpg-ratio]")),
             doors: heads("doors"),
+            /* The neighbours' rules reached by the keyboard (the r112 review's S7, 13.11.2026): the line a fold's summary, the
+               whole note inside it, and no tooltip only a pointer reaches. Red at 4ce28ad0: a <p> with the note in data-tooltip. */
+            neighbours: (fold => [fold?.querySelector(":scope > summary")?.textContent.trim() === L("DRPG.Vault.neighboursLine"),
+                (fold?.textContent ?? "").replace(/\s+/g, " ").includes(L("DRPG.Vault.neighboursNote").replace(/\s+/g, " ")),
+                Boolean(pane("doors")?.querySelector(`[data-tooltip="${CSS.escape(L("DRPG.Vault.neighboursNote"))}"]`))])(pane("doors")?.querySelector("details[data-drpg-neighbours]")),
             lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")), !text("passages").includes(L("DRPG.Passage.tab.intro")),
                 text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupLine", { max: SearchTokensMax() })),
                 !text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupNote", { max: SearchTokensMax() })),
@@ -19060,8 +19065,9 @@ const INVARIANTS = [
             over: true, first: ["bedrooms", L("DRPG.Vault.tabRooms")],
             rooms: [L("DRPG.Vault.room"), L("DRPG.Vault.isRoomColumn"), L("DRPG.Vault.owner"), L("DRPG.Vault.notSharedColumn")], ratio: true,
             doors: [L("DRPG.Vault.room"), L("DRPG.Vault.lockedColumn"), L("DRPG.Vault.lockedAtStartColumn"), L("DRPG.Vault.brokenColumn"), L("DRPG.Vault.neighboursColumn")],
+            neighbours: [true, true, false],
             lines: [true, true, true, true, true, true, true]
-        }), "{the Apply line over the tabs; the first tab; Rooms' heads and its count; Doors' heads; the tabs' own lines: passages' intro new and old, "
+        }), "{the Apply line over the tabs; the first tab; Rooms' heads and its count; Doors' heads; the neighbours' fold [its summary the line, the note inside, a tooltip of the note]; the tabs' own lines: passages' intro new and old, "
             + "Search's tokens line new and old (arrows), room actions' line new and old, no line under Fog}");
     }],
     ["R4471 - the Scenes are Season setup's, not Room setup's (E101 item 5; the owner's yes of 12.11.2026 to the GM screens' review): Room setup has no Scenes tab; season-setup.mjs `openSeasonSetup` draws trial-scene.mjs's scenes part under DRPG.Season.scenesLine, one sentence, and its Save applies it (`applyScenesTab`, refused on a clash or a hall locked by a running trial); the Season checklist's Scenes row and game.drpg.openTrialCast open Season setup", async () => {

@@ -468,10 +468,13 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedLine")}</p>
         `,
 
+        /* The neighbours' rules in a fold the keyboard opens (the r112 review's S7, 13.11.2026): a tooltip on a <p> was the
+           pointer's alone, and they say what an empty cell means and that a link works both ways. R4470. */
         doors: `
             <p>${game.i18n.localize("DRPG.Vault.doorsLine")}</p>
             ${tableFor(["locked", "startlocked", "broken", "neighbours"])}
-            <p class="notes" data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.neighboursNote"))}">${game.i18n.localize("DRPG.Vault.neighboursLine")}</p>
+            <details class="notes" data-drpg-neighbours><summary>${game.i18n.localize("DRPG.Vault.neighboursLine")}</summary>
+                <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.neighboursNote"))}</p></details>
         `,
 
         passages: passagesPanel,
