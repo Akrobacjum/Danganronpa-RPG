@@ -25247,7 +25247,8 @@ const REGRESSIONS = [
          * with five arguments reads its wall off PIN (`voiceWall`), so a call in the span gives the sixth. G5 then moves the
          * span into glass-geometry.mjs whole. Red on 32f5093f: stackShapes reads the stack's column, the curtain's frame and
          * the rails (G3), deskShapes `avLift()`, `PIN.band` and the rails, buildColumn writes VOICE.box, ROT and OPEN_AREAS
-         * and settles the voice tile against PIN, curtainShapes reads `narrowLayout()` (G4).
+         * and settles the voice tile against PIN, curtainShapes reads `narrowLayout()` (G4). Green since G4: the callers measure
+         * (`stackPage`, `deskPage`, `curtainPage`) and write (`writeCut`).
          */
         const raw = new Map(await otherSources()).get("glass.mjs");
         must(typeof raw === "string", "glass.mjs was not read");
@@ -25273,7 +25274,7 @@ const REGRESSIONS = [
         const stale = Object.keys(LISTED).filter(n => !found.has(n));
         equal(JSON.stringify({ reads, settleVoiceWithoutWall: fiveArgs, stale }), JSON.stringify({ reads: {}, settleVoiceWithoutWall: 0, stale: [] }),
             "{reads: a declaration of the cut's span and the page's or the module's state it names; settleVoiceWithoutWall: the calls that leave the wall to PIN; stale: a listed name that reads nothing any more}");
-    }, expectedRed("E54", "G3/G4: stackShapes, deskShapes, buildColumn and curtainShapes read the page and write VOICE.box, ROT and OPEN_AREAS themselves until the callers measure and write")],
+    }],
 ];
 
 

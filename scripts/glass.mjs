@@ -1975,7 +1975,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     let tail = null, railHug = false, railNear = null, lift = 0;
     if (c.tail) {
       const turn0 = { px, py, cs, sn }, fl = c.floor ?? H;
-      tail = settleVoice(c.tail, W, turn0, fl, H);
+      tail = settleVoice(c.tail, W, turn0, fl, H, ctx.wall);
       lift = Math.max(0, (tail.y0 - (trayB.y + trayB.h)) / 2);
       /* AT THE WALL UNDER THE TAB RAIL'S RUN (E96 C4; the owner: "miedzy nim a po prawej jest dziura w kurtynie,
          ktorej nie powinno byc"). With Foundry's tab rail at the wall the column stands at the pin, off it, and the
@@ -1995,8 +1995,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       c.tail = tail;
     }
     if (tail) {
-      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h, fit: tail.fit, lift };
-      ROT.push({ sel: tail.sel, el: null, origin: (px - tail.x) + "px " + (py - tail.y) + "px", transform: turn });
+      ctx.voice = { x: tail.x, y: tail.y, w: tail.w, h: tail.h, fit: tail.fit, lift };
+      ctx.turns.push({ sel: tail.sel, el: null, origin: (px - tail.x) + "px " + (py - tail.y) + "px", transform: turn });
     }
     for (const b of c.items) {
       /* A FIXED BLOCK IS STILL A BLOCK ON THE GLASS. Its box is a constant - the notice tile is
@@ -2006,7 +2006,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          element is not measured and may not exist yet. Since E81 C8 popup.mjs builds the tile at
          `ready`, with the history's button in its corner and before the glass is cut, but the rule
          does not lean on that: a tile removed and rebuilt by `container()` turns all the same. */
-      ROT.push(...blockTurns(b, px, py, turn));
+      ctx.turns.push(...blockTurns(b, px, py, turn));
     }
     /* TWO COLUMNS SHARE THE GAP BETWEEN THEM, THEY DO NOT EACH CLAIM IT.
        -----------------------------------------------------------------------
@@ -2150,7 +2150,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (below) {
       const q = rot(Xc, Yseam);
       let [right, left] = split(below, q[0], q[1], cs, sn);
-      if (left) OPEN_AREAS.push({ name: "voice-left", poly: left });
+      if (left) ctx.open.push({ name: "voice-left", poly: left });
       /* E96 C4: under the rail's run the tile's panes are cut to the wall from their own rectangle, the tray's pane
          keeping the pin's edge; and a tile come down the side leaves a pane between the seam and its own, as wide as
          its own (`mid`), so nothing between the tray and the tile is bare. Both are `ctx.voiceOut`, which the strip
@@ -2802,11 +2802,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     }
     return y;
   };
-  function curtainShapes(host, W, H, rnd, boxes, FW) {
-    VOICE.box = null; OPEN_AREAS.length = 0;
-    // a stacked layout is a different shape and gets a different cut; see stackShapes
-    if (narrowLayout()) { const panes = stackShapes(W, H, rnd, boxes, stackPage(host, W)); OPEN_AREAS.push(...panes.meta.open); return panes; }
-    return deskShapes(host, W, H, rnd, boxes, FW);
+  function curtainShapes(W, H, rnd, boxes, FW, page) {
+    // a stacked layout is a different shape and gets a different cut; see stackShapes (`curtainPage`: `narrow`)
+    return page.narrow ? stackShapes(W, H, rnd, boxes, page) : deskShapes(W, H, rnd, boxes, FW, page);
   }
   /* THE TWO BANDS' SECTIONS MEET, THEY DO NOT CROSS (E23 fix G2, 08.11.2026; STATUS E23 Open 30 and 90, the end review's
      goal M3 and screens m3; R1421). A column of the top band leans about its top corner and one of the bottom band about
@@ -2844,11 +2842,13 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   }
   /* the desk's cut, on its own since E78 C6 so `cutBoxes` can ask for it on a screen the
      harness lays out 1024 px wide, which is a stacked one */
-  function deskShapes(host, W, H, rnd, boxes, FW) {
+  function deskShapes(W, H, rnd, boxes, FW, page) {
     const panes = [];
     /* what every cutter reads and writes: the panes so far, the frame, the seed's
        stream, the rails' bands once they are measured, and the needles placed */
-    const ctx = { panes, W, H, FW, rnd, railBands: null, needles: [] };
+    const ctx = { panes, W, H, FW, rnd, railBands: null, needles: [],
+      // `deskPage`: the wall the voice tile is settled against; what the cut gives back for the callers to write (E54 G4)
+      wall: page.wall, voice: null, turns: [], open: [] };
     ctx.push = (poly, tone, kind, rank) => pushPane(ctx, poly, tone, kind, rank);
 
     /* the voice tile is not a column's member by its midpoint: it is the tray's column's tail */
@@ -2859,7 +2859,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        in the top band, turned 8 degrees about that column's top corner, and the turn carried the gear
        and the book 29 and 36 px back down into the dock (Chromium, the glass harness; the sweep's dock
        check). The middle is the middle of the screen over the dock; with no dock it is H / 2, as before. */
-    const mid = (H - Math.min(avLift(), H / 2)) / 2;
+    const mid = (H - Math.min(page.lift, H / 2)) / 2;   // `deskPage`: the dock's lift (`avLift`)
     const top = columnsOf(banded.filter(b => b.y + b.h / 2 < mid));
     const bot = columnsOf(banded.filter(b => b.y + b.h / 2 >= mid));
 
@@ -2871,11 +2871,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        - 37 of 64 tile corners on panes that were not theirs (measured 07.09). The strip
        covers that band instead, for its whole height, and a column whose own run overlaps
        the band stops at its own edge. Nothing is left bare: the band IS the strip. */
-    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
-    const railBands = {
-      left: railBox(host, cv, W, "#scene-controls", 0, null),
-      right: PIN.band ? { ...PIN.band } : railBox(host, cv, W, "#sidebar-tabs", 1, null),
-    };
+    const railBands = page.bands;   // `deskPage`: the scene rail's and the tab rail's, a band of their own each cut
     ctx.railBands = railBands;
     /* THE BOTTOM BAND IS CUT FIRST AND FILED SECOND (E78 C6). The voice tile's foot is settled
        against the corner's pane, which only exists once the bottom columns are cut; the panes are
@@ -2910,7 +2906,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     for (const p of panes) if (p.content) kept.push(p);
     for (const p of panes) if (!p.content && kept.every(k => !overlaps(k.poly, p.poly))) kept.push(p);
 
-    kept.meta = { top, bot, rings: ringLines, tiles, railRight: railBands.right };
+    kept.meta = { top, bot, rings: ringLines, tiles, railRight: railBands.right, voice: ctx.voice, turns: ctx.turns, open: ctx.open };
     return kept;
   }
 
@@ -3160,6 +3156,36 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       ],
     };
   }
+  /* THE DESK'S PAGE (E54 G4, 13.11.2026): what `deskShapes` and `buildColumn` read off the page and the module themselves
+     until E54, in the order they read it - the dock's lift (`avLift`), the scene rail's band (`railBox`), the tab rail's
+     (`PIN.band`, a copy, the cut marks its end on it, or `railBox`), and the wall the voice tile is settled against
+     (`voiceWall`, off `PIN.rail`). `cutBoxes` sets PIN before it asks. */
+  function deskPage(host, W) {
+    const lift = avLift();
+    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+    return {
+      lift,
+      bands: {
+        left: railBox(host, cv, W, "#scene-controls", 0, null),
+        right: PIN.band ? { ...PIN.band } : railBox(host, cv, W, "#sidebar-tabs", 1, null),
+      },
+      wall: voiceWall(W),
+    };
+  }
+  /* The curtain's page: a stacked layout's (`narrowLayout`, then `stackPage`) or the desk's. */
+  function curtainPage(host, W) {
+    return narrowLayout() ? { narrow: true, ...stackPage(host, W) } : { narrow: false, ...deskPage(host, W) };
+  }
+  /* WHAT THE CUT GIVES BACK, WRITTEN WHERE THE REST OF THE PASS READS IT (E54 G4). The cut used to write these itself, on
+     the way: the voice tile's settled box (VOICE.box, null when there is none), the blocks' and the voice tile's turns
+     (pushed onto ROT, which the caller has emptied; the rails' turns follow them in `curtainGeometry`) and the areas left
+     open on purpose (OPEN_AREAS, emptied first). Nothing read them during the cut, so writing them after it is the same. */
+  function writeCut(panes) {
+    VOICE.box = panes.meta.voice ?? null;
+    ROT.push(...(panes.meta.turns ?? []));
+    OPEN_AREAS.length = 0;
+    OPEN_AREAS.push(...(panes.meta.open ?? []));
+  }
   export function cutBoxes(W, H, boxes, seed = 1, { stacked = false, bands = null, rail = null, band = null } = {}) {
     const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0), pin = PIN.rail, pinBand = PIN.band;
     if (rail != null) PIN.rail = rail;
@@ -3168,8 +3194,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const given = boxes.map(b => ({ sel: BLOCKS.find(k => k.cls === b.cls)?.sel ?? null, ...b }));
       VOICE.box = null; OPEN_AREAS.length = 0;
       const host = document.createElement("div");
-      const panes = stacked ? stackShapes(W, H, rng(seed), given, stackPage(host, W, bands ?? [null, null])) : deskShapes(host, W, H, rng(seed), given, W);
-      if (stacked) OPEN_AREAS.push(...panes.meta.open);
+      const panes = stacked ? stackShapes(W, H, rng(seed), given, stackPage(host, W, bands ?? [null, null])) : deskShapes(W, H, rng(seed), given, W, deskPage(host, W));
+      writeCut(panes);
       return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), check: { ...cutCheck(panes, OPEN_AREAS, W, H), ...cutParts(panes, W, H) },
                rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
     } finally {
@@ -3242,7 +3268,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     }
     job.sig = sig; job.W = W; job.H = H;
     ROT.length = 0;
-    const panes = curtainShapes(host, W, H, rng(job.seed), boxes, fullW);
+    const panes = curtainShapes(W, H, rng(job.seed), boxes, fullW, curtainPage(host, W));
+    writeCut(panes);
     // the silhouette: one clip path of every pane, crisp at any scale, no bitmap
     const d = panes.map(p => "M" + p.poly.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("");
     /* AN IDENTICAL CUT KEEPS ITS PAINTED PANES.
