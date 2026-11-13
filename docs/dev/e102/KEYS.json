@@ -1481,5 +1481,23 @@
     "sound-panel:177"
    ]
   }
+ },
+ "More": {
+  "volumeTooltip": {
+   "key": "DRPG.Tips.More.volumeTooltip",
+   "en": "How loud this person is for you alone; the others hear them as before",
+   "pl": "Jak głośno słyszysz tę osobę, tylko u siebie; inni słyszą ją jak wcześniej",
+   "sites": [
+    "voice-tile:1353"
+   ]
+  },
+  "changeTheKeyTooltip": {
+   "key": "DRPG.Tips.More.changeTheKeyTooltip",
+   "en": "Opens Foundry's controls, where you set the push-to-talk key",
+   "pl": "Otwiera sterowanie Foundry, gdzie ustawiasz klawisz mówienia",
+   "sites": [
+    "voice-panel:140"
+   ]
+  }
  }
 }

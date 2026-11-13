@@ -25360,6 +25360,27 @@ const INVARIANTS = [
             rest: [true, true, ["one", "other"], ["few", "many", "one", "other"]], escape: false, gone: [], titled: [true, true, true]
         }), "{the roll passes at the number; 'beat' in the difficulty's words (en, pl); any room in the room's (en, pl); the Polish Frisk answer's plural or gendered form; Rest passes the cost, draws the plural key, its forms (en, pl); the escape's words promise a filtered window; dropped keys still in lang; title on the disabled controls}");
     }],
+    ["R4761 - the voice list's volume and push-to-talk's key button draw their tooltips (E102 C8, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 2 keys under DRPG.Tips.More has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 91f6413a with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.More key. */
+        const TIPS = [
+            ["DRPG.Tips.More.volumeTooltip","voice-tile.mjs","listRow"],
+            ["DRPG.Tips.More.changeTheKeyTooltip","voice-panel.mjs","voiceFieldset"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.More") ?? {}).length === 2, "lang/en.json has not the family's 2 keys under DRPG.Tips.More");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            return !(read && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is

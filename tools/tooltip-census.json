@@ -199,7 +199,7 @@
    "kind": "summary",
    "key": null,
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: a fold whose line is the case summary's title and counts; pressing it opens or closes the summary"
   },
   {
    "file": "scripts/case-map.mjs",
@@ -535,7 +535,7 @@
    "kind": "summary",
    "key": null,
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: a section's heading of the GM panel; pressing it folds or unfolds that section"
   },
   {
    "file": "scripts/gm-panel.mjs",
@@ -599,7 +599,7 @@
    "kind": "kit:kitTabs-item",
    "key": "DRPG.Despair.tabMonokumas",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the tab's label names its pane (Monokumas, Overflow); the Pools tab, the one that needs saying, has its tooltip"
   },
   {
    "file": "scripts/gm-team-dialog.mjs",
@@ -607,7 +607,7 @@
    "kind": "kit:kitTabs-item",
    "key": "DRPG.Despair.tabOverflow",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the tab's label names its pane (Monokumas, Overflow); the Pools tab, the one that needs saying, has its tooltip"
   },
   {
    "file": "scripts/handbooks.mjs",
@@ -1199,7 +1199,7 @@
    "kind": "kit:kitTabBar-item",
    "key": "DRPG.Messenger.tabChat",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: Chat is the conversation itself; the Note tab beside it, the one that needs saying, has its tooltip"
   },
   {
    "file": "scripts/messenger-app.mjs",
@@ -1279,7 +1279,7 @@
    "kind": "kit:chips",
    "key": "DRPG.Notices.title",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: filter chips named by their kind of notice, each with its count"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1287,7 +1287,7 @@
    "kind": "dom:input",
    "key": "DRPG.Notices.search",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: a search box with its placeholder and its aria-label"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1295,7 +1295,7 @@
    "kind": "dom:button",
    "key": "DRPG.Notices.markRead",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: each label says what it does (Mark all read, New notices - show them, Open the conversation)"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1303,7 +1303,7 @@
    "kind": "dom:button",
    "key": "DRPG.Notices.newPill",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: each label says what it does (Mark all read, New notices - show them, Open the conversation)"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1311,7 +1311,7 @@
    "kind": "dom:summary",
    "key": "DRPG.Notices.chapterFold",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: a chapter's fold or a notice's own line; pressing it opens or closes it"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1319,7 +1319,7 @@
    "kind": "dom:summary",
    "key": null,
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: a chapter's fold or a notice's own line; pressing it opens or closes it"
   },
   {
    "file": "scripts/notice-history-app.mjs",
@@ -1327,7 +1327,7 @@
    "kind": "dom:button",
    "key": "DRPG.Notices.openConversation",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: each label says what it does (Mark all read, New notices - show them, Open the conversation)"
   },
   {
    "file": "scripts/observe.mjs",
@@ -1391,7 +1391,7 @@
    "kind": "kit:chip",
    "key": null,
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the helper writes each chip's tooltip (its caller's tip) or its title, which the census cannot follow through the spread"
   },
   {
    "file": "scripts/passages-tab.mjs",
@@ -1399,7 +1399,7 @@
    "kind": "kit:chips",
    "key": "DRPG.Passage.tab",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: draws no control, an empty toolbar the cell's chips are written into"
   },
   {
    "file": "scripts/popup.mjs",
@@ -1615,7 +1615,7 @@
    "kind": "dom:button",
    "key": "DRPG.Room.imageOpen",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the room's picture is itself the button and its aria-label names it; pressing a picture to see it is self-evident"
   },
   {
    "file": "scripts/room-tile.mjs",
@@ -1624,14 +1624,6 @@
    "key": null,
    "count": 1,
    "why": "none needed: Already carries a tooltip that follows its state ('Read more' / read less, openProse)."
-  },
-  {
-   "file": "scripts/room-tile.mjs",
-   "unit": "paintTileRow",
-   "kind": "dom:button",
-   "key": "DRPG.Room.describe",
-   "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/rules.mjs",
@@ -1663,7 +1655,7 @@
    "kind": "summary",
    "key": null,
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: a fold whose line says how many checks could not be read; pressing it lists them"
   },
   {
    "file": "scripts/season-setup.mjs",
@@ -1815,7 +1807,7 @@
    "kind": "summary",
    "key": null,
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: a fold whose line is the chosen picture's name; pressing it opens the picture grid"
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -1863,7 +1855,7 @@
    "kind": "kit:kitTabs-item",
    "key": "DRPG.Tables.tabRoomPools",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the tab's label names its pane (Room pools, New item); Tier pools, the one that needs saying, has its tooltip"
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -1871,7 +1863,7 @@
    "kind": "kit:kitTabs-item",
    "key": "DRPG.Tables.tabNewItem",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the tab's label names its pane (Room pools, New item); Tier pools, the one that needs saying, has its tooltip"
   },
   {
    "file": "scripts/trait-ruling.mjs",
@@ -2114,28 +2106,12 @@
    "why": "none needed: Both choices are self-evident; the key line beside them says which key talks."
   },
   {
-   "file": "scripts/voice-panel.mjs",
-   "unit": "voiceFieldset",
-   "kind": "dom:button",
-   "key": "DRPG.Voice.mic.pttNoKey",
-   "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
-  },
-  {
-   "file": "scripts/voice-tile.mjs",
-   "unit": "listRow",
-   "kind": "kit:slider",
-   "key": null,
-   "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
-  },
-  {
    "file": "scripts/voice-tile.mjs",
    "unit": "rowButton",
    "kind": "dom:button",
    "key": null,
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the label says it (Show and listen, Mute everybody for you), or paintRow writes the glyph button's tooltip (dataset.tooltipText) at paint"
   },
   {
    "file": "scripts/voice-tile.mjs",
@@ -2143,7 +2119,7 @@
    "kind": "dom:button",
    "key": "DRPG.Voice.list.unhide",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the label says it (Show and listen, Mute everybody for you), or paintRow writes the glyph button's tooltip (dataset.tooltipText) at paint"
   },
   {
    "file": "scripts/voice-tile.mjs",
@@ -2151,7 +2127,7 @@
    "kind": "dom:button",
    "key": "DRPG.Voice.list.muteAll",
    "count": 1,
-   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+   "why": "none needed: the label says it (Show and listen, Mute everybody for you), or paintRow writes the glyph button's tooltip (dataset.tooltipText) at paint"
   },
   {
    "file": "scripts/vote.mjs",

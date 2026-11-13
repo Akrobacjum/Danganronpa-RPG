@@ -1960,6 +1960,10 @@
         "createTableTooltip": "Tworzy pustą tabelę o nazwie wpisanej na tej zakładce",
         "installReinstallTooltip": "Tworzy domyślne tabele; pyta, zanim przebuduje twoje",
         "resetMusicTooltip": "Zatrzymuje wybrany utwór i przywraca muzykę, którą przerwał"
+      },
+      "More": {
+        "volumeTooltip": "Jak głośno słyszysz tę osobę, tylko u siebie; inni słyszą ją jak wcześniej",
+        "changeTheKeyTooltip": "Otwiera sterowanie Foundry, gdzie ustawiasz klawisz mówienia"
       }
     },
     "Look": {

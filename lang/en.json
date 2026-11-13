@@ -1873,6 +1873,10 @@
         "createTableTooltip": "Creates an empty table with the name typed on this tab",
         "installReinstallTooltip": "Builds the default tables; asks before rebuilding yours",
         "resetMusicTooltip": "Stops the chosen track and brings back the music it interrupted"
+      },
+      "More": {
+        "volumeTooltip": "How loud this person is for you alone; the others hear them as before",
+        "changeTheKeyTooltip": "Opens Foundry's controls, where you set the push-to-talk key"
       }
     },
     "Look": {

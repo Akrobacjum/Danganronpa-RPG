@@ -25,7 +25,7 @@ asked for the stage now, not after 1.2.124. R numbers: R4750-R4799.
 | C5 | Setup, sheet and the rest | tables-editor, passages-tab, level-up, sound-panel, room-tile, season-setup, settings-window, room-setup, anonymity, messenger-app, sheet, popup | 28 (29) | R4754 |
 | C6 | Investigation and the case | investigation, case-map, case-realize, case-summary, remnant-ring | 41 (60) | R4755 |
 | C7 | the incident node's note (texts-e71's item, the coordinator 13.11) | investigation.mjs `schemaEditor`: a second key for a planned Incident Remnant node, "What a finder reads" / "Co przeczyta znalazca", where the node's text becomes the Remnant's words (`placeIncident` opens New Remnant with it); built last, after claude/e97-98 (which is editing `schemaEditor`) is pushed and merged into claude/e102 | - | 1 R |
-| C8 | the sites the widened census reads (REVIEW-102 C1): notice history, the voice list, the room tile's buttons, summaries, each tab | 25 rows "E102 C8" | - | R47xx |
+| C8 | the sites the widened census reads (REVIEW-102 C1): notice history, the voice list, the room tile's buttons, summaries, each tab | 2 tooltips (the voice list's volume, push-to-talk's Change the key), 3 sites found tipped already (data-tooltip-text, now read), 22 with a reason | 2 (2) | R4761 |
 | C10-C11 | screenshots, ledger, LIVE | - | - | - |
 
 `KEYS.json` holds each family's keys: one key per distinct tooltip of a family (179 keys for 208 sites), with the
