@@ -19,6 +19,7 @@ below under "Waits for / not built".
 | C1 (3752cc66) | tier 2 **E40-T1**, DC36: a wrong verdict in the Class Trial sentences the accused (`verdict.sentenced`) but kills nobody, its card saying the execution waits (`executionPending`); `executeAtExit` at the trial's close executes once and stamps `executedAt`. Two states of the one actor, alive then dead | scripts/tests-tier2.mjs |
 | C2 (0919d66f) | **`game.drpg.checkState()`** (scripts/state-check.mjs, new): a pure `stateProblems(snapshot, clock)` and a GM-only reader of this world, each problem said on the console in English, `{ ok, problems }`, null on a player's browser; it only reads. Three invariants the module already states: world-secrets.mjs's rules, no `passage*`/`frisk*` module flag on an actor, user, token (and delta), message, item, scene, region or wall (A10/A11), and the clock's phase and counters. Tier 1 R5100 on fixtures and the suite's world; api-surface.json's row (R1560) | scripts/state-check.mjs, api.mjs, tools/api-surface.json, tests-tier1.mjs, R-REGISTRY.md |
 | C3 (b9a36767) | its two callers: once at the primary GM's ready (warnings on that GM's console only), and after every scenario in the harness (cluster.mjs: a check of its own, read on a GM still connected; noted, not failed, with no GM left or a tree without it). Its first run found 30-security's leftover (below), fixed in the scenario | scripts/module.mjs, audit/harness/cluster.mjs, scenarios/30-security.mjs |
+| C4 (9a764940) | tier 2 **E40-T3**, the phase x action matrix: the sheet's tile (`actionButton`) and the press (`performAction`) held to each other in daily life, an Eclipse, the Class Trial and a fight, for every key of ACTIONS - they agree in every cell. A fight in an Eclipse is measured unreachable both ways (no Eclipse started in a fight, no fight opened in an Eclipse); written raw, ten keys' tile and press disagreed on the sentence, which only a console reaches | scripts/tests-tier2.mjs |
 
 ## Mutants (the plan's item 6, so far)
 
@@ -33,6 +34,8 @@ below under "Waits for / not built".
 | state-check.mjs absent (removed on a copy, api.mjs's import and row taken out) | R5100 | KILLED (the red before C2, measured) |
 | `stateProblems`: the passage/Frisk key filter off; the world-secrets loop off; the phase check off; a token's delta not read | R5100 | KILLED, each |
 | `checkState`: the GM gate dropped; `quiet` ignored | R5100 | KILLED, each |
+| the press's trial gate letting Search through; its Eclipse gate locking Move; the tile's trial lock letting Listen through | E40-T3 | KILLED, each |
+| eclipse.mjs `startRefusal`'s incidentFirst dropped; murder-rules.mjs `openMurder`'s Eclipse refusal dropped | E40-T3 | KILLED, each |
 
 A test written for the four ballot rules (E40-T2, 13.11.2026) was dropped before it was pushed: the mutants above
 showed the older test already fails on each of them, so it measured nothing new but that a player's second legal
@@ -60,6 +63,9 @@ None in the module's code by a failing test. Two readings:
 ## Test results
 
 - Baseline tiers 0-1 at 421f2395 (E39's): 1320 ran, 1305 passed, 0 failed, 16 skipped, 0 red.
+- Before the push of C4, at 9a764940: tiers 0-1 whole 1321 ran, 1306 passed, 0 failed, 16 skipped, 0 red (429 s);
+  tier 2 by name E40-T3, E40-T1 and "in a fight the tile says Crisis actions" 3 ran, 0 failed. No scenario reads
+  tests-tier2.mjs (`git grep`).
 - Before the push of C2-C3, at b9a36767: `node tools/check.mjs` 17/17; lint 323 files, 0 problems; tiers 0-1 whole 1321
   ran, 1306 passed, 0 failed, 16 skipped, 0 red (418 s); R5100 and R1560 by name 0 failed; every ci scenario but 01
   (40) run once with the state check, in two lanes at 047f9423+b7533ade (before the rebuild of the two commits; the only
@@ -88,9 +94,10 @@ The plan's items 2-6, in its order, with what each would take:
 - **checkState() in `game.drpg`** (item 2): built (C2, C3) with three invariants. The plan's list was cut in the text
   this line read ("the invariants (...)"); more rules join with the stage that states each. The handbooks do not name it
   yet (a console diagnostic; E57's last pass of the handbooks, or the owner's word).
-- **The phase x action matrix** (item 3): a shared "allowed now" predicate built around `MODE_RULES` and `modeAllows`
-  (trial-floor.mjs) without changing their answers, plus `passage.*` and `action.frisk*` (the A10/A11 amendments). The
-  predicate is new production code; R1023 already holds `modeAllows` to the three functions on the trial modes.
+- **The phase x action matrix** (item 3): built as a test (C4): the two readers held to each other. Not built: one
+  shared "allowed now" predicate replacing the tile's and the press's chains (new production code; the matrix is what
+  it would be held to), the trial floor's modes as a dimension (R1023 holds `modeAllows` to its three readers already),
+  and `passage.*` and `action.frisk*` as columns (the A10/A11 amendments; their gates are the bridge's, not the tile's).
 - **18-trial** (item 1): the trial scenario on a FLOWS list with `playerLeakScan` after every step; the plan's amendment
   calls it 18-trial with flows from 63, 66, 67. 63-class-trial already drives most of the trial end to end; 18-trial adds
   the shared leak scan as an invariant and the DC36 steps (C1 covers DC36 headless in tier 2).
