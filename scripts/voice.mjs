@@ -1230,11 +1230,20 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
  * character (E92's flag) owned by an account that still owns its dead student, so the account is no Spectator's
  * (`spectatorAccount`) and its voice is the dead student's - the Spectators' room below (`voiceClaim`). Left in the
  * rows, the Spectator's token would claim the room it walks into as a living character's and outrank the dead.
+ *
+ * THE ACCOUNT BY OWNERSHIP, NOT BY CONNECTION (13.11.2026, the 1.2.112 tree; CI 43479554811, scenario 41 h1; R5469).
+ * Until then the account was `voiceUserOf`'s, the connected owner alone: a watcher no player owns - chapter.mjs makes one
+ * for every dead student, scenario 41's "S41 Ghost" whom nobody plays - and the watcher of a player who is away read no
+ * account, so stood in `voiceTargets`' rows (h1: eight, the Ghost twice) and in `trialVoicesPending` as an E92 Spectator.
+ * Now the connected owner, else any player who owns it; a Spectator's character no player owns is nobody's voice and
+ * has no row. An E92 Spectator's account, connected or away, is still read as one (`spectatorAccount`) and keeps its row.
  */
 export function watchesForTheDead(actor, { actors = null } = {}) {
     if (!isSpectator(actor)) return false;
-    const user = voiceUserOf(actor, false);
-    return Boolean(user && !user.isGM && !spectatorAccount(user, { actors }));
+    const user = voiceUserOf(actor, false)
+        ?? game.users?.find?.(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+    if (!user) return true;
+    return !user.isGM && !spectatorAccount(user, { actors });
 }
 
 /**

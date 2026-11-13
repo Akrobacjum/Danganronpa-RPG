@@ -56683,6 +56683,41 @@ const INVARIANTS = [
             "left out of the voice rows ([actor, watches for the dead]: a student, its watcher, an E92 Spectator)");
     }],
 
+    ["R5469 - a dead student's Spectator has no voice row whoever is connected: one no player owns (a dead student nobody plays) and one whose player is away are left out, an E92 Spectator whose player is away is not (E62 C3b; CI 43479554811, scenario 41 h1)", async () => {
+        /*
+         * 13.11.2026, the 1.2.112 tree. voice.mjs `watchesForTheDead` read the account through `voiceUserOf`, the
+         * connected owner alone: a watcher no player owns - chapter.mjs makes one for every dead student, scenario 41's
+         * "S41 Ghost" whom nobody plays - and the watcher of a player who is away read no account, so `false`, and stood
+         * in `voiceTargets`' rows (h1: eight rows, the Ghost twice, where the trial's one room has seven characters) and
+         * in `trialVoicesPending` as an E92 Spectator. docs/dev/e62/STATUS.md: "the Spectator has no voice row".
+         * Stand-ins as R4551's: [actor, watches for the dead] of a watcher nobody owns, a watcher whose owner (who still
+         * owns the dead student) is away, and an E92 Spectator whose account is away.
+         */
+        const V = await import("./voice.mjs");
+        const ask = typeof V.watchesForTheDead === "function" ? V.watchesForTheDead : () => "none";
+        const away = { id: "R5469a", name: "A", active: false, isGM: false }, gone = { id: "R5469b", name: "B", active: false, isGM: false };
+        const actor = (id, owner, spectator) => ({ id, type: "character", name: id,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? spectator : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && Boolean(owner) && u?.id === owner.id,
+            get ownership() { return owner ? { default: 0, [owner.id]: 3 } : { default: 0 }; } });
+        const orphan = actor("R5469o", null, true), student = actor("R5469s", away, false), watcher = actor("R5469w", away, true),
+            alone = actor("R5469e", gone, true);
+        const actors = [orphan, student, watcher, alone];
+        const users = new Map([[away.id, away], [gone.id, gone]]);
+        const own = game.users;
+        const read = await (async () => {
+            Object.defineProperty(game, "users", { configurable: true, value: { get: id => users.get(id), filter: f => [...users.values()].filter(f),
+                find: f => [...users.values()].find(f), [Symbol.iterator]: () => users.values(), contents: [...users.values()] } });
+            try {
+                return [orphan, watcher, alone].map(a => [a.id, ask(a, { actors })]);
+            } finally {
+                Object.defineProperty(game, "users", { configurable: true, value: own });
+            }
+        })();
+        equal(stableJson(read), stableJson([["R5469o", true], ["R5469w", true], ["R5469e", false]]),
+            "left out of the voice rows ([actor, watches for the dead]: a watcher nobody owns, an away player's watcher, an away E92 Spectator)");
+    }],
+
     ["R4554 - the Class Trial mutes a dead player who owns its Spectator: the account's voice in the trial is the listed dead student, never the Spectator actor its player was given (E62 C3b; scenario 30's SECURITY dead-Botan checks, 13.11.2026)", async () => {
         /*
          * E62 C3b, 13.11.2026. voice.mjs `trialVoiceActorOf` asked of stand-ins: an account owning a dead student on the
