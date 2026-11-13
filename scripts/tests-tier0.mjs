@@ -13558,7 +13558,9 @@ const REGRESSIONS = [
                 && /\.\.\.\(season !== undefined \? \{ epoch: season \} : \{\}\)/.test(fnSource(bullets, "createTruthBullet"))],
             ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "mintCopy"))],
             // The GMs' row since E72 C2 (`cubStore`'s `witness`), where the flag was.
-            ["monocub.mjs setSilenced", /witness: silenced \? \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
+            // The chapter read once since the 1.2.110 review's V4 (13.11.2026), the mark carrying the verdict before it too.
+            ["monocub.mjs setSilenced", /const chapter = getClock\(\)\.chapter;/.test(fnSource(monocub, "setSilenced"))
+                && /witness: silenced \? \{ chapter, epoch: seasonEpoch\(\), sinceVerdict \}/.test(fnSource(monocub, "setSilenced"))]
         ];
         equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
             "the autopsy's answer key or the crime-witness mark does not name its season");
