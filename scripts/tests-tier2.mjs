@@ -49019,6 +49019,26 @@ const SCENARIOS = [
                 gone: (report, id) => !projects.secretsOf(id).condition,
                 back: id => stableJson([projects.secretsOf(id).killerId, projects.secretsOf(id).condition]) === stableJson([holder.id, "SUITE backed-up condition"])
             },
+            // A room action's timed effect, through its store (Q-E93-3, 12.11.2026): a crossing for a day no clock here is on.
+            timedEffects: {
+                seed: async () => {
+                    await S.timedEffectStore.patch(holder.id, { actorId: holder.id, effects: [{ id: "SUITEE93BACKUPTE", kind: "eclipseCrossing", n: 1,
+                        trait: null, until: "chapter", mark: null, day: 99, at: 1 }] });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.timedEffectStore.has(id),
+                back: id => S.timedEffectStore.get(id)?.effects?.[0]?.id === "SUITEE93BACKUPTE"
+            },
+            // A Pick the Lock's pass, through its store (E74, 12.11.2026): for a scene that does not exist, so no move reads it.
+            lockpicks: {
+                seed: async () => {
+                    await S.lockpickStore.patch(holder.id, { actorId: holder.id, sceneId: "SUITEE74BACKUPSC", room: "SUITE backed-up room",
+                        mark: null, entered: false, at: 1 });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.lockpickStore.has(id),
+                back: id => S.lockpickStore.get(id)?.room === "SUITE backed-up room"
+            },
             // A declaration made in the dark, through its store (E05 C3): named for no Eclipse, so no lights judge it.
             pendingMurders: {
                 seed: async () => {
