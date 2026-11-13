@@ -121,10 +121,23 @@ profil przeglądarki też wystarczy, poza N7 i N11, gdzie przyda się drugi GM a
 
 Skąd to jest: notatki wydania `.github/release-notes/v1.2.109.md` (sekcje *Known gaps* i *Checked*), AUDIT 9.2
 (pozycje 488-506) i gałęzie, z których ma powstać 1.2.110 (`claude/dh-212b`, `claude/e64`, `claude/e72`,
-`claude/e100`, `claude/e101`, `claude/perf-open-b`). **Uwaga:** trzy rzeczy z listy koordynatora - plansze dnia
-uruchamiane z zegara kurtyny i z góry panelu GM-a (a nie z *Edytuj kampanię*), ramka planszy i przycisk *Zakończ
-rozdział* - nie były w kodzie żadnej gałęzi, którą dało się przeczytać 12.11 o 23:50. Te kroki są napisane z jego
-opisu; jeśli w 1.2.110 wyglądają inaczej, zapisz, jak wyglądają.
+`claude/e100`, `claude/e101`, `claude/perf-open-b`).
+
+**Trzy rzeczy sprawdzone w kodzie 13.11.2026 o 01:00** (wcześniej opisane tylko ze słów koordynatora):
+- **Przycisk *Zakończ rozdział*: potwierdzony, już w 1.2.109.** Stoi na dole okna *Edytuj kampanię* w żółtej ramce
+  ostrzeżenia (`scripts/gm-campaign.mjs:104` `endChapterPart`, wstawiony w `:217`) i tak samo na dole *Ustaw sezon*
+  (`scripts/season-setup.mjs:825`). Zamyka okno bez jego Zastosuj, pyta jeszcze raz z Anuluj jako domyślnym
+  (`gm-campaign.mjs` `endTheChapter`), potem otwiera okno końca rozdziału (`scripts/chapter.mjs:2044`). Na gałęzi
+  `claude/e64` (E64-inv) okno końca rozdziału ma dwie kolumny i samo robi Collect i Clear Faint (`chapter.mjs:1990`
+  `chapterEndForm` na tej gałęzi) - to część 1.2.110, jeśli E64 w nim wyjdzie.
+- **Plansze dnia "nigdy z *Edytuj kampanię*": poprawione - w 1.2.109 jest odwrotnie.** Plansze grają przy każdej
+  zmianie zegara, która podnosi dzień (`scripts/transitions.mjs:68-85` `transitionFor`, rodzaj `newDay`; odtwarzane w
+  `:113-123` `onClockHeard`), także gdy GM podniesie dzień w *Edytuj kampanię*. Pole zdania na poranek jest właśnie w
+  *Edytuj kampanię* (`gm-campaign.mjs:190` `morningLineRow`, `:217`). Zmiana "Edytuj kampanię nie gra animacji" jest na
+  liście 1.2.111 i 13.11 o 01:00 nie było jej na żadnej wypchniętej gałęzi (żadna nie zmienia `transitions.mjs`,
+  `sequence.mjs` ani `gm-campaign.mjs` względem main).
+- **Ramka planszy: nie znaleziona w kodzie.** Żadna gałąź nie zmienia kodu plansz (`sequence.mjs` `dayStartElement`,
+  `dayEndElement`) względem main. N6 każe ją tylko obejrzeć i opisać.
 
 Kolejność: od najkrótszego. Przy każdym "zgłoś" wpisz wynik w `RESULTS-TEMPLATE.md` pod kodem N1, N2 itd.
 
@@ -173,15 +186,18 @@ Opis w AUDIT 9.2: poz. 478, 476.
 
 ### N3 Przycisk "Zakończ rozdział" (1.2.110) [ważne] · 5 min · GM, na duplikacie świata albo na końcu rozdziału
 
-Opis z wiadomości koordynatora; w kodzie gałęzi nie odczytany (patrz wstęp bloku).
+Sprawdzone w kodzie (wstęp bloku): przycisk jest na dole *Edytuj kampanię* i *Ustaw sezon* już w 1.2.109.
 
 **Co zrobić:**
-1. Znajdź przycisk **Zakończ rozdział** tam, gdzie 1.2.110 go stawia, i zapisz gdzie.
-2. Naciśnij go raz, potem w oknie od razu Enter (ma wybrać Anuluj).
-3. Na końcu prawdziwego rozdziału albo na duplikacie: przejdź okno do końca.
+1. Otwórz *Edytuj kampanię* (panel GM-a): na dole, w żółtej ramce, przycisk **Zakończ rozdział**. To samo na dole
+   *Ustaw sezon*.
+2. Zmień w *Edytuj kampanię* coś w polach, potem naciśnij **Zakończ rozdział**: okno zamyka się bez zapisania zmiany i
+   pyta jeszcze raz. Od razu Enter - ma wybrać Anuluj, nic się nie kończy.
+3. Na końcu prawdziwego rozdziału albo na duplikacie: przejdź okno do końca. Od 1.2.110 (jeśli wyjdzie E64) okno ma dwie
+   kolumny i samo zbiera ślady (Collect) i czyści Faint; osobnych przycisków na pasku Investigation już nie ma.
 
-**Co powinno być:** przycisk łatwo znaleźć; Enter nic nie kończy; okno końca rozdziału pokazuje liczby, wyłączone pola
-są przygaszone.
+**Co powinno być:** Enter i Anuluj nic nie kończą; zmiana pól nie zapisuje się razem z końcem rozdziału; okno końca
+rozdziału pokazuje liczby, wyłączone pola są przygaszone.
 **Zgłoś:** gdzie był przycisk; zrzut okna.
 **Rozstrzyga:** [LIVE-E09-05, LIVE-E11-08]
 
@@ -231,10 +247,12 @@ Opis w AUDIT 9.2: poz. 503.
 ### N6 Plansze dnia i ich ramka [ważne] · 10 min · GM i gracz
 
 **Co zrobić:**
-1. GM wpisuje zdanie na następny poranek. **1.2.110 według koordynatora:** pole jest przy zegarze kurtyny i u góry
-   panelu GM-a, a nie w *Edytuj kampanię* - zapisz, gdzie je znalazłeś.
-2. GM przesuwa zegar z Nocy na Rano (z zegara kurtyny albo z góry panelu GM-a). Gracz w tym czasie uruchamia
-   `await game.drpg.fps({ toChat: false })`.
+1. GM wpisuje zdanie na następny poranek w *Edytuj kampanię* (pole **Zdanie na następny poranek**; w 1.2.109 tylko
+   tam). Zapisz, czy w 1.2.110 stoi gdzie indziej.
+2. GM przesuwa zegar z Nocy na Rano strzałką zegara kurtyny albo z góry panelu GM-a (**Następna pora dnia**). Gracz w
+   tym czasie uruchamia `await game.drpg.fps({ toChat: false })`.
+   Raz, na duplikacie, podnieś też dzień w *Edytuj kampanię*: w 1.2.109 plansze grają także wtedy
+   (`transitions.mjs:68-85`); od 1.2.111 nie powinny. Zapisz, co się stało, z numerem wersji ("krok 2a" w zgłoszeniu).
 3. Patrzcie: najpierw plansza końca dnia (około 6 s): twój dzień, co widziała szkoła i nastrój szkoły jako słowo
    (Spokój, Niepokój, Na krawędzi); potem plansza początku dnia (około 5 s) z dniem, porą, obsadą i zdaniem GM-a.
    Zapisz, jak wygląda ramka planszy.
@@ -244,9 +262,9 @@ Opis w AUDIT 9.2: poz. 503.
 
 **Co powinno być:** obie plansze, w tej kolejności, z Dice So Nice i kurtyną; nastrój tylko słowem, bez liczb; zdanie GM-a
 na planszy porannej.
-**Porażka:** plansze się nie pokazują albo zdradzają ruch zegara postronnemu w incydencie; pole zdania GM-a nadal tylko w
-*Edytuj kampanię*.
-**Zgłoś:** wynik `fps()`; zrzut obu plansz; gdzie było pole zdania.
+**Porażka:** plansze się nie pokazują albo zdradzają ruch zegara postronnemu w incydencie.
+**Zgłoś:** wynik `fps()`; zrzut obu plansz z ramką (opisz ją: w kodzie nie znalazłem zmiany ramki); gdzie było pole
+zdania; wynik kroku 2a z wersją.
 **Rozstrzyga:** [LIVE-E94-01, LIVE-E94-02, LIVE-E94-03]
 
 Opis w AUDIT 9.2: poz. 504, 505, 506.
@@ -339,6 +357,94 @@ Opis w AUDIT 9.2: poz. 492, 493, 494, 495, 488, 489, 490.
 **Rozstrzyga:** [LIVE-E41-01]
 
 Opis w AUDIT 9.2: poz. 369.
+
+---
+
+## Szkice następnych wydań (szkic do czasu wydania)
+
+Dopisane 13.11.2026 w nocy, z gałęzi, nie z wydanych wersji. **Każdy check tu jest szkicem do czasu, gdy jego wydanie
+wyjdzie**: po wydaniu porównaj z notatkami wydania (`.github/release-notes/v1.2.1xx.md`, sekcje *Known gaps* i *Checked*)
+i usuń z nagłówka znacznik `[szkic]`. Kod `T` to 1.2.110, `U` to 1.2.111, `V` to 1.2.112. Wszystkie te gałęzie mówią to
+samo o sobie: nic nie było uruchomione na prawdziwym Foundry, zrzuty są z harnessu.
+
+Część 1.2.110 jest już w bloku N (N2 rzuty na Daggerheart 2.12.8, N3 koniec rozdziału, N8 zasady E64, N9 Monocub E72,
+N11 pierwsze otwarcie okien). Tu jest to, czego blok N nie ma.
+
+### Wydanie 1.2.110 (szkic)
+
+#### T1 Pasek Investigation po przeglądzie (E64-inv) [ważne] [szkic] · 10 min · GM
+
+Źródło: `claude/e64` (włącza `claude/e64-inv`), `docs/dev/e64-inv/STATUS.md`; test R3967.
+
+**Co zrobić:**
+1. Otwórz pulpit Investigation. Na dole paska mają być tylko: Zapisz, Nowy Remnant, Wydaj Truth Bullet z sekcji zwłok
+   (Autopsy), Znaleziono ciało, Podgląd realizacji i Anuluj.
+2. Sprawdź, że nie ma: dziennika dowodów rozprawy, Clear Faint, Sweep ani Cofnij realizację na pasku.
+3. Cofnij realizację: jest w podglądzie realizacji, tylko gdy przebieg zostawił znaczniki, i pyta najpierw.
+4. Zakładka "Kto co ma": jedna tabela, kolumna Breakdown wymienia Truth Bullety z nazwy i rodzaju, nowa kolumna
+   Przedmioty. Wszędzie słowo "Widoczność" (nie "Trudność"), także w oknie Nowy Remnant.
+5. Okno Nowy Remnant i podgląd realizacji przy 1366x768: nic nie ucięte.
+
+**Co powinno być:** jak w krokach; to, co zniknęło z paska, da się zrobić gdzie indziej (Zakończ rozdział: Collect i
+Clear Faint; konsola rozprawy: dziennik dowodów).
+**Zgłoś:** zrzut paska i okna Nowy Remnant w obu motywach przy 1366x768.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+### Wydanie 1.2.112 (szkic)
+
+Źródło: `claude/e100` (ekrany gracza) i `claude/e101` (ekrany GM-a), ich `docs/dev/*/STATUS.md`. Żadna z gałęzi nie
+dopisuje wierszy LIVE do AUDIT 9.2. Nie sprawdzaj tego, co cofnięto: E100 punkt 2 (przeniesienie głośności, cofnięte w
+818c760e) i punkt 5 (zwinięty wybór statystyki w Search, cofnięty w 7f7e4209) zostają jak w 1.2.108. Obie gałęzie
+zmieniają `settings-window.mjs`, więc okno ustawień sprawdzaj na złożonej wersji.
+
+#### V1 Ekrany gracza po przeglądzie (E100) [ważne] [szkic] · 15 min · gracz, GM
+
+**Co zrobić:**
+1. Kafel Move (uczeń i Monocub): nie otwiera okna, nie reaguje na najechanie; mówi cenę i "Przeciągnij token". Pod
+   kaflami Monocuba samo "Za darmo". Najechanie na wiersz Move w HUD-zie: podpowiedź zaczyna się od "Żeby przejść do
+   innego pokoju, przeciągnij tam swój token." (po angielsku "To move to another room, drag your token there.").
+2. Zębatka gracza: nie ma sekcji Techniczne (logi tylko u GM-a, `settings-window.mjs:135` `GM_ONLY_CLIENT_KEYS` na
+   `claude/e100`). U GM-a wiersz szczegółowych logów jest. Gracz poproszony przez GM-a włącza logi z konsoli:
+   `game.settings.set("danganronpa-rpg", "debug", true)`.
+3. Historia powiadomień: trzy przyciski (Wszystkie, Dla ciebie, Niewykonane) i menu "Więcej filtrów" z resztą i liczbami.
+   Wybór z menu nie wciska przycisku; przycisk zeruje menu; filtr z zerem jest wyłączony.
+4. Słowa przycisków, po polsku i po angielsku: Observe, Search, Tamper, Listen, Palm i Analyze mówią Rzuć; Work i
+   Sabotage Rzuć; Propose Dalej; jawny Frisk Poproś; odpoczynki Odpocznij; Level Up Dalej; okna próśb Wyślij do GM-a.
+5. Okna wyjaśnień: postać z innym maksimum akcji (np. Wounded) - liczba w akapicie Daily Life zgadza się z "Masz X z X".
+6. Okna akcji: "Rzut: <statystyka>" raz, po opisie; Szczegóły trzymają koszt, pokój i progi; niewybrany wiersz nadal
+   pokazuje swój opis.
+7. Arkusz w obu motywach: Stop pokazuje tylko słowo stołu (podpowiedź po najechaniu); lewa kolumna nie przewija się w
+   bok; wybrana zakładka jest widocznie zaznaczona pod Stained Glass.
+8. Pasek "Still to act" u GM-a w Class Trial zostaje, w incydencie znika.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** zrzuty kafla Move, historii powiadomień i arkusza; przy kroku 8 zrzut, jeśli właściciel miał na myśli pasek
+gracza (pytanie otwarte w STATUS E100).
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+#### V2 Ekrany GM-a po przeglądzie (E101) [ważne] [szkic] · 20 min · GM, gracz do kroku 5
+
+**Co zrobić:**
+1. Okno Dźwięk: "Muzyka podąża za stanem gry" na zakładce Muzyka, "Różnicuj dźwięki" na zakładce Efekty; przełącz,
+   przeładuj, sprawdź zapis. W sekcji Głos zębatki ich już nie ma.
+2. Despair Flow: przy jednym GM-ie i jednej puli otwiera się na Overflow; Pule, Monokumy i Uczniowie pod "Pokaż". Dwie
+   Monokumy na jednej puli dają ostrzeżenie.
+3. Jedno okno listy przed sezonem (bez osobnego "Kontrola przed sezonem"): dalsze sprawdzenia dopisują się pod
+   wierszami; nowy opcjonalny wiersz NPC; wiersz Monokumy otwiera Uczniów; w Debug log przycisk "Foundry i moduły".
+4. Panel GM-a: linia zegara i "Następna pora dnia" wyśrodkowane; linia uczniów to sama liczba.
+5. Okna ustawień GM-a i gracza: przełączanie sekcji nie zmienia wysokości okna (zapisz wysokość w px przy 1366x768;
+   w harnessie błędu nie odtworzono).
+6. Ustaw sezon: otwórz z niego Despair Flow i zamknij - wpisana nazwa i przewinięcie zostają.
+7. Daj / zabierz przedmioty, zakładka Daj: Co i Od kogo, jeden przycisk Daj (wyłączony, póki formularz niepełny). Daj
+   przedmiot, Truth Bullet i klucz - okno wraca na tego samego ucznia, gracz dostaje każdą rzecz.
+8. Skala interfejsu - i + pokazują krótkie liczby i łączną skalę; tryb mikrofonu to przyciski (kliknięcie zapisuje
+   tryb); tryby w konsoli rozprawy się zawijają; okno głośności gracza z głosem mieści się w 768 px.
+9. Level Up jako jedno okno z przyciskiem Przyznaj; Tabele przedmiotów: zakładka pul tierów bez pola Nowa i Zmień nazwę.
+
+**Co powinno być:** jak w krokach. Podręczniki i podpowiedzi mogą jeszcze opisywać stare miejsca (STATUS E101) -
+zapisz, gdzie, ale to nie porażka tego wydania.
+**Zgłoś:** wysokość okna ustawień w px; zrzuty Despair Flow, listy przed sezonem i okna Daj.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
 ---
 

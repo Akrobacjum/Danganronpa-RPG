@@ -2,6 +2,22 @@
 
 Updated 12.11.2026 (second push: the owner's answers). Built on `main` at 235c3210 (1.2.107). Nothing outside `docs/live/` was changed.
 
+## Settled in code, and drafts of the next releases (13.11.2026, night)
+
+- **The three items block N had from the coordinator's words only**, read in code on main (1.2.109):
+  - *Zakończ rozdział*: **confirmed**, already in 1.2.109, at the foot of Edit campaign (`scripts/gm-campaign.mjs:104`
+    `endChapterPart`, drawn at `:217`) and of Season setup (`scripts/season-setup.mjs:825`); on `claude/e64` the
+    chapter-end window gains two columns and Collect / Clear Faint (`chapter.mjs:1990` `chapterEndForm` there). N3 rewritten.
+  - Day boards "never from Edit campaign": **corrected** - in 1.2.109 they play on any clock write that raises the day,
+    Edit campaign included (`scripts/transitions.mjs:68-85` `transitionFor`, `:113-123` `onClockHeard`); the morning
+    line is typed in Edit campaign (`gm-campaign.mjs:190` `morningLineRow`). The change is on the 1.2.111 list and on no
+    pushed branch at 01:00 (none changes transitions.mjs, sequence.mjs or gm-campaign.mjs against main). N6 rewritten,
+    with a step that records the behaviour per version.
+  - The board's frame: **not found in code** on any branch; N6 asks only to look and describe.
+- **Drafts** (`[szkic]` in the heading, codes T = 1.2.110, U = 1.2.111, V = 1.2.112), a section per release after block
+  N, each to be checked against its release notes when it ships. A draft may settle no LIVE id yet; check-coverage.mjs
+  now allows that for `[szkic]` headings only and prints how many there are.
+
 ## Update for 1.2.109 and 1.2.110 (12.11.2026, late evening)
 
 At the coordinator's request: the pack brought up to date for 1.2.109 (shipped, on main at 421f2395) and 1.2.110 (to

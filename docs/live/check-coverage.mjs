@@ -74,7 +74,7 @@ for (const id of Object.keys(branches)) {
 }
 
 /* The pack's checks and the text under each heading. */
-const headings = [...pack.matchAll(/^### ([A-Z]\d+) .*\[(krytyczne|ważne|miłe)\]/gm)];
+const headings = [...pack.matchAll(/^#{3,4} ([A-Z]\d+) .*\[(krytyczne|ważne|miłe)\]/gm)];
 const section = {};
 headings.forEach((h, i) => {
     const end = i + 1 < headings.length ? headings[i + 1].index : pack.length;
@@ -106,14 +106,17 @@ for (const [map, rows] of [["ids", ids], ["unnumbered", extra], ["branches", bra
         if (st === "not-coverable" && !pack.includes(label(id))) fail(`${id}: not-coverable but the pack never names it`);
     }
 }
-for (const code of Object.keys(section)) if (!used.has(code)) fail(`check ${code} settles no id`);
+/* A draft check of a release not yet shipped ("[szkic]" in its heading) may settle no id yet: what it checks is on a
+   branch whose audit has written no LIVE row for it. Every other check must settle one. */
+const drafts = new Set(headings.map(h => h[1]).filter(code => /\[szkic\]/.test(section[code].split("\n")[0])));
+for (const code of Object.keys(section)) if (!used.has(code) && !drafts.has(code)) fail(`check ${code} settles no id`);
 
 const n = (k) => counts[k] ?? 0;
 console.log(`audit 9.2: ${auditIds.length} LIVE ids; unnumbered items (9.2 and section 7): ${unnumbered.length}; open branches: ${Object.keys(branches).length} LIVE ids`);
 console.log(`ids: covered ${n("ids.covered")}, partial ${n("ids.partial")}, not-coverable ${n("ids.not-coverable")}`);
 console.log(`unnumbered: covered ${n("unnumbered.covered")}, partial ${n("unnumbered.partial")}, not-coverable ${n("unnumbered.not-coverable")}`);
 console.log(`branches: after-release ${n("branches.after-release")}`);
-console.log(`pack: ${Object.keys(section).length} checks`);
+console.log(`pack: ${Object.keys(section).length} checks, ${drafts.size} of them drafts of releases not yet shipped`);
 if (fails.length) {
     for (const f of fails) console.log(`FAIL ${f}`);
     console.log(`check-coverage: ${fails.length} failure(s)`);

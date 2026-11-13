@@ -6,282 +6,356 @@
   "N1": {
    "title": "Wersje i odczyt pod \"verified\"",
    "weight": "krytyczne",
-   "time": "5 min"
+   "time": "5 min",
+   "draft": false
   },
   "N2": {
    "title": "Rzut gracza losuje GM, krytyk i napis \"GM rzuca twoimi kośćmi\"",
    "weight": "krytyczne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "N3": {
    "title": "Przycisk \"Zakończ rozdział\" (1.2.110)",
    "weight": "ważne",
-   "time": "5 min"
+   "time": "5 min",
+   "draft": false
   },
   "N4": {
    "title": "Wejście do Class Trial i cut-in werdyktu",
    "weight": "ważne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "N5": {
    "title": "Obroty zegara i błyski",
    "weight": "ważne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "N6": {
    "title": "Plansze dnia i ich ramka",
    "weight": "ważne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "N7": {
    "title": "Widz",
    "weight": "ważne",
-   "time": "15 min"
+   "time": "15 min",
+   "draft": false
   },
   "N8": {
    "title": "Zasady E64 i okno Level Up (1.2.110)",
    "weight": "ważne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "N9": {
    "title": "Monocub z E72 i pokój głosowy zmarłych (1.2.110)",
    "weight": "ważne",
-   "time": "15 min"
+   "time": "15 min",
+   "draft": false
   },
   "N10": {
    "title": "Strefy sali i schemat sprawy w konsoli",
    "weight": "ważne",
-   "time": "15 min"
+   "time": "15 min",
+   "draft": false
   },
   "N11": {
    "title": "Pierwsze otwarcie okien i pomiar stołu",
    "weight": "miłe",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
+  },
+  "T1": {
+   "title": "Pasek Investigation po przeglądzie (E64-inv)",
+   "weight": "ważne",
+   "time": "10 min",
+   "draft": true
+  },
+  "V1": {
+   "title": "Ekrany gracza po przeglądzie (E100)",
+   "weight": "ważne",
+   "time": "15 min",
+   "draft": true
+  },
+  "V2": {
+   "title": "Ekrany GM-a po przeglądzie (E101)",
+   "weight": "ważne",
+   "time": "20 min",
+   "draft": true
   },
   "A1": {
    "title": "Wersje i czysta konsola",
    "weight": "krytyczne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "A2": {
    "title": "Strażnik przekaźnika i raport `diagnose()`",
    "weight": "krytyczne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "A3": {
    "title": "Testy tierów 0-1 i odczyty stylu",
    "weight": "krytyczne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "A4": {
    "title": "Ustawienia modułu, Ustaw sezon i Kontrola przed sezonem",
    "weight": "ważne",
-   "time": "20 min"
+   "time": "20 min",
+   "draft": false
   },
   "A5": {
    "title": "Kopia świata: tier 2 i zapisy z konsoli",
    "weight": "ważne",
-   "time": "45-60 min"
+   "time": "45-60 min",
+   "draft": false
   },
   "A6": {
    "title": "Ustawienia pokoi, przejścia, zdjęcia i realizacja",
    "weight": "ważne",
-   "time": "20 min"
+   "time": "20 min",
+   "draft": false
   },
   "A7": {
    "title": "Okna modułu na ekranie",
    "weight": "miłe",
-   "time": "30 min"
+   "time": "30 min",
+   "draft": false
   },
   "B1": {
    "title": "Pierwsze logowanie gracza",
    "weight": "ważne",
-   "time": "5 min"
+   "time": "5 min",
+   "draft": false
   },
   "B2": {
    "title": "Wygląd kości i Dice So Nice",
    "weight": "ważne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "B3": {
    "title": "Głos na starcie (avclient-livekit)",
    "weight": "krytyczne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "B4": {
    "title": "Pierwszy rzut gracza dociera do GM-a",
    "weight": "krytyczne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "C1": {
    "title": "Ruch: pierwsze przeciągnięcie do nowego pokoju",
    "weight": "krytyczne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "C2": {
    "title": "Mgła, obrys pokoju, drzwi i płótno",
    "weight": "ważne",
-   "time": "w trakcie gry, 10 min celowo"
+   "time": "w trakcie gry, 10 min celowo",
+   "draft": false
   },
   "C3": {
    "title": "Akcje, rzuty i Reroll",
    "weight": "krytyczne",
-   "time": "w trakcie gry, 15 min celowo"
+   "time": "w trakcie gry, 15 min celowo",
+   "draft": false
   },
   "C4": {
    "title": "Hope Calls, Despair, zegar i Monocub",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "C5": {
    "title": "Przedmioty i karta postaci",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "C6": {
    "title": "Projekty",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "C7": {
    "title": "Tajne przejścia, tunele i schody",
    "weight": "ważne",
-   "time": "10 min celowo"
+   "time": "10 min celowo",
+   "draft": false
   },
   "C8": {
    "title": "Komunikator, powiadomienia i Safeword",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "C9": {
    "title": "Dźwięk i muzyka",
    "weight": "miłe",
-   "time": "5 min"
+   "time": "5 min",
+   "draft": false
   },
   "D1": {
    "title": "Eclipse",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "D2": {
    "title": "Otwarcie morderstwa i walka",
    "weight": "krytyczne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "D3": {
    "title": "Rzuty w walce: Breakdown, Resolve, broń i Reroll",
    "weight": "ważne",
-   "time": "w trakcie walki"
+   "time": "w trakcie walki",
+   "draft": false
   },
   "D4": {
    "title": "Pułapka i pośrednie morderstwo",
    "weight": "ważne",
-   "time": "jeśli fabuła tego użyje"
+   "time": "jeśli fabuła tego użyje",
+   "draft": false
   },
   "D5": {
    "title": "Stage 6: sprzątanie, ciało i łup",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "E1": {
    "title": "Odkrycie ciała",
    "weight": "krytyczne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "E2": {
    "title": "Śledztwo: Observe, Analyze, mapa sprawy",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "F1": {
    "title": "Wejście do sali rozpraw",
    "weight": "krytyczne",
-   "time": "początek rozprawy"
+   "time": "początek rozprawy",
+   "draft": false
   },
   "F2": {
    "title": "Debata, Objection i tryby",
    "weight": "ważne",
-   "time": "w trakcie rozprawy"
+   "time": "w trakcie rozprawy",
+   "draft": false
   },
   "F3": {
    "title": "Głosowanie, werdykt i Level Up",
    "weight": "krytyczne",
-   "time": "koniec rozprawy"
+   "time": "koniec rozprawy",
+   "draft": false
   },
   "G1": {
    "title": "Egzekucja i powrót do szkoły",
    "weight": "krytyczne",
-   "time": "po werdykcie"
+   "time": "po werdykcie",
+   "draft": false
   },
   "G2": {
    "title": "Koniec rozdziału",
    "weight": "ważne",
-   "time": "po egzekucji"
+   "time": "po egzekucji",
+   "draft": false
   },
   "H1": {
    "title": "Dwóch GM-ów przy jednym stole",
    "weight": "ważne",
-   "time": "przy okazji bloków C-G"
+   "time": "przy okazji bloków C-G",
+   "draft": false
   },
   "J1": {
    "title": "GM wychodzi, przeładowuje albo traci sieć",
    "weight": "krytyczne",
-   "time": "30 min"
+   "time": "30 min",
+   "draft": false
   },
   "J2": {
    "title": "Gracz próbuje z konsoli",
    "weight": "ważne",
-   "time": "15 min"
+   "time": "15 min",
+   "draft": false
   },
   "Z1": {
    "title": "Co zostało w zapisach GM-ów",
    "weight": "ważne",
-   "time": "10 min"
+   "time": "10 min",
+   "draft": false
   },
   "I1": {
    "title": "Kurtyna, róg i okna Foundry",
    "weight": "miłe",
-   "time": "45 min"
+   "time": "45 min",
+   "draft": false
   },
   "I2": {
    "title": "Układ przy różnych rozmiarach i powiększeniu",
    "weight": "miłe",
-   "time": "30 min"
+   "time": "30 min",
+   "draft": false
   },
   "P1": {
    "title": "Liczba klatek i praca modułu",
    "weight": "ważne",
-   "time": "20 min"
+   "time": "20 min",
+   "draft": false
   },
   "P2": {
    "title": "Zerwania głosu",
    "weight": "ważne",
-   "time": "w trakcie gry"
+   "time": "w trakcie gry",
+   "draft": false
   },
   "K1": {
    "title": "Czytnik ekranu",
    "weight": "ważne",
-   "time": "20 min"
+   "time": "20 min",
+   "draft": false
   },
   "K2": {
    "title": "Firefox, wtyczki i tablet",
    "weight": "ważne",
-   "time": "20 min"
+   "time": "20 min",
+   "draft": false
   },
   "K3": {
    "title": "Scena testowa z dwoma piętrami",
    "weight": "ważne",
-   "time": "30 min"
+   "time": "30 min",
+   "draft": false
   },
   "K4": {
    "title": "Moduły towarzyszące wyłączone",
    "weight": "miłe",
-   "time": "20 min"
+   "time": "20 min",
+   "draft": false
   },
   "L1": {
    "title": "`npm run gate:local`",
    "weight": "ważne",
-   "time": "ok. 60 min bez ludzi"
+   "time": "ok. 60 min bez ludzi",
+   "draft": false
   }
  },
  "ids": {
