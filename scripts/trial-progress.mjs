@@ -171,7 +171,8 @@ async function carryOutSentence(chapter) {
             try {
                 died = isDeadForGm(held)
                     ? await publishDeath(actor, { phase: "classTrial", cause: "executed" })
-                    : await killCharacter(actor, { secret: false, phase: "classTrial", cause: "executed", chapter });
+                    // Silent, as `publishDeath` above is: the execution's card plays the moment's one sound (A113-C2-1).
+                    : await killCharacter(actor, { secret: false, phase: "classTrial", cause: "executed", chapter, silent: true });
             } catch (err) {
                 error(`${actor.name} could not be executed`, err);
             }

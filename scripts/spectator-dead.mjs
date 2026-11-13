@@ -116,6 +116,22 @@ export function tokensOf(actor) {
     return out;
 }
 
+/*
+ * WHO WAS FADED (the auditor's A113-C2-5, 13.11.2026; the coordinator's default: one sound per moment per browser). The
+ * Spectator's token made at a death in play plays `deathFade` on its owners' browsers (`playMoment`), and the death's own
+ * sound (`death`) went to the same players when they were in the incident's audience (chapter.mjs `killCharacter`): two
+ * sounds, by default one file, on the victim's browser (scenario 98 measured it). So the users a fade went to are kept
+ * here, by the student's id, for the death's sound to leave out (`takeFadedFor`, once).
+ */
+const fadedFor = new Map();
+
+/** The users the last fade of `studentId`'s death went to (none: []), handed once and forgotten. */
+export function takeFadedFor(studentId) {
+    const users = fadedFor.get(studentId) ?? [];
+    fadedFor.delete(studentId);
+    return users;
+}
+
 /**
  * MAKE THE WATCHER (Q-C3b-1, Q-C3b-2). On a GM, for a student dead in the GMs' records and no Monocub, once: the actor
  * with both images and E92's flag, owned by the student's players, and a token where the body's token stands (none when
@@ -124,6 +140,7 @@ export function tokensOf(actor) {
  */
 export async function ensureDeadSpectator(student, { silent = false, kept = false } = {}) {
     if (!game.user?.isGM || !student || student.type !== "character") return null;
+    fadedFor.delete(student.id);
     const store = deathStore;
     const { isMonocub } = await import("./monocub.mjs");
     if (isMonocub(student)) return null;
@@ -160,6 +177,7 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
             const level = at.level ?? at._source?.level;
             if (level !== undefined) data.level = level;
             await place.scene.createEmbeddedDocuments("Token", [data], { [DEAD_SPECTATOR_OPTION]: { phase: "fade", silent } });
+            if (!silent) fadedFor.set(student.id, playerOwners(student));
         } catch (err) {
             error(`Could not place ${student.name}'s Spectator where the body lies`, err);
         }

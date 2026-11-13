@@ -54,7 +54,7 @@ import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-s
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
 import { leaveBody, removeBodyTiles, bodyPlaceOf } from "./body-tile.mjs";
-import { ensureDeadSpectator, removeDeadSpectator, removeAllDeadSpectators } from "./spectator-dead.mjs";
+import { ensureDeadSpectator, removeDeadSpectator, removeAllDeadSpectators, takeFadedFor } from "./spectator-dead.mjs";
 
 import { tipAttr, tipText } from "./ui-kit.mjs";
 
@@ -314,6 +314,18 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
         }
     })();
 
+    /*
+     * ONE SOUND A BROWSER (the auditor's A113-C2-5 and A113-C2-1, 13.11.2026; the coordinator's default for the owner: one
+     * sound per moment per browser, the most specific winning; scenario 98). The victim's player whose screen faded heard
+     * `deathFade` (spectator-dead.mjs `playMoment`) and, inside the incident's audience, `death` as well: the fade is theirs,
+     * so they are left out of the death's sound (`takeFadedFor`; on the card, the flag's `not`). An execution plays the
+     * execution's own sound with its card and the trial's close its own (trial-progress.mjs `postExecutionCard`,
+     * trial-floor-ui.mjs `closeTrial`), so a death with the cause "executed" plays none here, and the sentence kills
+     * silently (no fade), as the road of a death the GMs kept always did (`publishDeath`).
+     */
+    const faded = takeFadedFor(actor.id);
+    const sounds = cause !== "executed";
+    const deathHearers = (deathAudience ?? gmIds()).filter(id => !faded.includes(id));
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Chapter.deathTitle")}</h3>
         <p>${game.i18n.format("DRPG.Chapter.died", {
@@ -327,10 +339,10 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
         whisper: deathAudience ?? gmIds(),
         // The audience of a death card mid-incident is the incident's cast.
         veiled: true,
-        ...(secretly ? {} : { flags: { [MODULE_ID]: { sfx: { key: "death", gm: true } } } })
+        ...(secretly || !sounds ? {} : { flags: { [MODULE_ID]: { sfx: { key: "death", gm: true, ...(faded.length ? { not: faded } : {}) } } } })
     });
-    if (secretly) {
-        await import("./sfx.mjs").then(m => m.playSfxForUsers(deathAudience ?? gmIds(), "death"))
+    if (secretly && sounds) {
+        await import("./sfx.mjs").then(m => m.playSfxForUsers(deathHearers, "death"))
             .catch(err => error("Could not play the death's sound to the incident", err));
     }
 

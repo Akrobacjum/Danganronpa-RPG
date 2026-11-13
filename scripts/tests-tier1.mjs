@@ -57082,6 +57082,50 @@ const INVARIANTS = [
         "{the clause's line names since 1.2.113; the patches by scene}");
     }],
 
+    ["R5875 - a card's sound leaves out the users its flag names in `not` (sfx-play.mjs `soundFromMessage`; the auditor's A113-C2-5, 13.11.2026): the victim's player, whose screen faded with `deathFade`, is not played the death's `death` again; any other reader is", async () => {
+        /*
+         * The coordinator's default for the owner (13.11.2026): one sound per moment per browser. At a death in play the
+         * victim's player hears the Spectator's fade, and the GMs' death card - whispered to the incident's audience, the
+         * victim's player among them - carried `death` to them as well (scenario 98 measured deathFade + death on p3).
+         * The card's flag now names the faded users (`not`), and this browser's reading of it answers no sound for them.
+         * Read on stand-in messages a GM wrote: the flag naming this user, naming another, naming none. Red at 9ad2174e:
+         * `not` read nowhere, so the first answered the sound.
+         */
+        const SP = await import("./sfx-play.mjs");
+        const me = game.user.id;
+        const card = sfx => ({ flags: { [MODULE_ID]: { [SP.SFX_FLAG]: sfx } }, author: { isGM: true } });
+        const read = sfx => { const r = SP.soundFromMessage(card(sfx)); return r ? [r.key, r.forGm] : null; };
+        equal(stableJson([read({ key: "death", gm: true, not: [me] }), read({ key: "death", gm: true, not: ["SUITER5875OTHER0"] }), read({ key: "death", gm: true })]),
+            stableJson([null, ["death", true], ["death", true]]),
+            "[the flag's `not` names this user, names another, names none]: the sound this browser reads off the card");
+    }],
+
+    ["R5876 - an execution plays the execution's sound and no death's (the auditor's A113-C2-1, 13.11.2026): trial-progress.mjs `carryOutSentence` kills a living convict silently, as `publishDeath` does a kept one, and chapter.mjs `killCharacter` sounds no `death` for a death whose cause is \"executed\"; the faded users are taken (`takeFadedFor`) before the death's sound and left out of both its roads", async () => {
+        /*
+         * One execution played the GMs `death` (the death card) + `execution` + `trialClose`, and the executed player
+         * `deathFade` + `execution` + `trialClose`, while a kept convict's execution played `execution` + `trialClose`
+         * alone (scenario 98 at 9ad2174e). trial-progress.mjs's own header (E70 C4, amend 0's sound rule) says the death's
+         * sound moved to the execution's card, not that a second was added. Read off the served sources with comments
+         * taken out: the living convict's `killCharacter` call passes `silent: true`; `killCharacter` names `takeFadedFor`
+         * before the card, its card's `death` and its `playSfxForUsers` both stand behind `sounds` (the cause not
+         * "executed"), the card's flag carries `not` and the addressed sound plays to `deathHearers`. What each browser
+         * hears is scenario 98's. Red at 9ad2174e: none of the five.
+         */
+        const sources = await moduleSources();
+        must(["trial-progress.mjs", "chapter.mjs"].every(f => sources.has(f)), "trial-progress.mjs or chapter.mjs is not served - this would measure nothing");
+        const sentence = fnSource(stripComments(sources.get("trial-progress.mjs")), "carryOutSentence");
+        const kill = fnSource(stripComments(sources.get("chapter.mjs")), "killCharacter");
+        const taken = kill.indexOf("takeFadedFor(actor.id)"), card = kill.indexOf("whisperToGms(");
+        equal(stableJson({
+            silentSentence: /killCharacter\(actor,\s*\{[^}]*cause:\s*"executed"[^}]*silent:\s*true/.test(sentence),
+            soundsByCause: /const sounds = cause !== "executed";/.test(kill),
+            takenFirst: taken >= 0 && card > taken,
+            cardLeavesOut: /secretly \|\| !sounds \? \{\} :[^\n]*key: "death"[^\n]*not: faded/.test(kill),
+            addressedLeavesOut: /if \(secretly && sounds\)[\s\S]{0,200}playSfxForUsers\(deathHearers, "death"\)/.test(kill)
+        }), stableJson({ silentSentence: true, soundsByCause: true, takenFirst: true, cardLeavesOut: true, addressedLeavesOut: true }),
+        "{the living convict killed silently; the death's sound behind the cause; the faded taken before the card; the card's flag leaves them out; the addressed sound leaves them out}");
+    }],
+
     ["R5874 - one Spectator a student, whoever made it (spectator-dead.mjs `watchersOf`, `keptWatcher`, `settleWatchers`; scenario 97 part gm2, 13.11.2026): of a student's flagged watchers the smallest id is kept, the same on every browser; other students' and unflagged actors are not counted", async () => {
         /*
          * Two GMs making one student's Spectator at the same moment each made an actor and a token (scenario 97 measured
