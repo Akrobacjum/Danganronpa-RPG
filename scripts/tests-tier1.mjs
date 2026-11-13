@@ -52676,80 +52676,75 @@ const INVARIANTS = [
             "[another user's receipt, one under another id, one for an ask not answered, one for an ask not waiting; still waiting; the asker's receipt; its clock after; the same receipt again] - a Frisk's answer is not received, or a receipt nobody was sent is taken");
     }],
 
-    ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile on a GM's browser and not at all on a player's, and taken off a tile that lost its flag", async () => {
+    ["R3144 - a corpse's token wears the body's caption (body-tile.mjs `drawCorpseCaption`; E95 C3's caption, moved off the tile on 13.11.2026): \"{name}'s body\" / \"Ciało: {name}\" over the token's top edge at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07); drawn once per redraw, at half alpha on a hidden token on a GM's browser and not at all on a player's, and taken off a token whose student lives again", async () => {
         /*
-         * E95 C3, 10.11.2026; QUESTIONS Q4 (the default: the caption and the sign in E95). The harm: a body tile beside
-         * a Monocub's token that still wears Foundry's dead overlay reads as a second copy of the student, and a refresh
-         * that stacked a mark per hover would draw a pile of them. Read on a tile placeable of the test's own (a PIXI
-         * container with a document of plain fields; Foundry's `drawTile` and `refreshTile` are not in the harness),
-         * the actors handed in: the mark's children, the caption's words, size and keyline and place under the tile,
-         * the sign's picture, size and centre; the same mark after a second draw, a new one after the name changed, half
-         * alpha when hidden, none on a tile with no flag and none left on one that lost it. Both languages' words off
-         * the served files, as R903 reads the tunnel marks'. How it looks on a real canvas is LIVE-E95-01's. Red at E95
-         * C2: body-tile.mjs exports no `drawBodyMark`.
+         * E95 C3, 10.11.2026; QUESTIONS Q4; DC6's label "Ciało: {imię}". Until 13.11.2026 the caption and the dead sign were
+         * drawn on the body tile, which beside the corpse's token and the Spectator's made a third thing on the map (the
+         * owner's report; scenario 97). The caption is the corpse's token's now, which wears Foundry's dead overlay
+         * already, so no sign. Read on a token placeable of the test's own (a PIXI container with a document of plain
+         * fields and an actor whose `deceased` flag the test sets; Foundry's `drawToken` and `refreshToken` are not in the
+         * harness): the caption's words, size, keyline and place over the token, the same caption after a second draw, a
+         * new one after the name changed, half alpha when hidden on a GM's, none on a player's and none left on one hidden
+         * later, none on a living student's token and none left once the death goes. Both languages' words off the served
+         * files, as R903 reads the tunnel marks'. How it looks on a real canvas is LIVE-E95-01's. Red at ceb9e9c8:
+         * body-tile.mjs exports no `drawCorpseCaption` (the caption was the tile's, R3144's first reading).
          */
         const B = await import("./body-tile.mjs");
-        must(typeof B.drawBodyMark === "function" && typeof B.BODY_MARK_NAME === "string", "body-tile.mjs exports no drawBodyMark or BODY_MARK_NAME");
+        must(typeof B.drawCorpseCaption === "function" && typeof B.BODY_MARK_NAME === "string", "body-tile.mjs exports no drawCorpseCaption or BODY_MARK_NAME");
         const grid = 100, V = "SUITER3144VICTIM";
-        let name = "R3144 Daichi";
-        const actors = { get: id => (id === V ? { name } : undefined) };
-        const placeable = (flag, { width = 200, height = 100, hidden = false } = {}) => {
-            const tile = new PIXI.Container();
-            tile.document = { width, height, hidden, parent: { grid: { size: grid } },
-                getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? flag : undefined) };
-            return tile;
+        let name = "R3144 Daichi", death = { deathId: "SUITER3144DEATH0", chapter: 1 };
+        const actor = { id: V, type: "character", get name() { return name; },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.deceased ? death : undefined) };
+        const actors = { get: id => (id === V ? actor : undefined) };
+        const placeable = ({ hidden = false } = {}) => {
+            const token = new PIXI.Container();
+            token.w = 100;
+            token.document = { id: "SUITER3144TOKEN0", actorId: V, actor, hidden, width: 1, height: 1, parent: { grid: { size: grid }, tokens: [] },
+                getFlag: () => undefined };
+            return token;
         };
-        const marks = tile => tile.children.filter(c => c?.name === B.BODY_MARK_NAME);
-        const read = tile => marks(tile).map(m => [m.alpha, m.children.map(c => (c instanceof PIXI.Text
+        const marks = token => token.children.filter(c => c?.name === B.BODY_MARK_NAME);
+        const read = token => marks(token).map(m => [m.alpha, m.children.map(c => (c instanceof PIXI.Text
             ? ["text", c.text, c.style?.fontSize, c.style?.strokeThickness, c.position.x, c.position.y]
-            : ["sign", c.texture?.src ?? null, c.width, c.height, c.position.x, c.position.y]))]);
-        const dead = (CONFIG.statusEffects ?? []).find(e => e?.id === "dead");
-        const icon = dead?.img ?? dead?.icon ?? CONFIG.controlIcons?.defeated ?? "icons/svg/skull.svg";
-        const flag = { actorId: V, deathId: "SUITER3144DEATH0", level: null, at: 1 };
-        const tile = placeable(flag);
-        const first = B.drawBodyMark(tile, { actors });
-        const again = B.drawBodyMark(tile, { actors });
-        const cases = { drawn: read(tile), sameMark: first !== null && first === again };
+            : ["other"]))]);
+        const token = placeable();
+        const first = B.drawCorpseCaption(token, { actors });
+        const again = B.drawCorpseCaption(token, { actors });
+        const cases = { drawn: read(token), sameMark: first !== null && first === again };
         name = "R3144 Daichi Renamed";
-        const renamed = B.drawBodyMark(tile, { actors });
-        cases.renamed = [renamed !== first, marks(tile).length, marks(tile)[0]?.children.find(c => c instanceof PIXI.Text)?.text ?? null];
-        const hidden = placeable(flag, { width: 100, height: 100, hidden: true });
-        B.drawBodyMark(hidden, { actors, gm: true });
+        const renamed = B.drawCorpseCaption(token, { actors });
+        cases.renamed = [renamed !== first, marks(token).length, marks(token)[0]?.children.find(c => c instanceof PIXI.Text)?.text ?? null];
+        const hidden = placeable({ hidden: true });
+        B.drawCorpseCaption(hidden, { actors, gm: true });
         cases.hidden = marks(hidden).map(m => m.alpha);
-        /* E95 fix RV-5 (10.11.2026): on a player's browser a hidden tile wears no mark, drawn before or not - the caption
-           names the body, and whether v14 hides a hidden tile's children from a player is LIVE-E95-01's. Red at c431138a:
-           the mark at half alpha there too. */
-        const forPlayer = placeable(flag, { hidden: true });
-        cases.hiddenForPlayer = [B.drawBodyMark(forPlayer, { actors, gm: false }) === null, marks(forPlayer).length];
-        const later = placeable(flag);
-        B.drawBodyMark(later, { actors, gm: false });
+        const forPlayer = placeable({ hidden: true });
+        cases.hiddenForPlayer = [B.drawCorpseCaption(forPlayer, { actors, gm: false }) === null, marks(forPlayer).length];
+        const later = placeable();
+        B.drawCorpseCaption(later, { actors, gm: false });
         const shown = marks(later).length;
         later.document.hidden = true;
-        B.drawBodyMark(later, { actors, gm: false });
+        B.drawCorpseCaption(later, { actors, gm: false });
         cases.hiddenLater = [shown, marks(later).length];
-        const plain = placeable(undefined);
-        cases.plain = [B.drawBodyMark(plain, { actors }), marks(plain).length];
-        tile.document.getFlag = () => undefined;
-        cases.lostFlag = [B.drawBodyMark(tile, { actors }), marks(tile).length];
-        const orphan = placeable({ ...flag, actorId: "SUITER3144GONE00" });
-        B.drawBodyMark(orphan, { actors });
-        cases.orphan = read(orphan).map(([, kids]) => kids.map(k => k[0]));
+        death = null;
+        cases.revived = [B.drawCorpseCaption(token, { actors }), marks(token).length];
+        const living = placeable();
+        cases.living = [B.drawCorpseCaption(living, { actors }), marks(living).length];
         const size = [Math.max(20, Math.round(grid * 0.36)), Math.max(4, Math.round(grid * 0.07))];
         const words = n => game.i18n.format("DRPG.Body.tile", { name: n });
         const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
         equal(stableJson({ ...cases, langs: [en?.DRPG?.Body?.tile, pl?.DRPG?.Body?.tile] }), stableJson({
-            drawn: [[1, [["sign", icon, 60, 60, 100, 50], ["text", words("R3144 Daichi"), ...size, 100, 105]]]],
+            drawn: [[1, [["text", words("R3144 Daichi"), ...size, 50, -5]]]],
             sameMark: true,
             renamed: [true, 1, words("R3144 Daichi Renamed")],
             hidden: [0.5],
             hiddenForPlayer: [true, 0],
             hiddenLater: [1, 0],
-            plain: [null, 0],
-            lostFlag: [null, 0],
-            orphan: [["sign"]],
+            revived: [null, 0],
+            living: [null, 0],
             langs: ["{name}'s body", "Ciało: {name}"]
-        }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha on a GM's; "
-            + "hidden on a player's [answered none, marks]; a player's mark on a tile shown, then hidden [marks]; a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
+        }), "{the caption as [alpha, its children]; drawn twice one caption; renamed [a new one, how many, its words]; hidden alpha on a GM's; "
+            + "hidden on a player's [answered none, captions]; a player's caption on a token shown, then hidden [captions]; the death gone [answer, captions]; a living student's token [answer, captions]; the words in English and Polish}");
+        for (const t of [token, hidden, forPlayer, later, living]) t.destroy({ children: true });
     }],
     ["R3331 - no chooseVariant row's details holds a form control (input, select, textarea): they stand in the left column, outside the window's <form>, so nothing in them is read back", async () => {
         /*
@@ -56971,25 +56966,140 @@ const INVARIANTS = [
         equal(stableJson({ proto, token }), stableJson({ proto: true, token: true }), "the prototype and the token spread the look");
         ok(/const look = tokenLookOf\(/.test(make), "the look read off tokenLookOf");
     }],
-    ["R5402 - a body tile's death sign and caption take no click: the mark's group is `eventMode` \"none\" and holds no interactive child (body-tile.mjs `drawBodyMark`, E106)", async () => {
+    ["R5402 - the body's caption takes no click: its group is `eventMode` \"none\" and holds no interactive child (body-tile.mjs `drawCorpseCaption`, E106; on the corpse's token since 13.11.2026)", async () => {
         /*
          * E106, 13.11.2026 (the owner: the Monocub's token "nie pozwala odpalic karty postaci (przynajmniej z poziomu
-         * GMa)"). The tile is laid where the token stands, and its mark is drawn as a child of the Tile placeable, over
-         * the token's picture; every other drawing the module lays on the map (gm-overlay.mjs, own-ring.mjs,
-         * remnant-ring.mjs) is `eventMode` "none", and the mark was not. Whether v14 routes a token's double-click to a
-         * tile's child was not read (LIVE-E106-01): the mark is made to take none whatever v14 does. On a stand-in tile
-         * as R3144's. Red at E106's base: the group's eventMode was PIXI's default.
+         * GMa)"). Every drawing the module lays on the map (gm-overlay.mjs, own-ring.mjs, remnant-ring.mjs) is `eventMode`
+         * "none". The caption was the body tile's until the owner's report of a third token (13.11.2026) and stands over
+         * the corpse's token now, whose double-click opens its sheet; whether v14 routes a click to a placeable's child was
+         * not read (LIVE-E106-01), so the caption takes none whatever v14 does. On a stand-in token as R3144's. Red at
+         * E106's base: the group's eventMode was PIXI's default; at ceb9e9c8: no `drawCorpseCaption`.
          */
         const B = await import("./body-tile.mjs");
+        must(typeof B.drawCorpseCaption === "function", "body-tile.mjs exports no drawCorpseCaption");
         const grid = 100, V = "SUITER5402VICTIM";
-        const tile = new PIXI.Container();
-        tile.document = { width: 100, height: 100, hidden: false, parent: { grid: { size: grid } },
-            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? { actorId: V, deathId: null, level: null, at: 1 } : undefined) };
-        const mark = B.drawBodyMark(tile, { actors: { get: id => (id === V ? { name: "R5402 Daichi" } : undefined) }, gm: true });
-        ok(mark !== null, "the mark drawn");
+        const actor = { id: V, type: "character", name: "R5402 Daichi",
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.deceased ? { deathId: "SUITER5402DEATH0" } : undefined) };
+        const token = new PIXI.Container();
+        token.w = 100;
+        token.document = { id: "SUITER5402TOKEN0", actorId: V, actor, hidden: false, width: 1, height: 1, parent: { grid: { size: grid }, tokens: [] },
+            getFlag: () => undefined };
+        const mark = B.drawCorpseCaption(token, { actors: { get: id => (id === V ? actor : undefined) }, gm: true });
+        ok(mark !== null, "the caption drawn");
         equal(stableJson({ mode: mark?.eventMode ?? null, children: mark?.interactiveChildren ?? null }), stableJson({ mode: "none", children: false }),
-            "the mark's group ([eventMode, interactiveChildren])");
+            "the caption's group ([eventMode, interactiveChildren])");
+        token.destroy({ children: true });
+    }],
+
+    ["R5870 - a body's tile is laid at alpha 0 (body-tile.mjs `bodyTileSpec`; the owner's report of 13.11.2026, \"Killing a character makes 3 tokens appear\"): the tile is the data the body's readers ask and is drawn to nobody, `hidden` still the token's, and the update that takes it to its corpse leaves its alpha alone", async () => {
+        /*
+         * 13.11.2026, at a table on 1.2.112: a death drew three things where the student fell - the corpse's own token, the
+         * Spectator's token and the body tile with the token's picture, its dead sign and its caption (scenario 97
+         * measured it on every road). The coordinator's default: the body and the Spectator, nothing else. Alpha 0 and not
+         * `hidden`, which is the loot gate's (a hidden tile refuses the loot) and the token's own (`followedTile` copies
+         * it); body-tile.mjs's header, THE TILE IS DATA. Read: the spec's alpha from a token shown and from one hidden,
+         * their `hidden`, and whether `followedTile`'s patch names an alpha. Red at ceb9e9c8: no alpha in the spec (drawn
+         * at Foundry's default, 1).
+         */
+        const B = await import("./body-tile.mjs");
+        const tokenDoc = hidden => ({ x: 300, y: 400, width: 1, height: 1, elevation: 0, hidden, texture: { src: "icons/svg/mystery-man.svg" },
+            parent: { grid: { size: 100 } } });
+        const shown = B.bodyTileSpec({ tokenDoc: tokenDoc(false), actorId: "SUITER5870VICTIM", record: { deathId: "SUITER5870DEATH0" }, at: 1 });
+        const shut = B.bodyTileSpec({ tokenDoc: tokenDoc(true), actorId: "SUITER5870VICTIM", record: { deathId: "SUITER5870DEATH0" }, at: 1 });
+        const tile = { id: "SUITER5870TILE00", x: 300, y: 400, elevation: 0, hidden: false, alpha: 0,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? { actorId: "SUITER5870VICTIM", level: null } : undefined) };
+        const patch = B.followedTile(tile, { x: 500, y: 400, elevation: 0, hidden: false }, { x: 500 }, null);
+        equal(stableJson([shown.alpha, shut.alpha, shown.hidden, shut.hidden, Boolean(patch), patch ? "alpha" in patch : null]),
+            stableJson([0, 0, false, true, true, false]),
+            "[alpha from a token shown, from a token hidden; hidden from each; followedTile answers a patch; the patch names an alpha]");
+    }],
+
+    ["R5871 - a body tile draws nothing (body-tile.mjs `drawBodyMark`; the owner's report of 13.11.2026): Foundry's draw and refresh of a flagged tile answer no mark, and a mark drawn there before (a browser that loaded 1.2.112) is taken off", async () => {
+        /*
+         * The third thing on the map was the tile with its dead sign and caption (scenario 97). The caption is the
+         * corpse's token's (R3144); the tile's draw hook only takes off what an older build drew. On a stand-in tile
+         * placeable as R3144 read before 13.11.2026, with a mark of the old name planted as its child. Red at ceb9e9c8: the
+         * mark drawn, the planted one replaced by it.
+         */
+        const B = await import("./body-tile.mjs");
+        const tile = new PIXI.Container();
+        tile.document = { width: 100, height: 100, hidden: false, parent: { grid: { size: 100 } },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? { actorId: "SUITER5871VICTIM", deathId: null, level: null, at: 1 } : undefined) };
+        const old = new PIXI.Container();
+        old.name = B.BODY_MARK_NAME;
+        tile.addChild(old);
+        const answer = B.drawBodyMark(tile, { actors: { get: () => ({ name: "R5871 Daichi" }) }, gm: true });
+        const left = tile.children.filter(c => c?.name === B.BODY_MARK_NAME).length;
+        equal(stableJson([answer === null, left, tile.children.length]), stableJson([true, 0, 0]), "[drawBodyMark answered none, marks left on the tile, children left]");
         tile.destroy({ children: true });
+    }],
+
+    ["R5872 - which tokens wear the body's caption (body-tile.mjs `isCaptionedCorpse`, 13.11.2026): a dead student's own token and a Monocub's corpse, both of a death the table knows; never a living student's, a Monocub's walking token (`FLAGS.cubToken`) or a Spectator's", async () => {
+        /*
+         * The caption moved off the body tile onto the corpse (R3144). Which token is the corpse is movement.mjs
+         * `isCorpseToken`'s (the veto and the body's walk read it); the caption adds that the death is public (the
+         * `deceased` flag), as no tile was laid for a death the GMs keep. Stand-in tokens on one stand-in scene: a public
+         * death's token, a living student's, a Monocub's corpse beside its walking token (the walker flagged `cubToken`),
+         * and a Spectator's (its actor flagged `spectator`, no death of its own). Red at ceb9e9c8: no `isCaptionedCorpse`.
+         */
+        const B = await import("./body-tile.mjs");
+        must(typeof B.isCaptionedCorpse === "function", "body-tile.mjs exports no isCaptionedCorpse");
+        const actorOf = (id, flags) => ({ id, type: "character", name: id, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const dead = actorOf("SUITER5872DEAD00", { [FLAGS.deceased]: { deathId: "SUITER5872D1" } });
+        const alive = actorOf("SUITER5872LIVE00", {});
+        const cub = actorOf("SUITER5872CUB000", { [FLAGS.deceased]: { deathId: "SUITER5872D2" }, [FLAGS.monocub]: true });
+        const watcher = actorOf("SUITER5872WATCH0", { [FLAGS.spectator]: true, [FLAGS.watcherOf]: "SUITER5872DEAD00" });
+        const scene = { grid: { size: 100 }, tokens: [] };
+        const tokenOf = (actor, flags = {}) => {
+            const t = { id: `T${actor.id}${scene.tokens.length}`, actorId: actor.id, actor, parent: scene, hidden: false,
+                getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) };
+            scene.tokens.push(t);
+            return t;
+        };
+        const rows = [tokenOf(dead), tokenOf(alive), tokenOf(cub), tokenOf(cub, { [FLAGS.cubToken]: true }), tokenOf(watcher)];
+        equal(stableJson(rows.map(t => B.isCaptionedCorpse(t))), stableJson([true, false, true, false, false]),
+            "[a public death's token, a living student's, a Monocub's corpse, the Monocub's walking token, a Spectator's]");
+    }],
+
+    ["R5873 - the body tiles laid at 1.2.112 or before are set to alpha 0 once (migrate.mjs `bodyTilesUnseen`, since 1.2.113; `bodyTileAlphaPatches`): every flagged tile not at alpha 0 - one with no alpha too - and nothing else", async () => {
+        /*
+         * A 1.2.112 world updated mid-chapter keeps its drawn body tiles until the next trial's end; the clause takes them
+         * off the picture once, on the primary, and changes nothing but the alpha. Read: the clause's row and its `since`,
+         * and the patches over two stand-in scenes - a body tile at alpha 1, one with none, one at 0, a tile with no
+         * flag; the second scene holding only one at 0. Red at ceb9e9c8: no clause and no `bodyTileAlphaPatches`.
+         */
+        const MG = await import("./migrate.mjs");
+        must(typeof MG.bodyTileAlphaPatches === "function", "migrate.mjs exports no bodyTileAlphaPatches");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/migrate.mjs`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const clause = bodyOf(src, 'key: "bodyTilesUnseen"', { length: 60 });
+        const tileOf = (id, alpha, flagged = true) => ({ id, ...(alpha === undefined ? {} : { alpha }),
+            getFlag: (scope, key) => (flagged && scope === MODULE_ID && key === FLAGS.bodyOf ? { actorId: "SUITER5873VICTIM" } : undefined) });
+        const one = { name: "one", tiles: [tileOf("A1", 1), tileOf("A2", undefined), tileOf("A3", 0), tileOf("A4", 1, false)] };
+        const two = { name: "two", tiles: [tileOf("B1", 0)] };
+        const rows = MG.bodyTileAlphaPatches([one, two]).map(({ scene, updates }) => [scene.name, updates]);
+        equal(stableJson({ since: /since: "1\.2\.113"/.test(clause), rows }), stableJson({ since: true,
+            rows: [["one", [{ _id: "A1", alpha: 0 }, { _id: "A2", alpha: 0 }]]] }),
+        "{the clause's line names since 1.2.113; the patches by scene}");
+    }],
+
+    ["R5874 - one Spectator a student, whoever made it (spectator-dead.mjs `watchersOf`, `keptWatcher`, `settleWatchers`; scenario 97 part gm2, 13.11.2026): of a student's flagged watchers the smallest id is kept, the same on every browser; other students' and unflagged actors are not counted", async () => {
+        /*
+         * Two GMs making one student's Spectator at the same moment each made an actor and a token (scenario 97 measured
+         * two Spectator tokens at ceb9e9c8). The primary settles it after: it keeps `keptWatcher` and deletes the rest
+         * (`settleWatchers`, on the scenario's two GMs). Read on stand-in actors: which are a student's watchers, which is
+         * kept whatever order they arrive in, and none of none. Red at ceb9e9c8: none of the three is exported.
+         */
+        const D = await import("./spectator-dead.mjs");
+        must(["watchersOf", "keptWatcher", "settleWatchers"].every(n => typeof D[n] === "function"), "spectator-dead.mjs exports no watchersOf, keptWatcher or settleWatchers");
+        const actorOf = (id, flags) => ({ id, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const S = "SUITER5874STUDNT";
+        const all = [actorOf("w5874C", { [FLAGS.spectator]: true, [FLAGS.watcherOf]: S }), actorOf("W5874B", { [FLAGS.spectator]: true, [FLAGS.watcherOf]: S }),
+            actorOf("w5874A", { [FLAGS.spectator]: true, [FLAGS.watcherOf]: "SUITER5874OTHER0" }), actorOf("W5874Z", { [FLAGS.watcherOf]: S }),
+            actorOf("W5874D", { [FLAGS.spectator]: true, [FLAGS.watcherOf]: S })];
+        const mine = D.watchersOf(S, all).map(a => a.id);
+        equal(stableJson([mine, D.keptWatcher(D.watchersOf(S, all))?.id, D.keptWatcher(D.watchersOf(S, [...all].reverse()))?.id, D.keptWatcher([])]),
+            stableJson([["w5874C", "W5874B", "W5874D"], "W5874B", "W5874B", null]),
+            "[the student's watchers, the one kept, the one kept in the reverse order, of none]");
     }],
 
     ["R5200 - the private cards' and the traps' diagnoses are on game.drpg (E43; the plan's item 4): `game.drpg.diagnoseSecrets()` answers secret.mjs `diagnoseSecrets`, and `game.drpg.diagnoseTraps()` answers traps.mjs `diagnoseTraps` on a GM and warns and answers null on a player (read in its line), as the diagnostics window's part runs it for the GMs alone", async () => {

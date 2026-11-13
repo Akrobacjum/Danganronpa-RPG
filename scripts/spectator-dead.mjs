@@ -34,7 +34,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { log, warn, error, forcedDeletion } from "./utils.mjs";
+import { log, warn, error, forcedDeletion, isPrimaryGm } from "./utils.mjs";
 import { deathStore } from "./gm-stores.mjs";
 import { isDeadForGm } from "./settings.mjs";
 
@@ -317,6 +317,66 @@ async function ensureWatcherActorOnly(student) {
     }
 }
 
+/*
+ * ONE WATCHER A STUDENT, WHOEVER MADE IT (the coordinator's task of 13.11.2026 after the owner's report of a third token;
+ * scenario 97 part gm2). `ensureDeadSpectator` looks for a watcher, then makes one: two GMs running it at the same moment
+ * - both marking a student dead in the Players window, say - each find none and each make an actor and a token, and
+ * scenario 97 measured two Spectator tokens where the body lies. Nothing a GM's browser does before its write can see the
+ * other GM's, so the primary settles it after: on every watcher's actor or token it sees made (`registerDeadSpectator`),
+ * the watchers flagged with one student (`watchersOf`) are cut to one (`keptWatcher`: the smallest id, the same answer on
+ * every browser), the others' tokens and actors deleted with no moment (no fade, no return), and a token made later for a
+ * watcher it took away is deleted when it arrives (`lostWatchers`). A kept death's watcher carries no flag (its link is
+ * the GMs' row), so two GMs keeping one death at once are not settled here; only `killCharacter` keeps a death, from one
+ * GM's button. The victim's browser may play the fade twice before the second token goes (not measured).
+ */
+
+/** The watchers this browser took away as a second of one student's (`settleWatchers`), so a token made after goes too. */
+const lostWatchers = new Set();
+
+/** The Spectator actors flagged as `studentId`'s watcher (`FLAGS.watcherOf`), in `actors`. */
+export function watchersOf(studentId, actors = game.actors) {
+    if (!studentId) return [];
+    return [...(actors ?? [])].filter(a => a?.getFlag?.(MODULE_ID, FLAGS.spectator) && a.getFlag(MODULE_ID, FLAGS.watcherOf) === studentId);
+}
+
+/** Of `watchers`, the one kept (pure; tier 1 R5874): the smallest id, so every browser that asks answers the same. */
+export function keptWatcher(watchers) {
+    return [...(watchers ?? [])].filter(w => w?.id).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0] ?? null;
+}
+
+/** On the primary GM: `studentId`'s watchers cut to one (`keptWatcher`), the others' tokens and actors deleted. Answers how many went. */
+export async function settleWatchers(studentId) {
+    if (!isPrimaryGm() || !studentId) return 0;
+    const all = watchersOf(studentId);
+    if (all.length < 2) return 0;
+    const keep = keptWatcher(all);
+    let gone = 0;
+    for (const watcher of all) {
+        if (watcher === keep) continue;
+        lostWatchers.add(watcher.id);
+        try {
+            for (const { scene, tokenDoc } of tokensOf(watcher)) await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
+            await watcher.delete();
+            gone += 1;
+        } catch (err) {
+            error(`Could not take a second Spectator of the same student away`, err);
+        }
+    }
+    if (gone) log(`${gone} second Spectator(s) of one student taken away; ${keep?.name ?? "?"} keeps one.`);
+    return gone;
+}
+
+/** The primary's answer to a watcher's actor or token made on any browser (`registerDeadSpectator`). */
+async function onWatcherMade(actorId, tokenDoc = null) {
+    if (!isPrimaryGm() || !actorId) return;
+    if (lostWatchers.has(actorId)) {
+        if (tokenDoc?.parent?.tokens?.get?.(tokenDoc.id)) await tokenDoc.parent.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
+        return;
+    }
+    const studentId = game.actors?.get?.(actorId)?.getFlag?.(MODULE_ID, FLAGS.watcherOf);
+    if (studentId) await settleWatchers(studentId);
+}
+
 /* ==========================================================================
  * THE VICTIM'S BROWSER
  * ========================================================================== */
@@ -369,4 +429,8 @@ export function registerDeadSpectator() {
     Hooks.on("createToken", (tokenDoc, options) => on(tokenDoc, options));
     Hooks.on("deleteToken", (tokenDoc, options) => on(tokenDoc, options));
     Hooks.on("updateToken", (tokenDoc, _change, options) => on(tokenDoc, options));
+    // One watcher a student (the primary's, above `lostWatchers`): settled after each watcher's actor or token is made.
+    const settle = (actorId, tokenDoc) => { onWatcherMade(actorId, tokenDoc).catch(err => error("Could not settle the Spectators of one student", err)); };
+    Hooks.on("createActor", actor => { if (actor?.getFlag?.(MODULE_ID, FLAGS.watcherOf)) settle(actor.id); });
+    Hooks.on("createToken", tokenDoc => { if (tokenDoc?.actorId) settle(tokenDoc.actorId, tokenDoc); });
 }

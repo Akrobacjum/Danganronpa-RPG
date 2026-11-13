@@ -10018,6 +10018,7 @@ const REGRESSIONS = [
             ["HOOK spectator-dead.mjs#createToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#deleteToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
             ["HOOK spectator-dead.mjs#updateToken#arrow1", "reads, writes nothing (E62 C3b): on the dead student's own browser, a Spectator token made, moved to the Monocub or taken away with the option `drpgDeadSpectator` calls the curtain's hook and plays the Death fade; creates and deletes nothing, and judges no move"],
+            ["HOOK spectator-dead.mjs#createToken#arrow2", "deleted, not judged (13.11.2026, scenario 97 part gm2): on the primary, a token made for a second Spectator of one student that this browser took away (`settleWatchers`, `lostWatchers`) is deleted when it arrives, and a token of a watcher sends its student's watchers to `settleWatchers`; neither reads nor judges a move into a room"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK visibility.mjs#updateToken#arrow1", "out of scope: recomputes this client's draw on `hidden` or a move (visibility.mjs:51-56); C2's reveal and hide fire it on every client, expected"],
             ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -17934,8 +17935,9 @@ const REGRESSIONS = [
         const FOUNDRY_HOOKS = new Set([
             "init", "i18nInit", "setup", "ready", "canvasReady", "canvasPan", "canvasTearDown", "sightRefresh", "pauseGame", "userConnected",
             "clientSettingChanged", "rtcSettingsChanged", "collapseSidebar", "refreshToken", "renderChatMessageHTML",
-            // A placeable's draw and refresh, as `refreshToken` is (E95 C3: body-tile.mjs draws the body's mark on its tile).
-            "drawTile", "refreshTile",
+            // A placeable's draw and refresh, as `refreshToken` is (E95 C3: body-tile.mjs draws the body's mark on its tile; since
+            // 13.11.2026 the caption on the corpse's token, `drawToken`, and the tile's hooks only take an old mark off).
+            "drawTile", "refreshTile", "drawToken",
             "getUserContextOptions", "getChatMessageContextOptions", "getActorContextOptions",
             ...DOCS.flatMap(d => ["preCreate", "create", "preUpdate", "update", "preDelete", "delete"].map(e => `${e}${d}`)),
             ...APPS.flatMap(a => ["render", "close", "getHeaderControls"].map(e => `${e}${a}`))
@@ -23400,7 +23402,8 @@ const REGRESSIONS = [
          * taken out: body-tile.mjs's hooks (every `Hooks.on("<name>"` in the file), `followBody`'s offsets of its GM and
          * mover tests, its `isCorpse(` and its Tile write, `isCorpse` exported by movement.mjs, and module.mjs's
          * registration. What the follow does is tier 2's ("the body follows its corpse token, not its Monocub"). Red at
-         * C0: there is no `followBody`.
+         * C0: there is no `followBody`. Since 13.11.2026 the file draws the body's caption on the corpse's token too
+         * (`drawToken`, `refreshToken`: display only, R3144), so the hooks read five.
          */
         const sources = await moduleSources();
         must(["body-tile.mjs", "movement.mjs", "module.mjs"].every(f => sources.has(f)), "body-tile.mjs, movement.mjs or module.mjs is not served - this would measure nothing");
@@ -23417,7 +23420,7 @@ const REGRESSIONS = [
                 at(/isCorpse(?:Token)?\((?:actor|tokenDoc)\)/) >= 0 && at(/isCorpse(?:Token)?\((?:actor|tokenDoc)\)/) < write, write > 0] : null,
             exported: /^export function isCorpse\(/m.test(code("movement.mjs")),
             module: /safely\("[^"]+", registerBodyFollow\)/.test(code("module.mjs"))
-        }), JSON.stringify({ hooks: ["drawTile", "refreshTile", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),
+        }), JSON.stringify({ hooks: ["drawTile", "drawToken", "refreshTile", "refreshToken", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),
         "{hooks: body-tile.mjs's hook names; registered: updateToken hands followBody its four; guards: [the GM test, the mover test, isCorpse, each before the Tile write; a write]; exported: movement.mjs exports isCorpse; module: module.mjs registers it}");
     }],
     ["R3404 - the Class Trial's end takes the bodies, after its sentence, and nothing else takes them all (E63 C2; the owner's 11.11.2026 on E95 Q2 and Q8): clock.mjs `reconcilePhase`'s branch out of the trial calls body-tile.mjs `removeBodyTiles(null)` after `executeAtExit`, and its retry of a failed sentence removes the executed's by id alone; every other removal of every body is the season reset's, with `held: false`", async () => {
