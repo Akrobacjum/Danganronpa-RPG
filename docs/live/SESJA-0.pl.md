@@ -364,7 +364,7 @@ Opis w AUDIT 9.2: poz. 369.
 
 Dopisane 13.11.2026 w nocy, z gałęzi, nie z wydanych wersji. **Każdy check tu jest szkicem do czasu, gdy jego wydanie
 wyjdzie**: po wydaniu porównaj z notatkami wydania (`.github/release-notes/v1.2.1xx.md`, sekcje *Known gaps* i *Checked*)
-i usuń z nagłówka znacznik `[szkic]`. Kod `T` to 1.2.110, `U` to 1.2.111, `V` to 1.2.112, `W` to 1.2.113. Wszystkie te gałęzie mówią to
+i usuń z nagłówka znacznik `[szkic]`. Kod `T` to 1.2.110, `U` to 1.2.111, `V` to 1.2.112. Wszystkie te gałęzie mówią to
 samo o sobie: nic nie było uruchomione na prawdziwym Foundry, zrzuty są z harnessu.
 
 Część 1.2.110 jest już w bloku N (N2 rzuty na Daggerheart 2.12.8, N3 koniec rozdziału, N8 zasady E64, N9 Monocub E72,
@@ -396,8 +396,9 @@ Clear Faint; konsola rozprawy: dziennik dowodów).
 `claude/float-text` (a63fe324), `claude/gaps-radio` (30e65075), `claude/project-token-icon` (fa9afa49), `claude/e59-c5a`
 (68bc5f3e), `claude/e59-c5b` (bez zmian widocznych przy stole) i commity S17-31 na `claude/e93` (522cd601, 1f5f4ecb,
 9f052871). Przegląd tych gałęzi: `docs/dev/e93/REVIEW-111.md` na `claude/e93`. **U1 i U2 nie mają jeszcze kodu na żadnej
-wypchniętej gałęzi** (`claude/trial-exit` jeszcze nie istnieje na origin): to tylko szkic kroków. Facilities, Infiltrate
-i drzwi (E93, E69, E74) wychodzą w 1.2.113 (notatki `v1.2.113.md` na `claude/e93`), więc są niżej, w W1-W3.
+wypchniętej gałęzi** (`claude/trial-exit` zostanie wypchnięta po wydaniu 1.2.110): to tylko szkic kroków. Facilities,
+Infiltrate i drzwi (E93, E69, E74) są w tym samym wydaniu, U9-U11 (koordynator, 13.11.2026: właściciel połączył dawne
+1.2.111 i 1.2.112 w jedno; `v1.2.113.md` na `claude/e93` jest nieaktualne).
 
 #### U1 Wyjście z Class Trial i wejście bez mrugnięcia [ważne] [szkic] · 5 min · GM i gracz
 
@@ -537,6 +538,54 @@ odliczań Daggerheart (tam zapisałaby się z powrotem do ustawienia).
 **Zgłoś:** błędy z konsoli przy starcie, jeśli są.
 **Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
+#### U9 Facilities: akcje pokoju i efekty czasowe (E93) [ważne] [szkic] · 15 min · GM i gracz
+
+**Co zrobić:**
+1. GM: Ustawienia pokoi > Facilities > Edytuj akcje - akcja pokoju z rzutem. Gracz używa jej z kafla **Facilities**
+   (dawne Rest). Rzut losuje główny GM.
+2. Zapisz, po jakim czasie na innych ekranach wiersz tej akcji jest wyszarzony z powodem "Ktoś już tego użył"; drugi
+   gracz, który zapłacił w tej samej chwili, dostaje odmowę i zwrot akcji; w pokoju zostaje słaby ślad (Subtle).
+3. Ukończony projekt z akcją "Pory dnia: 1": rano akcja jest w oknie Facilities i w linii okna Projects, po przesunięciu
+   zegara na południe znika; "Na stałe" zostaje do końca rozdziału.
+4. Efekt czasowy (np. +2 do cechy): na arkuszu gracza biały znaczek obok Hope Calls, podpowiedź mówi, kiedy się kończy;
+   kończy się z porą dnia. Pod Stained Glass znaczek ze świeczką.
+5. Okno Facilities i oba edytory przy 1366x768 i wąskim ekranie, w obu motywach i językach: nic ucięte, bez przewijania
+   w bok.
+6. Overflow: pięć nowych stanów (Lockdown, Insomnia, Toll, Jitters, Power cut); przy Insomnii Short Rest jest szary.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** czas z kroku 2; zrzuty okna Facilities i znaczka efektu.
+**Rozstrzyga:** [LIVE-E93-01 (po wydaniu E93), LIVE-E93-02 (po wydaniu E93), LIVE-E93-03 (po wydaniu E93)]
+
+#### U10 Infiltrate: przejście, Tail i Dash (E69) [ważne] [szkic] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Na konsoli głównego GM-a: `Hooks.on("drpgCrossingSettled", e => console.log(e))`.
+2. Gracz przechodzi do sąsiedniego pokoju i stoi: po około 2 s jedno zdarzenie z pokojami. GM cofa token gracza przed
+   upływem 2 s: brak zdarzenia. Przeciągnięcie przez dwa pokoje naraz: jedno zdarzenie od pierwszego do ostatniego.
+3. Kafel **Infiltrate** (dawne Listen): siedem wierszy (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick
+   the Lock, Keep Watch).
+4. Tail Someone na postaci GM-a: karty przychodzą, gdy cel przechodzi; w Eclipse Tail się nie zaczyna.
+5. Dash: darmowe przejścia; śledzący dostaje "… ucieka Dashem. Zgubiono trop."
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** linie z konsoli z kroku 2 i zmierzone opóźnienie serwera.
+**Rozstrzyga:** [LIVE-E69-04 (po wydaniu E69)]
+
+#### U11 Drzwi i Keep Watch (E74) [ważne] [szkic] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Gracz robi Shut the Door. Ruch tokenu GM-a nie jest blokowany. Następne przejście gracza przez zabarykadowane drzwi:
+   co się dzieje i co mówi karta "Ktoś próbuje wejść".
+2. Force the Door na zamkniętych drzwiach, potem Ustawienia pokoi > Drzwi: zaznaczona kolumna Zepsute.
+3. Pick the Lock (Hand, próg 15): otwierający dostaje przejście; nikt nie jest przesuwany.
+4. Keep Watch zgłoszony przed Eclipse: karty na początku Eclipse, przy każdym przejściu i podsumowanie na końcu.
+5. GM robi Reroll jednej z tych akcji: wynik rozgrywa się od nowa.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** treść kart; zrzut kolumny Zepsute.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
 ### Wydanie 1.2.112 (szkic)
 
 Źródło: `claude/e100` (ekrany gracza) i `claude/e101` (ekrany GM-a), ich `docs/dev/*/STATUS.md`. Żadna z gałęzi nie
@@ -594,60 +643,6 @@ zapisz, gdzie, ale to nie porażka tego wydania.
 **Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
 ---
-
-### Wydanie 1.2.113 (szkic)
-
-Źródło: `claude/e93`, jego `.github/release-notes/v1.2.113.md` ("12.11.2026, through the coordinator: E93, E69 and E74
-ship as one release, 1.2.113") i `docs/dev/e93/STATUS.md`. W szkicu z 13.11 o 00:35 te trzy checki stały pod 1.2.111
-(jako U3-U5); notatki gałęzi mówią 1.2.113. Gałąź ma już 1.2.109 (a1479e95).
-
-#### W1 Facilities: akcje pokoju i efekty czasowe (E93) [ważne] [szkic] · 15 min · GM i gracz
-
-**Co zrobić:**
-1. GM: Ustawienia pokoi > Facilities > Edytuj akcje - akcja pokoju z rzutem. Gracz używa jej z kafla **Facilities**
-   (dawne Rest). Rzut losuje główny GM.
-2. Zapisz, po jakim czasie na innych ekranach wiersz tej akcji jest wyszarzony z powodem "Ktoś już tego użył"; drugi
-   gracz, który zapłacił w tej samej chwili, dostaje odmowę i zwrot akcji; w pokoju zostaje słaby ślad (Subtle).
-3. Ukończony projekt z akcją "Pory dnia: 1": rano akcja jest w oknie Facilities i w linii okna Projects, po przesunięciu
-   zegara na południe znika; "Na stałe" zostaje do końca rozdziału.
-4. Efekt czasowy (np. +2 do cechy): na arkuszu gracza biały znaczek obok Hope Calls, podpowiedź mówi, kiedy się kończy;
-   kończy się z porą dnia. Pod Stained Glass znaczek ze świeczką.
-5. Okno Facilities i oba edytory przy 1366x768 i wąskim ekranie, w obu motywach i językach: nic ucięte, bez przewijania
-   w bok.
-6. Overflow: pięć nowych stanów (Lockdown, Insomnia, Toll, Jitters, Power cut); przy Insomnii Short Rest jest szary.
-
-**Co powinno być:** jak w krokach.
-**Zgłoś:** czas z kroku 2; zrzuty okna Facilities i znaczka efektu.
-**Rozstrzyga:** [LIVE-E93-01 (po wydaniu E93), LIVE-E93-02 (po wydaniu E93), LIVE-E93-03 (po wydaniu E93)]
-
-#### W2 Infiltrate: przejście, Tail i Dash (E69) [ważne] [szkic] · 10 min · GM i gracz
-
-**Co zrobić:**
-1. Na konsoli głównego GM-a: `Hooks.on("drpgCrossingSettled", e => console.log(e))`.
-2. Gracz przechodzi do sąsiedniego pokoju i stoi: po około 2 s jedno zdarzenie z pokojami. GM cofa token gracza przed
-   upływem 2 s: brak zdarzenia. Przeciągnięcie przez dwa pokoje naraz: jedno zdarzenie od pierwszego do ostatniego.
-3. Kafel **Infiltrate** (dawne Listen): siedem wierszy (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick
-   the Lock, Keep Watch).
-4. Tail Someone na postaci GM-a: karty przychodzą, gdy cel przechodzi; w Eclipse Tail się nie zaczyna.
-5. Dash: darmowe przejścia; śledzący dostaje "… ucieka Dashem. Zgubiono trop."
-
-**Co powinno być:** jak w krokach.
-**Zgłoś:** linie z konsoli z kroku 2 i zmierzone opóźnienie serwera.
-**Rozstrzyga:** [LIVE-E69-04 (po wydaniu E69)]
-
-#### W3 Drzwi i Keep Watch (E74) [ważne] [szkic] · 10 min · GM i gracz
-
-**Co zrobić:**
-1. Gracz robi Shut the Door. Ruch tokenu GM-a nie jest blokowany. Następne przejście gracza przez zabarykadowane drzwi:
-   co się dzieje i co mówi karta "Ktoś próbuje wejść".
-2. Force the Door na zamkniętych drzwiach, potem Ustawienia pokoi > Drzwi: zaznaczona kolumna Zepsute.
-3. Pick the Lock (Hand, próg 15): otwierający dostaje przejście; nikt nie jest przesuwany.
-4. Keep Watch zgłoszony przed Eclipse: karty na początku Eclipse, przy każdym przejściu i podsumowanie na końcu.
-5. GM robi Reroll jednej z tych akcji: wynik rozgrywa się od nowa.
-
-**Co powinno być:** jak w krokach.
-**Zgłoś:** treść kart; zrzut kolumny Zepsute.
-**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
 ## Blok A - przed sesją (GM sam)
 
@@ -1969,7 +1964,7 @@ przypisany do sprawdzenia, przy którym warto go zrobić, gdy wydanie wyjdzie.
 | Id | Gałąź | Etap | Sprawdzenie |
 | --- | --- | --- | --- |
 | LIVE-E64-01 | `claude/e64` | E64 | N8 |
-| LIVE-E69-04 | `claude/e93` | E69 | W2 |
-| LIVE-E93-01 | `claude/e93` | E93 | W1 |
-| LIVE-E93-02 | `claude/e93` | E93 | W1 |
-| LIVE-E93-03 | `claude/e93` | E93 | W1 |
+| LIVE-E69-04 | `claude/e93` | E69 | U10 |
+| LIVE-E93-01 | `claude/e93` | E93 | U9 |
+| LIVE-E93-02 | `claude/e93` | E93 | U9 |
+| LIVE-E93-03 | `claude/e93` | E93 | U9 |

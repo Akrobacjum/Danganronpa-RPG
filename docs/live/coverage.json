@@ -123,6 +123,24 @@
    "time": "3 min",
    "draft": true
   },
+  "U9": {
+   "title": "Facilities: akcje pokoju i efekty czasowe (E93)",
+   "weight": "ważne",
+   "time": "15 min",
+   "draft": true
+  },
+  "U10": {
+   "title": "Infiltrate: przejście, Tail i Dash (E69)",
+   "weight": "ważne",
+   "time": "10 min",
+   "draft": true
+  },
+  "U11": {
+   "title": "Drzwi i Keep Watch (E74)",
+   "weight": "ważne",
+   "time": "10 min",
+   "draft": true
+  },
   "V1": {
    "title": "Ekrany gracza po przeglądzie (E100)",
    "weight": "ważne",
@@ -133,24 +151,6 @@
    "title": "Ekrany GM-a po przeglądzie (E101)",
    "weight": "ważne",
    "time": "20 min",
-   "draft": true
-  },
-  "W1": {
-   "title": "Facilities: akcje pokoju i efekty czasowe (E93)",
-   "weight": "ważne",
-   "time": "15 min",
-   "draft": true
-  },
-  "W2": {
-   "title": "Infiltrate: przejście, Tail i Dash (E69)",
-   "weight": "ważne",
-   "time": "10 min",
-   "draft": true
-  },
-  "W3": {
-   "title": "Drzwi i Keep Watch (E74)",
-   "weight": "ważne",
-   "time": "10 min",
    "draft": true
   },
   "A1": {
@@ -4599,7 +4599,7 @@
   "LIVE-E69-04": {
    "status": "after-release",
    "checks": [
-    "W2"
+    "U10"
    ],
    "branch": "claude/e93",
    "stage": "E69",
@@ -4608,7 +4608,7 @@
   "LIVE-E93-01": {
    "status": "after-release",
    "checks": [
-    "W1"
+    "U9"
    ],
    "branch": "claude/e93",
    "stage": "E93",
@@ -4617,7 +4617,7 @@
   "LIVE-E93-02": {
    "status": "after-release",
    "checks": [
-    "W1"
+    "U9"
    ],
    "branch": "claude/e93",
    "stage": "E93",
@@ -4626,7 +4626,7 @@
   "LIVE-E93-03": {
    "status": "after-release",
    "checks": [
-    "W1"
+    "U9"
    ],
    "branch": "claude/e93",
    "stage": "E93",

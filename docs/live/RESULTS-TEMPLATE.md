@@ -45,11 +45,11 @@ napisz, co zrobione). Gdy sprawdzenie ma kilka kroków, a padł jeden, wpisz X i
 | U6 | Ikona na tokenie projektu (szkic) | miłe | | | |
 | U7 | Tajny projekt nie wycieka przez Countdowns (S17-31) (szkic) | krytyczne | | | |
 | U8 | Paczka modułu bez makr (szkic) | miłe | | | |
+| U9 | Facilities: akcje pokoju i efekty czasowe (E93) (szkic) | ważne | | | |
+| U10 | Infiltrate: przejście, Tail i Dash (E69) (szkic) | ważne | | | |
+| U11 | Drzwi i Keep Watch (E74) (szkic) | ważne | | | |
 | V1 | Ekrany gracza po przeglądzie (E100) (szkic) | ważne | | | |
 | V2 | Ekrany GM-a po przeglądzie (E101) (szkic) | ważne | | | |
-| W1 | Facilities: akcje pokoju i efekty czasowe (E93) (szkic) | ważne | | | |
-| W2 | Infiltrate: przejście, Tail i Dash (E69) (szkic) | ważne | | | |
-| W3 | Drzwi i Keep Watch (E74) (szkic) | ważne | | | |
 | A1 | Wersje i czysta konsola | krytyczne | | | |
 | A2 | Strażnik przekaźnika i raport `diagnose()` | krytyczne | | | |
 | A3 | Testy tierów 0-1 i odczyty stylu | krytyczne | | | |
