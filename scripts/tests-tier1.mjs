@@ -51330,7 +51330,9 @@ const INVARIANTS = [
     }],
     ["R4424 - a chapter's end that closes the trial and opens the next morning plays the exit first, then the day's boards (scripts/transitions.mjs `onClockHeard`; scripts/sequence.mjs `whenTrialExitEnds`; the owner's decision of 12.11.2026, every default accepted): heard as one run of the clock's row, the exit plays and the end-of-day board waits for it; heard as two runs - the trial's end, then the morning while the exit plays - the exit is not cut and the board starts when it ends; a new day with no exit asked for starts its board at once", async () => {
         /* The trial's exit, 12.11.2026. Red at 421f2395: the exit was no sequence and the board started at once, and since
-           a sequence cuts the one running, a board started during an exit would have cut it. */
+           a sequence cuts the one running, a board started during an exit would have cut it. Each new morning carries the
+           boards' stamp (`dayBoard`), as the chapter end's next morning and the roll-over write it: since the 1.2.110 line
+           (merged into 1.2.111 on 13.11.2026) a day moved without it - Edit campaign's - plays no board (R4400, R4401). */
         const S = await import("./sequence.mjs"), T = await import("./transitions.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
         const day = 700 + (Date.now() % 100), tag = `R4424:${Date.now()}`, read = {};
@@ -51342,7 +51344,7 @@ const INVARIANTS = [
             S.endSequence("cut");
             // one run: the trial's end and the next morning in one reading of the clock
             T.onClockHeard(c(day, "night", "classTrial"), { on: false, still: true });
-            T.onClockHeard(c(day + 1, "morning", "dailyLife", { trialEndedAt: `${tag}a` }), { on: true, still: true, keep: false });
+            T.onClockHeard(c(day + 1, "morning", "dailyLife", { trialEndedAt: `${tag}a`, dayBoard: day + 1 }), { on: true, still: true, keep: false });
             await until(() => kind() !== null, 3000);
             read.oneFirst = kind();
             await wait(400);
@@ -51354,7 +51356,7 @@ const INVARIANTS = [
             T.onClockHeard(c(day + 1, "night", "classTrial"), { on: false, still: true });
             T.onClockHeard(c(day + 1, "night", "dailyLife", { trialEndedAt: `${tag}b` }), { on: true, still: true, keep: false });
             await until(() => kind() === "trialExit", 3000);
-            T.onClockHeard(c(day + 2, "morning", "dailyLife", { trialEndedAt: `${tag}b` }), { on: true, still: true, keep: false });
+            T.onClockHeard(c(day + 2, "morning", "dailyLife", { trialEndedAt: `${tag}b`, dayBoard: day + 2 }), { on: true, still: true, keep: false });
             await wait(400);
             read.twoStill = kind();
             S.endSequence("skipped");
@@ -51363,7 +51365,7 @@ const INVARIANTS = [
             S.endSequence("cut");
             // no exit: the board at once
             T.onClockHeard(c(day + 2, "night"), { on: false, still: true });
-            T.onClockHeard(c(day + 3, "morning"), { on: true, still: true, keep: false });
+            T.onClockHeard(c(day + 3, "morning", "dailyLife", { dayBoard: day + 3 }), { on: true, still: true, keep: false });
             await until(() => kind() !== null, 3000);
             read.alone = kind();
         } finally {

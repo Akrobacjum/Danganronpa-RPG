@@ -154,9 +154,9 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
     if (!t || t.owner) return t;
     clearFlashes();
     count("transition.heard");
-    // a new day is a session (E94), its boards only on the stamp of a real roll-over (`boardsFor`), after the trial's exit
-    // where one plays (`boards`)
-    if (t.kind === "newDay" && boardsFor(t, clock) && on) boards();
+    // a new day is a session (E94) - Next from Night, or an Eclipse's end that names one - its boards only on the stamp of
+    // a real roll-over (`boardsFor`), after the trial's exit where one plays (`boards`)
+    if (boardsFor(t, clock) && on) boards();
     if (!on || still) return t;
     seed = (seed * 1103515245 + 12345) >>> 0;
     import("./glass.mjs").then(g => g.hintTurn?.({ how: t.how, seed, groups: t.groups, delays: t.delays, dur: t.dur })).catch(() => null);
