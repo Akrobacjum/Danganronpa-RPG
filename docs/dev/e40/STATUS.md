@@ -90,6 +90,8 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- Before the push of the hook group's sweep (13.11.2026): the overflow test by name, 0 failed; `node tools/check.mjs`
+  19/19; lint 0 problems; tiers 0-1 whole 1419 ran, 1404 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 4's plan and pilot (13.11.2026): the new tier-2 test and R99 by name, 0 failed; the mutants
   m1-m3 and the clean tree, old R55 against the new test (ITEM4.md); `node tools/check.mjs` 19/19; lint 0 problems;
   tiers 0-1 whole 1419 ran, 1404 passed, 0 failed, 16 skipped, 0 red (R55 gone).
@@ -223,15 +225,21 @@ The plan's items 2-6, in its order, with what each would take:
     only make a test slower. Measured on a copy where every wait right after a settle throws on a timeout (47 such
     pairs in the file, batches 1 and 2 among them): the 33 tests holding batch 1's and 2's sites, 0 failed; batch 3's 11
     tests, 0 failed once the three verdict waits were corrected; batch 4's 8 tests, 0 failed; batch 5's 6 tests, 0 failed; batch 6's 7 tests, 0 failed; batch 7's 5 tests, 0 failed; batch 8's 4 tests, 0 failed.
-  - **The hook and notice group: measured, not converted** (13.11.2026). The finder for it (a settle whose next three
-    lines read `warned`, `told`, `notices`, `heard`, `fired`, `packets`, `replies` and the like, no chat read, none
-    within 8 lines of an item-4 slice line) lists 178 sites. Read for the first 25: the values come from a `send`
-    callback inside an awaited `judge`, a `ui.notifications.warn` override or a socket emit caught in the same call -
-    filled before the awaited call returns. Measured on a copy with the settle removed at the site: the first 25 sites
-    (23 tests) and 25 from the middle of the list (19 tests), each set in one run, 0 failed. So an `until()` there would
-    be true at once and change nothing; the settle is kept as it is. Not measured: whether a slower machine (CI's) makes
-    any of them late, and the other 128 sites one by one. The chat group's waits were checked to find their card, not
-    whether the card was already there before the settle ended.
+  - **The hook and notice group: measured whole, one site converted** (13.11.2026). The finder for it (a settle whose
+    next three lines read `warned`, `told`, `notices`, `heard`, `fired`, `packets`, `replies` and the like, no chat
+    read, none within 8 lines of an item-4 slice line) lists 178 sites. Their values mostly come from a `send` callback
+    inside an awaited `judge`, a `ui.notifications.warn` override or a socket emit caught in the same call, filled
+    before the awaited call returns. Measured on a copy with the settle removed at every site, in four sets, one run
+    each: 25 sites (23 tests), 25 (19), 64 (47) and 64 (38); two tests failed, each passing on the clean tree:
+    - "a GM clears the overflow from Despair Flow's Overflow tab ..." at the settle after `clearOverflowAsGm()`: the
+      packet to the other GM is queued after the call returns, and the test drains `queued` next. Converted: the settle
+      kept and `await until(() => queued.length > 0)` after it; with only that settle removed the test fails, with
+      the until in its place it passes, and its other two sites removed with the until in place it passes.
+    - "a veiled card lights the Chat tab only where its words are" at the settle before the notifier's recorder goes in:
+      it lets the chat log's own notifier calls for the two cards just posted finish, so the recorder does not count
+      them (without it the card is counted twice). A drain before a measurement, nothing an until() can wait for: kept.
+    So 176 of the 178 settles are not what their read waits on here, and none of them is converted (an until() would
+    be true at once). Not measured: a slower machine (CI's), and each site alone (the sets were removed together).
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
   wiring is not this line's to touch.
 

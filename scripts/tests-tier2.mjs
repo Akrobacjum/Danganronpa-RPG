@@ -80738,6 +80738,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ok(!isPrimaryGm(), "with the second GM in the list this browser is still the primary - this would measure nothing");
             const cleared = O.clearOverflowAsGm();
             await settle();
+            await until(() => queued.length > 0);
             const beforeA = O.overflowCount();
             for (const packet of queued.splice(0)) {
                 const replies = [];
