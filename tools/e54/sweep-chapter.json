@@ -1,0 +1,635 @@
+{
+  "about": "The comment sweep's rows for the chapter cut (docs/dev/E54/COMMENT-SWEEP.md), applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line on 421f2395 (base), the file it stands in after the cut (file), its text there (old, found exactly once or the row refuses) and what it reads instead (new).",
+  "rows": [
+    {
+      "base": "audit/harness/scenarios/41-trial-scene.mjs:726",
+      "file": "audit/harness/scenarios/41-trial-scene.mjs",
+      "old": "       m10 the walk reaches a discovery and chapter.mjs's second guard (`announcedAlready`) refuses it with a",
+      "new": "       m10 the walk reaches a discovery and body.mjs's second guard (`announcedAlready`) refuses it with a",
+      "why": "names `announcedAlready`, which goes to body.mjs"
+    },
+    {
+      "base": "audit/harness/scenarios/72-canary.mjs:661",
+      "file": "audit/harness/scenarios/72-canary.mjs",
+      "old": "    /* The promotion is asked after the card and the hold since E11 C4 (chapter.mjs `runDiscovery`), so the",
+      "new": "    /* The promotion is asked after the card and the hold since E11 C4 (body.mjs `runDiscovery`), so the",
+      "why": "`runDiscovery` goes to body.mjs"
+    },
+    {
+      "base": "audit/harness/scenarios/74-room-tile.mjs:742",
+      "file": "audit/harness/scenarios/74-room-tile.mjs",
+      "old": "    /* Aiko marked dead where she stands (chapter.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which",
+      "new": "    /* Aiko marked dead where she stands (death.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/body-tile.mjs:50",
+      "file": "scripts/body-tile.mjs",
+      "old": " * `reconcilePhase`). The discovery keeps its own rule (chapter.mjs `bodiesToDiscover`: an execution is no body to find).",
+      "new": " * `reconcilePhase`). The discovery keeps its own rule (body.mjs `bodiesToDiscover`: an execution is no body to find).",
+      "why": "`bodiesToDiscover` goes to body.mjs"
+    },
+    {
+      "base": "scripts/body-tile.mjs:182",
+      "file": "scripts/body-tile.mjs",
+      "old": " * GM only, on the GM's browser that made the death the table's: chapter.mjs `markDeceased`, the one function every public",
+      "new": " * GM only, on the GM's browser that made the death the table's: death.mjs `markDeceased`, the one function every public",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/body-tile.mjs:236",
+      "file": "scripts/body-tile.mjs",
+      "old": " * season reset's own deaths group, chapter.mjs `clearSeasonDeaths`, which at a table does take every body). A removal",
+      "new": " * season reset's own deaths group, death.mjs `clearSeasonDeaths`, which at a table does take every body). A removal",
+      "why": "`clearSeasonDeaths` goes to death.mjs"
+    },
+    {
+      "base": "scripts/body-tile.mjs:253",
+      "file": "scripts/body-tile.mjs",
+      "old": " * deaths entry on its own tiles alone, so a GM's suite at a table deletes no body the table holds). A revive takes the student's (chapter.mjs `reviveCharacter`: a student back alive",
+      "new": " * deaths entry on its own tiles alone, so a GM's suite at a table deletes no body the table holds). A revive takes the student's (death.mjs `reviveCharacter`: a student back alive",
+      "why": "`reviveCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/body-tile.mjs:254",
+      "file": "scripts/body-tile.mjs",
+      "old": " * has no body), the season reset's deaths group every one (chapter.mjs `clearSeasonDeaths`), a body whose student is",
+      "new": " * has no body), the season reset's deaths group every one (death.mjs `clearSeasonDeaths`), a body whose student is",
+      "why": "`clearSeasonDeaths` goes to death.mjs"
+    },
+    {
+      "base": "scripts/case-realize.mjs:165",
+      "file": "scripts/case-realize.mjs",
+      "old": " * discovery (`writer`, the primary - chapter.mjs `runDiscovery` runs there on both roads), a payload not the suite's",
+      "new": " * discovery (`writer`, the primary - body.mjs `runDiscovery` runs there on both roads), a payload not the suite's",
+      "why": "`runDiscovery` goes to body.mjs"
+    },
+    {
+      "base": "scripts/eclipse.mjs:130",
+      "file": "scripts/eclipse.mjs",
+      "old": "     * moves - D5's rule, clock.mjs `setClock`), and a discovery is refused during an Eclipse (chapter.mjs `runDiscovery`) -",
+      "new": "     * moves - D5's rule, clock.mjs `setClock`), and a discovery is refused during an Eclipse (body.mjs `runDiscovery`) -",
+      "why": "`runDiscovery` goes to body.mjs"
+    },
+    {
+      "base": "scripts/frisk.mjs:100",
+      "file": "scripts/frisk.mjs",
+      "old": " * `isDeceased` - publishing drops the GMs' row of it, chapter.mjs `publishDeath`); one the GMs keep is known to those",
+      "new": " * `isDeceased` - publishing drops the GMs' row of it, death.mjs `publishDeath`); one the GMs keep is known to those",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/frisk.mjs:183",
+      "file": "scripts/frisk.mjs",
+      "old": " * The students who see what happens in `room` on `scene`, as the GMs read them: chapter.mjs `witnessesOf`, the rule a",
+      "new": " * The students who see what happens in `room` on `scene`, as the GMs read them: body.mjs `witnessesOf`, the rule a",
+      "why": "`witnessesOf` goes to body.mjs"
+    },
+    {
+      "base": "scripts/gm-stores.mjs:485",
+      "file": "scripts/gm-stores.mjs",
+      "old": " * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's",
+      "new": " * (death.mjs `killCharacter`), dropped by the publication, a revival or the reset's",
+      "why": "`killCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/gm-stores.mjs:724",
+      "file": "scripts/gm-stores.mjs",
+      "old": " * by a kill (chapter.mjs `killCharacter`) and cut by the reset's \"advancement\" group - the",
+      "new": " * by a kill (death.mjs `killCharacter`) and cut by the reset's \"advancement\" group - the",
+      "why": "`killCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/handover.mjs:468",
+      "file": "scripts/handover.mjs",
+      "old": "       (chapter.mjs `publishDeath`), dated when and where the item was taken. The taker knows",
+      "new": "       (death.mjs `publishDeath`), dated when and where the item was taken. The taker knows",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/handover.mjs:636",
+      "file": "scripts/handover.mjs",
+      "old": " * Run by chapter.mjs `publishDeath` with the row it drops; a taker no longer in the world is",
+      "new": " * Run by death.mjs `publishDeath` with the row it drops; a taker no longer in the world is",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/incident-store.mjs:1179",
+      "file": "scripts/incident-store.mjs",
+      "old": " * it known (chapter.mjs `killCharacter`, `publishDeath`), and a player's",
+      "new": " * it known (death.mjs `killCharacter`, `publishDeath`), and a player's",
+      "why": "`killCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/incident-store.mjs:1656",
+      "file": "scripts/incident-store.mjs",
+      "old": " * (chapter.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.",
+      "new": " * (body.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.",
+      "why": "`checkBodyFound` goes to body.mjs"
+    },
+    {
+      "base": "scripts/level-up.mjs:1020",
+      "file": "scripts/level-up.mjs",
+      "old": " * kill (chapter.mjs `killCharacter`) and a season reset (the \"advancement\" group).",
+      "new": " * kill (death.mjs `killCharacter`) and a season reset (the \"advancement\" group).",
+      "why": "`killCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/monocub.mjs:72",
+      "file": "scripts/monocub.mjs",
+      "old": " * is told by the verdict its death names (`sinceVerdict`, chapter.mjs `verdictBefore`, E70 fix p1-G3): its case is open",
+      "new": " * is told by the verdict its death names (`sinceVerdict`, death.mjs `verdictBefore`, E70 fix p1-G3): its case is open",
+      "why": "`verdictBefore` goes to death.mjs"
+    },
+    {
+      "base": "scripts/monocub.mjs:91",
+      "file": "scripts/monocub.mjs",
+      "old": "    // A death that names the verdict before it (E70 fix p1-G3, chapter.mjs `verdictBefore`): open while no later verdict",
+      "new": "    // A death that names the verdict before it (E70 fix p1-G3, death.mjs `verdictBefore`): open while no later verdict",
+      "why": "`verdictBefore` goes to death.mjs"
+    },
+    {
+      "base": "scripts/monocub.mjs:146",
+      "file": "scripts/monocub.mjs",
+      "old": "       The death laid it (chapter.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked",
+      "new": "       The death laid it (death.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/monokuma.mjs:63",
+      "file": "scripts/monokuma.mjs",
+      "old": " * verdict's survivors, the murder window's cast through chapter.mjs `livingStudentsForGm`, assignments.mjs, the GM",
+      "new": " * verdict's survivors, the murder window's cast through death.mjs `livingStudentsForGm`, assignments.mjs, the GM",
+      "why": "`livingStudentsForGm` goes to death.mjs"
+    },
+    {
+      "base": "scripts/remnants.mjs:2369",
+      "file": "scripts/remnants.mjs",
+      "old": " * fight's waits over (chapter.mjs `incidentVictimDied`, `handTiesOn`) and its publication sends",
+      "new": " * fight's waits over (death.mjs `incidentVictimDied`, chapter.mjs `handTiesOn`) and its publication sends",
+      "why": "`incidentVictimDied` goes to death.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:101",
+      "file": "scripts/settings.mjs",
+      "old": "     * for the publication (chapter.mjs `publishDeath`).",
+      "new": "     * for the publication (death.mjs `publishDeath`).",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:679",
+      "file": "scripts/settings.mjs",
+      "old": "     * One writer, chapter.mjs `announceBody` (tier 0 R349); cleared with the hold by the",
+      "new": "     * One writer, body.mjs `announceBody` (tier 0 R349); cleared with the hold by the",
+      "why": "`announceBody` goes to body.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:3351",
+      "file": "scripts/settings.mjs",
+      "old": " * GM's hand (chapter.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then",
+      "new": " * GM's hand (death.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:3417",
+      "file": "scripts/settings.mjs",
+      "old": " * chapter.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI",
+      "new": " * death.mjs `publishDeath` writes from the row, so a held death reads the same before and after it is published (CI",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:3606",
+      "file": "scripts/settings.mjs",
+      "old": " * announced once is not announced again (chapter.mjs `bodiesToDiscover`).",
+      "new": " * announced once is not announced again (body.mjs `bodiesToDiscover`).",
+      "why": "`bodiesToDiscover` goes to body.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:3640",
+      "file": "scripts/settings.mjs",
+      "old": " * are `serverNow()` (a discovery's `at`, chapter.mjs `runDiscovery`; `clock.trialEndedAt`,",
+      "new": " * are `serverNow()` (a discovery's `at`, body.mjs `runDiscovery`; `clock.trialEndedAt`,",
+      "why": "`runDiscovery` goes to body.mjs"
+    },
+    {
+      "base": "scripts/settings.mjs:3653",
+      "file": "scripts/settings.mjs",
+      "old": " * body found is stamped once per chapter and season\"). GM-side; chapter.mjs `announceBody`",
+      "new": " * body found is stamped once per chapter and season\"). GM-side; body.mjs `announceBody`",
+      "why": "`announceBody` goes to body.mjs"
+    },
+    {
+      "base": "scripts/sheet-audit.mjs:763",
+      "file": "scripts/sheet-audit.mjs",
+      "old": " * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22); and through",
+      "new": " * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (death.mjs `bulletsHeldBy`, H22); and through",
+      "why": "`bulletsHeldBy` goes to death.mjs"
+    },
+    {
+      "base": "scripts/sheet-audit.mjs:906",
+      "file": "scripts/sheet-audit.mjs",
+      "old": " * uuid it had). For a road that takes such an item for good (chapter.mjs `keepBulletDeletions`). Empty on a browser",
+      "new": " * uuid it had). For a road that takes such an item for good (death.mjs `keepBulletDeletions`). Empty on a browser",
+      "why": "`keepBulletDeletions` goes to death.mjs"
+    },
+    {
+      "base": "scripts/states.mjs:117",
+      "file": "scripts/states.mjs",
+      "old": " * revive (chapter.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the",
+      "new": " * revive (death.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the",
+      "why": "`reviveCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-grid.mjs:708",
+      "file": "scripts/tests-grid.mjs",
+      "old": "    /* The discovery's two parts the invariants read (chapter.mjs `runDiscovery`): the",
+      "new": "    /* The discovery's two parts the invariants read (body.mjs `runDiscovery`): the",
+      "why": "`runDiscovery` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-kit.mjs:2253",
+      "file": "scripts/tests-kit.mjs",
+      "old": " * one a public death lays (body-tile.mjs `leaveBody`, from chapter.mjs `markDeceased` since E63) where a test marks a death and takes the flag",
+      "new": " * one a public death lays (body-tile.mjs `leaveBody`, from death.mjs `markDeceased` since E63) where a test marks a death and takes the flag",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:7199",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * defines it, written only by chapter.mjs's `markDeceased` and `reviveCharacter`",
+      "new": "         * defines it, written only by death.mjs's `markDeceased` and `reviveCharacter`",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:8967",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * the deaths of the bodies it draws since, and chapter.mjs `announcedAlready`, the death",
+      "new": "         * the deaths of the bodies it draws since, and body.mjs `announcedAlready`, the death",
+      "why": "`announcedAlready` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:8974",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * E11 fix r2-J1 (1.2.73) added one place, chapter.mjs `runDiscovery` (SHEET): it now awaits",
+      "new": "         * E11 fix r2-J1 (1.2.73) added one place, body.mjs `runDiscovery` (SHEET): it now awaits",
+      "why": "`runDiscovery` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:11914",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * chapter.mjs `bodiesToDiscover`, driven here on fakes: each student hands its flags as the",
+      "new": "         * body.mjs `bodiesToDiscover`, driven here on fakes: each student hands its flags as the",
+      "why": "`bodiesToDiscover` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:11958",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * beside an old body announced a new one. chapter.mjs `witnessesOf`, driven on fake tokens",
+      "new": "         * beside an old body announced a new one. body.mjs `witnessesOf`, driven on fake tokens",
+      "why": "`witnessesOf` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:11990",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * chapter.mjs `announceBody`, which `runDiscovery` calls once per discovery. Read in every",
+      "new": "         * body.mjs `announceBody`, which `runDiscovery` calls once per discovery. Read in every",
+      "why": "`announceBody` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:12000",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * And the season reset's (E42 C3): the bodyFound entry's clear, chapter.mjs `clearSeasonBodies`, writes the",
+      "new": "         * And the season reset's (E42 C3): the bodyFound entry's clear, death.mjs `clearSeasonBodies`, writes the",
+      "why": "`clearSeasonBodies` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:22628",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R3145 - the body's announcement is spelt once and called from the stamp alone (chapter.mjs `BODY_ANNOUNCED_HOOK`, E95 C4): the hook's name stands in one place of the module's code, it is called in `callBodyAnnounced` alone, which `announceBody` awaits after the stamp is written and `announceArrivedBodies` calls, and `runDiscovery` announces before it gathers everyone\", async () => {",
+      "new": "    [\"R3145 - the body's announcement is spelt once and called from the stamp alone (body.mjs `BODY_ANNOUNCED_HOOK`, E95 C4): the hook's name stands in one place of the module's code, it is called in `callBodyAnnounced` alone, which `announceBody` awaits after the stamp is written and `announceArrivedBodies` calls, and `runDiscovery` announces before it gathers everyone\", async () => {",
+      "why": "BODY_ANNOUNCED_HOOK -> body.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:22766",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \\\"gdy postać umiera ... Nie gdy zostaje Monocubem\\\"): body-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased`, the one function every public death passes, handed the record it just wrote, and from migrate.mjs's pass for a 1.2.104 world (E63 C3) alone; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs\", async () => {",
+      "new": "    [\"R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \\\"gdy postać umiera ... Nie gdy zostaje Monocubem\\\"): body-tile.mjs `leaveBody` is called from death.mjs `markDeceased`, the one function every public death passes, handed the record it just wrote, and from migrate.mjs's pass for a 1.2.104 world (E63 C3) alone; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs\", async () => {",
+      "why": "markDeceased -> death.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:7292",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * body's discovery or a GM's hand (chapter.mjs `publishDeath`). Driven on engines",
+      "new": "         * body's discovery or a GM's hand (death.mjs `publishDeath`). Driven on engines",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:26586",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * (LIVE-E18-03). The body's discovery (chapter.mjs `runDiscovery`) is posted as the assemblies are, its",
+      "new": "         * (LIVE-E18-03). The body's discovery (body.mjs `runDiscovery`) is posted as the assemblies are, its",
+      "why": "`runDiscovery` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:34807",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * Monocubs) and the GM's strip chapter.mjs `livingStudents()`, so with a Monocub holding the only action left the",
+      "new": "         * Monocubs) and the GM's strip death.mjs `livingStudents()`, so with a Monocub holding the only action left the",
+      "why": "`livingStudents` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:38552",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (chapter.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \\\"- choose -\\\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role\", async () => {",
+      "new": "    [\"R1360 - the case's irreversible windows (E22 C3b; E22-01, E22-03, E22-05; S06-08, S13-04, S13-05): Who died? (death.mjs `openDeathDialog`), the body's announcement (`openBodyDiscoveryDialog`) and the chapter's end (`openChapterEndDialog`), each opened with DialogV2.wait stood in for, ask with their consequence destructive and named by its effect, Cancel the default and the first submit button in the tree, and Who died? and the body's room open on \\\"- choose -\\\" with that button shut, or, while an incident is open, on its victim and the victim's room with it open; Sweep Truth Bullets, Clear Faint Remnants, Delete the Remnant, End the murder (the tracker's and the fight's), the Final Trial's verdict and a stopped end's Finish and Drop ask with the destructive role\", async () => {",
+      "why": "openDeathDialog -> death.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42038",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1453 - not in the class (E24 C3a, E24-19; audit S03-36): a student marked `notInClass` leaves monokuma.mjs `studentActors`, `actingStudents` and `studentCensus` (the world's and a handed list), chapter.mjs `livingStudentsForGm` (the murder window's cast), assignments.mjs `students` and the vote's `trialParticipants`; the vote's candidates and its size, the verdict's survivors and the Final Trial's list read `studentActors` and never `game.actors`; `classCandidates` names the characters no player owns, not a Monokuma or one already out\", async () => {",
+      "new": "    [\"R1453 - not in the class (E24 C3a, E24-19; audit S03-36): a student marked `notInClass` leaves monokuma.mjs `studentActors`, `actingStudents` and `studentCensus` (the world's and a handed list), death.mjs `livingStudentsForGm` (the murder window's cast), assignments.mjs `students` and the vote's `trialParticipants`; the vote's candidates and its size, the verdict's survivors and the Final Trial's list read `studentActors` and never `game.actors`; `classCandidates` names the characters no player owns, not a Monokuma or one already out\", async () => {",
+      "why": "livingStudentsForGm -> death.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:49085",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * only whether there is a record; the discovery keeps its own rule (chapter.mjs `bodiesToDiscover`: an execution",
+      "new": "         * only whether there is a record; the discovery keeps its own rule (body.mjs `bodiesToDiscover`: an execution",
+      "why": "`bodiesToDiscover` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:50496",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R3850 - a Spectator is no student (E92 C1; the owner's E92 goal (5)): a student flagged `spectator` leaves monokuma.mjs `studentActors`, `actingStudents`, `studentCensus` (the world's and a handed list), `ownedStudents`, chapter.mjs `livingStudentsForGm` (the murder window's cast, the body's witnesses), assignments.mjs `students` (Despair's pools), the vote's `trialParticipants` (the ballots), trial-scene.mjs `castActors` (the trial's cast) and `classCandidates`; `isSpectator` names it\", async () => {",
+      "new": "    [\"R3850 - a Spectator is no student (E92 C1; the owner's E92 goal (5)): a student flagged `spectator` leaves monokuma.mjs `studentActors`, `actingStudents`, `studentCensus` (the world's and a handed list), `ownedStudents`, death.mjs `livingStudentsForGm` (the murder window's cast, the body's witnesses), assignments.mjs `students` (Despair's pools), the vote's `trialParticipants` (the ballots), trial-scene.mjs `castActors` (the trial's cast) and `classCandidates`; `isSpectator` names it\", async () => {",
+      "why": "livingStudentsForGm -> death.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:139",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "           Monocub's false-to-true edge laid a body tile (body-tile.mjs `leaveBody`; from E63 every death made public does, chapter.mjs `markDeceased`), as a trace's roll drops a token,",
+      "new": "           Monocub's false-to-true edge laid a body tile (body-tile.mjs `leaveBody`; from E63 every death made public does, death.mjs `markDeceased`), as a trace's roll drops a token,",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:793",
+      "file": "scripts/tests-tier2.mjs",
+      "old": " * the GM's \"A character dies\" kills them (chapter.mjs `killCharacter`, kept by the GMs),",
+      "new": " * the GM's \"A character dies\" kills them (death.mjs `killCharacter`, kept by the GMs),",
+      "why": "`killCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:2584",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "            /* E63 C0 (11.11.2026): the death lays its own tile at the token (chapter.mjs `markDeceased`); it is moved into the",
+      "new": "            /* E63 C0 (11.11.2026): the death lays its own tile at the token (death.mjs `markDeceased`); it is moved into the",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:11887",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * E80 part 2 C1, 19.10.2026; the A11 design's step 9 (`roomWitnessesOnGm`, on chapter.mjs `witnessesOf`). The",
+      "new": "         * E80 part 2 C1, 19.10.2026; the A11 design's step 9 (`roomWitnessesOnGm`, on body.mjs `witnessesOf`). The",
+      "why": "`witnessesOf` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:12676",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * published death drops the GMs' row of it (chapter.mjs `publishDeath`), and the three roads asked only that row",
+      "new": "         * published death drops the GMs' row of it (death.mjs `publishDeath`), and the three roads asked only that row",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:22437",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * Bullets (chapter.mjs `destroyBullets`), and a GM's sweep every student's but the Faint and the Final ones",
+      "new": "         * Bullets (death.mjs `destroyBullets`), and a GM's sweep every student's but the Faint and the Final ones",
+      "why": "`destroyBullets` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:22808",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * and the watcher (chapter.mjs `maybeBodyFound`) is asked about the finder's token.",
+      "new": "         * and the watcher (body.mjs `maybeBodyFound`) is asked about the finder's token.",
+      "why": "`maybeBodyFound` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:24875",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * (chapter.mjs `offerStageSix`) and waits for the answer. Until E21 C3a that was DialogV2.confirm, which the",
+      "new": "         * (death.mjs `offerStageSix`) and waits for the answer. Until E21 C3a that was DialogV2.confirm, which the",
+      "why": "`offerStageSix` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:29765",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * `setRemnantFlags`) and a body discovery's promotion of a Faint Prep (chapter.mjs `promoteFaintPrep`,",
+      "new": "         * `setRemnantFlags`) and a body discovery's promotion of a Faint Prep (body.mjs `promoteFaintPrep`,",
+      "why": "`promoteFaintPrep` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:41620",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * stamped, and no walk past A finds a body (chapter.mjs `bodiesToDiscover`, the death's phase - E70-16's",
+      "new": "         * stamped, and no walk past A finds a body (body.mjs `bodiesToDiscover`, the death's phase - E70-16's",
+      "why": "`bodiesToDiscover` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:47416",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * known (chapter.mjs `publishDeath`, which the discovery runs for its bodies). Read: in the",
+      "new": "         * known (death.mjs `publishDeath`, which the discovery runs for its bodies). Read: in the",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:47479",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * known (chapter.mjs `publishDeath`) before it is answered; the Observe is resolved after.",
+      "new": "         * known (death.mjs `publishDeath`) before it is answered; the Observe is resolved after.",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:47576",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * (chapter.mjs `publishDeath`, which the discovery calls). Read: the copy's answer key and flag",
+      "new": "         * (death.mjs `publishDeath`, which the discovery calls). Read: the copy's answer key and flag",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:47697",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * \"kept until found\" unticked (chapter.mjs `killCharacter`, `secret: false`), and the",
+      "new": "         * \"kept until found\" unticked (death.mjs `killCharacter`, chapter.mjs `secret: false`), and the",
+      "why": "`killCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:47764",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * second body is found (chapter.mjs `discoverBody`, in a room nobody stands in, the GM's",
+      "new": "         * second body is found (body.mjs `discoverBody`, in a room nobody stands in, the GM's",
+      "why": "`discoverBody` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:47885",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * back once its fight is over (chapter.mjs `reviveCharacter`) will never be published, so it",
+      "new": "         * back once its fight is over (death.mjs `reviveCharacter`) will never be published, so it",
+      "why": "`reviveCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:55638",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * it happened in (settings.mjs `recordBodyFound`, through chapter.mjs `announceBody`). A death",
+      "new": "         * it happened in (settings.mjs `recordBodyFound`, through body.mjs `announceBody`). A death",
+      "why": "`announceBody` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:55688",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * it known, and the body found is one of those things: `deathVoiceGone` asks chapter.mjs `deathAnnounced`, which",
+      "new": "         * it known, and the body found is one of those things: `deathVoiceGone` asks body.mjs `deathAnnounced`, which",
+      "why": "`deathAnnounced` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:55737",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * death with the kill's record (vote.mjs `executeSentenced` -> chapter.mjs `publishDeath`),",
+      "new": "         * death with the kill's record (vote.mjs `executeSentenced` -> death.mjs `publishDeath`),",
+      "why": "`publishDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:55804",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * watcher's guard (chapter.mjs `checkBodyFound`) admitted every phase but the Investigation,",
+      "new": "         * watcher's guard (body.mjs `checkBodyFound`) admitted every phase but the Investigation,",
+      "why": "`checkBodyFound` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:57207",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * (chapter.mjs `checkBodyFound`). A death the GMs keep, its token on the scene on screen in a",
+      "new": "         * (body.mjs `checkBodyFound`). A death the GMs keep, its token on the scene on screen in a",
+      "why": "`checkBodyFound` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:57623",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * for the queue first: chapter.mjs `bulletsHeldBy`), with that player's write handed to the judge",
+      "new": "         * for the queue first: death.mjs `bulletsHeldBy`), with that player's write handed to the judge",
+      "why": "`bulletsHeldBy` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:73941",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * Sanity marks and synced (the control), killed in public (chapter.mjs `killCharacter`), then revived",
+      "new": "         * Sanity marks and synced (the control), killed in public (death.mjs `killCharacter`), then revived",
+      "why": "`killCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87270",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "                    // E63 C0: chapter.mjs `markDeceased` hands `leaveBody` the record it wrote - the GMs' (RV-6 by construction).",
+      "new": "                    // E63 C0: death.mjs `markDeceased` hands `leaveBody` the record it wrote - the GMs' (RV-6 by construction).",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87288",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "    [\"every death leaves its body where its token lies (E63 C0; the owner's 11.11.2026 on E95 Q2, Q3; QUESTIONS E63 Q5, Q7): a public death (chapter.mjs `killCharacter`) lays one tile at the token's corner, its size in pixels, its picture and floor, flagged with the death; a second `markDeceased` of the same death lays none; the Players window's \\\"dead\\\" lays one; an execution lays one; a student with no token on a scene with rooms leaves none and the GM is told, except for a death in the Class Trial\", async () => {",
+      "new": "    [\"every death leaves its body where its token lies (E63 C0; the owner's 11.11.2026 on E95 Q2, Q3; QUESTIONS E63 Q5, Q7): a public death (death.mjs `killCharacter`) lays one tile at the token's corner, its size in pixels, its picture and floor, flagged with the death; a second `markDeceased` of the same death lays none; the Players window's \\\"dead\\\" lays one; an execution lays one; a student with no token on a scene with rooms leaves none and the GM is told, except for a death in the Class Trial\", async () => {",
+      "why": "killCharacter -> death.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87293",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * and the room the body is read in; then chapter.mjs `markDeceased` again with the record it wrote (the count);",
+      "new": "         * and the room the body is read in; then death.mjs `markDeceased` again with the record it wrote (the count);",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87367",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "    [\"a kept death leaves no body until it is the table's (E63 C0; QUESTIONS E63 Q1): a death the GMs keep lays no tile on any scene; its token moved to another room as Stage 6's Move the body would, its publication (chapter.mjs `publishDeath`) lays one at the token's new place\", async () => {",
+      "new": "    [\"a kept death leaves no body until it is the table's (E63 C0; QUESTIONS E63 Q1): a death the GMs keep lays no tile on any scene; its token moved to another room as Stage 6's Move the body would, its publication (death.mjs `publishDeath`) lays one at the token's new place\", async () => {",
+      "why": "publishDeath -> death.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87370",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * death kept (`secret: true`: chapter.mjs `recordSecretDeath`, a deathStore row); the body tiles of that student",
+      "new": "         * death kept (`secret: true`: death.mjs `recordSecretDeath`, a deathStore row); the body tiles of that student",
+      "why": "`recordSecretDeath` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87605",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * (chapter.mjs `markDeceased` would lay the tile now), with the clock's chapter and epoch; the second also a",
+      "new": "         * (death.mjs `markDeceased` would lay the tile now), with the clock's chapter and epoch; the second also a",
+      "why": "`markDeceased` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87624",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "        // As chapter.mjs `verdictBefore` writes it: the chapter's last verdict, or null.",
+      "new": "        // As death.mjs `verdictBefore` writes it: the chapter's last verdict, or null.",
+      "why": "`verdictBefore` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87732",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * longer in the world (an orphan), and a plain tile with no flag. chapter.mjs `reviveCharacter`: the student's",
+      "new": "         * longer in the world (an orphan), and a plain tile with no flag. death.mjs `reviveCharacter`: the student's",
+      "why": "`reviveCharacter` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87734",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * (season-reset.mjs `seasonStateFor(\"deaths\").clear`, chapter.mjs `clearSeasonDeaths`) run with its other parts",
+      "new": "         * (season-reset.mjs `seasonStateFor(\"deaths\").clear`, death.mjs `clearSeasonDeaths`) run with its other parts",
+      "why": "`clearSeasonDeaths` goes to death.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87951",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * this GM, the primary, with a listener of the suite's own on `drpgBodyAnnounced`: chapter.mjs `announceBody`",
+      "new": "         * this GM, the primary, with a listener of the suite's own on `drpgBodyAnnounced`: body.mjs `announceBody`",
+      "why": "`announceBody` goes to body.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:87956",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * reset's clear (chapter.mjs `clearSeasonBodies`). Read: the calls heard after each, as [writer, waitUntil's",
+      "new": "         * reset's clear (death.mjs `clearSeasonBodies`). Read: the calls heard after each, as [writer, waitUntil's",
+      "why": "`clearSeasonBodies` goes to death.mjs"
+    },
+    {
+      "base": "scripts/trial-progress.mjs:76",
+      "file": "scripts/trial-progress.mjs",
+      "old": " * discovers it (chapter.mjs `bodiesToDiscover`) - and with the cause \"executed\" (amend 4 (b)).",
+      "new": " * discovers it (body.mjs `bodiesToDiscover`) - and with the cause \"executed\" (amend 4 (b)).",
+      "why": "`bodiesToDiscover` goes to body.mjs"
+    },
+    {
+      "base": "scripts/voice.mjs:1019",
+      "file": "scripts/voice.mjs",
+      "old": " * body's discovery (chapter.mjs `deathAnnounced`). Imported here, as `locateActor` is in `voiceTargets`. Since E19",
+      "new": " * body's discovery (body.mjs `deathAnnounced`). Imported here, as `locateActor` is in `voiceTargets`. Since E19",
+      "why": "`deathAnnounced` goes to body.mjs"
+    },
+    {
+      "base": "scripts/voice.mjs:1034",
+      "file": "scripts/voice.mjs",
+      "old": " * is taken as this chapter's and this season's, as chapter.mjs `bodiesToDiscover` takes it; no record, or no clock",
+      "new": " * is taken as this chapter's and this season's, as body.mjs `bodiesToDiscover` takes it; no record, or no clock",
+      "why": "`bodiesToDiscover` goes to body.mjs"
+    }
+  ]
+}

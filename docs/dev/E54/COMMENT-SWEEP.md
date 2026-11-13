@@ -12,21 +12,21 @@ tools/e54/repoint.mjs write from each manifest (SPLIT-STATUS.md), each cut on ma
 
 | | Found | Becomes false | Unchanged by the cuts |
 | --- | --- | --- | --- |
-| Comment lines (scripts/, styles/, tools/, audit/; the suite's comments included) | 830 | 206 | 25 name code the file did not declare at the base (gone before E54, an import, a field, a local) |
+| Comment lines (scripts/, styles/, tools/, audit/; the suite's comments included) | 830 | 203 | 25 name code the file did not declare at the base (gone before E54, an import, a field, a local) |
 | of them in code that moves, naming "here", "this file", "below" ... | 107 | 12 | |
-| of them naming a cut's file and a function of it (`<file> \`name\``) | 422 | 191 | 25 |
-| of them naming a cut's file alone | 307 | 3 | |
-| Test texts: names and `ok`/`equal`/`must`/`needs` messages | 141 (names 78, messages 63) | 51 | 6 |
+| of them naming a cut's file and a function of it (`<file> \`name\``) | 419 | 188 | 25 |
+| of them naming a cut's file alone | 310 | 3 | |
+| Test texts: names and `ok`/`equal`/`must`/`needs` messages | 141 (names 78, messages 63) | 40 | 2 |
 
 Per cut, the false comment lines (a line naming two cuts' files counts in each):
 
 | Cut | False comments | False test texts |
 | --- | --- | --- |
-| sheet (sheet.mjs) | 80 | 42 |
+| sheet (sheet.mjs) | 79 | 32 |
 | W1 (utils.mjs) | 6 | 0 |
 | K1 (investigation.mjs) | 22 | 0 |
 | P1 (cleanup.mjs) | 14 | 1 |
-| D1+D2 (chapter.mjs) | 84 | 8 |
+| D1+D2 (chapter.mjs) | 82 | 7 |
 
 Line references (`<file>:<n>`) to the five files: none in a comment at the base. Documents (docs/, the handbooks)
 were not read for this inventory; the one census document a test holds, docs/dev/e92/CENSUS.md, is repoint's.
@@ -44,14 +44,14 @@ were not read for this inventory; the one census document a test holds, docs/dev
   "<file> exports `name`" stays true: the facade re-exports every name the file exported.
 - **A file's name alone** stays true - the facade keeps the file and its name, the family's top (code.md) - unless the
   same sentence names code of that file which moves; then the holders are named.
-- **A test text** is judged as a comment, with "exports no", "gives a test no road" and an `import()` of the file true.
+- **A test text** is judged as a comment, with "exports no", "has no" (of a module the test imported), "gives a test no road" and an `import()` of the file true.
   A test name that changes changes its row in docs/dev/R-REGISTRY.md (`node tools/registry.mjs --write`) and the key of
   its results; none of the names below is in audit/harness/skip-baseline.json.
 
 Wording, house style: the replacement says where the code stands and, where the sentence gave a reason, the reason
 as it holds after the cut; a historical clause ("until then", "before E54") keeps the file it was true of.
 
-## 1. Comments that become false (206)
+## 1. Comments that become false (203)
 
 Ordered by file and line on 421f2395. "Lands in" is the file the comment stands in after its cut.
 
@@ -122,7 +122,6 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | scripts/player-status.mjs:381 | scripts/player-status.mjs | `moveSlots` goes to sheet-header.mjs | sheet.mjs `moveSlots` | sheet-header.mjs `moveSlots` |
 | scripts/player-status.mjs:417 | scripts/player-status.mjs | `sheetMode` goes to sheet-mode.mjs | sheet.mjs `sheetMode` | sheet-mode.mjs `sheetMode` |
 | scripts/player-status.mjs:471 | scripts/player-status.mjs | `moveSlots` goes to sheet-header.mjs | sheet.mjs `moveSlots` | sheet-header.mjs `moveSlots` |
-| scripts/player-status.mjs:587 | scripts/player-status.mjs | `livingStudents` goes to death.mjs | chapter.mjs `livingStudents` | death.mjs `livingStudents` |
 | scripts/remnants.mjs:1430 | scripts/remnants.mjs | `reshapeTrace` goes to cleanup-reshape.mjs | cleanup.mjs `reshapeTrace` | cleanup-reshape.mjs `reshapeTrace` |
 | scripts/remnants.mjs:2369 | scripts/remnants.mjs | `incidentVictimDied` goes to death.mjs | chapter.mjs `incidentVictimDied` | death.mjs `incidentVictimDied` |
 | scripts/resource-guard.mjs:241 | scripts/resource-guard.mjs | `commitUltimate` goes to sheet-header.mjs | sheet.mjs `commitUltimate` | sheet-header.mjs `commitUltimate` |
@@ -139,7 +138,7 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | scripts/settings.mjs:3653 | scripts/settings.mjs | `announceBody` goes to body.mjs | chapter.mjs `announceBody` | body.mjs `announceBody` |
 | scripts/sheet-audit.mjs:763 | scripts/sheet-audit.mjs | `bulletsHeldBy` goes to death.mjs | chapter.mjs `bulletsHeldBy` | death.mjs `bulletsHeldBy` |
 | scripts/sheet-audit.mjs:906 | scripts/sheet-audit.mjs | `keepBulletDeletions` goes to death.mjs | chapter.mjs `keepBulletDeletions` | death.mjs `keepBulletDeletions` |
-| scripts/sheet.mjs:677 | scripts/sheet-repaint.mjs | the hook was sheet.mjs's (`registerSheetTweaks`, which the facade keeps) | (this file's hook was registered first) | (sheet.mjs's hook, `registerSheetTweaks`, was registered first) |
+| scripts/sheet.mjs:677 | scripts/sheet-repaint.mjs | the hook was sheet.mjs's (`registerSheetTweaks`, which the facade keeps) | (this file's | (sheet.mjs's |
 | scripts/sheet.mjs:705 | scripts/sheet-repaint.mjs | the action panel is sheet-actions.mjs's | Actions are drawn by this file's own action panel | Actions are drawn by the sheet's own action panel (sheet-actions.mjs `injectActionPanel`) |
 | scripts/sheet.mjs:961 | scripts/sheet-repaint.mjs | what a render does to the sheet is the family's, not sheet-repaint.mjs's | everything this file does to a freshly rendered sheet | everything the sheet's family (sheet.mjs `SHEET_STEPS`) does to a freshly rendered sheet |
 | scripts/sheet.mjs:993 | scripts/sheet.mjs | a plan the cut carries out | E54 moves it into the thin sheet.mjs. | E54 moved it into the thin sheet.mjs. |
@@ -157,7 +156,6 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | scripts/tests-kit.mjs:2253 | scripts/tests-kit.mjs | `markDeceased` goes to death.mjs | chapter.mjs `markDeceased` | death.mjs `markDeceased` |
 | scripts/tests-kit.mjs:2595 | scripts/tests-kit.mjs | `markTraitGlyphs` goes to sheet-header.mjs | sheet.mjs `markTraitGlyphs` | sheet-header.mjs `markTraitGlyphs` |
 | scripts/tests-tier0.mjs:7199 | scripts/tests-tier0.mjs | `markDeceased` goes to death.mjs | chapter.mjs `markDeceased` | death.mjs `markDeceased` |
-| scripts/tests-tier0.mjs:8773 | scripts/tests-tier0.mjs | `addPresentButton` goes to sheet-inventory.mjs | sheet.mjs `addPresentButton` | sheet-inventory.mjs `addPresentButton` |
 | scripts/tests-tier0.mjs:8967 | scripts/tests-tier0.mjs | `announcedAlready` goes to body.mjs | chapter.mjs `announcedAlready` | body.mjs `announcedAlready` |
 | scripts/tests-tier0.mjs:8974 | scripts/tests-tier0.mjs | `runDiscovery` goes to body.mjs | chapter.mjs `runDiscovery` | body.mjs `runDiscovery` |
 | scripts/tests-tier0.mjs:11914 | scripts/tests-tier0.mjs | `bodiesToDiscover` goes to body.mjs | chapter.mjs `bodiesToDiscover` | body.mjs `bodiesToDiscover` |
@@ -169,7 +167,6 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | scripts/tests-tier0.mjs:14770 | scripts/tests-tier0.mjs | `noteStepStart` goes to sheet-sidebar.mjs | sheet.mjs `noteStepStart` | sheet-sidebar.mjs `noteStepStart` |
 | scripts/tests-tier0.mjs:14930 | scripts/tests-tier0.mjs | `onTunnelStep` goes to sheet-sidebar.mjs | sheet.mjs `onTunnelStep` | sheet-sidebar.mjs `onTunnelStep` |
 | scripts/tests-tier0.mjs:19474 | scripts/tests-tier0.mjs | `LONGEST_TILE_WORD` goes to sheet-fit.mjs | sheet.mjs `LONGEST_TILE_WORD` | sheet-fit.mjs `LONGEST_TILE_WORD` |
-| scripts/tests-tier0.mjs:19515 | scripts/tests-tier0.mjs | `livingStudents` goes to death.mjs | chapter.mjs `livingStudents` | death.mjs `livingStudents` |
 | scripts/tests-tier0.mjs:20423 | scripts/tests-tier0.mjs | `findRemnantToken` goes to cleanup-reshape.mjs | cleanup.mjs `findRemnantToken` | cleanup-reshape.mjs `findRemnantToken` |
 | scripts/tests-tier0.mjs:20425 | scripts/tests-tier0.mjs | `saveKeyPlan` goes to key-remnants.mjs | investigation.mjs `saveKeyPlan` | key-remnants.mjs `saveKeyPlan` |
 | scripts/tests-tier1.mjs:7292 | scripts/tests-tier1.mjs | `publishDeath` goes to death.mjs | chapter.mjs `publishDeath` | death.mjs `publishDeath` |
@@ -264,7 +261,7 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | styles/stained-glass.css:138 | styles/stained-glass.css | `paintReserves` goes to sheet-sidebar.mjs | sheet.mjs `paintReserves` | sheet-sidebar.mjs `paintReserves` |
 | styles/stained-glass.css:4762 | styles/stained-glass.css | `headerButton` goes to sheet-header.mjs | sheet.mjs `headerButton` | sheet-header.mjs `headerButton` |
 
-## 2. Test texts that become false (51)
+## 2. Test texts that become false (40)
 
 | file:line (421f2395) | Where | Names | Becomes | The text (around the file's name) |
 | --- | --- | --- | --- | --- |
@@ -276,24 +273,16 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | scripts/tests-tier0.mjs:21406 | name | sheet.mjs | sheetMode -> sheet-mode.mjs | in sheet.mjs or sheet-audit.mjs outside sheet.mjs `sheetMode`, but in the few declarations the list names, each with ... |
 | scripts/tests-tier0.mjs:22628 | name | chapter.mjs | BODY_ANNOUNCED_HOOK -> body.mjs | t once and called from the stamp alone (chapter.mjs `BODY_ANNOUNCED_HOOK`, E95 C4): the hook's name stands in one pla... |
 | scripts/tests-tier0.mjs:22766 | name | chapter.mjs | markDeceased -> death.mjs | ody-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased`, the one function every public death passes, hande... |
-| scripts/tests-tier1.mjs:10822 | ok() | sheet.mjs | wearMarkup -> sheet-item.mjs | - use-items.mjs has no `rollSpends`, or sheet.mjs no `wearMarkup` to read" |
 | scripts/tests-tier1.mjs:28156 | name | sheet.mjs | roomBlockFor -> sheet-actions.mjs | earch still is (E16-T32; audit S03-24): sheet.mjs `roomBlockFor` answers nothing for \"project\" and the room's note ... |
-| scripts/tests-tier1.mjs:38552 | name | chapter.mjs | openDeathDialog -> death.mjs, openBodyDiscoveryDialog -> body.mjs | 05; S06-08, S13-04, S13-05): Who died? (chapter.mjs 'openDeathDialog'), the body's announcement ('openBodyDiscoveryDi... |
+| scripts/tests-tier1.mjs:38552 | name | chapter.mjs | openDeathDialog -> death.mjs | 05; S06-08, S13-04, S13-05): Who died? (chapter.mjs 'openDeathDialog'), the body's announcement ('openBodyDiscoveryDi... |
 | scripts/tests-tier1.mjs:42038 | name | chapter.mjs | livingStudentsForGm -> death.mjs | ensus' (the world's and a handed list), chapter.mjs 'livingStudentsForGm' (the murder window's cast), assignments.mjs... |
 | scripts/tests-tier1.mjs:42162 | name | sheet.mjs | rowGate -> sheet-mode.mjs | E24 C3a, E24-18, E24-20; audit S03-15): sheet.mjs `rowGate` answers no row buttons for the dead and a Monocub (D15), ... |
 | scripts/tests-tier1.mjs:42272 | name | sheet.mjs | paintReserves -> sheet-sidebar.mjs | "R1442 - the reserve on the sheet (sheet.mjs `paintReserves`; E24 C1a, E24-02 and E24-03; the owner's D5 option 1, D4... |
-| scripts/tests-tier1.mjs:42283 | ok() | sheet.mjs | paintReserves -> sheet-sidebar.mjs | "sheet.mjs has no `paintReserves`" |
 | scripts/tests-tier1.mjs:42325 | name | sheet.mjs | paintReserves -> sheet-sidebar.mjs, writeReserve -> sheet-sidebar.mjs | "R1443 - the reserve's field (sheet.mjs `paintReserves`, `writeReserve`; resource-guard.mjs `sheetReserve`; E24 C1a, ... |
-| scripts/tests-tier1.mjs:42339 | ok() | sheet.mjs | paintReserves -> sheet-sidebar.mjs, writeReserve -> sheet-sidebar.mjs | "sheet.mjs has no `paintReserves` or `writeReserve`" |
 | scripts/tests-tier1.mjs:42456 | name | sheet.mjs | paintReserves -> sheet-sidebar.mjs | R1445 - Sanity is private on the sheet (sheet.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the ... |
-| scripts/tests-tier1.mjs:42473 | ok() | sheet.mjs | paintReserves -> sheet-sidebar.mjs | "sheet.mjs has no `paintReserves` or anonymity.mjs no `redactSheet`" |
-| scripts/tests-tier1.mjs:42523 | must() | sheet.mjs | paintReserves -> sheet-sidebar.mjs | "sheet.mjs has no `paintReserves` or anonymity.mjs no `redactSheet` - this would measure nothing" |
 | scripts/tests-tier1.mjs:42848 | name | sheet.mjs | sheetMode -> sheet-mode.mjs, paintReserves -> sheet-sidebar.mjs | 97 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, genera... |
-| scripts/tests-tier1.mjs:42860 | must() | sheet.mjs | paintReserves -> sheet-sidebar.mjs, sheetMode -> sheet-mode.mjs | "sheet.mjs has no `paintReserves` or `sheetMode` - this would measure nothing" |
 | scripts/tests-tier1.mjs:42933 | name | sheet.mjs | paintPartyReserves -> sheet-sidebar.mjs | , Sanity only to its owner and the GMs (sheet.mjs `paintPartyReserves`; E24 fix G2B, general m4's Party side and secu... |
-| scripts/tests-tier1.mjs:42944 | must() | sheet.mjs | paintPartyReserves -> sheet-sidebar.mjs | "sheet.mjs has no `paintPartyReserves` - this would measure nothing" |
 | scripts/tests-tier1.mjs:43337 | name | sheet.mjs | paintPartyReserves -> sheet-sidebar.mjs | s.mjs `reserveBar`, `wrapBarAttribute`; sheet.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student'... |
-| scripts/tests-tier1.mjs:43528 | name | sheet.mjs | tidyBiography -> sheet-sidebar.mjs | "R1456 - one step at a time (sheet.mjs 'SHEET_STEPS'; E24 C3b, E24-21; audit S03-42): a step that throws - 'tidyBiogr... |
 | scripts/tests-tier1.mjs:43591 | name | sheet.mjs | leaveLoadoutTab -> sheet-fit.mjs | the Loadout tab is never the one shown (sheet.mjs `leaveLoadoutTab`; E24 C3b, E24-22; audit S03-47, S12-45): a sheet ... |
 | scripts/tests-tier1.mjs:43626 | name | sheet.mjs | keepTabScroll -> sheet-fit.mjs | a tab keeps its scroll across a render (sheet.mjs 'keepTabScroll'; E24 C3b, E24-22; audit S03-14): what the active 's... |
 | scripts/tests-tier1.mjs:43664 | name | sheet.mjs | noteEmptyExperience -> sheet-sidebar.mjs, injectEquippedTools -> sheet-sidebar.mjs | nd an item in hand shows both its tags (sheet.mjs `noteEmptyExperience`, `injectEquippedTools`; E24 C3b, E24-23; audi... |
@@ -303,9 +292,8 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | scripts/tests-tier1.mjs:44047 | name | sheet.mjs | sheetMode -> sheet-mode.mjs | another player's sheet is redacted when sheet.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside t... |
 | scripts/tests-tier1.mjs:44089 | name | sheet.mjs | sheetMode -> sheet-mode.mjs | he mode's (E45 C1; E70's `modeAllows`): sheet.mjs `sheetMode(...).present(floor)` hides the button outside a Class Tr... |
 | scripts/tests-tier1.mjs:44122 | name | sheet.mjs | renderPlan -> sheet-repaint.mjs, installRenderPlan -> sheet-repaint.mjs | "R1477 - the render's own decision (sheet.mjs `renderPlan`, `installRenderPlan`; E45 C2, E45-08; audit S03-07): \"rep... |
-| scripts/tests-tier1.mjs:44131 | must() | sheet.mjs | renderPlan -> sheet-repaint.mjs, installRenderPlan -> sheet-repaint.mjs | "sheet.mjs has no `renderPlan` or `installRenderPlan`" |
 | scripts/tests-tier1.mjs:44187 | name | sheet.mjs | installRenderPlan -> sheet-repaint.mjs | preUpdate leaves the next render whole (sheet.mjs 'installRenderPlan'; overflow.mjs and resource-guard.mjs 'onPreUpda... |
-| scripts/tests-tier1.mjs:44251 | name | sheet.mjs | repaintInPlace -> sheet-repaint.mjs, installRenderPlan -> sheet-repaint.mjs | he repaint draws what the render would (sheet.mjs `repaintInPlace` through `installRenderPlan`; E45 C2, E45-10; D46 o... |
+| scripts/tests-tier1.mjs:44251 | name | sheet.mjs | repaintInPlace -> sheet-repaint.mjs | he repaint draws what the render would (sheet.mjs `repaintInPlace` through `installRenderPlan`; E45 C2, E45-10; D46 o... |
 | scripts/tests-tier1.mjs:45780 | name | sheet.mjs | moveSlots -> sheet-header.mjs, moveFeetHtml -> sheet-header.mjs, freeMovePip -> sheet-header.mjs | nd the strip, in and out of an Eclipse (sheet.mjs 'moveSlots', 'moveFeetHtml', 'freeMovePip'; player-status.mjs 'buil... |
 | scripts/tests-tier1.mjs:45834 | name | sheet.mjs | headerButton -> sheet-header.mjs, injectSafeword -> sheet-sidebar.mjs | ir words, and the Stop says what it is (sheet.mjs `headerButton`, `injectSafeword`; E49 B2, S03-31): Level Up and Giv... |
 | scripts/tests-tier1.mjs:45868 | name | sheet.mjs | injectActionPanel -> sheet-actions.mjs, budgetLine -> sheet-actions.mjs, buildRulesPanel -> sheet-actions.mjs | and the Rules tab on Monokuma's rules (sheet.mjs `injectActionPanel`, `budgetLine`, `buildRulesPanel`; styles/danganr... |
@@ -313,9 +301,7 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 | scripts/tests-tier1.mjs:47641 | name | sheet.mjs | sheetMode -> sheet-mode.mjs | ; E47-C8): a button exactly on the rows sheet.mjs `sheetMode(actor, game.user).levelUp` holds, its words the standing... |
 | scripts/tests-tier1.mjs:50496 | name | chapter.mjs | livingStudentsForGm -> death.mjs | 's and a handed list), `ownedStudents`, chapter.mjs `livingStudentsForGm` (the murder window's cast, the body's witne... |
 | scripts/tests-tier1.mjs:50651 | name | sheet.mjs | sheetMode -> sheet-mode.mjs | r's (E92 C5; the owner's E92 goal (5)): sheet.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls,... |
-| scripts/tests-tier1.mjs:51225 | name | sheet.mjs | markTraitGlyphs -> sheet-header.mjs | state (stat-glyphs.mjs `markStatName`, sheet.mjs SHEET_STEPS `markTraitGlyphs`; E49, the owner's ask of 11.11.2026 ni... |
-| scripts/tests-tier2.mjs:55701 | must() | chapter.mjs | deathAnnounced -> body.mjs | "chapter.mjs has no `deathAnnounced` or voice.mjs no `deathVoiceGone`: a found body does not reach th |
-| scripts/tests-tier2.mjs:85788 | name | cleanup.mjs | askTransform -> cleanup-reshape.mjs, askTransformChange -> cleanup-reshape.mjs | ad (E22 C5c; A4, audit S02-25, S05-49): cleanup.mjs `askTransform` (the critical's) and `askTransformChange` (the Tam... |
+| scripts/tests-tier2.mjs:85788 | name | cleanup.mjs | askTransform -> cleanup-reshape.mjs | ad (E22 C5c; A4, audit S02-25, S05-49): cleanup.mjs `askTransform` (the critical's) and `askTransformChange` (the Tam... |
 | scripts/tests-tier2.mjs:86117 | name | sheet.mjs | sheetMode -> sheet-mode.mjs | d for its owner and for another player: sheet.mjs `sheetMode`'s mode and row buttons; the sheet drawn by the render h... |
 | scripts/tests-tier2.mjs:87288 | name | chapter.mjs | killCharacter -> death.mjs | QUESTIONS E63 Q5, Q7): a public death (chapter.mjs `killCharacter`) lays one tile at the token's corner, its size in ... |
 | scripts/tests-tier2.mjs:87367 | name | chapter.mjs | publishDeath -> death.mjs | s Move the body would, its publication (chapter.mjs `publishDeath`) lays one at the token's new place" |
@@ -323,7 +309,7 @@ Ordered by file and line on 421f2395. "Lands in" is the file the comment stands 
 Each would read the holder's name in place of the old file's beside the function it names (the "Becomes" column), as
 the comments above.
 
-## 3. Comments that stay true (599 lines) and those the cuts do not change (25)
+## 3. Comments that stay true (602 lines) and those the cuts do not change (25)
 
 One line each: file:line on 421f2395, the file it stands in after its cut, and why it holds.
 
@@ -559,6 +545,7 @@ One line each: file:line on 421f2395, the file it stands in after its cut, and w
 | scripts/patches.mjs:725 | scripts/patches.mjs | true | the file, which stays as the family's facade |
 | scripts/patches.mjs:1420 | scripts/patches.mjs | true | the file, which stays as the family's facade |
 | scripts/patches.mjs:1428 | scripts/patches.mjs | true | names `SHEET_ANCHORS`, which stay |
+| scripts/player-status.mjs:587 | scripts/player-status.mjs | true | history: what the count was until E37, in the file it was in then |
 | scripts/popup.mjs:28 | scripts/popup.mjs | true | the file, which stays as the family's facade |
 | scripts/popup.mjs:1196 | scripts/popup.mjs | true | the file, which stays as the family's facade |
 | scripts/popup.mjs:1242 | scripts/popup.mjs | true | the file, which stays as the family's facade |
@@ -725,6 +712,7 @@ One line each: file:line on 421f2395, the file it stands in after its cut, and w
 | scripts/tests-tier0.mjs:7189 | scripts/tests-tier0.mjs | true | the file, which stays as the family's facade |
 | scripts/tests-tier0.mjs:8402 | scripts/tests-tier0.mjs | true | `sweepPlan` stays in chapter.mjs |
 | scripts/tests-tier0.mjs:8409 | scripts/tests-tier0.mjs | true | `revealPlan` stays in chapter.mjs |
+| scripts/tests-tier0.mjs:8773 | scripts/tests-tier0.mjs | true | a history note: the census row as E45 C1 struck it, keyed by the file it stood in then |
 | scripts/tests-tier0.mjs:10695 | scripts/tests-tier0.mjs | true | the file, which stays as the family's facade |
 | scripts/tests-tier0.mjs:12444 | scripts/tests-tier0.mjs | true | `serverNow` stays in utils.mjs |
 | scripts/tests-tier0.mjs:12674 | scripts/tests-tier0.mjs | true | the file, which stays as the family's facade |
@@ -742,6 +730,7 @@ One line each: file:line on 421f2395, the file it stands in after its cut, and w
 | scripts/tests-tier0.mjs:18296 | scripts/tests-tier0.mjs | true | the file, which stays as the family's facade |
 | scripts/tests-tier0.mjs:18963 | scripts/tests-tier0.mjs | true | the file, which stays as the family's facade |
 | scripts/tests-tier0.mjs:19106 | scripts/tests-tier0.mjs | true | the file, which stays as the family's facade |
+| scripts/tests-tier0.mjs:19515 | scripts/tests-tier0.mjs | true | history: what `trackedStudents` was before, in the file it was in then |
 | scripts/tests-tier0.mjs:19613 | scripts/tests-tier0.mjs | true | `serialWrite` stays in utils.mjs |
 | scripts/tests-tier0.mjs:19733 | scripts/tests-tier0.mjs | true | `serialWrite` stays in utils.mjs |
 | scripts/tests-tier0.mjs:20351 | scripts/tests-tier0.mjs | true | the file, which stays as the family's facade |
@@ -958,6 +947,9 @@ One line each: file:line on 421f2395, the file it stands in after its cut, and w
 | tools/text-render.mjs:24 | tools/text-render.mjs | true | the file, which stays as the family's facade |
 | tools/text-render.mjs:28 | tools/text-render.mjs | true | the file, which stays as the family's facade |
 | tools/text-render.mjs:29 | tools/text-render.mjs | true | the file, which stays as the family's facade |
+| tools/text-render.mjs:29 | tools/text-render.mjs | true | the file, which stays as the family's facade |
+
+Test texts that stay true or are unchanged: 101 (tests-tier0.mjs:914, tests-tier0.mjs:941, tests-tier0.mjs:6199, tests-tier0.mjs:6202, tests-tier0.mjs:6209, tests-tier0.mjs:7186, tests-tier0.mjs:7250, tests-tier0.mjs:11926, tests-tier0.mjs:11966, tests-tier0.mjs:12457, tests-tier0.mjs:12712, tests-tier0.mjs:12712, tests-tier0.mjs:14799, tests-tier0.mjs:15832, tests-tier0.mjs:16275, tests-tier0.mjs:17424, tests-tier0.mjs:17444, tests-tier0.mjs:17447, tests-tier0.mjs:18158, tests-tier0.mjs:18374, tests-tier0.mjs:18690, tests-tier0.mjs:18934, tests-tier0.mjs:19096, tests-tier0.mjs:19113, tests-tier0.mjs:19259, tests-tier0.mjs:20070, tests-tier0.mjs:20086, tests-tier0.mjs:20165, tests-tier0.mjs:20344, tests-tier0.mjs:20388, tests-tier0.mjs:20405, tests-tier0.mjs:20496, tests-tier0.mjs:21145, tests-tier0.mjs:21254, tests-tier0.mjs:21284, tests-tier0.mjs:21302, tests-tier0.mjs:21406, tests-tier0.mjs:21461, tests-tier0.mjs:21480, tests-tier0.mjs:22250, tests-tier0.mjs:22654, tests-tier0.mjs:22720, tests-tier0.mjs:22785, tests-tier0.mjs:22796, tests-tier0.mjs:22849, tests-tier1.mjs:415, tests-tier1.mjs:9685, tests-tier1.mjs:9878, tests-tier1.mjs:9980, tests-tier1.mjs:10009, tests-tier1.mjs:10822, tests-tier1.mjs:19531, tests-tier1.mjs:21028, tests-tier1.mjs:22037, tests-tier1.mjs:28167, tests-tier1.mjs:32377, tests-tier1.mjs:32530, tests-tier1.mjs:32572, tests-tier1.mjs:33232, tests-tier1.mjs:33749, tests-tier1.mjs:34266, tests-tier1.mjs:34281, tests-tier1.mjs:34468, tests-tier1.mjs:34483, tests-tier1.mjs:35503, tests-tier1.mjs:35583, tests-tier1.mjs:35639, tests-tier1.mjs:35856, tests-tier1.mjs:37662, tests-tier1.mjs:37672, tests-tier1.mjs:37708, tests-tier1.mjs:37833, tests-tier1.mjs:38641, tests-tier1.mjs:39253, tests-tier1.mjs:41889, tests-tier1.mjs:41933, tests-tier1.mjs:42172, tests-tier1.mjs:42283, tests-tier1.mjs:42339, tests-tier1.mjs:42473, tests-tier1.mjs:42523, tests-tier1.mjs:42860, tests-tier1.mjs:42944, tests-tier1.mjs:43528, tests-tier1.mjs:43893, tests-tier1.mjs:43968, tests-tier1.mjs:44056, tests-tier1.mjs:44096, tests-tier1.mjs:44131, tests-tier1.mjs:44580, tests-tier1.mjs:45793, tests-tier1.mjs:47266, tests-tier1.mjs:48112, tests-tier1.mjs:50365, tests-tier1.mjs:51225, tests-tier1.mjs:51354, tests-tier2.mjs:55701, tests-tier2.mjs:84766, tests-tier2.mjs:86124, tests-tier2.mjs:87817, tests-tier2.mjs:88173).
 | tools/text-render.mjs:29 | tools/text-render.mjs | true | the file, which stays as the family's facade |
 
 Test texts that stay true or are unchanged: 90 (tests-tier0.mjs:914, tests-tier0.mjs:941, tests-tier0.mjs:6199, tests-tier0.mjs:6202, tests-tier0.mjs:6209, tests-tier0.mjs:7186, tests-tier0.mjs:7250, tests-tier0.mjs:11926, tests-tier0.mjs:11966, tests-tier0.mjs:12457, tests-tier0.mjs:12712, tests-tier0.mjs:12712, tests-tier0.mjs:14799, tests-tier0.mjs:15832, tests-tier0.mjs:16275, tests-tier0.mjs:17424, tests-tier0.mjs:17444, tests-tier0.mjs:17447, tests-tier0.mjs:18158, tests-tier0.mjs:18374, tests-tier0.mjs:18690, tests-tier0.mjs:18934, tests-tier0.mjs:19096, tests-tier0.mjs:19113, tests-tier0.mjs:19259, tests-tier0.mjs:20070, tests-tier0.mjs:20086, tests-tier0.mjs:20165, tests-tier0.mjs:20344, tests-tier0.mjs:20388, tests-tier0.mjs:20405, tests-tier0.mjs:20496, tests-tier0.mjs:21145, tests-tier0.mjs:21254, tests-tier0.mjs:21284, tests-tier0.mjs:21302, tests-tier0.mjs:21406, tests-tier0.mjs:21461, tests-tier0.mjs:21480, tests-tier0.mjs:22250, tests-tier0.mjs:22654, tests-tier0.mjs:22720, tests-tier0.mjs:22785, tests-tier0.mjs:22796, tests-tier0.mjs:22849, tests-tier1.mjs:415, tests-tier1.mjs:9685, tests-tier1.mjs:9878, tests-tier1.mjs:9980, tests-tier1.mjs:10009, tests-tier1.mjs:19531, tests-tier1.mjs:21028, tests-tier1.mjs:22037, tests-tier1.mjs:28167, tests-tier1.mjs:32377, tests-tier1.mjs:32530, tests-tier1.mjs:32572, tests-tier1.mjs:33232, tests-tier1.mjs:33749, tests-tier1.mjs:34266, tests-tier1.mjs:34281, tests-tier1.mjs:34468, tests-tier1.mjs:34483, tests-tier1.mjs:35503, tests-tier1.mjs:35583, tests-tier1.mjs:35639, tests-tier1.mjs:35856, tests-tier1.mjs:37662, tests-tier1.mjs:37672, tests-tier1.mjs:37708, tests-tier1.mjs:37833, tests-tier1.mjs:38641, tests-tier1.mjs:39253, tests-tier1.mjs:41889, tests-tier1.mjs:41933, tests-tier1.mjs:42172, tests-tier1.mjs:43893, tests-tier1.mjs:43968, tests-tier1.mjs:44056, tests-tier1.mjs:44096, tests-tier1.mjs:44580, tests-tier1.mjs:45793, tests-tier1.mjs:47266, tests-tier1.mjs:48112, tests-tier1.mjs:50365, tests-tier1.mjs:51354, tests-tier2.mjs:84766, tests-tier2.mjs:86124, tests-tier2.mjs:87817, tests-tier2.mjs:88173).

@@ -1,0 +1,111 @@
+{
+  "about": "The comment sweep's rows for the cleanup-reshape cut (docs/dev/E54/COMMENT-SWEEP.md), applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line on 421f2395 (base), the file it stands in after the cut (file), its text there (old, found exactly once or the row refuses) and what it reads instead (new).",
+  "rows": [
+    {
+      "base": "scripts/action-tamper.mjs:77",
+      "file": "scripts/action-tamper.mjs",
+      "old": "            // approve (cleanup.mjs `proposeReshape`), and its hint says so and",
+      "new": "            // approve (cleanup-reshape.mjs `proposeReshape`), and its hint says so and",
+      "why": "`proposeReshape` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/api.mjs:942",
+      "file": "scripts/api.mjs",
+      "old": "     *  (cleanup.mjs `applyReshapeRuling`, `declineReshapeRuling`), run on whichever",
+      "new": "     *  (cleanup-reshape.mjs `applyReshapeRuling`, `declineReshapeRuling`), run on whichever",
+      "why": "`applyReshapeRuling` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/bridge-runs-records.mjs:894",
+      "file": "scripts/bridge-runs-records.mjs",
+      "old": "/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */",
+      "new": "/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup-reshape.mjs `ruleReshape`), recorded as the asking GM's. */",
+      "why": "`ruleReshape` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/bridge-table.mjs:1309",
+      "file": "scripts/bridge-table.mjs",
+      "old": "     * (cleanup.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).",
+      "new": "     * (cleanup-reshape.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).",
+      "why": "`claimRuling` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/bridge-wire.mjs:95",
+      "file": "scripts/bridge-wire.mjs",
+      "old": "/** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */",
+      "new": "/** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup-reshape.mjs `ruleReshape`, cleanup.mjs `askReshapeRuling`). */",
+      "why": "`ruleReshape` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/gm-stores.mjs:1158",
+      "file": "scripts/gm-stores.mjs",
+      "old": " * on which GM's browser, which way; E09 C10, cleanup.mjs `claimRuling`). Until",
+      "new": " * on which GM's browser, which way; E09 C10, cleanup-reshape.mjs `claimRuling`). Until",
+      "why": "`claimRuling` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/messenger-app.mjs:737",
+      "file": "scripts/messenger-app.mjs",
+      "old": "     * second one now (cleanup.mjs `claimRuling`); this keeps the second click from",
+      "new": "     * second one now (cleanup-reshape.mjs `claimRuling`); this keeps the second click from",
+      "why": "`claimRuling` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/remnants.mjs:1430",
+      "file": "scripts/remnants.mjs",
+      "old": " *   takes a clean-up back pass it (cleanup.mjs `reshapeTrace`, `undoLastCleanup`; E09 C9).",
+      "new": " *   takes a clean-up back pass it (cleanup-reshape.mjs `reshapeTrace`, cleanup.mjs `undoLastCleanup`; E09 C9).",
+      "why": "`reshapeTrace` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:12763",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * marked the proposal ruled. cleanup.mjs `claimRuling` reads the row and marks it in one",
+      "new": "         * marked the proposal ruled. cleanup-reshape.mjs `claimRuling` reads the row and marks it in one",
+      "why": "`claimRuling` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:20423",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * `remnantSourceOf`, cleanup.mjs `findRemnantToken` and `undoLastCleanup`, diagnostics.mjs",
+      "new": "         * `remnantSourceOf`, cleanup-reshape.mjs `findRemnantToken` and cleanup.mjs `undoLastCleanup`, diagnostics.mjs",
+      "why": "`findRemnantToken` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:2990",
+      "file": "scripts/tests-tier2.mjs",
+      "old": " * reads the proposal off the attempt's row (cleanup.mjs `claimRuling`), so a test that rules names the",
+      "new": " * reads the proposal off the attempt's row (cleanup-reshape.mjs `claimRuling`), so a test that rules names the",
+      "why": "`claimRuling` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:18422",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * ruling's `tie`, cleanup.mjs `reshapeTrace`), and the receipt's snapshot held the type",
+      "new": "         * ruling's `tie`, cleanup-reshape.mjs `reshapeTrace`), and the receipt's snapshot held the type",
+      "why": "`reshapeTrace` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:19809",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * E09 C11, 08.10.2026; audit S05-50. The critical's window (cleanup.mjs `askTransform`) had Erase",
+      "new": "         * E09 C11, 08.10.2026; audit S05-50. The critical's window (cleanup-reshape.mjs `askTransform`) had Erase",
+      "why": "`askTransform` goes to cleanup-reshape.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:85788",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "    [\"E22-T3 - a Reshape's two windows put the reshape on the GM's road (E22 C5c; A4, audit S02-25, S05-49): cleanup.mjs `askTransform` (the critical's) and `askTransformChange` (the Tamper's) drawn on the GM as a player's browser draws them - Leave something else and Reshape it red, on the GM's road and first in the tree; Erase and Cancel plain; each window's note names the GM; the GM's road pressed answers the words and changes nothing in the world (the trace waits for the GM's yes: \\\"a reshaped trace does not change until the GM says so\\\", beside this test)\", async () => {",
+      "new": "    [\"E22-T3 - a Reshape's two windows put the reshape on the GM's road (E22 C5c; A4, audit S02-25, S05-49): cleanup-reshape.mjs `askTransform` (the critical's) and `askTransformChange` (the Tamper's) drawn on the GM as a player's browser draws them - Leave something else and Reshape it red, on the GM's road and first in the tree; Erase and Cancel plain; each window's note names the GM; the GM's road pressed answers the words and changes nothing in the world (the trace waits for the GM's yes: \\\"a reshaped trace does not change until the GM says so\\\", beside this test)\", async () => {",
+      "why": "askTransform -> cleanup-reshape.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/truth-bullets.mjs:295",
+      "file": "scripts/truth-bullets.mjs",
+      "old": " * (cleanup.mjs `reshapeCardParts`). Counted as `copiesInKey` finds them, so a copy whose category",
+      "new": " * (cleanup-reshape.mjs `reshapeCardParts`). Counted as `copiesInKey` finds them, so a copy whose category",
+      "why": "`reshapeCardParts` goes to cleanup-reshape.mjs"
+    }
+  ]
+}

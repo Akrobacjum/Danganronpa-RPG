@@ -1,0 +1,814 @@
+{
+  "about": "The comment sweep's rows for the sheet cut (docs/dev/E54/COMMENT-SWEEP.md), applied by tools/e54/sweep.mjs after split.mjs and repoint.mjs. Each row: the line on 421f2395 (base), the file it stands in after the cut (file), its text there (old, found exactly once or the row refuses) and what it reads instead (new).",
+  "rows": [
+    {
+      "base": "audit/harness/lib/versions.mjs:105",
+      "file": "audit/harness/lib/versions.mjs",
+      "old": "       sheet's own render (sheet.mjs `renderPlan`) read the repaint on that model. E45's other live rows (the wrapper's",
+      "new": "       sheet's own render (sheet-repaint.mjs `renderPlan`) read the repaint on that model. E45's other live rows (the wrapper's",
+      "why": "`renderPlan` goes to sheet-repaint.mjs"
+    },
+    {
+      "base": "audit/harness/scenarios/67-trial-modes.mjs:420",
+      "file": "audit/harness/scenarios/67-trial-modes.mjs",
+      "old": "       actor sheet draws no inventory), its row's Present drawn by sheet.mjs `addPresentButton`; a sheet rendered again",
+      "new": "       actor sheet draws no inventory), its row's Present drawn by sheet-inventory.mjs `addPresentButton`; a sheet rendered again",
+      "why": "`addPresentButton` goes to sheet-inventory.mjs"
+    },
+    {
+      "base": "audit/harness/scenarios/71-sheet.mjs:8",
+      "file": "audit/harness/scenarios/71-sheet.mjs",
+      "old": " * (on its prototype, as ApplicationV2's is, so sheet.mjs `installRenderPlan` wraps it) builds the root again from the",
+      "new": " * (on its prototype, as ApplicationV2's is, so sheet-repaint.mjs `installRenderPlan` wraps it) builds the root again from the",
+      "why": "`installRenderPlan` goes to sheet-repaint.mjs"
+    },
+    {
+      "base": "audit/harness/scenarios/83-roll-integrity.mjs:965",
+      "file": "audit/harness/scenarios/83-roll-integrity.mjs",
+      "old": "    /* E24 C1b (C1a's Open 1): the sheet's reserve field writes through sheet.mjs `writeReserve` - `trustedWrite` with",
+      "new": "    /* E24 C1b (C1a's Open 1): the sheet's reserve field writes through sheet-sidebar.mjs `writeReserve` - `trustedWrite` with",
+      "why": "`writeReserve` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/action-murder.mjs:85",
+      "file": "scripts/action-murder.mjs",
+      "old": "     * and says the same sentence on hover (sheet.mjs `actionButton`).",
+      "new": "     * and says the same sentence on hover (sheet-actions.mjs `actionButton`).",
+      "why": "`actionButton` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/bridge-guards.mjs:1422",
+      "file": "scripts/bridge-guards.mjs",
+      "old": " * student's action through the bridge: its sheet draws no action (sheet.mjs `sheetMode`), but its player's console can",
+      "new": " * student's action through the bridge: its sheet draws no action (sheet-mode.mjs `sheetMode`), but its player's console can",
+      "why": "`sheetMode` goes to sheet-mode.mjs"
+    },
+    {
+      "base": "scripts/call-pickers.mjs:129",
+      "file": "scripts/call-pickers.mjs",
+      "old": " * (sheet.mjs `runCall`), so a second press while the first purchase's picker or confirmation stands opens nothing.",
+      "new": " * (sheet-actions.mjs `runCall`), so a second press while the first purchase's picker or confirmation stands opens nothing.",
+      "why": "`runCall` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/calls.mjs:633",
+      "file": "scripts/calls.mjs",
+      "old": " * What the buyer of a Call holds now, as the sheet reads it before the windows (sheet.mjs `runCall`): a Hope Call's",
+      "new": " * What the buyer of a Call holds now, as the sheet reads it before the windows (sheet-actions.mjs `runCall`): a Hope Call's",
+      "why": "`runCall` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/config.mjs:241",
+      "file": "scripts/config.mjs",
+      "old": "     * sheet's header (sheet.mjs `injectClassControls`), never set by itself, and a",
+      "new": "     * sheet's header (sheet-header.mjs `injectClassControls`), never set by itself, and a",
+      "why": "`injectClassControls` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/config.mjs:510",
+      "file": "scripts/config.mjs",
+      "old": " * Legacy theme (grown once, upwards only - sheet.mjs `growForCalls`), and",
+      "new": " * Legacy theme (grown once, upwards only - sheet-fit.mjs `growForCalls`), and",
+      "why": "`growForCalls` goes to sheet-fit.mjs"
+    },
+    {
+      "base": "scripts/config.mjs:610",
+      "file": "scripts/config.mjs",
+      "old": " * draws it no track (sheet.mjs `wearMarkup`). The number stays 1 because the",
+      "new": " * draws it no track (sheet-item.mjs `wearMarkup`). The number stays 1 because the",
+      "why": "`wearMarkup` goes to sheet-item.mjs"
+    },
+    {
+      "base": "scripts/gm-students.mjs:210",
+      "file": "scripts/gm-students.mjs",
+      "old": " * is changed, never on Apply, through the sheet header's roads (sheet.mjs `injectClassControls`), which are a GM's",
+      "new": " * is changed, never on Apply, through the sheet header's roads (sheet-header.mjs `injectClassControls`), which are a GM's",
+      "why": "`injectClassControls` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/gm-students.mjs:380",
+      "file": "scripts/gm-students.mjs",
+      "old": "     * (`openAdvancementFor`, sheet.mjs `injectAdvanceButton`), a window of its own, so the same round trip.",
+      "new": "     * (`openAdvancementFor`, sheet-header.mjs `injectAdvanceButton`), a window of its own, so the same round trip.",
+      "why": "`injectAdvanceButton` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/hud.mjs:1468",
+      "file": "scripts/hud.mjs",
+      "old": "    // A living student of the class (sheet.mjs `sheetMode`'s `objection`, E45 C1): no Monokuma, Monocub, NPC or the dead.",
+      "new": "    // A living student of the class (sheet-mode.mjs `sheetMode`'s `objection`, E45 C1): no Monokuma, Monocub, NPC or the dead.",
+      "why": "`sheetMode` goes to sheet-mode.mjs"
+    },
+    {
+      "base": "scripts/monokuma.mjs:407",
+      "file": "scripts/monokuma.mjs",
+      "old": " * controls now, beside \"Not in the class\" (sheet.mjs `injectClassControls`), each drawn in the state it changes, for a",
+      "new": " * controls now, beside \"Not in the class\" (sheet-header.mjs `injectClassControls`), each drawn in the state it changes, for a",
+      "why": "`injectClassControls` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/movement.mjs:2215",
+      "file": "scripts/movement.mjs",
+      "old": " * and the sheet's trigger (sheet.mjs `onTunnelStep`) reads no move of a marked token as a step onto a tunnel's end. The",
+      "new": " * and the sheet's trigger (sheet-sidebar.mjs `onTunnelStep`) reads no move of a marked token as a step onto a tunnel's end. The",
+      "why": "`onTunnelStep` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/movement.mjs:2253",
+      "file": "scripts/movement.mjs",
+      "old": " * sheet.mjs `onTunnelStep`; H81 fix C3, the review's H81-C3-R1, which found the claim \"every placing write of the",
+      "new": " * sheet-sidebar.mjs `onTunnelStep`; H81 fix C3, the review's H81-C3-R1, which found the claim \"every placing write of the",
+      "why": "`onTunnelStep` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/murder-rules.mjs:217",
+      "file": "scripts/murder-rules.mjs",
+      "old": " * outside the fight (sheet.mjs `inCrisis`). The panel and the GM's judgement",
+      "new": " * outside the fight (sheet-inventory.mjs `inCrisis`). The panel and the GM's judgement",
+      "why": "`inCrisis` goes to sheet-inventory.mjs"
+    },
+    {
+      "base": "scripts/passages.mjs:245",
+      "file": "scripts/passages.mjs",
+      "old": " * sheet's 'Known passages' (E79 C7, sheet.mjs `knownPassageRows`). The rows that name it, or every row for the",
+      "new": " * sheet's 'Known passages' (E79 C7, sheet-sidebar.mjs `knownPassageRows`). The rows that name it, or every row for the",
+      "why": "`knownPassageRows` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/passages.mjs:293",
+      "file": "scripts/passages.mjs",
+      "old": " * `showPassage`) and the sheet's 'Known passages' click (sheet.mjs `panToPassage`). `spotOf(level)` answers where",
+      "new": " * `showPassage`) and the sheet's 'Known passages' click (sheet-sidebar.mjs `panToPassage`). `spotOf(level)` answers where",
+      "why": "`panToPassage` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/patches.mjs:228",
+      "file": "scripts/patches.mjs",
+      "old": " * own road in sheet.mjs when missing: the equipment heading is found by its text (`findHeadingByText`), the loadout",
+      "new": " * own road in sheet-sidebar.mjs when missing: the equipment heading is found by its text (`findHeadingByText`), the loadout",
+      "why": "names `findHeadingByText`, which goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/patches.mjs:233",
+      "file": "scripts/patches.mjs",
+      "old": " * THE PIP LAYOUT'S PLACES (E24 C1a, 08.11.2026). sheet.mjs `paintReserves` draws Health and Sanity in either of the",
+      "new": " * THE PIP LAYOUT'S PLACES (E24 C1a, 08.11.2026). sheet-sidebar.mjs `paintReserves` draws Health and Sanity in either of the",
+      "why": "`paintReserves` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/player-status.mjs:381",
+      "file": "scripts/player-status.mjs",
+      "old": "    // Two feet whatever is left (E49 B2: sheet.mjs `moveSlots`; until then one per crossing left, one outlined at none).",
+      "new": "    // Two feet whatever is left (E49 B2: sheet-header.mjs `moveSlots`; until then one per crossing left, one outlined at none).",
+      "why": "`moveSlots` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/player-status.mjs:417",
+      "file": "scripts/player-status.mjs",
+      "old": " * as this browser may know it (sheet.mjs `sheetMode`'s `strip`, E45 C1: on the viewer's own character and on a GM's",
+      "new": " * as this browser may know it (sheet-mode.mjs `sheetMode`'s `strip`, E45 C1: on the viewer's own character and on a GM's",
+      "why": "`sheetMode` goes to sheet-mode.mjs"
+    },
+    {
+      "base": "scripts/player-status.mjs:471",
+      "file": "scripts/player-status.mjs",
+      "old": "        // places as the sheet (sheet.mjs `moveSlots`): the free Move, and the Eclipse's second crossing, dimmed outside one.",
+      "new": "        // places as the sheet (sheet-header.mjs `moveSlots`): the free Move, and the Eclipse's second crossing, dimmed outside one.",
+      "why": "`moveSlots` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/resource-guard.mjs:241",
+      "file": "scripts/resource-guard.mjs",
+      "old": " * `toggleEquipped`), `ultimate` (sheet.mjs `commitUltimate`, `setUltimate`) and `sheetText` (the",
+      "new": " * `toggleEquipped`), `ultimate` (sheet-header.mjs `commitUltimate`, `setUltimate`) and `sheetText` (the",
+      "why": "`commitUltimate` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/resource-guard.mjs:242",
+      "file": "scripts/resource-guard.mjs",
+      "old": " * backstory, sheet.mjs `tidyBiography`). A player's write of any of the three is listed in",
+      "new": " * backstory, sheet-sidebar.mjs `tidyBiography`). A player's write of any of the three is listed in",
+      "why": "`tidyBiography` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/rest.mjs:208",
+      "file": "scripts/rest.mjs",
+      "old": " * tile's tooltip (sheet.mjs `roomBlockFor`; E16 part 2 C4, audit S02-26). The tile stays pressable, as every dimmed",
+      "new": " * tile's tooltip (sheet-actions.mjs `roomBlockFor`; E16 part 2 C4, audit S02-26). The tile stays pressable, as every dimmed",
+      "why": "`roomBlockFor` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/room-tile.mjs:114",
+      "file": "scripts/room-tile.mjs",
+      "old": "    // The viewer's mode (sheet.mjs `sheetMode`'s `tile`, E45 C1; the owner's A8): an NPC not in the class is no",
+      "new": "    // The viewer's mode (sheet-mode.mjs `sheetMode`'s `tile`, E45 C1; the owner's A8): an NPC not in the class is no",
+      "why": "`sheetMode` goes to sheet-mode.mjs"
+    },
+    {
+      "base": "scripts/sheet.mjs:677",
+      "file": "scripts/sheet-repaint.mjs",
+      "old": " * resource-guard.mjs cut the write in their own `preUpdateActor` (this file's",
+      "new": " * resource-guard.mjs cut the write in their own `preUpdateActor` (sheet.mjs's",
+      "why": "the hook was sheet.mjs's (`registerSheetTweaks`, which the facade keeps)"
+    },
+    {
+      "base": "scripts/sheet.mjs:705",
+      "file": "scripts/sheet-repaint.mjs",
+      "old": " * header. Actions are drawn by this file's own action panel and again by the",
+      "new": " * header. Actions are drawn by the sheet's own action panel (sheet-actions.mjs `injectActionPanel`) and again by the",
+      "why": "the action panel is sheet-actions.mjs's"
+    },
+    {
+      "base": "scripts/sheet.mjs:961",
+      "file": "scripts/sheet-repaint.mjs",
+      "old": " * resource inputs, and everything this file does to a freshly rendered sheet",
+      "new": " * resource inputs, and everything the sheet's family (sheet.mjs `SHEET_STEPS`) does to a freshly rendered sheet",
+      "why": "what a render does to the sheet is the family's, not sheet-repaint.mjs's"
+    },
+    {
+      "base": "scripts/sheet.mjs:993",
+      "file": "scripts/sheet.mjs",
+      "old": " * and to plant a throwing step in (R1456); E54 moves it into the thin sheet.mjs.",
+      "new": " * and to plant a throwing step in (R1456); E54 moved it into the thin sheet.mjs.",
+      "why": "a plan the cut carries out"
+    },
+    {
+      "base": "scripts/sheet.mjs:2820",
+      "file": "scripts/sheet-sidebar.mjs",
+      "old": " * moves, and nothing draws it then: of this file's hooks (`registerSheetTweaks`) none draws the list on a token's move -",
+      "new": " * moves, and nothing draws it then: of sheet.mjs's hooks (`registerSheetTweaks`) none draws the list on a token's move -",
+      "why": "`registerSheetTweaks` stays in sheet.mjs"
+    },
+    {
+      "base": "scripts/sheet.mjs:3543",
+      "file": "scripts/sheet-inventory.mjs",
+      "old": " * The groups above are drawn by category, and the stylesheet hides Daggerheart's own inventory lists, so an item with",
+      "new": " * The groups of sheet-sidebar.mjs `INVENTORY_GROUPS` are drawn by category, and the stylesheet hides Daggerheart's own inventory lists, so an item with",
+      "why": "`INVENTORY_GROUPS` goes to sheet-sidebar.mjs; CARRIED_TYPES to sheet-inventory.mjs"
+    },
+    {
+      "base": "scripts/sheet.mjs:5514",
+      "file": "scripts/sheet-actions.mjs",
+      "old": "     * advance, which is the rule this file has applied to the Eclipse since it",
+      "new": "     * advance, which is the rule the sheet's tiles have applied to the Eclipse since they",
+      "why": "the rule is the sheet's tiles', and actionButton now stands in sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/sheet.mjs:5739",
+      "file": "scripts/sheet-actions.mjs",
+      "old": "     * separate `isCleaner` test in this file that had to be kept in step by hand.",
+      "new": "     * separate `isCleaner` test in sheet.mjs (before E54) that had to be kept in step by hand.",
+      "why": "the old test was sheet.mjs's, before the split"
+    },
+    {
+      "base": "scripts/spectator-ui.mjs:19",
+      "file": "scripts/spectator-ui.mjs",
+      "old": " * The sheet's mode is sheet.mjs `sheetMode`'s (\"spectator\"): no action grid, no Calls, no row buttons, no Level Up.",
+      "new": " * The sheet's mode is sheet-mode.mjs `sheetMode`'s (\"spectator\"): no action grid, no Calls, no row buttons, no Level Up.",
+      "why": "`sheetMode` goes to sheet-mode.mjs"
+    },
+    {
+      "base": "scripts/stat-glyphs.mjs:6",
+      "file": "scripts/stat-glyphs.mjs",
+      "old": " * sheet's header inside Daggerheart's mark at the left of its name (sheet.mjs `markTraitGlyphs`, the owner's answer of",
+      "new": " * sheet's header inside Daggerheart's mark at the left of its name (sheet-header.mjs `markTraitGlyphs`, the owner's answer of",
+      "why": "`markTraitGlyphs` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/states.mjs:297",
+      "file": "scripts/states.mjs",
+      "old": " * the sheet's state badges read it (sheet.mjs `paintStateBadges`, E95 C5), so a sheet drawn before the status lands",
+      "new": " * the sheet's state badges read it (sheet-sidebar.mjs `paintStateBadges`, E95 C5), so a sheet drawn before the status lands",
+      "why": "`paintStateBadges` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/states.mjs:481",
+      "file": "scripts/states.mjs",
+      "old": " * (sheet.mjs `paintStateBadges`). A view on this browser, not a data change: the",
+      "new": " * (sheet-sidebar.mjs `paintStateBadges`). A view on this browser, not a data change: the",
+      "why": "`paintStateBadges` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/sync.mjs:413",
+      "file": "scripts/sync.mjs",
+      "old": "       (sheet.mjs `monokumaPool`, asked where `isMonokuma` built the panel); a student's sheet reads none of",
+      "new": "       (sheet-actions.mjs `monokumaPool`, asked where `isMonokuma` built the panel); a student's sheet reads none of",
+      "why": "`monokumaPool` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/tests-kit.mjs:2595",
+      "file": "scripts/tests-kit.mjs",
+      "old": " * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet.mjs `markTraitGlyphs`).",
+      "new": " * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet-header.mjs `markTraitGlyphs`).",
+      "why": "`markTraitGlyphs` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:14770",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * the writer's browser, and sheet.mjs `noteStepStart` and `onTunnelStep` read the mark. Read off the source with",
+      "new": "         * the writer's browser, and sheet-sidebar.mjs `noteStepStart` and `onTunnelStep` read the mark. Read off the source with",
+      "why": "`noteStepStart` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:14930",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "                // H81-13: a token moved onto an end takes the button's road (sheet.mjs `onTunnelStep`).",
+      "new": "                // H81-13: a token moved onto an end takes the button's road (sheet-sidebar.mjs `onTunnelStep`).",
+      "why": "`onTunnelStep` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:17252",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R1038 - the trial's dead as the GMs hold them, and nobody living (E70 fix p1-G1; the review's SEC-1, SEC-2, BEH-1, E70P1-R03): voice.mjs `settleTrialVoices` waits for every student's writes to be judged and lists them through `flagsHeldNow`, and `deadForTrial` reads no incident; vote.mjs `trialParticipants` reads the Monocub's flag as held; trial.mjs `presentDialog`, `presentBullet` and the Present row of sheet.mjs `addPresentButton` refuse a student on the trial's list, and `registerTrial` raises no card of a listed student's player and has the primary refuse it; the voice tile repaints when the clock, the floor or the trial's record changes\", async () => {",
+      "new": "    [\"R1038 - the trial's dead as the GMs hold them, and nobody living (E70 fix p1-G1; the review's SEC-1, SEC-2, BEH-1, E70P1-R03): voice.mjs `settleTrialVoices` waits for every student's writes to be judged and lists them through `flagsHeldNow`, and `deadForTrial` reads no incident; vote.mjs `trialParticipants` reads the Monocub's flag as held; trial.mjs `presentDialog`, `presentBullet` and the Present row of sheet-inventory.mjs `addPresentButton` refuse a student on the trial's list, and `registerTrial` raises no card of a listed student's player and has the primary refuse it; the voice tile repaints when the clock, the floor or the trial's record changes\", async () => {",
+      "why": "addPresentButton -> sheet-inventory.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:17841",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and the GM's road (drpg-gm-route; its kit slot `gmRoute` since E21 C5a); each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)\", async () => {",
+      "new": "    [\"R1110 - every Call window is built by call-pickers.mjs `callWindow`: no `pendingHeader` in call-pickers.mjs; each DialogV2 wait, confirm, prompt or input in call-pickers.mjs, calls.mjs, monocub.mjs `cubAbilityDialog` and sheet-actions.mjs `runCall` stands in `callWindow` alone, which names drpg-panel, the Hope and the Despair class and the GM's road (drpg-gm-route; its kit slot `gmRoute` since E21 C5a); each of the seven windows calls it; none labels a button `DRPG.Action.proceed` (E51 C2; E51-16, audit S17-48)\", async () => {",
+      "why": "runCall -> sheet-actions.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:19471",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \\\"Contribution\\\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)\", async () => {",
+      "new": "    [\"R1162 - no tile grows by a renamed word (E66-24): sheet-fit.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \\\"Contribution\\\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)\", async () => {",
+      "why": "LONGEST_TILE_WORD -> sheet-fit.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:19474",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "         * longest unbreakable word any tile carries (sheet.mjs `LONGEST_TILE_WORD`, read at import from the English labels",
+      "new": "         * longest unbreakable word any tile carries (sheet-fit.mjs `LONGEST_TILE_WORD`, read at import from the English labels",
+      "why": "`LONGEST_TILE_WORD` goes to sheet-fit.mjs"
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:20728",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R1319 - D176: one approval, one Monocub ability and one call-off window at a time on a browser (E44 C2c; E44-10): calls.mjs `askHopeCallApproval` answers null before any window while its own is open and passes `once`; every `callWindow(` call of monocub.mjs `cubAbilityDialog` and of sheet.mjs `runCall` passes `once`\", async () => {",
+      "new": "    [\"R1319 - D176: one approval, one Monocub ability and one call-off window at a time on a browser (E44 C2c; E44-10): calls.mjs `askHopeCallApproval` answers null before any window while its own is open and passes `once`; every `callWindow(` call of monocub.mjs `cubAbilityDialog` and of sheet-actions.mjs `runCall` passes `once`\", async () => {",
+      "why": "runCall -> sheet-actions.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:21254",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet.mjs `paintReserves` adds (`paintResourceBars` until E24 C1a), and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs\", async () => {",
+      "new": "    [\"R1440 - the sheet stand-in's parts (audit/style-harness.html `?sheet=parts`; E24 C0, Q-ORCH-E24-2): both layouts of Daggerheart 2.10.5's resource-bar.hbs - the bar (`.status-bar`, `progress.progress-bar`, `input.bar-input` named by its system key, `.bar-label`, the plate) with what sheet-sidebar.mjs `paintReserves` adds (`paintResourceBars` until E24 C1a), and with `&pips=1` the pips (`.slot-value`, a `.slot` per point carrying its toggle's `data-action`, `.slot-label`) - the biography part with a `.drpg-biography-text`, the inventory part with a group and its count, an action panel, and a viewer's `drpg-redacted-sheet`; every `drpg-*` class the parts carry a string literal of sheet.mjs (comments out), the viewer's of anonymity.mjs\", async () => {",
+      "why": "paintReserves -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier0.mjs:21406",
+      "file": "scripts/tests-tier0.mjs",
+      "old": "    [\"R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(` or `?.(`, `.isOwner`, a user's `.isGM` or `?.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one\", async () => {",
+      "new": "    [\"R1470 - one sheet mode (E45 C1; audit S17-37): no mode predicate - `isDeceased(`, `isDeadForGm(`, `deadToViewer(`, `isMonocub(`, `isMonokuma(`, `isNotInClass(`, `FLAGS.notInClass`, `isMastermindActor(`, `testUserPermission(` or `?.(`, `.isOwner`, a user's `.isGM` or `?.isGM`, `isEditable` - in sheet.mjs or sheet-audit.mjs outside sheet-mode.mjs `sheetMode`, but in the few declarations the list names, each with its reason; and each of those still reads one\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:10809",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * critical; sheet.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a",
+      "new": "         * critical; sheet-item.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a",
+      "why": "`wearMarkup` goes to sheet-item.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:22030",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * moves, and nothing draws it then (sheet.mjs `goThrough`'s note: none of the sheet's hooks hears a move), so the",
+      "new": "         * moves, and nothing draws it then (sheet-sidebar.mjs `goThrough`'s note: none of the sheet's hooks hears a move), so the",
+      "why": "`goThrough` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:22032",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * the map and the veto injected (R562's way), drawn by sheet.mjs `knownPassageItem`, and the refusal's words in both",
+      "new": "         * the map and the veto injected (R562's way), drawn by sheet-sidebar.mjs `knownPassageItem`, and the refusal's words in both",
+      "why": "`knownPassageItem` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:25850",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * student's reads nothing of a pool (sheet.mjs `monokumaPool` is asked for the Monokuma's panel alone) - and the",
+      "new": "         * student's reads nothing of a pool (sheet-actions.mjs `monokumaPool` is asked for the Monokuma's panel alone) - and the",
+      "why": "`monokumaPool` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:28156",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R986 - the Projects tile is not struck through outside a room, while Search still is (E16-T32; audit S03-24): sheet.mjs `roomBlockFor` answers nothing for \\\"project\\\" and the room's note for \\\"search\\\" for a character standing nowhere, and the count its comment gives is the length of its `roomBound` list\", async () => {",
+      "new": "    [\"R986 - the Projects tile is not struck through outside a room, while Search still is (E16-T32; audit S03-24): sheet-actions.mjs `roomBlockFor` answers nothing for \\\"project\\\" and the room's note for \\\"search\\\" for a character standing nowhere, and the count its comment gives is the length of its `roomBound` list\", async () => {",
+      "why": "roomBlockFor -> sheet-actions.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:28720",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "            // Two feet in every state since E49 B2 (sheet.mjs `moveSlots`, R3487), the legend after the row's sentence.",
+      "new": "            // Two feet in every state since E49 B2 (sheet-header.mjs `moveSlots`, R3487), the legend after the row's sentence.",
+      "why": "`moveSlots` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:38722",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * now (sheet.mjs `injectClassControls`), the ask `markFromSheet`. Each claim kept: the ask and its destructive yes",
+      "new": "         * now (sheet-header.mjs `injectClassControls`), the ask `markFromSheet`. Each claim kept: the ask and its destructive yes",
+      "why": "`injectClassControls` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:38995",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * E21 C5a, 06.11.2026. The Stop (sheet.mjs `injectSafeword`) stood `position: absolute` at the foot of the sheet's",
+      "new": "         * E21 C5a, 06.11.2026. The Stop (sheet-sidebar.mjs `injectSafeword`) stood `position: absolute` at the foot of the sheet's",
+      "why": "`injectSafeword` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:40820",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * (sheet.mjs `paintReserveRow`: nothing before it, \" / 4\" after). Read: both lang files as served, the key",
+      "new": "         * (sheet-sidebar.mjs `paintReserveRow`: nothing before it, \" / 4\" after). Read: both lang files as served, the key",
+      "why": "`paintReserveRow` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42162",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1455 - the gates' matrix (E24 C3a, E24-18, E24-20; audit S03-15): sheet.mjs `rowGate` answers no row buttons for the dead and a Monocub (D15), a Monokuma and a sheet the viewer may not edit, and yes for the living and an NPC, for a GM and for the owner; Use, Equip, Discard, Stash, Give/Share and the Truth Bullet row (Share, Present, Analyze) each ask it first; and on a stand-in sheet drawn by the render hook as the living, the dead, a Monocub and an NPC not in the class, for a GM and for the owner: the header still (`drpg-sheet-still`, the Actions section `drpg-still`, no pip tooltip) for the dead and the NPC, live for the living and a Monocub; the death mark on the dead's portrait, not a Monocub's; the dead's line in the dead's panel; the NPC's line to the GM, no action grid, no Calls and no Level Up button; the GM's controls only for a GM\", async () => {",
+      "new": "    [\"R1455 - the gates' matrix (E24 C3a, E24-18, E24-20; audit S03-15): sheet-mode.mjs `rowGate` answers no row buttons for the dead and a Monocub (D15), a Monokuma and a sheet the viewer may not edit, and yes for the living and an NPC, for a GM and for the owner; Use, Equip, Discard, Stash, Give/Share and the Truth Bullet row (Share, Present, Analyze) each ask it first; and on a stand-in sheet drawn by the render hook as the living, the dead, a Monocub and an NPC not in the class, for a GM and for the owner: the header still (`drpg-sheet-still`, the Actions section `drpg-still`, no pip tooltip) for the dead and the NPC, live for the living and a Monocub; the death mark on the dead's portrait, not a Monocub's; the dead's line in the dead's panel; the NPC's line to the GM, no action grid, no Calls and no Level Up button; the GM's controls only for a GM\", async () => {",
+      "why": "rowGate -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42272",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1442 - the reserve on the sheet (sheet.mjs `paintReserves`; E24 C1a, E24-02 and E24-03; the owner's D5 option 1, D46 option 2): on stand-in roots of both of Daggerheart 2.10.5's layouts (resource-bar.hbs), an untouched student's Health and Sanity drawn full, their rows \\\"Left: 4 / 4\\\" and \\\"Left: 6 / 6\\\"; after one mark of Health, drawn by the repaint's call, the bar 75 % and the row \\\"Left: 3 / 4\\\", the band over the held unit that moved (75 % to 100 %) and the pip that went marked spent; the system's controls hidden by a class and still in the DOM; each block marked by its key; the track carries no number\", async () => {",
+      "new": "    [\"R1442 - the reserve on the sheet (sheet-sidebar.mjs `paintReserves`; E24 C1a, E24-02 and E24-03; the owner's D5 option 1, D46 option 2): on stand-in roots of both of Daggerheart 2.10.5's layouts (resource-bar.hbs), an untouched student's Health and Sanity drawn full, their rows \\\"Left: 4 / 4\\\" and \\\"Left: 6 / 6\\\"; after one mark of Health, drawn by the repaint's call, the bar 75 % and the row \\\"Left: 3 / 4\\\", the band over the held unit that moved (75 % to 100 %) and the pip that went marked spent; the system's controls hidden by a class and still in the DOM; each block marked by its key; the track carries no number\", async () => {",
+      "why": "paintReserves -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42325",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1443 - the reserve's field (sheet.mjs `paintReserves`, `writeReserve`; resource-guard.mjs `sheetReserve`; E24 C1a, E24-04; MARKED): a GM's field holds the reserve and its change writes the marks it comes to, `max - n`, held to 0..max, as a hand edit - without the module's mark, so a player's own guard still cuts it while Lock player resources is on - and with no reason sent; the change goes no further than the field; `sheetReserve` is on WRITE_REASONS, in HAND_EDITS and not in JUDGED; a player who owns the student has the field only with the lock off, another player never\", async () => {",
+      "new": "    [\"R1443 - the reserve's field (sheet-sidebar.mjs `paintReserves`, `writeReserve`; resource-guard.mjs `sheetReserve`; E24 C1a, E24-04; MARKED): a GM's field holds the reserve and its change writes the marks it comes to, `max - n`, held to 0..max, as a hand edit - without the module's mark, so a player's own guard still cuts it while Lock player resources is on - and with no reason sent; the change goes no further than the field; `sheetReserve` is on WRITE_REASONS, in HAND_EDITS and not in JUDGED; a player who owns the student has the field only with the lock off, another player never\", async () => {",
+      "why": "paintReserves -> sheet-sidebar.mjs, writeReserve -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42456",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1445 - Sanity is private on the sheet (sheet.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the owner's 28.10): another player's redacted stand-in, in either layout, holds no Sanity number - its marks, reserve, maximum or share - in a text node, an attribute (a `data-tooltip`, an `aria-label`, a `value`, a `max` among them) or a field's value, and its row says \\\"?\\\"; with \\\"Enforce anonymity\\\" off, another player's unredacted stand-in holds none either (E24 fix G2B; general m2); Health's row is there; the owner's and a GM's sheets show both\", async () => {",
+      "new": "    [\"R1445 - Sanity is private on the sheet (sheet-sidebar.mjs `paintReserves`, anonymity.mjs `redactSheet`; E24 C1a, E24-06; the owner's 28.10): another player's redacted stand-in, in either layout, holds no Sanity number - its marks, reserve, maximum or share - in a text node, an attribute (a `data-tooltip`, an `aria-label`, a `value`, a `max` among them) or a field's value, and its row says \\\"?\\\"; with \\\"Enforce anonymity\\\" off, another player's unredacted stand-in holds none either (E24 fix G2B; general m2); Health's row is there; the owner's and a GM's sheets show both\", async () => {",
+      "why": "paintReserves -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42848",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1497 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is\", async () => {",
+      "new": "    [\"R1497 - the reserve's field is the mode's (sheet-mode.mjs `sheetMode(...).reserveField`, sheet-sidebar.mjs `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs, paintReserves -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:42933",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1484 - the Party sheet's rows are every member's reserve, Sanity only to its owner and the GMs (sheet.mjs `paintPartyReserves`; E24 fix G2B, general m4's Party side and security S-2; E24-11, Q-E24-3): a student's, an NPC's not in the class and a Monokuma's rows read what is left; a GM's pips toggle the reserve, a player's toggle nothing; to another player Sanity reads \\\"?\\\" with no slot left, so its maximum is not counted off the pips\", async () => {",
+      "new": "    [\"R1484 - the Party sheet's rows are every member's reserve, Sanity only to its owner and the GMs (sheet-sidebar.mjs `paintPartyReserves`; E24 fix G2B, general m4's Party side and security S-2; E24-11, Q-E24-3): a student's, an NPC's not in the class and a Monokuma's rows read what is left; a GM's pips toggle the reserve, a player's toggle nothing; to another player Sanity reads \\\"?\\\" with no slot left, so its maximum is not counted off the pips\", async () => {",
+      "why": "paintPartyReserves -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43337",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1447 - the token bars and the Party sheet as the reserve (states.mjs `reserveBar`, `wrapBarAttribute`; sheet.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student's two bars answer what is left of what maximum and are not editable, Sanity's none to a player who may not see it; a Monokuma's and an NPC's not in the class as a student's (E24 fix G2A, review m4: the sheet's one meaning), another actor's and another attribute's as Foundry answered; the wrapper marked and not stacked; the contract's row `token-bars-reserve` ok here; the Party sheet's rows the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member\", async () => {",
+      "new": "    [\"R1447 - the token bars and the Party sheet as the reserve (states.mjs `reserveBar`, `wrapBarAttribute`; sheet-sidebar.mjs `paintPartyReserves`; E24 C1b, E24-10, E24-11; Q-E24-3): a student's two bars answer what is left of what maximum and are not editable, Sanity's none to a player who may not see it; a Monokuma's and an NPC's not in the class as a student's (E24 fix G2A, review m4: the sheet's one meaning), another actor's and another attribute's as Foundry answered; the wrapper marked and not stacked; the contract's row `token-bars-reserve` ok here; the Party sheet's rows the reserve, its pips no toggle for a player, Sanity emptied for one who does not own the member\", async () => {",
+      "why": "paintPartyReserves -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43439",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * wants neither icon on any token, the sheet saying both (sheet.mjs `paintStateBadges`). Red on bc750112: the",
+      "new": "         * wants neither icon on any token, the sheet saying both (sheet-sidebar.mjs `paintStateBadges`). Red on bc750112: the",
+      "why": "`paintStateBadges` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43591",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1457 - the Loadout tab is never the one shown (sheet.mjs `leaveLoadoutTab`; E24 C3b, E24-22; audit S03-47, S12-45): a sheet that renders on `loadout` is changed to the Actions tab (`features`) through the app's own `changeTab`, or by its classes and `tabGroups` where it has none; the Loadout part holds no control after a render; a sheet on another tab is left on it\", async () => {",
+      "new": "    [\"R1457 - the Loadout tab is never the one shown (sheet-fit.mjs `leaveLoadoutTab`; E24 C3b, E24-22; audit S03-47, S12-45): a sheet that renders on `loadout` is changed to the Actions tab (`features`) through the app's own `changeTab`, or by its classes and `tabGroups` where it has none; the Loadout part holds no control after a render; a sheet on another tab is left on it\", async () => {",
+      "why": "leaveLoadoutTab -> sheet-fit.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43626",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1458 - a tab keeps its scroll across a render (sheet.mjs `keepTabScroll`; E24 C3b, E24-22; audit S03-14): what the active `section.tab` was scrolled to is put back on the next render's, per app and per tab - another tab of the same sheet and the same tab of another sheet start at the top\", async () => {",
+      "new": "    [\"R1458 - a tab keeps its scroll across a render (sheet-fit.mjs `keepTabScroll`; E24 C3b, E24-22; audit S03-14): what the active `section.tab` was scrolled to is put back on the next render's, per app and per tab - another tab of the same sheet and the same tab of another sheet start at the top\", async () => {",
+      "why": "keepTabScroll -> sheet-fit.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43664",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1459 - an empty Experience says so, and an item in hand shows both its tags (sheet.mjs `noteEmptyExperience`, `injectEquippedTools`; E24 C3b, E24-23; audit S15-02, S03-29; the owner's 28.10): no experiences - one `drpg-experience-empty` line, `DRPG.SheetNotes.noExperiences`; one - none; a Murder Weapon held ready that is also a Tool reads \\\"Murder Weapon · Tool - T2\\\" on the Equipped row, a tag each\", async () => {",
+      "new": "    [\"R1459 - an empty Experience says so, and an item in hand shows both its tags (sheet-sidebar.mjs `noteEmptyExperience`, `injectEquippedTools`; E24 C3b, E24-23; audit S15-02, S03-29; the owner's 28.10): no experiences - one `drpg-experience-empty` line, `DRPG.SheetNotes.noExperiences`; one - none; a Murder Weapon held ready that is also a Tool reads \\\"Murder Weapon · Tool - T2\\\" on the Equipped row, a tag each\", async () => {",
+      "why": "noteEmptyExperience -> sheet-sidebar.mjs, injectEquippedTools -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43703",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1460 - the locks on the sheet (sheet.mjs `callLockNote`, `freeMovePip`, `budgetLine`; E24 C3b, E24-24; audit S03-13): under the Overflow's Silence every Hope Call tile is locked and carries `DRPG.Overflow.silenced` and the drawer is `drpg-silenced`; under Fog the free Move is a third state (`drpg-fogged`, Fog's reason) and the budget line says Fog's reason; with no Overflow running neither\", async () => {",
+      "new": "    [\"R1460 - the locks on the sheet (sheet-actions.mjs `callLockNote`, sheet-header.mjs `freeMovePip`, sheet-actions.mjs `budgetLine`; E24 C3b, E24-24; audit S03-13): under the Overflow's Silence every Hope Call tile is locked and carries `DRPG.Overflow.silenced` and the drawer is `drpg-silenced`; under Fog the free Move is a third state (`drpg-fogged`, Fog's reason) and the budget line says Fog's reason; with no Overflow running neither\", async () => {",
+      "why": "callLockNote -> sheet-actions.mjs, freeMovePip -> sheet-header.mjs, budgetLine -> sheet-actions.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43886",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1471 - the modes' matrix (E45 C1; audit S17-37): sheet.mjs `sheetMode(actor, user)` for a student, the dead, a Monocub, an NPC not in the class and a Monokuma, each for a GM, its owner and another player - the mode, who is looking, the header, the action panel, the row buttons, Level Up, the Calls, the inventory's groups and the Equipped, Experience and biography parts, the passages, the strip, the Objection and the room tile; frozen; and drawn on stand-in roots for a GM and the owner, every part R1455 reads is what the mode says\", async () => {",
+      "new": "    [\"R1471 - the modes' matrix (E45 C1; audit S17-37): sheet-mode.mjs `sheetMode(actor, user)` for a student, the dead, a Monocub, an NPC not in the class and a Monokuma, each for a GM, its owner and another player - the mode, who is looking, the header, the action panel, the row buttons, Level Up, the Calls, the inventory's groups and the Equipped, Experience and biography parts, the passages, the strip, the Objection and the room tile; frozen; and drawn on stand-in roots for a GM and the owner, every part R1455 reads is what the mode says\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:43960",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1472 - the strip, the HUD's Objection control and the room tile take their gate from sheet.mjs `sheetMode` (E45 C1; the owner's A8 of 11.10): player-status.mjs `buildPlayerView`, hud.mjs `objectionControl` and room-tile.mjs `viewerRoom`, each handed a student, the dead, a Monocub, an NPC not in the class and a Monokuma, answer as the mode's `strip`, `objection` and `tile` - nothing for an NPC, whose strip and room are no student's\", async () => {",
+      "new": "    [\"R1472 - the strip, the HUD's Objection control and the room tile take their gate from sheet-mode.mjs `sheetMode` (E45 C1; the owner's A8 of 11.10): player-status.mjs `buildPlayerView`, hud.mjs `objectionControl` and room-tile.mjs `viewerRoom`, each handed a student, the dead, a Monocub, an NPC not in the class and a Monokuma, answer as the mode's `strip`, `objection` and `tile` - nothing for an NPC, whose strip and room are no student's\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:44047",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1474 - the redaction runs from the mode (E45 C1; anonymity.mjs `onRenderSheet`): with anonymity enforced, another player's sheet is redacted when sheet.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside the mode still closes the sheet, its root hidden - the redaction fails closed as before, and so does the mode when reading the setting throws\", async () => {",
+      "new": "    [\"R1474 - the redaction runs from the mode (E45 C1; anonymity.mjs `onRenderSheet`): with anonymity enforced, another player's sheet is redacted when sheet-mode.mjs `sheetMode(...).redact` says so and a GM's is not; a throw inside the mode still closes the sheet, its root hidden - the redaction fails closed as before, and so does the mode when reading the setting throws\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:44089",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1475 - Present's gate is the mode's (E45 C1; E70's `modeAllows`): sheet.mjs `sheetMode(...).present(floor)` hides the button outside a Class Trial, for the dead and for the trial's muted dead, and holds it while another holds a floor that keeps Present to its holder with trial-floor.mjs `presentRefusal`'s line - the Present window's own text (trial.mjs) - and frees it on an open floor; `addPresentButton` and `paintPresentButton` ask the mode and no predicate\", async () => {",
+      "new": "    [\"R1475 - Present's gate is the mode's (E45 C1; E70's `modeAllows`): sheet-mode.mjs `sheetMode(...).present(floor)` hides the button outside a Class Trial, for the dead and for the trial's muted dead, and holds it while another holds a floor that keeps Present to its holder with trial-floor.mjs `presentRefusal`'s line - the Present window's own text (trial.mjs) - and frees it on an open floor; `addPresentButton` and `paintPresentButton` ask the mode and no predicate\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:44122",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1477 - the render's own decision (sheet.mjs `renderPlan`, `installRenderPlan`; E45 C2, E45-08; audit S03-07): \\\"repaint\\\" only for `render(options)` or `render(false, options)` with renderContext \\\"updateActor\\\" and a `renderData` of repaintable resources alone (Health, Hope, both, `_id` and `_stats` aside); a flag, an item, an effect, `actions` or `armor` beside them, no arguments, `render(true, ...)`, a bare `false`, no `renderData`, `force`, `parts`, a first render and renderContext \\\"updateItem\\\" render; the wrapper repaints without the original, calls it otherwise, and calls it when the repaint throws\", async () => {",
+      "new": "    [\"R1477 - the render's own decision (sheet-repaint.mjs `renderPlan`, `installRenderPlan`; E45 C2, E45-08; audit S03-07): \\\"repaint\\\" only for `render(options)` or `render(false, options)` with renderContext \\\"updateActor\\\" and a `renderData` of repaintable resources alone (Health, Hope, both, `_id` and `_stats` aside); a flag, an item, an effect, `actions` or `armor` beside them, no arguments, `render(true, ...)`, a bare `false`, no `renderData`, `force`, `parts`, a first render and renderContext \\\"updateItem\\\" render; the wrapper repaints without the original, calls it otherwise, and calls it when the repaint throws\", async () => {",
+      "why": "renderPlan -> sheet-repaint.mjs, installRenderPlan -> sheet-repaint.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:44187",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1478 - a write cut in preUpdate leaves the next render whole (sheet.mjs `installRenderPlan`; overflow.mjs and resource-guard.mjs `onPreUpdateActor`; E45 C2, E45-09; audit S03-07): on a stand-in sheet open on a student, a player's Sanity write emptied by the resource guard (the lock on) and a Hope gain emptied by Despair's Overflow, each followed by an item created on the student: the item's render reaches the sheet and its row is drawn\", async () => {",
+      "new": "    [\"R1478 - a write cut in preUpdate leaves the next render whole (sheet-repaint.mjs `installRenderPlan`; overflow.mjs and resource-guard.mjs `onPreUpdateActor`; E45 C2, E45-09; audit S03-07): on a stand-in sheet open on a student, a player's Sanity write emptied by the resource guard (the lock on) and a Hope gain emptied by Despair's Overflow, each followed by an item created on the student: the item's render reaches the sheet and its row is drawn\", async () => {",
+      "why": "installRenderPlan -> sheet-repaint.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:44251",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R1479 - the repaint draws what the render would (sheet.mjs `repaintInPlace` through `installRenderPlan`; E45 C2, E45-10; D46 option 2): on stand-in sheets opened through the module's hook, a Hope-only update on a Monocub makes its Confusion tile affordable; a Health and Hope update on the pip layout draws the new reserve, lights the Hope Calls it pays for and rebuilds a priced tile - each with no call of the original render\", async () => {",
+      "new": "    [\"R1479 - the repaint draws what the render would (sheet-repaint.mjs `repaintInPlace` through `installRenderPlan`; E45 C2, E45-10; D46 option 2): on stand-in sheets opened through the module's hook, a Hope-only update on a Monocub makes its Confusion tile affordable; a Health and Hope update on the pip layout draws the new reserve, lights the Hope Calls it pays for and rebuilds a priced tile - each with no call of the original render\", async () => {",
+      "why": "repaintInPlace -> sheet-repaint.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:45780",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R3487 - the Move is two feet in the same places on the sheet and the strip, in and out of an Eclipse (sheet.mjs `moveSlots`, `moveFeetHtml`, `freeMovePip`; player-status.mjs `buildPlayerView`; E49 B2; the owner, 10.11: fixed layouts): out of one the free Move and a dimmed Eclipse slot; in one its two crossings lit or spent, free placement both `anywhere`; the sheet drawn out of an Eclipse, in one at noon and in one that places anywhere\", async () => {",
+      "new": "    [\"R3487 - the Move is two feet in the same places on the sheet and the strip, in and out of an Eclipse (sheet-header.mjs `moveSlots`, `moveFeetHtml`, `freeMovePip`; player-status.mjs `buildPlayerView`; E49 B2; the owner, 10.11: fixed layouts): out of one the free Move and a dimmed Eclipse slot; in one its two crossings lit or spent, free placement both `anywhere`; the sheet drawn out of an Eclipse, in one at noon and in one that places anywhere\", async () => {",
+      "why": "moveSlots -> sheet-header.mjs, moveFeetHtml -> sheet-header.mjs, freeMovePip -> sheet-header.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:45834",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R3488 - the name row's buttons come from one builder with their words, and the Stop says what it is (sheet.mjs `headerButton`, `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads \\\"Safeword\\\" before the table's word; a Monokuma's sheet draws no Stop\", async () => {",
+      "new": "    [\"R3488 - the name row's buttons come from one builder with their words, and the Stop says what it is (sheet-header.mjs `headerButton`, sheet-sidebar.mjs `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads \\\"Safeword\\\" before the table's word; a Monokuma's sheet draws no Stop\", async () => {",
+      "why": "headerButton -> sheet-header.mjs, injectSafeword -> sheet-sidebar.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:45868",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R3489 - the Actions panel opens on its budget and the Rules tab on Monokuma's rules (sheet.mjs `injectActionPanel`, `budgetLine`, `buildRulesPanel`; styles/danganronpa.css; E49 B2, S03-38, S03-39, S12-67): no \\\"Actions\\\" heading under the Actions tab, the budget the panel's first row and the panel named for a screen reader; the Rules panel's title is not the tab's word and its padding is the Actions panel's\", async () => {",
+      "new": "    [\"R3489 - the Actions panel opens on its budget and the Rules tab on Monokuma's rules (sheet-actions.mjs `injectActionPanel`, `budgetLine`, `buildRulesPanel`; styles/danganronpa.css; E49 B2, S03-38, S03-39, S12-67): no \\\"Actions\\\" heading under the Actions tab, the budget the panel's first row and the panel named for a screen reader; the Rules panel's title is not the tab's word and its padding is the Actions panel's\", async () => {",
+      "why": "injectActionPanel -> sheet-actions.mjs, budgetLine -> sheet-actions.mjs, buildRulesPanel -> sheet-actions.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:45892",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R3520 - in a fight the sheet's budget row says whose turn it is, in the incident card's words (sheet.mjs `budgetLine`, events.mjs `incidentTurnText`, `actingActor`; E49 B2's turn line, audit S03-30): the victim on their turn and the killer on theirs read \\\"your turn\\\" lit (`drpg-budget-mine`), the killer waiting reads the victim's name as the card does, the victim waiting \\\"their turn\\\"; the same one row in every state (a `p.drpg-budget-line`), and outside an incident the budget as before\", async () => {",
+      "new": "    [\"R3520 - in a fight the sheet's budget row says whose turn it is, in the incident card's words (sheet-actions.mjs `budgetLine`, events.mjs `incidentTurnText`, `actingActor`; E49 B2's turn line, audit S03-30): the victim on their turn and the killer on theirs read \\\"your turn\\\" lit (`drpg-budget-mine`), the killer waiting reads the victim's name as the card does, the victim waiting \\\"their turn\\\"; the same one row in every state (a `p.drpg-budget-line`), and outside an incident the budget as before\", async () => {",
+      "why": "budgetLine -> sheet-actions.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:47512",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * tier-2 tests click it). The Level Up is read against sheet.mjs `sheetMode` itself and its words against",
+      "new": "         * tier-2 tests click it). The Level Up is read against sheet-mode.mjs `sheetMode` itself and its words against",
+      "why": "`sheetMode` goes to sheet-mode.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:47641",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R2082 - the Students window's Level Up (scripts/gm-students.mjs; E47-C8): a button exactly on the rows sheet.mjs `sheetMode(actor, game.user).levelUp` holds, its words the standing offers' count (`DRPG.Advance.standing`) or Level Up; its click is level-up.mjs `openAdvancementFor` with that row's actor, and the window comes back after\", async () => {",
+      "new": "    [\"R2082 - the Students window's Level Up (scripts/gm-students.mjs; E47-C8): a button exactly on the rows sheet-mode.mjs `sheetMode(actor, game.user).levelUp` holds, its words the standing offers' count (`DRPG.Advance.standing`) or Level Up; its click is level-up.mjs `openAdvancementFor` with that row's actor, and the window comes back after\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:47644",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "         * new road\" - the sheet's GM button, sheet.mjs `injectAdvanceButton`, opens `openAdvancementFor`). Read against",
+      "new": "         * new road\" - the sheet's GM button, sheet-header.mjs `injectAdvanceButton`, opens `openAdvancementFor`). Read against",
+      "why": "`injectAdvanceButton` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/tests-tier1.mjs:50651",
+      "file": "scripts/tests-tier1.mjs",
+      "old": "    [\"R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet.mjs `sheetMode` answers mode \\\"spectator\\\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM\", async () => {",
+      "new": "    [\"R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet-mode.mjs `sheetMode` answers mode \\\"spectator\\\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:43378",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * (sheet.mjs `actionButton`): its name, whether it has a cost line and the GM's chip,",
+      "new": "         * (sheet-actions.mjs `actionButton`): its name, whether it has a cost line and the GM's chip,",
+      "why": "`actionButton` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:48553",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * E10 C6, 1.2.71; audit S03-17. A GM's sheet was handed no offer (sheet.mjs `injectAdvanceButton`",
+      "new": "         * E10 C6, 1.2.71; audit S03-17. A GM's sheet was handed no offer (sheet-header.mjs `injectAdvanceButton`",
+      "why": "`injectAdvanceButton` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:53912",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "           (game.drpg) and the sheet's own field (sheet.mjs `commitUltimate`, on blur), each on the road",
+      "new": "           (game.drpg) and the sheet's own field (sheet-header.mjs `commitUltimate`, on blur), each on the road",
+      "why": "`commitUltimate` goes to sheet-header.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:64649",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * on this browser (sheet.mjs `onTunnelStep`) takes it up through `passage.cross`, the primary's own road here",
+      "new": "         * on this browser (sheet-sidebar.mjs `onTunnelStep`) takes it up through `passage.cross`, the primary's own road here",
+      "why": "`onTunnelStep` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:68080",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * (stash-reach.mjs `stealFromVault` asks `isDeceased`). sheet.mjs `addUseButton`, `addDiscardButton` and",
+      "new": "         * (stash-reach.mjs `stealFromVault` asks `isDeceased`). sheet-inventory.mjs `addUseButton`, `addDiscardButton` and",
+      "why": "`addUseButton` goes to sheet-inventory.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:75672",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "         * tile's reason (sheet.mjs `roomBlockFor`). Red before C4: no window, the toast, no reason on the tile.",
+      "new": "         * tile's reason (sheet-actions.mjs `roomBlockFor`). Red before C4: no window, the toast, no reason on the tile.",
+      "why": "`roomBlockFor` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "scripts/tests-tier2.mjs:86117",
+      "file": "scripts/tests-tier2.mjs",
+      "old": "    [\"E45-T1 - one sheet mode at the table (E45 C1; audit S17-37, the owner's A8 of 11.10): a student made dead, a Monocub and an NPC not in the class by the GM's own writes, each read for its owner and for another player: sheet.mjs `sheetMode`'s mode and row buttons; the sheet drawn by the render hook for this GM, the strip and the room tile each agree with it\", async () => {",
+      "new": "    [\"E45-T1 - one sheet mode at the table (E45 C1; audit S17-37, the owner's A8 of 11.10): a student made dead, a Monocub and an NPC not in the class by the GM's own writes, each read for its owner and for another player: sheet-mode.mjs `sheetMode`'s mode and row buttons; the sheet drawn by the render hook for this GM, the strip and the room tile each agree with it\", async () => {",
+      "why": "sheetMode -> sheet-mode.mjs",
+      "test": true
+    },
+    {
+      "base": "scripts/use-items.mjs:293",
+      "file": "scripts/use-items.mjs",
+      "old": " * the sheet's buttons are gone by the same reading (sheet.mjs `sheetMode`). True, and",
+      "new": " * the sheet's buttons are gone by the same reading (sheet-mode.mjs `sheetMode`). True, and",
+      "why": "`sheetMode` goes to sheet-mode.mjs"
+    },
+    {
+      "base": "scripts/use-items.mjs:388",
+      "file": "scripts/use-items.mjs",
+      "old": " * (sheet.mjs `addUseButton`), which is red with the GM's word for it.",
+      "new": " * (sheet-inventory.mjs `addUseButton`), which is red with the GM's word for it.",
+      "why": "`addUseButton` goes to sheet-inventory.mjs"
+    },
+    {
+      "base": "scripts/use-items.mjs:878",
+      "file": "scripts/use-items.mjs",
+      "old": " * the sheet's button is greyed with the same sentence (sheet.mjs `addDiscardButton`), and the primary GM refuses the",
+      "new": " * the sheet's button is greyed with the same sentence (sheet-inventory.mjs `addDiscardButton`), and the primary GM refuses the",
+      "why": "`addDiscardButton` goes to sheet-inventory.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:64",
+      "file": "styles/danganronpa.css",
+      "old": "       block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`).",
+      "new": "       block sheet-sidebar.mjs `paintReserves` marks (`[data-drpg-reserve]`).",
+      "why": "`paintReserves` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:2015",
+      "file": "styles/danganronpa.css",
+      "old": "/* In a fight the row says whose turn it is (sheet.mjs `budgetLine`, E49 B2's turn line; S03-30): the same row, so",
+      "new": "/* In a fight the row says whose turn it is (sheet-actions.mjs `budgetLine`, E49 B2's turn line; S03-30): the same row, so",
+      "why": "`budgetLine` goes to sheet-actions.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:2130",
+      "file": "styles/danganronpa.css",
+      "old": "/* A tier 0 thing's \"Single use\" in the place of the pips (E13 C8, sheet.mjs `wearMarkup`):",
+      "new": "/* A tier 0 thing's \"Single use\" in the place of the pips (E13 C8, sheet-item.mjs `wearMarkup`):",
+      "why": "`wearMarkup` goes to sheet-item.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:3809",
+      "file": "styles/danganronpa.css",
+      "old": "/* The sheet's 'Known passages' (E79 C7; sheet.mjs `injectKnownPassages`), as the mockup drew it under the",
+      "new": "/* The sheet's 'Known passages' (E79 C7; sheet-sidebar.mjs `injectKnownPassages`), as the mockup drew it under the",
+      "why": "`injectKnownPassages` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:3817",
+      "file": "styles/danganronpa.css",
+      "old": "/* What a player does with a passage, under its name (H81-04, H81-02; sheet.mjs `injectKnownPassages`): walk through the",
+      "new": "/* What a player does with a passage, under its name (H81-04, H81-02; sheet-sidebar.mjs `injectKnownPassages`): walk through the",
+      "why": "`injectKnownPassages` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:4342",
+      "file": "styles/danganronpa.css",
+      "old": "/* THE DEAD'S AND AN NPC'S SHEET (E24 C3a, 08.11.2026; E24-18, E24-20). sheet.mjs `markSheetState` puts the",
+      "new": "/* THE DEAD'S AND AN NPC'S SHEET (E24 C3a, 08.11.2026; E24-18, E24-20). sheet-header.mjs `markSheetState` puts the",
+      "why": "`markSheetState` goes to sheet-header.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:6350",
+      "file": "styles/danganronpa.css",
+      "old": "   'Known passages' (sheet.mjs `injectKnownPassages`, after the Experience) take the inline padding of the",
+      "new": "   'Known passages' (sheet-sidebar.mjs `injectKnownPassages`, after the Experience) take the inline padding of the",
+      "why": "`injectKnownPassages` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:7924",
+      "file": "styles/danganronpa.css",
+      "old": "   them\"; sheet.mjs `markTraitGlyphs` puts it there and names the mark `drpg-stat-mark`, its plate `drpg-stat-named`). Both",
+      "new": "   them\"; sheet-header.mjs `markTraitGlyphs` puts it there and names the mark `drpg-stat-mark`, its plate `drpg-stat-named`). Both",
+      "why": "`markTraitGlyphs` goes to sheet-header.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:8891",
+      "file": "styles/danganronpa.css",
+      "old": "/* The states the character is in, public on the sheet (E95 C5; sheet.mjs `paintStateBadges`): a row of badges under the",
+      "new": "/* The states the character is in, public on the sheet (E95 C5; sheet-sidebar.mjs `paintStateBadges`): a row of badges under the",
+      "why": "`paintStateBadges` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:11499",
+      "file": "styles/danganronpa.css",
+      "old": "/* THE MOVE'S TWO FEET (E49 B2; sheet.mjs `moveSlots`): the second is the Eclipse's, in its colour, on the sheet and the",
+      "new": "/* THE MOVE'S TWO FEET (E49 B2; sheet-header.mjs `moveSlots`): the second is the Eclipse's, in its colour, on the sheet and the",
+      "why": "`moveSlots` goes to sheet-header.mjs"
+    },
+    {
+      "base": "styles/danganronpa.css:11508",
+      "file": "styles/danganronpa.css",
+      "old": "/* THE NAME ROW'S CAPTIONS (E49 B2, S03-31; sheet.mjs `headerButton`): Level Up's and Give / take's words beside the",
+      "new": "/* THE NAME ROW'S CAPTIONS (E49 B2, S03-31; sheet-header.mjs `headerButton`): Level Up's and Give / take's words beside the",
+      "why": "`headerButton` goes to sheet-header.mjs"
+    },
+    {
+      "base": "styles/stained-glass.css:138",
+      "file": "styles/stained-glass.css",
+      "old": "       the block sheet.mjs `paintReserves` marks (`[data-drpg-reserve]`).",
+      "new": "       the block sheet-sidebar.mjs `paintReserves` marks (`[data-drpg-reserve]`).",
+      "why": "`paintReserves` goes to sheet-sidebar.mjs"
+    },
+    {
+      "base": "styles/stained-glass.css:4762",
+      "file": "styles/stained-glass.css",
+      "old": "/* A button with words (E49 B2, S03-31; sheet.mjs `headerButton`'s `caption`: Level Up, Give / take) keeps the square's",
+      "new": "/* A button with words (E49 B2, S03-31; sheet-header.mjs `headerButton`'s `caption`: Level Up, Give / take) keeps the square's",
+      "why": "`headerButton` goes to sheet-header.mjs"
+    }
+  ]
+}
