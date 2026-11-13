@@ -3530,7 +3530,6 @@
         "projectNote": "Czas działania liczy się od pory dnia, w której projekt ukończono, i kończy się z końcem rozdziału.",
         "label": "Nazwa",
         "labelPlaceholder": "Zaparz herbatę",
-        "trait": "Statystyka",
         "dc": "Próg",
         "effects": "Efekty",
         "effect": "Efekt",

@@ -340,7 +340,7 @@ Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzu
 
 Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 1*, *Nieodkryty pokój 2* i tak dalej, na liście wyboru i w odpowiedzi: Listen mówi ci, kto jest za drzwiami, nie jaki pokój za nimi leży.
 
-Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone i Dash (kolejne dojdą później). W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
 
 ### Tail Someone - Shadow, potem Leg albo Shadow, 1 akcja
 

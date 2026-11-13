@@ -3266,7 +3266,6 @@
         "projectNote": "The lifetime counts from the time of day the project is completed in, and ends at the chapter's end.",
         "label": "Name",
         "labelPlaceholder": "Brew tea",
-        "trait": "Statistic",
         "dc": "Difficulty",
         "effects": "Effects",
         "effect": "Effect",
