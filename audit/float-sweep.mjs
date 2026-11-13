@@ -50,12 +50,13 @@
  *              case-map.mjs's graph listener modelled (Escape with a node open shuts it and stops the key there), beside
  *              I3's window-closing model; Escape in the node's floating field: the node shut, the window open, the
  *              field let go;
+ *   I6 cost   the helper's own counts at rest (0), floating idle (no frame loop) and typing (a measure a key at most);
  *   I5 sequence (the review's F3) a sequence starts (`data-drpg-sequence` on the body) while the field floats: it lets go;
  *              clicked while the sequence plays: focused, not floating.
  * I3 also holds the focus on the field after Escape (the review's F2). Red runs: `--without` (I1: nothing floats),
  * `--disable follow` (I2: the field stays where the drag left it), `--disable escape` (I3: the window is closed by the
- * same press). A FLOOR: a run that reads no field, no control, an `--only` naming nothing, or fewer than I1-I3 and I5 in
- * each theme is red.
+ * same press). A FLOOR: a run that reads no field, no control, an `--only` naming nothing, or fewer than I1-I3, I5 and I6
+ * in each theme is red.
  *
  * WHAT IT IS NOT: Foundry's frame or its own stylesheet, a window's live data (the harness's seeded world), for the field readings a real
  * click (they use `focus()`; I1, I4 and I5 click), or the actor sheet (the style harness's sheet is the module's parts on a model of Daggerheart's).
@@ -266,6 +267,41 @@ async function interactions(browser, theme) {
     return out;
 }
 
+/* I6, WHAT A FLOATING FIELD COSTS (the coordinator's ask of 13.11.2026, the E88 way): the helper's own counts
+   (float-text.mjs `floatTextCounts`: its animation frames, its measures of the text, its reads of the placeholder's
+   box) at rest with no field floating (all 0), with a field floating and nothing happening for 1.5 s (at most 2 frames
+   and 2 reads, no measure: no frame loop of its own), and over 30 keys typed (at most one measure a key, and no more
+   frames than keys and 5). On the project manager, both themes. */
+async function cost(browser, theme) {
+    const row = manifest.find(r => r.id === "projects" && r.captured);
+    if (!row) return [`I6 cost ${theme}`, false, `no captured project manager in ${WINDOWS_DIR}`];
+    const page = await open(browser, row, theme);
+    const rest = await page.evaluate(async o => {
+        const F = await import("/scripts/float-text.mjs");
+        if (!o.without) F.registerFloatText({ follow: o.follow, escape: o.escape });
+        globalThis.__F = F;
+        F.floatTextCounts?.({ reset: true });
+        await new Promise(r => setTimeout(r, 1000));
+        return F.floatTextCounts?.() ?? null;
+    }, { without: WITHOUT, follow: !DISABLE.includes("follow"), escape: !DISABLE.includes("escape") });
+    const box = await (await page.$(".drpg-style-shot .application textarea")).boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + 10);
+    await page.keyboard.type("Pierwsza linijka opisu projektu. ".repeat(3));
+    await page.waitForTimeout(400);
+    const idle = await page.evaluate(async () => { globalThis.__F.floatTextCounts?.({ reset: true }); await new Promise(r => setTimeout(r, 1500)); return globalThis.__F.floatTextCounts?.() ?? null; });
+    await page.evaluate(() => globalThis.__F.floatTextCounts?.({ reset: true }));
+    await page.keyboard.type("abcdefghij".repeat(3), { delay: 30 });
+    await page.waitForTimeout(100);
+    const typing = await page.evaluate(() => globalThis.__F.floatTextCounts?.() ?? null);
+    const floating = await page.evaluate(() => document.activeElement?.matches?.(":popover-open") ?? false);
+    await page.close();
+    const zero = c => Boolean(c) && c.frames === 0 && c.measures === 0 && c.reads === 0;
+    const pass = zero(rest) && Boolean(idle) && idle.frames <= 2 && idle.reads <= 2 && idle.measures === 0
+        && Boolean(typing) && typing.measures <= 30 && typing.frames <= 35 && floating;
+    const say = c => (c ? `${c.frames} frame(s), ${c.measures} measure(s), ${c.reads} read(s)` : "no counts");
+    return [`I6 cost ${theme}`, pass, `at rest ${say(rest)}; floating, idle 1.5 s ${say(idle)}; 30 keys ${say(typing)}; floating ${floating}`];
+}
+
 /* I4, THE CASE MAP (the e93 line's review, F1): Escape in an open node's field shuts the node, as case-map.mjs's graph
    listener does (it stops the key there), and does not close the window. The graph's own listener is modelled here (an
    Escape with a node open: its default prevented, its propagation stopped, the node's editor hidden), beside the
@@ -354,7 +390,7 @@ try {
     for (const theme of THEMES) {
         const map = await caseMap(browser, theme);
         if (!map) console.log(`not read: I4 case map ${theme} - no captured case map with a node open in ${WINDOWS_DIR} (probe 08 into --windows has one)`);
-        for (const [name, pass, line] of [...await interactions(browser, theme), ...(map ? [map] : [])]) {
+        for (const [name, pass, line] of [...await interactions(browser, theme), ...(map ? [map] : []), await cost(browser, theme)]) {
             console.log(`${pass ? "ok  " : "FAIL"} ${name}: ${line}`);
             if (!pass) fails.push(`${name}: ${line}`);
             interactionsRead++;
@@ -366,7 +402,7 @@ try {
     if (unknown.length) fails.push(`--only names no captured window: ${unknown.join(", ")}`);
     if (!ONLY_INTERACTIONS && !fields) fails.push(`read no field (${withFields.length} window(s) with a textarea in ${WINDOWS_DIR})`);
     if (!WITHOUT && !ONLY_INTERACTIONS && !controlRead) fails.push("the controls were not read: no captured project manager to plant them on");
-    if (interactionsRead < THEMES.length * 4) fails.push(`read ${interactionsRead} interaction(s), fewer than I1-I3 and I5 in each theme (${THEMES.length * 4})`);
+    if (interactionsRead < THEMES.length * 5) fails.push(`read ${interactionsRead} interaction(s), fewer than I1-I3, I5 and I6 in each theme (${THEMES.length * 5})`);
 } finally {
     await browser.close();
 }

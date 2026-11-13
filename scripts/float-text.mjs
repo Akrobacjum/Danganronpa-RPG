@@ -28,10 +28,10 @@
  *
  * SIZE. The width stays the field's own; the height is what its text needs (its `scrollHeight` with the border), never
  * less than its own height, at most `CAP_SHARE` of the screen's height, and the field scrolls inside past that. It
- * stands with its top on its own top, moved up only as far as the screen's bottom edge needs. Every frame while it is
- * edited it is placed again over its placeholder, so a window dragged or scrolled under it carries it along, and when
- * the field leaves the page (its window closed or drawn again) it is let go. It grows as text is typed and shrinks as
- * it is deleted. A 120 ms height transition, none under reduced motion (the Look window's switch, the body's
+ * stands with its top on its own top, moved up only as far as the screen's bottom edge needs. It is placed again over
+ * its placeholder whenever something that can move it happens (`follow`: a window dragged, scrolled, resized or drawn
+ * again, never on a frame of its own), and when the field leaves the page (its window closed or drawn again) it is let
+ * go. It grows as text is typed and shrinks as it is deleted, measured once a frame at most. A 120 ms height transition, none under reduced motion (the Look window's switch, the body's
  * `drpg-reduced-motion`, or the system's).
  *
  * NOT FLOATED: a field `readonly` or `disabled`, one marked `data-drpg-float="off"`, a single-line input, a rich text
@@ -114,6 +114,16 @@ const reduced = () => {
 };
 
 let current = null;
+/* What the helper did, counted (the coordinator's ask of 13.11.2026: a floating field's cost, at rest and idle): its own
+   animation frames, its measures of the field's text (a forced layout each) and its reads of the placeholder's box.
+   audit/float-sweep.mjs I6 reads them; nothing else does. */
+const counts = { frames: 0, measures: 0, reads: 0 };
+/** The helper's own work since the page loaded (or since `{ reset: true }`). */
+export function floatTextCounts({ reset = false } = {}) {
+    const out = { ...counts };
+    if (reset) { counts.frames = 0; counts.measures = 0; counts.reads = 0; }
+    return out;
+}
 /* The two parts audit/float-sweep.mjs turns off one at a time for its red runs (its INTERACTIONS): the frame-by-frame
    following of the placeholder, and Escape's own handling. On at a table, always. */
 const parts = { follow: true, escape: true };
@@ -159,48 +169,106 @@ function lift(el) {
     el.setAttribute("popover", "manual");
     try { el.showPopover(); } catch { el.removeAttribute("popover"); }
     el.scrollTop = own.scrollTop;
-    current = { el, hold, own, ownHeight: box.height, frame: 0 };
-    fit();
+    current = { el, hold, own, ownHeight: box.height, frame: 0, length: el.value.length, shrink: false, measure: false, watchers: [] };
+    fit({ shrink: true });
     if (!reduced()) put(el, "transition", `height ${GROW_MS}ms cubic-bezier(0.16, 0.84, 0.28, 1), top ${GROW_MS}ms cubic-bezier(0.16, 0.84, 0.28, 1)`);
     follow();
 }
 
 /** The height and place of the floating field from its text and its placeholder (on lift, on input, each frame). */
-function fit() {
+function fit({ shrink = false } = {}) {
     const c = current;
     if (!c) return;
-    const { el, hold } = c;
-    const box = hold.getBoundingClientRect();
+    const { el } = c;
     const cs = getComputedStyle(el);
     const borders = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-    // the text's height is read at the field's own height, so a field that held more and now holds less shrinks
-    const shown = got(el, "height");
-    const transition = got(el, "transition");
-    put(el, "transition", "none");
-    put(el, "height", `${c.ownHeight}px`);
-    const needed = el.scrollHeight + borders;
-    const height = floatHeight({ own: c.ownHeight, needed, screen: innerHeight });
-    put(el, "height", shown);
-    void el.offsetHeight;
-    if (transition) put(el, "transition", transition); else el.style.removeProperty("transition");
-    put(el, "height", `${height}px`);
-    put(el, "left", `${box.left}px`);
-    put(el, "width", `${box.width}px`);
-    put(el, "top", `${floatTop({ top: box.top, height, screen: innerHeight })}px`);
+    let height = parseFloat(got(el, "height")) || c.ownHeight;
+    counts.measures++;
+    if (shrink) {
+        /* The text's height read at the field's own height, so a field that held more and now holds less shrinks: on the
+           lift and after text was taken out, not on every key (13.11.2026: a reset and a read on every key were two
+           forced layouts a key, 241 in 5 s of typing under Legacy). */
+        const shown = got(el, "height");
+        const transition = got(el, "transition");
+        put(el, "transition", "none");
+        put(el, "height", `${c.ownHeight}px`);
+        const needed = el.scrollHeight + borders;
+        put(el, "height", shown);
+        void el.offsetHeight;
+        if (transition) put(el, "transition", transition); else el.style.removeProperty("transition");
+        height = floatHeight({ own: c.ownHeight, needed, screen: innerHeight });
+    } else if (el.scrollHeight > el.clientHeight) {
+        // text added: the field grows only when what it holds has passed what it shows - one read, the scroll height
+        height = floatHeight({ own: c.ownHeight, needed: el.scrollHeight + borders, screen: innerHeight });
+    }
+    if (got(el, "height") !== `${height}px`) put(el, "height", `${height}px`);
+    place(height);
+}
+
+/** The field over its placeholder: its left, width and top, written only where they changed. */
+function place(height = parseFloat(got(current?.el, "height"))) {
+    const c = current;
+    if (!c) return;
+    counts.reads++;
+    const box = c.hold.getBoundingClientRect();
+    const want = { left: `${box.left}px`, width: `${box.width}px`, top: `${floatTop({ top: box.top, height, screen: innerHeight })}px` };
+    for (const [k, v] of Object.entries(want)) if (got(c.el, k) !== v) put(c.el, k, v);
+}
+
+/*
+ * FOLLOWING THE PLACEHOLDER, ON WHAT MOVES IT (13.11.2026; the coordinator's ask, the E88 way). A frame loop that read
+ * the placeholder's box every frame kept the page drawing 60 frames a second while a field floated and nothing moved
+ * (Chromium: 300 main frames in 5 s against 10 at rest; audit/float-sweep.mjs I6, 90 frames in 1.5 s). What can move a
+ * field's place is watched instead, and each is answered by at most one frame (`schedule`): its window's style or class
+ * (a drag, ApplicationV2's `setPosition`) and its children (a redraw), its window's size and the placeholder's (a
+ * ResizeObserver), a scroll anywhere under the page (capture), the screen's size, and its window leaving the page (its
+ * parent's children). The helper's own writes on the field and the placeholder are the observer's records too, and are
+ * left out of it, or each placing would ask for the next. Typing asks for the same frame: one measure, whatever the
+ * number of keys in it. Nothing is watched while no field floats.
+ */
+function schedule({ measure = false, shrink = false } = {}) {
+    const c = current;
+    if (!c) return;
+    if (measure) c.measure = true;
+    if (shrink) c.shrink = true;
+    if (c.frame) return;
+    c.frame = requestAnimationFrame(() => {
+        counts.frames++;
+        c.frame = 0;
+        if (current !== c) return;
+        if (!c.el.isConnected || !c.hold.isConnected) { drop(); return; }
+        if (c.measure) { const shrinkNow = c.shrink; c.measure = false; c.shrink = false; fit({ shrink: shrinkNow }); }
+        else place();
+    });
 }
 
 function follow() {
     const c = current;
     if (!c || !parts.follow) return;
-    c.frame = requestAnimationFrame(() => {
-        if (current !== c) return;
-        if (!c.el.isConnected || !c.hold.isConnected) { drop(); return; }
-        const box = c.hold.getBoundingClientRect();
-        if (Math.round(box.left) !== Math.round(parseFloat(got(c.el, "left"))) || Math.round(box.width) !== Math.round(parseFloat(got(c.el, "width")))
-            || Math.abs(box.top - (c.lastTop ?? box.top)) >= 1) fit();
-        c.lastTop = box.top;
-        follow();
-    });
+    const app = c.el.closest(".application") ?? c.el.parentElement;
+    const own = record => record.target === c.el || record.target === c.hold;
+    const moved = records => { if (!records.every(own)) schedule(); };
+    const onScroll = () => schedule();
+    if (typeof MutationObserver === "function" && app) {
+        const inWindow = new MutationObserver(moved);
+        inWindow.observe(app, { attributes: true, attributeFilter: ["style", "class", "hidden"], childList: true, subtree: true });
+        c.watchers.push(() => inWindow.disconnect());
+        if (app.parentNode) {
+            const leaving = new MutationObserver(() => schedule());
+            leaving.observe(app.parentNode, { childList: true });
+            c.watchers.push(() => leaving.disconnect());
+        }
+    }
+    if (typeof ResizeObserver === "function") {
+        let first = true;
+        const sized = new ResizeObserver(() => { if (first) { first = false; return; } schedule(); });
+        sized.observe(c.hold);
+        if (app) sized.observe(app);
+        c.watchers.push(() => sized.disconnect());
+    }
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    globalThis.addEventListener?.("resize", onScroll);
+    c.watchers.push(() => { document.removeEventListener("scroll", onScroll, { capture: true }); globalThis.removeEventListener?.("resize", onScroll); });
 }
 
 /** Put the floating field back in its place at its own size; nothing when none floats. */
@@ -209,6 +277,7 @@ export function drop() {
     if (!c) return false;
     current = null;
     globalThis.cancelAnimationFrame?.(c.frame);
+    for (const stop of c.watchers ?? []) stop();
     const { el, hold, own } = c;
     const scrollTop = el.scrollTop;
     try { if (el.matches?.(":popover-open")) el.hidePopover(); } catch { /* already out of the top layer */ }
@@ -236,7 +305,12 @@ function onFocusOut(event) {
 }
 
 function onInput(event) {
-    if (current && event.target === current.el) fit();
+    const c = current;
+    if (!c || event.target !== c.el) return;
+    // text taken out (a delete, a cut, a selection typed over) may let it shrink: the reset and read are asked for then
+    const length = c.el.value.length;
+    schedule({ measure: true, shrink: length < c.length });
+    c.length = length;
 }
 
 /*

@@ -141,6 +141,32 @@ A slip on the way, caught by I3: the one-shot `document` listener was first take
 the browser dispatches runs after each listener returns, so it was gone before the key reached `document` and the
 window closed; a timer takes it away now.
 
+## What a floating field costs (13.11.2026, the coordinator's ask, the E88 way)
+
+Chromium traces of 5 s each on the project manager (`devtools.timeline` with its frame and stack categories; frames are
+`BeginMainThreadFrame`, recalcs `UpdateLayoutTree`, forced layouts a `Layout` with a script's stack), both themes, and
+the helper's own counts (`floatTextCounts`, I6 of the sweep). Scenario 86's counters do not apply (jsdom has no top
+layer, so no field floats headless), nor does glass-sweep's `--frame-cost` (the curtain's, not a window's field).
+
+| 5 s, 1366x768 | before (a63fe324): frames / recalcs / layouts / forced | after: frames / recalcs / layouts / forced |
+| --- | --- | --- |
+| no helper, idle | 10 / 0 / 0 / 0 | 10 / 0 / 0 / 0 |
+| helper registered, no field floating | 10 / 0 / 0 / 0 | 10 / 0 / 0 / 0 |
+| a field floating, idle, glass and legacy | **300** / 0 / 0 / 0 | **10** / 0 / 0 / 0 |
+| typing in a floating field, glass | 306 / 348 / 117 / 0 | 116 / 116 / 117 / 0 |
+| typing in a floating field, legacy | 307 / 473 / 362 / **241** | 148 / 170 / 169 / 0 |
+| typing with no helper (either theme) | 116 / 116 / 116 / 0 | 116 / 116 / 116 / 0 |
+
+At rest the helper did nothing before and does nothing now. What cost was the follow: a frame loop reading the
+placeholder's box every frame kept the page drawing 60 frames a second for as long as a field floated, and every key
+reset the field's height to measure its text (two forced layouts a key under Legacy). Now the field is placed again only
+when something that can move it happens (`follow`: its window's style, class or children, its window's and placeholder's
+size, a scroll, the screen's size, its window leaving the page), at most once a frame, and a key measures once, with the
+reset only after text was taken out. I6 in the sweep holds it: at rest 0 frames, measures and reads; floating idle for
+1.5 s at most 2 frames and 2 reads (it read 90 and 90 before: red first); 30 keys at most one measure a key. The drag
+(I2) still carries the field, by its window's style changing. Legacy's typing stays above the no-helper line by its
+growth's 120 ms transition (the field grows a line at a time).
+
 ## What is open
 
 - The actor sheet is not in the sweep: the style harness's sheet is the module's parts on a model of Daggerheart's, and
