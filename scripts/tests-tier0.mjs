@@ -24497,6 +24497,15 @@ const REGRESSIONS = [
             if (LISTED[d.name]) { if (hit.length) found.add(d.name); return; }
             if (hit.length) reads[d.name] = hit;
         });
+        /* AND THE TWO HELPERS OUTSIDE THE SPAN THAT THE CUT CALLS (E54 G4c): `buildColumn` settles the voice tile with
+           `settleVoice` and turns a block's elements with `blockTurns`, both declared before the span. Read whole: the
+           span alone missed that blockTurns measured each element with getBoundingClientRect during the cut. */
+        for (const name of ["settleVoice", "blockTurns"]) {
+            const body = stripStrings(stripComments(fnSource(raw, name)));
+            const hit = [...STATE.filter(n => new RegExp(`(?<![\\w$.])${n}\\b`).test(body)),
+                ...MEMBERS.filter(n => new RegExp(`\\.${n}\\(`).test(body)).map(n => `.${n}`)];
+            if (hit.length) reads[name] = hit;
+        }
         const fiveArgs = [...span.matchAll(/(?<![\w$.])settleVoice\(/g)]
             .filter(m => callArgs(span, m.index + m[0].length - 1).args.length < 6).length;
         const stale = Object.keys(LISTED).filter(n => !found.has(n));
