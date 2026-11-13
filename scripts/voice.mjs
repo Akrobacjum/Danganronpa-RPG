@@ -873,15 +873,36 @@ export async function voiceTargets() {
     });
     gaps.done();
 
-    // Only a real disagreement counts. Two characters in the same room, or two
-    // that both want the main room, are not a conflict - they are one answer
-    // arrived at twice.
-    const contested = new Map();
-    for (const [userId, list] of claims) {
-        if (new Set(list.map(r => r.target ?? null)).size > 1) contested.set(userId, list);
-    }
+    const contested = contestedOf(claims);
 
     return { rows, byUser, contested, eclipse, trial, waits, held };
+}
+
+/**
+ * The accounts whose voice the ranking settled by actor id alone between two places: `claims` (`placeVoices`' map of an
+ * account's connected rows) cut to the accounts whose rows that tie with the strongest - the same claim, and alike in
+ * whether a dead student's voice is still in its room (`voiceRowFor`'s first two rules) - send them to more than one
+ * target. Each keeps its whole list, for the warning and the plan.
+ *
+ * NO FALSE CONFLICT (E43, 13.11.2026; the plan's item 4). Until E43 an account counted when its rows' targets differed at
+ * all, so a living student outranking a dead one, a victim keeping its room by A9's rule, or a spare whose token stands
+ * on no room - the warning's own advice, "leave their tokens off the map" - was warned of on every pass: each is settled
+ * by a rule, the same on every client. Two characters in one room, or two that both want the main room, are one answer
+ * arrived at twice and never counted. R5202 asks it on plain rows.
+ *
+ * @param {Map<string, Array>} claims
+ * @returns {Map<string, Array>}
+ */
+export function contestedOf(claims) {
+    const contested = new Map();
+    for (const [userId, list] of claims) {
+        const top = Math.max(...list.map(r => r.claim ?? 0));
+        const strongest = list.filter(r => (r.claim ?? 0) === top);
+        const there = strongest.some(stillThere);
+        const tied = strongest.filter(r => stillThere(r) === there);
+        if (new Set(tied.map(r => r.target ?? null)).size > 1) contested.set(userId, list);
+    }
+    return contested;
 }
 
 /**
@@ -2211,23 +2232,43 @@ export async function voicePlan({ toChat = false, targets } = {}) {
     }
     lines.push("");
 
+    /* GROUPED BY WHERE EACH ACCOUNT IS SENT (E43, 13.11.2026; the plan's item 4). Each group is a target: the row that
+       speaks for an account (`byUser`), named by where it sends it (`targetName`) - so a Spectator talking with the
+       Spectators stands under their room, not its token's. A character that sends nobody anywhere - its owner is not
+       connected, nobody holds it, or its account's ranking passed it over - is under "(sent nowhere)", never in the main
+       room it does not reach; and an account with no character has its own section, with where it goes. Until E43 every
+       character was grouped by its own room and an account with no character was not printed. R5201. */
+    const targetName = row => eclipse ? "(Eclipse - no player in voice)"
+        : row?.target === SPECTATOR_ROOM ? "(Spectators' room)"
+            : placeName(row, { main: "(main room)", dead: "(dead channel)" });
     const rooms = new Map();
-    for (const row of rows) {
-        const key = eclipse ? "(Eclipse - no player in voice)" : placeName(row, { main: "(main room)", dead: "(dead channel)" });
+    const add = (key, line) => {
         if (!rooms.has(key)) rooms.set(key, []);
+        rooms.get(key).push(line);
+    };
+    const NOWHERE = "(sent nowhere)";
+    for (const row of rows) {
         const chosen = byUser.get(row.user?.id);
-        // An account pulled two ways is only actually going to one of them, and
-        // the plan has to show which - otherwise it reads as though both apply.
-        const ignored = chosen && chosen !== row ? "   ← ignored, see CONFLICTS" : "";
+        const speaks = Boolean(chosen && chosen.actor === row.actor);
+        // An account pulled two ways is only actually going to one of them, and the plan has to show which.
+        const ignored = chosen && !speaks ? `   ← ignored, ${row.user?.name ?? "its account"} is sent with ${chosen.actor?.name ?? "another row"}${
+            contested.has(row.user?.id) ? " (see CONFLICTS)" : ""}` : "";
         // Sent nothing until the GMs' cast arrives here (`keep`, `held`; E19 C3 and fix r1-G1).
-        const waiting = chosen === row && (row.keep || held?.has(row.user?.id)) ? "   ← sent nothing until the cast arrives" : "";
-        rooms.get(key).push(`${row.actor.name}${row.monokuma ? " [Monokuma]" : ""} - ${
-            row.user?.name ?? "nobody"} · ${row.why}${ignored}${waiting}`);
+        const waiting = speaks && (row.keep || held?.has(row.user?.id)) ? "   ← sent nothing until the cast arrives" : "";
+        add(speaks ? targetName(chosen) : NOWHERE, `${row.actor.name}${row.monokuma ? " [Monokuma]" : ""} - ${
+            row.user?.name ?? "nobody"} · ${speaks ? chosen.why : row.why}${ignored}${waiting}`);
     }
-
-    for (const [room, who] of [...rooms.entries()].sort()) {
+    const sorted = [...rooms.entries()].sort(([a], [b]) => (a === NOWHERE) - (b === NOWHERE) || a.localeCompare(b));
+    for (const [room, who] of sorted) {
         lines.push(`${room}  (${who.length})`);
         for (const line of who) lines.push(`   ${line}`);
+    }
+
+    const alone = [...byUser.values()].filter(row => !row.actor && row.user);
+    if (alone.length) {
+        lines.push("");
+        lines.push(`ACCOUNTS WITH NO CHARACTER  (${alone.length})`);
+        for (const row of alone) lines.push(`   ${row.user.name}${row.user.isGM ? " [GM]" : ""} → ${targetName(row)} · ${row.why || "no character"}`);
     }
 
     // ONE ACCOUNT, ONE ROOM. Found by this very function on the test world - one
@@ -2242,7 +2283,7 @@ export async function voicePlan({ toChat = false, targets } = {}) {
             const name = game.users.get(userId)?.name ?? userId;
             lines.push(`   ${name}`);
             for (const row of list) {
-                const chosen = byUser.get(userId) === row;
+                const chosen = byUser.get(userId)?.actor === row.actor;
                 lines.push(`      ${chosen ? "→" : " "} ${row.actor.name} · ${placeName(row, { main: "the main room", dead: "the dead channel" })}${
                     chosen ? "   (this one is applied)" : ""}`);
             }
