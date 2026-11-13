@@ -87,7 +87,10 @@ reports the count once.
 
 Changed on purpose by the fix, each with its reason in the test: E36-T4 (a share and a revoke write no countdown), E36-T11
 (the window's Save of a secret project writes no countdown), R3510 (two more lines from `tellSight`), R9 and R190 (the
-world-secrets list and its fixtures name `secretName` and `viewers`).
+world-secrets list and its fixtures name `secretName` and `viewers`). Two scenario checks read p1's NONE in a secret
+countdown's map and now read that the map tells p1 apart from nobody, and that p1's `canSee` is false: 30-security's
+"a secret project's repair reaches p1 under no name of the project" and 93-spectator's "the Spectator knows every
+project in a room nobody found" (E92's, `own.p1` 0 -> 2).
 
 Found by the suite and fixed in the same work:
 - a secret repair's end card named its target by the countdown's raw name ("???" after the fix): it reads the GMs' name
