@@ -49277,6 +49277,42 @@ const INVARIANTS = [
             if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
         }
     }],
+    ["R4655 - a change of theme redraws the room's outline quietly, not as an arrival (fog-reveal.mjs `recolourRoomOutline`; gaps, 1.2.105's known gap \"a theme switch draws the room outline as an arrival\"): the outline drawn again for the other theme carries no room name and stands in place of the old one", async () => {
+        /*
+         * 1.2.105's notes, Known gaps ("Tables and the map"): a theme switch draws the room outline as an arrival. The two
+         * themes draw different borders, so `recolourRoomOutline` draws the standing outline again when the theme moved -
+         * through `flashOutline` with no `quiet`, so it played as the player walking in: the old outline faded under the
+         * new, the hop, and the room's name over it. Every other redraw that is no arrival (a wall, a door, a passage row, a
+         * room reshaped) is quiet (E49 B4, D147). Drawn on a stand-in room into a container of the suite's own, as R3430
+         * draws it; the theme read as the other one for the redraw (`glassNow`). The real standing outline, if any, is
+         * drawn again quietly after. Red at 7ed09b68: the redrawn outline carries the room's name.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const body = document.body.classList, hadGlass = body.contains("drpg-theme-stained-glass");
+        const was = FR.roomOutline;
+        const fx = new PIXI.Container();
+        const region = { name: "R4655 Room", parent: null, shapes: [{ x: 200, y: 200, width: 400, height: 300 }] };
+        const named = s => Boolean(s?.group?.children?.some(c => c?.text === region.name));
+        let read = null;
+        try {
+            if (!hadGlass) body.add("drpg-theme-stained-glass");
+            FR.flashOutline(fx, region, { x: 0, y: 0 });
+            const first = FR.roomOutline;
+            must(first?.group?.parent === fx, "no outline was drawn on the stand-in room - this reads nothing");
+            const arrived = named(first);
+            FR.recolourRoomOutline({ standing: first, colourNow: () => first.colour, glassNow: () => !first.glass });
+            const second = FR.roomOutline;
+            read = [arrived, second !== first && second?.room === region.name, named(second), Boolean(first.group?.destroyed)];
+        } finally {
+            if (!hadGlass) body.remove("drpg-theme-stained-glass");
+            if (FR.roomOutline?.fx === fx) FR.fadeRoomOutline({ now: true });
+            for (const c of [...fx.children]) { clearTimeout(c.drpgFlashTimer); if (!c.destroyed) c.destroy({ children: true }); }
+            fx.destroy();
+            if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, true, false, true]),
+            "[the first draw named the room, the theme's redraw stands in its place, the redraw names the room, the old outline is gone at once]");
+    }],
     ["R3431 - a room the class found is a flash on a GM's map, not the outline that stands (E49 B4; S07-31): `flashOutline` with `standing: false` leaves the standing outline where it is, takes itself down once its name has faded, and fog.mjs's repaint draws a found room so unless one of this viewer's tokens stands in it", async () => {
         /*
          * E49 B4 (11.11.2026; audit S07-31). On a GM's browser `repaintFog` played the discovery of a room the class found
