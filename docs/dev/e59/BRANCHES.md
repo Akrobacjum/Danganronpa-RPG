@@ -41,8 +41,8 @@ histories more than 1000 commits apart from main; read here, each is an ancestor
 | `dh-212b` | 2026-11-12 | 14 | 0 |
 | `e102-prep` | 2026-11-13 | 1 | 0 |
 | `e57-prep` | 2026-11-13 | 3 | 0 |
-| `e59-c5a` | 2026-11-13 | 3 | 0 |
-| `e59-c5b` | 2026-11-13 | 3 | 0 |
+| `e59-c5a` | 2026-11-13 | 3 (this line, at the reading) | 0 |
+| `e59-c5b` | 2026-11-13 | 3 (this line, at the reading; it moves with every commit) | 0 |
 | `e59-prep` | 2026-11-12 | 1 | 0 |
 | `e62-c3` | 2026-11-12 | 6 | 0 |
 | `live-pack` | 2026-11-13 | 6 | 0 |

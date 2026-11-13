@@ -28,7 +28,8 @@ What you saw on the GM's screen and on the players', and whether it matched what
 
 ## The diagnostic report
 
-As a GM, type `game.drpg.diagnose()` in the browser console (F12) and press Copy in the window it opens. Paste it here:
+Type `game.drpg.diagnose()` in the browser console (F12) and press **Copy report** in the window it opens. A GM's report
+holds more than a player's; either helps. Paste it here:
 
 ```text
 

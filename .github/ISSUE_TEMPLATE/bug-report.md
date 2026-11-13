@@ -24,7 +24,7 @@ What you did, what you expected (and, if you can, the handbook section that says
 
 ## The diagnostic report
 
-As a GM, type `game.drpg.diagnose()` in the browser console (F12) and press Copy in the window it opens, or copy the
+Type `game.drpg.diagnose()` in the browser console (F12) and press **Copy report** in the window it opens, or copy the
 text the console prints. Paste it here:
 
 ```text

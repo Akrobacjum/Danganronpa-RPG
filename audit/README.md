@@ -33,7 +33,7 @@ and the window captures below were not in it.
   style, held to the baseline (E44 C1d); the baseline is written by the sweep's `--write` or `--accept`, never by hand.
 - `forced-sweep.mjs` - the module's state marks under `forced-colors: active`, both themes (E48 K3).
 - `case-map-sweep.mjs` - the case map in Chromium: whether a node's text is cut, or two nodes overlap (E97 fix).
-- `windows/` - the module's windows as the harness draws them (60 pages), written by
+- `windows/` - the module's windows as the harness draws them (59 pages and their `manifest.json`), written by
   `harness/probes/08-capture-windows.mjs` for the style harness and the mockups.
 - `design/` - the approved design pictures (62 files; E44's review, `docs/design/windows.md`, which tier 0 holds to
   them).

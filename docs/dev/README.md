@@ -2,7 +2,7 @@
 
 What this folder holds and who reads each file (E59 C5, Q-E59-6's default: kept in place, with an index, because
 code, tests and release notes cite these files by path). Nothing here ships: `.gitattributes` export-ignores
-`docs/dev/`. Read on main at 421f2395 (1.2.109, 13.11.2026); a line that adds a folder adds its row when it merges.
+`docs/dev/`. Read on main at 421f2395 (1.2.109, 13.11.2026); a line that adds a folder adds its row (this line's own `e59/` is the last row below).
 
 "Cited by" is `git grep -l` of the path over the repository, this folder aside, release notes shortened to their
 version. A file a test or a tool reads is not to be moved without its reader.
@@ -38,3 +38,4 @@ reads say so.
 | `e97/` | E97's status (then E98, E99) and `STATUS-FIX.md`, the case map after the owner's review | v1.2.107 |
 | `e99/` | E99's status | v1.2.108; tier 2, components.css |
 | `gaps/` | `STATUS-GAPS-65.md`, scenario 65-season's X4 and X6 | v1.2.108 |
+| `e59/` | E59's measurements, from the line that adds this index: `BRANCHES.md`, the remote's branches and tags as read on 13.11.2026 | - |
