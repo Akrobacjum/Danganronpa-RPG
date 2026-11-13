@@ -73,6 +73,13 @@ Tile placeable's children against a token and routes a double-click on the token
 source here, no canvas headless): LIVE-E95-01 items (2) and (3), and the new LIVE-E106-01 (AUDIT 9.2 item 508), which
 carries a console line that settles it in a minute at the table.
 
+**The owner's answer (13.11.2026, through the coordinator):** after a student becomes a Monocub the GM sees *two*
+things on the map, the body tile and the Monocub. That fits (a): of the two, the tile is the one that opens no sheet, and
+its picture, stretched over the whole square without the token's scale, fit or ring, need not match the token's size.
+What each of the two is: the **token** (on 1.2.110 the student's own, unchanged; on the e72 line the re-linked Spectator
+token, from E106 at the student's look) opens the student's sheet, linked (scenario 94); the **tile** is a Tile, which
+opens no character sheet. Which one the GM double-clicked is still LIVE-E106-01's.
+
 Hypotheses ruled out headless on 1.2.110: (b) the module does not change the token's width, height, texture or ring,
 does not swap it and does not break its link. (c) the module's overlays take no pointer, except the body mark (fixed,
 R5402) and `markLocalDeath` (incident-store.mjs, a player's browser only, a sprite at 0.8 for a death this player knows
