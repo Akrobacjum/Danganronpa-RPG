@@ -37,7 +37,7 @@ test that already drives an assertion the trimmed test dropped.
 | R945 | (c) | the cut and the gate by R943, R944 and scenario 76 C | a census: no write, no emit, no copy read over six bodies |
 | R1127 | (c) | `wholeNumber` itself by R1128 (tier 1) | a census of every stepper and the lines that read its value |
 | R1483 | (c) | - | three texts of the harness and its README agreeing: documentation of an assumption |
-| R99 | (c), the pilot's | - | unchanged here (see the note at the end) |
+| R99 | (c), the pilot's | - | unchanged here (see the reading after the mutant tables) |
 
 ## Mutant tables
 
@@ -93,8 +93,9 @@ with a gather fixture. R99 is left as the pilot marked it; m4 above is a mutant 
 ## Counts
 
 26 tests in the slice (R99 the pilot's). (a): 3 - R90 in place, R5170 off R78, R5171 off R73. (b): 3 - R62, R83, R95
-(three new tier-2 tests). (c): 20 text guards, of which R62, R65, R73, R78 and R83 are trimmed to what stays text,
-R66 and R71 are marked not converted (drivable, not built here), and R99 is the pilot's. Deleted from tier 0: R95.
+(three new tier-2 tests). (c): 20 text guards - R65 trimmed (its handOff half held by R167), R66 and R71 marked not converted (drivable, not
+built here), R99 the pilot's, the other 16 marked whole. Besides, R62, R73, R78 and R83 keep a trimmed remainder in
+tier 0 marked TEXT GUARD, counted under (a) or (b) above. Deleted from tier 0: R95.
 New R numbers: R5170, R5171. Every new test failed each mutant it was written for (m2 of R5171 only after a fix,
 recorded above).
 
