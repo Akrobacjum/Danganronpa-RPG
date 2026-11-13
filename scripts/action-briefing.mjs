@@ -338,7 +338,8 @@ export function tamperThresholdFacts(actor, cleanup) {
         const reliefs = [];
         const tier = cleanup.cleaningTier(actor);
         if (CLEANUP.toolTierReducesDc && tier) reliefs.push(game.i18n.format("DRPG.Action.reliefTool", { n: tier }));
-        const fresh = cleanup.freshSceneBonus();
+        // The roller's own reading (the 1.2.110 review's V3): on a GM, only the unfound bodies this character's player may know.
+        const fresh = cleanup.freshSceneBonus({ actor });
         if (fresh) reliefs.push(game.i18n.format("DRPG.Action.reliefFresh", { n: fresh }));
         // By the row that rolls each (E21 C5b): the erase ladder under Cover your traces, the trail's number under its
         // row. The watchers are said once, by `briefingFacts`, with the cover's number (`DRPG.Tamper.watched`).

@@ -418,6 +418,201 @@ catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--
     };
 }
 
+/* THE POLISH CAPITALS ON THE SEQUENCES' TITLE (the trial's exit, 13.11.2026; the owner's review of its shots: the Legacy
+   subtitle read "POWROT"). `--accents` runs this instead of the sweep: in each theme, the trial's title and its
+   chapter's line are laid as sequence.mjs lays them (`#drpg-sequence .drpg-seq-title`, the band and the line), and each
+   of the nine capitals with a mark - Ą Ć Ę Ł Ń Ó Ś Ź Ż - is drawn on a canvas in the face and size the element computes,
+   beside its base letter. Each fails when it reads like its base letter: a mark above with no empty row between it and
+   the letter (pixel.woff2's Ó and pixel-ext.woff2's Ć Ń Ś Ź Ż set one font-pixel on the letter's top row, which at the
+   line's 24 px at 1366x768 is a 3 px bump: read here 0 empty rows before the fix; at a phone's 393x852 the line stood
+   at 6.9 px, under a font pixel, and the mark merged again), a tail below with no ink below the
+   base's, or fewer differing pixels than one of the face's pixels. Its control, once a run: O drawn for Ó must fail.
+   Exit 1 on a failure or a control that passed. */
+async function accentProbe() {
+    await document.fonts.ready;
+    const host = document.createElement("div");
+    host.id = "drpg-sequence";
+    host.style.cssText = "visibility:hidden";
+    host.innerHTML = '<div class="drpg-seq-title"><div class="drpg-seq-title-band">X</div><div class="drpg-seq-title-sub">X</div></div>';
+    document.body.append(host);
+    const PAIRS = [["Ą", "A", "below"], ["Ć", "C", "above"], ["Ę", "E", "below"], ["Ł", "L", "inside"], ["Ń", "N", "above"], ["Ó", "O", "above"], ["Ś", "S", "above"], ["Ź", "Z", "above"], ["Ż", "Z", "above"]];
+    const out = { parts: [] };
+    try {
+        for (const part of ["band", "sub"]) {
+            const el = host.querySelector(`.drpg-seq-title-${part}`), cs = getComputedStyle(el);
+            const size = parseFloat(cs.fontSize), font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+            for (const ch of "ĄĆĘŁŃÓŚŹŻAOCELNSZ") await document.fonts.load(font, ch).catch(() => null);
+            const W = Math.ceil(size * 2), H = Math.ceil(size * 3), c = document.createElement("canvas"); c.width = W; c.height = H;
+            const g = c.getContext("2d", { willReadFrequently: true });
+            const ink = ch => {
+                g.clearRect(0, 0, W, H); g.font = font; g.fillStyle = "#000"; g.textBaseline = "alphabetic"; g.fillText(ch, size * 0.3, size * 2);
+                const d = g.getImageData(0, 0, W, H).data, on = new Uint8Array(W * H);
+                for (let i = 0; i < W * H; i++) on[i] = d[i * 4 + 3] > 127 ? 1 : 0;
+                const rows = []; for (let y = 0; y < H; y++) { let n = 0; for (let x = 0; x < W; x++) n += on[y * W + x]; rows.push(n); }
+                const lit = rows.map((n, y) => (n ? y : -1)).filter(y => y >= 0);
+                return { on, rows, top: lit[0] ?? -1, bot: lit[lit.length - 1] ?? -1 };
+            };
+            const px = Math.max(1, size / 16);   // the least mark that reads: a sixteenth of the size, squared
+            const judge = (acc, base, where) => {
+                const a = ink(acc), b = ink(base);
+                let differ = 0; for (let i = 0; i < a.on.length; i++) differ += a.on[i] !== b.on[i];
+                let gap = null, ok = differ >= px * px;
+                if (where === "above") {
+                    // the empty rows between the mark's lowest ink and the letter's top, read in the accented glyph
+                    gap = 0; for (let y = b.top - 1; y > a.top && !a.rows[y]; y--) gap++;
+                    ok = ok && a.top < b.top && gap >= 1;
+                } else if (where === "below") ok = ok && a.bot > b.bot;
+                return { acc, base, where, differ, gap, above: b.top - a.top, below: a.bot - b.bot, ok };
+            };
+            const rows = PAIRS.map(([a, b, w]) => judge(a, b, w));
+            out.parts.push({ part, font: cs.fontFamily.split(",")[0], size: Math.round(size * 10) / 10, rows, control: judge("O", "O", "above").ok });
+        }
+    } finally { host.remove(); }
+    return out;
+}
+if (args.includes("--accents")) {
+    let bad = 0;
+    try {
+        for (const [vw, vh] of [[1366, 768], [393, 852]]) for (const theme of themes) {
+            const page = await browser.newPage({ viewport: { width: vw, height: vh } });
+            await page.goto(`${base}/${page0}${theme === "legacy" ? (page0.includes("?") ? "&" : "?") + "theme=legacy" : ""}`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            const r = await page.evaluate(accentProbe);
+            // AS DRAWN: the glyph test above reads the face, not the element - a clip on the element, or a box too short for
+            // the mark, cuts it after the face drew it (at 393x852 the line's shard first cut Ó's acute off POWRÓT). So each
+            // capital is also set in the real title and line, laid visible as sequence.mjs lays them, at the start, in Ó's
+            // place in POWRÓT and at the end of the words they stand in (the shard's cut is deepest at its right end), and the element's shot is
+            // compared with the same words spelt with the base letter: it fails under (size/16)^2 differing pixels.
+            await page.evaluate(() => {
+                const host = document.createElement("div");
+                host.id = "drpg-sequence"; host.dataset.sweep = "accents";
+                host.innerHTML = '<div class="drpg-seq-title is-long"><div class="drpg-seq-title-band"></div><div class="drpg-seq-title-sub"></div></div>';
+                document.body.append(host);
+            });
+            const WORDS = { band: ["#ONIEC ROZPRAWY", "KONIEC R#ZPRAWY", "KONIEC ROZPRAW#"], sub: ["#ozdział 2 · Powrót do szkoły", "Rozdział 2 · Powr#t do szkoły", "Rozdział 2 · Powrót do szkoł#"] };
+            for (const p of r.parts) {
+                const fails = [];
+                for (const [acc, baseCh] of [["Ą", "A"], ["Ć", "C"], ["Ę", "E"], ["Ł", "L"], ["Ń", "N"], ["Ó", "O"], ["Ś", "S"], ["Ź", "Z"], ["Ż", "Z"]]) for (const words of WORDS[p.part]) {
+                    const shotOf = async ch => {
+                        const box = await page.evaluate(([part, text]) => {
+                            const host = document.querySelector('#drpg-sequence[data-sweep="accents"]');
+                            host.querySelector(".drpg-seq-title-band").textContent = part === "band" ? text : "KONIEC ROZPRAWY";
+                            host.querySelector(".drpg-seq-title-sub").textContent = part === "sub" ? text : "Rozdział 2";
+                            const b = host.querySelector(`.drpg-seq-title-${part}`).getBoundingClientRect();
+                            return { x: Math.max(0, b.left - 6), y: Math.max(0, b.top - 6), width: Math.min(innerWidth, b.right + 6) - Math.max(0, b.left - 6), height: Math.min(innerHeight, b.bottom + 6) - Math.max(0, b.top - 6) };
+                        }, [p.part, words.replace("#", ch)]);
+                        return (await page.screenshot({ clip: box })).toString("base64");
+                    };
+                    const differ = await page.evaluate(async ([a, b]) => {
+                        const dec = async s => { const bm = await createImageBitmap(await (await fetch(`data:image/png;base64,${s}`)).blob()); const cv = new OffscreenCanvas(bm.width, bm.height); const g = cv.getContext("2d"); g.drawImage(bm, 0, 0); return g.getImageData(0, 0, bm.width, bm.height).data; };
+                        const [A, B] = [await dec(a), await dec(b)];
+                        let n = 0; for (let i = 0; i < Math.min(A.length, B.length); i += 4) n += Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 90;
+                        return n;
+                    }, [await shotOf(acc), await shotOf(baseCh)]);
+                    const least = Math.max(1, p.size / 16) ** 2;
+                    if (differ < least) fails.push(`${acc} at the ${words.startsWith("#") ? "start" : words.endsWith("#") ? "end" : "middle"} drawn like ${baseCh} (${differ} px differ, ${Math.ceil(least)} needed)`);
+                }
+                p.drawn = fails;
+                bad += fails.length;
+            }
+            await page.evaluate(() => document.querySelector('#drpg-sequence[data-sweep="accents"]')?.remove());
+            for (const p of r.parts) {
+                const fails = p.rows.filter(x => !x.ok);
+                bad += fails.length + (p.control ? 1 : 0);
+                console.log(`${vw}x${vh} ${theme.padEnd(7)} ${p.part.padEnd(4)} ${p.font} ${p.size}px: ${p.rows.map(x => `${x.acc}${x.ok ? "" : "!"}${x.gap == null ? "" : `(gap ${x.gap})`}`).join(" ")}${fails.length ? `  - FAIL: ${fails.map(x => `${x.acc} reads like ${x.base} (${x.differ} px differ, ${x.where === "above" ? `${x.above} rows above, gap ${x.gap}` : `${x.below} rows below`})`).join(", ")}` : ""}${p.control ? "  - FAIL: the control (O for Ó) passed" : ""}${p.drawn.length ? `  - FAIL as drawn: ${p.drawn.join(", ")}` : "; as drawn, each apart from its base"}`);
+            }
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    console.log(`ACCENTS ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) at 1366x768 and 393x852, the sequences' title and line, 9 Polish capitals each`);
+    process.exit(bad ? 1 : 0);
+}
+
+/* THE SEQUENCES' CHAPTER LINE ON THE CLOSED CURTAIN (the trial's exit, 13.11.2026; the owner's review of its shots: under
+   Stained Glass the line stood over an open window's words showing through the panes, and a lead line ran through it).
+   `--title-contrast` runs this instead of the sweep: in each theme, the trial's entry and its exit are played on the page
+   on a held clock (Playwright's, every Web Animation paused and set to it) to the closed title, 1800 ms in, at 1366x768 and a phone's 393x852,
+   and the frame is shot three times - as drawn, the line hidden, the line's ink transparent with its shadow kept - and the line's colour read with the page put back (read under
+   the third shot it was the transparent ink's, and every run read 1.05). The line's glyph pixels are those the first two differ on; what stands under them and within 5 px of them is read from the
+   third, and its contrast with the line's computed colour is WCAG's. A run fails when the glyphs' 5th percentile or
+   their surround's 1st is under 4.5 (the surround is what an open window's words and the lead lines reach). Its
+   control, once a theme: the line's colour set to #6a6a6a must fail. Exit 1 on a failure or a control that passed. */
+async function titleLineReading([a, b, c]) {
+    const dec = async s => { const bm = await createImageBitmap(await (await fetch(`data:image/png;base64,${s}`)).blob()); const cv = new OffscreenCanvas(bm.width, bm.height); const g = cv.getContext("2d"); g.drawImage(bm, 0, 0); return { d: g.getImageData(0, 0, bm.width, bm.height).data, w: bm.width, h: bm.height }; };
+    const [{ d: F, w: W, h: Hh }, { d: H }, { d: C }] = [await dec(a), await dec(b), await dec(c)];
+    const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const sub = document.querySelector("#drpg-sequence .drpg-seq-title-sub");
+    if (!sub) return null;
+    const col = getComputedStyle(sub).color.match(/[\d.]+/g).map(Number);
+    const Lt = 0.2126 * lin(col[0]) + 0.7152 * lin(col[1]) + 0.0722 * lin(col[2]);
+    const kOf = i => { const Lb = 0.2126 * lin(C[i]) + 0.7152 * lin(C[i + 1]) + 0.0722 * lin(C[i + 2]); return (Math.max(Lt, Lb) + 0.05) / (Math.min(Lt, Lb) + 0.05); };
+    const box = sub.getBoundingClientRect(), R = 5;
+    const y0 = Math.max(0, Math.floor(box.top) - 20), y1 = Math.min(Hh, Math.ceil(box.bottom) + 20), x0 = Math.max(0, Math.floor(box.left) - 20), x1 = Math.min(W, Math.ceil(box.right) + 20);
+    const glyph = new Uint8Array(W * Hh), on = [], near = [];
+    const diff = (P, Q, i) => Math.abs(P[i] - Q[i]) + Math.abs(P[i + 1] - Q[i + 1]) + Math.abs(P[i + 2] - Q[i + 2]);
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * W + x) * 4; if (diff(F, H, i) > 60 && diff(F, C, i) > 150) glyph[y * W + x] = 1; }
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const i = (y * W + x) * 4;
+        if (glyph[y * W + x]) { on.push(kOf(i)); continue; }
+        let hit = false;
+        for (let dy = -R; dy <= R && !hit; dy++) for (let dx = -R; dx <= R; dx++) { const yy = y + dy, xx = x + dx; if (yy >= 0 && yy < Hh && xx >= 0 && xx < W && glyph[yy * W + xx]) { hit = true; break; } }
+        if (hit) near.push(kOf(i));
+    }
+    const q = (v, f) => { v.sort((p, r) => p - r); return v.length ? Math.round(v[Math.floor(f * (v.length - 1))] * 100) / 100 : 0; };
+    return { text: sub.textContent, colour: getComputedStyle(sub).color, glyphs: on.length, p5: q(on, 0.05), min: q(near, 0), p1: q(near, 0.01) };
+}
+if (args.includes("--title-contrast")) {
+    let bad = 0;
+    try {
+        for (const [vw, vh] of [[1366, 768], [393, 852]]) for (const theme of themes) for (const kind of ["trialEntry", "trialExit"]) for (const ctl of kind === "trialExit" && vw === 1366 ? [false, true] : [false]) {
+            const page = await browser.newPage({ viewport: { width: vw, height: vh } });
+            await page.goto(`${base}/${page0}${theme === "legacy" ? (page0.includes("?") ? "&" : "?") + "theme=legacy" : ""}`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            await page.evaluate(async () => {
+                const words = await fetch("/lang/pl.json").then(r => r.json());
+                const at = k => k.split(".").reduce((o, p) => (o && typeof o === "object" ? o[p] : undefined), words);
+                const { i18n } = window.game;
+                i18n.localize = k => (typeof at(k) === "string" ? at(k) : k.split(".").pop());
+                i18n.format = (k, d = {}) => String(i18n.localize(k)).replace(/\{(\w+)\}/g, (_, n) => d[n] ?? "");
+                document.body.dataset.drpgPhase = "classTrial";
+            });
+            await page.waitForTimeout(3000);
+            await page.clock.install();
+            await page.clock.pauseAt(new Date(Date.now() + 1000));
+            await page.evaluate(() => {
+                window.__anims = [];
+                const own = Element.prototype.animate;
+                Element.prototype.animate = function (...a) { const x = own.apply(this, a); x.pause(); window.__anims.push([x, performance.now()]); return x; };
+            });
+            await page.evaluate(async kind => {
+                const S = await import("/scripts/sequence.mjs");
+                S.registerSequences();
+                const clock = kind === "trialExit" ? { phase: "dailyLife", chapter: 2, timeOfDay: "afternoon", trialEndedAt: Date.now() } : { phase: "classTrial", chapter: 2, timeOfDayStartedAt: Date.now() };
+                window.__seq = kind === "trialExit" ? S.playTrialExit(clock, { on: true }) : S.playTrialEntry(clock);
+            }, kind);
+            await page.clock.runFor(1800);
+            await page.evaluate(() => { const t = performance.now(); for (const [a, at] of window.__anims) { try { if (a.playState !== "finished" && a.playState !== "idle") a.currentTime = t - at; } catch { /* a finished one */ } } });
+            const shot = async css => {
+                await page.evaluate(css => { let s = document.getElementById("drpg-sweep-line"); if (!s) { s = document.createElement("style"); s.id = "drpg-sweep-line"; document.head.append(s); } s.textContent = css; }, css);
+                await page.waitForTimeout(80);
+                return (await page.screenshot()).toString("base64");
+            };
+            const own = ctl ? "#drpg-sequence .drpg-seq-title-sub { color: #6a6a6a !important; }" : "";
+            const frames = [await shot(own), await shot(`${own} #drpg-sequence .drpg-seq-title-sub { visibility: hidden !important; }`), await shot(`${own} #drpg-sequence .drpg-seq-title-sub { color: transparent !important; }`)];
+            await shot(own);   // the line's colour is read as drawn, not under the third shot's transparent ink
+            const r = await page.evaluate(titleLineReading, frames);
+            const ok = !!r && r.glyphs > 150 && r.p5 >= 4.5 && r.p1 >= 4.5;
+            if (ctl ? ok : !ok) bad++;
+            console.log(`${vw}x${vh} ${theme.padEnd(7)} ${kind.padEnd(10)}${ctl ? " control" : ""} ${r ? `"${r.text}" ${r.colour}: ${r.glyphs} glyph px, glyphs' 5th pct ${r.p5}, surround (5 px) min ${r.min}, 1st pct ${r.p1}` : "no line drawn"}${ctl ? (ok ? "  - FAIL: the control passed" : "  - reads under 4.5, as it must") : ok ? "" : "  - FAIL: under 4.5"}`);
+            await page.close();
+        }
+    } finally { await browser.close(); srv?.kill(); }
+    console.log(`TITLE CONTRAST ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s), the trial's entry and exit, the closed title at 1366x768 and 393x852`);
+    process.exit(bad ? 1 : 0);
+}
+
 /* THE CURTAIN'S PRICE (E88 C0, 27.10.2026; E88-04): `--frame-cost` runs this instead of the sweep. At each size (by
    default 1920x1080 and 1366x768) in each theme, the page is loaded once and the mean ms per frame over `--frames`
    frames (30) is read as the page stands and with each of the theme's per-frame costs held alone: the blur

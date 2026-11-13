@@ -3669,7 +3669,7 @@ function snapshotCanvas(src) {
    paints the curtain, so these are the pixels the pass began with. A layer the page does not show is not taken
    (E23 C1b): with the pulse switched off (`drpg-no-pulse`, reduced motion) its canvas keeps its last frame under
    `display: none`, and the old look carried it into the turn as a darker or lighter glass than the screen had shown. */
-function snapshotLook(j, painted = j.painted) {
+function snapshotLook(j, painted = j.painted, { glow = false } = {}) {
   if (!j.panes || !painted) return null;
   const el = j.el, sg = el.querySelector(":scope > canvas.sg");
   if (!sg || !sg.width) return null;
@@ -3681,6 +3681,19 @@ function snapshotLook(j, painted = j.painted) {
     const cs = getComputedStyle(l);
     if (cs.display === "none" || cs.visibility === "hidden") continue;
     g.drawImage(l, 0, 0, c.width, c.height);
+  }
+  /* THE BLOOM IN THE LOOK, FOR A SEQUENCE'S COPIES (the entry's hand-over, 12.11.2026). A sequence lays its copies of
+     the curtain over the page and holds the live curtain and its glow at 0 under them (`holdCurtain`), so a copy
+     without the glow stood a bloom darker than the screen it replaced: the probe of the seam report read the first
+     frame 5.5 darker on the plain glass from the glow alone. Laid as the page lays it, `screen` over the glass. A turn's
+     look leaves it out: the turn keeps the live glow and crosses it over itself. */
+  if (glow) {
+    const gl = document.querySelector('[data-glow="' + j.seed + '"]');
+    if (gl?.width && getComputedStyle(gl).display !== "none") {
+      g.globalCompositeOperation = "screen";
+      g.drawImage(gl, 0, 0, c.width, c.height);
+      g.globalCompositeOperation = "source-over";
+    }
   }
   return c;
 }
@@ -3843,7 +3856,7 @@ export function skipTurn() { let ended = false; for (const j of curtains) if (j.
  * colour and under TURN_WORTH of the panes moving.
  */
 export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, force = false, how = null, seed = 1, groups = TURN_BATCHES, delays = null } = {}) {
-  const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null };
+  const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null, stay: [] };
   if (reduced || !from?.length || !to?.length) return none;
   const recolour = Boolean(fromAcc && acc && fromAcc !== acc);
   const { dist } = centreOrder(to, W, H);
@@ -3858,7 +3871,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
   const at = b => (Array.isArray(delays) && Number.isFinite(delays[b]) ? delays[b] : b * gap);
   const delayOf = batchOf.map(at);
   const ease = curveOf(curve);
-  const used = new Set(), moves = [], items = [], statics = [], holes = [];
+  const used = new Set(), moves = [], items = [], statics = [], holes = [], stay = [];
   to.forEach((p, i) => {
     const c = centroid(p.poly);
     let best = -1, bd = Infinity;
@@ -3875,7 +3888,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
     let bestK = 0, bestD = Infinity;
     for (let k = 0; k < N; k++) { let d = 0; for (let n = 0; n < N; n++) { const f = F[(n + k) % N]; d += (f[0] - T[n][0]) ** 2 + (f[1] - T[n][1]) ** 2; } if (d < bestD) { bestD = d; bestK = k; } }
     F = F.map((_, n) => F[(n + bestK) % N]);
-    if (!F.some((q, n) => Math.hypot(q[0] - T[n][0], q[1] - T[n][1]) > TURN_MOVED)) { if (recolour) items.push({ from: best, batch: batchOf[i] }); else statics.push(i); return; }
+    if (!F.some((q, n) => Math.hypot(q[0] - T[n][0], q[1] - T[n][1]) > TURN_MOVED)) { stay.push(i); if (recolour) items.push({ from: best, batch: batchOf[i] }); else statics.push(i); return; }
     const A = fitAffine(F, T);
     const err = Math.max(...F.map(([x, y], n) => Math.hypot(A[0] * x + A[1] * y + A[2] - T[n][0], A[3] * x + A[4] * y + A[5] - T[n][1])));
     const box = boxOf([a], 1), o = [box.x0, box.y0];
@@ -3966,7 +3979,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
     none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
     // each batch's onset (E62 C2: a transition's own `delays`, else `gap` apart), which the turn's layers read
     batchDelay: Array.from({ length: nb }, (_, b) => at(b)),
-    frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
+    frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null, stay,
     glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
   };
 }
@@ -4010,6 +4023,24 @@ function curtainSibling(j, id, cls, extra = "") {
   const css = STYLE + "z-index:" + j.el.style.zIndex + ";" + extra;
   if (el.drpgCss !== css) { el.drpgCss = css; el.style.cssText = css; el.drpgClip = null; }
   return el;
+}
+/* The overlap of two convex polygons (Sutherland-Hodgman: `a` clipped by each edge of `b`), either winding; null when
+   they share no area. For the frost of a pane that travels (`glassTurn`). */
+export function convexOverlap(a, b) {
+  const area = p => p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2;
+  const sign = area(b) >= 0 ? 1 : -1;
+  const side = (p, q, r) => sign * ((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  let out = a;
+  for (let i = 0; i < b.length && out.length; i++) {
+    const p = b[i], q = b[(i + 1) % b.length], inp = out;
+    out = [];
+    for (let k = 0; k < inp.length; k++) {
+      const c = inp[k], n = inp[(k + 1) % inp.length], sc = side(p, q, c), sn = side(p, q, n);
+      if (sc >= 0) out.push(c);
+      if ((sc >= 0) !== (sn >= 0)) { const t = sc / (sc - sn); out.push([c[0] + t * (n[0] - c[0]), c[1] + t * (n[1] - c[1])]); }
+    }
+  }
+  return out.length >= 3 && Math.abs(area(out)) > 0.5 ? out : null;
 }
 /* the frost and the flash's host take the cut's silhouette, once a cut and never in a frame of a turn */
 function clipToCut(el, d) {
@@ -4181,7 +4212,7 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
      drawn here, for the job, before any look is taken: the curtain under a recolour's batches has it too. A layer the
      page does not show (`drpg-no-pulse`) is drawn and left out of the look (`snapshotLook`), as the loop's would be.
      `--turn` runs with the pulse off, so its lines cannot read this; R1411 reads the new look on a stand-in job. */
-  pulseJob(job, performance.now());
+  pulseJob(job, pulseNow());
   const host = turnHost(job), made = [], layers = [];
   // the new look is the curtain as `curtainPaint` has just left it
   const now = plan.carry === "both" && plan.hold ? snapshotLook(job, true) : null;
@@ -4281,8 +4312,21 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     clipToCut(fh, job.pathD);
     for (const f of plan.flashes) if (fl[f.pane]) layers.push({ el: fl[f.pane], frames: FLASH_KF, timing: { duration: FLASH.ms, delay: f.delay, easing: "linear" } });
   }
+  /* THE PANES THAT STAND KEEP THEIR FROST (gaps, R3985; the owner on 1.2.108: folding the Projects tray took the blur off
+     the notices tile beside it for a moment). The frost is one element under the whole curtain, and this turn faded all
+     of it out for the moves and back in after them, so every pane stood unfrosted for 700 ms, the ones the fold never
+     moved included - on the glass harness at 1366x768 (4dfac3a9) its opacity read 0.00 from 401 to 959 ms after the
+     tray's class changed. Where some panes stand, the frost is clipped to them alone for the moves, at full opacity, and
+     to the new cut once the moves are over (`onStart`); the travelling panes, the ones it would sit wrong under, are
+     unfrosted for their move as before. Only a turn in which every pane moves still fades the whole frost out. */
   const frost = plan.frost ? frostOf(job) : null;
-  if (frost) layers.push({ el: frost, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: plan.frost.out, fill: "forwards" }, frost: true });
+  /* and where a pane travels, the part its old place and its new one share: the partition's panes are convex, so their
+     overlap is (`convexOverlap`), and the travelling layer covers it from the first frame to the last. The voice tile
+     under the tray rides a pane the fold moves; without this it stood unfrosted for the move (the harness, 1366x768). */
+  const stay = frost ? [...plan.stay.map(i => to[i]?.poly),
+    ...plan.moves.map(m => (from[m.from] && to[m.to] ? convexOverlap(from[m.from].poly, to[m.to].poly) : null))].filter(p => p && p.length >= 3) : [];
+  if (frost && stay.length) clipToCut(frost, stay.map(p => p.map((q, i) => (i ? "L" : "M") + num(q[0], 1) + " " + num(q[1], 1)).join("") + "Z").join(""));
+  else if (frost) layers.push({ el: frost, frames: [{ opacity: 1 }, { opacity: 0 }], timing: { duration: plan.frost.out, fill: "forwards" }, frost: true });
   // the bloom crosses over and never goes out: the old glow's copy fades over the new one as the new fades in
   const gl = document.querySelector('[data-glow="' + job.seed + '"]');
   if (gl && plan.glow) {
@@ -4323,9 +4367,10 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
     if (frost) {
       Promise.all(layers.map((l, i) => (l.move ? at(i) : true))).then(() => {
         if (h.ended) return;
-        h.anims[layers.findIndex(l => l.frost)].cancel();
+        const out = layers.findIndex(l => l.frost);
+        if (out >= 0) h.anims[out].cancel();
         clipToCut(frost, job.pathD);
-        h.frostIn = frost.animate([{ opacity: 0 }, { opacity: 1 }], { duration: plan.frost.in });
+        if (out >= 0) h.frostIn = frost.animate([{ opacity: 0 }, { opacity: 1 }], { duration: plan.frost.in });
       });
     }
     h.finished = Promise.all(layers.map((_, i) => at(i))).then(() => end(true));
@@ -4352,18 +4397,81 @@ const FILL_SEED = 4099;
    then draws the lids. Writes no setting and no document; the curtain is painted again as the trial's cut before it
    answers. */
 let entryHold = false;
+
+/* ---- THE HAND-OVER (12.11.2026; the owner at the table: "calosc blyska, bug pulsu", the seam report's probe) ----
+   The entry laid its copies of the curtain over the page and left the live curtain standing under them, so for 3.4 s
+   the glass was drawn twice: the probe (glass harness, headless Chromium, 1366x768, a frame about every 100 ms) read the
+   whole frame 11 darker in the first frame, the plain glass 30 % darker, and 7 brighter in the frame the host went - the
+   pulse of the copies frozen at the start while the live pulse ran on, so every pane jumped 3.4 s of its phase - with
+   the glow, the HUD and the tray back in the same frame. So, for a sequence that draws the curtain:
+   - THE PULSE'S CLOCK STANDS from the moment its pieces are taken to the sequence's end (`holdPulse`, `pulseNow`): the
+     copies carry the pulse of that moment, the live curtain resumes at it, and nothing of the phase is skipped.
+   - THE LIVE CURTAIN AND ITS GLOW GO TO 0 UNDER THE COPIES and come back under them (`holdCurtain`), as `glassTurn`
+     holds `job.el` at 0 under a turn; the copies carry the glow (`snapshotLook`'s `glow`).
+   - BOTH ENDS CROSS OVER, the copies rising as the live curtain falls and falling as it rises, over the sequence's
+     `hand` (sequence.mjs), so neither end is a one-frame step.
+   - A RECUT WHILE THE CURTAIN IS HELD PAINTS AND DOES NOT TURN (`rebuildAll`'s gate): the trial's scene loading under
+     the closed curtain recuts the hidden glass, and the copies' fall at the end hands over to it. */
+let pulseHeldMs = 0, pulseHeldSince = null, pulseHoldTimer = 0;
+/** The pulse's clock: the page's, less every span it stood (`holdPulse`); while it stands, the moment it stopped. */
+export function pulseNow(t = performance.now()) { return (pulseHeldSince ?? t) - pulseHeldMs; }
+/** Stop (`true`) or restart (`false`) the pulse's clock. Stopped, it restarts by itself after `max` ms. */
+export function holdPulse(on, { max = 10000 } = {}) {
+  clearTimeout(pulseHoldTimer);
+  if (on) {
+    if (pulseHeldSince === null) pulseHeldSince = performance.now();
+    pulseHoldTimer = setTimeout(() => holdPulse(false), max);
+  } else if (pulseHeldSince !== null) {
+    pulseHeldMs += performance.now() - pulseHeldSince;
+    pulseHeldSince = null;
+  }
+  return pulseHeldSince !== null;
+}
+let curtainHold = null;
+/** Whether a sequence holds the live curtain at 0 under its copies now. */
+export function curtainHeld() { return curtainHold !== null; }
+/* The hold of one curtain, as a sequence drives it: `hold(ms)` takes the curtain and its glow to 0 over `ms`,
+   `handBack(ms)` brings them back over `ms`, `release()` ends the hold - the curtain shown, the pulse's clock running. */
+function holdCurtain(j) {
+  const els = () => [j.el, document.querySelector('[data-glow="' + j.seed + '"]')].filter(Boolean);
+  const fade = (el, from, to, ms, fill) => {
+    if (typeof el.animate !== "function") { el.style.opacity = to === 1 ? "" : String(to); return null; }
+    return el.animate([{ opacity: from }, { opacity: to }], { duration: Math.max(0, ms), easing: "linear", fill });
+  };
+  const me = { hide: [], back: [] };
+  return {
+    hold(ms = 0) {
+      curtainHold = me;
+      me.hide = els().map(el => fade(el, 1, 0, ms, "forwards"));
+    },
+    handBack(ms = 0) {
+      for (const a of me.hide) a?.cancel();
+      me.hide = [];
+      me.back = els().map(el => fade(el, 0, 1, ms, "none"));
+      if (curtainHold === me) curtainHold = null;
+    },
+    release() {
+      for (const a of me.hide) a?.cancel();
+      me.hide = [];
+      for (const el of els()) if (typeof el.animate !== "function") el.style.opacity = "";
+      if (curtainHold === me) curtainHold = null;
+      holdPulse(false);
+    }
+  };
+}
 export function entryPieces() {
   const j = curtains[0];
   if (!j?.panes || !j.painted || !glassRoom()) return null;
   j.turn?.cancel();
-  pulseJob(j, performance.now());
-  const oldPanes = snapshotPanes(j), oldLook = snapshotLook(j);
-  if (!oldLook) return null;
+  holdPulse(true);
+  pulseJob(j, pulseNow());
+  const oldPanes = snapshotPanes(j), oldLook = snapshotLook(j, j.painted, { glow: true });
+  if (!oldLook) { holdPulse(false); return null; }
   clearTimeout(stateTimer);
   entryHold = true;
   try { rebuildAll(); } finally { entryHold = false; }
-  pulseJob(j, performance.now());
-  const newLook = snapshotLook(j, true) ?? oldLook;
+  pulseJob(j, pulseNow());
+  const newLook = snapshotLook(j, true, { glow: true }) ?? oldLook;
   const W = j.W, H = j.H, trial = j.panes;
   const same = oldPanes.length === trial.length && oldPanes.every((p, i) => p.poly.length === trial[i].poly.length && p.poly.every((q, k) => q[0] === trial[i].poly[k][0] && q[1] === trial[i].poly[k][1]));
   const fillA = fillHole(oldPanes, W, H, rng(j.seed + FILL_SEED));
@@ -4373,7 +4481,7 @@ export function entryPieces() {
     const all = [...standing, ...fill.map(f => ({ poly: f.poly, content: false, kind: "fill" }))];
     all.meta = trial.meta;
     j.panes = all;
-    try { curtainPaint(j); pulseJob(j, performance.now()); return snapshotLook(j, true); } finally { j.panes = trial; }
+    try { curtainPaint(j); pulseJob(j, pulseNow()); return snapshotLook(j, true, { glow: true }); } finally { j.panes = trial; }
   };
   let lookA = null, lookB = null;
   try {
@@ -4381,9 +4489,9 @@ export function entryPieces() {
     lookB = same ? lookA : paintClosed(trial, fillB);
   } finally {
     curtainPaint(j);
-    pulseJob(j, performance.now());
+    pulseJob(j, pulseNow());
   }
-  if (!lookA || !lookB) return null;
+  if (!lookA || !lookB) { holdPulse(false); return null; }
   const order = paneOrder(oldPanes, W, H, "inward"), per = Math.ceil(order.length / TURN_BATCHES), batchOf = [];
   order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
   count("sequence.glassPieces", oldPanes.length + fillA.length);
@@ -4394,11 +4502,19 @@ export function entryPieces() {
   // each new pane's slide out from behind the glass beside it (round 4), and its glass cut from the closed curtain
   const slid = (standing, fill, look) => slidePlan(standing.map(p => ({ poly: p.poly })), fill, W, H).map(p => ({ ...p, ...piece(p.poly, look) }));
   return {
-    W, H, acc: j.acc,
+    W, H, acc: j.acc, ...holdCurtain(j),
     close: { panes: oldPanes.map((p, i) => piece(p.poly, newLook, oldLook, batchOf[i] ?? 0)), fill: slid(oldPanes, fillA, lookA), batchOf },
     closed: lookB,
     open: { panes: trial.map(p => piece(p.poly, newLook)), fill: slid(trial, fillB, lookB) }
   };
+}
+/* THE EXIT'S CUT (the owner's decision of 12.11.2026, every default accepted): the entry's pieces taken the other way
+   round - the panes on screen are the trial's, the curtain is painted in the phase the clock moved to (the sequence
+   writes `data-drpg-phase` first, so the colour is Daily Life's at this hour), and the cut it opens onto is the one the
+   screen has at the exit's start, its one fixed time; a recut while it plays (the school's scene loading under the
+   closed curtain) paints the held curtain without turning, and the copies hand over to it at the end. */
+export function exitPieces() {
+  return entryPieces();
 }
 function rebuild() {
   try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
@@ -4446,7 +4562,7 @@ function rebuildAll() {
            and bakes it before the next frame and lets the browser run it; a turn that moves glass
            clips the frost to the new cut once its moves are over, and a new cut with no such turn
            (reduced motion, nothing painted before, a corner not worth a turn) clips it here. */
-        const turn = oldLook && !entryHold ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc, force: j.foldTurn === true, flash: j.foldTurn !== true }) : null;
+        const turn = oldLook && !entryHold && !curtainHold ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc, force: j.foldTurn === true, flash: j.foldTurn !== true }) : null;
         if (!turn?.plan.frost) clipToCut(frostOf(j), j.pathD);
         /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
            its pane here, and `drpgGlassCut` is what a test counts to say that a new description,
@@ -4843,7 +4959,7 @@ function loop(t) {
   objectionEdge(t);
   if (REDUCED() || !pulseOn()) return;
   if (t - last < 66) return;
-  last = t; scanUrgent(t); pulseFrame(t);
+  last = t; scanUrgent(t); pulseFrame(pulseNow(t));
 }
 
 /** Whether anything of the curtain is currently on the page. */

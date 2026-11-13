@@ -139,6 +139,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: main's tip as origin/main
+        # E102's tooltip census compares its baseline with origin/main's copy (`git show origin/main:...`), and the
+        # checkout above fetches this commit alone, so the census said it skipped that guard in CI (REVIEW-E102-code
+        # C2; the owner's consent, 13.11.2026). One commit of main is enough for a file read off its tip.
+        run: git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: audit/harness/package-lock.json }
       - name: Install the harness

@@ -63,7 +63,7 @@
  *   I  a second vote names Chie and the verdict is correct: one Level Up window for the class on
  *      gm2, a row per survivor, answered "All: the players pick" - no picker opens, and every
  *      survivor a player owns holds one offer (C7; one picker per survivor before it); p1's sheet
- *      sees Aiko's, p1 picks +1 Health through the bridge and Aiko's `advances` rise by one (C6-C8
+ *      sees Aiko's, p1 picks a point in Body (+1 Health with it since E64 C6) through the bridge and Aiko's `advances` rise by one (C6-C8
  *      read it again).
  *      Then (C6) gm2 offers Aiko two: p1's copy holds both, p1 spends the older and the other stays
  *      lit; gm2's own Level Up menu takes it back, and p1's copy empties and its lit button goes out.
@@ -680,7 +680,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             form.innerHTML = (cfg.content?.innerHTML ?? String(cfg.content ?? ""));
             shown = { classes: [...new Set(cfg.classes)].sort(), legends: form.querySelectorAll("legend").length, forLine: Boolean(form.querySelector(".drpg-advance-for")),
                 intro: form.querySelector("form > p")?.textContent ?? "", reason: game.i18n.localize("DRPG.Advance.reason.standard") };
-            return [{ option: "hp" }];
+            return [{ option: "trait", trait: "strength" }];
         });
         let sent = null;
         try {
@@ -717,7 +717,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const before = aiko.getFlag("${MOD}", "advances") ?? 0;
         globalThis.__dialogAnswers.push(async function advance(cfg) {
             if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
-            return [{ option: "hp" }];
+            return [{ option: "trait", trait: "strength" }];
         });
         const sent = await L.openAdvancement(aiko, "standard");
         await until(() => heldOn(aiko).length < both ? true : null, 10000);
@@ -839,7 +839,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     const shownS = await gm2.eval(`${V} return V.trialProgress().summaryShown;`);
     verdict("the summary goes out once a trial: the record holds its time, gm3's second press sends nothing, p1 holds one card (Q-E99-9)",
         againS === null && onceS === 1 && Number.isFinite(shownS), J({ againS, onceS, shownS }));
-    await gm2.eval(`${V} await V.setTrialProgress({ summaryShown: null }); return true;`, { timeout: 30000 });
+    /* A second Class Trial in the chapter starts with no ticks and an unsent summary (E99 next): the entry's own reset of the
+       record (`resetTrialProgress`, as Start the Class Trial runs it) gives the trial a new stamp, so the first trial's
+       ticks are not read and `summaryShown` is blank again. */
+    const secondS = await gm2.eval(`${V} ${CS} await V.resetTrialProgress();
+        const t = CS.caseTicks(ch); return { ticks: ["s63-d1", "s63-d2"].filter(id => t[id] === true).length, shown: V.trialProgress().summaryShown };`, { timeout: 30000 });
+    verdict("a second trial in the chapter starts with none of the first trial's ticks and its summary not sent (E99 next)",
+        secondS?.ticks === 0 && secondS?.shown === null, J(secondS));
     await gm2.eval(`${CS} for (const id of ["s63-d1", "s63-d2", "s63-s1"]) { await CS.setCaseTick(ch, id, false); await CS.dropCaseNode(ch, id); } return true;`, { timeout: 30000 });
     await disconnect("gm3");
     check("S0: phase S measured something", (counts.S ?? 0) > 0, J(counts));

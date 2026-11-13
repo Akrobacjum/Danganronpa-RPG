@@ -25,6 +25,11 @@ import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerBodyMarks, registerBodyFollow } from "./body-tile.mjs";
 import { registerBodyAnnounced } from "./chapter.mjs";
+import { registerTails } from "./tail-gm.mjs";
+import { registerDoors } from "./doors-gm.mjs";
+import { registerWatches } from "./watch-gm.mjs";
+import { registerLockpicks } from "./lockpick-gm.mjs";
+import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerCaseAsk } from "./case-realize.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
@@ -90,6 +95,7 @@ import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerConfusionCopy } from "./call-effects.mjs";
+import { registerCubCopy } from "./monocub.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerDiceLook } from "./dice-look.mjs";
 import { registerSync } from "./sync.mjs";
@@ -108,6 +114,8 @@ import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerDhSettings } from "./dh-settings.mjs";
 import { registerApi } from "./api.mjs";
+import { registerFloatText } from "./float-text.mjs";
+import { registerOpenCost } from "./open-cost.mjs";
 import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
@@ -183,6 +191,9 @@ Hooks.once("init", () => {
     safely("the language", registerLanguage);
     // Every window the module opens says which language it is in (E66 C1; utils.mjs `markModuleWindow`).
     safely("the windows' language", () => Hooks.on("renderApplicationV2", markModuleWindow));
+    // A module textarea floats over its window while it is edited (float-text line, 13.11.2026): at init, so its Escape
+    // listener on `window` stands before foundry-windows.mjs's and sequence.mjs's, which ready registers.
+    safely("the floating text fields", registerFloatText);
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
@@ -229,6 +240,14 @@ Hooks.once("init", () => {
     safely("the body with its corpse", registerBodyFollow);
     // The body's announcement, `drpgBodyAnnounced`, on every browser the stamp reaches (E95 C4; chapter.mjs).
     safely("the body's announcement", registerBodyAnnounced);
+    // Tail Someone's cards and ends (E69 C4), on the primary GM: a settled crossing, a body announced, a new day.
+    safely("the tails", registerTails);
+    // Shut the Door's barricades come down (E74 C2), on the primary GM: the author leaving, a new time of day, an Eclipse.
+    safely("the barricades", registerDoors);
+    // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
+    safely("the watches", registerWatches);
+    safely("the pick's passes", registerLockpicks);
+    safely("the timed effects", registerTimedEffects);
     // E97 C11: the case's question at a body, on the primary GM, once a chapter
     safely("the case's question at a body", registerCaseAsk);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
@@ -290,6 +309,7 @@ Hooks.once("init", () => {
     // at `ready`, and the key does nothing in a world without voice.
     safely("the microphone's key", () => registerVoiceKeybinding());
     safely("a Confusion's armed Calls", registerConfusionCopy);
+    safely("the Monocubs' record", registerCubCopy);
     // After popups: a presented Truth Bullet becomes one, so the container has
     // to exist by the time the first card lands.
     safely("the Class Trial", registerTrial);
@@ -403,6 +423,9 @@ Hooks.once("ready", () => {
     // they exist would show a dash until the next redraw.
     safely("private cards", registerSecrets);
     safely("the API", registerApi);
+    // A window's first open (perf-open line, 12.11.2026): the opens timed from here on, and the files, templates and
+    // font subsets a first open would ask the server for fetched at idle a few seconds after this hook (open-cost.mjs).
+    safely("the windows' first opens", registerOpenCost);
     // The look: theme class, glass effects, UI scale, then the curtain that
     // depends on all three. After the API, before anything that renders a block.
     safely("the theme", applyTheme);

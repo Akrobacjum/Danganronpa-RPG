@@ -22,7 +22,9 @@
  *      since H82 C6 on the GM's own screen: started at its throw, before its message's echo, once, the audience told.
  *      Since E37 C3 also the readiness round before the clock moves: opened and ended by the Assistant GM on the primary,
  *      and a player's own Done (A18). Since E37 C7 also every road of the Despair pools and the Overflow from the
- *      Assistant GM, written on the primary (A19).
+ *      Assistant GM, written on the primary (A19). Since E72 C6 also a dead student's player's yes to the GMs'
+ *      invitation to become a Monocub, from the window with the Rule (A20), and a Bribe offered from one player's browser
+ *      and accepted in its window on the other's (A21).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -1590,6 +1592,489 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         return true;`, { timeout: 60000 });
     for (const c of players) await c.eval(`const was = ${JSON.stringify(a18Auto[c.who])}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
     await settle(500);
+
+    /* A20. A DEAD STUDENT'S YES TO THE INVITATION (E72 C6, 12.11.2026; DC17, DC18). The GMs invite Botan (p2's), dead, to
+       become a Monocub (monocub.mjs `offerMonocub`): the invitation is the GMs' row (`cubStore`), its copy reaches p2's
+       browser, which opens the window with the Monocub Rule (`openInvitation`), and p2 - a client that presses a window's
+       first button - accepts. The answer goes to the primary as `monocub.answer`: Botan a Monocub, the Rule's acceptance
+       kept with p2's id, the invitation closed, nothing refused. 30-security sends the same packet from consoles. */
+    phase("a dead student's answer to the invitation", { flow: "monocub-invite" });
+    const a20Read = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${IDS.botan}"); const row = S.cubStore.get(b.id) ?? null;
+        return { cub: Mc.isMonocub(b), invite: Boolean(row?.invite), accepted: row?.acceptedRule?.by ?? null };`;
+    await clearFailures(gm);
+    const a20Refused = (await refusedSince(p2)).length;
+    const a20Log = await p2.eval(`return globalThis.__dialogLog.length;`);
+    const a20Setup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${IDS.botan}");
+        globalThis.__a20Row = foundry.utils.deepClone(S.cubStore.get(b.id) ?? null);
+        await C.markDeceased(b);
+        return { dead: C.isDeadForGm(b), open: await Mc.offerMonocub(b) };`, { timeout: 60000 });
+    await settle(1500);
+    const a20 = { setup: a20Setup, after: await gm.eval(a20Read),
+        windows: await p2.eval(`return globalThis.__dialogLog.slice(${a20Log}).map(d => d.title);`),
+        refused: (await refusedSince(p2)).length - a20Refused, logged: await refusalsLogged(gm, "monocub.answer") };
+    check("A20: p2's yes to the GMs' invitation, from the window with the Monocub Rule, makes its dead Botan a Monocub on the primary - the Rule's acceptance kept with p2's id, the invitation closed, nothing refused (E72 C6)",
+        a20.setup.dead === true && a20.setup.open === true && a20.windows.includes("Become a Monocub?")
+            && a20.after.cub === true && a20.after.invite === false && a20.after.accepted === p2.userId
+            && a20.refused === 0 && a20.logged.length === 0,
+        JSON.stringify(a20), { flow: "monocub-invite" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const b = game.actors.get("${IDS.botan}");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        const was = globalThis.__a20Row; delete globalThis.__a20Row;
+        if (was) await S.cubStore.patch(b.id, was);
+        else if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* A21. A BRIBE OFFERED AND ACCEPTED, EACH FROM ITS PLAYER'S OWN BROWSER (E72 C15 and its end review, 12.11.2026). The
+       GMs make Botan (p2's), dead, a Monocub; Aiko (p1's) holds 2 Hope. p1's browser offers the Bribe as the Call does
+       (monocub.mjs `offerBribe`, `bribe.offer`); the offer reaches p2's copy, which opens the Bribe's window, and p2 - a
+       client that presses a window's first button - accepts (`bribe.answer`). On the primary: Aiko 1 Hope, Botan's purse 1,
+       no offer left open, nothing refused or logged. 30-security sends both packets from consoles. */
+    phase("a Bribe offered and accepted by the players", { flow: "monocub-bribe" });
+    await clearFailures(gm);
+    const a21Refused = [(await refusedSince(p1)).length, (await refusedSince(p2)).length];
+    const a21Log = await p2.eval(`return globalThis.__dialogLog.length;`);
+    const a21Setup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+        globalThis.__a21Was = { row: foundry.utils.deepClone(S.cubStore.get(b.id) ?? null), hope: a.system.resources.hope.value, bHope: b.system.resources.hope.value };
+        await C.markDeceased(b);
+        await Mc.setMonocub(b, true);
+        await RG.trustedWrite(a, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+        return { cub: Mc.isMonocub(b), purse: Mc.purseOf(b), total: Mc.cubHopeTotal(b) };`, { timeout: 60000 });
+    await settle(1000);
+    const a21Offer = await p1.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        return await Mc.offerBribe(game.actors.get("${IDS.aiko}"), game.actors.get("${IDS.botan}"));`, { timeout: 60000 });
+    await settle(2500);
+    const a21 = { setup: a21Setup, offer: a21Offer,
+        after: await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+            return { hope: a.system.resources.hope.value, purse: Mc.purseOf(b), open: Object.keys(S.cubStore.get(b.id)?.bribes ?? {}).length };`),
+        windows: await p2.eval(`return globalThis.__dialogLog.slice(${a21Log}).map(d => d.title);`),
+        refused: [(await refusedSince(p1)).length - a21Refused[0], (await refusedSince(p2)).length - a21Refused[1]],
+        logged: [...await refusalsLogged(gm, "bribe.offer"), ...await refusalsLogged(gm, "bribe.answer")] };
+    check("A21: p1 offers Botan, a Monocub, a Bribe from its own browser and p2 accepts it in the Bribe's window - on the primary Aiko 1 Hope, Botan's purse 1, no offer open, nothing refused or logged (E72 C15)",
+        a21.setup.cub === true && Boolean(a21.offer?.bribeId) && a21.windows.includes("A Bribe")
+            && a21.after.hope === 1 && a21.after.purse === 1 && a21.after.open === 0
+            && a21.refused.every(n => n === 0) && a21.logged.length === 0,
+        JSON.stringify(a21), { flow: "monocub-bribe" });
+    /* The known leak, a Foundry limit (E72, 12.11.2026; the purse's weak signal, the owner's DC37 and the coordinator's
+       request): the purse is the GMs' (`cubStore`), the sheet every browser's. A move's price paid from the purse
+       (`spendCubHope`, as `cubAbilityOnGm` takes it) leaves the sheet's Hope where it was on every browser, so a console
+       that watches a Monocub's actions fall with no Hope beside them reads that its purse paid - that someone bribed it,
+       a Bounty paid it, or a bet came in. Green when p3's copy of Botan shows the Hope go; red, as known-leaks.json says,
+       while it does not - measured only when the GMs' total fell by the one point. */
+    const a21b = { before: await p3.eval(`return game.actors.get("${IDS.botan}")?.system?.resources?.hope?.value ?? null;`),
+        paid: await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const b = game.actors.get("${IDS.botan}");
+            const total = Mc.cubHopeTotal(b); const paid = await Mc.spendCubHope(b, 1); return { paid, fell: total - Mc.cubHopeTotal(b) };`) };
+    await settle(800);
+    a21b.after = await p3.eval(`return game.actors.get("${IDS.botan}")?.system?.resources?.hope?.value ?? null;`);
+    check("A21b: a Monocub's move paid from its purse is read off its sheet - p3's copy of Botan shows no Hope go while the GMs' purse pays",
+        a21b.after !== a21b.before, JSON.stringify(a21b),
+        { knownLeak: "foundry-cub-purse", measured: a21b.paid?.paid?.purse === 1 && a21b.paid?.fell === 1 && a21b.before !== null, flow: "monocub-bribe" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+        const was = globalThis.__a21Was; delete globalThis.__a21Was;
+        await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        if (was?.row) await S.cubStore.patch(b.id, was.row);
+        await RG.trustedWrite(a, { "system.resources.hope.value": was?.hope ?? 0 }, { reason: "gmRuling" });
+        await RG.trustedWrite(b, { "system.resources.hope.value": was?.bHope ?? 0 }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* The Mastermind's door (E91 C4, C5; D038, 12.11.2026): Chie (p3's) made the Mastermind with the Gym as the lair, a
+       tunnel cut from the Gym to Storage; p3's own browser asks `mastermind.lairLock` and `passage.lairSeal` as the sheet's
+       Lock and Seal ask them. On the primary the Gym is locked with the GM's lock and the tunnel closed, nothing refused or
+       logged. The forged asks are 30-security's "forged asks at the Mastermind's door". Put back after: the lock (its card
+       taken away), the tunnel, the Mastermind as it was. */
+    phase("the Mastermind locks their room and seals the passage at their door", { flow: "mastermind-door" });
+    await clearFailures(gm);
+    const a22Refused = (await refusedSince(p3)).length;
+    const a22Setup = await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        globalThis.__a22Was = { actorId: MM.mastermindActor()?.id ?? null, room: MM.mastermindLair(), messages: game.messages.map(m => m.id) };
+        await MM.setMastermind(game.actors.get("${IDS.chie}"), { room: "Gym" });
+        const passageId = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 1600, y: 1500, level: null }, { x: 2500, y: 1500, level: null }] }, { scene });
+        globalThis.__a22Was.passageId = passageId;
+        return { passageId, locked: M.isLocked(scene, "Gym"), state: P.PASSAGE_STORES.map.get(passageId)?.state ?? null };`, { timeout: 60000 });
+    await settle(1500);
+    const a22Asks = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const lock = await B.requestLairLock({ actorId: "${IDS.chie}", lock: true });
+        const seal = await B.requestLairSeal({ actorId: "${IDS.chie}", passageId: ${JSON.stringify(a22Setup?.passageId ?? "")} });
+        return { lock: [lock.ok, lock.value ?? null], seal: [seal.ok, seal.value ?? null] };`, { timeout: 60000 });
+    await settle(1500);
+    const a22 = { setup: a22Setup, asks: a22Asks,
+        after: await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+            return { locked: M.isLocked(game.scenes.get("${IDS.scene}"), "Gym"), state: P.PASSAGE_STORES.map.get(${JSON.stringify(a22Setup?.passageId ?? "")})?.state ?? null };`),
+        refused: (await refusedSince(p3)).length - a22Refused,
+        logged: [...await refusalsLogged(gm, "mastermind.lairLock"), ...await refusalsLogged(gm, "passage.lairSeal")] };
+    check("A22: p3, Chie's player and the Mastermind, locks the Gym and seals the tunnel at its door from its own browser - on the primary the Gym locked with the GM's lock, the tunnel closed, nothing refused or logged (E91 C4, C5)",
+        a22.setup?.locked === false && a22.setup?.state === "secret" && a22.asks.lock[0] === true && a22.asks.seal[0] === true
+            && a22.after.locked === true && a22.after.state === "closed" && a22.refused === 0 && a22.logged.length === 0,
+        JSON.stringify(a22), { flow: "mastermind-door" });
+    await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const V = await import("${repoUrl}/scripts/vault-store.mjs");
+        const was = globalThis.__a22Was; delete globalThis.__a22Was;
+        await V.writeRoomLock(game.scenes.get("${IDS.scene}"), "Gym", false);
+        for (const m of game.messages.filter(m => !(was?.messages ?? []).includes(m.id))) await m.delete();
+        if (was?.passageId) await P.deletePassage(was.passageId);
+        if (was?.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room ?? null });
+        else await MM.clearMastermind();
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* E93-A. A ROOM ACTION OF THE FACILITIES TILE, FROM p1'S OWN PAGE (E93 C3, 12.11.2026; the owner's audit entry E93 (2)-(5)).
+       The legal control of `facility.use`: in Aiko's room (Dorm A) the GM sets one action of its own (Eye, beat 10, one
+       Sanity) and a completed project's (one Hope, an action, one time of day), and p1 uses each as its window would
+       (action-facilities.mjs `useFacility`): the GM's paid on p1's browser and rolled, drawn by the GM on Aiko's Eye; the
+       project's paid by the GM. Read: the rows p1's window offers, each answer, Aiko's actions, Sanity and Hope after each,
+       whether p2's browser holds the GM's action closed, the project's second use (refused, alreadyDone) and the GM's log
+       of refusals. Put back: the room's actions, the project, Aiko's numbers, the closed list, the uses and the trace. */
+    phase("a room action of the Facilities tile", { flow: "facility" });
+    const e93a = { setup: await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const P = ${projects};
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const scene = game.scenes.get("${IDS.scene}"), aiko = game.actors.get("${IDS.aiko}");
+        const r = aiko.system.resources;
+        const was = { closed: foundry.utils.deepClone(game.settings.get("${MOD}", "facilityClosed") ?? {}), stress: r.stress.value, hope: r.hope.value,
+            actions: r.actions.value, tokens: scene.tokens.map(t => t.id) };
+        await F.setRoomActions(scene, "Dorm A", [{ id: "A19tea", label: "A19 tea", trait: "eye", dc: 10, effects: [{ kind: "sanity", n: 1 }] }]);
+        await trustedWrite(aiko, { "system.resources.stress.value": 2, "system.resources.hope.value": 2, "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        const soup = await P.createProject({ name: "A19 soup", target: 2, room: "Dorm A", secret: false });
+        await P.addProgress(soup.id, 2);
+        const given = await F.setProjectFacility(soup.id, { label: "A19 soup", effects: [{ kind: "hope", n: 1 }], costsAction: true, lifetime: { kind: "timesOfDay", n: 1 } });
+        return { was, soup: soup.id, given: Boolean(given) };`, { timeout: 60000 }) };
+    await settle(800);
+    await clearFailures(gm);
+    const a19Refused = (await refusedSince(p1)).length;
+    e93a.p1 = await p1.eval(`const A = await import("${repoUrl}/scripts/action-facilities.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const now = () => { const r = aiko.system.resources; return [r.actions.value, r.stress.value, r.hope.value]; };
+        const rows = (await A.facilityRows(aiko)).map(r => [r.value, Boolean(r.disabled)]);
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let tea = null;
+        try { tea = await A.useFacility(aiko, "gm:A19tea"); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        const afterTea = now();
+        const soup = await A.useFacility(aiko, "project:${e93a.setup?.soup ?? ""}");
+        await new Promise(r => setTimeout(r, 600));
+        const afterSoup = now();
+        const again = await A.useFacility(aiko, "project:${e93a.setup?.soup ?? ""}");
+        await new Promise(r => setTimeout(r, 400));
+        return { rows, tea: tea?.success ?? null, afterTea, soup: soup?.success ?? null, afterSoup, again: again?.success ?? null, last: now() };`,
+        { timeout: 60000 });
+    await settle(600);
+    e93a.p2 = await p2.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); return F.closedNow().has(F.gmActionKey("${IDS.scene}", "Dorm A", "A19tea"));`);
+    e93a.told = (await refusedSince(p1)).slice(a19Refused).map(r => r.reason);
+    e93a.logged = await refusalsLogged(gm, "facility.use");
+    e93a.back = await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const P = ${projects};
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const scene = game.scenes.get("${IDS.scene}"), aiko = game.actors.get("${IDS.aiko}"), was = ${JSON.stringify(e93a.setup?.was ?? {})};
+        const rows = Object.keys(S.facilityUseStore.entries() ?? {});
+        for (const k of rows) await S.facilityUseStore.drop(k);
+        await F.setRoomActions(scene, "Dorm A", []);
+        if ("${e93a.setup?.soup ?? ""}") await P.deleteProject("${e93a.setup?.soup ?? ""}");
+        await game.settings.set("${MOD}", "facilityClosed", was.closed ?? {});
+        await trustedWrite(aiko, { "system.resources.stress.value": was.stress, "system.resources.hope.value": was.hope, "system.resources.actions.value": was.actions }, { reason: "gmRuling" });
+        const placed = scene.tokens.filter(t => !(was.tokens ?? []).includes(t.id));
+        for (const t of placed) await R.removeRemnant(t);
+        return { rows: rows.length, placed: placed.length };`, { timeout: 60000 });
+    await settle(600);
+    check("E93-A: p1's Facilities window offers Dorm A's GM action and the completed project's, the GM's is rolled and drawn on the GM and clears one Sanity for one action, the project's costs the GM's action and gives one Hope, p2's browser holds the GM's action closed, and the project's second use this time of day is refused alreadyDone and logged",
+        e93a.setup?.given === true && JSON.stringify(e93a.p1?.rows) === JSON.stringify([["gm:A19tea", false], [`project:${e93a.setup?.soup}`, false]])
+            // [actions, Sanity, Hope]: the GM's roll is thrown with Hope (9 against 3), which gives Aiko a Hope of its own.
+            && e93a.p1?.tea === true && JSON.stringify(e93a.p1?.afterTea) === JSON.stringify([2, 1, 3])
+            && e93a.p1?.soup === true && JSON.stringify(e93a.p1?.afterSoup) === JSON.stringify([1, 1, 4])
+            && e93a.p1?.again === null && JSON.stringify(e93a.p1?.last) === JSON.stringify([1, 1, 4])
+            && e93a.p2 === true && JSON.stringify(e93a.told) === JSON.stringify(["alreadyDone"]) && e93a.logged.length === 1
+            // Two traces: the GM's action's and, since the owner's answer to Q-E93-6 (12.11.2026), the project's action's.
+            && e93a.back?.rows === 2 && e93a.back?.placed === 2,
+        JSON.stringify(e93a), { flow: "facility" });
+
+    /* E93-B. A SECRET PROJECT'S ROOM ACTION, TO ITS INSIDERS ALONE (the owner's DRPG-D1 answer, 12.11.2026: "Dostaja").
+       A secret project in Aiko's room (Dorm A), p1 let in on it and p2 not, given an action and completed by the GM. p1's
+       Facilities window offers the action and p1 uses it as its window would; p2's browser holds no trace of it - none of
+       its chat messages, their flags or the words its private cards came with, and none of its settings, names the action
+       or carries it. Put back: the project, its cards, Aiko's actions. Red at 9eddf3d: p1 was offered nothing (the action
+       stayed in the GMs' half). */
+    phase("a secret project's room action", { flow: "facility" });
+    const e93b = { setup: await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const P = ${projects};
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const was = { actions: aiko.system.resources.actions.value, messages: game.messages.map(m => m.id) };
+        await trustedWrite(aiko, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        const kettle = await P.createProject({ name: "B93 kettle", target: 1, room: "Dorm A", secret: true, viewers: ["USERP10000000000"] });
+        await F.setProjectFacility(kettle.id, { label: "B93 hidden kettle", effects: [{ kind: "text", text: "B93 warm" }], costsAction: false, lifetime: { kind: "forever" } });
+        await P.addProgress(kettle.id, 1);
+        return { was, kettle: kettle.id };`, { timeout: 60000 }) };
+    await settle(1500);
+    await clearFailures(gm);
+    e93b.p1 = await p1.eval(`const A = await import("${repoUrl}/scripts/action-facilities.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const rows = (await A.facilityRows(aiko)).filter(r => r.value === "project:${e93b.setup?.kettle ?? ""}").map(r => [Boolean(r.disabled), String(r.label ?? "")]);
+        const used = rows.length ? await A.useFacility(aiko, "project:${e93b.setup?.kettle ?? ""}") : null;
+        await new Promise(r => setTimeout(r, 600));
+        return { rows, used: used?.success ?? null };`, { timeout: 60000 });
+    await settle(600);
+    e93b.p2 = await p2.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const needle = /B93 hidden kettle|B93 warm/;
+        const inMessages = game.messages.filter(m => needle.test(JSON.stringify(m.toObject())) || needle.test(String(S.contentOf(m) ?? ""))).length;
+        const world = game.settings.storage.get("world");
+        const worldValues = [...(world?.contents ?? world ?? [])].map(s => s?.value ?? s);
+        const inSettings = Object.values(localStorage).filter(v => needle.test(String(v))).length + worldValues.filter(v => needle.test(JSON.stringify(v))).length;
+        return { inMessages, inSettings };`, { timeout: 60000 });
+    e93b.logged = await refusalsLogged(gm, "facility.use");
+    await gm.eval(`const P = ${projects}; const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const was = ${JSON.stringify(e93b.setup?.was ?? {})};
+        if ("${e93b.setup?.kettle ?? ""}") await P.deleteProject("${e93b.setup?.kettle ?? ""}");
+        const keep = new Set(was.messages ?? []);
+        for (const m of game.messages.filter(m => !keep.has(m.id))) await m.delete();
+        await trustedWrite(game.actors.get("${IDS.aiko}"), { "system.resources.actions.value": was.actions ?? 3 }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    check("E93-B: a secret project's room action is offered to its insider p1, who uses it, and p2's browser holds no trace of it - no message, flag, card words or setting names it - none refused",
+        JSON.stringify(e93b.p1?.rows) === JSON.stringify([[false, "B93 hidden kettle"]]) && e93b.p1?.used === true
+            && e93b.p2?.inMessages === 0 && e93b.p2?.inSettings === 0 && e93b.logged.length === 0,
+        JSON.stringify(e93b).slice(0, 2000), { flow: "facility" });
+
+    /* E93-C. A TIMED EFFECT ON ITS OWNER'S SHEET (the owner's answer to Q-E93-3, 12.11.2026). The primary gives Aiko a room
+       action's +2 Body until the time of day ends (facilities-gm.mjs `applyEffects`, as a use gives it). p1's browser, Aiko's
+       owner's, holds it in its copy and its sheet's line reads it; p2's holds nothing of it. Ended by hand on the GM, p1's
+       line is gone and Body is back. Put back: the row, Body. */
+    phase("a timed effect on its owner's sheet", { flow: "facility" });
+    const e93c = { setup: await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const G = await import("${repoUrl}/scripts/facilities-gm.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const body = Number(aiko.system.traits.strength.value) || 0;
+        await G.applyEffects(aiko, [F.cleanEffect({ kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" })], M.locateActor(aiko), game.user);
+        return { body, after: Number(aiko.system.traits.strength.value) || 0 };`, { timeout: 60000 }) };
+    await settle(1200);
+    const e93cLines = client => client.eval(`const T = await import("${repoUrl}/scripts/timed-effects.mjs"); return T.effectLines(game.actors.get("${IDS.aiko}"));`);
+    e93c.p1 = await e93cLines(p1);
+    e93c.p2 = await e93cLines(p2);
+    await gm.eval(`const T = await import("${repoUrl}/scripts/timed-effects.mjs");
+        for (const row of T.timedEffectsOf("${IDS.aiko}")) await T.endTimedEffect(row.id); return true;`, { timeout: 60000 });
+    await settle(1200);
+    e93c.p1After = await e93cLines(p1);
+    e93c.bodyAfter = await gm.eval(`return Number(game.actors.get("${IDS.aiko}").system.traits.strength.value) || 0;`);
+    await gm.eval(`const aiko = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if ((Number(aiko.system.traits.strength.value) || 0) !== ${Number(e93c.setup?.body ?? 0)}) await trustedWrite(aiko, { "system.traits.strength.value": ${Number(e93c.setup?.body ?? 0)} }, { reason: "gmRuling" });
+        for (const m of game.messages.filter(m => m.speaker?.actor === "${IDS.aiko}" && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+        return true;`, { timeout: 60000 });
+    check("E93-C: a room action's +2 Body is on Aiko's sheet for p1, Aiko's owner, through its copy, and nowhere on p2's browser; ended on the GM, p1's line is gone and Body is back",
+        e93c.setup?.after === (e93c.setup?.body ?? 0) + 2 && e93c.p1?.length === 1 && /\+2 Body/.test(e93c.p1[0] ?? "")
+            && Array.isArray(e93c.p2) && e93c.p2.length === 0 && e93c.p1After?.length === 0 && e93c.bodyAfter === e93c.setup?.body,
+        JSON.stringify(e93c), { flow: "facility" });
+
+    /* E69-A. A DASH FROM p1'S OWN PAGE (E69 C5, 12.11.2026). The legal control of `dash.settle`: p1 dashes as the Infiltrate
+       window does (action-listen.mjs `performDash`): an action paid, a Leg roll the GM draws, the free crossings the GM
+       reads off its record of it. Read: the answer, Aiko's actions and free crossings before and after, and the GM's log of
+       refusals (none). Put back: Aiko's actions and free crossings. */
+    phase("a Dash", { flow: "dash" });
+    const e69a = { before: await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const was = { actions: a.system.resources.actions.value, free: a.getFlag("${MOD}", "freeMoveGrants") ?? 0 };
+        await trustedWrite(a, { "system.resources.actions.value": 3, "flags.${MOD}.freeMoveGrants": 0 }, { reason: "gmRuling" });
+        return was;`, { timeout: 30000 }) };
+    await settle(500);
+    await clearFailures(gm);
+    e69a.p1 = await p1.eval(`const L = await import("${repoUrl}/scripts/action-listen.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let out = null;
+        try { out = await L.performDash(aiko); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        return { moves: out?.moves ?? null, total: out?.roll?.total ?? null, actions: aiko.system.resources.actions.value, free: aiko.getFlag("${MOD}", "freeMoveGrants") ?? 0 };`, { timeout: 60000 });
+    e69a.logged = await refusalsLogged(gm, "dash.settle");
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(a, { "system.resources.actions.value": ${JSON.stringify(e69a.before?.actions ?? 3)}, "flags.${MOD}.freeMoveGrants": ${JSON.stringify(e69a.before?.free ?? 0)} }, { reason: "gmRuling" });
+        return true;`, { timeout: 30000 });
+    await settle(500);
+    const e69Band = t => (t >= 18 ? 2 : t >= 12 ? 1 : 0);
+    check("E69-A: p1's Dash is paid with one action, its Leg roll drawn on the GM, and the free crossings it earns are granted by the GM - none refused",
+        typeof e69a.p1?.total === "number" && e69a.p1.moves === e69Band(e69a.p1.total) && e69a.p1.actions === 2 && e69a.p1.free === e69a.p1.moves
+            && e69a.logged.length === 0,
+        JSON.stringify(e69a), { flow: "dash" });
+
+    /* E69-B. A TAIL FROM p1'S OWN PAGE (E69 C3, 12.11.2026). The legal control of `tail.start`: Botan is stood in Aiko's
+       room, and p1 tails him as the Infiltrate window does (action-tail.mjs `performTail`, the target and the proposal
+       handed in for the window): the effect's statistic asked of the GMs on E68's card (the harness presses its first,
+       Leg), one action paid, the Shadow and the effect drawn on the GM, the tail kept by the GM. Read: the answer, Aiko's
+       actions, the GMs' row of the tail, and the GM's log of refusals (none). Put back: Botan's token, Aiko's actions, the
+       tail. */
+    phase("a tail", { flow: "tail" });
+    const e69b = { before: await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const botan = canvas.scene.tokens.get("TOKBOTAN00000000"), room = M.roomOfActor(a);
+        const was = { actions: a.system.resources.actions.value, botan: { x: botan.x, y: botan.y }, room };
+        await botan.update(M.positionIn(room, botan), { teleport: true, movementAction: "displace", animate: false });
+        await trustedWrite(a, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        return was;`, { timeout: 30000 }) };
+    await settle(800);
+    await clearFailures(gm);
+    e69b.p1 = await p1.eval(`const T = await import("${repoUrl}/scripts/action-tail.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const targets = T.tailTargets(aiko).map(a => a.id);
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let out = null;
+        try { out = await T.performTail(aiko, { target: "${IDS.botan}", proposed: "leg" }); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        return { targets, seen: out?.seen ?? null, target: out?.target ?? null, actions: aiko.system.resources.actions.value };`, { timeout: 90000 });
+    e69b.logged = await refusalsLogged(gm, "tail.start");
+    e69b.row = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const r = S.tailStore.get("${IDS.aiko}");
+        return r ? [r.targetId, typeof r.total === "number", r.critical] : null;`);
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        if (S.tailStore.get("${IDS.aiko}")) await S.tailStore.drop("${IDS.aiko}");
+        const was = ${JSON.stringify(e69b.before ?? {})};
+        if (was.botan) await canvas.scene.tokens.get("TOKBOTAN00000000").update(was.botan, { teleport: true, movementAction: "displace", animate: false });
+        await trustedWrite(a, { "system.resources.actions.value": was.actions ?? 3 }, { reason: "gmRuling" });
+        return true;`, { timeout: 30000 });
+    await settle(800);
+    check("E69-B: p1's tail on Botan in Aiko's room is paid with one action, its Shadow and effect drawn on the GM, and the GM keeps the tail - none refused",
+        Boolean(e69b.p1?.targets?.includes(IDS.botan)) && e69b.p1?.target === "Botan Kage" && typeof e69b.p1?.seen === "boolean"
+            && e69b.p1?.actions === 2 && JSON.stringify(e69b.row?.slice(0, 2)) === JSON.stringify([IDS.botan, true]) && e69b.logged.length === 0,
+        JSON.stringify(e69b), { flow: "tail" });
+
+    /* E74-A. SHUT THE DOOR FROM p1'S OWN PAGE (E74 C2, 12.11.2026). The legal control of `door.shut`: p1 barricades Aiko's
+       room as the Infiltrate window does (action-doors.mjs `performShut`): an action paid, a Body roll the GM draws, the
+       barricade kept by the GM with that roll's total and the public flag set on the room. Read: the answer, Aiko's
+       actions, the GMs' row, the flag on p2's browser, and the GM's log of refusals (none). Put back: the barricade and
+       Aiko's actions. */
+    phase("Shut the Door", { flow: "door-shut" });
+    const e74a = { before: await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const was = { actions: a.system.resources.actions.value };
+        await trustedWrite(a, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        return was;`, { timeout: 30000 }) };
+    await settle(500);
+    await clearFailures(gm);
+    e74a.p1 = await p1.eval(`const D = await import("${repoUrl}/scripts/action-doors.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let out = null;
+        try { out = await D.performShut(aiko); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        return { room: out?.room ?? null, total: out?.roll?.total ?? null, actions: aiko.system.resources.actions.value };`, { timeout: 60000 });
+    e74a.logged = await refusalsLogged(gm, "door.shut");
+    e74a.row = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const r = Object.values(S.barricadeStore.entries() ?? {}).find(x => x?.authorId === "${IDS.aiko}");
+        return r ? [r.room, r.strength] : null;`);
+    await settle(400);
+    e74a.p2 = await p2.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); return M.roomBarricaded(game.scenes.get("${IDS.scene}"), ${JSON.stringify(e74a.p1?.room ?? "")});`);
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const D = await import("${repoUrl}/scripts/doors-gm.mjs");
+        await D.endAllBarricades();
+        await trustedWrite(a, { "system.resources.actions.value": ${JSON.stringify(e74a.before?.actions ?? 3)} }, { reason: "gmRuling" });
+        return true;`, { timeout: 30000 });
+    await settle(500);
+    check("E74-A: p1's Shut the Door is paid with one action, its Body roll drawn on the GM, and the GM keeps the barricade at that roll's total with the room's public flag, which p2's browser reads - none refused",
+        typeof e74a.p1?.room === "string" && e74a.p1.room !== "" && e74a.p1?.actions === 2
+            && JSON.stringify(e74a.row) === JSON.stringify([e74a.p1.room, e74a.p1.total]) && e74a.p2 === true && e74a.logged.length === 0,
+        JSON.stringify(e74a), { flow: "door-shut" });
+
+    /* E74-B. A WALK REFUSED AT A BARRICADE, FROM p1'S OWN PAGE (E74, 12.11.2026). The legal control of `door.knock`: Dorm A
+       and Dorm B are made neighbours (Room Setup's word), Botan stands in Dorm B behind a barricade of his own (the GMs'
+       row and the public flag, written on the GM), and p1 walks Aiko from Dorm A into Dorm B as a player drags a token.
+       The veto refuses the walk on p1's browser and asks the primary to tell the barricade's author (`requestDoorKnock`):
+       Botan's player gets one card naming nobody. Read: Aiko's room after, the cards to Botan's owners, the GM's log of
+       refusals (none). Put back: the barricade, the neighbours, Botan's token, the cards. */
+    phase("a walk refused at a barricade", { flow: "door-knock" });
+    const e74b = { setup: await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const D = await import("${repoUrl}/scripts/doors-gm.mjs");
+        const scene = canvas.scene, botan = scene.tokens.get("TOKBOTAN00000000");
+        const was = { botan: { x: botan.x, y: botan.y }, flags: {}, messages: game.messages.map(m => m.id) };
+        for (const room of ["Dorm A", "Dorm B"]) for (const piece of R.roomRegions(scene, room)) was.flags[piece.id] = piece.getFlag("${MOD}", M.ROOM_FLAGS.neighbours) ?? null;
+        for (const [room, list] of [["Dorm A", "Dorm B"], ["Dorm B", "Dorm A"]]) for (const piece of R.roomRegions(scene, room)) await piece.setFlag("${MOD}", M.ROOM_FLAGS.neighbours, list);
+        await botan.update(M.positionIn("Dorm B", botan), { teleport: true, movementAction: "displace", animate: false });
+        await S.barricadeStore.patch(D.barricadeKey(scene.id, "Dorm B"), { sceneId: scene.id, room: "Dorm B", authorId: "${IDS.botan}", strength: 12, at: Date.now() });
+        await M.setRoomBarricaded(scene, "Dorm B", true);
+        return was;`, { timeout: 60000 }) };
+    await settle(800);
+    await clearFailures(gm);
+    e74b.p1 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = canvas.scene.tokens.get("TOKAIKO000000000");
+        const before = M.roomOfToken(aiko);
+        try { await aiko.update(M.positionIn("Dorm B", aiko)); } catch {}
+        await new Promise(r => setTimeout(r, 1200));
+        return { before, after: M.roomOfToken(canvas.scene.tokens.get("TOKAIKO000000000")) };`, { timeout: 60000 });
+    await settle(800);
+    e74b.logged = await refusalsLogged(gm, "door.knock");
+    e74b.cards = await gm.eval(`const was = new Set(${JSON.stringify(e74b.setup?.messages ?? [])});
+        return game.messages.filter(m => !was.has(m.id) && m.speaker?.actor === "${IDS.botan}" && m.whisper?.length).length;`);
+    await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const D = await import("${repoUrl}/scripts/doors-gm.mjs");
+        const scene = canvas.scene, was = ${JSON.stringify(e74b.setup ?? {})};
+        await D.endBarricade(D.barricadeKey(scene.id, "Dorm B"));
+        for (const [id, value] of Object.entries(was.flags ?? {})) { const piece = scene.regions.get(id); if (!piece) continue;
+            if (value === null) await piece.unsetFlag("${MOD}", M.ROOM_FLAGS.neighbours); else await piece.setFlag("${MOD}", M.ROOM_FLAGS.neighbours, value); }
+        if (was.botan) await scene.tokens.get("TOKBOTAN00000000").update(was.botan, { teleport: true, movementAction: "displace", animate: false });
+        const keep = new Set(was.messages ?? []);
+        for (const m of game.messages.filter(m => !keep.has(m.id) && m.speaker?.actor === "${IDS.botan}" && m.whisper?.length)) await m.delete();
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    check("E74-B: p1's walk from Dorm A into Botan's barricaded Dorm B is refused on p1's browser, and Botan's player is told once, through the primary, that somebody tries the door - none refused",
+        e74b.p1?.before === "Dorm A" && e74b.p1?.after === "Dorm A" && e74b.cards === 1 && e74b.logged.length === 0,
+        JSON.stringify(e74b).slice(0, 2000), { flow: "door-knock" });
+
+    /* E74-C. A WALK THROUGH A PICKED LOCK, FROM p1'S OWN PAGE (E74, 12.11.2026; DA9 as the plan has it). The legal control of
+       the pick's pass and its owner's copy (lockpick-gm.mjs): Dorm A and Dorm B are made neighbours, Dorm B is locked by a GM,
+       and the primary gives Aiko the pass an open of Pick the Lock gives (`grantPass`, as `pickLock` calls it). p1's browser
+       holds it in its copy; p1 walks Aiko into Dorm B as a player drags a token, and neither the veto nor the GMs' audit
+       stops it; the settled crossing marks the pass in use. Back out to Dorm A ends it, p1's copy loses it, and a walk in
+       again is refused. Read: the copy on p1, the rooms, the GMs' row. Put back: the pass, the lock, the neighbours, Aiko's
+       place and actions. */
+    phase("a walk through a picked lock", { flow: "door-pick" });
+    const e74c = { setup: await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const L = await import("${repoUrl}/scripts/lockpick-gm.mjs");
+        const scene = canvas.scene, aiko = game.actors.get("${IDS.aiko}"), tok = scene.tokens.get("TOKAIKO000000000");
+        const was = { at: { x: tok.x, y: tok.y }, actions: aiko.system.resources.actions.value, flags: {} };
+        for (const room of ["Dorm A", "Dorm B"]) for (const piece of R.roomRegions(scene, room)) was.flags[piece.id] = {
+            n: piece.getFlag("${MOD}", M.ROOM_FLAGS.neighbours) ?? null, l: piece.getFlag("${MOD}", M.ROOM_FLAGS.locked) ?? null };
+        for (const [room, list] of [["Dorm A", "Dorm B"], ["Dorm B", "Dorm A"]]) for (const piece of R.roomRegions(scene, room)) await piece.setFlag("${MOD}", M.ROOM_FLAGS.neighbours, list);
+        for (const piece of R.roomRegions(scene, "Dorm B")) await piece.setFlag("${MOD}", M.ROOM_FLAGS.locked, true);
+        await tok.update(M.positionIn("Dorm A", tok), { teleport: true, movementAction: "displace", animate: false });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(aiko, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        await L.grantPass(aiko, scene, "Dorm B");
+        return was;`, { timeout: 60000 }) };
+    await settle(1200);
+    const e74cWalk = to => p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const tok = canvas.scene.tokens.get("TOKAIKO000000000"), aiko = game.actors.get("${IDS.aiko}");
+        const pass = M.holdsPass(aiko, canvas.scene, "Dorm B");
+        try { await tok.update(M.positionIn(${JSON.stringify(to)}, tok)); } catch {}
+        await new Promise(r => setTimeout(r, 2500));
+        return { pass, room: M.roomOfToken(canvas.scene.tokens.get("TOKAIKO000000000")) };`, { timeout: 60000 });
+    const e74cRow = () => gm.eval(`const L = await import("${repoUrl}/scripts/lockpick-gm.mjs"); const r = L.passOf("${IDS.aiko}"); return r ? [r.room, Boolean(r.entered)] : null;`);
+    e74c.in = await e74cWalk("Dorm B");
+    await settle(1500);
+    e74c.inRow = await e74cRow();
+    e74c.out = await e74cWalk("Dorm A");
+    await settle(1500);
+    e74c.outRow = await e74cRow();
+    e74c.again = await e74cWalk("Dorm B");
+    await settle(800);
+    await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const L = await import("${repoUrl}/scripts/lockpick-gm.mjs");
+        const scene = canvas.scene, was = ${JSON.stringify(e74c.setup ?? {})}, aiko = game.actors.get("${IDS.aiko}");
+        if (L.passOf("${IDS.aiko}")) await L.endPass("${IDS.aiko}");
+        for (const [id, value] of Object.entries(was.flags ?? {})) { const piece = scene.regions.get(id); if (!piece) continue;
+            for (const [key, v] of [[M.ROOM_FLAGS.neighbours, value.n], [M.ROOM_FLAGS.locked, value.l]]) {
+                if (v === null) await piece.unsetFlag("${MOD}", key); else await piece.setFlag("${MOD}", key, v); } }
+        if (was.at) await scene.tokens.get("TOKAIKO000000000").update(was.at, { teleport: true, movementAction: "displace", animate: false });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(aiko, { "system.resources.actions.value": ${JSON.stringify(e74c.setup?.actions ?? 3)} }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await settle(800);
+    check("E74-C: p1's copy holds Aiko's pass to the locked Dorm B and p1's walk in on it stands, the GMs marking it in use; the walk back out ends it, p1's copy loses it, and a walk in again is refused on p1's browser",
+        e74c.in?.pass === true && e74c.in?.room === "Dorm B" && JSON.stringify(e74c.inRow) === JSON.stringify(["Dorm B", true])
+            && e74c.out?.room === "Dorm A" && e74c.outRow === null && e74c.again?.pass === false && e74c.again?.room === "Dorm A",
+        JSON.stringify(e74c).slice(0, 2000), { flow: "door-pick" });
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

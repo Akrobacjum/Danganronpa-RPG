@@ -6,6 +6,8 @@
 docs/img/ export-ignore
 docs/design/ export-ignore
 docs/changelog-1.2.0.md export-ignore
+# CHANGELOG.md is tools/changelog.mjs's index of .github/release-notes (E59 C5), which does not ship either.
+CHANGELOG.md export-ignore
 # docs/dev holds working papers: the R-number registry (generated, INFRA I4), the text pilot's file and the review of the
 # texts written before the guide (E65 C13, C14, C-pilot).
 docs/dev/ export-ignore
@@ -38,3 +40,9 @@ audit/ export-ignore
 
 # Repository plumbing, not module content.
 .github/ export-ignore
+
+# Read by nothing at a table (E59 C5a, 13.11.2026; D47, E59 plan M6; `node tools/check.mjs package` holds the archive
+# to this). The sprite is tools/glyph-map.mjs's generated file: only the glyph tests read it, R3333 behind
+# `needs(env.tools())`, so where the repository's tools/ is served, and an installed zip has none. macros/, five
+# Foundry macro bodies that nothing read, stood here too until it left the repository (the owner, 13.11.2026).
+icons/pixel-sprite.svg export-ignore

@@ -457,6 +457,7 @@
     "styleSnapshot": "function",
     "fps": "function",
     "counters": "function",
+    "openTimes": "function",
     "toggleFoundryTools": "function",
     "whySlow": "function",
     "fogPeek": "function",

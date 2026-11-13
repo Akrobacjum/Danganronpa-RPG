@@ -161,6 +161,16 @@ const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
         if (c.long) { const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`); await R.dropRemnantSecret(c.long).catch(() => {}); await c.long.delete().catch(() => {}); }
     }
     delete globalThis.__probe08case;`;
+/* The planner's plans (13.11.2026): a planned Prep Remnant, the planned Autopsy and a deduction planning a Straw Poll,
+   over the same case, each a capture of its own with that node open; dropped after. */
+const SEED_PLAN = SEED_CASE + `
+    await CS.setCaseNode(ch, "incident-probe08b", { kind: "incident", label: "The torn glove under the reading table", room: "Library", type: "prep",
+        text: "A left glove, its thumb torn, under the third reading table." });
+    await CS.setCaseNode(ch, "autopsy", { kind: "autopsy", label: "Autopsy: one stab wound", text: "One stab wound to the back, between 23:00 and 23:40.",
+        note: "The blade was the letter opener." });
+    await CS.setCaseNode(ch, "probe08-d3", { kind: "deduction", label: "Someone else was in the library", mode: "straw",
+        zoneQuestion: "Who left the library first?", zoneA: "The librarian", zoneB: "The night guard" });
+    globalThis.__probe08case.ids.push("incident-probe08b", "autopsy", "probe08-d3");`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -179,6 +189,13 @@ const RUN_TRIAL = `globalThis.__probe08trial = { clock: foundry.utils.deepClone(
 const OBJECT = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
     const two = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).slice(0, 2);
     if (two.length === 2) await F.openObjection(two[0].id, two[1].id);`;
+/* E99 round 7 (the owner, 12.11.2026: the verdict and the chapter's end as steps of the flow): a running trial with no floor
+   at the vote's last stages - the count, the verdict given, the summary sent - each a patch of the trial's record. */
+const STAGE_TRIAL = patch => `globalThis.__probe08trial = { clock: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "clock")),
+        queue: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialQueue") ?? {}),
+        progress: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {}) };
+    await game.drpg.setClock({ phase: "classTrial" });
+    await (await import(\`\${repoUrl}/scripts/vote.mjs\`)).setTrialProgress(${patch});`;
 const STOP_TRIAL = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
     await F.endFloor().catch(() => {});
     const t = globalThis.__probe08trial;
@@ -240,6 +257,13 @@ const SEED_FINDINGS = `globalThis.__probe08findings = foundry.utils.deepClone(ga
         { id: "probe08f2", text: "The door was locked from inside", mode: "dive", confirmed: false, at: 2 }] });`;
 const DROP_FINDINGS = `if (globalThis.__probe08findings) await game.settings.set("danganronpa-rpg", "trialProgress", globalThis.__probe08findings);
     delete globalThis.__probe08findings;`;
+/* E64-inv (12.11.2026): the realization preview after a run - its Undo shows only while a run's marks stand
+   (case-realize.mjs `realizationFooter`). A mark written to the case's meta row for the capture, no Remnant placed;
+   taken off before the case is dropped. */
+const SEED_MADE = SEED_CASE + `
+    { const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`); await CS.setCaseMeta(globalThis.__probe08case.ch, { made: { "probe08Scene.probe08Token": { run: "probe08", slot: 0 } }, run: "probe08" }); }`;
+const DROP_MADE = `{ const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`); await CS.setCaseMeta(globalThis.__probe08case.ch, { made: {}, run: null }); }
+    ` + DROP_CASE;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -254,14 +278,27 @@ export const WINDOWS = [
     { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-trace", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--trace", call: "m.openInvestigationDashboard()" },
+    // The owner at a table, 12.11.2026: a Key Remnant slot open - its editor in its place, no read-only part above it.
+    { id: "investigation--map-slot", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node.is-planned", call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-planned", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="incident-probe08b"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-autopsy", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="autopsy"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-zone", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="probe08-d3"]', call: "m.openInvestigationDashboard()" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
+    // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
+    { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },
+    { id: "new-trace", module: "investigation.mjs", call: "m.openNewTrace({ room: \"Library\" })" },
     { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
+    // E64-inv (12.11.2026): End the chapter, as this world has it - for the fit pass, which holds it to 1366x768 unscrolled (style-sweep.mjs STILL).
+    { id: "chapter-end", module: "chapter.mjs", call: "m.openChapterEndDialog()" },
     { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E99 C5 placed: the console with the case schema in its middle (the same seeded case as case-trial's).
     { id: "class-trial--case", module: "trial-floor-ui.mjs", before: SEED_TRIAL, after: DROP_TRIAL, call: "m.manageClassTrial()" },
     { id: "class-trial--case-debate", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
     { id: "class-trial--case-objection", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL + "\n    " + OBJECT, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--counted", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, total: 3 }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--verdict-given", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, verdictApplied: true, verdict: { correct: true }, summaryShown: null }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--summary-sent", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, verdictApplied: true, verdict: { correct: true }, summaryShown: 1700000000000 }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
     // E73 C7: the zone modes' windows - the console while a Straw Poll runs, the picker, a Logic Dive set's editor, the
     // Findings, and Room setup's Scenes tab with the zones picked.
     { id: "class-trial--straw", module: "trial-floor-ui.mjs", before: SEED_STRAW, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },

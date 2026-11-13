@@ -150,8 +150,16 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             if (f) {
                 over(f, `${id} fields`);
                 const q = f.getBoundingClientRect();
-                box = { id, left: Math.min(r.left, q.left), top: r.top, right: Math.max(r.right, q.right), bottom: Math.max(r.bottom, q.bottom) };
-                if (Math.abs(q.top - r.bottom) > 1.5) cut.push(`${id} fields: ${Math.round(q.top - r.bottom)} px from its node`);
+                /* The open node is its editor since the owner's 12.11 at a table: its face hidden (`is-editing`), its fields at
+                   the face's own place (`style.top` the same); before, the fields joined the face's bottom. */
+                if (b.classList.contains("is-editing")) {
+                    box = { id, left: q.left, top: q.top, right: q.right, bottom: q.bottom };
+                    if (getComputedStyle(b).display !== "none") cut.push(`${id}: its face still drawn over its fields`);
+                    if (Math.abs(parseFloat(f.style.top) - parseFloat(b.style.top)) > 0.5) cut.push(`${id} fields: ${Math.round(parseFloat(f.style.top) - parseFloat(b.style.top))} px from its node's place`);
+                } else {
+                    box = { id, left: Math.min(r.left, q.left), top: r.top, right: Math.max(r.right, q.right), bottom: Math.max(r.bottom, q.bottom) };
+                    if (Math.abs(q.top - r.bottom) > 1.5) cut.push(`${id} fields: ${Math.round(q.top - r.bottom)} px from its node`);
+                }
             }
             boxes.push(box);
         }
@@ -251,7 +259,8 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             const [id, fields] = [...open.entries()][0];
             const faceEl = canvas.querySelector(`button[data-drpg-node="${CSS.escape(id)}"]`);
             camera.reveal([faceEl, fields]);
-            const g = graph.getBoundingClientRect(), f = faceEl.getBoundingClientRect();
+            // the face's place: its fields' top when the face is hidden (the open node is its editor)
+            const g = graph.getBoundingClientRect(), f = (faceEl.classList.contains("is-editing") ? fields : faceEl).getBoundingClientRect();
             revealed = f.top >= g.top - 0.5 && f.top < g.bottom && f.left >= g.left - 0.5 && f.right <= g.right + 0.5;
             if (!revealed) cut.push(`${id}: not brought into view (face at ${Math.round(f.left - g.left)},${Math.round(f.top - g.top)} in ${Math.round(g.width)}x${Math.round(g.height)})`);
         }
