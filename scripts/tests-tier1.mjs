@@ -53976,8 +53976,9 @@ const INVARIANTS = [
         try {
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
+            // The clocks carry the road's mark, `trialCut: true`, not the world's (R3704's comment; 01-runtests' A2).
             // the entry with the glass, in motion: the layers at the start and once the title is in, and the fades
-            read.glass = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}g` }, { pieces: stand() }) };
+            read.glass = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}g`, trialCut: true }, { pieces: stand() }) };
             const host = document.getElementById(S.SEQUENCE_HOST_ID);
             read.glass.start = layers();
             await wait(T.title + 150);
@@ -53987,15 +53988,15 @@ const INVARIANTS = [
             read.glass.fadeOut = fades(host, T.hand, 1, 0);
             // the lids, in motion and still, and the exit
             body.classList.remove("drpg-theme-stained-glass");
-            read.lids = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}l` }) };
+            read.lids = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}l`, trialCut: true }) };
             read.lids.start = layers();
             await wait(T.title + 150);
             read.lids.titled = layers();
             S.endSequence("cut");
             body.classList.add("drpg-reduced-motion");
-            read.still = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}s` }), ...layers() };
+            read.still = { mode: await S.playTrialEntry({ ...getClock(), phase: "classTrial", chapter: 4, timeOfDayStartedAt: `${stamp}s`, trialCut: true }), ...layers() };
             S.endSequence("cut");
-            read.exit = { mode: await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 4, trialEndedAt: `${stamp}x` }, { on: true }), ...layers() };
+            read.exit = { mode: await S.playTrialExit({ ...getClock(), phase: "dailyLife", chapter: 4, trialEndedAt: `${stamp}x`, trialCut: true }, { on: true }), ...layers() };
             S.endSequence("cut");
             // a sequence that closes no curtain draws in the one host
             read.one = S.playSequence("dayStart", `${stamp}d`, ctx => ctx.host.append(Object.assign(document.createElement("div"), { className: "drpg-seq-day" })), { on: true }) && layers().kids;
