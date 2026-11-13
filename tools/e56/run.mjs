@@ -100,7 +100,7 @@ function markdown(main, checks, tips) {
     L.push("", "Self-checks (each finder on its planted fixture, exactly its planted findings wanted): " + Object.entries(checks).map(([k, v]) => `${k} ${v.ok ? "held" : "FAILED"}`).join(", ") + ".");
     if (c.failures.length) L.push("", "Files that did not parse: " + c.failures.join("; "));
     if (tips) {
-        L.push("", "## How the lists move on the open lines", "", "Each remote line whose tip is ahead of origin/main and changes scripts/ or lang/, read whole in a detached worktree, against its own merge base with origin/main (read the same way): +N items the line adds to a list, -N items it takes off. Against origin/main instead, every line on the 1.2.108 base would also show what main changed since (about -10 dead exports and -56 test-only on each), which is not the line's.", "");
+        L.push("", "## How the lists move on the open lines", "", "Each remote line whose tip is ahead of origin/main and changes scripts/ or lang/, read whole in a detached worktree, against its own merge base with origin/main (read the same way): +N items the line adds to a list, -N items it takes off. Against origin/main instead, a line on an older base would also show what main changed since, which is not the line's.", "");
         const names = Object.keys(ids(c));
         L.push(`| Line (tip, base, commits ahead) | ${names.join(" | ")} |`, `| --- | ${names.map(() => "---").join(" | ")} |`);
         for (const t of tips) {
