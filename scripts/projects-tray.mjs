@@ -33,7 +33,9 @@
 
 import { MODULE_ID, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { allProjects, knowsProject, isSecret } from "./projects.mjs";
+import { allProjects, isSecret } from "./projects.mjs";
+// What a player saw last (PV): the rows a player keeps and the bars they read. It does not import this file.
+import { asSeen, seenSection, standingNow, seesLive } from "./projects-seen.mjs";
 import { error, markLanguage } from "./utils.mjs";
 
 /**
@@ -155,18 +157,26 @@ export function localiseRawKeys(root) {
  *
  * @returns {number} how many rows were taken out - the suite's measurement.
  */
-export function hideUndiscovered(root, user = game.user) {
+export function hideUndiscovered(root, user = game.user, { section = null, standing = null, projects: given = null, seen = {} } = {}) {
     if (user?.isGM) return 0;
 
     const rows = root.querySelectorAll(".countdown-container");
     if (!rows.length) return 0;
-    const projects = allProjects();
+    // `given` and `seen` are the suite's (R5644): a list of rows and `asSeen`'s readers of the world, stubbed.
+    const projects = given ?? allProjects();
+    /* AS LAST SEEN (PV, 13.11.2026; the owner's rule #2): `knowsProject` was the whole question; a public project made
+       in a room after this player's last visit, and a sabotage's repair, were on the tray at once. projects-seen.mjs
+       `asSeen` keeps the row when the player knows it as they last saw that room (`section`, `standing`: the suite's,
+       read once here otherwise). */
+    const live = seesLive(user);
+    const held = live ? null : section ?? seenSection(user);
+    const here = live ? null : standing ?? standingNow(user);
 
     let removed = 0;
     for (const row of rows) {
         const project = projectForRow(row, projects);
         if (!project) continue;
-        if (knowsProject(project.id, user)) continue;
+        if (asSeen(project, { user, section: held, standing: here, live, ...seen })) continue;
         row.remove();
         removed += 1;
     }
@@ -250,18 +260,28 @@ export function showTrayToPlayer(root, user = game.user) {
  * paint: it is eight metadata reads per project (projects.mjs), and this runs
  * on every client every time a countdown moves.
  */
-export function paintProgress(root) {
+export function paintProgress(root, user = game.user, { section = null, standing = null, projects: given = null, seen = {} } = {}) {
     const rows = root.querySelectorAll(".countdown-container");
     if (!rows.length) return;
-    const projects = allProjects();
+    const projects = given ?? allProjects();
+    // As this reader saw it (PV): read once for the pass; a GM's and a Spectator's rows are live and left as drawn.
+    const live = seesLive(user);
+    const held = live ? null : section ?? seenSection(user);
+    const here = live ? null : standing ?? standingNow(user);
 
     for (const row of rows) {
         const project = projectForRow(row, projects);
+        const shownAs = !live && project ? asSeen(project, { user, section: held, standing: here, live, ...seen }) : null;
+        if (shownAs && shownAs.seen !== "live") paintSeen(row, shownAs);
+        else delete row.dataset.drpgSeen;
 
         const tag = row.querySelector(".progress-tag")?.textContent ?? "";
         const m = tag.match(/(\d+)\s*\/\s*(\d+)/);
         let share = m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
-        if (share === null && project && project.start > 0) share = project.current / project.start;
+        // The row's own numbers when its tag cannot be read: the snapshot's for a row seen last, never the live bar.
+        const shown = shownAs && shownAs.seen !== "live" ? shownAs : project;
+        if (share === null && shown && shown.start > 0) share = (Number(shown.current) || 0) / shown.start;
+        if (shownAs?.seen === "unknown") share = 0;
 
         if (share === null) row.style.removeProperty("--w");
         else row.style.setProperty("--w", `${Math.round(Math.max(0, Math.min(1, share)) * 100)}%`);
@@ -276,6 +296,23 @@ export function paintProgress(root) {
         } else {
             row.style.removeProperty("--drpg-project-glyph");
         }
+    }
+}
+
+/**
+ * A ROW AS ITS READER LAST SAW IT (PV, 13.11.2026; the owner's rule #2). Daggerheart draws the row from the live
+ * countdown; the tag's numbers are written again with the snapshot's (`seen.current / seen.start`), or "?" for a
+ * project this browser has never seen (`seen: "unknown"`), and the row is marked (`data-drpg-seen`) with a tooltip
+ * that says which. The bar's width is read off the tag after this, so it follows. Exported for the suite (R5644).
+ */
+export function paintSeen(row, seen) {
+    row.dataset.drpgSeen = seen.seen;
+    const tag = row.querySelector(".progress-tag");
+    const words = game.i18n.localize(seen.seen === "unknown" ? "DRPG.Project.seenUnknown" : "DRPG.Project.seenAsLast");
+    if (tag) {
+        tag.textContent = `${seen.seen === "unknown" ? "?" : seen.current} / ${seen.start}`;
+        tag.dataset.tooltip = words;
+        tag.setAttribute("aria-label", words);
     }
 }
 

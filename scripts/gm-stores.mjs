@@ -967,6 +967,22 @@ export const rifleStore = defineGmStore({
 });
 
 /**
+ * A SECRET PASSAGE'S "FINISHED" HELD FOR ITS FINDER (PV, 13.11.2026; the owner's rule #3: the card on the finder's next
+ * entry to that room). A row per finder and project, keyed `<userId>:<countdownId>`: `{ name, room, sceneId, at }`,
+ * written by the primary at the passage's completion for each finder by Observe (`foundBy`) none of whose characters
+ * stands in its room (projects.mjs `COMPLETION_EFFECTS` `opensPassage`), and posted and dropped by the primary when one
+ * of that user's characters next stands there (projects-seen.mjs `tellFoundOnEntry`, at a move and at its ready).
+ * Synced, so another GM who becomes the primary posts it alike; backed up, as the card is owed. The subject is the
+ * user: the project itself is gone by then (a finished Secret Passage is removed). Cut by the reset's "projects" group.
+ * No player copy - the finder's browser holds nothing until the card - and no old key.
+ */
+export const foundDoneStore = defineGmStore({
+    name: "foundDone", key: SETTINGS.gmFoundDone,
+    kind: "ledger", resetGroup: "projects", backup: true, sync: true,
+    exists: key => Boolean(game.users?.has(String(key).split(":")[0]))
+});
+
+/**
  * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3), its 05.11 limits). A row per GM's action of a
  * room, keyed `g:<sceneId>:<room>:<actionId>` - one person per time of day, closed for everyone once anyone used it, a
  * failed roll too - and per completed project's action and character, `p:<projectId>:<actorId>` - once per person per

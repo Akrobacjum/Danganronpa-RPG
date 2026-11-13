@@ -248,7 +248,7 @@ You choose how you are looking:
 | Focus your gaze | say what you are looking for; the GM decides what your gaze lands on |
 | Examine point of interest | something that is not a trace - a person, a machine, the weather; the GM rules |
 
-You are told what you found, never the difficulty. Remnants tied to the crime are always shown first. *Look past the obvious* can also turn up a secret project in the room (18+, or a critical); finding it lets you in on it.
+You are told what you found, never the difficulty. Remnants tied to the crime are always shown first. *Look past the obvious* can also turn up a secret project in the room (18+, or a critical); finding it lets you in on it. From then on you see its progress as it was on your last visit to its room, and you are told it is finished on your next visit after it is (since 1.2.113).
 
 ### Analyze - Head, 1 action
 
@@ -399,7 +399,7 @@ Four outcomes, and the interesting ones are the mismatches: caught with nothing 
 
 Three things behind the tile. An attempt costs **1 action**, and never Sanity: with no action left there is no Tamper until your actions come back. Nothing caps how many attempts you make in a time of day: each one simply costs its price.
 
-**Erase a Trace.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase:
+**Erase a Trace.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. Whoever else found it and is elsewhere keeps it on their map, faded, until one of their characters is in this room again (since 1.2.113). The easier it is to see, the harder it is to erase:
 
 | Visibility | Needs |
 |---|---|
@@ -904,7 +904,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 **The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs - a foot for each crossing left, or, in a placement where you may pick any room, one full foot that stays available; a Monocub's actions read *Placement only.* there. A Monocub's feet are always solid, since its crossings cost nothing. A dead student's strip is one row: **Dead**. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 
-**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16). Each project is one row, its name and its count on one line; with more than five, the list scrolls and its foot fades while there are more below (since 1.2.101).
+**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16). Each project is one row, its name and its count on one line; with more than five, the list scrolls and its foot fades while there are more below (since 1.2.101). The count is live while one of your characters stands in the project's room; away from it, the row shows the count as one of them last saw it there, and a project made or a repair begun since then appears when one of them is next in that room. A project you know of but have not seen in its room on this browser shows **?** (since 1.2.113).
 
 **The Despair rows** show every pool and how full it is, and under them the overflow: "?" where its count would be, beside the number it fires at. Click for what Despair is.
 

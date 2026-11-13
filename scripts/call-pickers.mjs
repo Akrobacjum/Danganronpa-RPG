@@ -432,6 +432,18 @@ async function pickPlayer(actor, ask) {
     return { target: pool.find(a => a.id === id) };
 }
 
+/**
+ * THE PROJECTS A CALL'S PICKER OFFERS (PV, 13.11.2026): every listed one, or for a Call that moves progress those neither
+ * finished nor frozen (CALL-10). A row seen last (projects-seen.mjs `asSeen`, `seen` not "live") is read as seen - its
+ * own `frozen` and `complete` - so a player's picker does not tell a sabotage or a finish they were not there for; a live
+ * row asks the project (`isFrozen`). Pure: the readers are handed in. Exported for the suite (R5653).
+ */
+export function callProjectPool(listed, progress, { isComplete, isFrozen }) {
+    if (!progress) return listed;
+    const frozen = p => (p.seen && p.seen !== "live" ? Boolean(p.frozen) : isFrozen(p.id));
+    return listed.filter(p => !isComplete(p) && !frozen(p));
+}
+
 async function pickProject(actor, ask) {
     const { kind, call } = ask;
     const { knownProjects, projectsAvailableIn, isComplete, isFrozen, projectLabel } = await import("./projects.mjs");
@@ -454,7 +466,14 @@ async function pickProject(actor, ask) {
     // walked into yet is not something this account should be able to read off a
     // dropdown. It changes nothing for a GM - `knowsProject` answers true for
     // them - and narrows a player-held Monokuma to the rooms they have found.
-    const listed = here.length ? here : (kind === "despair" ? knownProjects() : []);
+    /* AS THIS PLAYER LAST SAW THEM (PV, 13.11.2026; the coordinator's follow-up to the owner's rule #2). The fallback lists
+       projects away from the reader's room: a player's (a player-held Monokuma's) as projects-seen.mjs `projectsAsSeen`
+       shows them - known by the last visit, frozen and finished as last seen - and a GM's live. What the list SHOWS
+       follows the snapshot; whether the Call may move a project is still judged live (call-effects.mjs `projectRefusal`:
+       a finished or frozen project is refused, live, after the pick). */
+    const away = kind !== "despair" ? [] : game.user?.isGM ? knownProjects()
+        : (await import("./projects-seen.mjs")).projectsAsSeen(game.user);
+    const listed = here.length ? here : away;
 
     /*
      * A CALL THAT MOVES PROGRESS NEEDS PROGRESS TO MOVE (CALL-10, Dawid 17.09).
@@ -469,9 +488,7 @@ async function pickProject(actor, ask) {
      * finished ones from this room's list; the frozen ones, and the whole of the
      * `knownProjects` fallback, are filtered here.
      */
-    const pool = call?.progress
-        ? listed.filter(p => !isComplete(p) && !isFrozen(p.id))
-        : listed;
+    const pool = callProjectPool(listed, Boolean(call?.progress), { isComplete, isFrozen });
 
     // Two different empties: nothing on the list at all, or a list whose every
     // project is finished or frozen.

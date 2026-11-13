@@ -53023,6 +53023,18 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 gone: (report, key) => !S.traceDigestStore.has(key),
                 back: key => stableJson([S.traceDigestStore.get(key)?.note, S.traceDigestStore.get(key)?.chapter]) === stableJson(["SUITE backed-up digest row", 99])
             },
+            // A Secret Passage's "finished" held for its finder, through its store (PV, 13.11.2026; `backup: true`: the card is
+            // owed). Keyed by this GM's user and a countdown no world holds: no move of this test posts it, and tier 2's
+            // restore takes it back.
+            foundDone: {
+                seed: async () => {
+                    const key = `${game.user.id}:SUITEPVFOUNDDONE`;
+                    await S.foundDoneStore.patch(key, { name: "SUITE backed-up finished card", room: "SUITE PV room", sceneId: "SUITEPVSCENE0000", at: 1 }, { whole: true });
+                    return key;
+                },
+                gone: (report, key) => !S.foundDoneStore.has(key),
+                back: key => stableJson([S.foundDoneStore.get(key)?.name, S.foundDoneStore.get(key)?.room]) === stableJson(["SUITE backed-up finished card", "SUITE PV room"])
+            },
             // A Logic Dive set, through its store (E73 C4; backed up with the case, `backup: true`). Backed up with no
             // fixture here from 5101742, and this test failed naming it (CI 12.11, run 43164772167, shard 7). A set no
             // floor plays: no card is posted and nobody is sent it.
@@ -69917,6 +69929,80 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[a player's own mend: the verdict, the crowbar broken after it; a mend of wear alone: the verdict, the wear after it] - a player's console mends its own item");
         equal(J(handed), J([true, true]), "[the broken tool rifled from Hana's stash, broken on the other sheet] - a hand-over mends an item");
     }],
+    ["PV - a finished Secret Passage's finder away from its room is told on their next entry to it, one standing there at once, and the card names the project (the owner's rule #3, 13.11.2026)", async () => {
+        /*
+         * PV (privacy line 3; docs/dev/pv/SPEC.md, P2). A finder by Observe was whispered "is finished" at the completion
+         * wherever they stood (projects.mjs `opensPassage`), which told them, away from the room, that somebody had just
+         * worked there. Now the primary tells at once a finder with a character in the room, and holds every other finder's
+         * card in the GMs' `foundDoneStore` until one of their characters stands there (fog.mjs `reactToMove` asks
+         * projects-seen.mjs `tellFoundOnEntry`). On a scene of the suite's own - a Dorm and a Gym - with two students of its
+         * own, played by two of the suite's players, in a GM store world of the suite's own (`withGmStoreWorld`). The token's
+         * move is a real update, through the hooks the primary hears. Red on af9792c5: projects-seen.mjs did not exist.
+         */
+        const SEEN = await import("./projects-seen.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const J = v => JSON.stringify(v);
+        const cast2 = cast(2);
+        needs(world.atLeast("livingStudents", 2), "two players of the suite's own play the two finders");
+        for (const s of cast2) needs(world.ownedByPlayer(s), "each of the two is a player's, and the suite's players own the cast");
+        const [nearUser, farUser] = cast2.map(s => ownerOf(s));
+        must(nearUser && farUser && nearUser.id !== farUser.id, "the two students are not two players' - one would be told for both");
+        const DORM = "SUITE PV Dorm", GYM = "SUITE PV Gym", ID = "SUITEPVpassage", NAME = "SUITE PV Secret Passage";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        let scene = null, read = null;
+        const actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        try {
+            scene = await Scene.create({ name: "SUITE PV a finder away", width: 1400, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(GYM, 600)]);
+            read = await E.withGmStoreWorld(`suite-pv-${foundry.utils.randomID(8)}`, async () => {
+                const make = async (name, user) => {
+                    const actor = await Actor.create({ name: `SUITE PV ${name}`, type: "character", ownership: { default: 0, [user.id]: OWNER } });
+                    actors.push(actor);
+                    return actor;
+                };
+                const near = await make("Near", nearUser), far = await make("Far", farUser);
+                const [, farToken] = await scene.createEmbeddedDocuments("Token", [
+                    { actorId: near.id, actorLink: true, name: near.name, x: 200, y: 200, width: 1, height: 1 },
+                    { actorId: far.id, actorLink: true, name: far.name, x: 800, y: 200, width: 1, height: 1 }]);
+                await settle();
+                const cards = from => posted.slice(from).map(m => [m.whisper ?? [], String(contentOf(m) ?? "")]);
+                const toUser = (list, user) => list.some(([to, html]) => to.includes(user.id) && html.includes(NAME));
+                const out = {};
+                const atDone = posted.length;
+                const done = await SEEN.holdFoundDone(ID, NAME, [nearUser.id, farUser.id], { room: DORM, sceneId: scene.id });
+                await settle();
+                out.done = [J(done.told) === J([nearUser.id]), J(done.held) === J([farUser.id]), toUser(cards(atDone), nearUser), toUser(cards(atDone), farUser),
+                    S.foundDoneStore.has(`${farUser.id}:${ID}`), S.foundDoneStore.has(`${nearUser.id}:${ID}`)];
+                // Another room is no entry to this one.
+                const atGym = posted.length;
+                out.gym = [await SEEN.tellFoundOnEntry(far, scene.id, GYM), toUser(cards(atGym), farUser), S.foundDoneStore.has(`${farUser.id}:${ID}`)];
+                // The far student walks into the Dorm: the primary's move posts the card and drops the row.
+                const atEntry = posted.length;
+                await farToken.update({ x: 300, y: 300 });
+                await settle();
+                for (let i = 0; i < 40 && S.foundDoneStore.has(`${farUser.id}:${ID}`); i++) await new Promise(r => setTimeout(r, 25));
+                out.entry = [toUser(cards(atEntry), farUser), toUser(cards(atEntry), nearUser), S.foundDoneStore.has(`${farUser.id}:${ID}`)];
+                return out;
+            });
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await settle();
+        }
+        equal(J(read?.done), J([true, true, true, false, true, false]),
+            "[told: the near finder; held: the far one; the near one's card; the far one's card; the far one's row; a row for the near one] - a finder away is told at once, or one standing there is not");
+        equal(J(read?.gym), J([0, false, true]), "[cards posted for the far finder's student in the Gym; its card; its row kept] - another room counts as the entry");
+        equal(J(read?.entry), J([true, false, false]), "[the far finder's card at the entry; a second card to the near one; the row after] - the entry does not tell, or tells twice");
+    }],
     ["E15-T16 - a Secret Passage stays the builder's side's secret: a player its Observe finder lets in is a finder too, told it is finished and given no passage; it is never made public - not by the edit window, whose Secret box is held ticked, nor by a reveal of any road - and a project made public some other way gives the passage to no viewer", async () => {
         /*
          * E15 part 2 fix e1-G1 (25.10.2026; findings SEC-1, SEC-2, END-04, R2; the stage's E15-41 "always secret" and
@@ -70008,7 +70094,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const cards = posted.slice(before).map(m => [m.whisper ?? [], String(contentOf(m) ?? "")]);
                 const toUser = (user, key, data) => cards.some(([to, html]) => to.includes(user.id) && html.includes(game.i18n.format(key, data).split("{")[0].slice(0, 24)));
                 out.found = [Boolean(pid), cell(pid, hana), cell(pid, botan), cell(pid, kenta), P.passageCopyFor(friend).value?.[pid] ?? null,
-                    toUser(friend, "DRPG.Observe.projectFoundDone", { name: "" }), toUser(friend, "DRPG.Passage.card.passageBuiltShared", {})];
+                    toUser(friend, "DRPG.Observe.projectFoundDone", { name: "" }), toUser(friend, "DRPG.Passage.card.passageBuiltShared", {}),
+                    // PV (13.11.2026; the owner's rule #3): neither finder stands in the Dorm, so each card waits for their entry.
+                    [friend, finder].map(u => S.foundDoneStore.has(`${u.id}:${found}`))];
                 await new Promise(r => setTimeout(r, 5));
                 const undone = await PR.applyProjectChange(found, { delta: -1 }, { by: { kind: "reroll", actorId: hana.id } });
                 await settle();
@@ -70070,8 +70158,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(J(read?.share), J([0, true, [finder.id, friend.id].sort()]),
             "[refusals told the finder, Botan's player let in, the project's finders] - the player a finder lets in is no finder");
-        equal(J(read?.found), J([true, "built", null, null, null, true, false]),
-            "[the passage made; Hana's, Botan's, Kenta's ways of knowing it; Botan's player's copy; that player told the project is finished, told of a passage] - a finder's share gives the passage away");
+        equal(J(read?.found), J([true, "built", null, null, null, false, false, [true, true]]),
+            "[the passage made; Hana's, Botan's, Kenta's ways of knowing it; Botan's player's copy; that player told the project is finished at once, told of a passage; Botan's and Kenta's players' cards held for their entry (PV)] - a finder's share gives the passage away, or a finder away from the room is told at once");
         equal(J(read?.mastermind), J([true, true, true, true, false]),
             "[the Mastermind's player's copy names Ume under the built passage, its door part moved by the completion; the Reroll's undo, the door part moved again, the passage in that copy] - the Mastermind's copy is not pushed with the passage, or keeps it after the undo");
         equal(J(read?.reveal), J([null, "it is always secret", true, true]),
