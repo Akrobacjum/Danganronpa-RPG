@@ -195,6 +195,14 @@
   },
   {
    "file": "scripts/case-map.mjs",
+   "unit": "caseOverviewHtml",
+   "kind": "summary",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/case-map.mjs",
    "unit": "caseToolsHtml",
    "kind": "button",
    "key": null,
@@ -492,18 +500,42 @@
   {
    "file": "scripts/gm-items.mjs",
    "unit": "gmGiveItemDialog",
-   "kind": "kit:kitTabs",
+   "kind": "kit:kitTabs-item",
    "key": "DRPG.Items.tabGiveExisting",
    "count": 1,
    "why": "none needed: Each tab's label names its pane."
   },
   {
    "file": "scripts/gm-items.mjs",
+   "unit": "gmGiveItemDialog",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Items.tabCreateNew",
+   "count": 1,
+   "why": "none needed: Each tab's label names its pane."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
    "unit": "giveTruthBulletDialog",
-   "kind": "kit:kitTabs",
+   "kind": "kit:kitTabs-item",
    "key": "DRPG.TruthBullet.tabFromRemnant",
    "count": 1,
    "why": "none needed: Each tab's label names its pane."
+  },
+  {
+   "file": "scripts/gm-items.mjs",
+   "unit": "giveTruthBulletDialog",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.TruthBullet.tabWriteNew",
+   "count": 1,
+   "why": "none needed: Each tab's label names its pane."
+  },
+  {
+   "file": "scripts/gm-panel.mjs",
+   "unit": "buildSections",
+   "kind": "summary",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/gm-panel.mjs",
@@ -560,6 +592,22 @@
    "key": "DRPG.Monocub.give",
    "count": 1,
    "why": "none needed: The column's head already carries the tooltip (DRPG.Monocub.silencedNote); a second copy on every row would repeat it."
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Despair.tabMonokumas",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/gm-team-dialog.mjs",
+   "unit": "buildContent",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Despair.tabOverflow",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/handbooks.mjs",
@@ -972,8 +1020,32 @@
   {
    "file": "scripts/investigation.mjs",
    "unit": "caseHtml",
-   "kind": "kit:kitTabs",
+   "kind": "kit:kitTabs-item",
    "key": "DRPG.Investigation.tabTraces",
+   "count": 1,
+   "why": "none needed: The tabs' names (Remnants, Key Remnants, Final Truth Remnants, Who has what) say what each holds."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseHtml",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Investigation.tabKeyRemnants",
+   "count": 1,
+   "why": "none needed: The tabs' names (Remnants, Key Remnants, Final Truth Remnants, Who has what) say what each holds."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseHtml",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Mastermind.finalRemnantsTitle",
+   "count": 1,
+   "why": "none needed: The tabs' names (Remnants, Key Remnants, Final Truth Remnants, Who has what) say what each holds."
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "caseHtml",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Investigation.whoHasWhat",
    "count": 1,
    "why": "none needed: The tabs' names (Remnants, Key Remnants, Final Truth Remnants, Who has what) say what each holds."
   },
@@ -1123,6 +1195,14 @@
   },
   {
    "file": "scripts/messenger-app.mjs",
+   "unit": "DrpgMessengerApp",
+   "kind": "kit:kitTabBar-item",
+   "key": "DRPG.Messenger.tabChat",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/messenger-app.mjs",
    "unit": "askItemEffect",
    "kind": "kit:stepper",
    "key": null,
@@ -1194,6 +1274,62 @@
    "why": "none needed: Its label already says what a trap changes."
   },
   {
+   "file": "scripts/notice-history-app.mjs",
+   "unit": "NoticeHistoryApp",
+   "kind": "kit:chips",
+   "key": "DRPG.Notices.title",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "unit": "NoticeHistoryApp",
+   "kind": "dom:input",
+   "key": "DRPG.Notices.search",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "unit": "NoticeHistoryApp",
+   "kind": "dom:button",
+   "key": "DRPG.Notices.markRead",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "unit": "NoticeHistoryApp",
+   "kind": "dom:button",
+   "key": "DRPG.Notices.newPill",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "unit": "NoticeHistoryApp",
+   "kind": "dom:summary",
+   "key": "DRPG.Notices.chapterFold",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "unit": "NoticeHistoryApp",
+   "kind": "dom:summary",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/notice-history-app.mjs",
+   "unit": "NoticeHistoryApp",
+   "kind": "dom:button",
+   "key": "DRPG.Notices.openConversation",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
    "file": "scripts/observe.mjs",
    "unit": "describeFind",
    "kind": "input",
@@ -1248,6 +1384,22 @@
    "key": "DRPG.Vault.take",
    "count": 1,
    "why": "none needed: The intro says the Palm went perfectly and to choose what to take; the button does that."
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "unit": "chip",
+   "kind": "kit:chip",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/passages-tab.mjs",
+   "unit": "chipCell",
+   "kind": "kit:chips",
+   "key": "DRPG.Passage.tab",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/popup.mjs",
@@ -1461,9 +1613,25 @@
    "file": "scripts/room-tile.mjs",
    "unit": "paintRoomTile",
    "kind": "dom:button",
+   "key": "DRPG.Room.imageOpen",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/room-tile.mjs",
+   "unit": "paintRoomTile",
+   "kind": "dom:button",
    "key": null,
    "count": 1,
    "why": "none needed: Already carries a tooltip that follows its state ('Read more' / read less, openProse)."
+  },
+  {
+   "file": "scripts/room-tile.mjs",
+   "unit": "paintTileRow",
+   "kind": "dom:button",
+   "key": "DRPG.Room.describe",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/rules.mjs",
@@ -1488,6 +1656,14 @@
    "key": "DRPG.Season.roomGuide",
    "count": 1,
    "why": "none needed: The guide right above it says what the check reports and that it never edits the map."
+  },
+  {
+   "file": "scripts/season-setup.mjs",
+   "unit": "contractSection",
+   "kind": "summary",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/season-setup.mjs",
@@ -1610,14 +1786,6 @@
    "why": "none needed: Already has a tooltip built in code (its head, the reason it is dimmed and its bonus, actionButton)."
   },
   {
-   "file": "scripts/sound-panel.mjs",
-   "unit": "openSoundDialog",
-   "kind": "kit:kitTabs",
-   "key": "DRPG.Sound.tabPlay",
-   "count": 1,
-   "why": "none needed: Tab names (Play, Music, Effects) are self-evident."
-  },
-  {
    "file": "scripts/tables-editor.mjs",
    "unit": "tableRowHtml",
    "kind": "checkbox",
@@ -1640,6 +1808,14 @@
    "key": null,
    "count": 1,
    "why": "none needed: Each cell already has its name as a label and a title."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "itemPictureGrid",
+   "kind": "summary",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -1680,6 +1856,22 @@
    "key": null,
    "count": 1,
    "why": "none needed: Its label says it, and it asks for the new name."
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "openItemTables",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Tables.tabRoomPools",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/tables-editor.mjs",
+   "unit": "openItemTables",
+   "kind": "kit:kitTabs-item",
+   "key": "DRPG.Tables.tabNewItem",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/trait-ruling.mjs",
@@ -1920,6 +2112,46 @@
    "key": "DRPG.Voice.panel.pttKey",
    "count": 1,
    "why": "none needed: Both choices are self-evident; the key line beside them says which key talks."
+  },
+  {
+   "file": "scripts/voice-panel.mjs",
+   "unit": "voiceFieldset",
+   "kind": "dom:button",
+   "key": "DRPG.Voice.mic.pttNoKey",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/voice-tile.mjs",
+   "unit": "listRow",
+   "kind": "kit:slider",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/voice-tile.mjs",
+   "unit": "rowButton",
+   "kind": "dom:button",
+   "key": null,
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/voice-tile.mjs",
+   "unit": "listRow",
+   "kind": "dom:button",
+   "key": "DRPG.Voice.list.unhide",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
+  },
+  {
+   "file": "scripts/voice-tile.mjs",
+   "unit": "buildVoiceList",
+   "kind": "dom:button",
+   "key": "DRPG.Voice.list.muteAll",
+   "count": 1,
+   "why": "E102 C8: a site the widened census reads (REVIEW-102 C1, C3); C8 gives it a tooltip or a reason"
   },
   {
    "file": "scripts/vote.mjs",

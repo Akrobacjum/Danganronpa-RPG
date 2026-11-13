@@ -6,42 +6,70 @@
  *     node tools/check.mjs tooltips              the gate: today's sites without help against tools/tooltip-census.json
  *
  * Rebuilt in E102's prep (docs/dev/e102/PLAN.md section 2) from the method E57's prep wrote down (claude/e57-prep
- * b7575629, docs/dev/e57/MEASURE-coverage.md B.1), whose scanner was not committed. Every module script but the suite's
- * (tests.mjs, tests-*.mjs) and ui-kit.mjs (its builders are counted where they are called), comments blanked by espree
- * first. A CONTROL is one site that draws one: a raw `<button`, `<select`, `<textarea`, `<input` (type="hidden" left
- * out), an element with `role="tab"` (inside a markup tag only: a CSS selector's [role="tab"] is not one); a kit builder
- * call (toggle, stepper, iconButton, chip, roleButton, launcher, kitTabs, kitTabBar); each `{ ... label: ... }` object of
- * a `footer: {...}` and of a `buttons: [...]`; `document.createElement("button"|"input"|"select"|"textarea")`. A footer's
- * closing word (`close: "close"|"cancel"`) is counted apart and needs nothing (the kit draws it with no tooltip).
- * HELP: a TOOLTIP in the site's own text (data-tooltip, title= / title:, tooltip:, aria-describedby, .title =,
- * dataset.tooltip, setAttribute("title"), the kit's `tipAttr(` and `tipText(`; for a createElement, its next 14 lines;
- * iconButton and launcher always carry one, their name), or a HINT LINE within 3 source lines (a drpg-help paragraph,
- * helpText(, a *-hint class, a ...Hint / .hint key, class="notes"). A site with neither NEEDS one.
+ * b7575629, docs/dev/e57/MEASURE-coverage.md B.1), whose scanner was not committed; widened after the review of
+ * c5cf2aff (docs/dev/e93/REVIEW-102.md C1, C3, C4 on claude/e93), which found whole kinds of control it never read.
  *
- * WHAT IT MISREADS, measured on its 390 sites at 421f239 (E102's five readers, docs/dev/e102/TOOLTIPS.json): about one
- * in ten. 16 sites carry a key from the line above or below rather than the control's own label; 16 already had a
- * tooltip set far from the markup (a helper, a title that follows the state); 5 were inputs hidden by an attribute or a
- * class. A site drawn many times counts once. So the baseline names sites by file, top-level unit, kind and key - never
- * by line, which E54's moves change - and as a count of each, and a row may say why its site needs no tooltip.
+ * WHAT IT READS. Every module script but the suite's (tests.mjs, tests-*.mjs) and ui-kit.mjs (its builders are counted
+ * where they are called), comments blanked by espree first. One SITE is one place in the source that draws a control:
+ *   - a markup tag: `<button`, `<select`, `<textarea`, `<input` (type="hidden" left out), `<summary`, an `<a` with a
+ *     `data-action`, and any tag with `role="tab"` or `role="button"` (inside a tag: a CSS selector's [role] is not one);
+ *   - a kit builder call, found by what ui-kit.mjs exports and the file imports under any name (`slider as kitSlider`):
+ *     toggle, stepper, iconButton, chip, roleButton, launcher, slider; and kitTabs, kitTabBar, modeBar, chips, whose
+ *     first argument written as an array of objects is one site per object (a tab, a mode, a chip), else one site;
+ *   - each `{ ... label: ... }` object of a `footer: {...}` and of a `buttons: [...]` (a footer's closing word,
+ *     `close: "close"|"cancel"`, is counted apart and needs nothing: the kit draws it with no tooltip);
+ *   - `document.createElement(...)` whose argument names a control tag (`cond ? "button" : "span"` included), and a
+ *     call of a LOCAL WRAPPER - a function of the same file whose body calls `document.createElement(<its first
+ *     parameter>)` - with a control tag as its first argument (notice-history-app.mjs `element()`, voice-panel.mjs
+ *     `node()`, room-tile.mjs and voice-tile.mjs `textNode()`): one level of wrapper, no deeper.
+ * HELP is read from the control's own text only:
+ *   - a TOOLTIP: in a tag or a builder call or a footer object, its own `data-tooltip`, `title=` / `title:` (a whole
+ *     attribute name: `data-drpg-title=` is not one), a `tooltip:` that is not "", null or undefined,
+ *     `aria-describedby`, or the kit's `tipAttr(` / `tipText(`; for an element made in code, a statement on the
+ *     variable it was assigned to within the next 14 lines (`<v>.title =`, `<v>.dataset.tooltip =`,
+ *     `<v>.setAttribute("title"|"data-tooltip"`). iconButton and launcher always carry one (their name).
+ *   - a HINT LINE: a drpg-help paragraph, `helpText(`, a `*-hint` class, a `...Hint` / `.hint` key or `class="notes"`
+ *     within 3 lines above to 2 below - BY PROXIMITY, not by the label or row it belongs to (the review's M2: a hint
+ *     beside an unrelated control credits it too). Read as that, not as more.
+ * A site with neither NEEDS one. The gate also requires every key a `tipAttr("...")` / `tipText("...")` names to have
+ * words in lang/en.json and lang/pl.json: a key with none draws nothing at the table.
+ *
+ * WHAT IT DOES NOT READ: markup built by string concatenation across functions it cannot follow, a wrapper of a
+ * wrapper, kit builders called through an object (`kit.toggle(`), `frame()`'s close button (a Close), and anything a
+ * template file draws (the module has none). A site drawn many times counts once. Measured at 421f2395 before the
+ * widening: about one site in ten misread (TOOLTIPS.json's five readers: 16 keys from a neighbouring line, 16 with a
+ * tooltip set far from the markup, 5 hidden inputs).
  *
  * THE GATE (`check`): every site that needs help today is matched against a baseline row of the same file, unit, kind
  * and key; a site with no row left is a control drawn with no tooltip (red: give it one, or a row with its reason); a
- * row with no site left is help given and the row kept (red: cut the row, so the baseline only shrinks). The self-check
- * plants a bare button, a tipped one, a footer object with and without `tooltip:` and a hinted field, and wants each read
- * as planted, so a census that stopped seeing controls is red rather than green (CLAUDE.md's `stackShapes`).
+ * row with no site left is help given and the row kept (red: cut the row). Each row needs a `why`: "none needed: <a
+ * reason of 20 characters or more>" or "E<stage> C<n>: <what that commit gives it>". And no identity may count more
+ * than origin/main's copy of the baseline holds (read by `git show origin/main:tools/tooltip-census.json`; when that
+ * copy cannot be read, the gate says so and holds the rows alone): a row added by hand is red there. One identity is a
+ * count of file, unit, kind and key, so giving one site a tooltip and adding a bare one of the same kind and key in the
+ * same function nets to zero - the review's M1, left: a site has no name finer than that which survives an edit.
+ * The self-check plants one site of every kind with the help it should read and wants each read as planted, so a
+ * census that stopped seeing a kind is red rather than green (CLAUDE.md's `stackShapes`).
  */
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
 export const BASELINE = "tools/tooltip-census.json";
 
-const TIP = /data-tooltip|title\s*=|\btitle\s*:|\btooltip\s*:|aria-describedby|\.title\s*=|dataset\.tooltip|setAttribute\(\s*["']title|\btip(?:Attr|Text)\(/;
+const TIP = /data-tooltip|(?<![\w-])title\s*[=:]|(?<![\w-])tooltip\s*:(?!\s*(?:""|''|``|null\b|undefined\b))|aria-describedby|\btip(?:Attr|Text)\(/;
 const HINT = /drpg-help|helpText\(|-hint\b|Hint["'`]|\.hint["'`]|class="notes"/;
 const KEY = /DRPG\.[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+/;
+const TAGS = ["button", "input", "select", "textarea", "summary"];
+/** The kit's builders a caller draws a control with; the per-item ones draw one control per object of their list. */
+const KIT_ONE = ["toggle", "stepper", "iconButton", "chip", "roleButton", "launcher", "slider"];
+const KIT_EACH = ["kitTabs", "kitTabBar", "modeBar", "chips"];
+const ALWAYS = new Set(["iconButton", "launcher"]);
+export const WHY = /^(none needed: .{20,}|E\d{2,3} C\d+[a-z]?: .+)$/s;
 
 let espreeMod = null;
 function espree(repo = REPO) {
@@ -83,6 +111,27 @@ function tagEnd(s, i) {
     }
     return s.length;
 }
+/** The top-level `{...}` objects of an array literal's text (from its `[`), each as [start, end] offsets into `s`. */
+function arrayObjects(s, open) {
+    const end = balanced(s, open), out = [];
+    for (let j = open + 1; j < end - 1; j++) {
+        const ch = s[j];
+        if (ch === '"' || ch === "'" || ch === "`") { j = skipString(s, j) - 1; continue; }
+        if (ch === "{") { const e = balanced(s, j); out.push([j, e]); j = e - 1; }
+        else if (ch === "[" || ch === "(") j = balanced(s, j) - 1;
+    }
+    return out;
+}
+/** From a quote or backtick at j, the index after its string (a template's `${...}` skipped whole). */
+function skipString(s, j) {
+    const q = s[j];
+    for (let k = j + 1; k < s.length; k++) {
+        if (s[k] === "\\") { k++; continue; }
+        if (q === "`" && s[k] === "$" && s[k + 1] === "{") { k = balanced(s, k + 1) - 1; continue; }
+        if (s[k] === q) return k + 1;
+    }
+    return s.length;
+}
 function tipOf(text) {
     if (!TIP.test(text)) return "none";
     const outside = text.replace(/\$\{[^}]*\?[^}]*:\s*(""|''|``)\s*\}/g, "");
@@ -94,43 +143,112 @@ function keyNear(src, a, b) {
     const before = src.slice(Math.max(0, a - 160), a).match(new RegExp(KEY.source, "g"));
     return before ? before[before.length - 1] : null;
 }
+const reEsc = t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The names this file calls the kit's builders by: local name -> the kit's name. */
+function kitNames(s) {
+    const names = new Map();
+    for (const m of s.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']\.\/ui-kit\.mjs["']/g)) {
+        for (const part of m[1].split(",")) {
+            const [own, as] = part.trim().split(/\s+as\s+/);
+            if (KIT_ONE.includes(own) || KIT_EACH.includes(own)) names.set((as ?? own).trim(), own);
+        }
+    }
+    return names;
+}
+
+/** The file's local wrappers around createElement: function name -> true, read from the AST. */
+function wrappersOf(ast) {
+    const out = new Set();
+    const visit = node => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) { node.forEach(visit); return; }
+        const fn = node.type === "FunctionDeclaration" ? node
+            : node.type === "VariableDeclarator" && /Function/.test(node.init?.type ?? "") ? { id: node.id, params: node.init.params, body: node.init.body } : null;
+        const first = fn?.params?.[0]?.type === "Identifier" ? fn.params[0].name : fn?.params?.[0]?.left?.name;
+        if (fn?.id?.name && first) {
+            let found = false;
+            const look = n => {
+                if (found || !n || typeof n !== "object") return;
+                if (Array.isArray(n)) { n.forEach(look); return; }
+                if (n.type === "CallExpression" && n.callee?.type === "MemberExpression" && n.callee.property?.name === "createElement"
+                    && n.callee.object?.name === "document" && n.arguments?.[0]?.type === "Identifier" && n.arguments[0].name === first) found = true;
+                for (const k of Object.keys(n)) if (k !== "parent" && k !== "loc" && k !== "range") look(n[k]);
+            };
+            look(fn.body);
+            if (found) out.add(fn.id.name);
+        }
+        for (const k of Object.keys(node)) if (k !== "parent" && k !== "loc" && k !== "range") visit(node[k]);
+    };
+    visit(ast);
+    return out;
+}
 
 /** The control sites of one file's source. */
 export function scan(file, raw, es = espree()) {
     const s = blank(raw, es), lines = s.split("\n"), sites = [];
     const hintNear = line => lines.slice(Math.max(0, line - 4), line + 3).some(l => HINT.test(l));
-    let units = [];
+    let units = [], wrappers = new Set();
     try {
         const ast = es.parse(raw, { ecmaVersion: "latest", sourceType: "module", range: true, loc: true });
         units = ast.body.map(n => {
             const d = n.declaration ?? n;
             return { name: d.id?.name ?? d.declarations?.[0]?.id?.name ?? `@${n.loc.start.line}`, from: n.loc.start.line, to: n.loc.end.line };
         });
-    } catch { /* unit names left empty */ }
+        wrappers = wrappersOf(ast);
+    } catch { /* unit names left empty, no wrappers read */ }
     const unitOf = line => units.find(u => u.from <= line && line <= u.to)?.name ?? null;
+    const context = (line, after = 3) => raw.split("\n").slice(Math.max(0, line - 3), line + after).join("\n").slice(0, 700);
     const push = (kind, a, b, extra = {}) => {
-        const line = lineOf(s, a), text = s.slice(a, b);
-        sites.push({ file, line, kind, tip: extra.tip ?? tipOf(text), hint: hintNear(line), key: keyNear(s, a, b),
-            closing: Boolean(extra.closing), unit: unitOf(line), context: raw.split("\n").slice(Math.max(0, line - 3), line + 3).join("\n").slice(0, 700) });
+        const line = lineOf(s, a);
+        sites.push({ file, line, kind, tip: extra.tip ?? tipOf(s.slice(a, b)), hint: hintNear(line), key: keyNear(s, a, b),
+            closing: Boolean(extra.closing), unit: unitOf(line), context: context(line) });
     };
-    for (const m of s.matchAll(/<(button|select|textarea|input)\b/g)) {
+    /** An element made in code at `at`, assigned to a variable or not: its help is a statement on that variable. */
+    const pushElement = (kind, at, end) => {
+        const line = lineOf(s, at), after = lines.slice(line - 1, line + 14).join("\n");
+        const v = s.slice(Math.max(0, at - 120), at).match(/(?:const|let|var)\s+(\w+)\s*=\s*$|(?<![\w.])(\w+)\s*=\s*$/);
+        const name = v?.[1] ?? v?.[2] ?? null;
+        const helped = name && new RegExp(`(?<![\\w.])${reEsc(name)}\\.(?:title\\s*=|dataset\\.tooltip\\s*=|setAttribute\\(\\s*["'](?:title|data-tooltip)["'])`).test(after);
+        sites.push({ file, line, kind, tip: helped ? "always" : "none", hint: hintNear(line), key: keyNear(s, at, end + after.length), closing: false,
+            unit: unitOf(line), context: context(line, 8) });
+    };
+    // markup tags
+    for (const m of s.matchAll(/<(button|select|textarea|input|summary)\b/g)) {
         const b = tagEnd(s, m.index), text = s.slice(m.index, b);
         if (m[1] === "input" && /type\s*=\s*["']hidden/.test(text)) continue;
         const kind = m[1] === "input" ? (text.match(/type\s*=\s*["'](checkbox|radio)/)?.[1] ?? "input") : m[1];
         push(kind, m.index, b);
     }
-    for (const m of s.matchAll(/role\s*=\s*["']tab["']/g)) {
+    for (const m of s.matchAll(/<a\b/g)) {
+        const b = tagEnd(s, m.index);
+        if (/\sdata-action\s*=/.test(s.slice(m.index, b))) push("a", m.index, b);
+    }
+    for (const m of s.matchAll(/role\s*=\s*["'](tab|button)["']/g)) {
         const a = s.lastIndexOf("<", m.index);
         if (a < 0 || /[>\]\[]/.test(s.slice(a, m.index)) || m.index - a > 400) continue;
-        if (/^<(button|select|textarea|input)\b/.test(s.slice(a, a + 10))) continue;
-        push("tab", a, tagEnd(s, a));
+        if (/^<(button|select|textarea|input|summary)\b/.test(s.slice(a, a + 10)) || /^<a\b/.test(s.slice(a, a + 3)) && /\sdata-action\s*=/.test(s.slice(a, tagEnd(s, a)))) continue;
+        push(m[1], a, tagEnd(s, a));
     }
-    for (const m of s.matchAll(/(?<![.\w])(toggle|stepper|iconButton|chip|roleButton|launcher|kitTabs|kitTabBar)\(/g)) {
-        const pre = s.slice(Math.max(0, m.index - 12), m.index);
-        if (/function\s*$|export\s*$/.test(pre) || /import\s*\{[^}]*$/.test(s.slice(Math.max(0, m.index - 300), m.index))) continue;
-        const b = balanced(s, m.index + m[1].length);
-        push(`kit:${m[1]}`, m.index, b, m[1] === "iconButton" || m[1] === "launcher" ? { tip: "always" } : {});
+    // kit builders, by the names this file imports them under
+    const kit = kitNames(s);
+    if (kit.size) {
+        const callRe = new RegExp(`(?<![.\\w])(${[...kit.keys()].map(reEsc).join("|")})\\(`, "g");
+        for (const m of s.matchAll(callRe)) {
+            const pre = s.slice(Math.max(0, m.index - 12), m.index);
+            if (/function\s*$|export\s*$/.test(pre) || /import\s*\{[^}]*$/.test(s.slice(Math.max(0, m.index - 300), m.index))) continue;
+            const own = kit.get(m[1]), open = m.index + m[1].length, b = balanced(s, open);
+            if (own === "slider") { pushElement("kit:slider", m.index, b); continue; }
+            if (KIT_EACH.includes(own)) {
+                let at = open + 1;
+                while (/\s/.test(s[at])) at++;
+                const items = s[at] === "[" ? arrayObjects(s, at) : [];
+                if (items.length) { for (const [x, y] of items) push(`kit:${own}-item`, x, y); continue; }
+            }
+            push(`kit:${own}`, m.index, b, ALWAYS.has(own) ? { tip: "always" } : {});
+        }
     }
+    // footer objects and DialogV2 buttons
     for (const m of s.matchAll(/\b(footer|buttons)\s*:\s*([{[])/g)) {
         const start = m.index + m[0].length - 1, end = balanced(s, start), block = s.slice(start, end);
         for (const c of block.matchAll(/\bclose\s*:\s*["'](close|cancel)["']/g)) push("footer-close", start + c.index, start + c.index + c[0].length, { tip: "none", closing: true });
@@ -145,11 +263,15 @@ export function scan(file, raw, es = espree()) {
             }
         }
     }
-    for (const m of s.matchAll(/document\.createElement\(\s*["'](button|input|select|textarea)["']\s*\)/g)) {
-        const line = lineOf(s, m.index), after = lines.slice(line - 1, line + 14).join("\n");
-        sites.push({ file, line, kind: `dom:${m[1]}`, tip: tipOf(after), hint: hintNear(line),
-            key: keyNear(s, m.index, m.index + m[0].length + after.length), closing: false,
-            unit: unitOf(line), context: raw.split("\n").slice(Math.max(0, line - 3), line + 8).join("\n").slice(0, 700) });
+    // elements made in code: createElement with a control tag (a conditional's literal included), and local wrappers
+    for (const m of s.matchAll(/document\.createElement\(/g)) {
+        const open = m.index + m[0].length - 1, b = balanced(s, open), arg = s.slice(open + 1, b - 1);
+        const tag = TAGS.find(t => new RegExp(`["']${t}["']`).test(arg));
+        if (tag) pushElement(`dom:${tag}`, m.index, b);
+    }
+    if (wrappers.size) {
+        const callRe = new RegExp(`(?<![.\\w])(${[...wrappers].map(reEsc).join("|")})\\(\\s*["'](${TAGS.join("|")})["']`, "g");
+        for (const m of s.matchAll(callRe)) pushElement(`dom:${m[2]}`, m.index, m.index + m[0].length);
     }
     for (const site of sites) site.needs = !site.closing && site.tip === "none" && !site.hint;
     return sites;
@@ -163,54 +285,120 @@ export function census(repo = REPO) {
 }
 
 export const identity = s => `${s.file}|${s.unit ?? ""}|${s.kind}|${s.key ?? ""}`;
+const countOf = rows => {
+    const n = new Map();
+    for (const r of rows) n.set(identity(r), (n.get(identity(r)) ?? 0) + (r.count ?? 1));
+    return n;
+};
 
-/** Today's sites that need help against the baseline's rows: the problems, one line each. */
-export function compare(sites, rows) {
-    const left = new Map();
-    for (const r of rows) left.set(identity(r), (left.get(identity(r)) ?? 0) + (r.count ?? 1));
-    const problems = [];
+/** Today's sites that need help against the baseline's rows (and main's copy, when given): the problems, one line each. */
+export function compare(sites, rows, mainRows = null) {
+    const left = countOf(rows), problems = [];
+    for (const r of rows) if (!WHY.test(String(r.why ?? ""))) problems.push(`${BASELINE}: the row ${identity(r).replace(/\|/g, " ")} has no reason ("none needed: ..." of 20 characters or more, or "E<stage> C<n>: ...")`);
     for (const s of sites.filter(x => x.needs)) {
         const id = identity(s), n = left.get(id) ?? 0;
         if (n > 0) left.set(id, n - 1);
         else problems.push(`${s.file}:${s.line} (${s.unit ?? "top level"}) draws a ${s.kind} with no tooltip and no hint${s.key ? ` near ${s.key}` : ""}: give it one (ui-kit.mjs tipAttr), or a row in ${BASELINE} with its reason`);
     }
     for (const [id, n] of left) if (n > 0) problems.push(`${BASELINE} keeps ${n} row(s) of ${id.replace(/\|/g, " ")} that no site needs any more: cut ${n === 1 ? "it" : "them"}, so the baseline only shrinks`);
+    if (mainRows) {
+        const main = countOf(mainRows);
+        for (const [id, n] of countOf(rows)) if (n > (main.get(id) ?? 0)) problems.push(`${BASELINE} holds ${n} of ${id.replace(/\|/g, " ")} where origin/main's copy holds ${main.get(id) ?? 0}: a row added here hides a control with no help - give it a tooltip instead`);
+    }
     return problems;
 }
 
-/** The planted pairs: each must be read as planted, or the census measures nothing. */
+/** Every key a script names to tipAttr / tipText, and the ones with no words in either language file. */
+export function missingTipKeys(repo = REPO) {
+    const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+    const en = JSON.parse(fs.readFileSync(path.join(repo, "lang", "en.json"), "utf8"));
+    const pl = JSON.parse(fs.readFileSync(path.join(repo, "lang", "pl.json"), "utf8"));
+    const dir = path.join(repo, "scripts"), named = new Map();
+    for (const f of fs.readdirSync(dir).filter(x => x.endsWith(".mjs") && !/^tests(-|\.mjs$)/.test(x))) {
+        for (const m of fs.readFileSync(path.join(dir, f), "utf8").matchAll(/\btip(?:Attr|Text)\(\s*["'`](DRPG\.[^"'`]+)["'`]/g)) named.set(m[1], f);
+    }
+    const bad = [...named].filter(([k]) => ![en, pl].every(l => typeof words(l, k) === "string" && words(l, k).trim()));
+    return { named: named.size, bad: bad.map(([k, f]) => `scripts/${f} draws ${k}, which has no words in lang/en.json or lang/pl.json: the control shows no tooltip`) };
+}
+
+/** The planted sites, one of every kind, each with the help it should read: [unit, kind, needs]. */
+export const PLANTS = [
+    ["a1", 'export function a1() { return `<button type="button">${game.i18n.localize("DRPG.X.go")}</button>`; }', [["a1", "button", true]]],
+    ["a2", 'export function a2() { return `<button type="button"${tipAttr("DRPG.Tips.X.goTooltip")}>Go</button>`; }', [["a2", "button", false]]],
+    ["a3", 'export function a3() { return `<button type="button" data-drpg-title="k">Go</button>`; }', [["a3", "button", true]]],
+    ["a4", 'export function a4() { return `<select name="s"></select><textarea name="t"></textarea>`; }', [["a4", "select", true], ["a4", "textarea", true]]],
+    ["a5", 'export function a5() { return `${helpText("DRPG.X.nameHint")}<input type="text" name="n"><input type="hidden" name="h">`; }', [["a5", "input", false]]],
+    ["a6", 'export function a6() { return `<summary>Go</summary><a class="x" data-action="go">x</a><span role="button">x</span><div role="tab">x</div>`; }', [["a6", "summary", true], ["a6", "a", true], ["a6", "button", true], ["a6", "tab", true]]],
+    ["b1", 'export function b1() { return drpgWindow({ footer: { right: [{ role: "primary", label: "DRPG.X.save", action: "save" }] } }); }', [["b1", "footer", true]]],
+    ["b2", 'export function b2() { return drpgWindow({ footer: { right: [{ role: "primary", label: "DRPG.X.save", action: "save", tooltip: tipText("DRPG.Tips.X.saveTooltip") }] } }); }', [["b2", "footer", false]]],
+    ["b3", 'export function b3() { return drpgWindow({ footer: { right: [{ role: "primary", label: "DRPG.X.save", action: "save", tooltip: "" }] } }); }', [["b3", "footer", true]]],
+    ["b4", 'export function b4() { return DialogV2.wait({ buttons: [{ action: "ok", label: "DRPG.X.ok" }] }); }', [["b4", "footer", true]]],
+    ["c1", 'export function c1() { return stepper({ name: "n" }) + toggle({ name: "t", label: "T", attrs: { "data-tooltip": tipText("DRPG.Tips.X.tTooltip") } }) + iconButton({ label: "L" }); }', [["c1", "kit:stepper", true], ["c1", "kit:toggle", false], ["c1", "kit:iconButton", false]]],
+    ["c2", 'export function c2() { return kitSlider({ className: "v" }); }', [["c2", "kit:slider", true]]],
+    ["c3", 'export function c3() { return kitTabs([{ key: "a", label: "A", tooltip: tipText("DRPG.Tips.X.aTooltip") }, { key: "b", label: "B" }]) + modeBar(MODES); }', [["c3", "kit:kitTabs-item", false], ["c3", "kit:kitTabs-item", true], ["c3", "kit:modeBar", true]]],
+    ["d1", 'export function d1() { const b = document.createElement("button"); b.dataset.tooltip = tipText("DRPG.Tips.X.bTooltip"); return b; }', [["d1", "dom:button", false]]],
+    ["d2", 'export function d2() { const b = document.createElement("button"); const h = document.createElement("h3"); h.title = "x"; return [b, h]; }', [["d2", "dom:button", true]]],
+    ["d3", 'export function d3(x) { return document.createElement(x ? "button" : "span"); }', [["d3", "dom:button", true]]],
+    ["d4", 'function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }\nexport function d4() { const go = el("button", "go"); return go; }', [["d4", "dom:button", true]]]
+];
+export const PLANT_HEAD = 'import { stepper, toggle, iconButton, slider as kitSlider, kitTabs, modeBar, tipAttr, tipText } from "./ui-kit.mjs";';
+
+/** The planted pairs: each must be read as planted, or the census measures nothing. Returns { misses, planted }. */
 export function selfCheck(es = espree()) {
-    const plant = [
-        "export function a() { return `<button type=\"button\">${game.i18n.localize(\"DRPG.X.go\")}</button>`; }",
-        "export function b() { return `<button type=\"button\"${tipAttr(\"DRPG.Tips.X.goTooltip\")}>Go</button>`; }",
-        "export function c() { return drpgWindow({ footer: { right: [{ role: \"primary\", label: \"DRPG.X.save\", action: \"save\" }] } }); }",
-        "export function d() { return drpgWindow({ footer: { right: [{ role: \"primary\", label: \"DRPG.X.save\", action: \"save\", tooltip: localize(\"DRPG.Tips.X.saveTooltip\") }] } }); }",
-        "export function e() { return `${helpText(\"DRPG.X.nameHint\")}<input type=\"text\" name=\"n\">`; }",
-        "export function f() { return `<input type=\"hidden\" name=\"h\">`; }"
-    ].join("\n\n\n\n\n\n\n\n");   // eight lines apart: a hint line counts within three
-    const got = scan("scripts/plant.mjs", plant, es).map(s => [s.unit, s.kind, s.needs]);
-    const want = [["a", "button", true], ["b", "button", false], ["e", "input", false], ["c", "footer", true], ["d", "footer", false]];
-    const key = x => x.join(":");
-    const misses = want.filter(w => !got.some(g => key(g) === key(w))).map(w => `self-check: the planted ${w[1]} in ${w[0]}() was not read as ${w[2] ? "needing help" : "helped"}`);
-    if (got.some(g => g[0] === "f")) misses.push("self-check: a hidden input was counted as a control");
-    if (got.length !== want.length) misses.push(`self-check: ${got.length} planted site(s) read, ${want.length} planted`);
-    return misses;
+    const src = [PLANT_HEAD, ...PLANTS.map(p => p[1])].join("\n\n\n\n\n\n\n\n");   // eight lines apart: a hint line counts within three
+    const got = scan("scripts/plant.mjs", src, es).map(x => `${x.unit}:${x.kind}:${x.needs}`);
+    const want = PLANTS.flatMap(p => p[2]).map(w => w.join(":"));
+    const left = [...got], misses = [];
+    for (const w of want) {
+        const i = left.indexOf(w);
+        if (i >= 0) left.splice(i, 1);
+        else misses.push(`self-check: the planted ${w.split(":")[1]} in ${w.split(":")[0]}() was not read as ${w.endsWith("true") ? "needing help" : "helped"}`);
+    }
+    for (const g of left) misses.push(`self-check: read a site that was not planted as one: ${g}`);
+    return { misses, planted: want.length };
+}
+
+/** origin/main's baseline rows, or null with the reason when that copy cannot be read. */
+function mainBaseline(repo) {
+    try {
+        const text = execFileSync("git", ["-C", repo, "show", `origin/main:${BASELINE}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+        return { rows: JSON.parse(text).rows ?? [] };
+    } catch { return { rows: null, why: `origin/main has no ${BASELINE} here (not fetched, or not merged yet)` }; }
+}
+
+/** A row a stage promised to fill ("E<stage> C<n>: ...") is red once tools/stages.json says that stage shipped. */
+async function stagesLib(repo) { return import(url.pathToFileURL(path.join(repo, "tools", "stages.mjs")).href); }
+let shippedIds = null;
+function shippedRows(rows, repo) {
+    if (!shippedIds) return [];
+    return rows.filter(r => shippedIds.has(String(r.why ?? "").match(/^(E\d{2,3}) C/)?.[1])).map(r =>
+        `${BASELINE}: ${identity(r).replace(/\|/g, " ")} is still to be given its tooltip by ${r.why.split(":")[0]}, and that stage has shipped`);
+}
+/** Read once before `check`: which stages tools/stages.json says shipped (the gate stays synchronous). */
+export async function loadShipped(repo = REPO) {
+    try {
+        const S = await stagesLib(repo), doc = S.loadStages(repo), mod = S.moduleVersion(repo);
+        shippedIds = new Set(doc.stages.filter(st => S.isShipped(st, mod)).map(st => st.id));
+    } catch { shippedIds = null; }
+    return shippedIds;
 }
 
 /** The gate, as `node tools/check.mjs tooltips` runs it. */
 export function check(log = console.log, repo = REPO) {
-    const misses = selfCheck(espree(repo));
+    const { misses, planted } = selfCheck(espree(repo));
     const sites = census(repo);
     let base;
     try { base = JSON.parse(fs.readFileSync(path.join(repo, BASELINE), "utf8")); }
     catch (err) { return [...misses, `${BASELINE} could not be read (${err.message})`]; }
-    const rows = base.rows ?? [];
-    const problems = compare(sites, rows);
+    const rows = base.rows ?? [], main = mainBaseline(repo), keys = missingTipKeys(repo);
+    const problems = [...compare(sites, rows, main.rows), ...keys.bad, ...shippedRows(rows, repo)];
     const need = sites.filter(s => s.needs).length, kept = rows.reduce((a, r) => a + (r.count ?? 1), 0);
-    const reasons = rows.filter(r => r.why && !/^E102 C\d/.test(r.why)).reduce((a, r) => a + (r.count ?? 1), 0);
+    const reasons = rows.filter(r => /^none needed: /.test(String(r.why ?? ""))).reduce((a, r) => a + (r.count ?? 1), 0);
     log(`tooltips: ${sites.filter(s => !s.closing).length} control site(s) in ${new Set(sites.map(s => s.file)).size} file(s), `
-        + `${need} with no tooltip and no hint; baseline ${kept} (${reasons} with a reason, ${kept - reasons} still to give one); `
-        + `self-check ${6 - misses.length}/6; ${problems.length + misses.length} problem(s)`);
+        + `${need} with no tooltip and no hint; baseline ${kept} (${reasons} none needed, ${kept - reasons} still to give one); `
+        + `main's copy ${main.rows ? `${main.rows.reduce((a, r) => a + (r.count ?? 1), 0)} row count(s) held` : `not read: ${main.why}`}; `
+        + `${keys.named} tooltip key(s) named, ${keys.bad.length} with no words; self-check ${planted - misses.length}/${planted} planted site(s) read; `
+        + `${problems.length + misses.length} problem(s)`);
     return [...misses, ...problems];
 }
 

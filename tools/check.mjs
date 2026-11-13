@@ -206,13 +206,17 @@
  *             gm-panel.mjs's tiles, FUTURE, SAME, OPPOSITES), its structure
  *             red, its gaps printed - R3334-R3339 hold them red until the
  *             drawing rounds close them. Bare Node.
- *   tooltips  the controls with no help (E102 C1; tools/tooltip-census.mjs,
- *             whose header says what it reads and what it misreads): its
- *             self-check of six planted sites, then every control a module
- *             script draws with neither a tooltip nor a hint line, held to
- *             tools/tooltip-census.json by file, unit, kind and key - red on a
- *             new one with no row, red on a row no site needs any more (the
- *             baseline only shrinks). Needs espree (`npm ci` in audit/harness).
+ *   tooltips  the controls with no help (E102 C1, widened after REVIEW-102;
+ *             tools/tooltip-census.mjs, whose header lists the kinds of
+ *             control it reads and the ones it does not): its self-check of
+ *             25 planted sites, one of each kind, then each control site it
+ *             reads with neither a tooltip of its own nor a hint line within
+ *             three lines, held to tools/tooltip-census.json by file, unit,
+ *             kind and key - red on a new one with no row, on a row no site
+ *             needs any more, on a row with no reason, on a count above
+ *             origin/main's copy (when that copy can be read), on a stage's
+ *             row once the stage shipped, and on a tipAttr/tipText key with no
+ *             words in either language. Needs espree (`npm ci` in audit/harness).
  */
 
 import fs from "node:fs";
@@ -1222,6 +1226,7 @@ async function glyphs() {
 async function tooltips() {
     try {
         const tool = await import(url.pathToFileURL(path.join(REPO, "tools", "tooltip-census.mjs")).href);
+        await tool.loadShipped(REPO);
         return tool.check(line => console.log(line));
     } catch (err) {
         if (err.code === "MODULE_NOT_FOUND") return ["espree is not installed - run `npm ci` in audit/harness first"];
