@@ -29197,6 +29197,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const option = [...room.options].find(o => o.value);
             must(option, "no room is offered - this would measure nothing");
             expected = { room: option.value, scene: option.dataset.scene || null };
+            // each planned field with its word over it (the review page's shots): the room's, the visibility's, the author's, the picture's
+            seen.words = [`keyroom:${slot}`, `keyvis:${slot}`, `keyauthor:${slot}`, `keyimg:${slot}`]
+                .map(n => win.field(n)?.closest(".drpg-key-plan-field")?.querySelector(":scope > span")?.textContent.trim() ?? null);
             room.value = option.value;
             win.field(`keyvis:${slot}`).value = "subtle";
             win.field(`keyauthor:${slot}`).value = student.id;
@@ -29231,11 +29234,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await S.setCaseMeta(chapter, { run: metaBefore.run, made: metaBefore.made }).catch(() => {});
             await gmStoresIdle();
         }
+        const L = key => game.i18n.localize(key);
         equal(stableJson(seen), stableJson({
+            words: [L("DRPG.Investigation.plannedRoom"), L("DRPG.Investigation.visibility"), L("DRPG.Remnant.authorLabel"), L("DRPG.CaseMap.field.img")],
             stored: { ...expected, vis: "subtle", author: student.id, img: "icons/svg/book.svg", name: "SUITE e104 key" },
             place: { room: expected?.room ?? null, vis: "subtle" },
             realized: { vis: "subtle", author: student.id, room: expected?.room ?? null, img: "icons/svg/book.svg", scene: expected?.scene ?? null }
-        }), "{the slot read back after the window's close; Place's window: room and visibility; the realized Remnant: visibility, who left it, room, picture, scene}");
+        }), "{the words over the slot's planned room, visibility, author and picture; the slot read back after the window's close; Place's window: room and visibility; the realized Remnant: visibility, who left it, room, picture, scene}");
     }],
 
     ["planned Final Truth holds every field: the Map's editor of a planned Final Truth shows the Final Truth form's fields in its order, keeps them at the node's close, and its Place puts the Final Truth Remnant on the map with every one; with no room planned it asks for the room and places nothing unanswered (E104; the owner, 13.11.2026: \"kazdy rodzaj i kazdy szczegol\")", async () => {

@@ -163,13 +163,14 @@ const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
     delete globalThis.__probe08case;`;
 /* The planner's plans (13.11.2026): a planned Prep Remnant, the planned Autopsy and a deduction planning a Straw Poll,
    over the same case, each a capture of its own with that node open; dropped after. E104: the planned Remnant with every
-   field, a planned Final Truth and a planned Truth Bullet. */
+   field, a planned Final Truth and a planned Truth Bullet, in rooms the harness's school has (Storage, Gym), so their
+   room selects show the plan. */
 const SEED_PLAN = SEED_CASE + `
-    await CS.setCaseNode(ch, "incident-probe08b", { kind: "incident", label: "The torn glove under the reading table", room: "Library", type: "prep",
+    await CS.setCaseNode(ch, "incident-probe08b", { kind: "incident", label: "The torn glove under the reading table", room: "Storage", type: "prep",
         text: "A left glove, its thumb torn, under the third reading table.", vis: "subtle", tie: "untied", reinforced: true,
         analysis: "The tear is fresh, and the leather smells of the library's floor polish.", note: "The culprit's spare glove." });
     /* E104: a planned Final Truth and a planned Truth Bullet, each with every field filled in */
-    await CS.setCaseNode(ch, "final-probe08", { kind: "final", label: "The second key to the library", room: "Library", vis: "hidden",
+    await CS.setCaseNode(ch, "final-probe08", { kind: "final", label: "The second key to the library", room: "Gym", vis: "hidden",
         text: "A brass key on a red string, the library's mark stamped on its bow.", analysis: "Cut last week: the edges are still sharp.",
         note: "It proves the culprit planned the night." });
     await CS.setCaseNode(ch, "bullet-probe08", { kind: "bullet", label: "The librarian's account", realType: "incident", shown: "real", vis: "evident",

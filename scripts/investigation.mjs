@@ -899,10 +899,14 @@ function keyPlanExtras(i, shows, aria) {
     const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (shows.vis ?? "evident") ? " selected" : ""}>${
         esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
     const img = shows.img || "";
-    return `<select name="keyvis:${i}"${aria("DRPG.Investigation.visibility")}>${vis}</select>
-                <select name="keyauthor:${i}"${aria("DRPG.Remnant.authorLabel")}>${authorOptions(shows.author || null, studentActors())}</select>
-                <img src="${esc(img || ICON)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="key-${i}"
-                     data-drpg-portrait-field="keyimg:${i}" /><input type="hidden" name="keyimg:${i}" value="${esc(img)}" data-drpg-drawn="${esc(img)}" />`;
+    /* each with its word over it: in the slot's status cell, beside the Remnant picker and Place, a bare select did not say
+       which of the four it was (the review page's shots, 13.11.2026) */
+    const field = (key, html) => `<label class="drpg-key-plan-field"><span class="notes">${esc(L(key))}</span>${html}</label>`;
+    return field("DRPG.Investigation.visibility", `<select name="keyvis:${i}"${aria("DRPG.Investigation.visibility")}>${vis}</select>`)
+        + field("DRPG.Remnant.authorLabel", `<select name="keyauthor:${i}"${aria("DRPG.Remnant.authorLabel")}>${authorOptions(shows.author || null, studentActors())}</select>`)
+        + `<div class="drpg-key-plan-field"><span class="notes">${esc(L("DRPG.CaseMap.field.img"))}</span><img src="${esc(img || ICON)}" alt="" title="${
+            esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="key-${i}" data-drpg-portrait-field="keyimg:${i}" /><input type="hidden" name="keyimg:${i}" value="${
+            esc(img)}" data-drpg-drawn="${esc(img)}" /></div>`;
 }
 
 /** How a refusal names a Key Remnant row: the tab, and which planned clue. */
@@ -2159,8 +2163,9 @@ function caseKeyCells({ plan, status, placed, limit }) {
                     ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
                     ${picker}
                 </select>
-                ${here ? "" : `<select name="keyroom:${i}"${aria("DRPG.Investigation.plannedRoom")} data-drpg-scene-drawn="${esc(shows.scene ?? "")}"><option value="">${
-                    esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room, sceneId: shows.scene })}</select>`}
+                ${here ? "" : `<label class="drpg-key-plan-field"><span class="notes">${esc(game.i18n.localize("DRPG.Investigation.plannedRoom"))}</span><select name="keyroom:${i}"${
+                    aria("DRPG.Investigation.plannedRoom")} data-drpg-scene-drawn="${esc(shows.scene ?? "")}"><option value="">${
+                    esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room, sceneId: shows.scene })}</select></label>`}
                 ${here ? "" : keyPlanExtras(i, shows, aria)}
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${

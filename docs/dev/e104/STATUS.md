@@ -131,3 +131,13 @@ No new road reaches a player.
 
 - **D11. The plans are one select, not three buttons**, to keep the Map's height (above).
 
+## C6. A Key slot's planned fields each with its word
+
+- Seen on the review page's shots: in a Key slot's status cell (on the Table and in the slot's node on the Map) the
+  planned room, visibility and author were bare selects beside the Remnant picker, so nothing said which was which.
+  Each now has its word over it (investigation.mjs `keyPlanExtras`, `.drpg-key-plan-field`): Planned room, Visibility,
+  Left by, Picture.
+- Tier 2 "planned Key slot holds every field: ..." reads the four words; red at a9b5bd68.
+- The harness draws Foundry's own default picture (icons/svg/hazard.svg) as a broken image, since the harness does not
+  serve Foundry's files; at a table it is Foundry's hazard icon.
+
