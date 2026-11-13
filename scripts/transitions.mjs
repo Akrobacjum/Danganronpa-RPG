@@ -116,17 +116,41 @@ function playFlashSound() {
 }
 
 /**
- * Whether the move `t` (`transitionFor`'s) to `clock` plays the day's boards (12.11.2026; the owner's rule of that day:
- * on the clock on the curtain, on the GM panel's Next time of day and on the chapter end with the next morning, never on
- * Edit campaign, which is a correction). A new day - Next from Night, or the Morning Eclipse's end - whose clock carries
- * the boards' stamp on that very day (`dayBoard`): written by the real roll-over alone (clock.mjs `advanceTimeOfDay`
- * through sequence.mjs `dayStartPatch`) and by the chapter end's next morning, and taken away by any other write that
- * moves the day (clock.mjs `setClock`). So Edit campaign's day + 1 is silent, and a stamp left from an older day plays
- * nothing. Pure.
+ * Which of the day's boards the move `t` (`transitionFor`'s) from `before` to `clock` plays: "end", "start", "both" or
+ * null. Pure. THE OWNER'S RULE OF 13.11.2026, at a table on 1.2.112: "The start-of-day animation should show at the
+ * start of the Morning Eclipse, and the end-of-day one after the Night Eclipse (that is, at the start of Night)." Until
+ * then both boards played back to back at the roll-over (Next from Night, or the Morning Eclipse's end). Now:
+ *
+ *   END    Night begins: the Night Eclipse's end with the advance (Evening and the Eclipse to Night), or Evening to Night
+ *          with no Night Eclipse held - on the same day, the clock stamped for it (`nightBoard` on that day: clock.mjs
+ *          `advanceTimeOfDay` through sequence.mjs `dayStartPatch`, `nightFalls`). It reads the day that is ending.
+ *   START  The Morning Eclipse begins (Night to Night and the Eclipse), the clock stamped with the day it leads into
+ *          (`dayBoard` on the day + 1: eclipse.mjs `startEclipse`), or Night to Morning with no Morning Eclipse held, the
+ *          new day stamped by the real roll-over (`dayBoard` on that day). The Morning Eclipse's end plays none: its
+ *          board played at its start, under the same key (sequence.mjs `dayStartClock`, `dayStartKey`).
+ *   BOTH   The next morning at a chapter's end (chapter.mjs: `dayBoard` on that day and `nightBoard` on the day it
+ *          closes), heard with the trial's exit in one run or after it in a run of its own: the trial held the Night, so
+ *          the day's end is shown before the next day's start, after the exit (`boards`). A browser that played the day's
+ *          end at Night plays it no second time (one start per key), and hands on at once.
+ *
+ * Edit campaign writes neither stamp (and `setClock` takes `dayBoard` away from a day moved without it and `nightBoard`
+ * from a time of day or a day moved without it), so a correction plays nothing; a stamp left from an older day matches
+ * nothing.
  */
-function boardsFor(t, clock) {
-    const newDay = t?.kind === "newDay" || t?.newDay === true;
-    return Boolean(newDay && clock && clock.dayBoard != null && Number(clock.dayBoard) === Number(clock.day));
+export function boardsOf(t, before, clock) {
+    if (!t || !clock) return null;
+    const NIGHT = HOURS[HOURS.length - 1], EVENING = HOURS[HOURS.length - 2];
+    const day = c => Number(c?.day) || 0;
+    const startStamped = c => c.dayBoard != null && Number(c.dayBoard) === day(c);
+    if (t.kind === "trialExit") return t.newDay === true && startStamped(clock) ? "both" : null;
+    if (t.kind === "eclipseIn") {
+        return clock.timeOfDay === NIGHT && clock.dayBoard != null && Number(clock.dayBoard) === day(clock) + 1 ? "start" : null;
+    }
+    // the chapter end's morning, heard after the trial's close: the day it closes is stamped for its end board too
+    if (t.kind === "newDay") return !startStamped(clock) ? null : clock.nightBoard != null && Number(clock.nightBoard) === day(clock) - 1 ? "both" : "start";
+    const nightFalls = (t.kind === "hour" || t.kind === "eclipseOut") && before?.timeOfDay === EVENING && clock.timeOfDay === NIGHT
+        && clock.eclipse !== true && day(before) === day(clock);
+    return nightFalls && clock.nightBoard != null && Number(clock.nightBoard) === day(clock) ? "end" : null;
 }
 
 /**
@@ -137,26 +161,29 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
     const before = seen;
     seen = clock ? { ...clock } : seen;
     const t = transitionFor(before, clock);
-    /* A new day is a session (E94): the end-of-day board of the day that ended, then the start-of-day board of the new
-       one, over the curtain's turn, still under reduced motion (C2, C3). AFTER THE TRIAL'S EXIT (the owner's decision of
-       12.11.2026: a chapter's end that closes the trial and opens the next morning in one Finish plays the exit first,
-       then the boards): a board started while the exit plays would cut it, so the boards wait for its end
-       (sequence.mjs `whenTrialExitEnds`), at once when none was asked for. */
-    const boards = () => whenTrialExitEnds().then(() => (before
-        ? playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) })
-        : playDayStart(clock, { on }))).catch(() => null);
+    /* The day's boards (E94; when each plays, `boardsOf`), over the curtain's turn, still under reduced motion (C2, C3).
+       AFTER THE TRIAL'S EXIT (the owner's decision of 12.11.2026: a chapter's end that closes the trial and opens the
+       next morning in one Finish plays the exit first, then the boards): a board started while the exit plays would cut
+       it, so the boards wait for its end (sequence.mjs `whenTrialExitEnds`), at once when none was asked for. */
+    const which = boardsOf(t, before, clock);
+    const boards = () => whenTrialExitEnds().then(() => {
+        if (which === "start") return playDayStart(clock, { on });
+        if (which === "end") return playDayEnd(before, clock, { on, keep });
+        // "both": the day that ends, then the day that begins (`playDayEnd` hands on to it however it ends)
+        return before
+            ? playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) })
+            : playDayStart(clock, { on });
+    }).catch(() => null);
     /* THE TRIAL'S EXIT (the owner's decision of 12.11.2026): E61's sequence, started here because this is where the
        clock's move out of the trial is read against the clock before it; nothing for an exit Edit campaign wrote
        (sequence.mjs `edgeShown`) or with the switch off. A new day heard in the same run - a chapter's end with the next
        morning - has its boards after it. */
     if (t?.kind === "trialExit" && on) playTrialExit(clock, { on }).catch(() => null);
-    if (t?.kind === "trialExit" && boardsFor(t, clock) && on) boards();
+    if (t?.kind === "trialExit" && which && on) boards();
     if (!t || t.owner) return t;
     clearFlashes();
     count("transition.heard");
-    // a new day is a session (E94) - Next from Night, or an Eclipse's end that names one - its boards only on the stamp of
-    // a real roll-over (`boardsFor`), after the trial's exit where one plays (`boards`)
-    if (boardsFor(t, clock) && on) boards();
+    if (which && on) boards();
     if (!on || still) return t;
     seed = (seed * 1103515245 + 12345) >>> 0;
     import("./glass.mjs").then(g => g.hintTurn?.({ how: t.how, seed, groups: t.groups, delays: t.delays, dur: t.dur })).catch(() => null);

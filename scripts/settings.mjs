@@ -1216,20 +1216,31 @@ export const DEFAULT_CLOCK = {
     mood: null,
     /**
      * THE GM'S MORNING LINE, or null (E94 C1): the draft (`morningLineDraft`, a client setting) folded in by the
-     * Night-to-Morning advance and shown on the start-of-day board; cleared by the next move of the clock
-     * (`dayStartPatch`).
+     * Night-to-Morning advance - or, since 13.11.2026, by the Morning Eclipse's start (eclipse.mjs `startEclipse`) - and
+     * shown on the start-of-day board; cleared by the next move of the clock after the morning (`dayStartPatch`).
      */
     morningLine: null,
     /**
-     * THE DAY'S BOARDS' STAMP, or null (12.11.2026; the owner's report at a real table on 1.2.109 and their rule of that
-     * day): the day a real roll-over moved the clock to - Next time of day, the Morning Eclipse's end (clock.mjs
+     * THE START-OF-DAY BOARD'S STAMP, or null (12.11.2026; the owner's report at a real table on 1.2.109 and their rule
+     * of that day): the day a real roll-over moved the clock to - Next time of day, the Morning Eclipse's end (clock.mjs
      * `advanceTimeOfDay` through sequence.mjs `dayStartPatch`) - or the chapter end's next morning (chapter.mjs), and
-     * nothing else's. The end-of-day and start-of-day boards play on a new day that carries it (transitions.mjs
-     * `boardsFor`); a write that moves the day without naming it takes it away (clock.mjs `setClock`), so Edit campaign's
-     * correction is silent. Named here so tier 2's restore of a whole clock writes it back (see `dayStartedAt`). Public:
-     * a day number, on the HUD already.
+     * since 13.11.2026 the day the Morning Eclipse leads into, stamped at its start (eclipse.mjs `startEclipse`), and
+     * nothing else's. The start-of-day board plays on a clock that carries it (transitions.mjs `boardsOf`; at a chapter's
+     * end the end-of-day board too); a write that moves the day without naming it takes it away (clock.mjs `setClock`),
+     * so Edit campaign's correction is silent. Named here so tier 2's restore of a whole clock writes it back (see
+     * `dayStartedAt`). Public: a day number, on the HUD already.
      */
     dayBoard: null,
+    /**
+     * THE END-OF-DAY BOARD'S STAMP, or null (13.11.2026; the owner's rule of that day: the board "after the Night Eclipse
+     * (that is, at the start of Night)"): the day a real move into Night was made on - Next time of day from Evening, the
+     * Night Eclipse's end with the advance (clock.mjs `advanceTimeOfDay` through sequence.mjs `dayStartPatch`) - or the
+     * day a chapter's end closes, written with its next morning (chapter.mjs; both boards play there) - and nothing
+     * else's. The end-of-day board plays on Night's start that carries it (transitions.mjs `boardsOf`); a write
+     * that moves the time of day or the day without naming it takes it away (clock.mjs `setClock`), so Edit campaign's
+     * Night is silent. Named here for tier 2's restore, as `dayBoard`. Public: a day number.
+     */
+    nightBoard: null,
     /**
      * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
      * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp

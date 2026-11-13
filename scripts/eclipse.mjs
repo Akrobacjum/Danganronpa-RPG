@@ -16,14 +16,14 @@
  * advance while one is running; it sits between them.
  */
 
-import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
+import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS, TIMES_OF_DAY } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
-import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack } from "./clock.mjs";
+import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack, openingDayPatch, clearMorningDraft } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
@@ -255,8 +255,15 @@ export async function startEclipse() {
     // the `refilledFor` it found and the boundary before it (clock.mjs `boundaryMemory`). On the server's clock (E37 fix FG2;
     // the end review's C-m4): the day summary closes the time of day there (day-summary.mjs `summaryWindow`), and its start
     // and its cards are stamped on that clock - a GM's clock behind it cut the last cards off, or every one.
-    await setClock({ eclipse: true, eclipseStartedAt: serverNow(), refilledFor: boundary,
+    /* THE MORNING ECLIPSE OPENS THE DAY ON THE BOARDS (13.11.2026; the owner's rule of that day: "The start-of-day
+       animation should show at the start of the Morning Eclipse"). The GM's morning line, the mood and the stamp of the
+       day it leads into go into this one write (clock.mjs `openingDayPatch`), so every browser's start-of-day board shows
+       them as the Eclipse begins (transitions.mjs `boardsOf`); its end keeps them and writes neither again (sequence.mjs
+       `dayStartPatch`, `opened`). The day's number, the session and every rule's day boundary still move at its end. */
+    const morning = await openingDayPatch(opening);
+    const opened = await setClock({ ...morning.patch, eclipse: true, eclipseStartedAt: serverNow(), refilledFor: boundary,
         lastAdvance: boundaryMemory(opening, boundary, snapshot) });
+    if (opened && morning.draft) await clearMorningDraft();
 
     /*
      * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
@@ -446,7 +453,14 @@ export async function endEclipse({ advance = true } = {}) {
            come here. */
         const closing = await withTakeBack(getClock());
         const last = takeBackFor(closing, boundaryStamp(closing));
-        await setClock({ eclipse: false, ...afterTakeBack(closing, last) });
+        /* AND A MORNING ECLIPSE ENDED WITHOUT ADVANCING TAKES BACK THE DAY IT OPENED ON THE BOARDS (13.11.2026): its start
+           wrote the next day's stamp and the GM's morning line (`openingDayPatch`); the line goes back to this GM's draft
+           and the stamp goes, so the roll-over that comes later writes both as if no Eclipse had been held. The start-of-day
+           board it played stays played on each browser (one start per key: sequence.mjs `dayStartKey`). */
+        const undoOpening = closing.dayBoard != null && Number(closing.dayBoard) === (Number(closing.day) || 0) + 1
+            && closing.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+        if (undoOpening && closing.morningLine) await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, closing.morningLine).catch(() => null);
+        await setClock({ eclipse: false, ...afterTakeBack(closing, last), ...(undoOpening ? { dayBoard: null, morningLine: null } : {}) });
         if (last) await takeBackBoundary(last);
         await announce({
             flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
