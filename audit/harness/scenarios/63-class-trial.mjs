@@ -325,7 +325,10 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("p4, Daichi's owner, asks at load and is handed a ballot: one window, and the world's record issues it a fourth (C2); the harness's default press dismisses it, and p4 is warned once",
         p4Late.owner && p4Late.ballots === 1 && p4Late.warned === 1 && (p4Late.issued ?? []).length === 4 && p4Late.issued.includes(P4), J(p4Late));
     const lateEntry = await seqCount(p4, "trialEntry");
-    verdict("p4, loaded after the trial began, plays no entry of it (E61 C6; Q-E61-1's default: a late browser plays nothing)", lateEntry === 0, J({ lateEntry }));
+    /* E61 C6 held Q-E61-1's default here, a late browser playing nothing (0); the owner answered "Przez 10 minut" on
+       13.11.2026 (gaps-111, sequence.mjs `catchUpSequences`): p4 loads about a minute after the trial began, so it plays
+       the entry once, by the late road. Red at 7695476c's sequence.mjs: 0. */
+    verdict("p4, loaded within 10 minutes of the trial's start, plays its entry once (the owner's answer to Q-E61-1, 13.11.2026: \"Przez 10 minut\")", lateEntry === 1, J({ lateEntry }));
     await mark(p4);
     await p4.eval(ballot(IDS.botan));
     // Read as a type first: before C2 there is no `askForBallot`, and the checks below say so rather than the eval throwing.
