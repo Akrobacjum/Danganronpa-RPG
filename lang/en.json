@@ -539,6 +539,7 @@
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
       "moveLegend": "Solid: yours to take. Outlined: spent. The second foot, in the Eclipse's colour, is the Eclipse's second crossing: dimmed outside an Eclipse.",
+      "cubMovesFree": "A Monocub moves freely: crossing into another room costs nothing, in an Eclipse too.",
       "allSpent": "No actions left. They come back when the next Eclipse begins.",
       "leftOf": { "one": "{left} of {max} action", "other": "{left} of {max} actions" },
       "burstBanked": {
@@ -2910,7 +2911,7 @@
       "nobodyLeft": "Every student is already dead.",
       "deadShort": "dead",
       "deadPanelTitle": "You are dead",
-      "deadPanelNote": "The dead take no actions and spend no Hope. Brought back as a Monocub, this panel becomes Move and Confusion.",
+      "deadPanelNote": "The dead take no actions and spend no Hope. Brought back as a Monocub, this panel holds Confusion and the Monocub's other tiles.",
       "deadCannotAct": "{name} is dead and cannot take actions.",
       "deadUnfound": "Dead, not found",
       "keepSecretUntilFound": "Keep it the GMs' until the body is found: no flag, no marker, and their Truth Bullets stay until then",

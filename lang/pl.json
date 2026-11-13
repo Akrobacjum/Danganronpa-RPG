@@ -553,6 +553,7 @@
       "freeMoveAvailable": "Free Move wciąż dostępny o tej porze dnia.",
       "freeMoveSpent": "Free Move zużyty. Następne przejście kosztuje akcję.",
       "moveLegend": "Pełna: do wzięcia. Obrys: zużyta. Druga stopa, w kolorze Eclipse, to drugie przejście Eclipse: przygaszona poza Eclipse.",
+      "cubMovesFree": "Monocub chodzi swobodnie: przejście do innego pokoju nic go nie kosztuje, także w Eclipse.",
       "allSpent": "Brak akcji. Wracają, gdy zacznie się następny Eclipse.",
       "leftOf": {
         "one": "{left} z {max} akcji",
@@ -3111,7 +3112,7 @@
       "nobodyLeft": "Każdy uczeń już nie żyje.",
       "deadShort": "nie żyje",
       "deadPanelTitle": "Nie żyjesz",
-      "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Przywrócony jako Monocub, ten panel staje się Move i Confusion.",
+      "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Przywrócony jako Monocub, ten panel pokazuje Confusion i pozostałe kafelki Monocuba.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
       "deadUnfound": "Martwy, nieodnaleziony",
       "keepSecretUntilFound": "Zachowaj to dla GM-ów, dopóki ciało nie zostanie znalezione: bez flagi, bez znacznika, a ich Truth Bullets zostają do tego czasu",

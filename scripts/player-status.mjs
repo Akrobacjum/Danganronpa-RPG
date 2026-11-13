@@ -475,6 +475,18 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
         // places as the sheet (sheet.mjs `moveSlots`): the free Move, and the Eclipse's second crossing, dimmed outside one.
         safeRow(() => {
             const foot = document.createElement("span");
+            /* A MONOCUB'S FEET ARE LIT, AS ON ITS SHEET (E103, 13.11.2026; sheet.mjs `moveSlots`, `freeMovePip`): its
+               crossings cost nothing, in an Eclipse too (movement.mjs `cubStep`), so neither the free Move's flag nor the
+               Eclipse's count dims the row, nothing flashes, and the tooltip is the Monocub's sentence. Until E103 the
+               strip drew a Monocub's feet as a student's. */
+            if (mode.monocub) {
+                const moves = eclipse ? ("moves" in options ? options.moves : eclipseMovesLeft(actor)) : null;
+                foot.className = "drpg-status-pips drpg-free-move available";
+                foot.innerHTML = moveFeetHtml(moveSlots({ eclipse, moves, cub: true }));
+                const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot, null, false);
+                row.dataset.tooltip = `${game.i18n.localize("DRPG.Actions.cubMovesFree")} ${moveLegend()}`;
+                return row;
+            }
             if (eclipse) {
                 // One footprint per crossing the Eclipse still allows. This is
                 // the whole of what a player can do right now, so it is the one

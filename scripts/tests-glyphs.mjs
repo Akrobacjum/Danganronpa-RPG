@@ -512,7 +512,7 @@ export const FUTURE = [
     [65, "E73", "Bar: Skip question", "skip"],
     [66, "E73", "Bar: Skip in Scrum", "skip"],
     [67, "E73", "Finding entry marks (Monokuma confirms / Class thinks)", ["finding-confirmed", "finding-thinks"]],
-    [68, "E72", "Monocub tile: Move", "move"],
+    [68, "E72", "Monocub's Move (its tile gone since E103: the header's feet wear the drawing)", "move"],
     [69, "E72", "Monocub tile: Confusion", "confusion"],
     [70, "E72", "Monocub tile: Redeem", "redeem"],
     [71, "E72", "Monocub tile: Ask for Hope", "ask-hope"],
@@ -556,7 +556,7 @@ export const SAME = [
     [["ACTIONS.rest", "TRAP_TRIGGERS.rest"], "the room trigger waits for a Rest: one Rest"],
     [["ACTIONS.sabotage", "TRAP_TRIGGERS.sabotage"], "the room trigger waits for a Sabotage: one Sabotage"],
     [["ACTIONS.listen", "F46"], "the inventory's Listen row is this action's tile"],
-    [["ACTIONS.move", "F68"], "Move, for the Monocub as for a student"],
+    [["ACTIONS.move", "F68"], "Move, for the Monocub as for a student: no tile draws it since E103 (the owner, 13.11.2026), the feet on the sheet and the strip wear it"],
     [["F20", "F65", "F66"], "Skip: one function in the mode bar, the question bar and the Scrum"],
     /* Row 8 of 10.11 (the Spectator badge = Assign Spectator) is gone: the owner split it, a state against an action. */
     [["TRAP_TRIGGERS.passage", "F14"], "the secret passage: the room trigger and Analyze's Find Passage row (batch 2, 11.11)"],

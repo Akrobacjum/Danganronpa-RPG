@@ -178,9 +178,9 @@ export async function performAction(actor, actionKey, options = {}) {
         // a sheet left open across the moment of death still has live buttons,
         // and `game.drpg.performAction` reaches here without a sheet at all.
         //
-        // A Monocub is deceased too and is deliberately let through - their own
-        // panel offers exactly Move and Meddle, and Move is dispatched from
-        // here like any other action.
+        // A Monocub is deceased too and is deliberately let through - the gate
+        // above lets only Move by (its briefing; the panel's Move tile that
+        // reached it is gone since E103, and its abilities are monocub.mjs's).
         //
         // ABOVE THE ECLIPSE (E51 C1; audit S02-51 (d)). It stood below it, so a dead student pressing a tile in an
         // Eclipse was told the Eclipse locks actions - true, and not why: being dead is. R1105 holds the order.
