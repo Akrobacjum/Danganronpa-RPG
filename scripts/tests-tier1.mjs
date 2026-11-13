@@ -52036,7 +52036,14 @@ const INVARIANTS = [
             read.trialHint = G.pendingTurnHint();
             T.onClockHeard(c("noon"), { on: false, still: true });
         } finally { w.stop(); G.hintTurn(null); }
-        read.writes = w.seen.filter(s => s.includes("R3712"));
+        // The primary's beat (hud.mjs: a setInterval of CLOCK_BEAT_MS, 60 s from ready) is a timer's write, not the
+        // transition's: it lands in this window whenever a multiple of 60 s after ready falls inside it. Measured
+        // 13.11.2026 (E40 item 5): tiers 0-1 whole failed here in three runs once tests-tier2.mjs grew by twelve lines (one
+        // of them with the twelve as comments alone), and passed in two at the tree before them and in three run alone; so
+        // the beat is left out by its key, and any other write still fails the test.
+        // the beat's key is the store's own (R171: no raw store key outside the engine).
+        const { clockBeatStore } = await import("./gm-stores.mjs");
+        read.writes = w.seen.filter(s => s.includes("R3712") && !s.startsWith(`setting ${MODULE_ID}.${clockBeatStore.spec.key} `));
         equal(stableJson(read), stableJson({ moved: "hour", hint: "top", again: null, still: null, off: null, trial: "E61", trialHint: null, writes: [] }),
             "[evening to night heard; the direction handed; the same clock again; reduced motion; the switch off; the trial's entry's owner; no direction for it; the world written]");
     }],
