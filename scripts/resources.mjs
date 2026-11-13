@@ -72,7 +72,7 @@ export function registerActionResource() {
  * seeds the key again from ACTIONS_DEFINITION) and dropped a time-of-day maximum - the 2.10.5 probe's E24-1
  * (audit/probe-daggerheart-2.10.5.md), still in 2.12.8. A hook before the write, rather than a wrapper on the system's
  * method or a Homebrew entry: it takes the one key out of any update that deletes it with the deletion operator (the
- * system's `_del`; the old dash spelling deletes nothing in v14, CLAUDE.md) and cancels an update that held nothing else, so the system's clean-up of its own keys still runs. The
+ * system's `_del`; the old dash spelling deletes nothing in v14, R152) and cancels an update that held nothing else, so the system's clean-up of its own keys still runs. The
  * module never deletes the key itself. On a character only, where the resource is registered. R5762; at a table the
  * Actions before and after an item change are the probe's own live check (its list of live checks, item 2), not run.
  * ========================================================================== */
