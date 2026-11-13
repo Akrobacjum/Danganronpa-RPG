@@ -45,6 +45,31 @@ showed the older test already fails on each of them, so it measured nothing new 
 ballot replaces the first. The comment it carried at first said the four lines were measured by nothing; that was a
 guess from a `git grep` on the refusals' words, and the mutants showed it wrong.
 
+## The mutation run (the plan's item 6): twelve rules of the trial and the reset, each broken once
+
+Each a one-place edit on a copy of the tree (`DRPG_REPO`), the named check run on it; the runner and its definitions are
+kept outside the repository (METHOD.md section 4), so each edit is written out here to be made again. 12 of 12 FAIL.
+
+| # | Rule | The edit | Fails |
+| --- | --- | --- | --- |
+| 1 | a ballot names nobody twice | vote.mjs `ballotRefusal`: the `new Set(names).size !== names.length` line removed | tier 2 "a ballot naming one student twice or too many or of a round gone is refused and told" |
+| 2 | a ballot of another round is refused | `ballotRefusal`: `Number(round) !== progress.vote.round` taken out of the first line | the same |
+| 3 | a ballot names as many as the vote asks | `ballotRefusal`: the `names.length !== progress.vote.picks` line removed | the same |
+| 4 | a ballot names only who is on it | `ballotRefusal`: `names.every(id => listed.has(id))` read as true | the same |
+| 5 | the verdict kills nobody (DC36) | verdict.mjs `readSentence`: `killCharacter` called on each sentenced | E40-T1; 18-trial verdict and close |
+| 6 | the verdict does not close the trial (E70's amendment) | `readSentence`: the clock written to Daily Life | E40-T1; 18-trial verdict and close |
+| 7 | the trial's close carries the sentence out | trial-progress.mjs `sentenceOf` answering null | E40-T1 |
+| 8 | the verdict's card says the execution waits for the trial's end | verdict.mjs `postVerdictCard`: always `executionNow` | E40-T1 |
+| 9 | the verdict's public card names no Blackened | `postVerdictCard`'s flags carrying `trialBlackenedIds()` | 18-trial verdict (world and chat) and close (world) |
+| 10 | no Eclipse starts in a fight | eclipse.mjs `startRefusal`: the incidentFirst line removed | E40-T3 |
+| 11 | no fight opens in an Eclipse | murder-rules.mjs `openMurder`: its Eclipse refusal removed | E40-T3 |
+| 12 | a season reset clears the trial's record | season-wipe.mjs `RESET_STEPS` without "trialProgress" | 65-season R1; tier 2 R50 and E42-T6 |
+
+On a copy of the tree the expected-red checks of a scenario count as plain failures (cluster.mjs: no verdicts on another
+tree), so 65's X2 and X2b, red by a Foundry limit in its own tree, failed beside R1 under #12; R1 is the reading.
+Into the release gate: the gate's wiring is tools/stages.json's and .github's, which this line does not touch - the
+coordinator's to register, from this table.
+
 ## Bugs found
 
 None in the module's code by a failing test. Two readings:
@@ -112,9 +137,8 @@ The plan's items 2-6, in its order, with what each would take:
   once before and after. A mechanical, low-risk group once counted (the plan's Q-E40-3: the tree's counts, re-counted
   when the work starts).
 - **settle() -> until()** (item 5): where a read crosses a client, a hook or a chat card.
-- **The 12-rule mutation run** (item 6): built as a file outside the repository, 12 of 12 FAIL, then into the gate (the
-  gate wiring is `tools/stages.json`'s, which this line may not touch - the coordinator registers it; this line hands
-  the run's definitions and results).
+- **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
+  wiring is not this line's to touch.
 
 ## Questions for the owner
 
