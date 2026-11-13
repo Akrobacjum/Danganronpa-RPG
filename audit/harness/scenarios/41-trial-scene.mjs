@@ -700,7 +700,10 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         return { kept, room, before };`, { timeout: 60000 });
     await walk(IDS.aiko, found.room);
     await walk(IDS.botan, found.room);
+    // The two witnesses leave the discovery waiting for the GM's word (1.2.113): "Announce" in the primary's prompt.
     const discovered = await gm.eval(`${UNTIL} ${CARDS} const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        globalThis.__dialogAnswers.push("announce"); await C.askPendingBodies();
         await until(() => bodyDiscovery(), 6000); await new Promise(r => setTimeout(r, 800));
         return { cards: cards(), hold: bodyDiscovery()?.room ?? null, stamps: game.settings.get("${MOD}", "bodiesFound") };`, { timeout: 30000 });
     /* The room the walks start from - and, since E13 C3b, the one End the trial sends the living to (C3's tree read the

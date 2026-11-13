@@ -3116,6 +3116,14 @@
       "keptUntilFound": "Zachowane dla GM-ów, dopóki ciało nie zostanie znalezione albo nie ujawnisz tego w oknie graczy. Stół jeszcze nic nie widzi: bez flagi, bez znacznika, a ich Truth Bullets są wciąż na arkuszu.",
       "nobodyFoundYou": "Nikt jeszcze nie znalazł twojego ciała.",
       "youFoundBody": "W {room} znajdujesz ciało: {name}. Nikt inny jeszcze go nie widział i nic nie zostaje ogłoszone.",
+      "youFoundBodyWith": "W {room} znajdujesz ciało: {name}. Nie jesteś tu sam i nic nie zostaje ogłoszone, dopóki GM o tym nie zdecyduje.",
+      "pendingTitle": "Uczniowie znaleźli ciało",
+      "pendingBody": "W {room} leży ciało: {name}. Widzą je już: {names}. Ogłosić znalezienie teraz?",
+      "pendingNote": "Ogłoś sprowadza wszystkich na miejsce i odtwarza dźwięk znalezienia całemu stołowi. Jeszcze nie zostawia je w oczekiwaniu: ogłosisz je później przyciskiem Znaleziono ciało w oknie Investigation.",
+      "pendingAnnounce": "Ogłoś",
+      "pendingNotYet": "Jeszcze nie",
+      "pendingWaiting": "Czeka na twoje słowo: {list}.",
+      "pendingRow": "{name} w {room}, znalezione przez: {names}",
       "deathsStillSecret": {
         "one": "{n} śmierć, której nikt nie odkrył, jest wciąż znana tylko GM-om. Dopóki nie ujawnisz jej w oknie graczy, ten proces traktuje tego ucznia jak żywego - głosuje i dostaje Level Up razem z klasą - i nie pyta o jego zabójcę, który liczy się jako Blackened tylko za śmierć znaną stołowi.",
         "few": "{n} śmierci, których nikt nie odkrył, są wciąż znane tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi.",
@@ -5073,6 +5081,7 @@
         "other": "{n} Key Remnants tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation."
       },
       "nextAutopsy": "Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.",
+      "nextBodyAsked": "Uczniowie znaleźli ciało w {room} i czeka ono na twoje słowo: ogłoś je albo na razie zostaw.",
       "nextBodyWaiting": "Ciało czeka na odnalezienie w miejscu: {room}. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
       "nextBodyWaitingNoRoom": "Ciało czeka na odnalezienie. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
       "nextBodyWaitingUnseen": "Ciało czeka na odnalezienie, ale jego żeton jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.",
@@ -7778,7 +7787,7 @@
         },
         "bodyFound": {
           "label": "Znaleziono ciało",
-          "hint": "Słyszy cały stół. Moment, w którym rozdział zmienia gatunek."
+          "hint": "Słyszy cały stół, gdy GM ogłasza znalezienie: moment, w którym rozdział zmienia gatunek. Słyszy go też sam gracz ucznia, raz przy każdym ciele, gdy jego postać wchodzi do pokoju, w którym leży ciało."
         },
         "cleanupFailed": {
           "label": "Sprzątanie nie udaje się",
@@ -8261,6 +8270,8 @@
         "tails": "Kto dziś śledzi kogo, i jak dobrze",
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
+        "pendingBodies": "Znalezione ciała, które czekają na słowo GM-ów, by je ogłosić",
+        "bodiesHeard": "Przy których ciałach każda postać usłyszała dźwięk znalezienia",
         "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",

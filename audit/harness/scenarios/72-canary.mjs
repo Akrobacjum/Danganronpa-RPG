@@ -677,6 +677,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         return t?.id ?? null;`, { timeout: 60000 });
     await gm.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 600, y: 1300 });
         await canvas.scene.tokens.get("TOKDAICHI0000000").update({ x: 650, y: 1500 }); return true;`, { timeout: 60000 });
+    /* The two witnesses leave the discovery waiting for the GM's word (1.2.113): the prompt the walk opened was passed
+       over by the promotion's answer above ("Not yet"), so the GM is asked again and answers "Announce", ahead of it. */
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const end = Date.now() + 8000; while (!C.pendingBodyDiscoveries().length && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        globalThis.__dialogAnswers.unshift("announce"); await C.askPendingBodies(); return true;`, { timeout: 60000 });
     /* The promotion is asked after the card and the hold since E11 C4 (chapter.mjs `runDiscovery`), so the
        hold alone no longer says the dialog was answered: both are waited for. */
     const found = await settled("discovery", () => gm.eval(`const b = game.settings.get("${MOD}", "bodyFound"); return b?.room && globalThis.__promoted !== null ? { room: b.room, promoted: globalThis.__promoted } : null;`));

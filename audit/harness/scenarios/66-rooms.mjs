@@ -895,6 +895,10 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         const aim = M.positionIn("Storage", t);
         await t.update(aim, { teleport: true, movementAction: "displace", animate: false });
         const placed = { x: t.x, y: t.y, room: M.roomOfToken(t), aimed: t.x === aim.x && t.y === aim.y };
+        // The two leave the discovery waiting for the GM's word (1.2.113): "Announce" in the primary's prompt.
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const asked = Date.now() + 6000; while (!C.pendingBodyDiscoveries().length && Date.now() < asked) await new Promise(r => setTimeout(r, 100));
+        globalThis.__dialogAnswers.push("announce"); await C.askPendingBodies();
         const end = Date.now() + 8000; while (!S.bodyDiscovery() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         await new Promise(r => setTimeout(r, 800));
         const rows = (S.bodiesFoundIn?.(S.getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));

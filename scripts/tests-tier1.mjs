@@ -57162,6 +57162,44 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
+
+    ["R5740 - the discovery's prompt is answered by the primary GM alone, and only a full Gamemaster (1.2.113; the owner's decision A of 13.11.2026): chapter.mjs `answersBodyPrompt` - a full Gamemaster who is the primary yes; an Assistant GM who is the primary, a full Gamemaster who is not, a player and nobody no", async () => {
+        /*
+         * 1.2.113, 13.11.2026. The coordinator's brief: "Any full Gamemaster may answer ... An Assistant GM cannot answer",
+         * with the announcement the primary's (E11 fix r1-G2, `discoveryHere`). Stand-in users, a primary id handed in;
+         * nothing written. Red at a43e865e: no `answersBodyPrompt`.
+         */
+        const C = await import("./chapter.mjs");
+        const { GAMEMASTER, ASSISTANT, PLAYER } = CONST.USER_ROLES;
+        const u = (id, role) => ({ id, role, isGM: role >= ASSISTANT });
+        const ask = (user, primaryId) => typeof C.answersBodyPrompt === "function" ? C.answersBodyPrompt(user, { primaryId }) : "absent";
+        equal(stableJson([ask(u("g1", GAMEMASTER), "g1"), ask(u("a1", ASSISTANT), "a1"), ask(u("g2", GAMEMASTER), "g1"),
+            ask(u("p1", PLAYER), "p1"), ask(null, "g1")]), stableJson([true, false, false, false, false]),
+            "[full GM primary, Assistant GM primary, full GM not primary, player, nobody]");
+    }],
+
+    ["R5741 - two witnesses leave the discovery waiting for the GM's word and the walker hears the discovery sound on their own browser (1.2.113; the owner's decisions A and B of 13.11.2026): chapter.mjs `checkBodyFound` writes the room's pending row and asks (`askPendingBodies`) and runs no announcement; `maybeBodyFound` runs `checkBodySound` first, which sends the sound to the walker's players alone (`playSfxForUsers`) once a body (`bodyHeardStore`); the announcement drops the row and notes the bodies heard before its gather; the prompt is asked when the stores open and when a GM leaves", async () => {
+        /*
+         * 1.2.113, 13.11.2026. Read off the source, comments stripped: what scenario 10's F1-F3 drive on the table. Red at
+         * a43e865e: `checkBodyFound` ran `runDiscovery`, and there was no `checkBodySound`.
+         */
+        const src = stripComments((await moduleSources()).get("chapter.mjs") ?? "");
+        const mod = stripComments((await moduleSources()).get("module.mjs") ?? "");
+        must(src.length > 1000 && mod.length > 100, "chapter.mjs or module.mjs was not read");
+        const found = fnSource(src, "checkBodyFound"), maybe = fnSource(src, "maybeBodyFound"), sound = fnSource(src, "checkBodySound");
+        const run = fnSource(src, "runDiscovery"), reg = fnSource(src, "registerPendingBodies");
+        const gather = run.indexOf("gatherEveryone(");
+        equal(stableJson([
+            /pendingBodyStore\.patch\(/.test(found), /askPendingBodies\(/.test(found), /runDiscovery\(/.test(found),
+            maybe.indexOf("checkBodySound(") >= 0 && maybe.indexOf("checkBodySound(") < maybe.indexOf("checkBodyFound("),
+            /playSfxForUsers\(users, "bodyFound"\)/.test(sound), /bodyHeardStore\.patch\(/.test(sound), /ownerIdsOf\(actor\)/.test(sound),
+            gather > 0 && run.indexOf("pendingBodyStore.drop(") > 0 && run.indexOf("pendingBodyStore.drop(") < gather
+                && run.indexOf("heardByEveryone(") > 0 && run.indexOf("heardByEveryone(") < gather,
+            /onGmStoresHydrated\(/.test(reg) && /userConnected/.test(reg), /registerPendingBodies\b/.test(mod)
+        ]), stableJson([true, true, false, true, true, true, true, true, true, true]),
+            "[the walk writes the pending row, asks, runs no announcement; the sound first; to the walker's players; kept; "
+            + "the announcement drops the row and notes the bodies heard before its gather; asked at the stores' opening and a GM's leaving; registered]");
+    }],
 ];
 
 /**

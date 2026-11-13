@@ -1324,12 +1324,12 @@ export async function receiveDeaths(deaths, stamps) {
     return deathCopy.receive(mine, own);
 }
 
-/** GM: tell one player, by an addressed packet and no document, that they found this body alone. */
-export function tellFinder(userId, token, room) {
+/** GM: tell one player, by an addressed packet and no document, that they found this body - alone, or with `company` (1.2.113). */
+export function tellFinder(userId, token, room, { company = false } = {}) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     try {
-        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room },
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room, company: company === true },
             { recipients: [userId] });
         return true;
     } catch (err) {
@@ -1392,7 +1392,7 @@ function onDeathsSocket(payload, senderId) {
         if (game.user.isGM || payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
         const body = game.actors.get(payload.bodyId);
         if (!body) return;
-        ui.notifications.info(game.i18n.format("DRPG.Chapter.youFoundBody", {
+        ui.notifications.info(game.i18n.format(payload.company === true ? "DRPG.Chapter.youFoundBodyWith" : "DRPG.Chapter.youFoundBody", {
             name: String(payload.name || body.name), room: String(payload.room ?? "")
         }), { permanent: true });
         return;

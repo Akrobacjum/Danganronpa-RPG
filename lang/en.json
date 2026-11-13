@@ -2915,6 +2915,14 @@
       "keptUntilFound": "Kept by the GMs until the body is found or you make it known in the Players window. The table sees nothing yet: no flag, no marker, and their Truth Bullets are still on the sheet.",
       "nobodyFoundYou": "Nobody has found your body yet.",
       "youFoundBody": "In {room} you find the body of {name}. Nobody else has seen it yet, and nothing is announced.",
+      "youFoundBodyWith": "In {room} you find the body of {name}. You are not the only one here, and nothing is announced until the GM says so.",
+      "pendingTitle": "Students found a body",
+      "pendingBody": "{names} found the body of {name} in {room}. Announce the discovery now?",
+      "pendingNote": "Announce brings everyone to the room and plays the discovery sound to the whole table. Not yet keeps it waiting: you can announce it later with Body found in the Investigation window.",
+      "pendingAnnounce": "Announce",
+      "pendingNotYet": "Not yet",
+      "pendingWaiting": "Waiting for your word: {list}.",
+      "pendingRow": "{name} in {room}, found by {names}",
       "deathsStillSecret": {
         "one": "{n} death nobody has found is still the GMs' alone. Until you make it known in the Players window, this trial treats that student as living - they vote and level up with the class - and does not ask for their killer, who counts as a Blackened only for a death the table knows.",
         "other": "{n} deaths nobody has found are still the GMs' alone. Until you make them known in the Players window, this trial treats those students as living - they vote and level up with the class - and does not ask for their killers, who count as Blackened only for a death the table knows."
@@ -4720,6 +4728,7 @@
         "other": "{n} Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab."
       },
       "nextAutopsy": "The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.",
+      "nextBodyAsked": "Students found a body in {room}, and it waits for your word: announce it, or leave it for now.",
       "nextBodyWaiting": "A body is waiting to be found in {room}. Two witnesses find it, or announce it yourself.",
       "nextBodyWaitingNoRoom": "A body is waiting to be found. Two witnesses find it, or announce it yourself.",
       "nextBodyWaitingUnseen": "A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.",
@@ -6473,6 +6482,8 @@
         "tails": "Who is tailing whom today, and how well",
         "barricades": "Which rooms are barricaded, by whom and how strongly",
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
+        "pendingBodies": "The bodies found that wait for the GMs' word to be announced",
+        "bodiesHeard": "Which bodies each character has heard the discovery sound for",
         "lockpicks": "Who may walk through a lock they picked, into which room",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",

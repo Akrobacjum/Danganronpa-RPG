@@ -20,7 +20,7 @@ import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
 import { launcher, drpgWindow, box } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
-import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
+import { bodiesToDiscover, announcedIn, chapterEndStopped, pendingBodyDiscoveries } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
@@ -968,6 +968,11 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
        find on the scene this GM is viewing names its room; one only on another scene gets the line
        without the room; none, the line without the witnesses (tier 2 "the GM's next line tells a
        hidden body to be announced by hand"). */
+    /* A DISCOVERY WAITING FOR YOUR WORD (1.2.113; the owner's decision A of 13.11.2026). Two witnesses found a body and the
+       primary was asked (chapter.mjs `askPendingBodies`); "Not yet" leaves it here, so the line names its room and opens
+       the discovery window, which opens on it. */
+    const [asked] = pendingBodyDiscoveries({ clock, held: flagsHeldNow });
+    if (asked) return { text: game.i18n.format("DRPG.Panel.nextBodyAsked", { room: esc(asked.room) }), action: "bodyDialog" };
     const waiting = bodyWaiting(clock);
     if (waiting) {
         let findable = [];
