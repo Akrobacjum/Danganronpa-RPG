@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
-    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText
+    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText, glassFetch
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -38789,7 +38789,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * looks, the new layout IS the baseline and no drift is ever seen.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+            await glassFetch());
         ok(/addEventListener\("visibilitychange"/.test(src),
             "nothing recuts the curtain when the document becomes visible, so a block "
             + "that left while the tab was hidden keeps its pane");
@@ -39102,7 +39102,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "the breakpoints moved without the measurements that chose them moving");
 
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
+            await glassFetch());
         ok(/drpg-glass-flat/.test(src) && /function glassRoom\(\)/.test(src),
             "the curtain has no gate of its own, so a phone gets a partition cut for a desk");
         ok(/if \(narrowLayout\(\)\) return stackShapes\(/.test(src),
