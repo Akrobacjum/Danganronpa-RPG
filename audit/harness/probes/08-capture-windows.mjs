@@ -81,7 +81,8 @@ const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
  * the mockup round's to build, not this probe's.
  */
-const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes", "description", "fog", "scenes"];
+// No "scenes" since E101 item 5: the Scenes are Season setup's part (`season-setup`, `season-setup--zones`).
+const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes", "description", "fog"];
 /* The player's action windows (E21 C1c): `performAction` on the character p1 owns, each window dismissed. */
 const MINE = "game.actors.find(a => a.type === \"character\" && a.isOwner)";
 const ACTION_WINDOWS = ["observe", "search", "analyze", "tamper", "rest", "project", "palm", "dynamic"];
@@ -274,7 +275,8 @@ export const WINDOWS = [
     { id: "zone-picker", module: "trial-zones-ui.mjs", before: SEED_HALL + SEED_DIVE, after: DROP_DIVE + DROP_HALL, call: "m.openZonePicker({ mode: \"dive\" })" },
     { id: "dive-editor", module: "trial-zones-ui.mjs", before: SEED_DIVE, after: DROP_DIVE, call: "m.editDiveSet(\"probe08set\")" },
     { id: "findings", module: "trial-zones-ui.mjs", before: SEED_FINDINGS, after: DROP_FINDINGS, call: "m.openFindings()" },
-    { id: "rooms-scenes--zones", module: "room-setup.mjs", before: SEED_HALL, after: DROP_HALL, perTab: false, call: "m.openRoomSetupDialog({ tab: \"scenes\" })" },
+    // E101 item 5: the hall's zones in Season setup's scenes part (Room setup's Scenes tab until then, `rooms-scenes--zones`).
+    { id: "season-setup--zones", module: "season-setup.mjs", before: SEED_HALL, after: DROP_HALL, perTab: false, call: "m.openSeasonSetup()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
     { id: "reveal-confirm", module: "trial-floor-ui.mjs", call: "m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })" },

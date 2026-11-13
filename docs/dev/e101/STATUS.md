@@ -31,12 +31,12 @@ no row carried.
 | Table note 7 (with 3): the settings window keeps one size | Measured in Chromium at 1366x768 with `[hidden] { display: none !important }` planted (whether Foundry's sheet has that rule is not read here): the player's window 520 / 569 / 621 / 402 px by section without `holdSectionHeight`, 621 px in each with it; the GM's 520 / 569 / 402 / 402 px, 570 px with it. | - | R4059 |
 | Table note 8: the Class Trial console's row of modes scrolls | components.css: the picker wraps and has no scroll (E99 round 5 had made it one row with `overflow-x: auto`). Measured in Chromium, 1366x768, Straw Poll seeded: under the glass the row was 4 px wider than its box (1250 / 1246: the brush stands 5 px out of each start) and scrolled; after, it scrolls in neither theme. | R4063 red at 2e10420d | R4063 |
 | Table note 9: Sound and Music in one column | components.css: a volume row spans the section's columns, its control and line a column wide. The player's window with voice: 718 px under the glass (621 before), 573 under Legacy (499), within 768. | R4064 red at 2e10420d | R4064 |
-| 3 (#4) Room setup: one line about Apply, Search's "arrows" | not started | - | - |
-| 4 (#5) Room setup: Rooms tab, Doors' headers | not started | - | - |
-| 5 (#6) Room setup > Scenes into Season setup | not started | - | - |
+| 3 (#4) Room setup: one line about Apply, Search's "arrows" | Branch `claude/e101b` (from 338d20d0, origin/claude/e93 4eef965a merged in). room-setup.mjs draws `DRPG.Vault.applyLine` over the tabs (what Apply saves, and the three parts that write at once); the five repeats go: the passages' intro is `DRPG.Passage.tab.introLine`, Search's tokens line `DRPG.SearchTokens.roomSetupLine` (no arrows: - and +), the room actions' line `DRPG.Facility.editor.tabLine`, no line under Fog. New keys only (EN, PL): the texts line rewrites the old ones, which stay. | R4470 red at eb9431dc | R4470 |
+| 4 (#5) Room setup: one Rooms tab, Doors for locks and neighbours | The first tab is Rooms (`DRPG.Vault.tabRooms`, key still `bedrooms`): This is a room, Whose bedroom, No privacy, with the room count; Doors holds Locked, Locked at start, Broken (e93) and Neighbours. Cells, names and Apply's read unchanged: only the pane a column stands in moved. Short lines `roomsIntro`, `notSharedLine`, `doorsLine`, `neighboursLine` (the neighbours' whole rules stay in that line's tooltip). The Season checklist's "every region decided" row opens Rooms. | R4470 red at eb9431dc | R4470; changed on purpose R2010, R2013 |
+| 5 (#6) Room setup > Scenes into Season setup | Room setup has no Scenes tab (eight tabs; a scene with no room opens on Rooms). season-setup.mjs `seasonScenesPart`: trial-scene.mjs's part under one sentence (`DRPG.Season.scenesLine`; `scenesTabHtml` takes `lead`), wired as the tab was, Save held with the reason while one scene stands for both or a running trial locks the hall (`holdSeasonSave`, as `setApplyBlock`), and Save's backstops then `applyScenesTab` after Edit campaign's write. The checklist's Scenes row and `game.drpg.openTrialCast` open Season setup. | R4471 red at eb9431dc | R4471, tier 2 E101-T9; changed on purpose R120, R2011, R3580, tier 2 "the Scenes tab links the school ..." and E46-T1, scenario 41 (a0, l1, o2, l2 on Season setup) |
 | 1 (#2) Edit campaign into Season setup | waits for 1.2.109 on main and merged here | - | - |
 
-Items 3-5 wait for e93 on main and merged here (the coordinator, 12.11):  e93 rewrites the same lines of room-setup.mjs (the Doors tab's columns, ROOM_SETUP_TABS, the Rest tab) and the texts line (claude/texts-e71) rewrites the room tabs' texts (searchIntro, scenesIntro, notSharedNote, fogIntro, stashesNote, setupIntro ...). Any version of items 3-5 conflicts with both at merge.
+Items 3-5 were done on 13.11 on `claude/e101b`, e93 merged in (the coordinator, 12.11 night). Until then they waited for e93 (the coordinator, 12.11):  e93 rewrites the same lines of room-setup.mjs (the Doors tab's columns, ROOM_SETUP_TABS, the Rest tab) and the texts line (claude/texts-e71) rewrites the room tabs' texts (searchIntro, scenesIntro, notSharedNote, fogIntro, stashesNote, setupIntro ...). Any version of items 3-5 conflicts with both at merge.
 
 ## The review page
 
@@ -79,6 +79,17 @@ The texts line (claude/texts-e71) rewrites these same lines; each is one edit af
 - GM handbook EN/PL step 4 of the quick start (line 46), the Sound files row (121), the First session paragraph (133), and the Pre-season checks list (140-148): rewrite for the one window (drafted and reverted before commit because of the conflict; this line redoes it after the merge).
 - GM handbook EN/PL line 1336 (the pre-session list): "read its further checks and its rooms row".
 - GM handbook EN/PL line 621 (Item tables; e64 edits it): Rename table stands on the Room pools tab only, and the Tier pools tab has no New Tier pool field.
+
+## Follow-ups of items 3-5 after the texts line lands (claude/e101b)
+
+The texts line rewrites these keys, so items 3-5 left their words as they were: each still names Room setup's Scenes tab,
+the Doors tab for This is a room, or Apply where the scenes part's button is now Season setup's Save. One sweep after
+texts-e71 merges, EN and PL: `DRPG.TrialScene.noZones`, `startTrialNoHall`, `hallDark`, `noWayBack`, `sameScene`,
+`hallInTrial`, `hallFirstInTrial` (the last three are Save's held reason: "Apply waits"); `DRPG.Season.hint.roomsMarked`,
+`hint.scenes`, `hint.hallTokens`; the room checks' `detail` and `unmarked` and `flagUnjudged` (Doors tab); PL
+`reportNote` (karta Drzwi); and the GM handbook's Room setup and Season setup sections. The new words items 3-5 needed
+are new keys (`DRPG.Vault.applyLine` ... `DRPG.TrialScene.prepareOnSave`); the old keys they replace stay until that
+sweep. Not this line's: e93's Polish tab name "Facilities" (`DRPG.Vault.tabFacilities`) is still the English word.
 
 ## Keys left in the lang files
 

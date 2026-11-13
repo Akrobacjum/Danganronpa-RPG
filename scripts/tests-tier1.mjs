@@ -10608,8 +10608,10 @@ const INVARIANTS = [
             game.settings.set = set;
         }
 
+        // E101 item 5 (changed on purpose): no Scenes tab in Room setup (Season setup's part, R4471), so its last tab is
+        // Fog, eight tabs, and a scene with no room opens on Rooms.
         equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked, reasons]), JSON.stringify([
-            ["scenes", 9, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
+            ["fog", 8, "bedrooms", "bedrooms", "doors", "bedrooms"], ["Stand"],
             [["sameScene!"], ["hallHasRooms", "handPlaced", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true, true],
             [{ roles: null, cast: null, prepare: null },
                 { roles: { school: "R120SCENEC", trial: "R120SCENEB", zones: ["R120ZONE"] }, cast: null, prepare: null },
@@ -18899,6 +18901,86 @@ const INVARIANTS = [
         const span = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].some(m => /\.drpg-settings-rows\s*>\s*\.drpg-settings-volume\s*$/.test(m[1].trim()) && /grid-column:\s*1\s*\/\s*-1/.test(m[2]));
         equal(span, true, "a volume row spans both columns of its section");
     }],
+    ["R4470 - Room setup says once, over its tabs, what Apply saves and what works at once, and a Rooms tab holds what a room is (E101 items 3 and 4; the owner's yes of 12.11.2026 to the GM screens' review): room-setup.mjs `openRoomSetupDialog` draws DRPG.Vault.applyLine over the tabs, no tab repeats the rule (the passages' intro is DRPG.Passage.tab.introLine, the Search tab's line DRPG.SearchTokens.roomSetupLine with no arrows, the room actions' DRPG.Facility.editor.tabLine, no line under Fog), the first tab is Rooms (DRPG.Vault.tabRooms: Is a room, Whose bedroom, No privacy, with the room count), and Doors keeps the locks and the neighbours", async () => {
+        /*
+         * E101 items 3 and 4, 13.11.2026. Read on this GM with DialogV2's `wait` stood in for (it answers null, read as
+         * Cancel: nothing written): the window's content, each pane's column heads in order and its own lines. Where
+         * the heads overlap is the review page's (Chromium). Red at eb9431dc.
+         */
+        needs(world.atLeast("sceneOnScreen"), "Room setup opens on the scene on screen");
+        const V = await import("./vault.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const SearchTokensMax = () => SearchTokens.max;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try { await V.openRoomSetupDialog(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-rooms"));
+        must(cfg, "Room setup opened no window - this would measure nothing");
+        const root = document.createElement("div");
+        root.append(cfg.content instanceof HTMLElement ? cfg.content : Object.assign(document.createElement("div"), { innerHTML: String(cfg.content ?? "") }));
+        const L = key => game.i18n.localize(key);
+        const pane = key => root.querySelector(`[data-drpg-pane="${key}"]`);
+        const heads = key => [...(pane(key)?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim());
+        const text = key => pane(key)?.textContent.replace(/\s+/g, " ") ?? "";
+        const form = root.querySelector("form");
+        const over = [...(form?.children ?? [])].filter(el => !el.matches?.("nav, section")).map(el => el.textContent.replace(/\s+/g, " ").trim()).filter(Boolean);
+        const tabs = [...root.querySelectorAll('nav.drpg-tabs > button[role="tab"]')].map(b => [b.dataset.drpgTabKey, b.textContent.trim()]);
+        const read = {
+            over: over.includes(L("DRPG.Vault.applyLine")),
+            first: tabs[0] ?? null,
+            rooms: heads("bedrooms"), ratio: Boolean(pane("bedrooms")?.querySelector("[data-drpg-ratio]")),
+            doors: heads("doors"),
+            lines: [text("passages").includes(L("DRPG.Passage.tab.introLine")), !text("passages").includes(L("DRPG.Passage.tab.intro")),
+                text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupLine", { max: SearchTokensMax() })),
+                !text("search").includes(game.i18n.format("DRPG.SearchTokens.roomSetupNote", { max: SearchTokensMax() })),
+                text("rest").includes(L("DRPG.Facility.editor.tabLine")), !text("rest").includes(L("DRPG.Facility.editor.tabNote")),
+                !text("fog").includes(L("DRPG.Vault.fogNote"))]
+        };
+        equal(stableJson(read), stableJson({
+            over: true, first: ["bedrooms", L("DRPG.Vault.tabRooms")],
+            rooms: [L("DRPG.Vault.room"), L("DRPG.Vault.isRoomColumn"), L("DRPG.Vault.owner"), L("DRPG.Vault.notSharedColumn")], ratio: true,
+            doors: [L("DRPG.Vault.room"), L("DRPG.Vault.lockedColumn"), L("DRPG.Vault.lockedAtStartColumn"), L("DRPG.Vault.brokenColumn"), L("DRPG.Vault.neighboursColumn")],
+            lines: [true, true, true, true, true, true, true]
+        }), "{the Apply line over the tabs; the first tab; Rooms' heads and its count; Doors' heads; the tabs' own lines: passages' intro new and old, "
+            + "Search's tokens line new and old (arrows), room actions' line new and old, no line under Fog}");
+    }],
+    ["R4471 - the Scenes are Season setup's, not Room setup's (E101 item 5; the owner's yes of 12.11.2026 to the GM screens' review): Room setup has no Scenes tab; season-setup.mjs `openSeasonSetup` draws trial-scene.mjs's scenes part under DRPG.Season.scenesLine, one sentence, and its Save applies it (`applyScenesTab`, refused on a clash or a hall locked by a running trial); the Season checklist's Scenes row and game.drpg.openTrialCast open Season setup", async () => {
+        /*
+         * E101 item 5, 13.11.2026. The tab was the same on every scene and named no room of the scene in Room setup's
+         * title. Read on this GM with DialogV2's `wait` stood in for (nothing written): both windows' content; the
+         * openers in source. Red at eb9431dc.
+         */
+        needs(world.atLeast("sceneOnScreen"), "Room setup opens on the scene on screen");
+        const [V, SS] = await Promise.all([import("./vault.mjs"), import("./season-setup.mjs")]);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try { await V.openRoomSetupDialog(); await SS.openSeasonSetup(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const drawn = cls => {
+            const cfg = seen.find(c => (c.classes ?? []).includes(cls));
+            const box = document.createElement("div");
+            if (cfg) box.append(cfg.content instanceof HTMLElement ? cfg.content : Object.assign(document.createElement("div"), { innerHTML: String(cfg.content ?? "") }));
+            return box;
+        };
+        const rooms = drawn("drpg-window-rooms"), season = drawn("drpg-window-season");
+        must(rooms.querySelector("nav.drpg-tabs") && season.querySelector('[name="campaignName"]'), "a window did not open - this would measure nothing");
+        const part = season.querySelector("[data-drpg-season-scenes]");
+        const src = stripComments(new Map(await moduleSources()).get("season-setup.mjs") ?? "");
+        const api = stripComments(new Map(await moduleSources()).get("api.mjs") ?? "");
+        const open = fnSource(src, "openSeasonSetup");
+        equal(stableJson({
+            roomTabs: [...rooms.querySelectorAll('nav.drpg-tabs > button[role="tab"]')].some(b => b.dataset.drpgTabKey === "scenes"),
+            part: [Boolean(part?.querySelector('[name="scenes:school"]')), Boolean(part?.querySelector('[name="scenes:trial"]')),
+                part?.querySelector("[data-drpg-scenes-line]")?.textContent.trim() ?? null, (part?.textContent ?? "").includes(game.i18n.localize("DRPG.TrialScene.scenesIntro"))],
+            save: [/readScenesTab\(/.test(src), /scenesClash\(/.test(open), /hallLockReason\(/.test(open), /applyScenesTab\(/.test(open)],
+            doors: [/openRoomSetupDialog\(\{ tab: "scenes" \}\)/.test(src), /openTrialCast:[^\n]*openSeasonSetup/.test(api)]
+        }), stableJson({ roomTabs: false, part: [true, true, game.i18n.localize("DRPG.Season.scenesLine"), false], save: [true, true, true, true], doors: [false, true] }),
+            "{a Scenes tab in Room setup; Season setup's scenes part: [school, hall, its one sentence, the old intro]; its Save: [reads, clash, hall lock, applies]; "
+            + "[the checklist opens Room setup's Scenes, openTrialCast opens Season setup]}");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
@@ -18965,7 +19047,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, false, false, true], order: [true, false] }),
             "{the width Season setup states; it at the root's 16 px is at least 780 px; [Save, a Pre-season checks button in the footer, Reset the season destructive, Cancel]; [a Season setup tile, a Mastermind tile]}");
     }],
-    ["R3580 - Season setup is the one place a season is set up, in its order (E49 A1e; the owner, 11.11 and 12.11.2026): season-setup.mjs `openSeasonSetup` draws Edit campaign and nothing else in the body that scrolls - one block, `fieldset.drpg-setup-campaign` named \"Edit campaign\", holding Edit campaign's six fields in their order, the safeword, the refill box and End the chapter's destructive button at its foot, each field once in the window - and under it, pinned (`.drpg-kit-pinned`, the body's next sibling), the GM panel's tiles for Despair Flow, The Mastermind, Killing game rules and the Season checklist, each with its icon and its window's title; no checklist row; the footer is Save (primary), Reset the season (destructive) and Cancel, and nothing else", async () => {
+    ["R3580 - Season setup is the one place a season is set up, in its order (E49 A1e; the owner, 11.11 and 12.11.2026): season-setup.mjs `openSeasonSetup` draws Edit campaign (and, since E101 item 5, the scenes part under it) in the body that scrolls - one block, `fieldset.drpg-setup-campaign` named \"Edit campaign\", holding Edit campaign's six fields in their order, the safeword, the refill box and End the chapter's destructive button at its foot, each field once in the window - and under it, pinned (`.drpg-kit-pinned`, the body's next sibling), the GM panel's tiles for Despair Flow, The Mastermind, Killing game rules and the Season checklist, each with its icon and its window's title; no checklist row; the footer is Save (primary), Reset the season (destructive) and Cancel, and nothing else", async () => {
         /*
          * E49 A1e. The owner, 11.11.2026: Season setup "becomes the one place for setting up the season": at its top Edit
          * campaign, "the first thing seen", with the fields Season setup had of its own that Edit campaign has too (the
@@ -19010,7 +19092,7 @@ const INVARIANTS = [
             footer: (cfg.buttons ?? []).map(b => [b.action, roleOf(b)]).sort()
         }), stableJson({
             // E101 (changed on purpose): Reset the season's warning frame after the block, out of the footer (R4055).
-            parts: ["campaign", "div"],
+            parts: ["campaign", "section", "div"], // E101 item 5 (changed on purpose): the scenes part (`seasonScenesPart`) between Edit campaign and the reset's frame
             body: [false, 0],
             pinned: [true, false],
             legend: L("DRPG.Panel.jump"),
@@ -45563,7 +45645,9 @@ const INVARIANTS = [
         const R = await import("./room-setup.mjs");
         const K = await import("./ui-kit.mjs");
         const KINDS = {
-            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "check", "text"] /* E74 C5: Broken, after Locked at start */,
+            /* E101 item 4 (changed on purpose): Rooms holds This is a room, Whose bedroom and No privacy; Doors the locks
+               (E74 C5's Broken after Locked at start) and the neighbours. */
+            bedrooms: ["room", "check", "select", "check"], doors: ["room", "check", "check", "check", "text"],
             search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check", "step"] /* E93 C2: the room actions' count */,
             stashes: null, description: ["room", "prose", "picture"], fog: null
         };
@@ -45614,7 +45698,8 @@ const INVARIANTS = [
         const { root } = await roomSetupDrawn();
         const names = new Set([...root.querySelectorAll("[name]")].map(el => el.getAttribute("name")));
         const ROOM = ["desc", "img", "isroom", "locked", "long", "neighbours", "nosearch", "notshared", "owner", "short", "startlocked", "table"];
-        const SCENES = ["hallName", "hallPicture", "hallWords", "prepare", "preparePlaylist", "school", "trial"];
+        // E101 item 5 (changed on purpose): the scenes' seven names are Season setup's form's now (R4471, E101-T9).
+        const SCENES = [];
         const rooms = [...root.querySelectorAll('[data-drpg-pane="bedrooms"] tbody td.drpg-data-col-room, [data-drpg-pane="bedrooms"] tbody tr > td:first-child')]
             .map(td => td.textContent.trim()).filter((r, i, a) => r && a.indexOf(r) === i);
         must(rooms.length > 0, "the Bedrooms tab listed no room - nothing below is read");
@@ -45666,7 +45751,7 @@ const INVARIANTS = [
         }), "{heads: Stashes' then Fog's student heads [two-line, title, aria-label, the clamp's text, the old class]; read: per theme the winner [file, value] of the Room column's width, its cell's white-space, the table's layout and a head's clamp}");
     }],
 
-    ["R2013 - Doors' \"This is a room\" is the kit's switch (E46-C2a; E46-04, E46's goal): for each room an `input[role=switch]` named `isroom:<room>` in `label.drpg-toggle`, named for a screen reader by its column and its room, disabled exactly when no piece of the name may be a room, `data-drpg-undecided` exactly when one may and not every piece is decided, ticked as `roomCells` reads it", async () => {
+    ["R2013 - Rooms' (Doors' until E101 item 4) \"This is a room\" is the kit's switch (E46-C2a; E46-04, E46's goal): for each room an `input[role=switch]` named `isroom:<room>` in `label.drpg-toggle`, named for a screen reader by its column and its room, disabled exactly when no piece of the name may be a room, `data-drpg-undecided` exactly when one may and not every piece is decided, ticked as `roomCells` reads it", async () => {
         /*
          * E46-C2a. Red first on C1's tree: a plain checkbox (no role, no `drpg-toggle`). Expected read from the world:
          * the scene's regions of each name that may be rooms (rooms.mjs `canBeRoom`), decided by `roomDecided`.
@@ -45679,8 +45764,8 @@ const INVARIANTS = [
         if (Rm.isTrialScene(scene)) scene = Rm.homeScene();
         const players = Rm.playerRegionIds();
         const label = game.i18n.localize("DRPG.Vault.isRoomColumn");
-        const boxes = [...(pane("doors")?.querySelectorAll('input[name^="isroom:"]') ?? [])];
-        must(boxes.length > 0, "Doors drew no \"This is a room\" - nothing below is read");
+        const boxes = [...(pane("bedrooms")?.querySelectorAll('input[name^="isroom:"]') ?? [])];  // E101 item 4 (changed on purpose): the Rooms tab holds the column
+        must(boxes.length > 0, "Rooms drew no \"This is a room\" - nothing below is read");
         const read = boxes.map(b => {
             const room = b.name.slice("isroom:".length);
             const pieces = Rm.namedRegions(scene).filter(r => r.name === room && Rm.canBeRoom(r, players));
@@ -48910,7 +48995,7 @@ const INVARIANTS = [
             const toggle = C.winner(body.querySelector(".drpg-place-toggle"), "white-space");
             read[dress] = { sum, ceiling: place.includes("94vw") && place.includes("var(--drpg-window-max)"), others: place.includes(`(${others.map(n => `${n}px`).join(" + ")}) * var(--drpg-legacy-scale, 1)`),
                 most: place.includes("calc(360px * var(--drpg-legacy-scale, 1))"), wraps: [toggle?.file ?? null, toggle?.value ?? null] };
-            want[dress] = { sum: 728, ceiling: true, others: true, most: true, wraps: ["styles/components.css", "normal"] };
+            want[dress] = { sum: 784, /* E101 item 4 (changed on purpose): the check column 152 px */ ceiling: true, others: true, most: true, wraps: ["styles/components.css", "normal"] };
         }
         equal(stableJson(read), stableJson(want), "{each theme: the other four columns' sum, the place column's width names the ceiling, those four widths, its 360 px; a switch's white-space [file, value]}");
     }],

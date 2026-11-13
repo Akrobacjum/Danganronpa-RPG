@@ -531,7 +531,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             // With no named region there is nothing decided (E20 C1, S06-28): not done, and it says so.
             done: anyNamed && undecidedRegionNames(scenes).length === 0,
             missing: () => anyNamed ? undecidedRegionNames(scenes) : [game.i18n.localize("DRPG.Season.noNamedRegions")],
-            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "doors" })
+            // The Rooms tab, which holds This is a room since E101 item 4 (Doors until then).
+            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "bedrooms" })
         },
         {
             /*
@@ -550,7 +551,8 @@ export function steps({ roster = studentActors(), scenes = Array.from(game.scene
             optional: true,
             done: Boolean(schoolScene() && trialScene()) && hall.done,
             missing: () => hall.missing,
-            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "scenes" })
+            // Season setup's scenes part since E101 item 5 (Room setup's Scenes tab until then).
+            open: async () => openSeasonSetup()
         },
         {
             /*
@@ -1121,6 +1123,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     const clock = getClock();
     // The panel's tiles, by `import()`: gm-panel.mjs imports this file (E49 A1e).
     const { SEASON_TILES, tileHtml } = await import("./gm-panel.mjs");
+    // The scenes part (E101 item 5): trial-scene.mjs's, as Room setup's Scenes tab drew it until then.
+    const scenesTab = await import("./trial-scene.mjs");
 
     // End the chapter, pressed at the foot of Edit campaign's block: this window closes unsaved, as Edit campaign does.
     let endAsked = false;
@@ -1143,6 +1147,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
            campaign scrolling when the window is short, and the checklist a window of its own, `openSeasonChecklist`). */
         body: `<form>
             ${campaignFieldsHtml(clock, safeword())}
+            ${seasonScenesPart(scenesTab)}
             ${seasonResetPart()}
         </form>`,
         pinned: seasonTilesHtml(SEASON_TILES, tileHtml),
@@ -1158,7 +1163,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
         footer: {
             primary: {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"),
-                callback: (e, b, d) => readSeasonForm(d)
+                // The scenes part read with the rest (E101 item 5): null where it is not drawn.
+                callback: (e, b, d) => ({ ...readSeasonForm(d), scenes: scenesTab.readScenesTab(d.element) })
             },
             close: { role: "cancel", action: "close" }
         },
@@ -1169,6 +1175,9 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             // A draft carried over from the copy that closed for a tile's window (SEASON-02).
             paintDraft(dialog.element, draft);
             wireSeasonTiles(dialog, SEASON_TILES);
+            // The scenes part's own wiring, Save held while it cannot be written (a clash, a hall a running trial locks):
+            // as Room setup held Apply for its Scenes tab (E101 item 5).
+            scenesTab.wireScenesTab(dialog.element, reason => holdSeasonSave(dialog.element, reason));
             // End the chapter (Edit campaign's part): the window closes without its Save, then the question.
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
@@ -1193,6 +1202,19 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     if (!result || result === "close") return null;
     if (resetAsked) return (await import("./season-wipe.mjs")).resetSeason();
 
+    /* THE SCENES' TWO BACKSTOPS, BEFORE ANYTHING IS WRITTEN (E101 item 5; Room setup's Apply ran them until then): one scene
+       for both roles, and the trial hall linked, relinked or unlinked while a Class Trial runs (E13 fix r1-F2). Save is
+       held with the reason while either stands; a Save that arrives anyway writes nothing. */
+    if (result.scenes && scenesTab.scenesClash(result.scenes)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.sameScene"));
+        return null;
+    }
+    const hallLock = result.scenes ? scenesTab.hallLockReason(result.scenes) : null;
+    if (hallLock) {
+        ui.notifications.warn(game.i18n.localize(hallLock));
+        return null;
+    }
+
     /* EDIT CAMPAIGN'S APPLY, AS IT IS (E49 A1e; the owner: "keep its data writes exactly as they are"): gm-campaign.mjs
        `applyCampaignForm`, the function Edit campaign's Apply runs - its questions (a chapter moved, the trial entered),
        the assembly called off for a corrected hour, `setClock`, the Eclipse's warning when the clock moved, the refill
@@ -1208,8 +1230,40 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
         log(`Safeword set to "${safeword()}".`);
     }
 
+    // The scenes, as Room setup's Apply wrote them (trial-scene.mjs `applyScenesTab`: it writes only what changed).
+    if (result.scenes) await scenesTab.applyScenesTab(result.scenes);
+
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
+}
+
+/**
+ * THE SCENES, IN SEASON SETUP (E101 item 5; the owner's yes of 12.11.2026 to the GM screens' review, Room setup > Scenes).
+ * The school and the trial hall, the hall's zones, its room tile, who takes part and the hall's preparation: the same
+ * part Room setup drew as its last tab (trial-scene.mjs `scenesTabHtml`, its names `scenes:*`, its wiring and its write),
+ * which was the same on every scene and named none of the scene in that window's title. Its seven lines of intro are one
+ * sentence here (`DRPG.Season.scenesLine`). Exported for R4471.
+ */
+export function seasonScenesPart(scenesTab) {
+    return `<section class="drpg-season-scenes" data-drpg-season-scenes>
+            <h3>${esc(game.i18n.localize("DRPG.Vault.tabScenes"))}</h3>
+            ${scenesTab.scenesTabHtml(undefined, { lead: game.i18n.localize("DRPG.Season.scenesLine") })}
+        </section>`;
+}
+
+/* Season setup's Save held while the scenes part cannot be written, its reason the button's label and tooltip as Room
+   setup's Apply had it (room-setup.mjs `setApplyBlock`); let go with null. */
+function holdSeasonSave(root, reason) {
+    const save = root?.querySelector?.('footer button[data-action="save"]');
+    if (!save) return;
+    save.disabled = Boolean(reason);
+    if (reason) {
+        save.setAttribute("data-tooltip", "");
+        save.setAttribute("aria-label", reason);
+    } else {
+        save.removeAttribute("data-tooltip");
+        save.removeAttribute("aria-label");
+    }
 }
 
 /**

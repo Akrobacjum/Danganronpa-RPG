@@ -63102,6 +63102,8 @@ const SCENARIOS = [
          * Since E81 DZ6 (12.10.2026) the list holds a box per character of the world (`cast:${actorId}`), the second
          * token of the first student none of its own, and the choice is stored by actor; red at 0697d0f, where the
          * boxes were the hall's tokens and the second token's drawn off.
+         * E101 item 5 (13.11.2026, changed on purpose): the Scenes are Season setup's part, its Save their write; the three
+         * answers are Season setup's (season-setup.mjs `openSeasonSetup`), and Room setup over the bare scene opens on Rooms.
          */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.wireScenesTab === "function", "there is no Scenes tab - trial-scene.mjs has no `wireScenesTab`");
@@ -63179,15 +63181,16 @@ const SCENARIOS = [
                 const prepareBefore = Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })).sort();
                 let drawn = null;
                 const answer = fill => async cfg => {
-                    const element = document.createElement("div"), form = document.createElement("form");
-                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
-                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
-                    element.append(form);
+                    // Season setup's content holds its own form (E101 item 5): drawn as it is, not inside a second one.
+                    const element = document.createElement("div");
+                    if (typeof cfg?.content === "string") element.innerHTML = cfg.content;
+                    else if (cfg?.content) element.append(cfg.content.cloneNode(true));
+                    const form = element.querySelector("form") ?? element;
                     T.wireScenesTab(element);
                     const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
-                    must(field("scenes:school") && field("scenes:trial"), "Room Setup drew no Scenes tab - this would measure nothing");
+                    must(field("scenes:school") && field("scenes:trial"), "Season setup drew no scenes part - this would measure nothing");
                     fill(field, element);
-                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "save");
                     return apply.callback(new Event("click"), apply, { element });
                 };
                 const pick = (field, role, value) => { field(`scenes:${role}`).value = value; field(`scenes:${role}`).dispatchEvent(new Event("change")); };
@@ -63204,7 +63207,7 @@ const SCENARIOS = [
                     if (field(`cast:${second.id}`)) field(`cast:${second.id}`).checked = false;
                     field("scenes:prepare").checked = true;
                 });
-                await V.openRoomSetupDialog();
+                await SS.openSeasonSetup();
                 await settle();
                 const shown = hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
                 const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().later ?? null), writes];
@@ -63214,12 +63217,12 @@ const SCENARIOS = [
                 writes = 0;
                 warned.length = 0;
                 D.wait = answer(field => { pick(field, "school", hall.id); pick(field, "trial", hall.id); });
-                const refused = await V.openRoomSetupDialog();
+                const refused = await SS.openSeasonSetup();
                 await settle();
                 const clash = [refused, warned.includes(game.i18n.localize("DRPG.TrialScene.sameScene")), writes, R.schoolScene() === school];
                 writes = 0;
                 D.wait = answer(() => {});
-                await V.openRoomSetupDialog();
+                await SS.openSeasonSetup();
                 await settle();
                 const untouched = [writes, trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null];
                 const rows = () => SS.steps().filter(row => ["roomCount", "rooms", "scenes"].includes(row.key))
@@ -63245,11 +63248,14 @@ const SCENARIOS = [
             }
         });
         const warnings = read?.at(-1) ?? [];
-        equal(JSON.stringify(read), JSON.stringify(["scenes", [warnings, true, true, true, true],
+        equal(JSON.stringify(read), JSON.stringify(["bedrooms", [warnings, true, true, true, true],
             [true, true, stableJson([ZONE]), 1], [false, false], ["prop"],
             [["environment.globalLight.enabled", "fog.exploration", "tokenVision"], [], true],
             [null, true, 0, true], [0, false],
-            [["rooms", true], ["scenes", true]], true, warnings]),
+            /* E101 (13.11.2026, changed on purpose): the Scenes row reads not done - this hall has no Zone A and Zone B, and
+               since E73 C1 the report the row reads warns of that (`zonesNone`, the last of the warnings below). Measured
+               at eb9431dc, e93 merged and before E101's items 3-5: the same false, the test red there. */
+            [["rooms", true], ["scenes", false]], true, warnings]),
             "[the tab Room Setup opened on over a scene with no region; the hall's warnings, the Stand alone named, the cast list the hall's, a box per character "
             + "of the world and none per token, the second student's ticked before the untick; the school and the hall linked, the field the tab does not show kept, the role setting's writes; the second student's untick stored, "
             + "a row for the first; the hall's tokens shown after Apply; what Prepare had to do and has left, and the isometric flag; the clash's answer, its "
@@ -78917,6 +78923,54 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ steps: [["usable", true, "item", "create", 0], ["truthBullet", true, "bullet", "create", 0]] }),
             "{per Give: [the new item's category, the hub back on the student, its what, its from, other give windows open]}");
     }],
+    ["E101-T9 - Season setup links the school, and holds its Save while one scene is picked for both (E101 item 5): on the drawn window, a scene of the suite's own picked as the school is held as the school once Save is pressed; picked for the trial hall as well, Save is off with the reason, and back on when the hall is cleared", async () => {
+        /*
+         * E101 item 5, 13.11.2026. The Scenes were Room setup's last tab until E101; they are Season setup's part now, its
+         * Save their write (trial-scene.mjs `applyScenesTab`). Here, as the GM: a scene of the suite's own made, Season
+         * setup opened, the scene picked as the school and then as the hall too (Save read), the hall put back, Save
+         * pressed. Read: the scene roles after. The roles setting and the scene are put back. At eb9431dc Season setup has
+         * no scenes part, which its first `must` reads (not run there: the test is this commit's).
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const R = await import("./rooms.mjs");
+        const SS = await import("./season-setup.mjs");
+        const KEY = "sceneRoles";
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {});
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        let school = null, answer = null;
+        const read = {};
+        try {
+            school = await Scene.create({ name: "SUITE E101-T9 the school", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="scenes:school"]'), 6000), "Season setup has no scenes part - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const set = (name, value) => { const s = el.querySelector(`[name="scenes:${name}"]`); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); };
+            const save = () => el.querySelector('footer.form-footer button[data-action="save"]');
+            const trialWas = el.querySelector('[name="scenes:trial"]').value;
+            set("school", school.id);
+            set("trial", school.id);
+            read.held = [save()?.disabled ?? null, save()?.getAttribute("aria-label") === game.i18n.localize("DRPG.TrialScene.sameScene")];
+            set("trial", trialWas);
+            read.free = save()?.disabled ?? null;
+            save()?.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(4000)]);
+            await settle();
+            R.forgetSceneRoles();
+            read.school = R.sceneRoles().school === school.id;
+        } finally {
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            R.forgetSceneRoles();
+            await school?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: [true, true], free: false, school: true }),
+            "{held: [Save off with one scene for both, its label the reason]; free: Save off once the hall is put back; school: the scene picked is the school after Save}");
+    }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-34. `registerMusic`'s `updateSetting` listener answered a `musicMap` write with
@@ -86646,12 +86700,11 @@ const SCENARIOS = [
                     stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "hidden"; }]),
                     description: await applyWith([`desc:${ROOM}`, el => { el.value = "E46-T1 words"; }]),
                     fog: await applyWith([`fog:${ROOM}:${a.id}`, el => { el.checked = !el.checked; }]),
-                    passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}]),
-                    scenes: await applyWith(["scenes:school", el => { el.value = opened.id; }])
+                    passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}])
+                    // No Scenes step since E101 item 5 (changed on purpose): the school is Season setup's Save's (E101-T9).
                 };
-                const linked = R.sceneRoles().school === opened.id;
                 steps.again = await applyWith(null);
-                reading = { steps, fog: scenes.map(fogOf), linked };
+                reading = { steps, fog: scenes.map(fogOf) };
             } finally {
                 Hooks.off("updateRegion", hook);
                 if (stableJson(game.settings.get(MODULE_ID, ROLES) ?? {}) !== stableJson(rolesBefore)) await game.settings.set(MODULE_ID, ROLES, rolesBefore);
@@ -86688,8 +86741,8 @@ const SCENARIOS = [
             steps: { none: [false, 0, [], []], bedrooms: [true, 0, ["drpgStashes", "drpgVaultOwner"], []], doors: [true, 0, ["drpgLocked"], []],
                 search: [true, 0, ["drpgNoSearch"], []], rest: [true, 0, ["restShort"], []], stashes: [true, 0, ["drpgStashes"], []],
                 description: [true, 0, ["drpgRoomDescription"], []], fog: [false, 0, [], []], passages: [false, 0, [], []],
-                scenes: [false, 0, [], []], again: [false, 0, [], []] },
-            fog: [true, false], linked: true,
+                again: [false, 0, [], []] },
+            fog: [true, false],
             footers: Object.fromEntries(V.ROOM_SETUP_TABS.map(([tab]) => [tab, ["ok", "cancel"]]))
         }), `{steps: per Apply [a region update on the scene opened on, the updates on the scene on screen, the module flags whose value changed on each]; fog: ${a.name}'s fog box on each scene; footers: the buttons after each tab}`);
     }],

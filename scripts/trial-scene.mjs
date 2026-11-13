@@ -1443,7 +1443,8 @@ export function scenesTabRows(roles = sceneRoles()) {
     </select>`;
     const [school, hall] = [drawn.school, drawn.trial].map(id => (id ? game.scenes.get(id) : null) ?? null);
     const prepare = ["prepare", "preparePlaylist", ...(game.modules?.get?.(PROXIMITY_VOICE)?.active ? ["prepareVoice"] : [])]
-        .map(key => toggle({ name: `scenes:${key}`, label: game.i18n.localize(`DRPG.TrialScene.${key}`) })).join("");
+        // "Prepare the hall on Save" since E101 item 5: the part stands in Season setup, whose button is Save, not Apply.
+        .map(key => toggle({ name: `scenes:${key}`, label: game.i18n.localize(key === "prepare" ? "DRPG.TrialScene.prepareOnSave" : `DRPG.TrialScene.${key}`) })).join("");
     return [
         { label: game.i18n.localize("DRPG.TrialScene.school"), id: ids.school, field: select("school") },
         { label: game.i18n.localize("DRPG.TrialScene.hall"), id: ids.trial, field: select("trial") },
@@ -1455,9 +1456,11 @@ export function scenesTabRows(roles = sceneRoles()) {
     ];
 }
 
-/** The Scenes tab's panel: its intro and `scenesTabRows` in a kit `formGrid`, a slot's rows where it stands. */
-export function scenesTabHtml(roles = sceneRoles()) {
-    return `<p>${game.i18n.localize("DRPG.TrialScene.scenesIntro")}</p>
+/** The Scenes tab's panel: its intro and `scenesTabRows` in a kit `formGrid`, a slot's rows where it stands. `lead`, a
+ * line of its own in the intro's place: Season setup's one sentence since E101 item 5 (`data-drpg-scenes-line`). */
+export function scenesTabHtml(roles = sceneRoles(), { lead = null } = {}) {
+    const intro = lead === null ? `<p>${game.i18n.localize("DRPG.TrialScene.scenesIntro")}</p>` : `<p data-drpg-scenes-line>${esc(lead)}</p>`;
+    return `${intro}
         ${formGrid(scenesTabRows(roles).flatMap(row => (Array.isArray(row) ? row : [row])))}`;
 }
 

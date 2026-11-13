@@ -807,7 +807,8 @@ export const DrpgApi = {
     showCourtroom: (...a) => import("./trial-scene.mjs").then(m => m.showCourtroom(...a)),
     showSchool: (...a) => import("./trial-scene.mjs").then(m => m.showSchool(...a)),
     trialSceneReport: () => import("./trial-scene.mjs").then(m => m.trialSceneReport()),
-    openTrialCast: () => import("./vault.mjs").then(m => m.openRoomSetupDialog({ tab: "scenes" })),
+    // Season setup's scenes part since E101 item 5 (Room setup's Scenes tab until then).
+    openTrialCast: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()),
 
     /* ---- the chapter's life -----------------------------------------------
      * None of these fire on a clock tick. Two of them delete things that do not

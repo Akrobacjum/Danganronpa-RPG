@@ -2576,19 +2576,25 @@ body .application.drpg-window-rooms .drpg-data-table-box > table.drpg-data-table
     max-width: none;
 }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-room { width: calc(220px * var(--drpg-legacy-scale, 1)); }
-body .application.drpg-window-rooms table.drpg-data-table col:is(.drpg-data-col-check, .drpg-data-col-student) { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-student { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+/* A CHECK COLUMN AS WIDE AS ITS LONGEST WORD (E101 item 4; the owner's yes to the GM screens' review: the heads ran into
+   each other). At 96 px the heads of Locked, Locked at start, Broken and No privacy stood wider than their columns
+   (Chromium, the style harness, 1366x768, the head's scrollWidth over its clientWidth): in Polish 103 and 124 px under
+   the glass, 97 to 149 px under Legacy ("prywatności", "Zamknięte"). 152 px holds the longest with its padding in both;
+   a head wraps between words, never inside one. */
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-check { width: calc(152px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-select { width: calc(180px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-text { width: calc(220px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-step { width: calc(232px * var(--drpg-legacy-scale, 1)); }
 /* THE PLACE COLUMN GIVES WAY ON A SMALL SCREEN (E47-FD; the owner's default on comparison 3, q-cuts; E47-FB Open 2). The
-   Search tab's five columns are 1088 px (220 + 96 + 232 + 180 + 360), and at 1024x768 the window stops at its ceiling,
+   Search tab's five columns were 1088 px (220 + 96 + 232 + 180 + 360; the check 152 px since E101 item 4), and at 1024x768 the window stops at its ceiling,
    94 % of the screen (`windowWidthFor`): the table stood 1088 px in a 929 px body, its last column cut (Chromium, probe
    08's rooms-search). The place column takes what the ceiling leaves - the ceiling less 5rem for the frame (the case
    dashboard's allowance, E47-FB) less the other four columns - at most its 360 px and at least 9rem; its switches wrap
    their words (below). The four are the rules' widths above, written out one by one and read against them by R3138
-   (their sum, 728 px, would be a width over the kit's 390 px to R1322). */
+   (their sum, 784 px since E101 item 4, would be a width over the kit's 390 px to R1322). */
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-place {
-    width: clamp(9rem, calc(min(var(--drpg-window-max), 94vw) - 5rem - (220px + 96px + 232px + 180px) * var(--drpg-legacy-scale, 1)), calc(360px * var(--drpg-legacy-scale, 1)));
+    width: clamp(9rem, calc(min(var(--drpg-window-max), 94vw) - 5rem - (220px + 152px + 232px + 180px) * var(--drpg-legacy-scale, 1)), calc(360px * var(--drpg-legacy-scale, 1)));
 }
 /* the switch's words wrap in the column's width: under the glass its panel button rule keeps every button on one line
    (stained-glass.css, 0,7,2: "MURDER WEAPON" 189 px stood 35 px past a 154 px column at 1024x768); this is 0,7,4 */

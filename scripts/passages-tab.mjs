@@ -225,7 +225,7 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
 /** The Passages panel's inside, for Room Setup (room-setup.mjs `roomSetupContent`): nothing on a player's browser. */
 export function passagesTabHtml(scene, options = {}) {
     if (!game.user?.isGM) return "";
-    return `<p>${esc(t("DRPG.Passage.tab.intro"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"
+    return `<p>${esc(t("DRPG.Passage.tab.introLine"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"
         data-drpg-passage-new>${esc(t("DRPG.Passage.pick.new"))}</button><button type="button" class="drpg-mini-button"
         data-drpg-passage-tunnel>${esc(t("DRPG.Passage.pick.tunnel"))}</button><span class="notes">${esc(t("DRPG.Passage.pick.newHint"))} ${
         esc(t("DRPG.Passage.pick.tunnelHint"))}</span></div>
