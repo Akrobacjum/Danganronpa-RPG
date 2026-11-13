@@ -1059,6 +1059,21 @@ export const lockpickStore = defineGmStore({
 });
 
 /**
+ * THE LOCK WARNINGS WAITING (the audit of 1.2.113, A113-C5-1; DA30 as E74's plan has it: "the owner's warning (at once if
+ * inside, else at the next entry, also in an Eclipse, from crossingSettled)"). A row per bedroom owner, scene and room,
+ * keyed `<ownerId>:<sceneId>:<room>`: `{ ownerId, sceneId, room, at }` - a careless pick of that room's lock while its
+ * owner stood elsewhere, told once when the owner next comes to stand in it (doors-gm.mjs `tellLockPicked`, from
+ * arrival-notices.mjs), then dropped. Written, read and dropped by the primary alone; synced, so that a GM who becomes the
+ * primary tells it; not backed up, as the stash's pending notices (`rifleStore`) are not. Cut by the reset's "actions"
+ * group. No player copy - who is to be warned, and of what, is the GMs' until it is told - and no old key.
+ */
+export const lockNoticeStore = defineGmStore({
+    name: "lockNotices", key: SETTINGS.gmLockNotices,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
+});
+
+/**
  * AN OWNER'S PASSES (E74, DA9): `{ actorId: { sceneId, room } }` for the characters this user owns, as the primary GM
  * sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's move veto
  * (movement.mjs `holdsPass`), so an honest walk through a picked door is not refused before the GMs judge it.

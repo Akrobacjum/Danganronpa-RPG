@@ -552,8 +552,8 @@
         "other": "{n} actions bought with Hope"
       },
       "sprintBanked": {
-        "one": "{n} crossing bought with Hope",
-        "other": "{n} crossings bought with Hope"
+        "one": "{n} free crossing",
+        "other": "{n} free crossings"
       },
       "freeMoveLeft": "Free Move unused",
       "eclipseMovesLeft": {
@@ -2757,6 +2757,9 @@
       "stole": "You take {item} out of {who}'s stash.",
       "rifledAgain": "You have already been through {who}'s stash this time of day. Try it again at the next time of day.",
       "noticed": "Something has been moved in your stash, and something is missing from it. You have no idea whose hands have been in it, or when.",
+      "gmPending": "{thief} took something from the stash of {owner} in {room} while {owner} was elsewhere. {owner} will be told somebody has been in it on next entering that room - never who or when.",
+      "gmWatched": "{thief} took something from the stash of {owner} in {room} while {owner} stood there. {owner} saw it, so no notice waits.",
+      "gmTold": "{owner} entered {room} and was told somebody has been in their stash. It covers the reaches of: {names}.",
       "tabStashes": "Stashes",
       "stashesIntro": "Who has a stash in which room, and whether it is hidden. Click a cell to cycle: none, open, hidden. A bedroom gives its owner an open stash automatically - its cell is shaded - and you can take that away here.",
       "stashesNote": "An open stash is open: anyone standing in the room can go through it for free and take one thing, once each time of day. A hidden one has to be found first, with Analyze's Find Stash (16 or more), and is open to its finder from then on. A stash in somebody else's room does NOT come with a key to it.",
@@ -3982,8 +3985,8 @@
       "entered": "You enter {room}.",
       "leftRooms": "Left the room.",
       "wasSprint": {
-        "one": "Paid by a Sprint. {n} left.",
-        "other": "Paid by a Sprint. {n} left."
+        "one": "Paid by a free crossing. {n} left.",
+        "other": "Paid by a free crossing. {n} left."
       },
       "wasFree": "That was your Free Move for this time of day.",
       "wasBurst": "Paid by your Burst.",
@@ -6474,6 +6477,7 @@
         "barricades": "Which rooms are barricaded, by whom and how strongly",
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "lockpicks": "Who may walk through a lock they picked, into which room",
+        "lockNotices": "Which bedroom owners are still to be warned that somebody was at their lock",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",

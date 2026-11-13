@@ -22887,7 +22887,7 @@ const REGRESSIONS = [
             "roll-draw.mjs": {"built": 2, "card": 1, "message": 1},
             "rules.mjs": {"built": 3, "message": 3}, "safeword.mjs": {"built": 3},
             "search-tokens.mjs": {"heading": 1, "line": 1}, "season-wipe.mjs": {"heading": 1},
-            "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 9},
+            "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 11},
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "tail-gm.mjs": {"line": 3}, "traps.mjs": {"line": 1},
             "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},

@@ -744,18 +744,19 @@ export function moodBand({ hope = 0, monocubHope = 0, despair = 0, overflow = 0 
 /**
  * The mood's four inputs as this GM's browser holds them (E94 C4): the Hope of every student of the class who is neither
  * dead by the published flag nor a Monocub - a death nobody has found leaves its Hope in, so the mood the table sees does
- * not move on it -, the Monocubs' Hope, the Despair of every Monokuma (`getDespair`, the pools the HUD shows) and the
+ * not move on it -, the Monocubs' Hope - the sheet's and the purse's, E72's `cubHopeTotal` (the owner's rule counts "hope
+ * monocubow"; the audit of 1.2.113, A113-C5-4: the purse was left out) -, the Despair of every Monokuma (`getDespair`, the pools the HUD shows) and the
  * Overflow count, which only a GM holds. On a player, null. Never written anywhere: `moodBand` turns it into the word.
  */
 export async function moodInputs() {
     if (!game.user?.isGM) return null;
-    const [{ actingStudents }, { isMonocub }, D, O] = await Promise.all([
+    const [{ actingStudents }, { isMonocub, cubHopeTotal }, D, O] = await Promise.all([
         import("./monokuma.mjs"), import("./monocub.mjs"), import("./despair.mjs"), import("./overflow.mjs")]);
     const hopeOf = a => { const v = Number(a?.system?.resources?.hope?.value); return Number.isFinite(v) && v > 0 ? v : 0; };
     let hope = 0, monocubHope = 0;
     // the one cast (R1192), by the published death: the living students, and the dead back only as a Monocub
     for (const a of actingStudents({ dead: isDeceased })) {
-        if (isMonocub(a)) monocubHope += hopeOf(a);
+        if (isMonocub(a)) monocubHope += Math.max(0, Number(cubHopeTotal(a)) || 0);
         else hope += hopeOf(a);
     }
     const despair = D.monokumas().reduce((t, u) => t + (Number(D.getDespair(u.id)) || 0), 0);

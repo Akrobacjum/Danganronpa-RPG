@@ -573,10 +573,10 @@
         "other": "{n} akcji kupionych za Hope"
       },
       "sprintBanked": {
-        "one": "{n} przejście kupione za Hope",
-        "few": "{n} przejścia kupione za Hope",
-        "many": "{n} przejść kupionych za Hope",
-        "other": "{n} przejść kupionych za Hope"
+        "one": "{n} darmowe przejście",
+        "few": "{n} darmowe przejścia",
+        "many": "{n} darmowych przejść",
+        "other": "{n} darmowego przejścia"
       },
       "freeMoveLeft": "Free Move niewykorzystany",
       "eclipseMovesLeft": {
@@ -2946,6 +2946,9 @@
       "stole": "Wyjmujesz {item} ze skrytki ({who}).",
       "rifledAgain": "O tej porze dnia już przeszukałeś skrytkę ({who}). Spróbuj znowu o następnej porze dnia.",
       "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były ani kiedy.",
+      "gmPending": "{thief} zabiera coś ze skrytki ({owner}) w: {room}, pod nieobecność właściciela. {owner} dowie się, że ktoś w niej był, gdy następnym razem tam wejdzie - nigdy kto ani kiedy.",
+      "gmWatched": "{thief} zabiera coś ze skrytki ({owner}) w: {room}, na oczach właściciela. {owner} to widzi, więc żadna wiadomość nie czeka.",
+      "gmTold": "{owner} wchodzi do: {room} i dowiaduje się, że ktoś był w skrytce. Dotyczy to sięgnięć: {names}.",
       "tabStashes": "Skrytki",
       "stashesIntro": "Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknij komórkę, by przełączać: brak, otwarta, ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie - jej komórka jest zacieniona - i tutaj możesz mu ją odebrać.",
       "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, raz na porę dnia. Ukrytą trzeba najpierw znaleźć przez Find Stash w Analyze (16 lub więcej), a od tej chwili jest otwarta dla tego, kto ją znalazł. Skrytka w cudzym pokoju nie daje klucza do niego.",
@@ -4293,10 +4296,10 @@
       "entered": "Wchodzisz do: {room}.",
       "leftRooms": "Opuszczasz pokój.",
       "wasSprint": {
-        "one": "Opłacone przez Sprint. Zostało {n}.",
-        "few": "Opłacone przez Sprint. Zostały {n}.",
-        "many": "Opłacone przez Sprint. Zostało {n}.",
-        "other": "Opłacone przez Sprint. Zostało {n}."
+        "one": "Opłacone darmowym przejściem. Zostało {n}.",
+        "few": "Opłacone darmowym przejściem. Zostały {n}.",
+        "many": "Opłacone darmowym przejściem. Zostało {n}.",
+        "other": "Opłacone darmowym przejściem. Zostało {n}."
       },
       "wasFree": "To był twój Free Move na tę porę dnia.",
       "wasBurst": "Zapłacone Burstem.",
@@ -7191,7 +7194,7 @@
         },
         "relief": {
           "label": "Relief",
-          "effect": "Weź od razu Short Rest z tymi samymi korzyściami co zwykły; nie kosztuje akcji i nie wymaga specjalnego pokoju. Twój Short Rest z tej pory dnia zostaje nietknięty. Jeśli zamkniesz okno wyboru, Call się anuluje, a Hope do ciebie wraca."
+          "effect": "Weź od razu Short Rest; nie kosztuje akcji i nie wymaga specjalnego pokoju. Twój Short Rest z tej pory dnia zostaje nietknięty. W tym odpoczynku nie ma Breath: oddałby mniej Hope, niż kosztuje Relief. Jeśli zamkniesz okno wyboru, Call się anuluje, a Hope do ciebie wraca."
         },
         "determination": {
           "label": "Resolve",
@@ -8262,6 +8265,7 @@
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
+        "lockNotices": "Którzy właściciele sypialni mają się jeszcze dowiedzieć, że ktoś był przy ich zamku",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",

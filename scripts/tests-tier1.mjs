@@ -56717,6 +56717,36 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([["R5469o", true], ["R5469w", true], ["R5469e", false]]),
             "left out of the voice rows ([actor, watches for the dead]: a watcher nobody owns, an away player's watcher, an away E92 Spectator)");
     }],
+    ["R5980 - a banked crossing is named for what it is, not for the Sprint or the Hope: the Move card's price line (DRPG.Move.wasSprint) and the sheet's budget line (DRPG.Actions.sprintBanked) say \"free crossing\" in English and \"darmowe przejście\" in Polish, in every plural form, since a Dash, a Facilities room action and Infiltrate bank into the same counter as a Sprint (actions.mjs `grantFreeMoves`, `takeMove`; movement.mjs `chargeForCrossing`; sheet.mjs; the audit of 1.2.113, A113-C4-1 and A113-C4-2)", async () => {
+        /*
+         * 73b6c5ba (1.2.112) renamed Move's briefing to "a free crossing"; the card after the crossing still said "Paid by a
+         * Sprint" and the sheet "crossings bought with Hope" after a Dash. The counter does not keep what filled it, so the
+         * words name the crossing. Both files' forms of the two keys. Red at ceb9e9c8: "Sprint" and "Hope" in both.
+         */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const forms = (lang, path) => Object.values(foundry.utils.getProperty(lang, path) ?? {});
+        const read = [["DRPG.Move.wasSprint", en, /free crossing/i], ["DRPG.Actions.sprintBanked", en, /free crossing/i],
+            ["DRPG.Move.wasSprint", pl, /darmow/i], ["DRPG.Actions.sprintBanked", pl, /darmow/i]].map(([key, lang, word]) => {
+            const all = forms(lang, key);
+            return [key, all.length > 0, all.filter(t => /Sprint|Hope/.test(t)).length, all.every(t => word.test(t))];
+        });
+        equal(stableJson(read), stableJson([["DRPG.Move.wasSprint", true, 0, true], ["DRPG.Actions.sprintBanked", true, 0, true],
+            ["DRPG.Move.wasSprint", true, 0, true], ["DRPG.Actions.sprintBanked", true, 0, true]]),
+            "[key, has forms, forms naming a Sprint or Hope, every form naming a free crossing] in English, then Polish");
+    }],
+    ["R5981 - Relief's own text in the Hope Calls panel says its rest offers no Breath, in English and in Polish, and no longer promises a Short Rest's usual benefits (config.mjs HOPE_CALLS.relief.effect, lang/pl.json DRPG.Config.HOPE_CALLS.relief.effect; rest.mjs `BREATH_REFUSED`, 4ef5cceb; the audit of 1.2.113, A113-C4-5)", async () => {
+        /*
+         * 4ef5cceb (1.2.112): Relief's rest greys Breath, which would give back less Hope than Relief costs. The picker said
+         * so; the Call's description, which a player reads before buying it, did not, and the Polish one said "the same
+         * benefits as the usual". Red at ceb9e9c8: no Breath in either.
+         */
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const enText = String(HOPE_CALLS.relief?.effect ?? "");
+        const plText = String(pl?.DRPG?.Config?.HOPE_CALLS?.relief?.effect ?? "");
+        equal(stableJson([/Breath/.test(enText), /Breath/.test(plText), /tymi samymi korzyściami/.test(plText)]), stableJson([true, true, false]),
+            "[the English text names Breath, the Polish does, the Polish still promises the usual benefits]");
+    }],
 
     ["R4554 - the Class Trial mutes a dead player who owns its Spectator: the account's voice in the trial is the listed dead student, never the Spectator actor its player was given (E62 C3b; scenario 30's SECURITY dead-Botan checks, 13.11.2026)", async () => {
         /*

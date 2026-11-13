@@ -30,7 +30,10 @@
  * or a seal, never a barricade: Hand at `INFILTRATE.pick.dc` (15) opens it, a critical too, and the picker holds a pass to
  * that room until they leave it (lockpick-gm.mjs; DA9 as the plan has it, the owner's "Wole zgodnie z planem" of
  * 12.11.2026, which replaced the walk-through at once this file did before). The lock stays locked for everyone else. The owner of a bedroom is warned on an open below `clean` (18) and on a miss with Despair
- * (DA30); the Shadow cover below its threshold (16) lets the two rooms see who it was.
+ * (DA30) - at once when they stand in the room, else when they next come to stand in it (`tellLockPicked`, from
+ * arrival-notices.mjs; the plan's "at once if inside, else at the next entry, also in an Eclipse, from crossingSettled",
+ * built since the audit of 1.2.113, A113-C5-1: it was sent at once, wherever the owner stood); the Shadow cover below its
+ * threshold (16) lets the two rooms see who it was.
  *
  * BUILT SINCE (E74, 12.11.2026): the "Someone tries to get in" card to a barricade's author (`knockDoor`), the doors'
  * Remnants (`leaveDoorTrace`, `pickTrace`), Repair the Lock (below), Keep Watch (watch-gm.mjs).
@@ -39,7 +42,7 @@
 import { MODULE_ID, FLAGS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
 import { isDeceased, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, error } from "./utils.mjs";
-import { barricadeStore } from "./gm-stores.mjs";
+import { barricadeStore, lockNoticeStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { roomFlag } from "./rooms.mjs";
 
@@ -204,12 +207,45 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
     if (tell && lockish) await leaveDoorTrace(actor, pickTrace({ opened, total: sum, isCritical, withHope }), "pick", room);
     const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
     const careless = lockish && ((opened && !isCritical && sum < rule.clean) || (!opened && !withHope));
-    if (careless && owner && owner !== actor.id && game.actors.get(owner)) {
-        const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
-        await whisperToOwnerOnly(game.actors.get(owner), `<p>${esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room }))}</p>`);
-    }
+    if (careless && owner && owner !== actor.id && game.actors.get(owner)) await warnOfPick(game.actors.get(owner), place.scene, room);
     log(`${actor.name} ${opened ? "picked" : "failed to pick"} the lock of ${room} (${sum}; held by ${held.join(", ") || "nothing"}).`);
     return { opened, held };
+}
+
+/** The warning's words to a bedroom's owner (DA30). */
+async function sayPicked(owner, room) {
+    const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
+    await whisperToOwnerOnly(owner, `<p>${esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room }))}</p>`);
+}
+
+/**
+ * A careless pick of the lock of `owner`'s bedroom `room` on `scene` (DA30): told at once when the owner stands in that room
+ * as the GMs read it, else kept in the GMs' store (`lockNoticeStore`) for their next entry (`tellLockPicked`). A second
+ * pick before they come back leaves the one row: one warning.
+ */
+async function warnOfPick(owner, scene, room) {
+    const M = await import("./movement.mjs");
+    const here = M.gmPlaceOf(owner);
+    if (here?.room === room && here.scene?.id === scene.id) return sayPicked(owner, room);
+    await lockNoticeStore.whenHydrated();
+    await lockNoticeStore.patch(`${owner.id}:${scene.id}:${room}`, { ownerId: owner.id, sceneId: scene.id, room, at: Date.now() });
+}
+
+/**
+ * `owner` has come to stand in `room` on `scene` (arrival-notices.mjs): the warning a careless pick of that room's lock left
+ * for them is told once and its row dropped; dropped unsaid when the owner is dead. On the primary. Answers whether one went.
+ */
+export async function tellLockPicked(owner, room, scene) {
+    if (!isPrimaryGm() || !owner?.id || !room || !scene?.id) return false;
+    await lockNoticeStore.whenHydrated();
+    const keys = Object.entries(lockNoticeStore.entries() ?? {})
+        .filter(([, row]) => row?.ownerId === owner.id && row.sceneId === scene.id && row.room === room).map(([key]) => key);
+    if (!keys.length) return false;
+    for (const key of keys) await lockNoticeStore.drop(key);
+    if (isDeadForGm(owner)) return false;
+    await sayPicked(owner, room);
+    log(`${owner.name} was warned on entering ${room} that somebody had been at its lock.`);
+    return true;
 }
 
 /* ----------------------------------------------------------------------------------------------------------------- *

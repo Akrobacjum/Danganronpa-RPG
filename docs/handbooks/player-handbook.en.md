@@ -363,7 +363,7 @@ At a door from your room to the next: one Body roll against everything that hold
 
 ### Pick the Lock - Shadow, then Hand, 1 action
 
-At a locked or sealed door from your room to the next (not a barricade): Hand 15 or more opens it for you alone: you may walk into that room, by that door or another, and stay until you leave it; the lock stays locked for everyone else. A way in you do not use in this time of day is lost. First a Shadow roll: 16 or more and nobody in the room beyond sees who it was. A bedroom's owner learns somebody was at their lock when you open it below 18 or miss with Despair; at 18 or more they never know.
+At a locked or sealed door from your room to the next (not a barricade): Hand 15 or more opens it for you alone: you may walk into that room, by that door or another, and stay until you leave it; the lock stays locked for everyone else. A way in you do not use in this time of day is lost. First a Shadow roll: 16 or more and nobody in the room beyond sees who it was. A bedroom's owner learns somebody was at their lock when you open it below 18 or miss with Despair - at once if they are in that room, otherwise the next time they come to stand in it; at 18 or more they never know.
 
 ### Keep Watch - Body, 1 action
 

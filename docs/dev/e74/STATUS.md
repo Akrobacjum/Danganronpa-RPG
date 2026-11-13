@@ -39,7 +39,9 @@ killed.
   Read where the plan was not exact, then confirmed by the owner (12.11.2026, 13:25 Warsaw, through the coordinator:
   "tak", "tak"): "that room" is the room the lock opens; a pass in use is kept until its holder leaves that room. A pass
   not used is lost at the time of day's end (the plan's own words).
-- The owner's warning at the next entry, from `crossingSettled` (DA30): it is sent at once, wherever the owner is.
+- ~~The owner's warning at the next entry, from `crossingSettled` (DA30): it is sent at once, wherever the owner is.~~ Built
+  after the audit of 1.2.113 (A113-C5-1): at once when the owner stands in the room, else kept in the GMs' store
+  `lockNoticeStore` and told at their next entry (a settled crossing or a GM's move of the token; arrival-notices.mjs).
 - A door forced, a lock picked whose pass was used, and a room action's effects are not taken back by a lower Reroll;
   each line says so. A pass not used is taken back.
 

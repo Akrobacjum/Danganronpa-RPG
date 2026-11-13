@@ -363,7 +363,7 @@ Przy drzwiach z twojego pokoju do sąsiedniego: jeden rzut na Body przeciw wszys
 
 ### Pick the Lock - Shadow, potem Hand, 1 akcja
 
-Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej otwiera je tylko dla ciebie: możesz wejść do tego pokoju, tymi drzwiami albo innymi, i zostać w nim, dopóki z niego nie wyjdziesz; dla reszty zamek zostaje zamknięty. Wejście, z którego nie skorzystasz w tej porze dnia, przepada. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair; przy 18 lub więcej - nigdy.
+Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej otwiera je tylko dla ciebie: możesz wejść do tego pokoju, tymi drzwiami albo innymi, i zostać w nim, dopóki z niego nie wyjdziesz; dla reszty zamek zostaje zamknięty. Wejście, z którego nie skorzystasz w tej porze dnia, przepada. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair - od razu, jeśli jest w tym pokoju, a inaczej, gdy następnym razem w nim stanie; przy 18 lub więcej - nigdy.
 
 ### Keep Watch - Body, 1 akcja
 

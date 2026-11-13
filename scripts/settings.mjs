@@ -495,6 +495,12 @@ export const SETTINGS = {
     gmLockpicks: "gmLockpicks",
     mineLockpicks: "mineLockpicks",
     /**
+     * THE LOCK WARNINGS WAITING (the audit of 1.2.113, A113-C5-1; DA30): a GM store (gm-stores.mjs `lockNoticeStore`), a
+     * row per bedroom owner, scene and room `{ ownerId, sceneId, room, at }`, told at the owner's next entry. Synced, not
+     * backed up; no player copy.
+     */
+    gmLockNotices: "gmLockNotices",
+    /**
      * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
      * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
      * characters' rows (`mineTimedEffects`, `timedEffectCopy`), which their sheet reads. Synced and backed up.
@@ -2245,6 +2251,13 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.mineLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The lock warnings waiting (A113-C5-1): no `onChange` - read by the primary when an owner walks in (doors-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmLockNotices, {
         scope: "client",
         config: false,
         type: Object,

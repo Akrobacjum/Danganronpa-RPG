@@ -2477,18 +2477,23 @@ export const HOPE_CALLS = {
          *
          * Both waivers are deliberate (decision 4). The once-per-time-of-day
          * limit and the marked room are what make a Short Rest a decision about
-         * where you are and what you have already done - and a Call for five
+         * where you are and what you have already done - and a Call for `cost`
          * Hope that could only be spent when you did not need it would be a Call
          * nobody buys. The moment you want this is exactly the moment both gates
          * are shut.
          *
-         * The benefits themselves are `applyRest`'s, unchanged, so "as though
-         * they had taken a rest" is literally what happens rather than a second
-         * table that agrees with the first until somebody edits one.
+         * The benefits themselves are `applyRest`'s, so "as though they had taken
+         * a rest" is literally what happens rather than a second table that
+         * agrees with the first until somebody edits one - with one exception
+         * since 1.2.112 (4ef5cceb): Breath is refused, because it would give
+         * back less Hope than Relief costs (rest.mjs `BREATH_REFUSED`, greyed
+         * in the picker, refused by `applyRest`). The effect text says so
+         * (the audit of 1.2.113, A113-C4-5; R5981).
          */
         freeRest: "short",
         effect: "Take a Short Rest right now, in any room, without spending an action. Your usual Short Rest this time "
-            + "of day stays available. Back out of choosing what to restore, and the Hope you paid comes back."
+            + "of day stays available. This rest offers no Breath: it would give back less Hope than Relief costs. "
+            + "Back out of choosing what to restore, and the Hope you paid comes back."
     },
     determination: {
         /*

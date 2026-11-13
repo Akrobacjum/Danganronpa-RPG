@@ -3,9 +3,10 @@
  * ---------------------------------------------------------------------------
  * E69 C2 (12.11.2026; the owner's audit entry E69, S18-28; the 11.10 amendment A10; Q-E69-6's default: a file of its own,
  * so movement.mjs and movement-audit.mjs keep their size). `crossingSettled` - the hook `drpgCrossingSettled` with
- * `{ actorId, from, to, via, eclipse }` - fires on the primary GM once a character's token has stood in its new room
- * `SETTLE_MS` without being put back. Tail Someone's cards (E69 C4) and E74's Keep Watch listen to it; nothing else may
- * announce another character's move.
+ * `{ actorId, from, to, via, eclipse, sceneId }` - fires on the primary GM once a character's token has stood in its new
+ * room `SETTLE_MS` without being put back. Tail Someone's cards (E69 C4) and E74's Keep Watch listen to it; nothing else
+ * may announce another character's move. Since the audit of 1.2.113 (A113-C4-3, A113-C5-1) the owner's notices of a stash
+ * gone through and of a picked lock listen too (arrival-notices.mjs), which is why the event names the scene.
  *
  * WHICH CROSSINGS. Those the GMs record (movement.mjs `recordCrossingInStep`): a player's lawful crossing the judge read
  * (`noteCrossing`, which skips a GM's own move, a put-back, a scene that is no place - the trial hall - and a Monokuma),
@@ -51,7 +52,7 @@ function settle(actorId, entry, roomNow) {
     if (!isPrimaryGm()) return;
     const tokenDoc = game.scenes.get(entry.sceneId ?? "")?.tokens?.get(entry.tokenId) ?? null;
     if (!tokenDoc || roomNow(tokenDoc) !== entry.to || entry.from === entry.to) return;
-    const event = { actorId, from: entry.from, to: entry.to, via: entry.via ?? null, eclipse: entry.eclipse ?? null };
+    const event = { actorId, from: entry.from, to: entry.to, via: entry.via ?? null, eclipse: entry.eclipse ?? null, sceneId: entry.sceneId ?? null };
     log(`A crossing settled: ${actorId} from ${event.from} to ${event.to}${event.via ? ` (${event.via})` : ""}.`);
     Hooks.callAll(CROSSING_SETTLED, event);
 }

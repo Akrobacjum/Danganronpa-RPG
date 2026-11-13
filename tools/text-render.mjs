@@ -577,7 +577,13 @@ export const BATCH_LATER = Object.freeze(Object.fromEntries([
     // 1.2.112, 13.11.2026: the owner's text fix - a Dash and Facilities bank their crossings beside a Sprint's, so the
     // Move's hint and description say "a free crossing" where B01a's afters named Sprint alone.
     ...["DRPG.Config.ACTIONS.move.hint", "DRPG.Config.ACTIONS.move.description"].map(key => [key, Object.freeze({ by: "1.2.112",
-        date: "13.11.2026", page: "1.2.112 rule fixes", card: "Move", text: "darmowe przejscie z Dasha i Facilities, nie tylko Sprint" })])
+        date: "13.11.2026", page: "1.2.112 rule fixes", card: "Move", text: "darmowe przejscie z Dasha i Facilities, nie tylko Sprint" })]),
+    // 1.2.113, 13.11.2026: the owner's rule fix of 13.11 (4ef5cceb) refuses Breath on Relief's rest, which B01a's approved
+    // after ("the same benefits as the usual" in Polish) no longer told; the effect now says the rest offers no Breath. Asked
+    // by the coordinator from the audit of 1.2.113: `text` quotes the finding A113-C4-5, not an owner's word - the
+    // owner has not read the new sentence yet.
+    ["DRPG.Config.HOPE_CALLS.relief.effect", Object.freeze({ by: "1.2.113", date: "13.11.2026", page: "audit-113 FINDINGS",
+        card: "A113-C4-5", text: "Relief's effect text says nothing about Breath being refused" })]
 ]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */

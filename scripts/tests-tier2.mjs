@@ -95726,6 +95726,312 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             reroll: [null, 1], rerollUsed: [[B, true], 1] }),
             "{open: [opened, the picker's room after, the pass, the picker's walk in, another's]; copy: [the room in the owner's copy, its scene, whether another player's copy holds it]; inside, left: [the pass, the picker's walk in] after the crossing in and out; unused, inUse: the pass after a new time of day; seal: [opened, the picker's walk, another's]; reroll, rerollUsed: [the pass, lines] after a Reroll of 10 before and after the entry} - the pick's pass");
     }],
+    ["A113-C4-3 - a stash's owner is told on every road that stands them in its room: a settled crossing (crossing rooms free, an Eclipse) and a GM's placement tell them as a paid crossing does, and once (traps.mjs `onCrossed`, arrival-notices.mjs, stash-reach.mjs `tellStashDisturbed`; 1.2.112's notice, the owner's decision of 13.11.2026)", async () => {
+        /*
+         * The audit of 1.2.113 (A113-C4-3): the notice fired only from `drpgRoomCrossed`, raised at the end of a paid
+         * crossing - never with crossing fees off, never in an Eclipse (both return before it), never on a GM's placement.
+         * The settled crossing (crossing-settle.mjs `CROSSING_SETTLED`, raised on the primary for every lawful crossing of a
+         * player the GMs record, an Eclipse's and a free one's too) and a GM's own move of the token (movement.mjs
+         * `noteGmPosition`) now tell it as well, and a notice told on one road is not told again on another. Two students
+         * alone together reach into a third's open stash while its owner is elsewhere; read the owner's notices after the
+         * settled crossing into the room (raised as crossing-settle.mjs raises it), after the paid crossing's hook that
+         * follows it, after a reach and a GM's placement of the owner into the room, and after a second placement. Red at
+         * ceb9e9c8: no notice from the settled crossing nor from the placement.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two thieves and the owner stand by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the thieves");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { positionIn, roomOfToken, allRooms } = await import("./movement.mjs");
+        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const [owner, first, second] = cast(4).filter(onScreen);
+        must(owner && first && second, "three students on the scene on screen - this would measure nothing");
+        const together = await aloneTogether(first, second);
+        const room = together.room;
+        const region = V.regionsByName(canvas.scene).get(room);
+        const ownerToken = canvas.scene.tokens.find(t => t.actorId === owner.id);
+        const ownerWas = { x: ownerToken.x, y: ownerToken.y };
+        const elsewhere = allRooms(canvas.scene).find(r => r !== room);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const NAME = "SUITE A113-C4-3";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const notices = () => made.map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+        const backs = [];
+        const read = [];
+        const wait = async () => { await settle(); await until(() => false, 400); await settle(); };
+        try {
+            must(region && elsewhere, `${room} has no region to hold a stash, or the scene no other room`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            const things = [];
+            for (const n of [1, 2, 3]) {
+                things.push(await INV.grantItem(owner, { name: `${NAME} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } }));
+            }
+            await ownerToken.update(positionIn(elsewhere, ownerToken), PLACE);
+            await wait();
+            must(roomOfToken(canvas.scene.tokens.get(ownerToken.id)) !== room, "the owner could not be stood outside the room - this would measure nothing");
+            for (const thief of [first, second]) backs.push(await handFreeFor(thief, "usable"));
+            await forgetRifles(first);
+            await forgetRifles(second);
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[0].id });
+            await settle();
+            read.push(["away", notices()]);
+            Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: elsewhere, to: room, via: null, eclipse: null, sceneId: canvas.scene.id });
+            await wait();
+            read.push(["settled", notices()]);
+            Hooks.callAll("drpgRoomCrossed", { actor: owner, from: elsewhere, to: room, tokenDoc: ownerToken });
+            await wait();
+            read.push(["paid after", notices()]);
+            await V.stealFromVault({ thiefId: second.id, ownerId: owner.id, itemId: things[1].id });
+            await settle();
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await wait();
+            read.push(["placed", notices()]);
+            await ownerToken.update(positionIn(elsewhere, ownerToken), PLACE);
+            await wait();
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await wait();
+            read.push(["placed again", notices()]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            for (const back of backs.reverse()) await back();
+            await forgetRifles(first);
+            await forgetRifles(second);
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            await together.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["away", 0], ["settled", 1], ["paid after", 1], ["placed", 2], ["placed again", 2]]),
+            "the owner was not told on a settled crossing or a GM's placement into the room, or told twice for one reach "
+            + "([after the reach: notices], [after the settled crossing], [after the paid crossing's hook that follows it], "
+            + "[after a second reach and a GM's placement into the room], [after a second placement])");
+    }],
+    ["A113-C6-4 - the GMs read whether a stash's owner watched a reach or is still to be told, and which reaches a notice settles; the players read no more (stash-reach.mjs `stealFromVault`, `tellStashDisturbed`; the audit of 1.2.113, A113-C6-4)", async () => {
+        /*
+         * The audit of 1.2.113 (A113-C6-4): a reach that leaves a notice pending and one made before its owner's eyes wrote
+         * the GMs the same card, and the notice landed with nothing to say which reaches it settled. Now a GMs-only card
+         * (`data-drpg-stash-gm`) says, at the reach, "pending" (the owner will be told on walking in) or "watched", and at
+         * the landing "told" naming the reachers. A reach away, then the owner's crossing in, then a reach before the
+         * owner's eyes: each GMs-only card's kind, whether it went to the GMs alone, and whether it names the thief. Red at
+         * ceb9e9c8: no such card.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two thieves and the owner stand by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the thieves");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const onScreen = a => canvas?.scene?.tokens?.some(t => t.actorId === a.id);
+        const [owner, first, second] = cast(4).filter(onScreen);
+        must(owner && first && second, "three students on the scene on screen - this would measure nothing");
+        const together = await aloneTogether(first, second);
+        const room = together.room;
+        const region = V.regionsByName(canvas.scene).get(room);
+        const ownerToken = canvas.scene.tokens.find(t => t.actorId === owner.id);
+        const ownerWas = { x: ownerToken.x, y: ownerToken.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const NAME = "SUITE A113-C6-4";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        const gmIds = new Set(game.users.filter(u => u.isGM).map(u => u.id));
+        const { contentOf } = await import("./secret.mjs");
+        const gmCards = () => made.map(id => game.messages.get(id)).filter(Boolean).map(m => {
+            const words = contentOf(m);
+            const kind = /data-drpg-stash-gm="([a-z]+)"/.exec(words)?.[1] ?? null;
+            return kind ? [kind, (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => gmIds.has(id)), words.includes(foundry.utils.escapeHTML(first.name))] : null;
+        }).filter(Boolean);
+        const backs = [];
+        const read = {};
+        try {
+            must(region, `${room} has no region to hold a stash`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            const things = [];
+            for (const n of [1, 2]) {
+                things.push(await INV.grantItem(owner, { name: `${NAME} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } }));
+            }
+            await settle();
+            backs.push(await handFreeFor(first, "usable"));
+            await forgetRifles(first);
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[0].id });
+            await settle();
+            read.away = gmCards();
+            Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: room, tokenDoc: ownerToken });
+            await settle();
+            await until(() => false, 400);
+            await settle();
+            read.told = gmCards().slice(read.away.length);
+            await ownerToken.update(positionIn(room, ownerToken), PLACE);
+            await settle();
+            await until(() => false, 400);
+            await forgetRifles(first);
+            const was = gmCards().length;
+            await V.stealFromVault({ thiefId: first.id, ownerId: owner.id, itemId: things[1].id });
+            await settle();
+            read.watched = gmCards().slice(was);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const a of [owner, first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            for (const back of backs.reverse()) await back();
+            await forgetRifles(first);
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (canvas.scene.tokens.has(ownerToken.id)) await ownerToken.update(ownerWas, PLACE);
+            await together.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ away: [["pending", true, true]], told: [["told", true, true]], watched: [["watched", true, true]] }),
+            "{away, told, watched: the GMs-only cards [kind, to the GMs alone, names the thief] after a reach while the owner was away, "
+            + "after the owner's crossing in, after a reach before the owner's eyes} - the GMs cannot tell a pending notice from a watched reach");
+    }],
+    ["A113-C5-1 - a bedroom's owner is warned of a careless pick at their next entry into the room, at once when they stand in it, and once (doors-gm.mjs `pickLock`, `tellLockPicked`, gm-stores.mjs `lockNoticeStore`; DA30, docs/dev/e74/STATUS.md; the audit of 1.2.113, A113-C5-1)", async () => {
+        /*
+         * DA30 as the plan has it (E74 C4: "the owner's warning (at once if inside, else at the next entry, also in an
+         * Eclipse, from crossingSettled)"). The audit of 1.2.113 read the warning sent at once, wherever the owner stood.
+         * Rooms as E74-T11's: A the picker's, B its door's (a GM's lock, and the owner's bedroom), C beyond. The owner stood
+         * in C: a pick at 15 (careless); the owner's settled crossing into B, twice; the owner stood in B: a pick at 15, then
+         * one at 18 (clean). Read the warnings to the owner after each. Red at ceb9e9c8: the warning at the first pick.
+         */
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        const L = await import("./lockpick-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { actor } = await playerInRoom();
+        const owner = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(owner, "no second student with a token on the scene on screen - this would measure nothing");
+        const scene = canvas.scene;
+        const token = scene.tokens.find(t => t.actorId === actor.id);
+        const ownerToken = scene.tokens.find(t => t.actorId === owner.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 3, `the scene on screen has ${rooms.length} rooms - too few for A, B and C`);
+        const [A, B, C] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = [[token, { x: token.x, y: token.y }], [ownerToken, { x: ownerToken.x, y: ownerToken.y }]];
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const text = game.i18n.format("DRPG.Infiltrate.pick.warned", { room: B });
+        const made = [];
+        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
+        // The warning is whispered to the owner's players alone, so this GM keeps no words of it: read off the packet that carries them.
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const carried = new Set();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (String(packet?.html ?? "").includes(foundry.utils.escapeHTML(text))) carried.add(packet?.id ?? `${carried.size}`);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const warnings = () => carried.size;
+        const pick = total => D.pickLock({ actor, room: B, total, coverTotal: 16, tell: false });
+        const wait = async () => { await settle(); await until(() => false, 300); await settle(); };
+        const read = [];
+        try {
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) {
+                keep(piece, M.ROOM_FLAGS.locked);
+                keep(piece, ROOM_OWNER_FLAG);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+                await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+            }
+            await token.update(M.positionIn(A, token), PLACE);
+            await ownerToken.update(M.positionIn(C, ownerToken), PLACE);
+            await wait();
+            const out = await pick(15);
+            await wait();
+            read.push(["away", out.opened, warnings()]);
+            Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: C, to: B, via: null, eclipse: null, sceneId: scene.id });
+            await wait();
+            read.push(["entered", warnings()]);
+            Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: C, to: B, via: null, eclipse: null, sceneId: scene.id });
+            await wait();
+            read.push(["again", warnings()]);
+            await ownerToken.update(M.positionIn(B, ownerToken), PLACE);
+            await wait();
+            await L.endPass(actor.id);
+            await pick(15);
+            await wait();
+            read.push(["inside", warnings()]);
+            await L.endPass(actor.id);
+            await pick(18);
+            await wait();
+            read.push(["clean", warnings()]);
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit);
+            else delete socket.emit;
+            Hooks.off("createChatMessage", hook);
+            if (L.passOf(actor.id)) await L.endPass(actor.id);
+            for (const key of Object.keys(S.lockNoticeStore?.entries?.() ?? {})) if (key.startsWith(`${owner.id}:`)) await S.lockNoticeStore.drop(key);
+            for (const [piece, key, value] of flagsWere.reverse()) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            for (const [t, at] of was) if (scene.tokens.has(t.id)) await t.update(at, PLACE);
+            for (const id of made) await game.messages.get(id)?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["away", true, 0], ["entered", 1], ["again", 1], ["inside", 2], ["clean", 2]]),
+            "a bedroom's owner was warned of a careless pick while away, not at their entry, twice, not at once while inside, or of a clean pick "
+            + "([the owner away: opened, warnings], [after the settled crossing into the room], [after a second], [the owner inside: after a pick at 15], [after one at 18])");
+    }],
+    ["A113-C5-4 - the school's mood counts a Monocub's purse as its Hope: Hope in the purse moves the Monocubs' side as the same Hope on the sheet does (sequence.mjs `moodInputs`, monocub.mjs `cubHopeTotal`; the owner's rule of 12.11.2026; the audit of 1.2.113, A113-C5-4)", async () => {
+        /*
+         * The owner, 12.11.2026 (docs/dev/e94/STATUS.md): the mood from "cale hope uczniow vs hope monocubow + despair
+         * monokumow + despair overflow"; E72 made a Monocub's Hope its sheet's and its purse's (`cubHopeTotal`). A student
+         * made a Monocub with 0 Hope on the sheet and an empty purse, then 3 in the purse, then 3 on the sheet and none in
+         * the purse: the Monocubs' Hope `moodInputs` reads in each, less the first. Red at ceb9e9c8: the purse not counted.
+         */
+        const [cub] = cast(1);
+        const S = await import("./sequence.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = [];
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await cubStore.patch(cub.id, { purse: 0 });
+            await settle();
+            const base = (await S.moodInputs()).monocubHope;
+            await cubStore.patch(cub.id, { purse: 3 });
+            await settle();
+            read.push((await S.moodInputs()).monocubHope - base);
+            await cubStore.patch(cub.id, { purse: 0 });
+            await trustedWrite(cub, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            await settle();
+            read.push((await S.moodInputs()).monocubHope - base);
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": was }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            if (rowWas) await cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([3, 3]), "[the Monocubs' Hope the mood reads with 3 in the purse, with 3 on the sheet, each less the empty Monocub's] - the purse is left out of the mood");
+    }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*
          * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the
