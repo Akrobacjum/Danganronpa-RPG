@@ -8,44 +8,6 @@
   "keep": "*",
   "targets": [
     {
-      "file": "scripts/death.mjs",
-      "header": [
-        "A death (E54, the plan's D1): who is alive (`livingStudents`, `livingStudentsForGm`), a death marked, kept secret,",
-        "published and taken back (`markDeceased`, `killCharacter`, `recordSecretDeath`, `publishDeath`, `reviveCharacter`),",
-        "the victim's Truth Bullets (`bulletsHeldBy`, `keepBulletDeletions`, `destroyBullets`), the season's deaths and bodies",
-        "cleared and counted, and the death window (`openDeathDialog`, `chooseFirst`). Moved out of chapter.mjs, which",
-        "re-exports every name it exported; the predicates stay settings.mjs's (code.md, \"Death is two predicates\")."
-      ],
-      "names": {
-        "livingStudents": "function",
-        "livingStudentsForGm": "function",
-        "verdictBefore": "function",
-        "markDeceased": "async function",
-        "killCharacter": "async function",
-        "incidentVictimDied": "async function",
-        "isIncidentVictim": "async function",
-        "bulletsHeldBy": "async function",
-        "keepBulletDeletions": "async function",
-        "destroyBullets": "async function",
-        "recordSecretDeath": "async function",
-        "tellDeathKnowers": "async function",
-        "publishDeath": "async function",
-        "tellUnfoundDeaths": "function",
-        "offerStageSix": "async function",
-        "reviveCharacter": "async function",
-        "clearSeasonDeaths": "async function",
-        "tallySeasonDeaths": "function",
-        "clearSeasonBodies": "async function",
-        "openDeathDialog": "async function",
-        "chooseFirst": "function"
-      },
-      "statements": [
-        "registerSeasonState({ group: \"deaths\"",
-        "registerSeasonState({ group: \"bodyFound\""
-      ],
-      "statementsWhy": "the season registry's row stands in the file of the functions it names (R1254: an entry's clear, tally or keep is a top-level function of its owner's file)"
-    },
-    {
       "file": "scripts/body.mjs",
       "header": [
         "A body found (E54, the plan's D2): the prep traces promoted (`faintPrepCandidates`, `promoteFaintPrep`), the discovery",
@@ -88,6 +50,44 @@
         "tellLoneFinder": "async function",
         "openBodyDiscoveryDialog": "async function"
       }
+    },
+    {
+      "file": "scripts/death.mjs",
+      "header": [
+        "A death (E54, the plan's D1): who is alive (`livingStudents`, `livingStudentsForGm`), a death marked, kept secret,",
+        "published and taken back (`markDeceased`, `killCharacter`, `recordSecretDeath`, `publishDeath`, `reviveCharacter`),",
+        "the victim's Truth Bullets (`bulletsHeldBy`, `keepBulletDeletions`, `destroyBullets`), the season's deaths and bodies",
+        "cleared and counted, and the death window (`openDeathDialog`, `chooseFirst`). Moved out of chapter.mjs, which",
+        "re-exports every name it exported; the predicates stay settings.mjs's (code.md, \"Death is two predicates\")."
+      ],
+      "names": {
+        "livingStudents": "function",
+        "livingStudentsForGm": "function",
+        "verdictBefore": "function",
+        "markDeceased": "async function",
+        "killCharacter": "async function",
+        "incidentVictimDied": "async function",
+        "isIncidentVictim": "async function",
+        "bulletsHeldBy": "async function",
+        "keepBulletDeletions": "async function",
+        "destroyBullets": "async function",
+        "recordSecretDeath": "async function",
+        "tellDeathKnowers": "async function",
+        "publishDeath": "async function",
+        "tellUnfoundDeaths": "function",
+        "offerStageSix": "async function",
+        "reviveCharacter": "async function",
+        "clearSeasonDeaths": "async function",
+        "tallySeasonDeaths": "function",
+        "clearSeasonBodies": "async function",
+        "openDeathDialog": "async function",
+        "chooseFirst": "function"
+      },
+      "statements": [
+        "registerSeasonState({ group: \"deaths\"",
+        "registerSeasonState({ group: \"bodyFound\""
+      ],
+      "statementsWhy": "the season registry's row stands in the file of the functions it names (R1254: an entry's clear, tally or keep is a top-level function of its owner's file)"
     }
   ],
   "textMapNamed": [],
@@ -105,5 +105,6 @@
         "why": "the card-producing sites per file, as R3510's own classifier counts them on the split tree (13.11.2026); the script holds them to the old row's sums"
       }
     ]
-  }
+  },
+  "targetsOrder": "body.mjs before death.mjs: R56 cuts openBodyDiscoveryDialog, the last of the body's code, until the next declaration, which stays in chapter.mjs; in the family's text a file is followed by the family's line only when it is not the last, so the body's file may not be last (repoint.mjs refuses otherwise)"
 }

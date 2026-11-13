@@ -172,7 +172,7 @@ function ${BY_FN}(reader, family = ${FAMILY_CONST}) {
     }
 }
 
-/* ---- 2-3. the generic forms, over each file the manifest's repoint names ---- */
+/* ---- 3. the generic forms, over each file the manifest's repoint names ---- */
 const TIER_FILES = RP.files ?? ["scripts/tests-tier0.mjs", "scripts/tests-tier1.mjs", "scripts/tests-tier2.mjs"];
 const report = [];   // [rel, test, rule, before, after]
 const NOT_HELPERS = new Set(["import", "fetch", "includes", "has", "get", "set", "add", "delete", "push", "startsWith", "endsWith", "indexOf",
@@ -186,11 +186,11 @@ const chunksOf = text => {
 };
 const testAt = (text, pos) => chunksOf(text).findLast(c => c.at <= pos)?.name ?? "(head)";
 
-/** A balanced block from the bracket at `open`, string literals skipped. */
-const closeOf = (text, open) => {
+/** A balanced block from the bracket at `open`, string literals skipped; -1 past `limit` characters. */
+const closeOf = (text, open, limit = Infinity) => {
     const pair = { "{": "}", "[": "]", "(": ")" }[text[open]];
     let depth = 0;
-    for (let i = open; i < text.length; i++) {
+    for (let i = open; i < text.length && i - open < limit; i++) {
         const ch = text[i];
         if (ch === "\"" || ch === "'" || ch === "`") { for (i++; i < text.length && text[i] !== ch; i++) if (text[i] === "\\") i++; continue; }
         if (ch === text[open]) depth++;
@@ -278,14 +278,25 @@ function rewrite(rel, text) {
         note(at, "key", all, `${file}${sep}${name}`);
         return `${file}${sep}${name}`;
     });
-    text = text.replace(new RegExp(`"${F} (\\w+)"`, "g"), (all, name, at) => {
+    text = text.replace(new RegExp(`"${F} (\\w+)(?=[" ])`, "g"), (all, name, at) => {
         if (!holderOf.has(name) || inComment(text, at)) return all;
         const file = holderOf.get(name);
         if (file === SOURCE) return all;
-        note(at, "key", all, `"${file} ${name}"`);
-        return `"${file} ${name}"`;
+        note(at, "key", all, `"${file} ${name}`);
+        return `"${file} ${name}`;
     });
 
+    // a cut from one declaration until the next, which the split put in another file: until the family's line between
+    // the start's file and the next one (`const <FAMILY>_END = {};`), where the start's file is not the family's last
+    text = text.replace(/(\bbodyOf\([^;\n]*?, ")([^"\n]+)(", \{ until: ")([^"\n]+)(")/g, (all, a, start, b, marker, c, at) => {
+        const nameOf = s2 => s2.match(/^(?:export )?(?:async )?(?:function\*? |const |let |class )([\w$]+)/)?.[1];
+        const from = holderOf.get(nameOf(start)), to = holderOf.get(nameOf(marker));
+        if (!from || !to || from === to) return all;
+        if (from === FAMILY.at(-1)) { refuse(`${rel} ${testAt(text, at)}: a cut of ${nameOf(start)} until ${nameOf(marker)}, now in ${to}; ${from} is the family's last file, with no line after it - order the manifest's targets so it is not`); return all; }
+        const end = `const ${END_CONST} = {};`;
+        note(at, "cut across files", marker, end);
+        return `${a}${start}${b}${end}${c}`;
+    });
     // a count row: ["<file>", /re/flags, n] - one row per file the expression matches now, adding up to n
     text = text.replace(new RegExp(`\\["${F}", /((?:\\\\.|[^/\\n])+)/([gimsuy]*), (\\d+)\\]`, "g"), (all, source, flags, n, at) => {
         const counts = FAMILY.map(file => [file, countIn(familyCode.get(file), source, flags)]).filter(([, c]) => c);
@@ -318,6 +329,10 @@ function rewrite(rel, text) {
         return out;
     });
     // a loop's test for the file among others: any file of the family now (R1476 read only the facade's hooks without it)
+    text = text.replace(new RegExp(`\\b([A-Za-z_$][\\w$]*) !== "${F}"`, "g"), (all, name, at) => {
+        note(at, "file test", all, `!${FAMILY_CONST}.includes(${name})`); used.add("family");
+        return `!${FAMILY_CONST}.includes(${name})`;
+    });
     text = text.replace(new RegExp(`\\b([A-Za-z_$][\\w$]*) === "${F}"`, "g"), (all, name, at) => {
         note(at, "file test", all, `${FAMILY_CONST}.includes(${name})`); used.add("family");
         return `${FAMILY_CONST}.includes(${name})`;
@@ -328,80 +343,34 @@ function rewrite(rel, text) {
         return `${BY_FN}(${fn})`;
     });
 
-    // a list of files a test reads, once the test names the file nowhere else: the holders its rewrites named
+    // a list of files a test reads, once the test names the file nowhere else: every file of the family, as the file
+    // was read whole (a test that reads one function of it by a pair reads it in its holder, which the family holds)
     const chunks = chunksOf(text).reverse();
     for (const c of chunks) {
         const body = text.slice(c.at, c.end);
-        const held = familyOrder([...body.matchAll(new RegExp(`"(${FAMILY.slice(1).map(esc).join("|")})"`, "g"))].map(x => x[1]));
         const left = [...body.matchAll(new RegExp(`"${F}"`, "g"))];
-        if (!held.length || !left.length) continue;
+        if (!left.length) continue;
         // only a list of files: every element a file's name or a spread (`["a.mjs", ...FAMILY, "<file>"]`), on one line
         const listAround = x => {
             const open = body.lastIndexOf("[", x.index), close = body.indexOf("]", x.index);
             if (open < 0 || close < 0 || /\n/.test(body.slice(open, close))) return false;
             return /^\[\s*(?:(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*,\s*)*(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*\]$/.test(body.slice(open, close + 1));
         };
-        const inList = left.every(listAround);
+        // the occurrences in a list of files; another (a planted fixture's `["<file>", "<its code>"]`) stays as it is
+        const inLists = left.filter(listAround);
         // any other mention in code (strings, templates and comments blanked: a message's prose names the file as it may)
         const code = body.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, "\"\"");
         const otherUse = new RegExp(`(?<![\\w-])${F}`).test(code);
-        if (!inList || otherUse) continue;
-        const out = body.replace(new RegExp(`"${F}"`, "g"), () => held.map(q).join(", "));
-        note(c.at, "file list", `${left.length} x "${SOURCE}"`, held.join(", "));
+        if (!inLists.length || otherUse) continue;
+        let out = body;
+        for (const x of [...inLists].reverse()) out = out.slice(0, x.index) + FAMILY.map(q).join(", ") + out.slice(x.index + x[0].length);
+        note(c.at, "file list", `${inLists.length} x "${SOURCE}"`, FAMILY.join(", "));
         text = text.slice(0, c.at) + out + text.slice(c.end);
     }
     return { text, used };
 }
 
-const usedIn = new Map();
-for (const rel of TIER_FILES) {
-    const { text, used } = rewrite(rel, textOf(rel));
-    edits.set(rel, text);
-    usedIn.set(rel, new Set());
-    if (new RegExp(`\\b${FAMILY_CONST}\\b`).test(text)) usedIn.get(rel).add(FAMILY_CONST);
-    if (new RegExp(`\\b${TEXT_FN}\\(`).test(text)) usedIn.get(rel).add(TEXT_FN);
-    if (new RegExp(`\\b${FETCH_FN}\\(`).test(text)) usedIn.get(rel).add(FETCH_FN);
-    if (new RegExp(`\\b${BY_FN}\\(`).test(text)) usedIn.get(rel).add(BY_FN);
-    void used;
-}
-
-/* ---- the contract register: file beside symbol ---- */
-/* The registers outside the suite: patches.mjs's contract (a `file` beside its `symbol`) and every module file that keys
-   a row by `<file>#NAME` (rooms.mjs CAMERA_READERS ...), found by that spelling; `RP.registers` adds to them. */
-const REGISTERS = [...new Set([...(RP.registers ?? []), "scripts/patches.mjs", ...fs.readdirSync(path.join(REPO, "scripts"))
-    .filter(f => f.endsWith(".mjs") && !/^tests/.test(f) && !FAMILY.includes(f))
-    .filter(f => new RegExp(`(?<![\\w-])${F}#\\w`).test(fs.readFileSync(path.join(REPO, "scripts", f), "utf8")))
-    .map(f => `scripts/${f}`)])];
-for (const rel of REGISTERS) {
-    let text = textOf(rel);
-    text = text.replace(new RegExp(`(?<![\\w-])${F}#(\\w+)`, "g"), (all, name, at) => {
-        if (!holderOf.has(name) || holderOf.get(name) === SOURCE || inComment(text, at)) return all;
-        report.push([rel, "(register)", "key", all, `${holderOf.get(name)}#${name}`]);
-        return `${holderOf.get(name)}#${name}`;
-    });
-    text = text.replace(new RegExp(`(file: )"${F}"(,\\s*symbol: )"(\\w+)"`, "g"), (all, a, b, name, at) => {
-        const file = holder(name, `${rel} symbol ${name}`);
-        if (file === SOURCE) return all;
-        report.push([rel, "(register)", "file beside symbol", `${SOURCE} ${name}`, file]);
-        return `${a}${q(file)}${b}"${name}"`;
-    });
-    edits.set(rel, text);
-}
-
-/* ---- the owners of the season registry's rows the split moved (a target's `statements`, by their `group:`) ---- */
-for (const t of manifest.targets) for (const head of t.statements ?? []) {
-    const group = head.match(/group: "(\w+)"/)?.[1];
-    if (!group) continue;
-    for (const rel of TIER_FILES) {
-        const text = textOf(rel);
-        const out = text.replace(new RegExp(`\\b${group}: "${F}"`, "g"), () => `${group}: ${q(path.basename(t.file))}`)
-            // and the message a planted registration expects of that owner (R1254's self-check)
-            .replace(new RegExp(`(\\b${group}: registered in [\\w-]+\\.mjs, not )${F}`, "g"), (all, head) => `${head}${path.basename(t.file)}`);
-        if (out !== text) { report.push([rel, "(owners)", "a moved row's owner", `${group}: ${SOURCE}`, path.basename(t.file)]); edits.set(rel, out); }
-    }
-}
-
-/* ---- 4. the sites measured on the split tree, and the patches ---- */
+/* ---- 2. the sites measured on the split tree, first: their text is the tree's as split.mjs left it ---- */
 const once = (rel, text, find, what) => {
     const n = text.split(find).length - 1;
     if (n !== 1) refuse(`${rel}: ${what} - ${JSON.stringify(find.slice(0, 80))} is found ${n} time(s), not once`);
@@ -467,6 +436,101 @@ for (const site of RP.sites ?? []) {
     report.push([rel, site.test, `site ${site.kind}`, site.find, out]);
     edits.set(rel, text.replace(site.find, out));
 }
+/**
+ * A list that was in its files' order before the rename is put back in it after (R436, R3404 compare a sorted reading):
+ * an array whose elements are all keyed by a file - `"<file>#..."` strings, or tuples whose first element is a file - and
+ * that names a file of the family, sorted as JavaScript's default `sort` sorts (String of each), when the same list with
+ * the family's files read as the old file was sorted and is not now. Each element takes another's slot, so the list's
+ * line breaks stay where they were.
+ */
+function resortLists(rel, text) {
+    const targets = FAMILY.slice(1);
+    // a reading keyed by file: "<file>#<name>..." strings, or tuples led by a file - not a list of files to read, whose
+    // order is the test's own
+    const fileLed = v => typeof v === "string" ? /^[\w-]+\.mjs[#:]/.test(v) : Array.isArray(v) && v.length > 1 && typeof v[0] === "string" && /^[\w-]+\.mjs$/.test(v[0]);
+    const asBefore = v => String(v).replace(new RegExp(`(?<![\\w-])(?:${targets.map(esc).join("|")})(?![\\w-])`, "g"), SOURCE);
+    const sorted = list => list.every((x, i) => !i || String(list[i - 1]) <= String(x));
+    for (let open = text.indexOf("["); open >= 0; open = text.indexOf("[", open + 1)) {
+        if (inComment(text, open)) continue;
+        const close = closeOf(text, open, 4000);
+        if (close < 0) continue;
+        const parts = [];
+        let depth = 0, from = open + 1;
+        for (let i = open + 1; i < close; i++) {
+            const ch = text[i];
+            if (ch === "\"" || ch === "'") { for (i++; i < close && text[i] !== ch; i++) if (text[i] === "\\") i++; continue; }
+            if ("[{(".includes(ch)) depth++;
+            else if ("]})".includes(ch)) depth--;
+            else if (ch === "," && depth === 0) { parts.push([from, i]); from = i + 1; }
+        }
+        parts.push([from, close]);
+        const items = parts.map(([a, b]) => { const raw = text.slice(a, b); const lead = raw.match(/^\s*/)[0].length, tail = raw.match(/\s*$/)[0].length; return { a: a + lead, b: b - tail }; })
+            .filter(x => x.b > x.a);
+        if (items.length < 2) continue;
+        let values;
+        try { values = items.map(x => JSON.parse(text.slice(x.a, x.b))); } catch { continue; }
+        if (!values.every(fileLed) || !values.some(v => targets.some(t => String(v).includes(t)))) continue;
+        if (!sorted(values.map(asBefore)) || sorted(values)) continue;
+        const order = values.map((v, i) => i).sort((i, j) => (String(values[i]) < String(values[j]) ? -1 : String(values[i]) > String(values[j]) ? 1 : i - j));
+        let out = text.slice(0, open + 1), at = open + 1;
+        items.forEach((x, k) => { out += text.slice(at, x.a) + text.slice(items[order[k]].a, items[order[k]].b); at = x.b; });
+        out += text.slice(at);
+        report.push([rel, testAt(text, open), "list sorted again", `${items.length} elements`, "in their files' order"]);
+        text = out;
+    }
+    return text;
+}
+
+const usedIn = new Map();
+for (const rel of TIER_FILES) {
+    const { text: rewritten, used } = rewrite(rel, textOf(rel));
+    const text = resortLists(rel, rewritten);
+    edits.set(rel, text);
+    usedIn.set(rel, new Set());
+    if (new RegExp(`\\b${FAMILY_CONST}\\b`).test(text)) usedIn.get(rel).add(FAMILY_CONST);
+    if (new RegExp(`\\b${TEXT_FN}\\(`).test(text)) usedIn.get(rel).add(TEXT_FN);
+    if (new RegExp(`\\b${FETCH_FN}\\(`).test(text)) usedIn.get(rel).add(FETCH_FN);
+    if (new RegExp(`\\b${BY_FN}\\(`).test(text)) usedIn.get(rel).add(BY_FN);
+    void used;
+}
+
+/* ---- the contract register: file beside symbol ---- */
+/* The registers outside the suite: patches.mjs's contract (a `file` beside its `symbol`) and every module file that keys
+   a row by `<file>#NAME` (rooms.mjs CAMERA_READERS ...), found by that spelling; `RP.registers` adds to them. */
+const REGISTERS = [...new Set([...(RP.registers ?? []), "scripts/patches.mjs", ...fs.readdirSync(path.join(REPO, "scripts"))
+    .filter(f => f.endsWith(".mjs") && !/^tests/.test(f) && !FAMILY.includes(f))
+    .filter(f => new RegExp(`(?<![\\w-])${F}#\\w`).test(fs.readFileSync(path.join(REPO, "scripts", f), "utf8")))
+    .map(f => `scripts/${f}`)])];
+for (const rel of REGISTERS) {
+    let text = textOf(rel);
+    text = text.replace(new RegExp(`(?<![\\w-])${F}#(\\w+)`, "g"), (all, name, at) => {
+        if (!holderOf.has(name) || holderOf.get(name) === SOURCE || inComment(text, at)) return all;
+        report.push([rel, "(register)", "key", all, `${holderOf.get(name)}#${name}`]);
+        return `${holderOf.get(name)}#${name}`;
+    });
+    text = text.replace(new RegExp(`(file: )"${F}"(,\\s*symbol: )"(\\w+)"`, "g"), (all, a, b, name, at) => {
+        const file = holder(name, `${rel} symbol ${name}`);
+        if (file === SOURCE) return all;
+        report.push([rel, "(register)", "file beside symbol", `${SOURCE} ${name}`, file]);
+        return `${a}${q(file)}${b}"${name}"`;
+    });
+    edits.set(rel, text);
+}
+
+/* ---- the owners of the season registry's rows the split moved (a target's `statements`, by their `group:`) ---- */
+for (const t of manifest.targets) for (const head of t.statements ?? []) {
+    const group = head.match(/group: "(\w+)"/)?.[1];
+    if (!group) continue;
+    for (const rel of TIER_FILES) {
+        const text = textOf(rel);
+        const out = text.replace(new RegExp(`\\b${group}: "${F}"`, "g"), () => `${group}: ${q(path.basename(t.file))}`)
+            // and the message a planted registration expects of that owner (R1254's self-check)
+            .replace(new RegExp(`(\\b${group}: registered in [\\w-]+\\.mjs, not )${F}`, "g"), (all, head) => `${head}${path.basename(t.file)}`);
+        if (out !== text) { report.push([rel, "(owners)", "a moved row's owner", `${group}: ${SOURCE}`, path.basename(t.file)]); edits.set(rel, out); }
+    }
+}
+
+/* ---- 5. the patches ---- */
 for (const patch of RP.patches ?? []) {
     const text = textOf(patch.file);
     if (!once(patch.file, text, patch.find, `patch ${patch.test}`)) continue;
