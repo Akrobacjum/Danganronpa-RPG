@@ -275,9 +275,15 @@ export function onDeadMoment(moment, { on = sequencesOn(), still = reducedMotion
     return null;
 }
 
-/** Escape while a fade or a return runs: its end state at once (sequence.mjs `holdEscape` is the transitions'). */
+/**
+ * Escape while a fade or a return runs: its end state at once, and the key is the curtain's (the e93 line's G4): left to
+ * Foundry as well, the same press closed a window or opened its menu. Claimed as sequence.mjs `holdEscape`'s Escape claims
+ * it; with nothing running it is left alone.
+ */
 function onEscape(event) {
-    if (event.key !== "Escape" || !running) return;
+    if (event.key !== "Escape" || event.defaultPrevented || !running) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
     const end = running.kind === "fade";
     setRest(end);
     count("deathFade.skipped");
@@ -290,6 +296,7 @@ export async function registerDeathFade() {
     setRest(restsBare());
     Hooks.on(DEAD_SPECTATOR_HOOK, moment => { lastMoment = Date.now(); onDeadMoment(moment); });
     Hooks.on("drpgDeathsChanged", onDeathsChanged);
+    Hooks.on("updateActor", actor => { if (restOutOfStep(actor)) onDeathsChanged(); });
     document.addEventListener("keydown", onEscape, true);
 }
 
@@ -300,6 +307,20 @@ export async function registerDeathFade() {
  * whose body has no token (no moment comes), or a revive - and never while a fade or a return runs.
  */
 const SETTLE_MS = 1500;
+
+/*
+ * AND THE TABLE'S FLAGS (the e93 line's G1, 13.11.2026). A public death and a revive are the student's own flag, a
+ * Monocub its own flag, on the student's actor - not the deaths' copy - and a body with no token makes no Spectator
+ * token, so no moment comes: the curtain stayed lit at such a death, and bare after such a revive, until a reload. So an
+ * update of a character this player owns settles the rest state the same way, after `SETTLE_MS` with no moment heard,
+ * when the death predicates' answer (`restsBare`) no longer matches the curtain. Read through `restsBare` and not off
+ * the change's keys: the deceased flag is the death predicates' to read (R192).
+ */
+export function restOutOfStep(actor, user = game.user) {
+    if (!user || user.isGM || actor?.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) return false;
+    return restsBare(user) !== document.body.classList.contains(BARE_CLASS);
+}
+
 let lastMoment = 0;
 function onDeathsChanged() {
     const asked = Date.now();

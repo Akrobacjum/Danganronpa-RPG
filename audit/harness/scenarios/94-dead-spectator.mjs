@@ -18,6 +18,8 @@
  *            then a Monocub no more, a Spectator back on that token;
  *   curtain  p3's curtain (death-fade.mjs): bare after the fade and p1's not, lit after the Monocub's return, bare again at
  *            once a Monocub no more, lit after the revive;
+ *   notoken  (after the revive) p2's Botan, his token taken off the map, killed at once and revived: p2's curtain bare and
+ *            lit again by the death's flag alone, no token's moment (the e93 line's G1);
  *   revive   the GM revives Chie: p3's browser handed the hook's "return", the watcher and its token gone from every
  *            browser.
  * Everything is put back: Chie alive, the watcher gone, the tokens where they were, the Sound map.
@@ -27,7 +29,7 @@
  */
 export const layers = ["ci"];
 
-export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: REPO, IDS }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUrl: REPO, IDS }) {
     const imp = file => `await import("${REPO}/scripts/${file}")`;
     const p3User = await p3.eval(`return game.user.id;`);
     const PLAYED = `const C = ${imp("perf-counters.mjs")}; return C.snapshot()["sfx.played"] ?? 0;`;
@@ -55,7 +57,7 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
     check("setup: the Death fade mapped for the run, Chie's token read", sfx === "sounds/s94-fade.ogg" && Number.isFinite(start?.x), JSON.stringify({ sfx, start }));
     await settle(800);
 
-    let watcherId = null, watcherToken = null;
+    let watcherId = null, watcherToken = null, noToken = null;
     try {
         phase("secret");
         const before = await p1.eval(WORLD);
@@ -166,6 +168,21 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
             back?.moments?.length === 1 && back.moments[0].phase === "return" && back.moments[0].silent === false
             && back.actor === false && back.tokens === 0 && gone?.actor === false && gone.tokens === 0, JSON.stringify({ back, gone }));
         check("curtain: after the revive p3's curtain is lit again (E62 C3)", litBack === false, JSON.stringify({ litBack }));
+
+        phase("notoken");
+        /* The e93 line's G1 (13.11.2026): a public death of a student whose body has no token makes no Spectator token, so
+           no moment reaches its player's curtain - the rest state follows the death's flag itself. p2's Botan, his token
+           taken off the map for the part, killed at once and revived; p2's curtain read after each. */
+        noToken = await gm.eval(`const t = canvas.scene.tokens.get("TOKBOTAN00000000"); const data = t?.toObject() ?? null;
+            if (t) await t.delete(); return data;`, { timeout: 60000 });
+        await gm.eval(`const C = ${imp("chapter.mjs")}; return Boolean(await C.killCharacter(game.actors.get("${IDS.botan}"), { secret: false, keepBullets: true }));`, { timeout: 60000 });
+        await settle(2500);
+        const bareNoToken = await p2.eval(BARE);
+        await gm.eval(`const C = ${imp("chapter.mjs")}; await C.reviveCharacter(game.actors.get("${IDS.botan}"), { quiet: true }); return true;`, { timeout: 60000 });
+        await settle(2500);
+        const litNoToken = await p2.eval(BARE);
+        check("curtain: a public death whose body has no token turns p2's curtain bare, and the revive lights it again (the e93 line's G1)",
+            bareNoToken === true && litNoToken === false, JSON.stringify({ bareNoToken, litNoToken }));
     } finally {
         await gm.eval(`const C = ${imp("chapter.mjs")}, ST = ${imp("settings.mjs")};
             const chie = game.actors.get("${IDS.chie}");
@@ -177,7 +194,11 @@ export async function run({ gm, p1, p3, check, phase, settle, canary, repoUrl: R
             await game.scenes.get("${start?.scene}")?.tokens.get("TOKAIKO000000000")?.update({ x: 300, y: 300 }, { animate: false });
             await game.scenes.get("${start?.scene}")?.tokens.get("TOKCHIE000000000")?.update({ x: ${start?.x ?? 350}, y: ${start?.y ?? 1300} }, { animate: false });
             await ST.setSetting(ST.SETTINGS.sfxMap, globalThis.__drpg94Sfx ?? {}); delete globalThis.__drpg94Sfx;
+            const botan = game.actors.get("${IDS.botan}");
+            if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true, silent: true });
+            for (const a of game.actors.filter(a => a.getFlag("danganronpa-rpg", "watcherOf") === botan.id)) await a.delete();
             return true;`, { timeout: 60000 });
+        if (noToken) await gm.eval(`const data = ${JSON.stringify(noToken)}; if (!canvas.scene.tokens.get(data._id)) await canvas.scene.createEmbeddedDocuments("Token", [data], { keepId: true }); return true;`, { timeout: 60000 });
         const unvolume = `const ST = ${imp("settings.mjs")}; await ST.setSetting(ST.SETTINGS.sfxVolumes, globalThis.__drpg94Vol ?? {}); delete globalThis.__drpg94Vol;
             Hooks.off("drpgDeadSpectator", globalThis.__drpg94hook); delete globalThis.__drpg94hook; delete globalThis.__drpg94;
             Hooks.off("createToken", globalThis.__drpg94optsHook); delete globalThis.__drpg94optsHook; delete globalThis.__drpg94opts; return true;`;

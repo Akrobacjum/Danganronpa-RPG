@@ -88385,9 +88385,18 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 corpse: isCorpse(corpse), cub: isCorpse(cub),
                 tileFollows: Boolean(tileBefore && tileAfter) && tileAfter[0] === tileBefore[0] + 100
             };
-            // A Monocub revived as it stands (a GM's console, or a revive with the flag left on) keeps no second token.
-            await C.reviveCharacter(student, { quiet: true, silent: true });
-            await settle();
+            // A Monocub revived as it stands (a GM's console, or a revive with the flag left on) keeps no second token; its
+            // walker goes silently, since its player's curtain is lit already (the e93 line's G2: a drawn "return" turned it
+            // grey and lit it again).
+            const deleted = [];
+            const seen = Hooks.on("deleteToken", (doc, options) => { if (doc.id === cub.id) deleted.push(options?.drpgDeadSpectator ?? null); });
+            try {
+                await C.reviveCharacter(student, { quiet: true });
+                await settle();
+            } finally {
+                Hooks.off("deleteToken", seen);
+            }
+            read.cubGone = deleted.map(o => o?.silent === true);
             read.revived = [...game.scenes].flatMap(sc => [...sc.tokens]).filter(t => t.actorId === student.id).map(t => t.id);
         } finally {
             await MC.setMonocub(student, false, { quiet: true }).catch(() => {});
@@ -88397,7 +88406,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             for (const actorId of made) if (game.actors.get(actorId)) await game.actors.get(actorId).delete().catch(() => {});
         }
-        equal(stableJson(read), stableJson({ located: true, gm: true, body: true, places: [true], bodyPlace: true, corpse: true, cub: false, tileFollows: true, revived: [corpse.id] }),
+        equal(stableJson(read), stableJson({ located: true, gm: true, body: true, places: [true], bodyPlace: true, corpse: true, cub: false, tileFollows: true, revived: [corpse.id], cubGone: [true] }),
             "where a Monocub is ([locateActor, gmPlaceOf on the Monocub's token], [gmPlaceOf for the body, bodyPlaceOf without a tile on the corpse], "
             + "[placesOf: the Monocub's token alone], [the corpse a Monocub's corpse, the Monocub's token not], the tile moved with a GM's move of the corpse, "
             + "the student's tokens after a revive)");

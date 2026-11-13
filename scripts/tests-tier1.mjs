@@ -52113,6 +52113,7 @@ const INVARIANTS = [
         /*
          * E62 C3, 13.11.2026. death-fade.mjs `onDeadMoment` with the switches handed in; what it answers ("drawn" or
          * "rest") and the body's class after it; `setRest(false)` puts the page back after each. Red at 45448ef2: no file.
+         * The revive drawn (not silent) since the e93 line's G3 (13.11.2026): the title promised it and no case held it.
          */
         let D = null;
         try { D = await import("./death-fade.mjs"); } catch { D = null; }
@@ -52122,7 +52123,8 @@ const INVARIANTS = [
         const was = bare();
         const read = [];
         try {
-            for (const [moment, opts] of [[{ phase: "fade" }, {}], [{ phase: "fade", silent: true }, {}], [{ phase: "monocub" }, {}], [{ phase: "return", silent: true }, {}],
+            for (const [moment, opts] of [[{ phase: "fade" }, {}], [{ phase: "fade", silent: true }, {}], [{ phase: "monocub" }, {}], [{ phase: "return" }, {}],
+                [{ phase: "return", silent: true }, {}],
                 [{ phase: "spectator" }, {}], [{ phase: "fade" }, { still: true }], [{ phase: "fade" }, { on: false }], [{ phase: "else" }, {}]]) {
                 const answer = D.onDeadMoment(moment, { on: true, still: false, ...opts });
                 read.push([moment.phase, answer, bare()]);
@@ -52131,9 +52133,44 @@ const INVARIANTS = [
         } finally {
             D.setRest(was);
         }
-        equal(stableJson(read), stableJson([["fade", "drawn", false], ["fade", "rest", true], ["monocub", "drawn", false], ["return", "rest", false],
+        equal(stableJson(read), stableJson([["fade", "drawn", false], ["fade", "rest", true], ["monocub", "drawn", false], ["return", "drawn", false], ["return", "rest", false],
             ["spectator", "rest", true], ["fade", "rest", true], ["fade", "rest", true], ["else", null, false]]),
-            "[the moment, what the curtain did, bare after it] for: a fade, a corrected fade, a Monocub, a corrected revive, a Monocub no more, a fade under reduced motion, a fade with the sequences off, a phase of nobody's");
+            "[the moment, what the curtain did, bare after it] for: a fade, a corrected fade, a Monocub, a revive, a corrected revive, a Monocub no more, a fade under reduced motion, a fade with the sequences off, a phase of nobody's");
+    }],
+
+    ["R4561 - Escape during the death fade or the return ends it at its end state and is the curtain's alone: the key is claimed (default prevented, no other listener hears it), as the transitions' Escape claims it; with nothing running Escape is left to Foundry (E62 C3; the e93 line's G4)", async () => {
+        /*
+         * E62 C3, 13.11.2026; the e93 line's G4 (docs/dev/e93/REVIEW-E62-C3-fade.md). death-fade.mjs's Escape ended a
+         * running fade but left the key to Foundry, which closed a window or opened its menu with the same press;
+         * sequence.mjs `holdEscape`'s Escape claims it. A fade played (`onDeadMoment`), Escape dispatched on the document,
+         * then the same with nothing running; a bubbling listener on the body counts what reaches it. Red at 09256a04: the
+         * key went on to Foundry.
+         */
+        const D = await import("./death-fade.mjs");
+        const was = document.body.classList.contains(D.BARE_CLASS);
+        let heard = 0;
+        const listen = () => { heard += 1; };
+        document.body.addEventListener("keydown", listen);
+        const press = () => {
+            const e = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+            document.body.dispatchEvent(e);
+            return e.defaultPrevented;
+        };
+        let read = null;
+        try {
+            D.onDeadMoment({ phase: "fade" }, { on: true, still: false });
+            const during = press();
+            const atEnd = document.body.classList.contains(D.BARE_CLASS);
+            const heardDuring = heard;
+            D.setRest(false);
+            const idle = press();
+            read = { during, atEnd, heardDuring, idle, heardIdle: heard - heardDuring };
+        } finally {
+            document.body.removeEventListener("keydown", listen);
+            D.setRest(was);
+        }
+        equal(stableJson(read), stableJson({ during: true, atEnd: true, heardDuring: 0, idle: false, heardIdle: 1 }),
+            "Escape ([during a fade: claimed, the end state, heard by another listener], [with nothing running: claimed, heard])");
     }],
 
     ["R4552 - the Death fade Sound row: in the incident group, played by default with the death's own file, its own file when one is set (E62 C3b, the storyboard's 9)", async () => {

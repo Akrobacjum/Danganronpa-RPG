@@ -25,8 +25,9 @@
  * THE CURTAIN'S HOOK. The token is made and taken away with `options[DEAD_SPECTATOR_OPTION]` = `{ phase, silent }` -
  * no student's id, which every browser's hook would be handed (the e93 review's F2): the owner's browser names its own,
  * which Foundry hands every browser's createToken/deleteToken/updateToken hook. The owner's browser (the victim's
- * player) calls `Hooks.callAll(DEAD_SPECTATOR_HOOK, { phase, silent, studentId, tokenId })` for glass.mjs and
- * sequence.mjs to listen to (another line draws the fade and the return; nothing listens here yet), and plays the
+ * player) calls `Hooks.callAll(DEAD_SPECTATOR_HOOK, { phase, silent, studentId, tokenId })` for the curtain to listen
+ * to (death-fade.mjs, since E62 C3's listener; it reads the phase and the silence, nothing reads `studentId` today, which
+ * for a player of two students whose copy lacks a kept death may name the other), and plays the
  * "Death fade" sound at a fade that is not silent (sfx-play.mjs `playSfx`, on that browser alone). `phase` is "fade" (a
  * death), "return" (a revive), "monocub" (the token becomes the Monocub's) or "spectator" (a Monocub no more).
  * `silent` is a GM's correction (the Students window, Edit campaign, the season reset): the rest state at once.
@@ -166,7 +167,8 @@ export async function removeDeadSpectator(student, { silent = false, row = undef
        (`watcherBecomesMonocub`), and goes with the revive as the Spectator's would; the corpse stays the student's. */
     for (const { scene, tokenDoc } of tokensOf(student).filter(({ tokenDoc }) => tokenDoc.getFlag?.(MODULE_ID, FLAGS.cubToken))) {
         try {
-            await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent } });
+            // Silent always (the e93 line's G2): a Monocub's curtain is lit already, and a drawn return began all grey.
+            await scene.deleteEmbeddedDocuments("Token", [tokenDoc.id], { [DEAD_SPECTATOR_OPTION]: { phase: "return", silent: true } });
         } catch (err) {
             error(`Could not take ${student.name}'s Monocub token off the map`, err);
         }
