@@ -52938,6 +52938,19 @@ const INVARIANTS = [
         equal(stableJson({ cleanup: after("resolveCleanup", /const charged = await chargeUnclaimed\(/), stageSix: after("resolveStageSix", /chargeUnclaimed\(/) }),
             stableJson({ cleanup: true, stageSix: true }), "{the refusal after an unpaid charge in resolveCleanup, in resolveStageSix}");
     }],
+    ["R4478 - a season reset takes the DA39 migration's rises with the season (scripts/season-wipe.mjs `wipeStudent`'s advancement part; the E101 line's review of 1.2.110, E64 reader F5, 13.11.2026): the step that restores the starting sheet also unsets `da39Rises`, so a migration still pending across a reset does not read last season's rises as covering this season's points", async () => {
+        /*
+         * The review's F5. `da39Rises` records the Health and Sanity rises a Level Up gave by the new rule, so the DA39
+         * migration (level-up.mjs `da39Row`) does not give them twice. The reset restored the starting sheet and left the
+         * flag: a world whose migration stayed pending (Cancel, again and again) across a reset under-counted the rises
+         * owed for the new season's points. Read in source, cut with the kit. Red at 7b9add03: the part does not name it.
+         */
+        const src = stripComments((await moduleSources()).get("season-wipe.mjs") ?? "");
+        must(src.length > 5000, "season-wipe.mjs was not read");
+        const part = bodyOf(fnSource(src, "wipeStudent"), "advancement: async () => {", { until: "actions: async () => {" });
+        equal(stableJson({ unsets: /unsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.da39Rises\s*\)/.test(part), afterRestore: part.indexOf("restoreStartingSheet(") >= 0 && part.indexOf("restoreStartingSheet(") < part.indexOf("FLAGS.da39Rises") }),
+            stableJson({ unsets: true, afterRestore: true }), "{the advancement part unsets da39Rises; after the sheet's restore}");
+    }],
     ["R3958 - Tamper has no cap a time of day: it costs its price and nothing limits how often (E64, the owner's review of 12.11.2026, \"niech kosztuje po prostu akcje, bez jakis dziwnych rozwiazan\"; it replaces 4f3882f's two-a-time-of-day cap): `CLEANUP` has no `tamperPerTimeOfDay`, cleanup.mjs neither declares nor calls `tamperOverLimit`, gm-stores.mjs has no `tamperAttemptStore`, settings.mjs no `gmTamperAttempts`, no `DRPG.Tamper.limitReached` in either language, and `PRICE_CHAINS.tamper` keeps its two steps, 1 action and 1 Sanity (the Sanity is the killer's own Stage 6 alone since R3959)", async () => {
         /*
          * E64, the owner's review of 12.11.2026 (~10:17 Warsaw, through the coordinator). The cap came from the plan's
