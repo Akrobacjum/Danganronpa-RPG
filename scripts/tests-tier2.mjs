@@ -40111,6 +40111,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const from = new Set(game.messages.map(m => m.id));
             const granted = await D.convertDespairToHope(donor.id, who, 2);
             await settle();
+            await until(() => game.messages.some(m => !from.has(m.id) && m.getFlag(MODULE_ID, "veiled") === true));
             equal(stableJson([granted, ...state(), resourceValue(who, "hope")]), stableJson([2, 5, 2, 3, 2]),
                 "the conversion took the pool down at once, owes nothing, or gave no Hope (granted, pool, owed, spendable, Hope)");
             const cards = game.messages.filter(m => !from.has(m.id));
@@ -40540,6 +40541,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ok(await trial.presentBullet(who, item, { objection: false, comment: "free" }),
                 "the free Present was refused");
             await settle();
+            await until(() => game.messages.size > was);
             equal(game.messages.size, was + 1, "the free Present posted no card");
 
             const logged = trial.presentedThisChapter()
@@ -41896,6 +41898,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(forged.author?.id === owner.id, "this Foundry did not keep the author a GM gave the card - this would measure nothing");
             await until(() => forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || floorMod.trialFloor()?.holderId === O.id);
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && (m.whisper ?? []).length));
             const whispers = await Promise.all(game.messages.filter(m => !seen.has(m.id) && (m.whisper ?? []).length).map(m => wordsOf(m, 2000)));
             read.push(Boolean(forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, shown(forged),
                 O.system.resources.actions.value, whispers.some(w => String(w ?? "").includes(told)));
@@ -43792,6 +43795,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
             await T.markOverruled(null, { objectorId: objector.id, state: null });
             await settle();
+            await until(() => game.messages.filter(m => !seen.has(m.id)).some(m => String(m.content ?? "").includes(game.i18n.localize("DRPG.Floor.overrule.over"))));
             const card = game.messages.filter(m => !seen.has(m.id)).find(m => String(m.content ?? "").includes(game.i18n.localize("DRPG.Floor.overrule.over")));
             read.sound = card ? soundFromMessage(card)?.key ?? null : "no card";
         } finally {
@@ -44341,6 +44345,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await verdictStore.patch(RECORD, { finalAt: 4343, finalSentenced: [A.id] });
             await V.executeAtExit({ chapter });
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && m.getFlag(MODULE_ID, "executionCard")));
             const cards = game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, "executionCard"));
             read = [isDeadForGm(A), cards.length, cards.map(m => (m.whisper?.length ?? 0) === 0), cards.map(m => m.getFlag(MODULE_ID, "sfx")?.key ?? null),
                 cards.some(m => String(m.content ?? "").includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(A.name) })))];
@@ -56472,6 +56477,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 "the write did not stand on the item alone, outside the GMs' mark - this would measure nothing");
             await grantItemEffect(student, thing, { hitPoints: 1 });
             await settle();
+            await until(() => game.messages.contents.some(m => !before.has(m.id) && cardFlag(m, "usedItem")));
             const card = game.messages.contents.find(m => !before.has(m.id) && cardFlag(m, "usedItem"));
             read = [INV.isBroken(student.items.get(thing.id)), card ? cardFlag(card, "usedItem")?.id === identity : null];
         } finally {

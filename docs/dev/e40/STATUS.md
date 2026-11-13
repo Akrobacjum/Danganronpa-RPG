@@ -90,6 +90,8 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- Before the push of item 5 batch 5 (13.11.2026): its 6 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
+  problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 4 (13.11.2026): its 8 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
   problems; tiers 0-1 whole 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 5 batch 3 (13.11.2026): its 11 tests by name, 0 failed; `node tools/check.mjs` 19/19; lint 0
@@ -186,10 +188,16 @@ The plan's items 2-6, in its order, with what each would take:
     Eclipse's end sound, a reshape card, two statistic cards, a question's card, a thread card and its note); 16 are
     absences (a trap that must not speak), a card settled in place, a mixed loop where some rounds expect no card, a
     count whose expected value is not a card, or reads through a getter or a sent-words window.
+  - Batch 5: the next 25: 6 expect a card and got the wait (a conversion's veiled card, a free Present's card, a
+    refused Objection's whisper, the Overrule's card, a Final Trial's execution card, an item ruling's card); 19 keep the
+    settle: setup before a call, reads after an `until` already there, a second whisper read where the first still counts
+    as new (a wait would be true at once), a card whose words were there before the step, and audits' rows, not cards.
+    The site finder was corrected in this batch: it had counted an inserted `await until(` line as a chat read, which
+    added two settles above earlier sites to the list; the reviewed list was checked against the file after each batch.
   - Each new wait found its card: `until()` returns false at its deadline and fails nothing, so a wrong predicate would
     only make a test slower. Measured on a copy where every wait right after a settle throws on a timeout (47 such
     pairs in the file, batches 1 and 2 among them): the 33 tests holding batch 1's and 2's sites, 0 failed; batch 3's 11
-    tests, 0 failed once the three verdict waits were corrected; batch 4's 8 tests, 0 failed.
+    tests, 0 failed once the three verdict waits were corrected; batch 4's 8 tests, 0 failed; batch 5's 6 tests, 0 failed.
   - Left: the rest of the chat-card group (found again after each batch by a script over the file, not by stale line
     numbers), and the 194 hook and notice sites, not started.
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
