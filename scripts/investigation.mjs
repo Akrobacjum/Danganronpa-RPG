@@ -24,7 +24,7 @@
  */
 
 import {
-    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES,
+    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
 import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
@@ -46,7 +46,7 @@ import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_NODE
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
-import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore } from "./gm-stores.mjs";
+import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { roomRegions } from "./rooms.mjs";
@@ -2488,7 +2488,8 @@ function schemaEditor(graph, node) {
     const rows = [
         editRow(L("DRPG.CaseMap.field.label"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" />`),
         editRow(L("DRPG.CaseMap.field.text"), `<textarea name="${esc(name("text"))}" rows="3">${esc(node.text)}</textarea>`),
-        editRow(L("DRPG.CaseMap.field.mode"), `<select name="${esc(name("mode"))}">${modes.join("")}</select>`)
+        editRow(L("DRPG.CaseMap.field.mode"), `<select name="${esc(name("mode"))}">${modes.join("")}</select>`),
+        ...zoneRows(node, name)
     ];
     if (node.kind === "autopsy") {
         /* THE PLANNED AUTOPSY (13.11.2026): the GM panel's Autopsy window's three fields, and whether it went out. It goes to
@@ -2528,6 +2529,30 @@ function schemaEditor(graph, node) {
     }
     rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
     return rows.join("");
+}
+
+/**
+ * A NODE'S PLANNED MINIGAME (13.11.2026; case-schema.mjs ZONE_FIELDS): the zones' window's own fields, under the mode's
+ * select - a Straw Poll's and a Scrum Debate's question and two answers (a Scrum's thesis too), a Logic Dive's saved set
+ * and the sets' editor. Each row names the modes it is for and is drawn hidden for the others; a change of the select
+ * shows the mode's (`wireMap`). Saved as every field of the node, on its close.
+ */
+function zoneRows(node, name) {
+    const L = key => game.i18n.localize(key);
+    const z = TRIAL.modes.zones;
+    const row = (modes, label, field) => `<div data-drpg-zone-for="${modes.join(" ")}"${modes.includes(node.mode) ? "" : " hidden"}>${editRow(label, field)}</div>`;
+    const text = (field, max) => `<input type="text" name="${esc(name(field))}" value="${esc(node[field] ?? "")}" maxlength="${max}" />`;
+    const sets = Object.entries(diveSetStore.entries() ?? {}).filter(([, s]) => Array.isArray(s?.questions))
+        .map(([id, s]) => `<option value="${esc(id)}"${id === node.diveSet ? " selected" : ""}>${esc(s.name ?? id)} (${s.questions.length})</option>`).join("");
+    const gone = node.diveSet && !diveSetStore.get(node.diveSet) ? `<option value="${esc(node.diveSet)}" selected>${esc(L("DRPG.CaseMap.diveSetGone"))}</option>` : "";
+    return [
+        row(["straw", "scrum"], L("DRPG.Zones.picker.question"), text("zoneQuestion", z.questionLength)),
+        row(["straw", "scrum"], L("DRPG.Zones.picker.a"), text("zoneA", z.answerLength)),
+        row(["straw", "scrum"], L("DRPG.Zones.picker.b"), text("zoneB", z.answerLength)),
+        row(["scrum"], L("DRPG.Zones.picker.thesis"), text("zoneThesis", z.scrum.thesisLength)),
+        row(["dive"], L("DRPG.Zones.picker.set"), `<select name="${esc(name("diveSet"))}"><option value="">${esc(L("DRPG.CaseMap.noDiveSet"))}</option>${gone}${sets}</select>`
+            + ` <button type="button" data-drpg-dive-sets>${esc(L("DRPG.Zones.picker.editSets"))}</button>`)
+    ];
 }
 
 /** Two field values the same: both blank, or equal as JSON (the Key plan's `same`, investigation.mjs `setKeyPlan`). */
@@ -2792,6 +2817,20 @@ function wireMap(dialog, reading, refresh) {
     const root = dialog.element;
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
     const fail = what => err => error(`The case map could not ${what}`, err);
+    /* A node's mode select shows that mode's planned-minigame rows (`zoneRows`), and its button opens the Logic Dive sets
+       (13.11.2026). Once per window: a redraw keeps the root. */
+    if (root && !root.dataset.drpgZoneRows) {
+        root.dataset.drpgZoneRows = "1";
+        root.addEventListener("change", event => {
+            const select = event.target?.closest?.('.drpg-case-edit select[name$=":mode"]');
+            if (!select) return;
+            for (const row of select.closest(".drpg-case-edit").querySelectorAll("[data-drpg-zone-for]")) row.hidden = !row.dataset.drpgZoneFor.split(" ").includes(select.value);
+        });
+        root.addEventListener("click", event => {
+            if (!event.target?.closest?.("[data-drpg-dive-sets]")) return;
+            import("./trial-zones-ui.mjs").then(Z => Z.openDiveSets()).catch(err => error("The Logic Dive sets did not open", err));
+        });
+    }
     wireCaseMap(root, {
         // A pick closes the node open before it, and its fields are written first (the owner, 12.11.2026)
         onPick: id => {

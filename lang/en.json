@@ -5915,6 +5915,8 @@
       "moveNote": "Move them into the ledger takes each trace's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
     },
     "CaseMap": {
+      "noDiveSet": "- no set -",
+      "diveSetGone": "(a set since deleted)",
       "autopsySent": "Sent to the players.",
       "autopsyWhen": "Goes to every living student when the body is found.",
       "autopsyWentOut": {"one": "The planned Autopsy Truth Bullet went out to {n} student.", "other": "The planned Autopsy Truth Bullet went out to {n} students."},

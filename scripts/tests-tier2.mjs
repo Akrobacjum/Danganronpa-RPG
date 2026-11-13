@@ -27565,6 +27565,82 @@ const SCENARIOS = [
         }
     }],
 
+    ["planned minigames: a node's planned Logic Dive set and Straw Poll question start from the console's node button with the zones' window filled in, nothing started until Start (the owner, 13.11.2026: \"mozliwosc zaplanowania logic dive i innych minigier class triala z poziomu planera sprawy\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:40. A schema node whose trial mode is a zone mode carries that
+         * mode's content (case-schema.mjs: `zoneQuestion`, `zoneA`, `zoneB`, `zoneThesis`, `diveSet`); the console's start
+         * button on the node (case-trial.mjs `startFromNode`) opens the zones' window (trial-zones-ui.mjs `openZonePicker`)
+         * on that mode with it filled in, and the GM still presses Start. The fixture is E73 C3's: a Class Trial and a hall
+         * of the suite's own with its two zones. Red at 6964661: the window opened empty, on its first mode for a Dive.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "a Class Trial with participants");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM");
+        const CT = await import("./case-trial.mjs");
+        const S = await import("./case-schema.mjs");
+        const R = await import("./rooms.mjs");
+        const { diveSetStore } = await import("./gm-stores.mjs");
+        must(typeof CT.startFromNode === "function", "case-trial.mjs has no startFromNode - the console's node button hands the window nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const roles = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sceneRoles) ?? {});
+        const SET = `suitePlan8${foundry.utils.randomID(6)}`;
+        const chapter = clock.chapter;
+        const picker = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-zone-picker"));
+        const read = {};
+        let hall = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            hall = await Scene.create({ name: "SUITE plan8 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+                { name: "SUITE Zone A", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+                { name: "SUITE Zone B", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, { ...roles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+            R.forgetSceneRoles();
+            await diveSetStore.patch(SET, { name: "SUITE planned dive", conclusion: null, chapter, made: Date.now(), by: game.user.id,
+                questions: [{ question: "SUITE was the door locked?", a: "Yes", b: "No", truth: "a" }], usedAt: null, endedAt: null, stoppedAt: null, outcome: null });
+            await S.setCaseNode(chapter, "deduction-suiteplan8d", { kind: "deduction", label: "SUITE dive node", mode: "dive", diveSet: SET });
+            await S.setCaseNode(chapter, "deduction-suiteplan8s", { kind: "deduction", label: "SUITE straw node", mode: "straw",
+                zoneQuestion: "SUITE who left first?", zoneA: "The cook", zoneB: "The guard" });
+            await gmStoresIdle();
+            await settle();
+            for (const [id, mode] of [["deduction-suiteplan8d", "dive"], ["deduction-suiteplan8s", "straw"]]) {
+                const opened = CT.startFromNode(chapter, id, "zones", mode).catch(() => null);
+                await until(() => picker()?.element, 5000).catch(() => {});
+                const root = picker()?.element;
+                const v = name => root?.querySelector(`[name="${name}"]`)?.value ?? null;
+                read[mode] = root ? { mode: root.querySelector('[name="mode"]:checked')?.value ?? null, set: v("setId"), question: v("question"), a: v("a"), b: v("b") } : null;
+                await picker()?.close().catch(() => {});
+                await Promise.race([opened, wait(3000)]);
+            }
+            read.floor = getSetting(SETTINGS.trialQueue)?.mode ?? null;
+            // the Map's fields of the Straw Poll node: its question shown and filled in, the Dive's set row hidden
+            const win = await drawnCaseWindow({ view: "map" });
+            win.app?.element?.querySelector('[data-drpg-node="deduction-suiteplan8s"]')?.click();
+            await until(() => win.field(`case:${chapter}:deduction-suiteplan8s:zoneQuestion`), 3000).catch(() => {});
+            const q = win.field(`case:${chapter}:deduction-suiteplan8s:zoneQuestion`), d = win.field(`case:${chapter}:deduction-suiteplan8s:diveSet`);
+            read.map = { question: q?.value ?? null, shown: Boolean(q) && !q.closest("[hidden]"), diveHidden: Boolean(d?.closest("[hidden]")) };
+            await win.close();
+        } finally {
+            for (const id of ["deduction-suiteplan8d", "deduction-suiteplan8s"]) await S.dropCaseNode(chapter, id).catch(() => {});
+            await diveSetStore.drop(SET).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, roles).catch(() => {});
+            R.forgetSceneRoles();
+            if (hall) await hall.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue).catch(() => {});
+            await setClock(clock).catch(() => {});
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            dive: { mode: "dive", set: SET, question: "", a: "", b: "" },
+            straw: { mode: "straw", set: SET, question: "SUITE who left first?", a: "The cook", b: "The guard" },
+            floor: null,
+            map: { question: "SUITE who left first?", shown: true, diveHidden: true }
+        }), "{per node: the window's mode, its set, question and answers; the floor after both windows were closed; the Map's Straw Poll node: its question, shown, and the Dive's set row hidden}");
+    }],
+
     ["E73 C3, C4: a Straw Poll and a Logic Dive in the trial hall on the primary - the sides counted off the tokens, a Finding at two thirds, the stands given back, a right answer going on, a tie ending the set unrevealed, and no truth in the world's floor", async () => {
         /*
          * E73 C3, C4; 12.11.2026. On this primary in a Class Trial with a hall of the suite's own, linked with its two

@@ -33,6 +33,9 @@ export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "in
    chapter, kind "autopsy", under this id - its name (`label`), the players' words (`text`) and the GM's note (`note`).
    case-realize.mjs `sendPlannedAutopsy` sends it at the body's discovery. */
 export const AUTOPSY_NODE = "autopsy";
+/** The kinds a trial mode stands on, and a planned minigame's fields on them (13.11.2026, `caseNodeOf`). */
+const SCHEMA_KINDS = Object.freeze(["deduction", "counter", "solution"]);
+export const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
 /* A PLANNED REMNANT'S TYPE (the owner, 13.11.2026: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz
    incident i keys"): an "incident" row plans a Remnant of one of these, Incident by default (every row before this).
    Not a Key Remnant (the Key plan's slots plan those), a Final Truth Remnant (the Final Truth form places it) or an
@@ -90,7 +93,13 @@ export function caseNodeOf(raw) {
         // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
         type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
         // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; no other kind has one
-        note: raw.kind === "autopsy" ? (typeof raw.note === "string" ? raw.note : "") : null
+        note: raw.kind === "autopsy" ? (typeof raw.note === "string" ? raw.note : "") : null,
+        /* THE PLANNED MINIGAME (the owner, 13.11.2026: "mozliwosc zaplanowania logic dive i innych minigier class triala z
+           poziomu planera sprawy"): what the zones' window asks for the node's zone mode - a Straw Poll's or a Scrum Debate's
+           question and two answers (a Scrum's thesis too), a Logic Dive's saved set (the GMs' `diveSetStore`, its truths
+           there). The GMs' store, as every row; the console's node button fills the window in (case-trial.mjs
+           `startFromNode`). Strings on the three kinds a trial mode stands on, null on the rest. */
+        ...Object.fromEntries(ZONE_FIELDS.map(f => [f, SCHEMA_KINDS.includes(raw.kind) ? (typeof raw[f] === "string" ? raw[f] : "") : null]))
     };
 }
 
@@ -243,7 +252,8 @@ function autopsyNode(chapter, node = null) {
         foundAt: null, written: Boolean(node), inputs: [], refutes: [], mode: null };
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note"]);
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note",
+    "zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
 const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 

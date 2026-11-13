@@ -232,10 +232,12 @@ export async function deleteDiveSet(id) {
  * ========================================================================== */
 
 /** The picker's body: a mode each, its fields; a Logic Dive's set list with each set's replay warning. */
-export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets() } = {}) {
+export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets(), plan = null } = {}) {
+    // a node's planned minigame (case-trial.mjs `startFromNode`, 13.11.2026): its fields filled in, its set picked
+    const p = key => esc(plan?.[key] ?? "");
     const L = key => game.i18n.localize(key);
     const radio = m => `<label class="drpg-zone-mode-pick"><input type="radio" name="mode" value="${m}"${m === mode ? " checked" : ""}> ${esc(L(`DRPG.Floor.mode.${m}`))}</label>`;
-    const setOptions = sets.map(s => `<option value="${esc(s.id)}">${esc(s.name)} (${s.questions.length})</option>`).join("");
+    const setOptions = sets.map(s => `<option value="${esc(s.id)}"${plan?.setId && s.id === plan.setId ? " selected" : ""}>${esc(s.name)} (${s.questions.length})</option>`).join("");
     const warnings = sets.map(s => {
         const w = replayWarning(s);
         return w ? `<p data-drpg-dive-replay="${esc(s.id)}" hidden>${esc(w)}</p>` : "";
@@ -244,11 +246,11 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets() } = {}) 
         <fieldset class="drpg-zone-modes"><legend>${esc(L("DRPG.Zones.picker.mode"))}</legend>${Object.values(ZONE_MODES).map(radio).join(" ")}</fieldset>
         <p class="notes" data-drpg-zone-hint></p>
         <div data-drpg-zone-fields="free">${formGrid([
-        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" maxlength="${TRIAL.modes.zones.questionLength}">` },
-        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" maxlength="${TRIAL.modes.zones.answerLength}">` },
-        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" maxlength="${TRIAL.modes.zones.answerLength}">` }
+        { label: L("DRPG.Zones.picker.question"), field: `<input type="text" name="question" value="${p("question")}" maxlength="${TRIAL.modes.zones.questionLength}">` },
+        { label: L("DRPG.Zones.picker.a"), field: `<input type="text" name="a" value="${p("a")}" maxlength="${TRIAL.modes.zones.answerLength}">` },
+        { label: L("DRPG.Zones.picker.b"), field: `<input type="text" name="b" value="${p("b")}" maxlength="${TRIAL.modes.zones.answerLength}">` }
     ])}
-            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" maxlength="${TRIAL.modes.zones.scrum.thesisLength}">` }])}</div>
+            <div data-drpg-zone-fields="scrum">${formGrid([{ label: L("DRPG.Zones.picker.thesis"), field: `<input type="text" name="thesis" value="${p("thesis")}" maxlength="${TRIAL.modes.zones.scrum.thesisLength}">` }])}</div>
         </div>
         <div data-drpg-zone-fields="dive">
             ${sets.length ? formGrid([{ label: L("DRPG.Zones.picker.set"), field: `<select name="setId">${setOptions}</select>` }])
@@ -264,7 +266,7 @@ export function pickerHtml({ mode = ZONE_MODES.straw, sets = diveSets() } = {}) 
  * question and two answers typed (a Scrum's thesis optional), or a Logic Dive set chosen, a set played before warned of
  * where it ended (GM-only); Start. Refused first when no zones are picked or another mode holds the floor.
  */
-export async function openZonePicker({ mode = ZONE_MODES.straw } = {}) {
+export async function openZonePicker({ mode = ZONE_MODES.straw, plan = null } = {}) {
     if (!game.user.isGM) return null;
     const refused = zoneStartRefusal();
     if (refused) {
@@ -275,7 +277,7 @@ export async function openZonePicker({ mode = ZONE_MODES.straw } = {}) {
     const asked = await drpgWindow({
         title: game.i18n.localize("DRPG.Zones.picker.title"),
         classes: ["drpg-panel", "drpg-narrow", "drpg-zone-picker"],
-        body: pickerHtml({ mode: isZoneMode(mode) ? mode : ZONE_MODES.straw }),
+        body: pickerHtml({ mode: isZoneMode(mode) ? mode : ZONE_MODES.straw, plan }),
         render: (event, dialog) => {
             const root = dialog?.element;
             if (!root) return;

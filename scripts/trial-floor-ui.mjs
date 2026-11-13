@@ -1533,9 +1533,9 @@ const TRIAL_ACTIONS = {
     startClosing: () => startClosing(),
     endClosing: () => endMode(),
     // E73: the zone modes' window, opened on `mode` when the case's schema names one (Scrum Debate after a split); their end.
-    zones: async (mode = null) => {
+    zones: async (mode = null, extra = {}) => {
         const { trialProgress } = await import("./vote.mjs");
-        return openZonePicker({ mode: mode ?? (trialProgress().strawPoll?.split ? FLOOR_MODES.scrum : FLOOR_MODES.straw) });
+        return openZonePicker({ mode: mode ?? (trialProgress().strawPoll?.split ? FLOOR_MODES.scrum : FLOOR_MODES.straw), plan: extra?.plan ?? null });
     },
     endZone: () => endMode(),
     closeDebate: () => closeDebate(),
@@ -1819,12 +1819,13 @@ export async function manageClassTrial() {
  * A trial mode started from the case's schema (E99 C5): only a start trial-floor.mjs MODE_STARTS names, on a GM, through
  * the console's own action; answers its result, or null. The console is not reopened: the schema's window stays.
  */
-export async function startTrialMode(action, mode = null) {
+export async function startTrialMode(action, mode = null, extra = {}) {
     if (!game.user?.isGM) return null;
     const { MODE_STARTS } = await import("./trial-floor.mjs");
     if (!Object.values(MODE_STARTS).some(row => row.action === action) || !TRIAL_ACTIONS[action]) return null;
     // The zone modes share one start (E73): the node's own mode opens the window on it.
-    return TRIAL_ACTIONS[action](MODE_STARTS[mode]?.action === action ? mode : undefined);
+    // `extra.plan`: a node's planned minigame, the zones' window filled in with it (case-trial.mjs `startFromNode`, 13.11.2026)
+    return TRIAL_ACTIONS[action](MODE_STARTS[mode]?.action === action ? mode : undefined, extra);
 }
 
 /**

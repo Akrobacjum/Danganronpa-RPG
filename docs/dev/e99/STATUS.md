@@ -550,3 +550,21 @@ Defaults, as built (the owner may revise):
 - Scenario 62-investigation has no body discovery (checked: no `runDiscovery`, `announceBody` or the hook in it); 65-season,
   66-rooms and 72-canary have one, and none of them is extended here. The send at a real table's discovery, with players'
   browsers receiving the bullets, is for the live list.
+
+## Planned minigames (13.11.2026; the owner through the coordinator: "Dodajmy mozliwosc zaplanowania logic dive i innych minigier class triala z poziomu planera sprawy")
+
+- A schema node (deduction, counter, solution) whose trial mode is a zone mode plans its content in its own fields,
+  shown for that mode only (a change of the mode's select shows the mode's rows): Straw Poll and Scrum Debate the
+  question and the two answers (Scrum the thesis too), Logic Dive a saved set (the GMs' Logic Dive sets, their truths
+  there) with the sets' editor a button away. case-schema.mjs `ZONE_FIELDS` on the node row, in the GMs' case store:
+  never in a player's data. Saved on the node's close, as every node field (item 1).
+- The trial console's start button on that node (case-trial.mjs `startFromNode`) opens the **Hall zones** window
+  (trial-zones-ui.mjs `openZonePicker`) on the node's mode, filled in; the GM can still edit it and presses Start.
+  Nothing starts without that press (default: "prefilled", as the brief preferred).
+- A node's set deleted later reads "(a set since deleted)" in its select; the window then opens on its first set.
+- Red first: tier 2 "planned minigames: ..." (a planned Dive and a planned Straw Poll fill the window, nothing started;
+  the Map's Straw Poll node shows its question and hides the Dive's set), red at 6964661 (no `startFromNode`; the window
+  opened empty). R3373 reads the node's new fields.
+- GM handbook (EN, PL): the Map's paragraph.
+- Not done here: shots. The Map's node fields for a zone mode and the filled window are drawn in the harness, and are
+  for the shots page with items 3-5.
