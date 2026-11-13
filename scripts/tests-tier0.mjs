@@ -20055,11 +20055,12 @@ const REGRESSIONS = [
                 + "T20's and T28's modes]");
     }],
 
-    ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `LONGEST_TILE_WORD` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {
+    ["R1162 - no tile grows by a renamed word (E66-24): sheet.mjs `longestTileWord` is still taken from the tiles' four tables and comes out \"Contribution\", and the longest word of a tile's, a crisis action's and a clean-up action's label, in English and in Polish, is no longer than at E66's Base - 12, 12 and 10 letters (E66 C5)", async () => {
         /*
          * E66 C5, 01.11.2026; E66-24, the plan's risk "longer names may overflow a tile". A tile's type is sized by the
-         * longest unbreakable word any tile carries (sheet.mjs `LONGEST_TILE_WORD`, read at import from the English labels
-         * of ACTIONS, HOPE_CALLS, DESPAIR_CALLS and MONOCUB.abilities), and the crisis menu and the clean-up window lay their
+         * longest unbreakable word any tile carries (sheet.mjs `longestTileWord`, from the labels of ACTIONS, HOPE_CALLS,
+         * DESPAIR_CALLS and MONOCUB.abilities: read at each fit since E56 C12, at import from the English ones before), and
+         * the crisis menu and the clean-up window lay their
          * buttons out for the words they had. Measured at E66's Base (501d13eb, probe longest.mjs): the tiles' longest word
          * "Contribution" (12) in both languages, the crisis labels' "Self-defence" (12), the clean-up's "Misleading" (10).
          * The rename keeps each grid's longest word within its Base length; a word split at a space or kept whole at its
@@ -20088,12 +20089,12 @@ const REGRESSIONS = [
             read[grid] = [en.length <= cap, polish.length <= cap];
         }
         const sheet = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
-        const built = bodyOf(sheet, "const LONGEST_TILE_WORD = (() => {", { until: "})();" });
+        const built = bodyOf(sheet, "export function longestTileWord() {", { until: "\n}\n" });
         read.built = ["Object.values(ACTIONS ?? {})", "Object.values(HOPE_CALLS ?? {})", "Object.values(DESPAIR_CALLS ?? {})", "Object.values(MONOCUB?.abilities ?? {})",
             "String(label).split(/\\s+/)"].map(part => built.includes(part));
         read.longest = words.tiles[0];
         equal(JSON.stringify(read), JSON.stringify({ tiles: [true, true], crisis: [true, true], cleanup: [true, true], built: [true, true, true, true, true], longest: "Contribution" }),
-            `[each grid's longest word within its Base length, English and Polish; LONGEST_TILE_WORD built from the four tables, split at spaces; the tiles' longest word] - the words: ${JSON.stringify(words)}`);
+            `[each grid's longest word within its Base length, English and Polish; longestTileWord built from the four tables, split at spaces; the tiles' longest word] - the words: ${JSON.stringify(words)}`);
     }],
     ["R1192 - one cast (E37 C2, E37-08; S10-45): monokuma.mjs `actingStudents({ dead })` is the roster of the students who spend a budget, and the GM's strip, the panel's Next line, the Eclipse's placement and its whispers and the trial's ballots and size read it; no other module function walks the students filtering by death and the Monocub flag but those that ask another question", async () => {
         /*

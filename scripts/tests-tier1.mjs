@@ -57018,6 +57018,35 @@ const INVARIANTS = [
         }
     }],
 
+    ["R5471 - the word every tile's type is sized for is read from the tiles' labels as they are when the sheet is fitted, so a Polish label longer than any English one is the word measured: sheet.mjs `longestTileWord` reads ACTIONS, HOPE_CALLS, DESPAIR_CALLS and MONOCUB.abilities at the call, and `fitTileText` probes with its answer (E56 C12)", async () => {
+        /*
+         * E56 C12, 13.11.2026 (the E56 inventory 6.1; the plan's C12). The word was `LONGEST_TILE_WORD`, worked out once when
+         * sheet.mjs was imported - from the English labels, since i18n.mjs `localizeConfig` puts the language file's labels
+         * into the same tables later (at `i18nInit`, and again when a language file is applied on the same page, as
+         * scenario 50 does). So a Polish label longer than every English one was never the word the tiles were fitted
+         * for. Planted here as `localizeConfig` writes: one label of the live ACTIONS table set to a word longer than
+         * "Contribution", read back, and put back. Red before C12: sheet.mjs had no reader, only the import-time constant.
+         */
+        const S = await import("./sheet.mjs"), C = await import("./config.mjs");
+        const [id, def] = Object.entries(C.ACTIONS ?? {}).find(([, d]) => typeof d?.label === "string") ?? [];
+        must(id && def, "ACTIONS holds no label - this would measure nothing");
+        const reader = typeof S.longestTileWord === "function" ? S.longestTileWord : null;
+        const english = reader ? reader() : null;
+        const label = def.label, PLANT = "Wszechstronnościowy";
+        let planted = null;
+        try {
+            def.label = `${PLANT} ${label}`;
+            planted = reader ? reader() : null;
+        } finally {
+            def.label = label;
+        }
+        const after = reader ? reader() : null;
+        const fit = fnSource(stripComments((await moduleSources()).get("sheet.mjs") ?? ""), "fitTileText") ?? "";
+        equal(stableJson({ reader: Boolean(reader), english, planted, after, probes: /probe\.textContent\s*=\s*longestTileWord\(\)/.test(fit) }),
+            stableJson({ reader: true, english: "Contribution", planted: PLANT, after: "Contribution", probes: true }),
+            "{reader: sheet.mjs exports longestTileWord; the word with the English labels; with one ACTIONS label planted longer; with it put back; fitTileText probes with the reader's answer}");
+    }],
+
     ["R5200 - the private cards' and the traps' diagnoses are on game.drpg (E43; the plan's item 4): `game.drpg.diagnoseSecrets()` answers secret.mjs `diagnoseSecrets`, and `game.drpg.diagnoseTraps()` answers traps.mjs `diagnoseTraps` on a GM and warns and answers null on a player (read in its line), as the diagnostics window's part runs it for the GMs alone", async () => {
         /*
          * E43, 13.11.2026. Both ran only as parts of the diagnostics window (diagnostics.mjs `part("secrets")`,

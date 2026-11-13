@@ -1329,7 +1329,7 @@ function fitActionTiles(element) {
  * Calls agree with the Hope Calls.
  *
  * So the constraint is the longest word ANY tile in the module can carry -
- * `LONGEST_TILE_WORD`, taken from the definitions themselves - and every grid
+ * `longestTileWord`, taken from the definitions themselves - and every grid
  * on the sheet gets the answer. That also makes the size stable: it does not
  * change when a panel happens to be on a hidden tab, and a Monokuma's sheet
  * and a student's come out the same.
@@ -1349,8 +1349,14 @@ const TILE_TEXT_FLOOR = 0.68;
  * From the definitions rather than a constant, so renaming a Call moves this
  * with it - which is exactly what happened on 28.08, when "Determination"
  * became "Resolve" and stopped being the word every other tile was paying for.
+ *
+ * READ AT EACH FIT, NOT AT IMPORT (E56 C12, 13.11.2026; R5471). It was worked out once when this file was imported,
+ * from the English labels: i18n.mjs `localizeConfig` writes the language file's labels into these same tables later
+ * (at `i18nInit`, and again when a language file is applied on the same page), so a Polish word longer than every
+ * English one was never the word measured. Some sixty short labels split at spaces, beside the layout reads
+ * `fitTileText` already makes. Exported for the suite.
  */
-const LONGEST_TILE_WORD = (() => {
+export function longestTileWord() {
     const labels = [
         ...Object.values(ACTIONS ?? {}),
         ...Object.values(HOPE_CALLS ?? {}),
@@ -1366,7 +1372,7 @@ const LONGEST_TILE_WORD = (() => {
         }
     }
     return longest;
-})();
+}
 
 function fitTileText(grids) {
     const live = grids.filter(g => g.querySelector(".drpg-action-button")?.clientWidth);
@@ -1386,7 +1392,7 @@ function fitTileText(grids) {
     // real tile - a probe rather than arithmetic, because the pixel font's
     // advance width is not something to hard-code.
     const probe = sample.cloneNode(false);
-    probe.textContent = LONGEST_TILE_WORD;
+    probe.textContent = longestTileWord();
     probe.style.cssText = "position:absolute;visibility:hidden;width:min-content;white-space:normal";
     tile.appendChild(probe);
     const needed = probe.getBoundingClientRect().width;
