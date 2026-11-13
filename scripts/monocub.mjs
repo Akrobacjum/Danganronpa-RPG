@@ -1761,6 +1761,13 @@ async function tellBounty(key, data) {
 /** GM: a Bounty on `target`, owed from `userId`'s pool (the Despair Call). Answers the Bounty, or null when refused. */
 export async function postBounty(userId, target) {
     if (!game.user?.isGM || !target) return null;
+    /* One lock a student (the 1.2.110 review, E72 reader #6): the check, the debt and the write are one step, so two posts
+       in step on one student leave one Bounty and owe its Despair once. A GM's locks are this browser's: two GMs posting
+       on two browsers at once are not held by it. */
+    return serialWrite(`drpg-bounty:${target.id}`, () => postBountyNow(userId, target));
+}
+
+async function postBountyNow(userId, target) {
     const call = DESPAIR_CALLS.bounty;
     const cost = Math.max(1, Math.trunc(Number(call?.cost) || 1));
     const reward = Math.max(1, Math.trunc(Number(call?.reward) || 1));

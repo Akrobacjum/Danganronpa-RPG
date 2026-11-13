@@ -17988,6 +17988,41 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ legacy: false, yesterday: false, now: true, total: [max, max], revived: [null, null, null], paid: 0, given: [true, 0] }),
             "{legacy: the old true shuts the ask; yesterday: a mark of an earlier day does; now: one of this time of day does; total: [the Hope after a refund into a full purse, the maximum]; revived: [the bet, the ask, the order left on a revived student's row]; paid: bets paid to the revived; given: [an old card's Give answered as Not now, the Hope it gave]}");
     }],
+    ["1.2.110 lows, two Bounties at once - two posts on one student in step leave one Bounty and owe its Despair once (scripts/monocub.mjs `postBounty`; the E101 line's review of 1.2.110, E72 reader #6, 13.11.2026)", async () => {
+        /*
+         * The review's #6. `postBounty` checked `bountyStore.has`, then awaited `oweDespair`, then wrote, with no lock: two
+         * presses in step (or two GMs' windows on one browser) both passed the check and both owed Despair, one Bounty kept.
+         * Here two posts started together on this GM, a pool of 3. Read: the answers, the Bounties open, what the pool owes.
+         * The Bounties, the debt rows and the pool are put back. Red at ed235961: both posted, owed 2. Two GMs posting at once
+         * on two browsers are not this lock's (a GM's locks are per browser); not measured.
+         */
+        const [target] = cast(1);
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const S = await import("./gm-stores.mjs");
+        must(typeof M.postBounty === "function" && S.bountyStore, "no Bounty - this would measure nothing");
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const owedBefore = D.owedOf(game.user.id);
+        must(!S.bountyStore.has(target.id), "the fixture student has a Bounty already");
+        const read = {};
+        try {
+            await D.setDespair(game.user.id, 3);
+            await settle();
+            const answers = await Promise.all([M.postBounty(game.user.id, target), M.postBounty(game.user.id, target)]);
+            await settle();
+            read.posted = answers.filter(Boolean).length;
+            read.open = S.bountyStore.has(target.id);
+            read.owed = D.owedOf(game.user.id) - owedBefore;
+        } finally {
+            for (const id of Object.keys(S.bountyStore?.entries?.() ?? {})) await S.bountyStore.drop(id);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ posted: 1, open: true, owed: 1 }), "{posted: posts that answered a Bounty; open: one stands; owed: the Despair the pool owes for them}");
+    }],
     ["a move to order costs only its action: the Monocub's next Confusion after it accepted a Bribe this time of day takes no Hope, the one after it does, and an order lapses at the turn (E72 C17)", async () => {
         /*
          * E72 C17, 12.11.2026; the owner's DC34 ("a move done to order costs only the action"); defaults, owner may revise:
