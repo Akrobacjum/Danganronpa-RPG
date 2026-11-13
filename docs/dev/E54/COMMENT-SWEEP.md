@@ -31,6 +31,36 @@ Per cut, the false comment lines (a line naming two cuts' files counts in each):
 Line references (`<file>:<n>`) to the five files: none in a comment at the base. Documents (docs/, the handbooks)
 were not read for this inventory; the one census document a test holds, docs/dev/e92/CENSUS.md, is repoint's.
 
+## The sweep pass (tools/e54/sweep.mjs), proven 13.11.2026
+
+The replacements of sections 1 and 2 are a table per cut, tools/e54/sweep-<cut>.json (243 rows: sheet 111 - 32 of
+them test names -, windows 6, key-remnants 22, cleanup-reshape 15 - 1 -, chapter 89 - 7 -), each row the line on
+421f2395, the file it stands in after the cut, its text there after repoint and its new text; the 5-line widening of
+a row's text where its line repeats in a file is the builder's, none needed one. `node tools/e54/sweep.mjs --manifest
+tools/e54/<cut>.json` applies a table after split.mjs and repoint.mjs, as a commit of its own; a row whose text is not
+found exactly once - in its file, or else in all of scripts/, styles/, tools/ and audit/ - refuses the run whole, and
+a test name changed writes docs/dev/R-REGISTRY.md again.
+
+On 421f2395, each cut in a throwaway worktree, split, repoint and sweep as three commits:
+
+| Cut | moved-only on the split commit | sweep | R-REGISTRY.md written again | quick | tiers 0-1 |
+| --- | --- | --- | --- | --- | --- |
+| sheet | 8/8 green | 111 rows, 37 files | 31 lines: the 31 renamed tier-0/1 tests' rows, no other (the 32nd name is tier 2's, which the registry does not hold) | green | 1305 passed, 0 failed, 16 skipped (the baseline's), 0 red |
+| windows | 8/8 green | 6 rows | not written (no test name) | green | the same |
+| key-remnants | 8/8 green | 22 rows | not written | green | the same |
+| cleanup-reshape | 8/8 green | 15 rows | written, 0 lines differ (its one name is tier 2's) | green | the same |
+| chapter | 8/8 green | 89 rows | 5 lines: the 5 renamed tests' rows | green | the same |
+
+Main itself, 421f2395, the same day: 1305 passed, 0 failed, the same 16 skips (SPLIT-STATUS.md).
+
+All five in sequence on one tree, as E54's day would run them (sheet, windows, key-remnants, cleanup-reshape, chapter;
+split, repoint, sweep each): all fifteen passes apply, no row refused, each split commit 8/8 green on moved-only.
+Their tiers 0-1 after this fix: being run (13.11.2026), not yet measured; before it R356 failed alone, the reason above.
+
+On the lines, `--dry`: on each of the 36 lines committed to since 12.11, merged into main, each cut split and repointed
+on a fresh copy, then the sweep dry: 0 rows refused on every line and cut where the split applies - 178 runs; the
+sheet's split refused on e72 and e100 as before, so its sweep was not run there.
+
 ## How each was judged
 
 - **A comment in code that moves** belongs to the declaration whose text holds it (split.mjs's rule: a statement owns

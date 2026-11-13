@@ -328,6 +328,13 @@ function rewrite(rel, text) {
         note(at, "helper over a list", all, out); used.add("by");
         return out;
     });
+    // the same list once another cut's repoint wrote it so (cuts run one after another on E54's day): one more branch
+    text = text.replace(new RegExp(`(\\[(?:\\s*"[\\w-]+\\.mjs",?)*\\s*"${F}"(?:,\\s*"[\\w-]+\\.mjs")*\\s*\\]\\.map\\(file => )((?:"[\\w-]+\\.mjs" === file \\? [\\w$]+By\\([\\w$]+\\) : )+)([A-Za-z_$][\\w$]*)\\(file\\)\\)`, "g"), (all, head, chain, fn, at) => {
+        if (chain.includes(`"${SOURCE}" === file`)) return all;
+        const out = `${head}"${SOURCE}" === file ? ${BY_FN}(${fn}) : ${chain}${fn}(file))`;
+        note(at, "helper over a list", all, out); used.add("by");
+        return out;
+    });
     // a loop's test for the file among others: any file of the family now (R1476 read only the facade's hooks without it)
     text = text.replace(new RegExp(`\\b([A-Za-z_$][\\w$]*) !== "${F}"`, "g"), (all, name, at) => {
         note(at, "file test", all, `!${FAMILY_CONST}.includes(${name})`); used.add("family");
