@@ -66,16 +66,18 @@
  *        "may not have been sent" (no "not sent"), and gm, released, posts it: the words stay in the field each time.
  *     D2 p2 moves its Music slider during it; the incident ends (`endMurder`): p2's volume is the moved one, every
  *        other browser keeps its 0.8, no browser's `musicDuckedFrom` changed, the track stopped everywhere.
- *   E (E50 C4; E50-32) - the Take on a body (anonymity.mjs `buildBodyLoot`), drawn into p1's page; Botan dead on a
- *     published death with a Tool on him, Aiko beside him:
+ *   E (E50 C4; E50-32; A113-C5-7) - the Take on a body, since 1.2.113 through Take from the Body's window
+ *     (anonymity.mjs `openBodyLoot`) on p1's page: pressed as the harness presses a window (its default button), and
+ *     drawn again after each to read its Take; Botan dead on a published death with a Tool on him, Aiko beside him:
  *     E1 p1 presses Take; gm holds the packet (its module socket's handlers wrapped) while Aiko walks out of the room,
- *        then judges it: refused "not where it needs to be" - no "took" toast, the Take opened and shut again by the
- *        gate with that sentence, the Tool still on the body.
+ *        then judges it: refused "not where it needs to be" - no "took" toast, the reason said, nothing taken, and the
+ *        window drawn again greys its Take with that sentence, the Tool still on the body.
  *     E2 Aiko back; gm and gm2 stood in as gone on p1's page: no GM to ask - no "took" toast, "No GM is connected."
- *        once, the Take open again, nothing sent.
- *     E4 (fix FG2, G4) p1's page answers no character of its own for the click's read: "no character" once, no
- *        "took" toast, the Take open again, nothing sent.
- *     E3 the Take lands: the toast once, the Take stays shut, a second press sends nothing (one packet counted on gm).
+ *        once, nothing taken or sent, the window drawn again open.
+ *     E4 (fix FG2, G4) p1's page answers no character of its own for the window's read: "no character" once, no
+ *        window drawn, no "took" toast, nothing sent.
+ *     E3 the Take lands: the toast once, one packet counted on gm, the Tool on Aiko with its Truth Bullet and the
+ *        body's trace row, and the window drawn again has no row of it.
  *   S (E50 C4; E50-33, flow "sound") - the sounds' socket road (sfx-play.mjs sends, sfx.mjs listens), counted where
  *     `fire` hands a file to the audio layer (`sfx.played`), a key mapped and every browser's Sound slider at 0.8:
  *     S1 gm plays a sound for p1 (`playSfxForUsers`): 1 on p1, 0 on gm, gm2, p2 and p3.
@@ -796,8 +798,34 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
         }));
         return { dead, item: item?.id ?? null, canCarry: INV.canCarry(aiko, "tool").ok, stowed: back.stowed.length, room: (await import("${repoUrl}/scripts/movement.mjs")).locateActor?.(aiko)?.room ?? null };`, { timeout: 60000 });
     const LOOT_ITEM = eSetup.item;
-    // p1's page: the body's loot window drawn into the page (anonymity.mjs buildBodyLoot, the viewer's own character the taker), and every toast.
-    const eDrawn = await p1.eval(`${UNTIL} const A = await import("${repoUrl}/scripts/anonymity.mjs"); const S = await import("${repoUrl}/scripts/settings.mjs");
+    /* p1's page, every toast; and Take from the Body's window (anonymity.mjs `openBodyLoot`, since 1.2.113: A113-C5-7), the
+       viewer's own character the taker. `PRESS` takes as the window's Take does: the window opened and answered with its
+       default button by p1's page (the harness's way of pressing it; the Tool's row ticked as the window ticks the first
+       open row), its answer kept in `__s87Took`. `LOOK` draws the window on p1's page as a person sees it, reads the Take
+       [disabled, tooltip] and whether the Tool's row is there, and closes it. */
+    const LOOK = `${UNTIL} const A = await import("${repoUrl}/scripts/anonymity.mjs");
+        const windows = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        try {
+            if (typeof A.openBodyLoot !== "function") return null;
+            const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.options?.classes?.includes("drpg-loot-window")) ?? null;
+            const run = A.openBodyLoot(game.actors.get("${IDS.botan}")).catch(() => null);
+            await until(() => Boolean(drawn()?.element), 4000);
+            const app = drawn();
+            await until(() => Boolean(app?.element?.querySelector(".drpg-loot-take")) || !app?.element?.querySelector(".drpg-loot-list"), 2000);
+            const b = app?.element?.querySelector(".drpg-loot-take") ?? null;
+            const out = { take: b ? [b.disabled, b.dataset.tooltip ?? ""] : null,
+                row: [...(app?.element?.querySelectorAll('.drpg-loot-list input[name="item"]') ?? [])].some(i => i.value === ${J(LOOT_ITEM)}) };
+            await app?.close();
+            await run;
+            return out;
+        } finally { globalThis.__dialogWindows = windows; }`;
+    const PRESS = `const A = await import("${repoUrl}/scripts/anonymity.mjs");
+        globalThis.__s87From = globalThis.__s87Toasts.length;
+        globalThis.__s87Took = typeof A.openBodyLoot === "function" ? A.openBodyLoot(game.actors.get("${IDS.botan}")).catch(() => "threw") : Promise.resolve(null);
+        return true;`;
+    const AFTER = `const took = await globalThis.__s87Took; await new Promise(r => setTimeout(r, 50));
+        return { took, toasts: globalThis.__s87Toasts.slice(globalThis.__s87From), onBody: game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}) };`;
+    const eDrawn = await p1.eval(`${UNTIL} const S = await import("${repoUrl}/scripts/settings.mjs");
         const body = game.actors.get("${IDS.botan}");
         await until(() => S.isDeadForGm(body) && body.items.has(${J(LOOT_ITEM)}));
         globalThis.__s87Toasts = []; globalThis.__s87Real = {};
@@ -805,112 +833,113 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, environme
             const realFn = globalThis.__s87Real[kind] = ui.notifications[kind];
             ui.notifications[kind] = function (text, ...rest) { globalThis.__s87Toasts.push([kind, String(text)]); return realFn.call(this, text, ...rest); };
         }
-        const root = document.createElement("div"); root.id = "s87-loot";
-        root.innerHTML = '<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>';
-        document.body.append(root);
-        await A.buildBodyLoot(root, body);
-        await new Promise(r => setTimeout(r, 200));
-        const take = [...root.querySelectorAll(".drpg-loot-list li")].find(li => li.textContent.includes(${J(LOOT_NAME)}))?.querySelector(".drpg-loot-take");
-        return { take: take ? [take.disabled, take.dataset.tooltip ?? ""] : null, open: game.i18n.localize("DRPG.Loot.takeTooltip") };`, { timeout: 60000 });
-    // The Take's state, its opens and shuts since the last click (a MutationObserver on `disabled`), and the toasts since.
-    const TAKE = `const take = [...document.querySelectorAll("#s87-loot .drpg-loot-list li")].find(li => li.textContent.includes(${J(LOOT_NAME)}))?.querySelector(".drpg-loot-take") ?? null;`;
-    const CLICK = `${TAKE} globalThis.__s87Flips = []; globalThis.__s87Seen?.disconnect();
-        globalThis.__s87Seen = new MutationObserver(records => { for (const r of records) if (r.attributeName === "disabled") globalThis.__s87Flips.push(r.oldValue === null ? "shut" : "open"); });
-        if (take) globalThis.__s87Seen.observe(take, { attributes: true, attributeOldValue: true, attributeFilter: ["disabled"] });
-        globalThis.__s87From = globalThis.__s87Toasts.length;
-        const was = take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
-        take?.click();
-        return was;`;
-    const AFTER = `${TAKE} await new Promise(r => setTimeout(r, 50));
-        return { take: take ? [take.disabled, take.dataset.tooltip ?? ""] : null, flips: [...globalThis.__s87Flips], toasts: globalThis.__s87Toasts.slice(globalThis.__s87From),
-            onBody: game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}) };`;
+        return { look: await (async () => { ${LOOK} })(), open: game.i18n.localize("DRPG.Loot.takeTooltip") };`, { timeout: 60000 });
     const WORDS_E = await p1.eval(`return { took: game.i18n.format("DRPG.Loot.took", { item: ${J(LOOT_NAME)} }), notThere: game.i18n.localize("DRPG.Bridge.why.notThere"),
-        noGm: game.i18n.localize("DRPG.Bridge.why.noGm"), open: game.i18n.localize("DRPG.Loot.takeTooltip") };`);
+        noGm: game.i18n.localize("DRPG.Bridge.why.noGm"), open: game.i18n.localize("DRPG.Loot.takeTooltip"), bullet: game.i18n.format("DRPG.Loot.bulletName", { item: ${J(LOOT_NAME)} }) };`);
     const tookToasts = toasts => toasts.filter(([kind, text]) => kind === "info" && text === WORDS_E.took).length;
+    const OPEN_LOOK = { take: [false, WORDS_E.open], row: true };
 
     phase("E1: p1 presses Take; Aiko walks out of the room before the primary judges it", { flow: "give-take-stash" });
     const loots = () => gm.eval(`return globalThis.__s87Bridge.n;`);
     const e1Loots = await loots();
     await gm.eval(`globalThis.__s87Bridge.hold = true; return true;`);
-    const e1Was = await p1.eval(CLICK);
+    await p1.eval(PRESS);
     const e1Held = await gm.eval(`${UNTIL} await until(() => globalThis.__s87Bridge.heldPackets > 0, 4000);
         await canvas.scene.tokens.get("TOKAIKO000000000").update(globalThis.__s87Loot.at, ${PLACE});
         const b = globalThis.__s87Bridge; b.hold = false; const held = b.held.splice(0); for (const go of held) await go();
         return globalThis.__s87Bridge.heldPackets;`, { timeout: 60000 });
-    const e1 = await p1.eval(`${UNTIL} ${TAKE} await until(() => (take?.dataset.tooltip ?? "") === ${J(WORDS_E.notThere)} && globalThis.__s87Toasts.length > globalThis.__s87From, 4000);
-        await new Promise(r => setTimeout(r, 300)); ${AFTER.replace(TAKE, "")}`, { timeout: 60000 });
+    const e1 = await p1.eval(`const out = await (async () => { ${AFTER} })();
+        await new Promise(r => setTimeout(r, 300));
+        out.toasts = globalThis.__s87Toasts.slice(globalThis.__s87From);
+        return { ...out, look: await (async () => { ${LOOK} })() };`, { timeout: 60000 });
     const e1Gm = { loots: (await loots()) - e1Loots, onBody: await gm.eval(`return game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});`) };
-    check("E1: a Take the primary refuses (the taker gone from the body's room) shows no \"took\" toast, opens and is shut again by the gate with the reason's sentence, and the Tool stays on the body (S11-36, E50-32)",
-        eSetup.dead && Boolean(LOOT_ITEM) && eSetup.room === "Cafeteria" && eSetup.canCarry && J(eDrawn.take) === J([false, WORDS_E.open]) && J(e1Was) === J([false, WORDS_E.open]) && e1Held === 1
-            && tookToasts(e1.toasts) === 0 && e1.toasts.some(([, text]) => text.includes(WORDS_E.notThere))
-            && e1.flips.includes("open") && J(e1.take) === J([true, WORDS_E.notThere]) && e1.onBody === true && e1Gm.onBody === true && e1Gm.loots === 1,
-        J({ eSetup, eDrawn, e1Was, e1Held, e1, e1Gm }), { flow: "give-take-stash" });
+    check("E1: a Take the primary refuses (the taker gone from the body's room) shows no \"took\" toast and says why, takes nothing, and Take from the Body's window opened again greys its Take with the reason's sentence (S11-36, E50-32; A113-C5-7)",
+        eSetup.dead && Boolean(LOOT_ITEM) && eSetup.room === "Cafeteria" && eSetup.canCarry && J(eDrawn.look) === J(OPEN_LOOK) && e1Held === 1
+            && e1.took === false && tookToasts(e1.toasts) === 0 && e1.toasts.some(([, text]) => text.includes(WORDS_E.notThere))
+            && J(e1.look) === J({ take: [true, WORDS_E.notThere], row: true }) && e1.onBody === true && e1Gm.onBody === true && e1Gm.loots === 1,
+        J({ eSetup, eDrawn, e1Held, e1, e1Gm }), { flow: "give-take-stash" });
 
     phase("E2: Aiko back beside the body; p1 presses Take with both GMs gone from p1's page", { flow: "give-take-stash" });
     await gm.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 1500, y: 400 }, ${PLACE}); return true;`, { timeout: 60000 });
-    const e2Ready = await p1.eval(`${UNTIL} ${TAKE} await until(() => take && !take.disabled, 4000); return take ? [take.disabled, take.dataset.tooltip ?? ""] : null;`);
+    const e2Ready = await p1.eval(`${UNTIL} const S = await import("${repoUrl}/scripts/movement.mjs");
+        await until(() => S.locateActor(game.actors.get("${IDS.aiko}"))?.room === ${J(eSetup.room)}, 4000);
+        return await (async () => { ${LOOK} })();`, { timeout: 60000 });
     const e2Loots = await loots();
     // gm and gm2 stood in as gone on p1's page alone (as client-entry.mjs marks a user who left), and put back after.
-    const e2 = await p1.eval(`${UNTIL} const gone = game.users.filter(u => u.isGM && u.active);
+    const e2 = await p1.eval(`const gone = game.users.filter(u => u.isGM && u.active);
         for (const u of gone) u._source.active = false;
+        let out = null;
         try {
-            const was = await (async () => { ${CLICK} })();
-            ${TAKE}
-            await until(() => take && !take.disabled && globalThis.__s87Toasts.length > globalThis.__s87From, 4000);
+            await (async () => { ${PRESS} })();
+            out = await (async () => { ${AFTER} })();
             await new Promise(r => setTimeout(r, 300));
-            return { was, gone: gone.length, ...(await (async () => { ${AFTER} })()) };
-        } finally { for (const u of gone) u._source.active = true; }`, { timeout: 60000 });
+            out.toasts = globalThis.__s87Toasts.slice(globalThis.__s87From);
+        } finally { for (const u of gone) u._source.active = true; }
+        return { gone: gone.length, ...out, look: await (async () => { ${LOOK} })() };`, { timeout: 60000 });
     const e2Gm = { loots: (await loots()) - e2Loots, onBody: await gm.eval(`return game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});`) };
-    check("E2: a Take with no GM to answer it shows no \"took\" toast, says no GM is connected, and opens again as the gate reads it; nothing reached the primary (E50-32)",
-        J(e2Ready) === J([false, WORDS_E.open]) && e2.gone === 2 && J(e2.was) === J([false, WORDS_E.open])
+    check("E2: a Take with no GM to answer it shows no \"took\" toast, says no GM is connected once, and takes nothing; nothing reached the primary, and the window opened again reads the gate open (E50-32; A113-C5-7)",
+        J(e2Ready) === J(OPEN_LOOK) && e2.gone === 2 && e2.took === false
             && tookToasts(e2.toasts) === 0 && e2.toasts.filter(([, text]) => text.includes(WORDS_E.noGm)).length === 1
-            && e2.flips.includes("open") && J(e2.take) === J([false, WORDS_E.open]) && e2.onBody === true && e2Gm.onBody === true && e2Gm.loots === 0,
+            && J(e2.look) === J(OPEN_LOOK) && e2.onBody === true && e2Gm.onBody === true && e2Gm.loots === 0,
         J({ e2Ready, e2, e2Gm }), { flow: "give-take-stash" });
 
     /* E4 (fix FG2; the end review's G4): the Take with no character, as the player handbook says it ("or you play no
-       character - says only why, and opens again"). p1's page answers no character of its own for the one synchronous
-       read the click makes (anonymity.mjs `myCharacter`: `game.actors.filter`, then `game.user.character`), put back
-       before anything else runs; the list's taker, read when it was drawn, is still Aiko, so the gate opens it again. */
-    phase("E4: p1 presses Take while p1's page reads no character of its own", { flow: "give-take-stash" });
+       character - says only why"). p1's page answers no character of its own for the one synchronous read opening Take
+       from the Body makes (anonymity.mjs `openBodyLoot`'s default taker, `myCharacter`: `game.actors.filter`, then
+       `game.user.character`), put back before anything else runs; no window is drawn and nothing is asked. */
+    phase("E4: p1 asks for Take from the Body while p1's page reads no character of its own", { flow: "give-take-stash" });
     const e4Loots = await loots();
-    const e4 = await p1.eval(`${UNTIL} const user = game.user, actors = game.actors;
+    const e4 = await p1.eval(`const user = game.user, actors = game.actors;
         const hadFilter = Object.getOwnPropertyDescriptor(actors, "filter"), hadChar = Object.getOwnPropertyDescriptor(user, "character");
-        let was = null;
+        const A = await import("${repoUrl}/scripts/anonymity.mjs");
+        const windows = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const before = [...foundry.applications.instances.values()].filter(a => a?.options?.classes?.includes("drpg-loot-window")).length;
+        globalThis.__s87From = globalThis.__s87Toasts.length;
+        let run = null;
         Object.defineProperty(actors, "filter", { configurable: true, writable: true, value: () => [] });
         Object.defineProperty(user, "character", { configurable: true, get: () => null });
-        try { was = (() => { ${CLICK} })(); }
+        try { run = typeof A.openBodyLoot === "function" ? A.openBodyLoot(game.actors.get("${IDS.botan}")) : null; }
         finally {
             if (hadFilter) Object.defineProperty(actors, "filter", hadFilter); else delete actors.filter;
             if (hadChar) Object.defineProperty(user, "character", hadChar); else delete user.character;
         }
-        ${TAKE}
-        await until(() => take && !take.disabled && globalThis.__s87Toasts.length > globalThis.__s87From, 4000);
+        let took = null;
+        try { took = await Promise.race([run, new Promise(r => setTimeout(() => r("open"), 2000))]); }
+        finally { globalThis.__dialogWindows = windows; }
+        const drawn = [...foundry.applications.instances.values()].filter(a => a?.options?.classes?.includes("drpg-loot-window")).length - before;
         await new Promise(r => setTimeout(r, 300));
-        return { was, taken: take?.dataset.drpgTaken ?? null, ownAgain: Boolean(user.character), ...(await (async () => { ${AFTER} })()) };`, { timeout: 60000 });
+        return { took, drawn, ownAgain: Boolean(user.character), toasts: globalThis.__s87Toasts.slice(globalThis.__s87From),
+            onBody: game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}) };`, { timeout: 60000 });
     const e4Gm = { loots: (await loots()) - e4Loots, onBody: await gm.eval(`return game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});`) };
     const NO_CHARACTER = await p1.eval(`return game.i18n.localize("DRPG.Loot.noCharacter");`);
-    check("E4: a Take with no character of the viewer's own says only why, once, shows no \"took\" toast, and opens again; nothing reached the primary (E50-32; fix FG2, G4)",
-        J(e4.was) === J([false, WORDS_E.open]) && NO_CHARACTER !== "DRPG.Loot.noCharacter" && J(e4.toasts) === J([["warn", NO_CHARACTER]])
-            && e4.flips.includes("shut") && e4.flips.includes("open") && J(e4.take) === J([false, WORDS_E.open]) && e4.taken === null && e4.ownAgain
+    check("E4: Take from the Body with no character of the viewer's own says only why, once, draws no window, shows no \"took\" toast; nothing reached the primary (E50-32; fix FG2, G4; A113-C5-7)",
+        e4.took === false && e4.drawn === 0 && NO_CHARACTER !== "DRPG.Loot.noCharacter" && J(e4.toasts) === J([["warn", NO_CHARACTER]]) && e4.ownAgain
             && e4.onBody === true && e4Gm.onBody === true && e4Gm.loots === 0,
         J({ e4, e4Gm }), { flow: "give-take-stash" });
 
-    phase("E3: p1 presses Take, and again", { flow: "give-take-stash" });
+    phase("E3: p1 presses Take, and opens the window again", { flow: "give-take-stash" });
     const e3Loots = await loots();
-    const e3Was = await p1.eval(CLICK);
-    const e3 = await p1.eval(`${UNTIL} await until(() => globalThis.__s87Toasts.length > globalThis.__s87From, 6000);
-        ${TAKE} take?.click();
-        await new Promise(r => setTimeout(r, 1200)); ${AFTER.replace(TAKE, "")}`, { timeout: 60000 });
+    await p1.eval(PRESS);
+    const e3 = await p1.eval(`${UNTIL} const out = await (async () => { ${AFTER} })();
+        await until(() => !game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}), 6000);
+        await new Promise(r => setTimeout(r, 300));
+        out.toasts = globalThis.__s87Toasts.slice(globalThis.__s87From);
+        out.onBody = game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)});
+        return { ...out, look: await (async () => { ${LOOK} })() };`, { timeout: 60000 });
+    // What the Take left on the GM: where the Tool is, and the evidence - Aiko's Truth Bullet of it and the body's trace row
+    // (handover.mjs `lootBody`, the road the sheet's row Take took before 1.2.113).
     const e3Gm = { loots: (await loots()) - e3Loots,
-        where: await gm.eval(`return { body: game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}), taker: game.actors.get("${IDS.aiko}").items.some(i => i.name === ${J(LOOT_NAME)}) };`) };
-    check("E3: a Take that lands says so once and stays shut, a second press sends nothing, and the Tool leaves the body for the taker (E50-32)",
-        J(e3Was) === J([false, WORDS_E.open]) && tookToasts(e3.toasts) === 1 && e3.toasts.length === 1 && e3.take?.[0] === true && !e3.flips.includes("open")
-            && e3.onBody === false && e3Gm.loots === 1 && e3Gm.where.body === false && e3Gm.where.taker === true,
-        J({ e3Was, e3, e3Gm }), { flow: "give-take-stash" });
+        where: await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const aiko = game.actors.get("${IDS.aiko}");
+            return { body: game.actors.get("${IDS.botan}").items.has(${J(LOOT_ITEM)}), taker: aiko.items.some(i => i.name === ${J(LOOT_NAME)}),
+                bullet: aiko.items.filter(i => i.name === ${J(WORDS_E.bullet)}).length, trace: (S.lootTraceStore.get("${IDS.botan}")?.taken ?? []).includes(${J(LOOT_NAME)}) };`) };
+    check("E3: a Take that lands says so once, the Tool leaves the body for the taker with its Truth Bullet and the body's trace row, one packet reached the primary, and the window opened again has no row of it (E50-32; A113-C5-7)",
+        e3.took === true && tookToasts(e3.toasts) === 1 && e3.toasts.length === 1 && e3.onBody === false && e3.look?.row === false
+            && e3Gm.loots === 1 && e3Gm.where.body === false && e3Gm.where.taker === true && e3Gm.where.bullet === 1 && e3Gm.where.trace === true,
+        J({ e3, e3Gm }), { flow: "give-take-stash" });
     // Put back: p1's page, the GM's socket, Botan alive, what Aiko took and its trace, her place and her stashed things.
-    await p1.eval(`globalThis.__s87Seen?.disconnect(); delete globalThis.__s87Seen; delete globalThis.__s87Flips; delete globalThis.__s87From;
+    await p1.eval(`delete globalThis.__s87From; delete globalThis.__s87Took;
         for (const [kind, fn] of Object.entries(globalThis.__s87Real ?? {})) ui.notifications[kind] = fn;
-        delete globalThis.__s87Real; delete globalThis.__s87Toasts; document.getElementById("s87-loot")?.remove(); return true;`);
+        delete globalThis.__s87Real; delete globalThis.__s87Toasts; return true;`);
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs");
         const b = globalThis.__s87Bridge; delete globalThis.__s87Bridge;
         const list = game.socket._handlers.get("module.${MOD}"); if (list && b) list.splice(0, list.length, ...b.real);

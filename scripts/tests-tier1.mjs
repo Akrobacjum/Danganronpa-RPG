@@ -27071,7 +27071,7 @@ const INVARIANTS = [
             ["DRPG.Tips.Setup.roomPictureThumbnailTooltip","room-tile.mjs","paintTileRow"],
             ["DRPG.Tips.Setup.resetTheSeasonTooltip","season-setup.mjs","seasonResetPart"],
             ["DRPG.Tips.Setup.setThemToObserverTooltip","anonymity.mjs","auditAnonymity"],
-            ["DRPG.Tips.Setup.onALootedItemTooltip","anonymity.mjs","buildBodyLoot"],
+            ["DRPG.Tips.Setup.onALootedItemTooltip","anonymity.mjs","wireLootRows"],
             ["DRPG.Tips.Setup.chatNoteTabsTooltip","messenger-app.mjs","openMessenger"],
             ["DRPG.Tips.Setup.useTheTemplateTooltip","messenger-app.mjs","openMessenger"],
             ["DRPG.Tips.Setup.sectionTooltip","settings-window.mjs","sectionColumns"],
@@ -58250,6 +58250,34 @@ const INVARIANTS = [
         const dropped = modes.filter(mode => row.sanitize({ mode, startedAt: 5 }).mode !== mode);
         equal(stableJson([dropped, row.sanitize({ mode: "R5903-none", startedAt: 5 }).mode, row.sanitize({ mode: "scrum", startedAt: "7" }).startedAt]),
             stableJson([[], null, 7]), "[the modes a GM's Now is sent for that the row drops; a word that is no mode; a start sent as text]");
+    }],
+    ["R6070 - Take from the Body opens an action window, and the body's sheet only opens it (1.2.113; A113-C5-7, the owner's E68 decision of 10.11.2026, \"Q4 ... zastosowac to do wszystkich akcji\", .github/release-notes/v1.2.104.md:231-232): anonymity.mjs exports `openBodyLoot`, which draws action-menus.mjs `actionWindow` with the body's things as checkbox rows (ui-columns.mjs `choiceRowHtml`) and no window of its own, carries the body and the taker on its list where `regreyOpenLoot` reads them, and takes through `takeFromBody` as the sheet's rows did; `buildBodyLoot` calls `openBodyLoot` and takes nothing itself", async () => {
+        /*
+         * 1.2.113, 13.11.2026; A113-C5-7 (docs/dev/audit-113/FINDINGS.md, on the 1.2.113 audit's branch). E68 C12 put every action
+         * window on one layout (R3200 holds the openers' list, which names `openBodyLoot` since this test); Take from the
+         * Body stayed the sheet's Inventory list until 1.2.113. Read off anonymity.mjs with comments stripped: whether
+         * `openBodyLoot` is exported; in it, an `actionWindow({` call, `choiceRowHtml(` with `type: "checkbox"`, and no
+         * `drpgWindow(` or DialogV2 of its own; the list's `data-drpg-body` and `data-drpg-taker`, and `regreyOpenLoot`'s
+         * selector of them; the road - `takeFromBody(body, ...)`, and no `requestBodyLoot(` beside it; in `buildBodyLoot`,
+         * an `openBodyLoot(` call, and no `takeFromBody(`, `requestBodyLoot(` or checkbox. What the drawn window then reads
+         * is the tier-2 tests A113-C5-7-T1..T3, and its fit at 1366x768 Chromium's. Red at ceb9e9c8: no `openBodyLoot`.
+         */
+        const A = await import("./anonymity.mjs");
+        const src = stripComments((await moduleSources()).get("anonymity.mjs") ?? "");
+        must(src.length > 5000, "anonymity.mjs was not served - this test reads nothing until it is");
+        const exported = typeof A.openBodyLoot;
+        const opener = exported === "function" ? fnSource(src, "openBodyLoot") : "";
+        const sheet = fnSource(src, "buildBodyLoot"), regrey = fnSource(src, "regreyOpenLoot");
+        equal(stableJson({
+            exported,
+            window: [/\bactionWindow\(\s*\{/.test(opener), /\bchoiceRowHtml\(/.test(opener), /type:\s*"checkbox"/.test(opener),
+                /\bdrpgWindow\(|\bDialogV2\b|\bwideWindow\(/.test(opener)],
+            list: [opener.includes("data-drpg-body=") && opener.includes("data-drpg-taker="), regrey.includes(".drpg-loot-list[data-drpg-taker]")],
+            road: [/\btakeFromBody\(\s*body\s*,/.test(opener), /\brequestBodyLoot\(/.test(opener)],
+            sheet: [/\bopenBodyLoot\(/.test(sheet), /\btakeFromBody\(|\brequestBodyLoot\(|"checkbox"/.test(sheet)]
+        }), stableJson({ exported: "function", window: [true, true, true, false], list: [true, true], road: [true, false], sheet: [true, false] }),
+        "[openBodyLoot exported] [it calls actionWindow; rows by choiceRowHtml; checkboxes; a window of its own] [the list carries body and taker; "
+            + "regreyOpenLoot reads that list] [it takes through takeFromBody; it asks the bridge itself] [buildBodyLoot opens it; buildBodyLoot takes]");
     }],
 ];
 

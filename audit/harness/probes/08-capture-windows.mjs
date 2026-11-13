@@ -93,6 +93,37 @@ const BALLOT_TO_P1 = "game.socket.emit(\"module.danganronpa-rpg\", { action: \"v
 const P1_STUDENT = "const p1Student = game.actors.find(a => a.type === \"character\" && a.testUserPermission(game.users.get(\"__P1__\"), \"OWNER\"));";
 const SEED_VIAL = `${P1_STUDENT} await p1Student.createEmbeddedDocuments("Item", [{ name: "Probe odd vial", type: "loot", system: { description: "", quantity: 1 }, flags: { "danganronpa-rpg": { category: "usable", tier: 1 } } }]);`;
 const DROP_VIAL = `${P1_STUDENT} const vials = p1Student.items.filter(i => i.name === "Probe odd vial").map(i => i.id); if (vials.length) await p1Student.deleteEmbeddedDocuments("Item", vials);`;
+/* TAKE FROM THE BODY (1.2.113; A113-C5-7): the first student p1 does not own, stood beside p1's and dead on a published
+   death with `n` of the module's things on them (names from the item pools, so a row reads as a table's), for p1 to
+   open the action's window on (anonymity.mjs `openBodyLoot`); revived, its things deleted and its token put back after. The
+   body is picked on both clients by the same rule (the lowest id), so p1 opens the body the GM seeded. */
+const LOOT_BODY = (owned) => `game.actors.filter(a => a.type === "character" && !a.getFlag("danganronpa-rpg", "monokuma") && !${owned}).sort((a, b) => a.id.localeCompare(b.id))[0]`;
+const SEED_LOOT = n => `${P1_STUDENT} const P = await import(\`\${repoUrl}/scripts/tables-pools.mjs\`), INV = await import(\`\${repoUrl}/scripts/inventory.mjs\`);
+    const C = await import(\`\${repoUrl}/scripts/chapter.mjs\`), Mv = await import(\`\${repoUrl}/scripts/movement.mjs\`);
+    const body = ${LOOT_BODY("a.testUserPermission(game.users.get(\"__P1__\"), \"OWNER\")")};
+    const scene = canvas.scene, tok = scene.tokens.find(t => t.actorId === body.id), mine = scene.tokens.find(t => t.actorId === p1Student.id);
+    const room = Mv.roomOfToken(mine), at = tok ? { x: tok.x, y: tok.y } : null;
+    if (tok && room) await tok.update(Mv.positionIn(room, tok), { teleport: true, movementAction: "displace", animate: false });
+    await C.killCharacter(body, { secret: false, keepBullets: true });
+    const pools = [["tool", P.ITEM_POOLS.tool], ["crimeTool", P.ITEM_POOLS.crimeTool], ["cleaningTool", P.ITEM_POOLS.cleaningTool]];
+    const names = pools.flatMap(([category, tiers]) => [...new Set(Object.values(tiers).flat())].slice(0, 6).map(name => [category, name]));
+    const made = [];
+    for (const [category, name] of names.slice(0, ${n})) made.push((await INV.grantItem(body, { name, category, tier: 1, override: true, quiet: true }))?.id);
+    await (await import(\`\${repoUrl}/scripts/sheet-audit.mjs\`)).sheetAuditIdle();
+    globalThis.__probe08loot = { body: body.id, at, made: made.filter(Boolean) };`;
+const DROP_LOOT = `const L = globalThis.__probe08loot; delete globalThis.__probe08loot;
+    const C = await import(\`\${repoUrl}/scripts/chapter.mjs\`), body = game.actors.get(L?.body ?? "");
+    if (body) {
+        if (C.isDeadForGm(body)) await C.reviveCharacter(body, { quiet: true });
+        const made = (L.made ?? []).filter(id => body.items.has(id));
+        if (made.length) await body.deleteEmbeddedDocuments("Item", made);
+        const tok = canvas.scene.tokens.find(t => t.actorId === body.id);
+        if (tok && L.at) await tok.update(L.at, { teleport: true, movementAction: "displace", animate: false });
+    }
+    await (await import(\`\${repoUrl}/scripts/sheet-audit.mjs\`)).sheetAuditIdle();`;
+/* On p1, before the capture watches: the body seen dead with its things (the GM's writes reach p1 a moment later). */
+const LOOT_READY = `const S = await import(\`\${repoUrl}/scripts/settings.mjs\`); const lootBody = ${LOOT_BODY("a.isOwner")};
+    for (let i = 0; i < 100 && !(S.isDeadForGm(lootBody) && lootBody.items.size); i++) await new Promise(r => setTimeout(r, 100));`;
 /* 250 notices recorded on p1 before its history is opened (E21 C1c, the 11.10 amend A7): its own browser's history. */
 const NOTICES_250 = "const h = await import(`${repoUrl}/scripts/notice-history.mjs`); for (let i = 1; i <= 250; i++) h.recordNotice({ kind: \"info\", source: \"mine\", state: i > 240 ? \"unread\" : \"read\", title: `Probe notice ${i}`, text: `The probe's notice number ${i}, one of 250.` });";
 /* The seeds of the header's SEEDED (E49 A4, A5): each `before` keeps what it made on `globalThis.__probe08seed` for its
@@ -392,7 +423,11 @@ export const WINDOWS = [
        (rest.mjs `choosePicks`, not exported): a Short Rest is one pick, a radio group; the Relief Call's four switches
        pass every gate a fresh world could stop it at, and a dismissed window answers `false` before anything is spent. */
     { id: "level-up-queue", module: "level-up.mjs", call: "m.runAdvancementBatch(game.actors.filter(a => a.type === \"character\" && !a.getFlag(\"danganronpa-rpg\", \"monokuma\")).slice(0, 3), \"standard\", { onGiving: () => { throw new Error(\"probe 08: the window is captured, nothing is given\"); } })" },
-    { id: "rest-pick", client: "p1", module: "rest.mjs", call: `m.takeRest(${MINE}, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true })` }
+    { id: "rest-pick", client: "p1", module: "rest.mjs", call: `m.takeRest(${MINE}, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true })` },
+    /* Take from the Body (1.2.113; A113-C5-7): the window as p1 opens it on a body beside them, with three things and with
+       eighteen (`SEED_LOOT`). */
+    { id: "action-loot", client: "p1", module: "anonymity.mjs", gmSeed: SEED_LOOT(3), gmAfter: DROP_LOOT, before: LOOT_READY, call: "m.openBodyLoot(lootBody)" },
+    { id: "action-loot--long", client: "p1", module: "anonymity.mjs", gmSeed: SEED_LOOT(18), gmAfter: DROP_LOOT, before: LOOT_READY, call: "m.openBodyLoot(lootBody)" }
 ];
 
 export const capture = (repoUrl, w) => `
