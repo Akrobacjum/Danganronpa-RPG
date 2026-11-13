@@ -518,7 +518,7 @@ function isStudentRoll(actor) {
  * downstream could tell which character's Calls to honour. Every other handle
  * the config offers is tried before giving up.
  */
-function actorOf(app) {
+export function actorOf(app) {
     const config = app?.config;
     if (!config) return null;
 
@@ -529,7 +529,11 @@ function actorOf(app) {
         if (actor) return actor;
     }
 
-    // The roll data usually carries the actor's own data model.
+    // Where Daggerheart 2.12's window keeps it (d20RollDialog.mjs:43-45 at 2.12.8, `config.actor`, which its MoveContext
+    // sets; its roll data has no `parent`). Until 13.11.2026 only 2.10.5's road below was tried. R5764; exported for it.
+    if (config.actor?.documentName === "Actor") return config.actor;
+
+    // 2.10.5's road: the roll data carried the actor's own data model.
     const parent = config.data?.parent;
     if (parent?.documentName === "Actor") return parent;
     if (parent?.actor) return parent.actor;
