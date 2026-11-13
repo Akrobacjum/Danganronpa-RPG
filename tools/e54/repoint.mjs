@@ -262,14 +262,14 @@ function rewrite(rel, text) {
         return out;
     });
 
-    // a pair: "<file>", "NAME"
-    text = text.replace(new RegExp(`"${F}", "(\\w+)"`, "g"), (all, name, at) => {
+    // a pair: "<file>", "NAME" (with any blanks after the comma: R4754's rows, 1.2.112, write none)
+    text = text.replace(new RegExp(`"${F}",(\\s*)"(\\w+)"`, "g"), (all, gap, name, at) => {
         if (inComment(text, at)) return all;
         const file = holder(name, `${rel} "${SOURCE}", "${name}"`);
         if (file === SOURCE) return all;
         used.add(`${at}`);
-        note(at, "pair", all, `${q(file)}, "${name}"`);
-        return `${q(file)}, "${name}"`;
+        note(at, "pair", all, `${q(file)},${gap}"${name}"`);
+        return `${q(file)},${gap}"${name}"`;
     });
 
     // a reader handed the file, its text and the names it reads: h("<file>", X["<file>"], ["NAME", ...])
@@ -561,6 +561,33 @@ for (const patch of RP.patches ?? []) {
     if (!once(patch.file, text, patch.find, `patch ${patch.test}`)) continue;
     report.push([patch.file, patch.test, "patch", patch.find, patch.replace]);
     edits.set(patch.file, text.replace(patch.find, patch.replace));
+}
+
+/* ---- the tooltip census follows its rows' functions (E54 on 1.2.112) ----
+   tools/tooltip-census.json (E102) holds a row per control with no tooltip, by file and unit (the function that draws it),
+   and some name a function their help is written in (`held.fn`). A row of the source whose function moved names the file
+   that holds it now; only the `file` string changes, in place. A unit and a held function that landed in different files
+   refuse (where the row goes is a decision); a row with no unit (a top-level site) stays with the source's name. */
+const CENSUS = "tools/tooltip-census.json";
+if (fs.existsSync(path.join(REPO, CENSUS))) {
+    let text = edits.get(CENSUS) ?? read(CENSUS);
+    const rows = JSON.parse(text).rows ?? [];
+    const moves = new Map();   // unit -> holder
+    for (const r of rows) {
+        if (r.file !== `scripts/${SOURCE}` || !r.unit) continue;
+        const byUnit = holderOf.get(r.unit), byHeld = r.held?.fn ? holderOf.get(r.held.fn) : byUnit;
+        if (byUnit && byHeld && byUnit !== byHeld) { refuse(`${CENSUS}: the row of ${SOURCE} ${r.unit} names held.fn ${r.held.fn}, and the two stand in ${byUnit} and ${byHeld}`); continue; }
+        const to = byUnit ?? byHeld;
+        if (to && to !== SOURCE) moves.set(r.unit, to);
+    }
+    let n = 0;
+    for (const [unit, to] of moves) {
+        const re = new RegExp(`("file":\\s*)"scripts/${F}"(,\\s*"unit":\\s*"${unit}")`, "g");
+        text = text.replace(re, (all, a, b) => { n++; return `${a}"scripts/${to}"${b}`; });
+    }
+    const want = rows.filter(r => r.file === `scripts/${SOURCE}` && moves.has(r.unit)).length;
+    if (n !== want) refuse(`${CENSUS}: ${want} row(s) of ${SOURCE} to move, ${n} found as "file" then "unit" in the text`);
+    if (n) { report.push([CENSUS, "the tooltip census", "census file", `${n} row(s) of ${SOURCE}`, [...new Set(moves.values())].join(", ")]); edits.set(CENSUS, text); }
 }
 
 /* ---- the kit's names imported where they are used ---- */
