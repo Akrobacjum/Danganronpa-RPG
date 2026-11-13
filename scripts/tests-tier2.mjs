@@ -72074,6 +72074,79 @@ const SCENARIOS = [
             + "a player's lands nothing, the answers]");
     }],
 
+    ["the one entry's cases, one after another on fresh projects (E39-T1): no such project and an empty change answer null; a +1 moves the bar; a fill to the target crosses once, and a full bar renamed does not cross again; a +1 on a full bar and a -1 on an empty one change nothing, each with its reason; a -1 from full uncrosses; a delta past either end stops at it; a target lowered under the progress crosses; a name and a room change it; a frozen bar's +1 is refused; a target of 0 asked is written as 1; a removed project is gone and a change of it answers null", async () => {
+        /*
+         * E39 C4, 13.11.2026; the plan's item 4 ("the 14 project cases on applyProjectChange from E36"). The S09 list the
+         * plan names is not in this checkout, so the cases are the ones projects.mjs `changeStep`'s header states (its
+         * CROSSING paragraph, the clamp, alreadyFull and alreadyEmpty, the frozen bar, a target of 0) and the entry's own
+         * answers (null for no project, an empty change, a removed one). Each case reads the entry's answer -
+         * `{ from, to, target, changed, reason, crossed, uncrossed, removed }` - on a project made for it, so no case leans
+         * on another's bar. A target of 0 cannot be asked for: the entry writes 1 (`cleanProjectChange`; measured here, 13.11.2026),
+         * so the header's "a target of 0 is never reached" holds of no project the entry makes or changes. Red first as mutants of a copy of the tree (the entry exists since E36 C1): the clamp's
+         * `Math.max(0, ...)` dropped, the crossing's `!wasDone` dropped (read by the full bar renamed), the frozen check's `isFrozen` turned false - each
+         * fails this test.
+         */
+        const P = await import("./projects.mjs");
+        const made = [];
+        const make = async (target, name = "SUITE E39-T1 a project") => {
+            const project = await P.createProject({ name, target });
+            must(project?.id, `could not create "${name}"`);
+            made.push(project.id);
+            return project.id;
+        };
+        const gm = { by: { kind: "gm" } };
+        const go = (id, change) => P.applyProjectChange(id, change, gm);
+        const cut = r => (r ? [r.from, r.to, r.target, r.changed, r.reason ?? null, r.crossed, r.uncrossed, r.removed] : null);
+        const read = {};
+        try {
+            read.missing = await go("zE39T1nosuchone0", { delta: 1 });
+            const a = await make(4);
+            read.empty = await go(a, {});
+            read.plus = cut(await go(a, { delta: 1 }));
+            read.fill = cut(await go(a, { delta: 3 }));
+            read.full = cut(await go(a, { delta: 1 }));
+            read.fullNamed = cut(await go(a, { name: "SUITE E39-T1 still full" }));
+            read.uncross = cut(await go(a, { delta: -1 }));
+            read.down = cut(await go(a, { delta: -10 }));
+            read.emptyBar = cut(await go(a, { delta: -1 }));
+            read.up = cut(await go(a, { delta: 10 }));
+            const b = await make(6);
+            await go(b, { delta: 3 });
+            read.lowered = cut(await go(b, { target: 2 }));
+            const c = await make(5);
+            const named = await go(c, { name: "SUITE E39-T1 renamed" });
+            read.named = [named?.changed ?? null, P.allProjects().find(p => p.id === c)?.name ?? null];
+            await go(c, { meta: { room: "SUITE E39-T1 room" } });
+            read.room = P.projectMeta()[c]?.room ?? null;
+            await P.setProjectMeta(c, { frozenBy: "zE39T1saboteur00" });
+            read.frozen = cut(await go(c, { delta: 1 }));
+            const d = await make(3);
+            read.zero = [cut(await go(d, { target: 0 })), cut(await go(d, { delta: 5 }))];
+            const e = await make(3);
+            read.removed = cut(await go(e, { remove: true }));
+            read.gone = [P.allProjects().some(p => p.id === e), await go(e, { delta: 1 })];
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+        }
+        equal(stableJson(read), stableJson({
+            missing: null, empty: null,
+            plus: [0, 1, 4, true, null, false, false, false],
+            fill: [1, 4, 4, true, null, true, false, false],
+            full: [4, 4, 4, false, "DRPG.Project.alreadyFull", false, false, false],
+            fullNamed: [4, 4, 4, true, null, false, false, false],
+            uncross: [4, 3, 4, true, null, false, true, false],
+            down: [3, 0, 4, true, null, false, false, false],
+            emptyBar: [0, 0, 4, false, "DRPG.Project.alreadyEmpty", false, false, false],
+            up: [0, 4, 4, true, null, true, false, false],
+            lowered: [3, 2, 2, true, null, true, false, false],
+            named: [true, "SUITE E39-T1 renamed"], room: "SUITE E39-T1 room",
+            frozen: [0, 0, 5, false, "DRPG.Project.frozenNoProgress", false, false, false],
+            zero: [[0, 0, 1, true, null, false, false, false], [0, 1, 1, true, null, true, false, false]],
+            removed: [0, 0, 3, true, null, false, false, true],
+            gone: [false, null]
+        }), "a case of the one entry answered other than projects.mjs changeStep says ([from, to, target, changed, reason, crossed, uncrossed, removed] per case)");
+    }],
+
     ["D40 and the table of what a completion does (E36-T3): a trap's bar taken back under its target disarms it and keeps firedAt, filled again it arms unless it has fired, one receipt per arming; a finished repair thaws its project once and goes; a lowered target crosses; a row's keep holds the project until the character's Reroll bookmark names another roll", async () => {
         /*
          * E36 C1, 25.10.2026; E36-07, E36-08, audit S09-14, S09-15; D40 ("Rozbraja (armed: false), a ponowne
