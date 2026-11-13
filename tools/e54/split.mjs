@@ -95,6 +95,15 @@ for (const st of statements.filter(x => !x.import)) {
 }
 for (const n of want.keys()) if (!declared.has(n)) refuse(`${n} (${want.get(n)}) is not a top-level declaration of ${manifest.source} any more - it was removed or renamed`);
 
+/* The manifest does not describe this tree: say so before anything below reads a declaration with no file. */
+function stopIfRefused(where) {
+    if (!problems.length) return;
+    for (const p of problems) console.log(`e54-split: REFUSED: ${p}`);
+    console.log(`e54-split: ${problems.length} problem(s) ${where} - nothing written`);
+    process.exit(1);
+}
+stopIfRefused("between the manifest and the source");
+
 /* ---- who reads what (eslint-scope, the module scope) ---- */
 const scopes = eslintScope.analyze(ast, { ecmaVersion: 2022, sourceType: "module" });
 const moduleScope = scopes.globalScope.childScopes.find(sc => sc.type === "module");
