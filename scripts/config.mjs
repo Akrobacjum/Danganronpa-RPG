@@ -1040,13 +1040,6 @@ export const REMNANT_TYPES = {
 };
 
 /**
- * Truth Bullet types - same keys as REMNANT_TYPES, since every Truth Bullet
- * traces back to exactly one Remnant type. Kept as a separate table because a
- * Truth Bullet's hint is what ends up on a player's inventory card, and a
- * Remnant's type is its label and whether it is reinforced: the Remnant types'
- * hints, read by nothing, went in E41 C1b (audit S02-64).
- */
-/**
  * "EVERYONE" AS A TRUTH BULLET'S RECIPIENT (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to
  * everyone' option"): the value Give a Truth Bullet's recipient select and a Planned Truth Bullet's `recipient` hold for
  * every living student - chapter.mjs `livingStudentsForGm`, the roster less the dead for the GMs, so no Monocub (a dead
@@ -1056,6 +1049,13 @@ export const REMNANT_TYPES = {
  */
 export const RECIPIENT_EVERYONE = "everyone";
 
+/**
+ * Truth Bullet types - same keys as REMNANT_TYPES, since every Truth Bullet
+ * traces back to exactly one Remnant type. Kept as a separate table because a
+ * Truth Bullet's hint is what ends up on a player's inventory card, and a
+ * Remnant's type is its label and whether it is reinforced: the Remnant types'
+ * hints, read by nothing, went in E41 C1b (audit S02-64).
+ */
 export const TRUTH_BULLET_TYPES = {
     key: {
         label: "Key Truth Bullet",

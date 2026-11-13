@@ -4324,7 +4324,7 @@ export function typeScale() {
     return Math.round(sliderScale() * Math.max(0.85, autoScale()) * 100) / 100;
 }
 /** The factor the theme's GEOMETRY uses: the slider on the screen's own factor. */
-function effectiveScale() {
+export function effectiveScale() {
     return Math.round(sliderScale() * autoScale() * 100) / 100;
 }
 /* The screen's factor changes when the window does, and so can its shape; the theme

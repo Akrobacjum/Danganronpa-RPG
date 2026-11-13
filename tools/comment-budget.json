@@ -24,7 +24,11 @@
     "NEEDS_OWN_BRIEFING": "action-rolls.mjs: history - the list that went with the Move window, said so ('went with the window')",
     "searchStash": "action-search.mjs: history - the Search's road into a stash, 'gone in 1.2.112' as the comment says",
     "tierWanted": "action-search.mjs: the camelCase spelling `dataset` would lowercase, named to say why the keys are lowercase",
-    "tierwanted": "action-search.mjs: what `dataset` turns `tierWanted` into, named with it"
+    "tierwanted": "action-search.mjs: what `dataset` turns `tierWanted` into, named with it",
+    "restShutReason": "action-facilities.mjs: history - rest.mjs's two-rest reason the Facilities tile read until fix line 113f deleted it (13.11.2026)",
+    "nightFoldsIntoBoard": "day-summary.mjs: history - the Night's summary folded into the roll-over's board until 13.11.2026 (fix line 113j)",
+    "visibleCountdownTypes": "projects-tray.mjs: Daggerheart 2.12.8's countdowns.mjs function, not this module's (fix line 113n, A113-C1-2)",
+    "actorResources": "resources.mjs: Daggerheart 2.12.8's feature field read by its `_cleanupOptionalResources`, not this module's (compat-113)"
   },
   "files": {
     "scripts/a11y.mjs": {
@@ -244,7 +248,7 @@
       "doubledJsdoc": 0
     },
     "scripts/roll-dialog.mjs": {
-      "citations": 3,
+      "citations": 2,
       "doubledJsdoc": 0
     },
     "scripts/roll-draw.mjs": {

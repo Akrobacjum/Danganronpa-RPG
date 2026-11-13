@@ -496,6 +496,9 @@ export function reachability(graph, holders = {}, { culpritId = null, living = n
     return out;
 }
 
+/** The codes `checkCase` names, in the order it reads them. */
+export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noTarget", "noSolution", "twoSolutions", "solutionUnreached", "badMode", "culpritOnly", "tooManyKeys", "incomplete"]);
+
 /**
  * THE CASE'S CONSISTENCY (E97 C8; STAGE C8, Q-E97-7's default: warnings that block nothing). Pure: `graph` of `graphOf`,
  * `reach` of `reachability`, `cycle` the nodes the layout found on a cycle, `modes` the trial's modes, `keyMax` the Key

@@ -181,7 +181,7 @@ export async function setClock(patch = {}) {
         }
         /* AND THE DAY'S BOARDS ARE THE ROLL-OVER'S ALONE (12.11.2026; the owner's rule of that day: never on Edit campaign,
            a correction). `dayBoard` is the day a real roll-over stamped for its boards (sequence.mjs `dayStartPatch`,
-           chapter.mjs's next morning), and transitions.mjs `boardsFor` plays them only on a new day that carries it. Any
+           chapter.mjs's next morning), and transitions.mjs `boardsOf` plays them only on a new day that carries it. Any
            other write that moves the day - Edit campaign, the rewind, the season's reset, a console's `setClock` - takes
            it away, so a day put back and moved forward again by hand cannot find an old stamp that matches. Tier 2
            "E110 day boards B". */

@@ -223,7 +223,7 @@ export function problemText(p, graph) {
  * WHAT A NODE SAYS WHEN IT IS OPEN (the side panel's reading until the E97 fix, now on the node itself): its state, room,
  * who left it and who holds a copy, its trial mode and reach, "only the culprit", and each problem naming it. Text only.
  */
-function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [], rows = true } = {}) {
+export function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [], rows = true } = {}) {
     if (!node) return "";
     const r = reachOf(node, reach?.[node.id]);
     const ev = node.evidence ? reach?.[node.id] : null;

@@ -49,7 +49,7 @@ function zoneLine(side, zone, sides) {
  * The console's middle for a zone floor (`ZONE_PANELS`' `panel`): `view.floor` the floor, `view.sides` the sides
  * (`sidesNow`) - read here when not handed in.
  */
-function zonePanelHtml({ floor, sides = null } = {}) {
+export function zonePanelHtml({ floor, sides = null } = {}) {
     const zone = zoneOf(floor);
     if (!zone) return "";
     // While the camps confer, the panel names the camps as they were kept at the Sides' end - the rooms they talk in -
