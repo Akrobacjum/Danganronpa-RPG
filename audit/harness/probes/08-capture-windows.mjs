@@ -162,15 +162,24 @@ const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
     }
     delete globalThis.__probe08case;`;
 /* The planner's plans (13.11.2026): a planned Prep Remnant, the planned Autopsy and a deduction planning a Straw Poll,
-   over the same case, each a capture of its own with that node open; dropped after. */
+   over the same case, each a capture of its own with that node open; dropped after. E104: the planned Remnant with every
+   field, a planned Final Truth and a planned Truth Bullet. */
 const SEED_PLAN = SEED_CASE + `
     await CS.setCaseNode(ch, "incident-probe08b", { kind: "incident", label: "The torn glove under the reading table", room: "Library", type: "prep",
-        text: "A left glove, its thumb torn, under the third reading table." });
+        text: "A left glove, its thumb torn, under the third reading table.", vis: "subtle", tie: "untied", reinforced: true,
+        analysis: "The tear is fresh, and the leather smells of the library's floor polish.", note: "The culprit's spare glove." });
+    /* E104: a planned Final Truth and a planned Truth Bullet, each with every field filled in */
+    await CS.setCaseNode(ch, "final-probe08", { kind: "final", label: "The second key to the library", room: "Library", vis: "hidden",
+        text: "A brass key on a red string, the library's mark stamped on its bow.", analysis: "Cut last week: the edges are still sharp.",
+        note: "It proves the culprit planned the night." });
+    await CS.setCaseNode(ch, "bullet-probe08", { kind: "bullet", label: "The librarian's account", realType: "incident", shown: "real", vis: "evident",
+        tied: true, text: "The librarian saw the lamp still on at 23:30.", analysis: "She heard the clock fall a few minutes later.",
+        note: "Give it after the first trial debate.", recipient: game.actors.find(a => a.type === "character")?.id ?? "", tell: true });
     await CS.setCaseNode(ch, "autopsy", { kind: "autopsy", label: "Autopsy: one stab wound", text: "One stab wound to the back, between 23:00 and 23:40.",
         note: "The blade was the letter opener." });
     await CS.setCaseNode(ch, "probe08-d3", { kind: "deduction", label: "Someone else was in the library", mode: "straw",
         zoneQuestion: "Who left the library first?", zoneA: "The librarian", zoneB: "The night guard" });
-    globalThis.__probe08case.ids.push("incident-probe08b", "autopsy", "probe08-d3");`;
+    globalThis.__probe08case.ids.push("incident-probe08b", "autopsy", "probe08-d3", "final-probe08", "bullet-probe08");`;
 /* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
    the ticks and the modes taken back after. */
 const SEED_TRIAL = SEED_CASE + `
@@ -283,6 +292,8 @@ export const WINDOWS = [
     { id: "investigation--map-planned", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="incident-probe08b"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-autopsy", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="autopsy"]', call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-zone", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="probe08-d3"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-final", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="final-probe08"]', call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-bullet", module: "investigation.mjs", before: SEED_PLAN, after: DROP_CASE, perTab: false, click: '[data-drpg-node="bullet-probe08"]', call: "m.openInvestigationDashboard()" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     // E64-inv: the preview with a run's marks (its Undo) and New Remnant, both held to 1366x768 unscrolled (style-sweep.mjs STILL).
     { id: "case-realize--made", module: "case-realize.mjs", before: SEED_MADE, after: DROP_MADE, call: "m.openRealization()" },
