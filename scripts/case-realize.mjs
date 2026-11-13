@@ -177,9 +177,11 @@ export async function confirmUndoRealization({ chapter = keyPlan().chapter } = {
  * nothing.
  */
 export function registerCaseAsk() {
-    // the planned Autopsy goes out first, with no window (13.11.2026; `sendPlannedAutopsy`)
+    /* the planned Autopsy goes out first, with no window (13.11.2026; `sendPlannedAutopsy`). On the primary GM alone,
+       not on the discovery's writer: every discovery stamps on the primary today, but one stamped on another GM would
+       then go out from nobody (perf-open's review for 1.2.111, section 2). `sending` and `autopsyIssued` keep it once. */
     Hooks.on(BODY_ANNOUNCED_HOOK, payload => {
-        if (!payload?.writer || payload.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
+        if (payload?.rehearsal === true || !game.user?.isGM || game.user.id !== primaryGmId()) return;
         sendPlannedAutopsy(payload.chapter).catch(err => error("The planned Autopsy could not be sent", err));
     });
     Hooks.on(BODY_ANNOUNCED_HOOK, payload => {

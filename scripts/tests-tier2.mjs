@@ -27347,14 +27347,15 @@ const SCENARIOS = [
          * kind "autopsy"); the discovery's hook on the primary (`writer`, chapter.mjs `announceBody`) sends it as the GM
          * panel's window would by default - every student not dead, the name, the words and the GM's note - unless an Autopsy
          * of the chapter is held already (gm-panel.mjs `autopsyIssued`: one sent by hand, or by an earlier body). The
-         * suite's rehearsal stamps send nothing. Red at a8650af: no such kind, nothing listening.
+         * suite's rehearsal stamps send nothing. Red at a8650af: no such kind, nothing listening. Since 13.11 (perf-open's
+         * review for 1.2.111) the discovery's hook is heard with `writer: false`, a stamp made off this browser: the primary
+         * sends on its own role, not the writer's. Red at c598d3c: nothing went out. On another GM it skips (env.primaryGm).
          */
         const S = await import("./case-schema.mjs");
         const TB = await import("./truth-bullets.mjs");
         const { BODY_ANNOUNCED_HOOK, isDeadForGm } = await import("./chapter.mjs");
-        const { primaryGmId } = await import("./utils.mjs");
         const { studentActors } = await import("./monokuma.mjs");
-        must(game.user.id === primaryGmId(), "this GM is not the primary - the Autopsy would not go out from here");
+        needs(env.primaryGm(), "the planned Autopsy goes out from the primary GM");
         const chapter = getClock().chapter;
         const living = studentActors().filter(a => !isDeadForGm(a));
         needs(world.atLeast("livingStudents"), "living students to receive it");
@@ -27370,7 +27371,8 @@ const SCENARIOS = [
             Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, rehearsal: true, victimIds: [] });
             await wait(800);
             seen.rehearsal = autopsies().length;
-            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, victimIds: [] });
+            // a discovery stamped off this browser (`writer: false`): the primary sends it all the same
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: false, victimIds: [] });
             await until(() => autopsies().length >= living.length, 6000).catch(() => {});
             const sent = autopsies();
             seen.to = sent.map(r => r.actor).sort();

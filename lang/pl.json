@@ -7685,7 +7685,7 @@
     "CaseMap": {
       "noDiveSet": "- bez zestawu -",
       "diveSetGone": "(zestaw już usunięty)",
-      "autopsySent": "Wysłany graczom.",
+      "autopsySent": "Wysłany uczniom.",
       "autopsyWhen": "Trafi do każdego żywego ucznia, gdy ciało zostanie znalezione.",
       "autopsyWentOut": {"one": "Zaplanowany Autopsy Truth Bullet trafił do {n} ucznia.", "few": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów.", "many": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów.", "other": "Zaplanowany Autopsy Truth Bullet trafił do {n} uczniów."},
       "viewSwitch": "Widok śledztwa",

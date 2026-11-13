@@ -5917,7 +5917,7 @@
     "CaseMap": {
       "noDiveSet": "- no set -",
       "diveSetGone": "(a set since deleted)",
-      "autopsySent": "Sent to the players.",
+      "autopsySent": "Sent to the students.",
       "autopsyWhen": "Goes to every living student when the body is found.",
       "autopsyWentOut": {"one": "The planned Autopsy Truth Bullet went out to {n} student.", "other": "The planned Autopsy Truth Bullet went out to {n} students."},
       "viewSwitch": "Investigation view",
