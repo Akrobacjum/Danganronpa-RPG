@@ -367,9 +367,9 @@ async function choosePicks(kind, count) {
         },
         footer: {
             primary: {
+                tooltip: tipText("DRPG.Tips.Actions.doItTooltip"),
                 action: "ok",
                 label: game.i18n.localize("DRPG.Action.proceed"),
-                tooltip: tipText("DRPG.Tips.Actions.doItTooltip"),
                 callback: (e, b, d) => Array.from(d.element.querySelectorAll("[name=pick]:checked")).map(i => i.value)
             },
             close: "cancel"
