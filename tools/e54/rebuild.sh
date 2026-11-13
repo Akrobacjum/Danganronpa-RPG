@@ -3,6 +3,8 @@
 # line's shape out, each proof run and its result written down). Nothing here pushes.
 #
 #   tools/e54/rebuild.sh --base <sha> --work <new dir> --out <new dir> [--picks <a>..<b>] [--rows <sha>] [--no-sweep]
+#   tools/e54/rebuild.sh --base <sha> --work <its dir> --out <its dir> --end-only [--no-sweep]   (step 7 alone, on a run
+#   that reached step 6 and was cut short - a container restart did that to the first full run; a row says so)
 #
 # Run from a checkout of the E54 prep line: its tools/e54 is the tool set and the manifests. --work becomes a git
 # worktree on a local branch e54-rebuild-<base>, --out holds results.md (one row a step: seconds and what it read),
@@ -29,14 +31,20 @@
 set -u
 T=$(cd "$(dirname "$0")" && pwd)
 PREP=$(cd "$T/../.." && pwd)
-BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1
+BASE= WORK= OUT= PICKS=a2b233d2..da276909 ROWS=c6e4e5ed SWEEP=1 END=0
 while [ $# -gt 0 ]; do case "$1" in
   --base) BASE=$2; shift 2;; --work) WORK=$2; shift 2;; --out) OUT=$2; shift 2;;
   --picks) PICKS=$2; shift 2;; --rows) ROWS=$2; shift 2;; --no-sweep) SWEEP=0; shift;;
+  --end-only) END=1; shift;;
   *) echo "rebuild: unknown argument $1"; exit 2;; esac; done
 [ -n "$BASE" ] && [ -n "$WORK" ] && [ -n "$OUT" ] || { echo "rebuild: --base, --work and --out, please"; exit 2; }
-[ -e "$WORK" ] && { echo "rebuild: $WORK exists; a new directory, please"; exit 2; }
-[ -e "$OUT" ] && { echo "rebuild: $OUT exists; a new directory, please"; exit 2; }
+if [ $END = 1 ]; then # step 7 alone, on a run's worktree and results (a restart that cut a run short)
+  for f in "$WORK/.git" "$OUT/results.md" "$OUT/golden-boxes.json" "$OUT/golden-0.json"; do
+    [ -e "$f" ] || { echo "rebuild: --end-only needs $f, from a run that got to step 6"; exit 2; }; done
+else
+  [ -e "$WORK" ] && { echo "rebuild: $WORK exists; a new directory, please"; exit 2; }
+  [ -e "$OUT" ] && { echo "rebuild: $OUT exists; a new directory, please"; exit 2; }
+fi
 git -C "$PREP" fetch -q origin claude/e54-land-112 2> /dev/null # the default picks and rows live there
 mkdir -p "$OUT/logs" "$OUT/tables"
 OUT=$(cd "$OUT" && pwd)
@@ -45,14 +53,31 @@ CUTS="sheet windows windows-settings key-remnants cleanup-reshape chapter glass"
 TRAILER="Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01QsWhUcWE5y53y4rU2XXudy"
 R=$OUT/results.md
-printf '# E54 rebuild\n\nbase %s, picks %s, rows %s, tools %s (%s)\n\n| Step | Seconds | Read |\n| --- | ---: | --- |\n' \
+[ $END = 0 ] && printf '# E54 rebuild\n\nbase %s, picks %s, rows %s, tools %s (%s)\n\n| Step | Seconds | Read |\n| --- | ---: | --- |\n' \
   "$BASE" "$PICKS" "$ROWS" "$(git -C "$PREP" rev-parse --short HEAD)" "$(date -u +%FT%TZ)" > "$R"
 row() { printf '| %s | %s | %s |\n' "$1" "$2" "$3" >> "$R"; echo "rebuild: $1 ($2 s): $3"; }
 stop() { row "$1" "${2:-0}" "STOP: $3"; printf '\nStopped at %s.\n' "$1" >> "$R"; exit 1; }
 # step <name> <log> <command...>: runs it, logs it, times it; the caller reads $? and the log
 step() { local name=$1 log=$OUT/logs/$2; shift 2; local t0=$SECONDS; "$@" > "$log" 2>&1; local rc=$?; DT=$((SECONDS - t0)); return $rc; }
 commit() { git add -A && git commit -q -F - ; }
+proofs() { # quick and tiers 0-1 at this commit; $1 the step's name
+  step "$1 quick" "quick-$1.txt" bash -c "cd audit/harness && npm run quick"; local q=$? dq=$DT
+  row "$1 quick" $dq "$([ $q = 0 ] && echo green || echo "RED (logs/quick-$1.txt)")"
+  step "$1 tiers" "tiers-$1.txt" bash -c "cd audit/harness && node run-tests.mjs --tier 1"; local t=$? dt=$DT
+  row "$1 tiers 0-1" $dt "$(grep 'run-tests: [0-9]* passed' "$OUT/logs/tiers-$1.txt" | tail -1)"
+  [ $q = 0 ] && [ $t = 0 ] || stop "$1" 0 "quick or tiers red; logs/quick-$1.txt, logs/tiers-$1.txt"
+}
+# glass-golden exits 1 when a size draws no glass (844x390 and 640x360 on 1.2.112: 23 of 25 captured) and 2 when it
+# cannot run; so its own line is read, and the byte comparison at the end is the proof
+golden() { # golden <step> <log> <args...>
+  local name=$1 log=$2; shift 2
+  step "$name" "$log" node audit/glass-golden.mjs "$@" --chromium "$CHROMIUM"; local rc=$?
+  [ $rc = 2 ] && stop "$name" $DT "glass-golden could not run (logs/$log)"
+  grep -q "size(s) captured into\|byte(s) written to" "$OUT/logs/$log" || stop "$name" $DT "nothing written (logs/$log)"
+  row "$name" $DT "$(grep "size(s) captured into\|byte(s) written to" "$OUT/logs/$log" | tail -1 | sed 's/ into .*\| to .*//' | cut -c1-120)"
+}
 
+if [ $END = 0 ]; then
 # 1
 step worktree worktree.txt git -C "$PREP" worktree add -b "e54-rebuild-${BASE:0:8}" "$WORK" "$BASE" || stop worktree $DT "$(tail -1 "$OUT/logs/worktree.txt")"
 WORK=$(cd "$WORK" && pwd); cd "$WORK"
@@ -85,25 +110,9 @@ for c in $(git -C "$PREP" rev-list --reverse "$PICKS"); do
 done
 row picks $((SECONDS - t0)) "$n commit(s) from $PICKS; head $(git rev-parse --short HEAD)"
 
-proofs() { # quick and tiers 0-1 at this commit; $1 the step's name
-  step "$1 quick" "quick-$1.txt" bash -c "cd audit/harness && npm run quick"; local q=$? dq=$DT
-  row "$1 quick" $dq "$([ $q = 0 ] && echo green || echo "RED (logs/quick-$1.txt)")"
-  step "$1 tiers" "tiers-$1.txt" bash -c "cd audit/harness && node run-tests.mjs --tier 1"; local t=$? dt=$DT
-  row "$1 tiers 0-1" $dt "$(grep 'run-tests: [0-9]* passed' "$OUT/logs/tiers-$1.txt" | tail -1)"
-  [ $q = 0 ] && [ $t = 0 ] || stop "$1" 0 "quick or tiers red; logs/quick-$1.txt, logs/tiers-$1.txt"
-}
 
 # 3
 proofs picks
-# glass-golden exits 1 when a size draws no glass (844x390 and 640x360 on 1.2.112: 23 of 25 captured) and 2 when it
-# cannot run; so its own line is read, and the byte comparison at the end is the proof
-golden() { # golden <step> <log> <args...>
-  local name=$1 log=$2; shift 2
-  step "$name" "$log" node audit/glass-golden.mjs "$@" --chromium "$CHROMIUM"; local rc=$?
-  [ $rc = 2 ] && stop "$name" $DT "glass-golden could not run (logs/$log)"
-  grep -q "size(s) captured into\|byte(s) written to" "$OUT/logs/$log" || stop "$name" $DT "nothing written (logs/$log)"
-  row "$name" $DT "$(grep "size(s) captured into\|byte(s) written to" "$OUT/logs/$log" | tail -1 | sed 's/ into .*\| to .*//' | cut -c1-120)"
-}
 golden "golden boxes" golden-boxes.txt --capture --boxes "$OUT/golden-boxes.json"
 golden "golden base" golden-base.txt --boxes "$OUT/golden-boxes.json" --out "$OUT/golden-0.json"
 
@@ -172,6 +181,11 @@ done
 step rows rows-pick.txt git cherry-pick "$ROWS" || stop rows $DT "code.md's rows do not apply on this base (logs/rows-pick.txt); the worktree stands mid-pick"
 step "rows check" rows.txt node "$T/rows.mjs" --repo "$WORK" || stop "rows check" $DT "$(head -3 "$OUT/logs/rows.txt" | paste -sd ';' -)"
 row rows $DT "$(tail -1 "$OUT/logs/rows.txt")"
+
+else
+  WORK=$(cd "$WORK" && pwd); cd "$WORK"
+  row resumed 0 "--end-only at $(date -u +%FT%TZ), on $(git rev-parse --short HEAD) (tools $(git -C "$PREP" rev-parse --short HEAD)): steps 1-6 as above"
+fi
 
 # 7
 proofs end
