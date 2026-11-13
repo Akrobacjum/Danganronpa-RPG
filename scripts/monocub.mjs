@@ -1856,8 +1856,8 @@ export async function lapseBounties() {
             return null;
         }) : null;
         const pool = D.poolLabel(game.users.get(bounty?.by) ?? null);
-        const gmOnly = back === "cancelled" ? game.i18n.format("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool })
-            : back === "back" ? game.i18n.format("DRPG.Monocub.bountyDespairBack", { n: cost, pool }) : "";
+        const gmOnly = back === "cancelled" ? plural("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool })
+            : back === "back" ? plural("DRPG.Monocub.bountyDespairBack", { n: cost, pool }) : "";
         await tellBounty("bountyLapsed", { name: bounty?.targetName ?? game.actors.get(id)?.name ?? "?" }, gmOnly);
     }
     log(`${open.length} Bounty(-ies) lapsed unclaimed at the turn of the time of day; their Despair given back.`);

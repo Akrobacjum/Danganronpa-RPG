@@ -40830,6 +40830,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const { livingStudents } = await import("./chapter.mjs");
         const { contentOf } = await import("./secret.mjs");
         const { TIMES_OF_DAY, DESPAIR_CALLS } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
         const donor = game.user;
         ok(D.monokumas().some(u => u.id === donor.id), "this GM holds no Despair pool - this would measure nothing");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
@@ -40873,7 +40874,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             await D.settleOwed();
             await settle();
-            read.a.push(state(), cards(game.i18n.format("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool: D.poolLabel(donor) })));
+            read.a.push(state(), cards(plural("DRPG.Monocub.bountyOwedCancelled", { n: cost, pool: D.poolLabel(donor) })));
 
             must(await M.postBounty(donor.id, other), "the second Bounty was not posted - this would measure nothing");
             await settle();
@@ -40885,7 +40886,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.b.push(state(), bountyStore.has(other.id));
             await M.lapseBounties();
             await settle();
-            read.b.push(state(), cards(game.i18n.format("DRPG.Monocub.bountyDespairBack", { n: cost, pool: D.poolLabel(donor) })));
+            read.b.push(state(), cards(plural("DRPG.Monocub.bountyDespairBack", { n: cost, pool: D.poolLabel(donor) })));
         } finally {
             await setClock({ timeOfDay: clock.timeOfDay });
             await D.settleOwed();

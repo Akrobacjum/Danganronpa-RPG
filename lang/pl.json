@@ -1355,8 +1355,18 @@
       "bountyPosted": "Bounty: {reward} Hope dla pierwszego Monocuba, którego Confusion przeszkodzi postaci {name}.",
       "bountyClaimed": "Bounty na postać {name} odebrane.",
       "bountyLapsed": "Bounty na postać {name} wygasło nieodebrane.",
-      "bountyOwedCancelled": "{n} Despair, które pula {pool} była za nie winna, anulowano.",
-      "bountyDespairBack": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli.",
+      "bountyOwedCancelled": {
+        "one": "{n} Despair, które pula {pool} była za nie winna, anulowano.",
+        "few": "{n} Despair, które pula {pool} była za nie winna, anulowano.",
+        "many": "{n} Despair, które pula {pool} była za nie winna, anulowano.",
+        "other": "{n} Despair, które pula {pool} była za nie winna, anulowano."
+      },
+      "bountyDespairBack": {
+        "one": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli.",
+        "few": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli.",
+        "many": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli.",
+        "other": "{n} Despair, które pula {pool} za nie zapłaciła, wraca do puli."
+      },
       "bountyPaid": "Odbierasz Bounty na postać {name}: {n} Hope w twojej sakiewce.",
       "bountyNoDespair": "W twojej puli nie ma Despair na Bounty.",
       "bet": "Postaw",

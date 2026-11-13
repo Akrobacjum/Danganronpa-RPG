@@ -1281,8 +1281,14 @@
       "bountyPosted": "A Bounty: {reward} Hope to the first Monocub whose Confusion hinders {name}.",
       "bountyClaimed": "The Bounty on {name} is claimed.",
       "bountyLapsed": "{name}'s Bounty lapsed unclaimed.",
-      "bountyOwedCancelled": "The {n} Despair {pool} owed for it is cancelled.",
-      "bountyDespairBack": "The {n} Despair {pool} paid for it is back in the pool.",
+      "bountyOwedCancelled": {
+        "one": "The {n} Despair {pool} owed for it is cancelled.",
+        "other": "The {n} Despair {pool} owed for it is cancelled."
+      },
+      "bountyDespairBack": {
+        "one": "The {n} Despair {pool} paid for it is back in the pool.",
+        "other": "The {n} Despair {pool} paid for it is back in the pool."
+      },
       "bountyPaid": "You claim the Bounty on {name}: {n} Hope in your purse.",
       "bountyNoDespair": "Your pool has not the Despair for a Bounty.",
       "bet": "Bet",

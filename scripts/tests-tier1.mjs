@@ -7716,7 +7716,9 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const src = name => stripComments(sources.get(name) ?? "");
         const recording = fnSource(src("despair.mjs"), "recordOwed");
-        ok(/despairOwedStore\.patch\(`\$\{userId\}:\$\{game\.user\.id\}:\$\{Date\.now\(\)\}`/.test(recording),
+        // The key named before the write since A113-C6-3 (13.11.2026: `oweDespair` answers it, a lapsed Bounty gives it back).
+        ok(/despairOwedStore\.patch\(`\$\{userId\}:\$\{game\.user\.id\}:\$\{Date\.now\(\)\}`/.test(recording)
+            || (/const key = `\$\{userId\}:\$\{game\.user\.id\}:\$\{Date\.now\(\)\}`;/.test(recording) && /despairOwedStore\.patch\(key,/.test(recording)),
             "a conversion's debt is not a row of its own: two GMs converting from one pool at once keep one");
         const WAITS = [
             ["despair.mjs", "convertDespairToHope", "await despairOwedStore.whenHydrated();", "spendableDespair("],
