@@ -64,6 +64,16 @@ On the lines, `--dry`: on each of the 36 lines committed to since 12.11, merged 
 on a fresh copy, then the sweep dry: 0 rows refused on every line and cut where the split applies - 178 runs; the
 sheet's split refused on e72 and e100 as before, so its sweep was not run there.
 
+### The tables rebuilt on another base (sweep-build.mjs)
+
+`node tools/e54/sweep-build.mjs --base <a checkout of the base> [--out <dir>] [--doc <file>]` makes each cut's tree from
+the base, reads it as this inventory read 421f2395 (the hand verdicts in tools/e54/sweep-verdicts.json, found by file
+and line text), and writes the five tables; on 421f2395 it writes 243 rows, and the trees they make are those proven
+above, byte for byte. A row holds the changed fragment of its line, widened word by word until it stands once in its
+file, and the whole line beside it: a line another commit edited elsewhere still matches by its fragment (r112's R3488),
+a fragment another commit repeated by its line (v110's calls.mjs). A location word in moved code with no hand verdict is
+named and gets no row: the builder exits 1 until somebody reads it.
+
 ## How each was judged
 
 - **A comment in code that moves** belongs to the declaration whose text holds it (split.mjs's rule: a statement owns

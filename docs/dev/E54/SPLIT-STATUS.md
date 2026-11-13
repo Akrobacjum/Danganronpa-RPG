@@ -179,6 +179,30 @@ on every one - 15, 31, 24 and 72 rewrites on 32 lines; windows 16 and chapter 74
 73 on e64 and e64-inv (a line's own readers more). The sheet splits and repoints (46; 47 on e64) on all but e72 and
 e100, refused as above. windows-settings and remnants-migrate refuse on every line.
 
+### The sheet cut on 1.2.110's and r112's shape (13.11.2026)
+
+e72 ships in 1.2.110 and adds `lairLocked` and `lairBlock` to sheet.mjs; r112 adds `monocubMoveNote`, `moveDragSaid` and
+`stillMoveTile`. sheet.json places them where their lines wrote them, after the declaration before each there:
+`lairLocked`, `lairBlock` after `knownPassageItem` in sheet-sidebar.mjs; `monocubMoveNote`, `moveDragSaid` after
+`injectMonocubPanel` and `stillMoveTile` after `actionButton` in sheet-actions.mjs. Their kind ends in "?": placed where
+the tree holds them, asked of no tree that does not (split.mjs, repoint.mjs) - on 421f2395 the five cuts' trees come
+out as before, byte for byte.
+
+main + e72: a merge of origin/claude/e72 into 421f2395 conflicts in seven files outside the cut (lang, voice.mjs,
+bridge-guards.mjs, the handbooks, the registry); origin/claude/v110-fix (32f5093f) holds main and e72 with those
+resolved by their line, and its sheet.mjs differs from main's in e72's two functions alone, so the proof is on it.
+
+| Tree | split | moved-only on the split | repoint | sweep (main's tables) | quick | tiers 0-1 | the same tree uncut |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v110-fix 32f5093f (main + e72, 1.2.110's review) | applies | 8/8 green | 53 rewrites | 111 rows, 1 found by its whole line; R-REGISTRY.md 31 lines (the renamed rows) | green | 1369 passed, 0 failed, 16 skipped, 0 red | 1369 passed, 0 failed, 16 skipped, the same skips by name; quick green |
+| r112 d449e0bd | applies | 8/8 green | 50 rewrites | 111 rows; R-REGISTRY.md 31 lines | green | 1343 passed, 0 failed, 16 skipped, 0 red | 1343 passed, 0 failed, 16 skipped, the same skips; quick green |
+
+The sweep's tables are main's: on v110 one fragment stands three times in calls.mjs (the line adds two more), and the
+row is applied in the one line that is still its base line; on r112 R3488's name was rewritten ahead of its fragment,
+which still stands once. Built on each tree itself (`sweep-build.mjs --base`), the tables hold more rows - the lines'
+own new comments that name sheet.mjs: v110 861 comment lines, 213 false, 40 test names, 253 rows; r112 840, 209 false, 43 test names,
+252 rows - so on E54's day they are built again on the commit it runs on.
+
 ### Not done here
 
 - The splits' results, as the brief says: only the scripts, the manifests and this file.
