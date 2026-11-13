@@ -390,6 +390,108 @@ Clear Faint; konsola rozprawy: dziennik dowodów).
 **Zgłoś:** zrzut paska i okna Nowy Remnant w obu motywach przy 1366x768.
 **Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
+### Wydanie 1.2.111 (szkic)
+
+Źródło: lista koordynatora z 13.11.2026 i gałęzie odczytane o 00:35 UTC. Kod jest tylko dla czterech pozycji:
+`claude/e93` (E93 Facilities, E69 Infiltrate, E74 drzwi i Keep Watch; ostatnio złączona z main przy 1.2.108, więc
+przed wydaniem dostanie jeszcze 1.2.109) i `claude/project-token-icon`. **Bez kodu na żadnej wypchniętej gałęzi** (nie
+pisz dla nich sprawdzeń, dopóki kod nie powstanie; U1 i U2 to tylko szkic kroków): animacja wyjścia z Class Trial i
+poprawka mrugnięcia przy wejściu, *Edytuj kampanię* bez animacji, autozapis planera, Autopsy, planowane miejsca,
+minigry, pływające pola tekstowe, S17-31 (nazwa tajnego projektu w `daggerheart.Countdowns`, którą ma każda
+przeglądarka; poprawka przypisana do E43, na żadnej gałęzi jej nie ma). Wygląd radia (tryb mikrofonu jako przyciski)
+jest na `claude/e101` i jest sprawdzany w V2, krok 8.
+
+#### U1 Wyjście z Class Trial i wejście bez mrugnięcia [ważne] [szkic] · 5 min · GM i gracz
+
+Kodu jeszcze nie ma (na main wyjście to zwykły obrót od środka: `transitions.mjs:76`). Kroki do potwierdzenia po wydaniu.
+
+**Co zrobić:**
+1. GM kończy Class Trial (**Zakończ Class Trial**); GM i gracz patrzą na wyjście, w obu motywach. Gracz w tym czasie
+   uruchamia `await game.drpg.fps({ toChat: false })`.
+2. Następne wejście do Class Trial: czy na początku coś mrugnie (krótko pokazana plansza, kafle albo pusta klatka).
+
+**Co powinno być:** wyjście ma własną animację zgodną z notatkami 1.2.111; wejście bez mrugnięcia.
+**Zgłoś:** wynik `fps()`; czy było mrugnięcie i na czyim ekranie.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+#### U2 Edytuj kampanię nie gra animacji [ważne] [szkic] · 5 min · GM i gracz, na duplikacie
+
+Kodu jeszcze nie ma; zasada zapisana w `docs/dev/e62/STORYBOARD-C3.md` na `claude/e62-c3` ("Edit campaign never plays
+animations"). Na 1.2.109 plansze grają także z *Edytuj kampanię* (N6).
+
+**Co zrobić:**
+1. GM w *Edytuj kampanię* zmienia porę dnia, potem dzień, potem fazę na Class Trial i z powrotem.
+
+**Co powinno być:** żaden obrót, błysk ani plansza na żadnym ekranie; stan końcowy od razu.
+**Zgłoś:** co zagrało i u kogo.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+#### U3 Facilities: akcje pokoju i efekty czasowe (E93) [ważne] [szkic] · 15 min · GM i gracz
+
+**Co zrobić:**
+1. GM: Ustawienia pokoi > Facilities > Edytuj akcje - akcja pokoju z rzutem. Gracz używa jej z kafla **Facilities**
+   (dawne Rest). Rzut losuje główny GM.
+2. Zapisz, po jakim czasie na innych ekranach wiersz tej akcji jest wyszarzony z powodem "Ktoś już tego użył"; drugi
+   gracz, który zapłacił w tej samej chwili, dostaje odmowę i zwrot akcji; w pokoju zostaje słaby ślad (Subtle).
+3. Ukończony projekt z akcją "Pory dnia: 1": rano akcja jest w oknie Facilities i w linii okna Projects, po przesunięciu
+   zegara na południe znika; "Na stałe" zostaje do końca rozdziału.
+4. Efekt czasowy (np. +2 do cechy): na arkuszu gracza biały znaczek obok Hope Calls, podpowiedź mówi, kiedy się kończy;
+   kończy się z porą dnia. Pod Stained Glass znaczek ze świeczką.
+5. Okno Facilities i oba edytory przy 1366x768 i wąskim ekranie, w obu motywach i językach: nic ucięte, bez przewijania
+   w bok.
+6. Overflow: pięć nowych stanów (Lockdown, Insomnia, Toll, Jitters, Power cut); przy Insomnii Short Rest jest szary.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** czas z kroku 2; zrzuty okna Facilities i znaczka efektu.
+**Rozstrzyga:** [LIVE-E93-01 (po wydaniu E93), LIVE-E93-02 (po wydaniu E93), LIVE-E93-03 (po wydaniu E93)]
+
+#### U4 Infiltrate: przejście, Tail i Dash (E69) [ważne] [szkic] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Na konsoli głównego GM-a: `Hooks.on("drpgCrossingSettled", e => console.log(e))`.
+2. Gracz przechodzi do sąsiedniego pokoju i stoi: po około 2 s jedno zdarzenie z pokojami. GM cofa token gracza przed
+   upływem 2 s: brak zdarzenia. Przeciągnięcie przez dwa pokoje naraz: jedno zdarzenie od pierwszego do ostatniego.
+3. Kafel **Infiltrate** (dawne Listen): siedem wierszy (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick
+   the Lock, Keep Watch).
+4. Tail Someone na postaci GM-a: karty przychodzą, gdy cel przechodzi; w Eclipse Tail się nie zaczyna.
+5. Dash: darmowe przejścia; śledzący dostaje "… ucieka Dashem. Zgubiono trop."
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** linie z konsoli z kroku 2 i zmierzone opóźnienie serwera.
+**Rozstrzyga:** [LIVE-E69-04 (po wydaniu E69)]
+
+#### U5 Drzwi i Keep Watch (E74) [ważne] [szkic] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Gracz robi Shut the Door. Ruch tokenu GM-a nie jest blokowany. Następne przejście gracza przez zabarykadowane drzwi:
+   co się dzieje i co mówi karta "Ktoś próbuje wejść".
+2. Force the Door na zamkniętych drzwiach, potem Ustawienia pokoi > Drzwi: zaznaczona kolumna Zepsute.
+3. Pick the Lock (Hand, próg 15): otwierający dostaje przejście; nikt nie jest przesuwany.
+4. Keep Watch zgłoszony przed Eclipse: karty na początku Eclipse, przy każdym przejściu i podsumowanie na końcu.
+5. GM robi Reroll jednej z tych akcji: wynik rozgrywa się od nowa.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** treść kart; zrzut kolumny Zepsute.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+#### U6 Ikona na tokenie projektu [miłe] [szkic] · 5 min · GM i gracz
+
+Źródło: `claude/project-token-icon` (`scripts/projects-map.mjs:247` `projectTokenIcon` na tej gałęzi; 21 ikon
+`icons/project-*.svg`). STATUS: "nie rysowane na prawdziwym płótnie Foundry".
+
+**Co zrobić:**
+1. GM tworzy projekt z ikoną: token projektu ma tę ikonę w kolorze budowy i w kolorze ukończenia. Projekt bez ikony
+   zostaje z młotkiem.
+2. GM zmienia ikonę: token zmienia się przy następnej synchronizacji.
+3. Stary token (sprzed zmiany) przechodzi z młotka albo znaku ostrzeżenia na swoją ikonę; obrazek ustawiony ręcznie przez
+   GM-a zostaje.
+4. Pod Stained Glass token używa rysunku z Legacy; dla 11 ikon różni się od zasobnika (lista, zębatka, pudełko, waga,
+   miotła, różdżka, kłódka, koperta, łańcuch, mózg, prezent).
+
+**Co powinno być:** jak w krokach; ikona czytelna przy zwykłym przybliżeniu.
+**Zgłoś:** zrzut tokenów; czy różnica z kroku 4 jest do przyjęcia.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
 ### Wydanie 1.2.112 (szkic)
 
 Źródło: `claude/e100` (ekrany gracza) i `claude/e101` (ekrany GM-a), ich `docs/dev/*/STATUS.md`. Żadna z gałęzi nie
@@ -636,7 +738,7 @@ tools* i *Map tools* czytelne.
 **Co powinno być:** wszystko na ekranie i czytelne.
 **Porażka:** ucięty przycisk, przewijanie całego okna, okno szersze niż ekran.
 **Co zapisać:** zrzut każdego okna, które coś ucina (z motywem, językiem i rozmiarem w nazwie pliku).
-**Rozstrzyga:** [LIVE-E21-01, LIVE-E21-09, LIVE-E41-02, LIVE-E46-07, LIVE-E47-10, LIVE-E44-08, LIVE-E44-09, LIVE-E24-11, LIVE-E47-07, LIVE-E24-06, LIVE-E22-06, LIVE-E46-06 (częściowo), LIVE-E93-03 (po wydaniu E93)]
+**Rozstrzyga:** [LIVE-E21-01, LIVE-E21-09, LIVE-E41-02, LIVE-E46-07, LIVE-E47-10, LIVE-E44-08, LIVE-E44-09, LIVE-E24-11, LIVE-E47-07, LIVE-E24-06, LIVE-E22-06, LIVE-E46-06 (częściowo)]
 
 Opis w AUDIT 9.2: poz. 387, 401, 370, 437, 447, 385, 386, 428, 444, 419, 397, 436.
 
@@ -792,7 +894,7 @@ token A pojawia się na granicy, nie w starym pokoju.
 ścianą.
 **Co zapisać:** na oko albo ze stoperem: czas od puszczenia tokenu do kafla i do mgły u A, u drugiego właściciela i u
 GM-a; liczba aktualizacji z kroku 4.
-**Rozstrzyga:** [LIVE-E78-14, LIVE-E79-19, LIVE-E77-15, AUDIT 9.2 poz. 15 (bez id), AUDIT 7, punkt 7, LIVE-E89-03, AUDIT 9.2 poz. 22 (bez id), LIVE-E12-07, LIVE-E79-24 (częściowo), LIVE-E17-02, LIVE-E69-04 (po wydaniu E69)]
+**Rozstrzyga:** [LIVE-E78-14, LIVE-E79-19, LIVE-E77-15, AUDIT 9.2 poz. 15 (bez id), AUDIT 7, punkt 7, LIVE-E89-03, AUDIT 9.2 poz. 22 (bez id), LIVE-E12-07, LIVE-E79-24 (częściowo), LIVE-E17-02]
 
 Opis w AUDIT 9.2: poz. 236, 256, 219, 344, 169, 261, 308.
 
@@ -860,7 +962,7 @@ Opis w AUDIT 9.2: poz. 135, 306, 470, 325, 328, 356, 357, 167, B-E52-5, B-E52-6,
 **Co powinno być:** żadna akcja nie "znika"; każdy Reroll przechodzi raz.
 **Porażka:** toast "klient GM-a odmówił"; Hope zapłacony dwa razy; Reroll bez nowych kości.
 **Co zapisać:** zrzut przekreślonej karty Rerolla; każdy toast odmowy z godziną; liczby kliknięć.
-**Rozstrzyga:** [AUDIT 7, punkt 1, AUDIT 7, punkt 2, LIVE-E14-01, LIVE-E29-15, LIVE-E68-05 (częściowo), LIVE-E51-01, LIVE-E07-11, LIVE-E29-11, LIVE-E16-05, LIVE-E68-04, LIVE-E31-01, AUDIT 9.2 poz. 21 (bez id), LIVE-E08-01, LIVE-E33-02 (częściowo), LIVE-E06-08, LIVE-E51-06, LIVE-E16-06, LIVE-E93-01 (po wydaniu E93)]
+**Rozstrzyga:** [AUDIT 7, punkt 1, AUDIT 7, punkt 2, LIVE-E14-01, LIVE-E29-15, LIVE-E68-05 (częściowo), LIVE-E51-01, LIVE-E07-11, LIVE-E29-11, LIVE-E16-05, LIVE-E68-04, LIVE-E31-01, AUDIT 9.2 poz. 21 (bez id), LIVE-E08-01, LIVE-E33-02 (częściowo), LIVE-E06-08, LIVE-E51-06, LIVE-E16-06]
 
 Opis w AUDIT 9.2: poz. 298, 124, 462, 355, 87, 120, 304, 461, 35, 89, 126, 74, 360, 305.
 
@@ -964,7 +1066,7 @@ Opis w AUDIT 9.2: poz. 295, 296, 297, 113, 101, 111, 414, 415, 416, 424, 426, 41
 **Co powinno być:** jak w krokach.
 **Porażka:** projekt niewidoczny u proponującego; - albo + liczone dwa razy; pusty kwadrat zamiast ikony.
 **Co zapisać:** zrzut zasobnika u GM-a i u gracza; zrzut tokenu projektu u obu.
-**Rozstrzyga:** [LIVE-E79-16, LIVE-H84-04, LIVE-H84-05, LIVE-E44-07, LIVE-E44-20, LIVE-E23-12, LIVE-E36-02, LIVE-E37-03, LIVE-E28-13, LIVE-E11-02, LIVE-E15-03, LIVE-E93-02 (po wydaniu E93)]
+**Rozstrzyga:** [LIVE-E79-16, LIVE-H84-04, LIVE-H84-05, LIVE-E44-07, LIVE-E44-20, LIVE-E23-12, LIVE-E36-02, LIVE-E37-03, LIVE-E28-13, LIVE-E11-02, LIVE-E15-03]
 
 Opis w AUDIT 9.2: poz. 253, 320, 321, 383, 384, 413, 300, 366, 106, 155, 303.
 
@@ -1768,7 +1870,7 @@ przypisany do sprawdzenia, przy którym warto go zrobić, gdy wydanie wyjdzie.
 | Id | Gałąź | Etap | Sprawdzenie |
 | --- | --- | --- | --- |
 | LIVE-E64-01 | `claude/e64` | E64 | N8 |
-| LIVE-E69-04 | `claude/e93` | E69 | C1 |
-| LIVE-E93-01 | `claude/e93` | E93 | C3 |
-| LIVE-E93-02 | `claude/e93` | E93 | C6 |
-| LIVE-E93-03 | `claude/e93` | E93 | A7 |
+| LIVE-E69-04 | `claude/e93` | E69 | U4 |
+| LIVE-E93-01 | `claude/e93` | E93 | U3 |
+| LIVE-E93-02 | `claude/e93` | E93 | U3 |
+| LIVE-E93-03 | `claude/e93` | E93 | U3 |

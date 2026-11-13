@@ -75,6 +75,42 @@
    "time": "10 min",
    "draft": true
   },
+  "U1": {
+   "title": "Wyjście z Class Trial i wejście bez mrugnięcia",
+   "weight": "ważne",
+   "time": "5 min",
+   "draft": true
+  },
+  "U2": {
+   "title": "Edytuj kampanię nie gra animacji",
+   "weight": "ważne",
+   "time": "5 min",
+   "draft": true
+  },
+  "U3": {
+   "title": "Facilities: akcje pokoju i efekty czasowe (E93)",
+   "weight": "ważne",
+   "time": "15 min",
+   "draft": true
+  },
+  "U4": {
+   "title": "Infiltrate: przejście, Tail i Dash (E69)",
+   "weight": "ważne",
+   "time": "10 min",
+   "draft": true
+  },
+  "U5": {
+   "title": "Drzwi i Keep Watch (E74)",
+   "weight": "ważne",
+   "time": "10 min",
+   "draft": true
+  },
+  "U6": {
+   "title": "Ikona na tokenie projektu",
+   "weight": "miłe",
+   "time": "5 min",
+   "draft": true
+  },
   "V1": {
    "title": "Ekrany gracza po przeglądzie (E100)",
    "weight": "ważne",
@@ -4533,7 +4569,7 @@
   "LIVE-E69-04": {
    "status": "after-release",
    "checks": [
-    "C1"
+    "U4"
    ],
    "branch": "claude/e93",
    "stage": "E69",
@@ -4542,7 +4578,7 @@
   "LIVE-E93-01": {
    "status": "after-release",
    "checks": [
-    "C3"
+    "U3"
    ],
    "branch": "claude/e93",
    "stage": "E93",
@@ -4551,7 +4587,7 @@
   "LIVE-E93-02": {
    "status": "after-release",
    "checks": [
-    "C6"
+    "U3"
    ],
    "branch": "claude/e93",
    "stage": "E93",
@@ -4560,7 +4596,7 @@
   "LIVE-E93-03": {
    "status": "after-release",
    "checks": [
-    "A7"
+    "U3"
    ],
    "branch": "claude/e93",
    "stage": "E93",

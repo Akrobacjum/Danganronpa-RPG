@@ -36,6 +36,15 @@ napisz, co zrobione). Gdy sprawdzenie ma kilka kroków, a padł jeden, wpisz X i
 | N9 | Monocub z E72 i pokój głosowy zmarłych (1.2.110) | ważne | | | |
 | N10 | Strefy sali i schemat sprawy w konsoli | ważne | | | |
 | N11 | Pierwsze otwarcie okien i pomiar stołu | miłe | | | |
+| T1 | Pasek Investigation po przeglądzie (E64-inv) (szkic) | ważne | | | |
+| U1 | Wyjście z Class Trial i wejście bez mrugnięcia (szkic) | ważne | | | |
+| U2 | Edytuj kampanię nie gra animacji (szkic) | ważne | | | |
+| U3 | Facilities: akcje pokoju i efekty czasowe (E93) (szkic) | ważne | | | |
+| U4 | Infiltrate: przejście, Tail i Dash (E69) (szkic) | ważne | | | |
+| U5 | Drzwi i Keep Watch (E74) (szkic) | ważne | | | |
+| U6 | Ikona na tokenie projektu (szkic) | miłe | | | |
+| V1 | Ekrany gracza po przeglądzie (E100) (szkic) | ważne | | | |
+| V2 | Ekrany GM-a po przeglądzie (E101) (szkic) | ważne | | | |
 | A1 | Wersje i czysta konsola | krytyczne | | | |
 | A2 | Strażnik przekaźnika i raport `diagnose()` | krytyczne | | | |
 | A3 | Testy tierów 0-1 i odczyty stylu | krytyczne | | | |

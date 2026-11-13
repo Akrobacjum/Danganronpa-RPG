@@ -14,6 +14,11 @@ Updated 12.11.2026 (second push: the owner's answers). Built on `main` at 235c32
     pushed branch at 01:00 (none changes transitions.mjs, sequence.mjs or gm-campaign.mjs against main). N6 rewritten,
     with a step that records the behaviour per version.
   - The board's frame: **not found in code** on any branch; N6 asks only to look and describe.
+- **1.2.111 draft (U1-U6)**: code exists only for E93 Facilities, E69 Infiltrate and E74 (`claude/e93`, last merged
+  with main at 1.2.108) and the project token icon (`claude/project-token-icon`). The trial exit and entry blink, Edit
+  campaign without animations, the planner's autosave, Autopsy, planned locations, minigames, floating text fields and
+  S17-31 were on no pushed branch at 00:35 UTC; U1 and U2 are steps to confirm when the code exists, the rest have no
+  check yet. LIVE-E69-04 and LIVE-E93-01..03 now point at U4 and U3. The radio look (`claude/e101`) is V2 step 8.
 - **Drafts** (`[szkic]` in the heading, codes T = 1.2.110, U = 1.2.111, V = 1.2.112), a section per release after block
   N, each to be checked against its release notes when it ships. A draft may settle no LIVE id yet; check-coverage.mjs
   now allows that for `[szkic]` headings only and prints how many there are.
