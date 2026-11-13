@@ -87402,9 +87402,23 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await wait(600);
         }
         const laid = stableJson([["hope", hope.background], ["fear", fear.background]]);
-        equal(stableJson(read), stableJson({ copy: true, drawn: true, message: false, reroll: true, own: [laid],
-            history: [true, [hope.background, fear.background]], marks: [[true, true, false], [true, false, true]], off: ["[]"], forged: true }),
-            "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted (the harness's summary: "
+        /* DAGGERHEART 2.10 AND LATER LAY NO TABLE LOOK (dice-look.mjs `tableDualityLook`: there the Hope and Fear dice
+           wear Daggerheart's roles, so the module lays none). The harness boots as the Daggerheart module.json verifies
+           (lib/versions.mjs), 2.12.8 since 1.2.111 (8f1b1b38), where this test read the laying road's values and failed:
+           measured "drawn": false, "own": ["[]"], "history": [false, [null, null]], no marks, with the copy still kept and
+           a player's write still put back. So it reads the rule the code states, by the version this browser runs: on
+           2.10 and later the copy and its guard alone, and nothing laid; before 2.10 the whole laying road, as before.
+           At a table on an older Daggerheart that road is read there; headless it is not read while module.json
+           verifies 2.10 or later. */
+        const roles = game.system?.id === "daggerheart" && typeof game.system?.version === "string"
+            && foundry.utils.isNewerVersion(game.system.version, "2.9.99");
+        equal(stableJson(read), stableJson(roles
+            ? { copy: true, drawn: false, message: false, reroll: false, own: ["[]"],
+                history: [false, [null, null]], marks: [[false, false, false], [false, false, false]], off: ["[]"], forged: true }
+            : { copy: true, drawn: true, message: false, reroll: true, own: [laid],
+                history: [true, [hope.background, fear.background]], marks: [[true, true, false], [true, false, true]], off: ["[]"], forged: true }),
+            `[on Daggerheart ${game.system?.version ?? "?"}${roles ? ", which lays no table look" : ""}] `
+            + "[the world's copy took the source's look; the drawn roll's throws laid; the message's own dice painted (the harness's summary: "
             + "cannot fail here); the Reroll's throws laid; the GM's own throw; the throw history's newest row (laid, its Hope and Fear dice's "
             + "look); the laid copy of a ghost throw and of a secret one (laid, ghost, secret); with the switch off; a player's write put back]");
     }],
