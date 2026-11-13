@@ -1352,12 +1352,22 @@ export async function issueAutopsyDialog() {
             }</label>`;
     }).join("");
 
-    /* WHAT THE CASE PLANNED (13.11.2026): the planned Autopsy's name, words and note fill the window in, for a body found
-       before it was planned or a GM sending it by hand (case-schema.mjs AUTOPSY_NODE). */
-    const { caseRows, caseNodeOf, AUTOPSY_NODE } = await import("./case-schema.mjs");
+    /* WHAT THE CASE PLANNED (13.11.2026): the next planned Autopsy not sent yet - of the chapter's count, with a name or
+       words written (case-schema.mjs `autopsyId`, investigation.mjs `autopsyCount`) - fills the window in, for a body
+       found before it was planned or a GM sending it by hand; sent from here, it is marked sent, so its body sends it
+       no second time. Nothing here refuses a GM another Autopsy (the owner, 13.11.2026). */
+    const { caseRows, caseNodeOf, caseMetaOf, setCaseMeta, autopsyId } = await import("./case-schema.mjs");
+    const { autopsyCount } = await import("./investigation.mjs");
     const { getClock } = await import("./clock.mjs");
-    const planned = caseNodeOf(caseRows(getClock().chapter).rows[AUTOPSY_NODE]);
-    const fill = planned?.kind === "autopsy" ? planned : { label: "", text: "", note: "" };
+    const chapter = getClock().chapter;
+    const planRows = caseRows(chapter);
+    const sentMarks = caseMetaOf(planRows.meta).autopsySent;
+    let plannedId = null;
+    for (let n = 1; n <= autopsyCount(chapter) && !plannedId; n++) {
+        const row = caseNodeOf(planRows.rows[autopsyId(n)]);
+        if (row?.kind === "autopsy" && (row.label || row.text) && !sentMarks[autopsyId(n)]) plannedId = autopsyId(n);
+    }
+    const fill = plannedId ? caseNodeOf(planRows.rows[plannedId]) : { label: "", text: "", note: "" };
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.TruthBullet.autopsyTitle"),
         classes: ["drpg-panel", "drpg-window-autopsy"],
@@ -1404,6 +1414,7 @@ export async function issueAutopsyDialog() {
         { name, playerText: result.playerText, gmNote: result.gmNote }
     );
 
+    if (issued && plannedId) await setCaseMeta(chapter, { autopsySent: { ...caseMetaOf(caseRows(chapter).meta).autopsySent, [plannedId]: Date.now() } });
     ui.notifications.info(plural("DRPG.TruthBullet.autopsyIssued", { n: issued }));
     return issued > 0;
 }

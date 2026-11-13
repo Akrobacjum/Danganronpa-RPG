@@ -27419,37 +27419,42 @@ const SCENARIOS = [
             "{the slot's room as stored; the preview's and Place's room select; the room the Key Remnant was placed in; Place's select for a room gone, and a line naming it; a planned Remnant node's room select}");
     }],
 
-    ["planned Autopsy: the body's discovery sends the planned Autopsy to every living student with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\")", async () => {
+    ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {
         /*
-         * The owner through the coordinator, 13.11.2026 ~01:05. The case plans its Autopsy on a node of its own (case-schema.mjs
-         * kind "autopsy"); the discovery's hook on the primary (`writer`, chapter.mjs `announceBody`) sends it as the GM
-         * panel's window would by default - every student not dead, the name, the words and the GM's note - unless an Autopsy
-         * of the chapter is held already (gm-panel.mjs `autopsyIssued`: one sent by hand, or by an earlier body). The
-         * suite's rehearsal stamps send nothing. Red at a8650af: no such kind, nothing listening. Since 13.11 (perf-open's
-         * review for 1.2.111) the discovery's hook is heard with `writer: false`, a stamp made off this browser: the primary
-         * sends on its own role, not the writer's. Red at c598d3c: nothing went out. On another GM it skips (env.primaryGm).
+         * The owner through the coordinator, 13.11.2026 ~01:05: the case plans its Autopsy on a node of its own
+         * (case-schema.mjs kind "autopsy"), and the discovery's hook on the primary sends it as the GM panel's window
+         * would by default - every student not dead, the name, the words and the GM's note. ~09:20: several a chapter, a
+         * preset count the GM can change, each sent on its own trigger, by default one a body found, in order. Here two
+         * are planned (the chapter's count written as 2): the first goes out at the chapter's first body, a second hook
+         * on the same bodies sends nothing more, and the second goes out at the second body. The bodies are discovery
+         * stamps the test writes, as the suite's are, `rehearsal: true` (so no other listener acts on them), and the
+         * stamps are put back after; the hook itself is called as a real discovery's, `writer: false` (a stamp made off
+         * this browser: the primary sends on its own role; perf-open's review for 1.2.111). Red at bc3445c: one Autopsy a
+         * chapter, the second never went out. On another GM it skips (env.primaryGm).
          *
-         * NOT TO THE DEAD, MEASURED (the planner's review for 1.2.111, minor 2; 13.11.2026). Until then the world's four
-         * students were all alive, so a send that ignored death passed: one fixture student is now dead for the GMs (the
-         * deaths store, as tier 2's other deaths, dropped after) and must get nothing. Red with `sendPlannedAutopsy`'s
-         * filter taken off: the dead student got one. And a world where a student already holds this chapter's Autopsy
-         * sends nothing by design (`autopsyIssued`), so it is a fact about the world, asked first, not a failure.
+         * NOT TO THE DEAD, MEASURED (the planner's review for 1.2.111, minor 2; 13.11.2026): one fixture student is dead for
+         * the GMs (the deaths store, dropped after) and must get nothing. An Autopsy held already no longer stops the
+         * planned ones (the owner's 13.11: the GM sends by hand as many as wanted), so no world is skipped for one.
          */
         const S = await import("./case-schema.mjs");
         const TB = await import("./truth-bullets.mjs");
         const { BODY_ANNOUNCED_HOOK, isDeadForGm } = await import("./chapter.mjs");
         const { studentActors } = await import("./monokuma.mjs");
         const { deathStore } = await import("./gm-stores.mjs");
-        needs(env.primaryGm(), "the planned Autopsy goes out from the primary GM");
+        const { recordBodyFound, seasonEpoch } = await import("./settings.mjs");
+        needs(env.primaryGm(), "the planned Autopsies go out from the primary GM");
         const chapter = getClock().chapter;
-        needs(world.atLeast("livingStudents", 2), "two living students: one to receive it, one made dead for the GMs");
-        needs(world.noAutopsyHeld(chapter), "no student holds this chapter's Autopsy yet - one held sends nothing, by design");
+        needs(world.atLeast("livingStudents", 2), "two living students: one to receive them, one made dead for the GMs");
         const corpse = studentActors().find(a => !isDeadForGm(a) && !deathStore.has(a.id)) ?? null;
         must(corpse, "no living student without a death record to make dead - this would measure nothing");
         const before = new Set(studentActors().flatMap(a => TB.bulletsOf(a).map(i => i.uuid)));
         const autopsies = () => studentActors().flatMap(a => TB.bulletsOf(a).filter(i => !before.has(i.uuid) && TB.secretOf(i.uuid).realType === "autopsy")
             .map(i => ({ actor: a.id, item: i })));
+        const batch = rows => ({ to: rows.map(r => r.actor).sort(), words: [...new Set(rows.map(r => `${r.item.name}|${TB.secretOf(r.item.uuid).gmNote ?? ""}`))] });
         const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const stamp = victimIds => recordBodyFound({ chapter, epoch: seasonEpoch(), at: Date.now(), by: game.user.id, victimIds, rehearsal: true });
+        const discovery = victimIds => Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: false, victimIds });
         const seen = {};
         let living = [];
         try {
@@ -27457,34 +27462,133 @@ const SCENARIOS = [
             await gmStoresIdle();
             living = studentActors().filter(a => !isDeadForGm(a));
             seen.corpseDead = !living.some(a => a.id === corpse.id);
-            await S.setCaseMeta(chapter, { askedAt: Date.now() });
-            await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE planned autopsy", text: "SUITE stab wound, 23:10", note: "SUITE the GM's note" });
+            await S.setCaseMeta(chapter, { askedAt: Date.now(), autopsies: 2 });
+            await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE first autopsy", text: "SUITE stab wound, 23:10", note: "SUITE the first note" });
+            await S.setCaseNode(chapter, S.autopsyId?.(2) ?? "autopsy-2", { kind: "autopsy", label: "SUITE second autopsy", text: "SUITE no wound, 02:40", note: "SUITE the second note" });
             await gmStoresIdle();
             Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, rehearsal: true, victimIds: [] });
             await wait(800);
             seen.rehearsal = autopsies().length;
-            // a discovery stamped off this browser (`writer: false`): the primary sends it all the same
-            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: false, victimIds: [] });
+            await stamp([corpse.id]);
+            discovery([corpse.id]);
             await until(() => autopsies().length >= living.length, 6000).catch(() => {});
-            const sent = autopsies();
-            seen.to = sent.map(r => r.actor).sort();
-            seen.toCorpse = sent.some(r => r.actor === corpse.id);
-            seen.words = [...new Set(sent.map(r => `${r.item.name}|${TB.secretOf(r.item.uuid).gmNote ?? ""}`))];
-            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, victimIds: [] });
+            const first = autopsies();
+            seen.first = batch(first);
+            seen.toCorpse = first.some(r => r.actor === corpse.id);
+            discovery([corpse.id]);
             await wait(1200);
-            seen.again = autopsies().length - sent.length;
+            seen.again = autopsies().length - first.length;
+            await stamp(["SUITEsecondbody"]);
+            discovery(["SUITEsecondbody"]);
+            await until(() => autopsies().length >= 2 * living.length, 6000).catch(() => {});
+            seen.second = batch(autopsies().filter(r => !first.some(f => f.item.uuid === r.item.uuid)));
         } finally {
             for (const { item } of autopsies()) {
                 await TB.dropSecret(item.uuid).catch(() => {});
                 await item.delete().catch(() => {});
             }
-            await S.dropCaseNode(chapter, "autopsy").catch(() => {});
-            await S.setCaseMeta(chapter, { askedAt: metaBefore.askedAt }).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore).catch(() => {});
+            for (const id of ["autopsy", S.autopsyId?.(2) ?? "autopsy-2"]) await S.dropCaseNode(chapter, id).catch(() => {});
+            await S.setCaseMeta(chapter, { askedAt: metaBefore.askedAt, autopsies: metaBefore.autopsies, autopsySent: metaBefore.autopsySent }).catch(() => {});
             if (deathStore.has(corpse.id)) await deathStore.drop(corpse.id).catch(() => {});
             await gmStoresIdle();
         }
-        equal(stableJson(seen), stableJson({ corpseDead: true, rehearsal: 0, to: living.map(a => a.id).sort(), toCorpse: false, words: ["SUITE planned autopsy|SUITE the GM's note"], again: 0 }),
-            "{the fixture student dead for the GMs; Autopsies after a rehearsal's hook; who got one after the discovery's; whether the dead one did; their name and GM note; more after a second body}");
+        const to = living.map(a => a.id).sort();
+        equal(stableJson(seen), stableJson({ corpseDead: true, rehearsal: 0,
+            first: { to, words: ["SUITE first autopsy|SUITE the first note"] }, toCorpse: false, again: 0,
+            second: { to, words: ["SUITE second autopsy|SUITE the second note"] } }),
+            "{the fixture student dead for the GMs; Autopsies after a rehearsal's hook; who got one at the first body and its name and note; whether the dead one did; more at the same bodies again; who got one at the second body and its name and note}");
+    }],
+
+    ["planned Autopsies on the Map: the first planned Autopsy's fields hold the chapter's count with its preset beside it; a count of 2 written at the node's close draws a second Autopsy, whose body is written at its own close; the GM panel's Autopsy window fills in the next one not sent, and sent from there it is marked sent (the owner, 13.11.2026: \"preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~09:20. investigation.mjs `schemaEditor`'s Autopsy fields
+         * (`autopsyCount`, `autopsyPreset`), `applySchemaSave`'s count and atBody, the node's close (item 1's autosave),
+         * gm-items.mjs `issueAutopsyDialog`'s fill-in and mark. A fixture first Autopsy in the chapter running; its node
+         * opened, the count set to 2, the node closed; the second node opened, its body set to 3 and a name written, closed.
+         * Then the GM panel's window: it holds the first's name; the first marked sent, it holds the second's, and Issue
+         * with one student ticked marks the second sent. Red at bc3445c: no count, no second node.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const GI = await import("./gm-items.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        needs(world.atLeast("livingStudents"), "a living student to tick in the Autopsy window");
+        must(typeof I.autopsyCount === "function", "investigation.mjs plans one Autopsy a chapter - there is no count to read");
+        const chapter = I.keyPlan().chapter;
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const second = S.autopsyId(2);
+        const before = new Set(studentActors().flatMap(a => TB.bulletsOf(a).map(i => i.uuid)));
+        const autopsyWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-autopsy"));
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseMeta(chapter, { autopsies: null, autopsySent: {} });
+            await S.setCaseNode(chapter, "autopsy", { kind: "autopsy", label: "SUITE map first", text: "SUITE the first words" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const openNode = async (id, field) => {
+                root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+                await until(() => root?.querySelector(`.drpg-case-edit:not([hidden]) [name="${CSS.escape(`case:${chapter}:${id}:${field}`)}"]`), 3000).catch(() => {});
+                return root?.querySelector(".drpg-case-edit:not([hidden])") ?? null;
+            };
+            let edit = await openNode("autopsy", "autopsies");
+            must(edit, "the first planned Autopsy's node did not open on the Map with a count");
+            const count = win.field(`case:${chapter}:autopsy:autopsies`);
+            seen.drawn = { count: count?.value ?? null, preset: edit.textContent.includes(game.i18n.format("DRPG.CaseMap.autopsyPreset", { n: I.autopsyPreset(chapter) })),
+                second: Boolean(root.querySelector(`[data-drpg-node="${second}"]`)) };
+            count.value = "2";
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseMetaOf(S.caseRows(chapter).meta).autopsies === 2 && root.querySelector(`[data-drpg-node="${second}"]`), 4000).catch(() => {});
+            seen.count = S.caseMetaOf(S.caseRows(chapter).meta).autopsies;
+            edit = await openNode(second, "atBody");
+            must(edit, "the second planned Autopsy's node did not open");
+            win.field(`case:${chapter}:${second}:atBody`).value = "3";
+            win.field(`case:${chapter}:${second}:label`).value = "SUITE map second";
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[second])?.atBody === 3, 4000).catch(() => {});
+            const row = S.caseNodeOf(S.caseRows(chapter).rows[second]);
+            seen.second = row ? { label: row.label, atBody: row.atBody } : null;
+            await win.close();
+            win = null;
+            const fillOf = async () => {
+                const answer = GI.issueAutopsyDialog().catch(() => null);
+                await until(() => autopsyWindow()?.element, 4000).catch(() => {});
+                return { app: autopsyWindow() ?? null, answer };
+            };
+            let hand = await fillOf();
+            seen.fill = [hand.app?.element?.querySelector('[name="name"]')?.value ?? null];
+            await hand.app?.close();
+            await Promise.race([hand.answer, wait(3000)]);
+            await S.setCaseMeta(chapter, { autopsySent: { autopsy: Date.now() } });
+            await gmStoresIdle();
+            hand = await fillOf();
+            const el = hand.app?.element;
+            seen.fill.push(el?.querySelector('[name="name"]')?.value ?? null);
+            const ticks = [...(el?.querySelectorAll('[name="target"]') ?? [])];
+            ticks.forEach((box, i) => { box.checked = i === 0; });
+            el?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([hand.answer, wait(5000)]);
+            await gmStoresIdle();
+            seen.marked = Object.keys(S.caseMetaOf(S.caseRows(chapter).meta).autopsySent).sort();
+        } finally {
+            if (win) await win.close().catch(() => {});
+            autopsyWindow()?.close().catch(() => {});
+            for (const actor of studentActors()) for (const item of TB.bulletsOf(actor)) {
+                if (before.has(item.uuid)) continue;
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            for (const id of ["autopsy", second]) await S.dropCaseNode(chapter, id).catch(() => {});
+            await S.setCaseMeta(chapter, { autopsies: metaBefore.autopsies, autopsySent: metaBefore.autopsySent }).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ drawn: { count: String(I.autopsyPreset(chapter)), preset: true, second: I.autopsyPreset(chapter) > 1 },
+            count: 2, second: { label: "SUITE map second", atBody: 3 }, fill: ["SUITE map first", "SUITE map second"], marked: ["autopsy", second] }),
+            "{the first node's count as drawn, its preset line, a second node drawn; the count after the close; the second's name and body after its close; the Autopsy window's name, then with the first sent; the sent marks after Issue}");
     }],
 
     ["E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot", async () => {

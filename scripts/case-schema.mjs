@@ -31,8 +31,58 @@ export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "in
 /* THE PLANNED AUTOPSY (the owner, 13.11.2026: "Dodajmy tez opcje zaplanowania autopsy truth bullet zamiast wysylania go od
    razu. Niech dziala tak samo jak key remnanty ... gracze dostaja od razu po odkryciu ciala. Bez kliku GMa"): one row a
    chapter, kind "autopsy", under this id - its name (`label`), the players' words (`text`) and the GM's note (`note`).
-   case-realize.mjs `sendPlannedAutopsy` sends it at the body's discovery. */
+   case-realize.mjs `sendPlannedAutopsy` sends it at the body's discovery.
+   SEVERAL A CHAPTER (the owner, 13.11.2026: "zaplanowane autopsy moga byc wiecej niz 1. Ogolnie cel jest taki by gm mial
+   preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce"): the first under this id, the n-th
+   under `autopsy-<n>` (`autopsyId`), up to AUTOPSY_MAX. How many the chapter plans is its meta row's `autopsies`, or
+   the preset where none is written (investigation.mjs `autopsyCount`); each goes out when the chapter's `atBody`-th
+   body is found (its own number by default; `autopsiesDue`), and its meta row's `autopsySent` marks it gone. */
 export const AUTOPSY_NODE = "autopsy";
+export const AUTOPSY_MAX = 9;
+
+/** The node id of a chapter's `n`-th planned Autopsy (1 is AUTOPSY_NODE), and an id's number, or null for no Autopsy's. */
+export function autopsyId(n) {
+    return n === 1 ? AUTOPSY_NODE : `${AUTOPSY_NODE}-${n}`;
+}
+export function autopsyNumber(id) {
+    const m = /^autopsy(?:-([2-9]))?$/.exec(String(id ?? ""));
+    return m ? (m[1] ? Number(m[1]) : 1) : null;
+}
+
+/** A chapter's bodies in the order they were found: the victims of its discovery stamps (settings.mjs `bodiesFoundIn`),
+ *  each once, the stamps by their `at` (a stamp's own order kept). Pure. */
+export function bodiesInOrder(stamps = []) {
+    const out = [];
+    const rows = (Array.isArray(stamps) ? stamps : []).map((row, i) => ({ row, i }))
+        .sort((a, b) => ((Number(a.row?.at) || 0) - (Number(b.row?.at) || 0)) || a.i - b.i);
+    for (const { row } of rows) for (const id of row?.victimIds ?? []) if (id && !out.includes(String(id))) out.push(String(id));
+    return out;
+}
+
+/** The planned Autopsies' preset: one a body - the bodies found and the open incident's victim not found yet - and one
+ *  where the chapter has none yet (the case plans one murder a chapter); at most AUTOPSY_MAX. Pure. */
+export function autopsyPresetOf({ found = [], victimId = null } = {}) {
+    const bodies = new Set((found ?? []).filter(Boolean).map(String));
+    if (victimId) bodies.add(String(victimId));
+    return Math.min(AUTOPSY_MAX, Math.max(1, bodies.size));
+}
+
+/**
+ * The planned Autopsies that go out now: of the first `count`, each with a name or words written, not marked sent
+ * (`sent`, the meta row's `autopsySent`), whose body has been found (`atBody`, its own number where none is written,
+ * at most `bodies`, the chapter's bodies found). In their order. Answers `[{ id, n, atBody }]`. Pure.
+ */
+export function autopsiesDue({ count = 1, rows = {}, sent = {}, bodies = 0 } = {}) {
+    const out = [];
+    for (let n = 1; n <= Math.min(AUTOPSY_MAX, count); n++) {
+        const id = autopsyId(n);
+        const plan = caseNodeOf(rows?.[id]);
+        if (plan?.kind !== "autopsy" || !(plan.label || plan.text) || sent?.[id]) continue;
+        const atBody = plan.atBody ?? n;
+        if (atBody <= bodies) out.push({ id, n, atBody });
+    }
+    return out;
+}
 /** The kinds a trial mode stands on, and a planned minigame's fields on them (13.11.2026, `caseNodeOf`). */
 const SCHEMA_KINDS = Object.freeze(["deduction", "counter", "solution"]);
 export const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
@@ -68,6 +118,10 @@ export function caseModes() {
     return Object.values(MODES).filter(m => !PLAYER_MODES.includes(m));
 }
 
+const atBodyOf = v => {
+    const n = typeof v === "string" && v.trim() ? Number(v) : v;
+    return Number.isInteger(n) && n >= 1 && n <= AUTOPSY_MAX ? n : null;
+};
 const ids = list => [...new Set((Array.isArray(list) ? list : []).filter(v => typeof v === "string" && v))];
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -94,6 +148,8 @@ export function caseNodeOf(raw) {
         type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null,
         // 13.11.2026: a planned Autopsy's note for the GMs, its answer key's `gmNote`; no other kind has one
         note: raw.kind === "autopsy" ? (typeof raw.note === "string" ? raw.note : "") : null,
+        // 13.11.2026: which of the chapter's bodies, in the order found, sends a planned Autopsy; null is its own number
+        atBody: raw.kind === "autopsy" ? atBodyOf(raw.atBody) : null,
         /* THE PLANNED MINIGAME (the owner, 13.11.2026: "mozliwosc zaplanowania logic dive i innych minigier class triala z
            poziomu planera sprawy"): what the zones' window asks for the node's zone mode - a Straw Poll's or a Scrum Debate's
            question and two answers (a Scrum's thesis too), a Logic Dive's saved set (the GMs' `diveSetStore`, its truths
@@ -114,7 +170,11 @@ export function caseMetaOf(raw) {
         askedAt: Number.isFinite(row.askedAt) ? row.askedAt : null,
         // E97 C10: what a realization placed, by the Remnant's key: `{ run, slot }`
         made: Object.fromEntries(Object.entries(isPlain(row.made) ? row.made : {})
-            .filter(([, v]) => isPlain(v) && typeof v.run === "string" && v.run && Number.isInteger(v.slot)).map(([k, v]) => [k, { run: v.run, slot: v.slot }]))
+            .filter(([, v]) => isPlain(v) && typeof v.run === "string" && v.run && Number.isInteger(v.slot)).map(([k, v]) => [k, { run: v.run, slot: v.slot }])),
+        // 13.11.2026: how many Autopsies the chapter plans (null: the preset), and when each planned one went out
+        autopsies: atBodyOf(row.autopsies),
+        autopsySent: Object.fromEntries(Object.entries(isPlain(row.autopsySent) ? row.autopsySent : {})
+            .filter(([k, v]) => autopsyNumber(k) !== null && Number.isFinite(v)))
     };
 }
 
@@ -129,6 +189,10 @@ export function caseMetaOf(raw) {
  */
 export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], slots = [], autopsy = false } = {}) {
     const nodes = [];
+    /* `autopsy`: how many planned Autopsies the Map draws (true is one, as before 13.11's several); a written one past
+       that count is drawn only when it went out (its mark), so a lowered count hides nothing that was sent */
+    const autopsies = autopsy === true ? 1 : Number.isInteger(autopsy) ? Math.min(AUTOPSY_MAX, Math.max(0, autopsy)) : 0;
+    const sentMarks = caseMetaOf(meta).autopsySent;
     const alias = new Map();
     const bySlot = new Map();
     for (const s of slots ?? []) {
@@ -172,13 +236,17 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
         }
         // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)
         if (node.kind === "autopsy") {
-            if (id !== AUTOPSY_NODE) continue;
-            nodes.push(autopsyNode(chapter, node));
+            const n = autopsyNumber(id);
+            if (n === null || (n > autopsies && !sentMarks[id])) continue;
+            nodes.push(autopsyNode(chapter, n, node, Boolean(sentMarks[id])));
             continue;
         }
         nodes.push({ id, evidence: false, planned: false, ...node });
     }
-    if (autopsy && !nodes.some(n => n.id === AUTOPSY_NODE)) nodes.push(autopsyNode(chapter));
+    for (let n = 1; n <= autopsies; n++) if (!nodes.some(x => x.id === autopsyId(n))) nodes.push(autopsyNode(chapter, n, null, Boolean(sentMarks[autopsyId(n)])));
+    // the Autopsies in their order, where the evidence column draws them
+    const order = nodes.filter(x => x.kind === "autopsy").sort((a, b) => a.n - b.n);
+    if (order.length > 1) { let i = 0; for (let k = 0; k < nodes.length; k++) if (nodes[k].kind === "autopsy") nodes[k] = order[i++]; }
     const known = new Set(nodes.map(n => n.id));
     const edges = [];
     const missing = [];
@@ -245,16 +313,17 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
     return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots, autopsy });
 }
 
-/** The planned Autopsy's evidence node, from its row or, unwritten, empty (the Map draws it as the Key plan's slots are). */
-function autopsyNode(chapter, node = null) {
-    return { id: AUTOPSY_NODE, kind: "autopsy", evidence: true, planned: true, slot: null, trace: null, type: "autopsy",
-        label: node?.label ?? "", text: node?.text ?? "", note: node?.note ?? "", tied: true, faint: false, room: null, chapter,
-        foundAt: null, written: Boolean(node), inputs: [], refutes: [], mode: null };
+/** The chapter's `n`-th planned Autopsy's evidence node, from its row or, unwritten, empty (the Map draws it as the Key plan's
+ *  slots are); `sent` its meta row's mark. */
+function autopsyNode(chapter, n = 1, node = null, sent = false) {
+    return { id: autopsyId(n), n, kind: "autopsy", evidence: true, planned: true, slot: null, trace: null, type: "autopsy",
+        label: node?.label ?? "", text: node?.text ?? "", note: node?.note ?? "", atBody: node?.atBody ?? null, sent, tied: true,
+        faint: false, room: null, chapter, foundAt: null, written: Boolean(node), inputs: [], refutes: [], mode: null };
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note",
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type", "note", "atBody",
     "zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
-const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made"]);
+const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made", "autopsies", "autopsySent"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /**

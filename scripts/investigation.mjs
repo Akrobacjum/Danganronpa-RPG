@@ -26,7 +26,7 @@
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
-import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
+import { SETTINGS, isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
@@ -42,7 +42,7 @@ import {
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
 import { WIDE } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_NODE, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_NODE, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
@@ -2334,8 +2334,13 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
     const limit = caseKeyCount(plan.chapter);
     const slots = plan.entries.map((e, slot) => ({ ...e, slot }));
     // the planned Autopsy's node, empty until written, as the slots are: the chapter now running's (13.11.2026)
-    const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: chapter === plan.chapter });
-    for (const n of graph.nodes) if (n.id === AUTOPSY_NODE && n.kind === "autopsy") n.sent = autopsyIssued(chapter);
+    /* 13.11.2026: as many as the chapter plans (`autopsyCount`); a chapter not running draws those its GM wrote, up to
+       its count, and the ones that went out (case-schema.mjs `graphOf`) */
+    const written = Object.keys(caseRows(chapter).rows).map(autopsyNumber).filter(n => n !== null);
+    const autopsies = chapter === plan.chapter ? autopsyCount(chapter)
+        : Math.min(caseMetaOf(caseRows(chapter).meta).autopsies ?? AUTOPSY_MAX, Math.max(0, ...written));
+    const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });
+    for (const n of graph.nodes) if (n.kind === "autopsy") n.of = autopsies;
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
     const finders = findersByAnyRemnant();
     const authors = new Map();
@@ -2371,6 +2376,23 @@ export function autopsyIssued(chapter) {
 }
 
 /**
+ * HOW MANY AUTOPSIES THE CHAPTER PLANS (the owner, 13.11.2026: "gm mial preset pokazujacy ile powinno tego byc, ale by
+ * mogl zrobic ostatecznie ile chce"): the count the GM wrote on the first planned Autopsy (the meta row's `autopsies`),
+ * else the preset (`autopsyPreset`). On a GM; read off the GMs' case store.
+ */
+export function autopsyCount(chapter) {
+    return caseMetaOf(caseRows(chapter).meta).autopsies ?? autopsyPreset(chapter);
+}
+
+/** The preset (case-schema.mjs `autopsyPresetOf`): one a body - this season's bodies found in the chapter, and the open
+ *  incident's victim where the incident is the chapter's - and one where the chapter has none yet. */
+export function autopsyPreset(chapter) {
+    const live = murderState();
+    const own = live?.victimId && (live.chapter === undefined || live.chapter === null || Number(live.chapter) === Number(chapter));
+    return autopsyPresetOf({ found: bodiesInOrder(bodiesFoundIn(chapter)), victimId: own ? live.victimId : null });
+}
+
+/**
  * WHAT THE STUDENTS CAN REACH, LIVE (E97 C7; the owner's A and B of 09.11): each evidence node's holders - the students
  * holding a Truth Bullet whose answer key names its Remnant (the dead included here; `reachability` keeps the living) -
  * and the chapter's culprits, from the Blackened register and the incident's killers. A culprit's copy never counts: the
@@ -2384,9 +2406,10 @@ function caseReach(graph) {
     for (const actor of studentActors()) {
         for (const item of bulletsOf(actor)) {
             const secret = secretOf(item.uuid);
-            // the Autopsy's node is held by whoever holds this chapter's Autopsy (13.11.2026)
+            /* an Autopsy's node is held by whoever holds this chapter's Autopsy of its name (13.11.2026; several a chapter
+               since the owner's 13.11), and one of no planned name by the first */
             const id = secret.realType === "autopsy" && Number(secret.chapter) === Number(graph.chapter) && sameSeason(secret)
-                ? (graph.nodes.some(n => n.id === AUTOPSY_NODE) ? AUTOPSY_NODE : null) : byToken.get(secret.remnantId);
+                ? autopsyHolderNode(graph, item.name) : byToken.get(secret.remnantId);
             if (!id) continue;
             if (!holders.has(id)) holders.set(id, new Set());
             holders.get(id).add(actor.id);
@@ -2395,6 +2418,14 @@ function caseReach(graph) {
     const culprits = caseCulprits(graph.chapter);
     for (const set of holders.values()) for (const c of culprits.slice(1)) set.delete(c);
     return reachability(graph, holders, { culpritId: culprits[0] ?? null, living: livingStudentsForGm().map(a => a.id) });
+}
+
+/** The planned Autopsy's node a held Autopsy of `name` stands for: the one planned under that name (its default name where
+ *  none is written), else the chapter's first; null where the graph draws none. */
+function autopsyHolderNode(graph, name) {
+    const nodes = graph.nodes.filter(n => n.kind === "autopsy").sort((a, b) => a.n - b.n);
+    const named = nodes.find(n => (n.label || TRUTH_BULLET_TYPES.autopsy.label) === name);
+    return (named ?? nodes[0])?.id ?? null;
 }
 
 /** The chapter's culprits the reach leaves out (the Blackened, then the incident's killers), and the first of them (E99 C4). */
@@ -2476,6 +2507,7 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
  */
 function schemaEditor(graph, node) {
     const L = key => game.i18n.localize(key);
+    const F = (key, data) => game.i18n.format(key, data);
     const base = `case:${graph.chapter}:${node.id}`;
     const name = field => `${base}:${field}`;
     const others = graph.nodes.filter(n => n.id !== node.id);
@@ -2495,9 +2527,23 @@ function schemaEditor(graph, node) {
         /* THE PLANNED AUTOPSY (13.11.2026): the GM panel's Autopsy window's three fields, and whether it went out. It goes to
            every living student when the body is found (case-realize.mjs `sendPlannedAutopsy`); sent, its fields stay, read
            as what was planned. */
-        const said = node.sent ? L("DRPG.CaseMap.autopsySent") : L("DRPG.CaseMap.autopsyWhen");
+        const at = node.atBody ?? node.n ?? 1;
+        const said = node.sent ? L("DRPG.CaseMap.autopsySent") : F("DRPG.CaseMap.autopsyWhen", { n: at });
+        /* SEVERAL A CHAPTER (the owner, 13.11.2026): which body sends this one (its own number by default), and on the
+           first, how many the chapter plans - the preset named beside it (investigation.mjs `autopsyCount`, `autopsyPreset`) */
+        const bodies = Array.from({ length: AUTOPSY_MAX }, (_, i) => i + 1).map(k => `<option value="${k}"${k === at ? " selected" : ""}>${
+            esc(F("DRPG.CaseMap.autopsyBody", { n: k }))}</option>`).join("");
+        const count = node.n === 1 ? (() => {
+            const chapter = Number(graph.chapter);
+            const now = autopsyCount(chapter);
+            const options = Array.from({ length: AUTOPSY_MAX }, (_, i) => i + 1).map(k => `<option value="${k}"${k === now ? " selected" : ""}>${k}</option>`).join("");
+            return editRow(L("DRPG.CaseMap.autopsyCount"), `<select name="${esc(name("autopsies"))}">${options}</select>`)
+                + `<p class="notes">${esc(F("DRPG.CaseMap.autopsyPreset", { n: autopsyPreset(chapter) }))}</p>`;
+        })() : "";
         return [
             `<p class="drpg-case-info-note">${esc(said)}</p>`,
+            count,
+            editRow(L("DRPG.CaseMap.autopsyAt"), `<select name="${esc(name("atBody"))}">${bodies}</select>`),
             editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
                 esc(L("DRPG.TruthBullet.autopsyNamePlaceholder"))}" />`),
             editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
@@ -2606,12 +2652,25 @@ function readSchemaForm(form) {
 async function applySchemaSave(schema = []) {
     const refused = [];
     for (const { chapter, id, fields } of schema) {
-        // the planned Autopsy's node is drawn before it is written (13.11.2026): its first write makes its row
-        const now = caseNodeOf(caseRows(chapter).rows[id]) ?? (id === AUTOPSY_NODE ? caseNodeOf({ kind: "autopsy" }) : null);
+        // a planned Autopsy's node is drawn before it is written (13.11.2026): its first write makes its row
+        const n = autopsyNumber(id);
+        const now = caseNodeOf(caseRows(chapter).rows[id]) ?? (n !== null ? caseNodeOf({ kind: "autopsy" }) : null);
         if (!now) continue;
         const write = {};
         for (const [field, { value, drawn }] of Object.entries(fields)) {
             const key = field === "gmText" ? "text" : field;
+            /* the chapter's count of planned Autopsies, on its first one's fields: the meta row's, where it still reads as
+               the window drew it (the preset counts as drawn where none is written) */
+            if (key === "autopsies" && n !== null) {
+                if (String(autopsyCount(chapter)) !== String(drawn)) { refused.push({ field, value, row: now.label || id }); continue; }
+                await setCaseMeta(chapter, { autopsies: Number(value) });
+                continue;
+            }
+            if (key === "atBody" && n !== null) {
+                if (String(now.atBody ?? n) !== String(drawn)) { refused.push({ field, value, row: now.label || id }); continue; }
+                write.atBody = Number(value);
+                continue;
+            }
             if (key === "inputs" || key === "refutes") {
                 const keep = now[key].filter(x => !drawn.includes(x));
                 write[key] = [...new Set([...keep, ...value])];
