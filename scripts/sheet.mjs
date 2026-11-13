@@ -2744,8 +2744,10 @@ function injectEquippedTools(app, element, mode = modeOf(app)) {
         li.dataset.itemId = item.id;
         li.dataset.itemUuid = item.uuid;
         li.draggable = false;
+        /* The picture's box in both spellings: Daggerheart 2.12 spells its class `img-portrait` (inventory-item-compact.hbs:15,
+           inventory-item.less), older builds `img-portait`; with one only, the system's 40 px box missed the row (R5763). */
         li.innerHTML = `
-            <div class="img-portait" data-tooltip="#item#${item.uuid}">
+            <div class="img-portrait img-portait" data-tooltip="#item#${item.uuid}">
                 <img src="${foundry.utils.escapeHTML(item.img ?? "")}" class="item-img" alt="" />
             </div>
             <span class="item-name">${foundry.utils.escapeHTML(item.name)}</span>

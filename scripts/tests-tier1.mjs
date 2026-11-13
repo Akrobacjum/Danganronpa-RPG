@@ -57559,6 +57559,139 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
+    ["R5760 - the character sheet's header keeps the name a line of its own and the six statistics apart at any width (Daggerheart 2.12.8's header.hbs and header.less; the owner's screenshot of 13.11.2026, 1.2.112, a 667 px sheet under Monokuma Legacy: the name drawn one letter a line, the statistics' glyphs over their neighbours' names): read through the module's cascade with Daggerheart's own rules of the row planted before it, in both themes, the name row wraps, the name is sized by its words (`flex: 1 1 auto`) and breaks only between them unless one word is wider than the row, each statistic's plate holds its mark's room inside its own width (`box-sizing: border-box`), and the statistics stand on a grid of equal columns", async () => {
+        /*
+         * Red at ceb9e9c8 (1.2.112). Daggerheart's name is `flex: 1` (a 0 basis) with `word-break: break-word`
+         * (header.less:44-53 at 2.12.8, unchanged since 2.6.5), so beside the name row's buttons it shrinks to one glyph's
+         * width: the captioned Level Up and Give / take (sheet.mjs `headerButton`, 1.2.105) stand `flex: 0 0 auto` and,
+         * in Legacy's pixel face at 1.15em, take 480 px of a row of 392 (a 667 px sheet) or 545 (the default 850). And the
+         * statistics' plates are `width: 100%` with the mark's room added as padding (1.2.105's `drpg-stat-named`), so
+         * each ran 18-24 px past its column into the next, and the next one's mark stood on it. Chromium, Daggerheart
+         * 2.12.8's stylesheet built from its source with the module's sheets (no Foundry stylesheet): before, Legacy's
+         * name 34 x 310 px at 667 and 58.6 x 310 at 850, seven lines; the statistics 100 px past the header at 667, in
+         * both themes. The cascade is the sheets' text; the drawing is the commit's measurement.
+         */
+        const C = await styleCascade();
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const DH = ".application.sheet.daggerheart.actor.dh-style.character .character-header-sheet";
+        const planted = [
+            [`${DH} .name-row`, [["display", "flex"], ["justify-content", "space-between"]]],
+            [`${DH} .name-row h1`, [["display", "flex"], ["flex", "1"], ["word-break", "break-word"]]],
+            [`${DH} .character-traits`, [["display", "flex"], ["justify-content", "space-between"]]],
+            [`${DH} .character-traits .trait`, [["display", "flex"], ["min-width", "4.375rem"]]],
+            [`${DH} .character-traits .trait .trait-name`, [["width", "100%"], ["white-space", "nowrap"]]]
+        ].map(([selector, decls]) => ({ selector, file: "daggerheart 2.12.8 header.less", decls: decls.map(([property, value]) => ({ property, value, important: false })) }));
+        C.rules.unshift(...planted);
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme === "legacy" ? "drpg-theme-monokuma-legacy drpg-pixel-font" : "drpg-theme-stained-glass";
+            const app = body.appendChild(Object.assign(document.createElement("div"), { className: "application sheet daggerheart actor dh-style character" }));
+            const content = app.appendChild(Object.assign(document.createElement("section"), { className: "window-content" }));
+            const header = content.appendChild(Object.assign(document.createElement("header"), { className: "character-header-sheet" }));
+            const row = header.appendChild(Object.assign(document.createElement("div"), { className: "name-row" }));
+            const name = row.appendChild(Object.assign(document.createElement("h1"), { className: "actor-name input" }));
+            const traits = header.appendChild(Object.assign(document.createElement("div"), { className: "character-traits" }));
+            const trait = traits.appendChild(Object.assign(document.createElement("div"), { className: "trait" }));
+            trait.dataset.attribute = "presence";
+            const plate = trait.appendChild(Object.assign(document.createElement("div"), { className: "trait-name drpg-stat-named" }));
+            const v = (el, names) => C.winner(el, names)?.value ?? null;
+            return [v(row, "flex-wrap"), v(name, ["flex", "flex-basis"]), v(name, "word-break"), v(name, "overflow-wrap"),
+                v(plate, "box-sizing"), v(traits, "display"), v(trait, ["justify-self"])];
+        };
+        const want = ["wrap", "1 1 auto", "normal", "anywhere", "border-box", "grid", "center"];
+        equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
+            "[Legacy, Stained Glass: the name row's flex-wrap; the name's flex; its word-break; its overflow-wrap; a named plate's box-sizing; the statistics' display; a statistic in its column]");
+    }],
+    ["R5761 - a disabled field in Foundry's and other modules' windows reads as disabled in both themes and an enabled one is left as it was (the owner, 13.11.2026, on Dice So Nice's colour fields, which it disables itself unless the colorset is custom - module/ui/DiceConfig.js `toggleCustomColors`, 6.4.5): read through the module's cascade on Dice So Nice's markup (partial-appearance.hbs: a text field and its `input[type=color]` twin) in its ApplicationV2 frame, a disabled text field, colour field and select take the not-allowed cursor and a lowered opacity, the colour field greyed (`grayscale`), Legacy's disabled text its dim ink; the enabled ones take none of it", async () => {
+        /*
+         * Red at ceb9e9c8 (1.2.112): Legacy painted every field of a foreign window Bone on Ink with no disabled state,
+         * so a disabled text field was drawn as the enabled one (Chromium, Dice So Nice's style.css with the module's
+         * sheets: colour, ground and opacity equal), and neither theme gave a disabled field the not-allowed cursor; the
+         * colour swatch was dimmed by Dice So Nice's own `opacity: 0.3` alone, which the table's sheets can outrank.
+         */
+        const C = await styleCascade();
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme === "legacy" ? "drpg-theme-monokuma-legacy drpg-pixel-font" : "drpg-theme-stained-glass";
+            const app = body.appendChild(Object.assign(document.createElement("div"), { id: "dice-config", className: "application dice-so-nice" }));
+            app.appendChild(Object.assign(document.createElement("header"), { className: "window-header" }));
+            const fields = app.appendChild(Object.assign(document.createElement("section"), { className: "window-content" }))
+                .appendChild(Object.assign(document.createElement("div"), { className: "form-fields" }));
+            const make = (tag, type, disabled) => {
+                const el = fields.appendChild(document.createElement(tag));
+                if (type) el.type = type;
+                el.disabled = disabled;
+                return el;
+            };
+            const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const looks = el => [v(el, "cursor"), v(el, "opacity"), v(el, "filter")];
+            const on = [make("input", "text", false), make("input", "color", false), make("select", null, false)];
+            const off = [make("input", "text", true), make("input", "color", true), make("select", null, true)];
+            return { on: on.map(looks), off: off.map(looks), ink: [v(on[0], "color") !== v(off[0], "color")] };
+        };
+        const want = { on: [[null, null, null], [null, null, null], [null, null, null]],
+            off: [["not-allowed", "0.5", null], ["not-allowed", "0.35", "grayscale(1)"], ["not-allowed", "0.5", null]], ink: [true] };
+        equal(stableJson([read("legacy"), read("glass")]), stableJson([want, want]),
+            "[Legacy, Stained Glass: the enabled text, colour and select fields' cursor, opacity and filter; the disabled ones'; a disabled text field's ink not an enabled one's]");
+    }],
+    ["R5762 - the Actions resource survives Daggerheart's clean-up of optional resources (Daggerheart 2.12.8 documents/actor.mjs `_cleanupOptionalResources`, run after every item update or delete by the acting user, :1515-1537; the 2.10.5 probe's E24-1): resources.mjs `keepActionsResource`, a preUpdateActor hook the module registers, takes a deletion of `system.resources.actions` (the deletion operator, Daggerheart's `_del`) out of an update and cancels an update that held nothing else; it leaves another resource's deletion, a write of the Actions' value and a non-character actor's update as they came", async () => {
+        /*
+         * Red at ceb9e9c8: no such hook. Daggerheart deletes every key of `system.resources` that is not hitPoints, stress
+         * or hope, granted by a feature or a Homebrew resource (:300-325), and the module registers `actions` only into
+         * CONFIG.DH.RESOURCE.character.custom and .all (resources.mjs `registerActionResource`), so by reading any item
+         * change on a student refilled its Actions to 2/2 and dropped a time-of-day maximum. Plain change objects; nothing
+         * written. That a v14 update hands the hook the operator itself is LIVE-E30-03.
+         */
+        const R = await import("./resources.mjs");
+        const U = await import("./utils.mjs");
+        const del = U.forcedDeletion();
+        must(del !== null, "no deletion operator in this Foundry");
+        const run = (type, changes) => {
+            const kept = typeof R.keepActionsResource === "function" ? R.keepActionsResource({ type }, changes, {}, game.user?.id) : "none";
+            const r = changes.system?.resources ?? {};
+            const actions = r.actions === del ? "actions deleted" : "actions" in r ? "actions written" : "no actions";
+            return [kept === false ? "cancelled" : "passed", actions, Object.keys(changes).sort().join("+"), Object.keys(r).sort().join("+")];
+        };
+        const got = [
+            run("character", { system: { resources: { actions: del } } }),
+            run("character", { system: { resources: { actions: del, extra: del } } }),
+            run("character", { name: "Renamed", system: { resources: { actions: del } } }),
+            run("character", { system: { resources: { actions: { value: 1 } } } }),
+            run("adversary", { system: { resources: { actions: del } } })
+        ];
+        const registered = (Hooks.events?.preUpdateActor ?? []).some(entry => entry.fn === R.keepActionsResource);
+        equal(stableJson([got.map(([verdict]) => verdict), got.map(([, actions]) => actions), got.slice(1).map(([, , top, resources]) => `${top}|${resources}`), registered]),
+            stableJson([["cancelled", "passed", "passed", "passed", "passed"],
+                ["no actions", "no actions", "no actions", "actions written", "actions deleted"],
+                ["system|extra", "name|", "system|actions", "system|actions"], true]),
+            "[each update cancelled or passed: the deletion alone, beside another key's, beside a name, a value written, an adversary's; the Actions key in what is left; the keys left of the last four (top|resources); the hook registered]");
+    }],
+
+    ["R5763 - the Equipped block's tool rows carry Daggerheart 2.12.8's image box (`img-portrait`, inventory-item-compact.hbs:15 and inventory-item-V2.hbs:32; until 2.12 the class was spelt `img-portait`): sheet.mjs `injectEquippedTools` draws the row's picture in a box of both spellings, so the system's 40 px box, the image's sizing and its grid area reach the module's rows on 2.12.8 as on older builds", async () => {
+        /*
+         * Red at ceb9e9c8: the row drew `<div class="img-portait">` alone - Daggerheart's old misspelling, which 2.12.8's
+         * templates and stylesheet no longer use (inventory-item.less:6-226), so its rules for the box did not reach it.
+         */
+        const source = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        const body = fnSource(source, "injectEquippedTools");
+        must(body.length > 200, "injectEquippedTools not found in sheet.mjs");
+        const box = /<div class="([^"]*)" data-tooltip="#item#/.exec(body)?.[1]?.split(/\s+/).sort() ?? null;
+        equal(stableJson(box), stableJson(["img-portait", "img-portrait"]), "[the classes of the tool row's picture box]");
+    }],
+    ["R5764 - the roll window's character is found where Daggerheart 2.12.8's window keeps it (d20RollDialog.mjs:43-45, `config.actor`; the roll data carries no `parent` there, move-context.mjs:95): roll-dialog.mjs `actorOf` answers the config's actor when the config names no actor's uuid, ahead of the speaker and this user's own character", async () => {
+        /*
+         * Red at 67506ecc: `actorOf` tried the config's `source.actor`, the roll data's `parent` (2.10.5's road), the
+         * speaker and then this user's own character, never `config.actor`, so a 2.12 config without a source uuid was
+         * read as this user's character (on a GM, none) - the research's item 5 (13.11.2026). Plain configs and a plain actor; nothing written.
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const student = { documentName: "Actor", id: "R5764Student", type: "character", name: "R5764" };
+        const read = typeof RD.actorOf === "function" ? RD.actorOf : () => "none";
+        const got = [read({ config: { actor: student, source: {}, data: {} } })?.id ?? null,
+            read({ config: { actor: student, data: {} } })?.id ?? null];
+        equal(stableJson(got), stableJson([student.id, student.id]), "[the actor found with an empty source; with no source]");
+    }],
 ];
 
 /**

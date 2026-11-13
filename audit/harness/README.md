@@ -454,7 +454,14 @@ part of a roll comes from:
   import: `applications/dialogs/d20RollDialog.mjs` (since E33 C2b a stand-in
   shaped as the window - its config, its roll, the markup the module's hooks
   read and its actions, the hooks fired through the shim's render and close;
-  its header says what it leaves out; since E16 p1 C0 its Roll is greyed out
+  its header says what it leaves out; modelled on 2.10.5's window until
+  13.11.2026 and on 2.12.8's since (tag 2.12.8, commit 71c318de25, the
+  owner's consent "zgoda na dh-dice"): its constructor, getters, context and
+  actions are that file's lines where the harness can run them, each marked
+  where it differs - the file itself renders Handlebars templates and reads
+  Foundry's form data, which the shim has not - and `configure` takes the
+  harness player's picks off the config and clicks them, the one place it
+  is not 2.12.8's; since E16 p1 C0 its Roll is greyed out
   from the costs and uses against the actor's resources, as 2.10.5's
   `_prepareContext` greys it, by a wrap client-entry.mjs `wrapWindowCosts`
   puts on the class at boot - an assumption about the table's Daggerheart that
