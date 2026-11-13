@@ -27217,6 +27217,53 @@ const SCENARIOS = [
         }
     }],
 
+    ["planned Remnants of every type: a planned node of type Prep is placed by its Place on the map as a Prep Remnant with the plan's name, words and room (the owner, 13.11.2026: \"opcje w planerze dodawania zaplanowanych remnantow innego typu niz incident i keys\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:00. A planned node (case-schema.mjs kind "incident", the E97 C12
+         * row) carries a Remnant type since this commit; its Place on the map opens New Remnant filled in from the plan,
+         * the type among it, and the Remnant placed is that type. Red at 6ea98d9: the window was opened as an Incident
+         * Remnant whatever the plan said.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        needs(world.atLeast("sceneOnScreen"), "a scene with rooms to place on");
+        needs(env.dialogs(), "New Remnant is pressed on its drawn window");
+        const chapter = getClock().chapter;
+        const id = "incident-suiteplan3";
+        const room = allRooms(canvas.scene)[0] ?? null;
+        must(room, "the scene on screen has no room");
+        let token = null;
+        const seen = {};
+        try {
+            await S.setCaseNode(chapter, id, { kind: "incident", label: "SUITE planned prep", text: "SUITE the planned words", room, type: "prep" });
+            await gmStoresIdle();
+            const opened = I.placeIncident(chapter, id);
+            const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-newtrace"));
+            await until(() => drawn()?.element, 6000).catch(() => {});
+            const form = drawn()?.element?.querySelector("form");
+            seen.window = form ? { type: form.type?.value ?? null, room: form.room?.value ?? null, name: form.tname?.value ?? null } : null;
+            drawn()?.element?.querySelector('footer button[data-action="ok"]')?.click();
+            token = await Promise.race([opened, wait(8000).then(() => null)]);
+            await gmStoresIdle();
+            const data = token ? remnants.remnantData(token) : null;
+            seen.placed = data ? { type: data.type ?? null, name: data.public?.name ?? null, text: data.public?.playerText ?? null } : null;
+            seen.node = S.caseNodeOf(S.caseRows(chapter).rows[id])?.trace === (token ? `${token.parent?.id}.${token.id}` : "none");
+        } finally {
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, id).catch(() => {});
+        }
+        equal(stableJson(seen), stableJson({
+            window: { type: "prep", room, name: "SUITE planned prep" },
+            placed: { type: "prep", name: "SUITE planned prep", text: "SUITE the planned words" },
+            node: true
+        }), "{New Remnant as opened from the plan: type, room, name; the Remnant placed: type, name, words; the node pointed at it}");
+    }],
+
     ["E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot", async () => {
         /*
          * E97 C10, 12.11.2026; the goal's "the realization has a preview and does nothing until the GM clicks Run" and

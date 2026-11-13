@@ -28,6 +28,11 @@ import { MODULE_ID } from "./config.mjs";
 /** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
  *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
 export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident"]);
+/* A PLANNED REMNANT'S TYPE (the owner, 13.11.2026: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz
+   incident i keys"): an "incident" row plans a Remnant of one of these, Incident by default (every row before this).
+   Not a Key Remnant (the Key plan's slots plan those), a Final Truth Remnant (the Final Truth form places it) or an
+   Autopsy Remnant (handed over from the GM panel, never found: Observe has no number for it, New Remnant offers none). */
+export const PLANNED_TYPES = Object.freeze(["incident", "prep", "neutral", "faint", "resolution"]);
 /** The column orders (STAGE C4): by the GM's arrows, by kind, by room, by state, and with the fewest crossings. */
 export const CASE_SORTS = Object.freeze(["manual", "kind", "room", "state", "uncrossed"]);
 const META = "meta";
@@ -76,7 +81,9 @@ export function caseNodeOf(raw) {
         made: typeof raw.made === "string" && raw.made ? raw.made : null,
         // E97 C12: a planned Incident Remnant's room, and the Remnant that stands for it once placed
         room: typeof raw.room === "string" && raw.room ? raw.room : null,
-        trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null
+        trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null,
+        // 13.11.2026: a planned Remnant's type, Incident where none is written; no other kind has one
+        type: raw.kind === "incident" ? (PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") : null
     };
 }
 
@@ -143,8 +150,8 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
                 if (t) t.incident = id;
                 continue;
             }
-            nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: "incident", label: node.label,
-                tied: true, faint: false, room: node.room, chapter, foundAt: null, incident: id, text: node.text });
+            nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: node.type, label: node.label,
+                tied: node.type === "incident", faint: node.type === "faint", room: node.room, chapter, foundAt: null, incident: id, text: node.text });
             continue;
         }
         nodes.push({ id, evidence: false, planned: false, ...node });
@@ -215,7 +222,7 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
     return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots });
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace"]);
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace", "type"]);
 const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 

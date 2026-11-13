@@ -7755,7 +7755,7 @@
         "deduction": "Nowy wniosek",
         "counter": "Nowa kontra",
         "solution": "Rozwiązanie",
-        "incident": "Nowy Incident Remnant"
+        "incident": "Nowy Remnant"
       },
       "reachYes": "{held}/{of}: uczniowie mogą do tego dojść",
       "reachNo": "{held}/{of}: jeszcze nie",
@@ -7780,15 +7780,15 @@
         "culpritOnly": "{ref}, wejście węzła {node}, ma tylko sprawca, więc się nie liczy.",
         "tooManyKeys": "Key Remnanty w sprawie: {ref}, więcej niż przygotowuje rozdział."
       },
-      "addIncident": "Dodaj Incident Remnant",
+      "addIncident": "Dodaj zaplanowany Remnant",
       "placeOnMap": "Postaw na mapie",
       "showOnMap": "Pokaż",
-      "waitingNone": "Każdy Incident Remnant z planu sprawy jest na mapie.",
+      "waitingNone": "Każdy Remnant z planu sprawy jest na mapie.",
       "waiting": {
-        "one": "Sprawa czeka na {n} Incident Remnant.",
-        "few": "Sprawa czeka na {n} Incident Remnanty.",
-        "many": "Sprawa czeka na {n} Incident Remnantów.",
-        "other": "Sprawa czeka na {n} Incident Remnantów."
+        "one": "Sprawa czeka na {n} zaplanowany Remnant.",
+        "few": "Sprawa czeka na {n} zaplanowane Remnanty.",
+        "many": "Sprawa czeka na {n} zaplanowanych Remnantów.",
+        "other": "Sprawa czeka na {n} zaplanowanych Remnantów."
       }
     },
     "CaseRealize": {

@@ -8897,6 +8897,29 @@ const INVARIANTS = [
             skipped: [null, "skipped", false], second: "Q2 the time?", rule: true }),
             "{marker: the truth's marker in a floor; truthField: a truth field on a floor; tie: [no floor, its outcome, a record]; tie cards naming the true answer; skipped: [no floor, outcome, a record]; second: Q2 on the floor after a right answer; rule: world-secrets keeps truth out of trialQueue}");
     }],
+    ["R4453 - a planned Remnant has a type (the owner, 13.11.2026): Incident where none is written, Prep, Neutral, Faint or Tamper as planned, never Key, Final Truth or Autopsy; no other kind of node has one; the node's face names the type", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:00. case-schema.mjs PLANNED_TYPES and `caseNodeOf`'s `type`;
+         * case-map.mjs `kindLabel` on the planned node `graphOf` makes. Placing one is tier 2's "planned Remnants of every
+         * type". Red at 6ea98d9: no type on a row, every planned node an Incident Remnant.
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        const read = (kind, type) => S.caseNodeOf({ kind, label: "R4453", ...(type ? { type } : {}) })?.type ?? null;
+        const graph = S.graphOf ? S.graphOf({ chapter: 1, rows: { "incident-r4453": { kind: "incident", label: "R4453", type: "prep" } }, meta: null, traces: [], slots: [] }) : null;
+        const planned = graph?.nodes.find(n => n.id === "incident-r4453") ?? null;
+        equal(stableJson({
+            types: S.PLANNED_TYPES ?? null,
+            known: (S.PLANNED_TYPES ?? []).every(t => Boolean(REMNANT_TYPES[t])),
+            read: [read("incident"), read("incident", "prep"), read("incident", "key"), read("incident", "final"), read("incident", "autopsy"), read("deduction", "prep")],
+            face: planned ? M.kindLabel(planned) : null
+        }), stableJson({
+            types: ["incident", "prep", "neutral", "faint", "resolution"], known: true,
+            read: ["incident", "prep", "incident", "incident", "incident", null],
+            face: REMNANT_TYPES.prep.label
+        }), "{the types a plan offers; each a REMNANT_TYPES key; a row read with no type, prep, key, final, autopsy, and a deduction with prep; a planned prep node's face}");
+    }],
     ["R4452 - the case map's columns stand 80 px apart, not 48 (the owner, 13.11.2026: \"Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko siebie\"): the evidence, each column of deductions and the solution, on the Map and in the trial console's schema", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~01:20: the gaps between columns, not rows. One gap for every column

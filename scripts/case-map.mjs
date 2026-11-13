@@ -52,7 +52,7 @@ const F = (key, data) => game.i18n.format(key, data);
 /** A node's kind as its strip reads: the Remnant's type for evidence, the schema's kind otherwise. */
 export function kindLabel(node) {
     if (node.evidence) {
-        if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES.incident?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
+        if (node.planned) return node.kind === "incident" ? (REMNANT_TYPES[node.type ?? "incident"]?.label ?? L("DRPG.CaseMap.kind.remnant")) : L("DRPG.CaseMap.kind.slot");
         return REMNANT_TYPES[node.type]?.label ?? REMNANT_TYPES[node.kind]?.label ?? L("DRPG.CaseMap.kind.remnant");
     }
     return L(`DRPG.CaseMap.kind.${node.kind}`);

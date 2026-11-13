@@ -5987,7 +5987,7 @@
         "deduction": "New deduction",
         "counter": "New counter",
         "solution": "Solution",
-        "incident": "New Incident Remnant"
+        "incident": "New Remnant"
       },
       "reachYes": "{held}/{of}: the students can reach it",
       "reachNo": "{held}/{of}: not yet",
@@ -6012,13 +6012,13 @@
         "culpritOnly": "Only the culprit holds {ref}, an input of {node}, so it does not count.",
         "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares."
       },
-      "addIncident": "Add Incident Remnant",
+      "addIncident": "Add planned Remnant",
       "placeOnMap": "Place on the map",
       "showOnMap": "Show",
-      "waitingNone": "Every Incident Remnant the case plans is on the map.",
+      "waitingNone": "Every Remnant the case plans is on the map.",
       "waiting": {
-        "one": "The case waits for {n} Incident Remnant.",
-        "other": "The case waits for {n} Incident Remnants."
+        "one": "The case waits for {n} planned Remnant.",
+        "other": "The case waits for {n} planned Remnants."
       }
     },
     "CaseRealize": {

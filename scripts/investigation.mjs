@@ -41,7 +41,7 @@ import {
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
 import { WIDE } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
@@ -2457,7 +2457,11 @@ function schemaEditor(graph, node) {
     if (node.kind === "incident") {
         // E97 C12: a planned Incident Remnant: its room, and the road onto the map (New Remnant, filled in from here)
         const rooms = placeRoomOptions({ room: node.room });
-        rows.splice(2, 1, editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}"><option value="">${
+        // 13.11.2026: its Remnant type (case-schema.mjs PLANNED_TYPES), Incident by default
+        const types = PLANNED_TYPES.map(t => `<option value="${esc(t)}"${t === (node.type ?? "incident") ? " selected" : ""}>${
+            esc(REMNANT_TYPES[t]?.label ?? t)}</option>`).join("");
+        rows.splice(2, 1, editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}">${types}</select>`),
+            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}"><option value="">${
             esc(L("DRPG.CaseRealize.noRoom"))}</option>${rooms}</select>`));
         rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
             esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
@@ -2783,7 +2787,9 @@ export async function placeIncident(chapter, id) {
     if (!game.user?.isGM) return null;
     const row = caseNodeOf(caseRows(chapter).rows[id]);
     if (row?.kind !== "incident") return null;
-    const token = await openNewTrace({ room: row.room, type: "incident", name: row.label, text: row.text, tied: "tied" });
+    // the plan's type (13.11.2026); an Incident Remnant is tied to the murder, any other as the GM says in the window
+    const type = row.type ?? "incident";
+    const token = await openNewTrace({ room: row.room, type, name: row.label, text: row.text, tied: type === "incident" ? "tied" : "" });
     if (token) await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     return token;
 }

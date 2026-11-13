@@ -489,3 +489,19 @@ Defaults, as built (the owner may revise):
 
 - Monokuma Legacy's fitted text in a debate goes from 8.7 to 8.1 px; it is outside the 11 px rule (glass only), and
   100% zoom with dragging reads it, as the owner accepted for 8.7.
+
+## Planned Remnants of other types (13.11.2026; the owner through the coordinator: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz incident i keys")
+
+- The planned node (case-schema.mjs kind "incident", E97 C12) carries a Remnant type, `PLANNED_TYPES`: Incident (the
+  default, and every row written before), Prep, Neutral, Faint, Tamper (`resolution`). Its fields on the Map have a
+  Type select beside the room; the face names the type; **Place on the map** opens New Remnant filled in from the plan
+  with that type (tied to the murder for an Incident Remnant, as before; for the others the window's own default, "-").
+  New Remnant asks the rest (author, difficulty, analysis, note, reinforced) as it does in play.
+- Left out, and why: Key Remnant (the Key plan's slots plan it), Final Truth Remnant (the Final Truth form in the Map's
+  overview places it), Autopsy Remnant (handed over from the GM panel and never found: Observe has no number for it,
+  and New Remnant does not offer it).
+- Texts: the add button "Add planned Remnant" / "Dodaj zaplanowany Remnant"; a new one "New Remnant" / "Nowy Remnant";
+  the GM panel's waiting line counts planned Remnants. GM handbook (EN, PL): the Map's row and the GM panel's list.
+- Red first: tier 2 "planned Remnants of every type: ..." (a planned Prep placed as a Prep Remnant with the plan's
+  name, words and room; red at 6ea98d9: the window opened as an Incident Remnant) and R4453 (tier 1, red at 6ea98d9).
+  R3373 reads the node's new `type` field.
