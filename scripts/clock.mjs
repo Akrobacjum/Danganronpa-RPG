@@ -188,6 +188,15 @@ export async function setClock(patch = {}) {
         if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayBoard === undefined) {
             next.dayBoard = null;
         }
+        /* AND THE END-OF-DAY BOARD IS NIGHT'S, ON ITS REAL ROAD ALONE (13.11.2026; the owner's rule of that day: the board
+           "after the Night Eclipse (that is, at the start of Night)"). `nightBoard` is the day a real move into Night
+           stamped (`advanceTimeOfDay` through sequence.mjs `dayStartPatch`, `nightFalls`), and transitions.mjs `boardsOf`
+           plays the board only on Night's start that carries it. Any other write that moves the time of day or the day -
+           Edit campaign's Night, the rewind, a console's `setClock` - takes it away. */
+        if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay)
+            || (patch.day !== undefined && Number(patch.day) !== Number(before.day))) && patch.nightBoard === undefined) {
+            next.nightBoard = null;
+        }
         /* WHEN THE CLOCK WAS LAST WRITTEN (E17 fix p2-G1, 26.10.2026): a moment a GM was at the table, which every GM's
            `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud-elapsed.mjs `readyPatch`); `patch` wins, so a restored
            clock keeps its own. */
@@ -383,13 +392,16 @@ export async function advanceTimeOfDay({
        (`dayStartPatch`), and the mood stands until the next roll-over writes it again. The line is taken from the draft
        once it is in. */
     const seq = await import("./sequence.mjs");
-    let draft = "", mood = null;
-    if (rolledOver) {
-        try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
-        try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; }
-    }
-    // the new day as the boards' stamp (`dayBoard`, 12.11.2026): this roll-over plays the day's boards, a correction does not
-    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day });
+    /* AND SINCE 13.11.2026 (the owner's rule of that day: the start-of-day board at the Morning Eclipse's start, the
+       end-of-day board at the start of Night). A Morning Eclipse opened for this roll-over wrote the line, the mood and
+       the new day's stamp at its start (eclipse.mjs `startEclipse`, `openingDayPatch` below): the stamp on this very day
+       says so (`opened`), and they are not written again here. A move into Night works the mood out for the end-of-day
+       board and stamps it (`nightFalls`). */
+    const opened = rolledOver && before.dayBoard != null && Number(before.dayBoard) === Number(day);
+    const nightFalls = !rolledOver && timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
+    const { draft, mood } = rolledOver || nightFalls ? await morningInputs({ line: rolledOver, mood: !opened }) : { draft: "", mood: null };
+    // the new day as the start board's stamp (`dayBoard`, 12.11.2026): this roll-over plays it, a correction does not
+    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day, opened, nightFalls });
     const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });
@@ -398,6 +410,42 @@ export async function advanceTimeOfDay({
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
+}
+
+/**
+ * What the start of a day is written with, read on this GM (E94 C1, C4): the GM's morning line, kept on this browser
+ * until the day starts (`morningLineDraft`; `line`), and the school's mood worked out from what only a GM holds
+ * (sequence.mjs `moodInputs`, `moodBand`; `mood`). Answers `{ draft, mood }`, "" and null for what was not asked or
+ * could not be read.
+ */
+async function morningInputs({ line = true, mood: wantMood = true } = {}) {
+    const seq = await import("./sequence.mjs");
+    let draft = "", mood = null;
+    if (line) { try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; } }
+    if (wantMood) { try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; } }
+    return { draft, mood };
+}
+
+/**
+ * The fields the Morning Eclipse's start folds into its one write (13.11.2026; the owner's rule of that day: "The
+ * start-of-day animation should show at the start of the Morning Eclipse"): when the Eclipse opened at `clock` leads
+ * into the next day (`clockAfter`'s roll-over), the roll-over's patch for that day - the GM's morning line, the mood and
+ * the start board's stamp on the day + 1 (sequence.mjs `dayStartPatch`) - so every browser's board shows them at the
+ * start; the day's number, the session and every rule's day boundary still move at the Eclipse's end. Answers the
+ * patch and the draft taken (cleared once the write is in, as the roll-over clears it), or `{ patch: {}, draft: "" }`
+ * for any other Eclipse. GM only.
+ */
+export async function openingDayPatch(clock = getClock()) {
+    const to = clockAfter(clock);
+    if (!to.rolledOver) return { patch: {}, draft: "" };
+    const seq = await import("./sequence.mjs");
+    const { draft, mood } = await morningInputs();
+    return { patch: seq.dayStartPatch({ rolledOver: true, draft, mood, before: clock, day: to.day }), draft };
+}
+
+/** The GM's morning line taken into the clock: the draft on this browser emptied (E94 C1). */
+export async function clearMorningDraft() {
+    await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, "").catch(() => null);
 }
 
 /**

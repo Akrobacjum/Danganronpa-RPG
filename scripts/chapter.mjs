@@ -2465,10 +2465,13 @@ export const CHAPTER_END_STEPS = [
         if (!morning) return null;
         const { setTimeOfDay } = await import("./clock.mjs");
         // One write for the day and the hour: each write is a full redraw on every client (CORE-12). Stamped for the
-        // day's boards (`dayBoard`; the owner's answer of 12.11.2026: the boards play after the trial's exit here).
+        // day's boards (`dayBoard`; the owner's answer of 12.11.2026: the boards play after the trial's exit here) - both
+        // of them since 13.11.2026, when the end-of-day board moved to Night's start: the trial held the Night, so the day
+        // it closes is stamped for its end board too (`nightBoard` on the day before the morning; transitions.mjs
+        // `boardsOf`). Usually heard after the trial's close as a write of its own, so the stamp rides this one.
         await setTimeOfDay("morning", {
             resetActions: true, resetSearchTokens: true, announce: true,
-            also: { day: morning.day, dayBoard: morning.day }
+            also: { day: morning.day, dayBoard: morning.day, nightBoard: morning.day - 1 }
         });
         return game.i18n.format("DRPG.Chapter.doneNextMorning", { day: getClock().day });
     } },

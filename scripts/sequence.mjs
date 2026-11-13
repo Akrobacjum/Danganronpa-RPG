@@ -40,7 +40,7 @@
  * when the still frame is drawn.
  */
 
-import { MODULE_ID, TIME_OF_DAY_LABELS, MOOD_SHARES } from "./config.mjs";
+import { MODULE_ID, TIME_OF_DAY_LABELS, TIMES_OF_DAY, MOOD_SHARES } from "./config.mjs";
 import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
@@ -677,20 +677,46 @@ function drawDayStart(ctx, board) {
 }
 
 /**
- * The start-of-day board on this browser, from the clock's one event of a new day (transitions.mjs, E62's `newDay`):
- * on every connected browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). `students` defaults to the cast as
- * monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
+ * The start-of-day board on this browser, from the clock's one event that begins a day (transitions.mjs `boardsOf`: the
+ * Morning Eclipse's start, or the roll-over when no Morning Eclipse was held; since 13.11.2026): on every connected
+ * browser, about 5 s, gone by itself, Esc earlier (MK-R2 #8). It shows the day `dayStartClock` reads. `students`
+ * defaults to the cast as monokuma.mjs `studentActors` reads it. Answers what `playSequence` answered.
  */
 /** The start-of-day board's event key: the season, the day and the session. */
 export function dayStartKey(clock) {
     return `day:${clock?.season ?? ""}:${Number(clock?.day) || 0}:${clock?.session ?? ""}`;
 }
 
+/**
+ * The clock the start-of-day board shows (13.11.2026; the owner's rule of that day: "The start-of-day animation should
+ * show at the start of the Morning Eclipse"). While the Morning Eclipse stands the clock is still at Night of the day
+ * that ended - the day's number moves at the Eclipse's end (eclipse.mjs `endEclipse`), and no rule's day boundary moved
+ * with the board - so the board reads the day that is beginning: the day + 1, the session + 1 and the Morning, as
+ * clock.mjs `clockAfter` will write them. Its key (`dayStartKey`) is then the one the Eclipse's end lands on, so a
+ * browser that played the board at the start never plays it again for that day. Any other clock is its own. Pure.
+ */
+export function dayStartClock(clock) {
+    if (!clock || clock.eclipse !== true || clock.timeOfDay !== TIMES_OF_DAY[TIMES_OF_DAY.length - 1]) return clock;
+    const session = Number(clock.session);
+    return { ...clock, day: (Number(clock.day) || 0) + 1, session: Number.isFinite(session) ? session + 1 : clock.session, timeOfDay: TIMES_OF_DAY[0] };
+}
+
+/**
+ * Whether `clock` carries the start-of-day board's stamp for the day it begins (`dayBoard`): a real roll-over's on its
+ * own day, or the Morning Eclipse's start, which stamps the day it leads into (eclipse.mjs `startEclipse`). Edit
+ * campaign writes none, and a stamp from an older day matches nothing. Pure.
+ */
+export function startBoardStamped(clock) {
+    if (!clock || clock.dayBoard == null) return false;
+    return Number(clock.dayBoard) === Number(dayStartClock(clock).day);
+}
+
 export async function playDayStart(clock = getClock(), { students = null, on = sequencesOn() } = {}) {
     if (!clock || !ready) return null;
+    const shown = dayStartClock(clock);
     const cast = students ?? (await import("./monokuma.mjs")).studentActors();
-    const board = dayStartBoard(clock, cast, clock.morningLine ?? "");
-    return playSequence("dayStart", dayStartKey(clock), ctx => drawDayStart(ctx, board),
+    const board = dayStartBoard(shown, cast, shown.morningLine ?? "");
+    return playSequence("dayStart", dayStartKey(shown), ctx => drawDayStart(ctx, board),
         { sound: () => playSound("dayStart"), on });
 }
 
@@ -710,19 +736,42 @@ export const MORNING_LINE_MAX = 200;
  * `advanceTimeOfDay`): at the day's roll-over the GM's line (`draft`, kept on that GM's browser until then, so it is in
  * no world data before the day starts) and the mood's word; at any other move only the morning line is cleared (when
  * one stands), so it does not outlive the morning it was written for, and the mood is left as it is until the next
- * roll-over writes it again. And at the roll-over the new `day`, when handed in, as the boards' stamp (`dayBoard`,
- * 12.11.2026; the owner's rule of that day): the day's boards play on a new day whose clock carries it (transitions.mjs
- * `boardsFor`), so the real roll-over - Next time of day, the Morning Eclipse's end - plays them and Edit campaign's
- * day + 1, which writes no stamp, does not. Pure.
+ * roll-over writes it again. And at the roll-over the new `day`, when handed in, as the start-of-day board's stamp
+ * (`dayBoard`, 12.11.2026; the owner's rule of that day): the board plays on a clock that carries it (transitions.mjs
+ * `boardsOf`), so the real roll-over plays it and Edit campaign's day + 1, which writes no stamp, does not. Since
+ * 13.11.2026 the Morning Eclipse's start writes this roll-over patch for the day it leads into (eclipse.mjs
+ * `startEclipse`), and its end only keeps the stamp (`opened`); a move into Night works the mood out and stamps the
+ * end-of-day board (`nightFalls`, `nightBoard`). Pure.
  */
-export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {}, day = null } = {}) {
+export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {}, day = null, opened = false, nightFalls = false } = {}) {
+    const stamp = day != null && Number.isFinite(Number(day)) ? Number(day) : null;
+    /* THE MORNING ECLIPSE OPENED THIS DAY ALREADY (13.11.2026; the owner's rule of that day: the start-of-day board at the
+       Morning Eclipse's start). Its start wrote the line, the mood and the stamp of the day it leads into (eclipse.mjs
+       `startEclipse`), and the board showed them; the roll-over at its end writes neither again - the draft is empty by
+       then, and written again it would put the line out - and keeps the stamp, which `setClock` would otherwise take
+       away from a write that moves the day. A line the GM wrote after an Eclipse ended without advancing still goes in. */
+    if (rolledOver && opened) {
+        const patch = {};
+        if (stamp != null) patch.dayBoard = stamp;
+        const line = morningLineOf(draft);
+        if (line) patch.morningLine = line;
+        return patch;
+    }
     if (rolledOver) {
         const patch = { morningLine: morningLineOf(draft), mood: MOOD_BANDS.includes(mood) ? mood : null };
-        if (day != null && Number.isFinite(Number(day))) patch.dayBoard = Number(day);
+        if (stamp != null) patch.dayBoard = stamp;
         return patch;
     }
     const patch = {};
     if (before?.morningLine != null) patch.morningLine = null;
+    /* NIGHT FALLS (13.11.2026; the owner's rule of that day: the end-of-day board "after the Night Eclipse (that is, at the
+       start of Night)"). The board reads the mood off the clock it is heard with, so the mood is worked out here, at the
+       day's end as before, and the move is stamped for the board (`nightBoard`, its day): Next time of day from Evening
+       and the Night Eclipse's end with the advance write it; Edit campaign's Night writes none and plays nothing. */
+    if (nightFalls) {
+        patch.mood = MOOD_BANDS.includes(mood) ? mood : null;
+        if (stamp != null) patch.nightBoard = stamp;
+    }
     return patch;
 }
 
@@ -868,11 +917,12 @@ export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(
 }
 
 /**
- * The end-of-day board on this browser, at the day's roll-over (transitions.mjs, E62's `newDay`), before the start-of-day
- * board, which it hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off, nothing
- * plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays until
- * closed (the plan's C3), and stands in for the Night's own summary (Q-E94-5's default; day-summary.mjs). `before` is the
- * clock of the day that ended, `clock` the new one; a Spectator's browser shows the heading and the mood alone
+ * The end-of-day board on this browser, when Night begins (transitions.mjs `boardsOf`, since 13.11.2026: the Night
+ * Eclipse's end, or Evening to Night with none) and at a chapter's end with the next morning, before the start-of-day
+ * board, which it then hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off,
+ * nothing plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays
+ * until closed (the plan's C3), and stands in for the Evening's own summary (Q-E94-5's default; day-summary.mjs
+ * `eveningFoldsIntoBoard`). `before` is the clock of the day that ends, `clock` the new one; a Spectator's browser shows the heading and the mood alone
  * (`dayEndBoardFor`). `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and
  * the notice history is a setting). Answers what `playSequence` answered.
  */
@@ -942,8 +992,11 @@ export function lateSequence({ clock = null, messages = [], now = 0, played = {}
     const found = [];
     const trialKey = trialEntryKey(clock);
     if (trialKey) found.push({ kind: "trialEntry", key: trialKey, at: Number(clock?.timeOfDayStartedAt) });
-    if (clock && clock.dayBoard != null && Number(clock.dayBoard) === Number(clock.day)) {
-        found.push({ kind: "dayStart", key: dayStartKey(clock), at: Number(clock.dayStartedAt ?? clock.timeOfDayStartedAt) });
+    if (startBoardStamped(clock)) {
+        // during the Morning Eclipse the board is the next day's, from the Eclipse's start (`dayStartClock`)
+        const opening = dayStartClock(clock) !== clock;
+        found.push({ kind: "dayStart", key: dayStartKey(dayStartClock(clock)),
+            at: Number(opening ? clock.eclipseStartedAt : (clock.dayStartedAt ?? clock.timeOfDayStartedAt)) });
     }
     for (const message of messages ?? []) {
         if (!message?.author?.isGM || message.visible === false) continue;
