@@ -22,13 +22,12 @@ The plan lays out no commits C1..Cn, only five work items (its section 3). They 
 | --- | --- | --- |
 | C1 (0ec727b6) | **70-movement**, the planned row: a refusal that names no undiscovered room; a route's last leg vetoed past the budget, the room paid for kept; ten crossings at once over three pages, each paid exactly once; the GM's Refund at the exact price, a second refused; an Afternoon Eclipse's allowance, the crossing past it refused on the mover and, from a console past its own veto, put back. LIVE-E39-01 added to AUDIT 9.2 | audit/harness/scenarios/70-movement.mjs, README row 70, tests-flows.mjs (two rows name 70), AUDIT-1.2.42.md item 507 |
 | C2 (6a243316) | **99-actions**, the plan's driveAction: every row of `ACTIONS` driven from p1's page; a census that fails on a row without a driver; each row's price; every row with thresholds (Search, Projects, Listen, Sabotage) at one below each band, at each band and on a critical, against config.mjs | audit/harness/scenarios/99-actions.mjs, README row 99, tests-flows.mjs (action-roll names 99) |
+| C3 (8b1f3445) | tier 2 **E35-T10** holds every mode of `TRANSFER_POLICY` to a road it drives (a census, then each mode into full hands with a stash read against the policy itself); at HEAD a sixth mode `lend` passed it unread | scripts/tests-tier2.mjs |
+| C4 (fbb29935) | tier 2 **E39-T1**, the one project entry's cases on fresh projects: null for no project, an empty change and a removed one; +1; a fill crossing once; a full bar renamed not crossing again; alreadyFull and alreadyEmpty; uncrossing; the clamp at both ends; a lowered target crossing; a name and a room; a frozen bar refused; a target of 0 written as 1 | scripts/tests-tier2.mjs |
 
 ## In progress
 
-- C3: items. `TRANSFER_POLICY`'s modes are each driven by tier 2 E35-T10 (and E35-T2..T5, T8, R951); C3 makes E35-T10
-  fail when a mode of the policy has no road in it, so a new mode is caught (the same "covered automatically" as C2).
-- C4: projects - see "Coverage" below: the S09 list the plan cites is not in this checkout.
-- C5: mutants (the plan's item 5), results below; the stage's ledger.
+- Nothing open in code. C5 (the mutants, the plan's item 5) is the table below; the stage's ledger is this file.
 
 ## Coverage of the plan's list (where each item is answered)
 
@@ -50,11 +49,11 @@ this stage did not write them again.
 | passages in walls, `passage.cross`, stairs with fee and Eclipse (A10) | 76 C, D, U; tier 2 E17-T4's tunnel rows | - |
 | Zones regions not rooms; a Zones move runs nothing (E70, E73) | 41 b1, 68 C | gap: no check reads every one of veto, fees, fog, Eclipse, Remnants, auditMove, sentBack, passage.cross on a zone move |
 | Frisk in both modes (A11) | 40-flow (frisk-openly), tier 2 A11-7, A11-8 | gap: 99 drives Palm alone (refused, no one in the room), not its Frisk modes |
-| every transferItem mode | R951; tier 2 E35-T2..T5, T8, T10 | C3 (census) |
+| every transferItem mode | R951; tier 2 E35-T2..T5, T8, T10 | C3: E35-T10's census and policy reading |
 | drawItem on the tables, PL and EN | tier 2 at "is put over config.mjs the way `localizeConfig` puts it" (one browser, both halves), E14-T14 | - |
 | driveAction over ACTIONS | 99 | 99 |
 | a roll under the threshold, at every boundary, a critical | 99 bands (Search, Projects, Listen, Sabotage) | 99; gap: Analyze's Find Stash and Find Passage (16) are priced, not banded |
-| 14 project cases from the S09 list on applyProjectChange | tier 2 E36-T2..T11 (the one entry, its queue, its roads) | the S09 list is not in this checkout (the plan's "Not read"); **default taken, owner to confirm**: E36-T2..T11 stand for it |
+| 14 project cases from the S09 list on applyProjectChange | tier 2 E36-T2..T11 (the one entry, its queue, its roads), E39-T1 (15 cases of the entry's answers) | C4. The S09 list is not in this checkout (the plan's "Not read"); **default taken, owner to confirm**: E39-T1's cases are the ones changeStep's header states |
 | shim calibration against one real v14 move | - | LIVE-E39-01 (waits for a v14 sandbox) |
 
 ## Mutants (the plan's item 5)
@@ -75,10 +74,17 @@ repository. KILLED = the check failed the way it was written to.
 | a critical Work's refund dropped | 99 bands: project | KILLED |
 | the rifle limit (once a time of day per stash) removed | tier 2 E14-T5 | KILLED |
 | a trap's "one alert, then quiet" removed | tier 2 "a trap watches, fires once" | KILLED |
+| a sixth mode `lend` added to TRANSFER_POLICY | tier 2 E35-T10 (C3) | KILLED; SURVIVED at HEAD before C3 |
+| a project's clamp `Math.max(0, ...)` dropped | tier 2 E39-T1 | KILLED |
+| the crossing's `!wasDone` dropped | tier 2 E39-T1 | KILLED (SURVIVED the first draft; the full bar renamed added for it) |
+| the frozen bar's check turned false | tier 2 E39-T1 | KILLED |
 
 ## Bugs found
 
-None so far: every behaviour driven here held on the first green run.
+None: every behaviour driven here held. One reading recorded instead: a project's target of 0 cannot be asked for -
+`cleanProjectChange` writes 1 (`Math.max(1, ...)`), so changeStep's header "a target of 0 is never reached" describes no
+project the entry makes or changes (E39-T1). Not changed: it reads as intended; the header's sentence is the owner's to
+keep or drop.
 
 ## Test results
 
@@ -88,6 +94,18 @@ None so far: every behaviour driven here held on the first green run.
   scenarios that read the changed files, each `run-all.mjs scenarios --only NN`: 88 (imports tests-flows.mjs) green
   73 s, 70 green 26 s, 99 green 126 s. `node tools/check.mjs` 17/17, lint 0 problems, prose missing 0 extra 0. No tier-2
   test changed in C1-C2.
+
+- Before the second push, at fbb29935: tiers 0-1 whole 1320 ran, 1305 passed, 0 failed, 16 skipped, 0 red (441 s); own
+  tier 2 by name - E35-T10, E39-T1, and E36-T2, E36-T3 beside them - 5 ran, 0 failed (28 s). No scenario reads
+  tests-tier2.mjs by name (`git grep`); 01-runtests runs it whole in CI's shards. The first push (C1, C2 and the STATUS)
+  went with "[skip ci]" on its head commit, so this push is CI's first run of C1-C4.
+
+## Gaps left (named, not built)
+
+- A move between the trial hall's zones read for every step it must not run (veto, fees, fog, Eclipse, Remnants,
+  auditMove, sentBack, passage.cross): 41 b1 and 68 C read the hall as no room and no crossing, not each of these.
+- Palm's Frisk modes driven from 99 (99 drives Palm alone, refused with nobody in the room).
+- Analyze's Find Stash and Find Passage at their flat 16: 99 prices Analyze, it does not band them.
 
 ## Waits for
 
