@@ -785,10 +785,23 @@ async function gatecode() {
             if (record) {
                 rec.rows = (record.rows ?? []).length;
                 problems.push(...R.recordProblems(record).map(p => `${R.RECORD_FILE}: ${p}`));
+                /* REVIEW-111 L2: a row's commit is one this repository has, and an ancestor of HEAD - not a made-up id
+                   with its digest recomputed. A shallow clone cannot tell, and says so instead of guessing. */
+                let shallow = false;
+                try { shallow = execFileSync("git", ["-C", REPO, "rev-parse", "--is-shallow-repository"], { encoding: "utf8" }).trim() === "true"; } catch { shallow = true; }
+                const commits = [...new Set((record.rows ?? []).map(r => r?.commit).filter(c => /^[0-9a-f]{40}$/.test(String(c))))];
+                if (shallow) rec.commits = `${commits.length} commit(s) not checked (a shallow clone)`;
+                else {
+                    for (const c of commits) {
+                        const ok = spawnSync("git", ["-C", REPO, "merge-base", "--is-ancestor", c, "HEAD"]).status === 0;
+                        if (!ok) problems.push(`${R.RECORD_FILE}: commit ${c} is not in this repository's history up to HEAD`);
+                    }
+                    rec.commits = `${commits.length} commit(s) checked against HEAD's history`;
+                }
             }
         }
     }
-    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s), ${rec.planted}; ${problems.length} problem(s)`);
+    console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ci record ${rec.rows} row(s)${rec.commits ? ` (${rec.commits})` : ""}, ${rec.planted}; ${problems.length} problem(s)`);
     return problems;
 }
 

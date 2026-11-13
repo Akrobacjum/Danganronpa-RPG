@@ -99,18 +99,23 @@ export const FOREIGN_ENV = Object.freeze(["DRPG_REPO", "DRPG_SUITE_SHARD"]);
 
 /** Why this environment would have run-all test something other than this checkout, whole; null when it would not. */
 export function envRefusal(env) {
-    return null;
+    const set = FOREIGN_ENV.filter(k => env?.[k] !== undefined && env[k] !== "");
+    return set.length ? `${set.join(" and ")} ${set.length > 1 ? "are" : "is"} set: run-all would test ${set.includes("DRPG_REPO") ? "another checkout" : "one shard"}, and a row records this checkout's whole part - unset ${set.length > 1 ? "them" : "it"}` : null;
 }
 
 /** Why a run-all.json is not this run's reading of this checkout; null when it is. */
 export function reportRefusal(report, { repo, spawnedAt, parts }) {
-    return null;
+    if (!report || typeof report !== "object") return "run-all.json is missing or not JSON";
+    if (!(Date.parse(report.startedAt) >= spawnedAt - 1000)) return "run-all.json was not written by this run";
+    if (path.resolve(String(report.repo ?? "")) !== path.resolve(repo)) return `run-all.json ran ${report.repo ?? "no named checkout"}, not ${repo}`;
+    const missing = parts.filter(p => !report.parts?.some(r => r.part === p));
+    return missing.length ? `run-all.json has no result for ${missing.join(", ")}` : null;
 }
 
 /** A record file's text (null: no file) as `{ record }`, or `{ error }` when it is there and unreadable. */
 export function parseRecord(text) {
     if (text === null || text === undefined) return { record: { schema: SCHEMA, rows: [] } };
-    try { return { record: JSON.parse(text) }; } catch { return { record: { schema: SCHEMA, rows: [] } }; }
+    try { return { record: JSON.parse(text) }; } catch (err) { return { error: `it is not JSON (${err.message})` }; }
 }
 
 /** The planted rows the check wants refused, each alone, and a control it wants accepted. */
@@ -169,20 +174,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(impor
     const git = (...args) => execFileSync("git", ["-C", REPO, ...args], { encoding: "utf8" }).trim();
     const dirty = git("status", "--porcelain").split("\n").filter(l => l && !l.endsWith(RECORD_FILE));
     if (dirty.length) { console.log(`ci-record: the working tree is not clean (${dirty.length} path(s)); a row's commit must be the code that ran`); process.exit(2); }
+    const foreign = envRefusal(process.env);
+    if (foreign) { console.log(`ci-record: ${foreign}`); process.exit(2); }
     const commit = git("rev-parse", "HEAD");
     const command = asked.length ? `node audit/harness/run-all.mjs ${parts.join(" ")}` : "node audit/harness/run-all.mjs";
     const spawnedAt = new Date();
-    const run = spawnSync(process.execPath, ["run-all.mjs", ...parts], { cwd: path.join(REPO, "audit", "harness"), stdio: "inherit" });
+    const env = { ...process.env };
+    for (const k of FOREIGN_ENV) delete env[k];
+    const run = spawnSync(process.execPath, ["run-all.mjs", ...parts], { cwd: path.join(REPO, "audit", "harness"), stdio: "inherit", env });
     const exitCode = run.status ?? 1;
     const resultsFile = path.join(REPO, "audit", "harness", "results", "run-all.json");
     let report = null;
-    try { report = JSON.parse(fs.readFileSync(resultsFile, "utf8")); } catch { /* checked below */ }
-    if (!report || Date.parse(report.startedAt) < spawnedAt.getTime() - 1000) {
-        console.log("ci-record: run-all.json was not written by this run; nothing recorded");
-        process.exit(1);
-    }
-    const missing = parts.filter(p => !report.parts?.some(r => r.part === p));
-    if (missing.length) { console.log(`ci-record: run-all.json has no result for ${missing.join(", ")}; nothing recorded`); process.exit(1); }
+    try { report = JSON.parse(fs.readFileSync(resultsFile, "utf8")); } catch { /* reportRefusal names it */ }
+    const refused = reportRefusal(report, { repo: REPO, spawnedAt: spawnedAt.getTime(), parts });
+    if (refused) { console.log(`ci-record: ${refused}; nothing recorded`); process.exit(1); }
     if (git("rev-parse", "HEAD") !== commit) { console.log("ci-record: HEAD moved during the run; nothing recorded"); process.exit(1); }
     const rows = parts.map(p => {
         const r = report.parts.find(x => x.part === p);
@@ -193,13 +198,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(impor
         });
     });
     const file = path.join(REPO, RECORD_FILE);
-    let record = { schema: SCHEMA, rows: [] };
-    try { record = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* a first record */ }
+    const read = parseRecord(fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null);
+    if (read.error) { console.log(`ci-record: ${RECORD_FILE}: ${read.error}; mend or remove it - nothing recorded`); process.exit(1); }
+    const record = read.record;
     // A gate's row for this commit replaces the one before; rows of other commits and gates stay.
     record.rows = [...(record.rows ?? []).filter(r => !(r.commit === commit && parts.includes(r.gate))), ...rows];
     const problems = recordProblems(record);
     if (problems.length) { console.log(`ci-record: the record would not hold: ${problems.join("; ")}`); process.exit(1); }
-    fs.writeFileSync(file, JSON.stringify(record, null, 2) + "\n");
+    // Written beside and renamed in, so a run stopped half way leaves the old record whole (REVIEW-111 L1).
+    fs.writeFileSync(`${file}.tmp`, JSON.stringify(record, null, 2) + "\n");
+    fs.renameSync(`${file}.tmp`, file);
     console.log(`ci-record: ${rows.length} row(s) for ${commit.slice(0, 8)} written to ${RECORD_FILE} (${rows.map(r => `${r.gate} ${r.result}`).join(", ")}); exit ${exitCode}`);
     process.exitCode = exitCode;
 }
