@@ -8281,6 +8281,20 @@ const INVARIANTS = [
             asks: [true, true, true]
         }), "[the store's name, key, kind, reset group, backup, sync and that any GM may write it; its setting's scope and config; on a player's engine the row and what was stored; the gate from a player, on a player's browser, from a GM; each writer asks for a GM]");
     }],
+    ["R5830 - a Planned Truth Bullet keeps its picture (1.2.113; the owner, 13.11.2026, \"yes\" to a picture field like a planned Remnant's): case-schema.mjs `caseNodeOf` reads a bullet row's `img` as written, \"\" when it has none, as it reads a planned Remnant's and a planned Final Truth's, and a kind that plans no picture (a deduction) still reads null", async () => {
+        /* Pure over three rows the test writes in memory; nothing stored. Red at 1ffc6fc2: a bullet's `img` read null,
+           so a picture picked in its node would have been dropped at the next read. */
+        const S = await import("./case-schema.mjs");
+        const read = raw => S.caseNodeOf(raw)?.img;
+        equal(stableJson({
+            bullet: read({ kind: "bullet", label: "R5830", img: "icons/svg/book.svg" }),
+            bulletNone: read({ kind: "bullet", label: "R5830" }),
+            bulletJunk: read({ kind: "bullet", label: "R5830", img: 7 }),
+            incident: read({ kind: "incident", label: "R5830", img: "icons/svg/book.svg" }),
+            deduction: read({ kind: "deduction", label: "R5830", img: "icons/svg/book.svg" })
+        }), stableJson({ bullet: "icons/svg/book.svg", bulletNone: "", bulletJunk: "", incident: "icons/svg/book.svg", deduction: null }),
+        "{a bullet row's picture; with none; with a non-string; a planned Remnant's; a deduction's}");
+    }],
     ["R3650 - the Investigation panel's fixed frame (E97 C2; the owner's Q-C and Q-D, 11.11.2026): the window states WIDE's width and is no `fit` window; its body is a toolbar (the view switch's slot and the controls' slot, a said line in the controls') and the view's box, the live region itself; components.css states the view's height from the screen's and lets it alone scroll, the toolbar's height, the body no scroll of its own, and the footer one grid of four columns in two rows; under Legacy no Traces or Key head breaks inside a word, the Traces table wider than its box and scrolled in the view, the box letting it out (E64-inv: one scroller a tab)", async () => {
         /*
          * E97 C2, 12.11.2026. The panel was a `fit` window, as wide as its widest table, so its frame followed what it

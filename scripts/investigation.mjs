@@ -59,8 +59,9 @@ import { registerSeasonState } from "./season-reset.mjs";
  * the bullet's category; tools/item-icons.mjs draws it). Until 1.2.113 it was Foundry's `icons/svg/hazard.svg`. A planned
  * Remnant, a planned Final Truth and a Key slot draw it in their empty picture field, and a plan with no picture places
  * its Remnant with it (`placeIncident`, `placePlannedFinal`, `createKeyRemnant`), so the finder's Truth Bullet carries it
- * (observe.mjs `createFind` copies the trace's picture); a planned Truth Bullet has no picture field and is given with it
- * already (truth-bullets.mjs `createTruthBullet` -> inventory.mjs `grantItem`). Never written into the plan itself. One
+ * (observe.mjs `createFind` copies the trace's picture); a planned Truth Bullet, whose picture field came in 1.2.113 as well,
+ * is given with its planned picture or, with none, this one (truth-bullets.mjs `createTruthBullet` -> inventory.mjs
+ * `grantItem`). Never written into the plan itself. One
  * drawing for every type: the module ships no Truth Bullet glyph per type (`TRUTH_BULLET_TYPES` holds no picture, and
  * icons/ one `item-truthBullet.svg`; the `remnant-*.svg` are the actions' marks on the map, not a Truth Bullet's).
  */
@@ -2640,8 +2641,9 @@ function schemaEditor(graph, node) {
     if (node.kind === "bullet") {
         /* A PLANNED TRUTH BULLET MADE BY HAND (E104; the owner, 13.11.2026: "kazdemu zaplanowanemu remnantowi/bulletowi"):
            the Give Truth Bullet window's Write new fields in its order and words (gm-items.mjs `bulletCreatePane`: name,
-           real type, shown as, visibility, Faint, tied, the player's words, the analysis, the GM's note), then its recipient
-           rows (who gets it, Tell the player). Give opens that window filled in (`placeIncident` -> `givePlannedBullet`). */
+           real type, shown as, visibility, Faint, tied, the player's words, the analysis, the GM's note), its picture as a
+           planned Remnant has (1.2.113; the owner's "yes", 13.11.2026), then its recipient rows (who gets it, Tell the
+           player). Give opens that window filled in (`placeIncident` -> `givePlannedBullet`), the picture with it. */
         const types = Object.entries(TRUTH_BULLET_TYPES).map(([key, t]) => `<option value="${key}"${key === (node.realType ?? "neutral") ? " selected" : ""}>${
             esc(t.label)}</option>`).join("");
         const shown = [["auto", "DRPG.TruthBullet.shownAuto"], ["neutral", "DRPG.TruthBullet.shownNeutral"], ["real", "DRPG.TruthBullet.shownReal"]]
@@ -2666,6 +2668,8 @@ function schemaEditor(graph, node) {
                 esc(L("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(node.analysis ?? "")}</textarea>`),
             editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2" placeholder="${
                 esc(L("DRPG.TruthBullet.gmNotePlaceholder"))}">${esc(node.note ?? "")}</textarea>`),
+            editRow(L("DRPG.CaseMap.field.img"), `<img src="${esc(node.img || PLANNED_GLYPH)}" alt="" title="${esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="${
+                esc(node.id)}" data-drpg-portrait-field="${esc(name("img"))}" /><input type="hidden" name="${esc(name("img"))}" value="${esc(node.img ?? "")}" data-drpg-drawn="${esc(node.img ?? "")}" />`),
             editRow(L("DRPG.Items.recipient"), `<select name="${esc(name("recipient"))}">${recipients}</select>`),
             check("tell", "DRPG.Items.tellPlayer", node.tell !== false),
             `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${

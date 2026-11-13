@@ -1238,7 +1238,12 @@ function bulletCreatePane(fill = null, { nameField = "name" } = {}) {
            for it. The Autopsy dialog further down deliberately has no twin of this box: an autopsy identifies itself,
            so no Analyze will ever be thrown at it - see SELF_EVIDENT in truth-bullets.mjs. */
         row("DRPG.TruthBullet.analyzedText", "drpg-bullet-analyzedText", text("analyzedText", "DRPG.TruthBullet.analyzedTextPlaceholder", f.analysis)),
-        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder", f.note))]);
+        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder", f.note)),
+        /* A PLANNED TRUTH BULLET'S PICTURE (1.2.113; the owner's "yes", 13.11.2026): shown, and carried to the bullet, only
+           when the plan holds one. Write new opened by hand has no picture field (the coordinator's default, kept): its
+           bullet wears the category's drawing, as it always did. */
+        ...(f.img ? [row("DRPG.CaseMap.field.img", "drpg-bullet-plannedImg", `<img src="${esc(f.img)}" alt="" class="drpg-project-portrait drpg-bullet-planned-img" />`
+            + `<input type="hidden" name="plannedImg" id="drpg-bullet-plannedImg" value="${esc(f.img)}" />`)] : [])]);
 }
 
 /** The name follows the picked trace; the trace list follows the recipient. */
@@ -1311,7 +1316,9 @@ function readBulletFields(f, active, { recipient = "recipient", nameField = "nam
         tied: f.elements.tied.checked,
         playerText: f.elements.playerText.value.trim(),
         analyzedText: f.elements.analyzedText.value.trim(),
-        gmNote: f.elements.gmNote.value.trim()
+        gmNote: f.elements.gmNote.value.trim(),
+        // a planned Truth Bullet's picture (1.2.113), when the window was opened from a plan that holds one
+        img: f.elements.plannedImg?.value || null
     };
 }
 
@@ -1415,7 +1422,9 @@ function bulletFromForm(result) {
         // what the GM typed is what the bullet keeps. It still waits in the
         // secret until the holder identifies it, like every other reading.
         analyzedText: result.analyzedText,
-        gmNote: result.gmNote
+        gmNote: result.gmNote,
+        // the plan's picture (1.2.113); null leaves the category's drawing (inventory.mjs `grantItem`)
+        img: result.img || null
     };
 }
 
