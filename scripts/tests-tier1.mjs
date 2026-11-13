@@ -8548,7 +8548,8 @@ const INVARIANTS = [
             trialLog: /data-drpg-console="log"/.test(consoleSource) && /openObjectionLog\(\)/.test(consoleSource),
             undo: [footerOf(0), footerOf(2), /picks === "undo"\)\s*return confirmUndoRealization\(/.test(realizeSource)]
         }), stableJson({
-            bar: ["autopsy", "bodyFound", "close", "newTrace", "realize", "save"],
+            // Cancel's action "discard" since the planner's review for 1.2.111 (13.11.2026; investigation.mjs, the footer).
+            bar: ["autopsy", "bodyFound", "discard", "newTrace", "realize", "save"],
             endChapter: [true, true],
             trialLog: true,
             undo: [[], ["undo"], true]
