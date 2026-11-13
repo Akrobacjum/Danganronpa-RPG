@@ -114,6 +114,18 @@ two the GM compares.
 as the token did. Changes the tile's click on v14 (`Tile#_onClickLeft2`, not read): only with the owner's yes and a live
 check.
 
+**P1 built (13.11.2026, for 1.2.113; the coordinator's default until the owner answers).** body-tile.mjs
+`greyBodyPicture`: one colour-matrix filter on the Tile placeable's `mesh`, the luminance weights 0.299, 0.587, 0.114 in
+each colour row, alpha kept; put on at `drawTile` and `refreshTile` beside the mark, never stacked by a redraw, another's
+filter kept, taken off a tile that lost its flag. Display only: nothing written to the tile, so tiles laid before P1 are
+grey too; the mark (sign and white caption) is not on the mesh and is unchanged. The map is not themed, so both themes
+draw the same. Tier 1 R5403 (the matrix, no stack, the flag gone, no mesh), R5404 (the hooks; no tint written).
+Not measured: whether v14's Tile placeable names its picture `mesh` and draws a filter on it (LIVE-E106-03, AUDIT 9.2
+item 510). No real PIXI here (the CDN is refused by the network policy), so the drawn check is an illustration only:
+shots/p1-grey-matrix.png runs the same 5x4 matrix through SVG `feColorMatrix` (the same row layout as PIXI's
+ColorMatrixFilter) in Chromium over a picture of the repo; mean HSV saturation 0.252 as drawn, 0 through the matrix.
+The handbooks (GM, EN/PL) say the body tile is grey and opens no sheet.
+
 **Q-E106-1 for the owner:** P1 alone, P1 + P2, or none of them; P3 yes or no.
 
 ## Numbers

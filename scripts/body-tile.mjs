@@ -421,11 +421,52 @@ export function drawBodyMark(tile, { actors = game.actors, gm = Boolean(game.use
     return group;
 }
 
+/** The luminance weights of the grey (ITU-R BT.601): each colour row of the matrix the same three, alpha kept. */
+const GREY_MATRIX = Object.freeze([
+    0.299, 0.587, 0.114, 0, 0,
+    0.299, 0.587, 0.114, 0, 0,
+    0.299, 0.587, 0.114, 0, 0,
+    0, 0, 0, 1, 0
+]);
+
+/**
+ * THE BODY'S PICTURE IN GREY (E106 P1, 13.11.2026; the coordinator's default until the owner answers Q-E106-1). After a
+ * student becomes a Monocub the GM sees two things with the student's picture, the Monocub's token and this tile, and the
+ * owner took the tile for the Monocub (docs/dev/e106/STATUS.md). The tile's picture in grey tells them apart at a glance:
+ * the token keeps its colour, the body is grey under its death sign and caption. One colour-matrix filter on the Tile
+ * placeable's `mesh` (its picture; the mark is not on the mesh and keeps its white caption), its matrix `GREY_MATRIX`,
+ * marked `drpgBodyGrey` so a redraw keeps the one it put on and another's filters stay; taken off a tile that lost its
+ * flag. Display only, on every browser that draws the tile, hidden or not (the grey says nothing the tile does not):
+ * nothing is written, so the tiles laid before P1 are grey too. The map is not themed, so both themes draw the same.
+ * Answers the filter, or null where none is put on. Whether v14's Tile placeable names its picture `mesh` and draws a
+ * filter on it was not read (LIVE-E106-03); tier 1 R5403 reads it on a stand-in.
+ */
+export function greyBodyPicture(tile) {
+    const mesh = tile?.mesh ?? null;
+    if (!mesh || mesh.destroyed || !globalThis.PIXI) return null;
+    const flagged = Boolean(markOf(tile.document ?? null));
+    const filters = Array.isArray(mesh.filters) ? mesh.filters : [];
+    const kept = filters.find(f => f?.drpgBodyGrey === true) ?? null;
+    if (!flagged) {
+        if (kept) mesh.filters = filters.filter(f => f !== kept);
+        return null;
+    }
+    if (kept) return kept;
+    const Matrix = PIXI.ColorMatrixFilter ?? PIXI.filters?.ColorMatrixFilter;
+    if (typeof Matrix !== "function") return null;
+    const grey = new Matrix();
+    grey.matrix = [...GREY_MATRIX];
+    grey.drpgBodyGrey = true;
+    mesh.filters = [...filters, grey];
+    return grey;
+}
+
 /**
  * The body's mark on every browser (E95 C3; module.mjs `init`): Foundry's `drawTile` and `refreshTile` hand the Tile
- * placeable, as v12 and v13 name them (not read on v14: LIVE-E95-01). Draws only (`drawBodyMark`).
+ * placeable, as v12 and v13 name them (not read on v14: LIVE-E95-01). Draws only (`drawBodyMark`), and since E106 P1
+ * greys the body's picture (`greyBodyPicture`).
  */
 export function registerBodyMarks() {
-    Hooks.on("drawTile", tile => { drawBodyMark(tile); });
-    Hooks.on("refreshTile", tile => { drawBodyMark(tile); });
+    Hooks.on("drawTile", tile => { drawBodyMark(tile); greyBodyPicture(tile); });
+    Hooks.on("refreshTile", tile => { drawBodyMark(tile); greyBodyPicture(tile); });
 }

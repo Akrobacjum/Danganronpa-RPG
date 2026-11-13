@@ -53438,6 +53438,61 @@ const INVARIANTS = [
             "the mark's group ([eventMode, interactiveChildren])");
         tile.destroy({ children: true });
     }],
+    ["R5403 - a body tile's picture is drawn in grey (body-tile.mjs `greyBodyPicture`, E106 P1): one colour-matrix filter on the tile's mesh whose three colour rows are the same luminance weights (0.299, 0.587, 0.114), never stacked by a redraw, a filter of another's kept, and taken off a tile that lost its flag; nothing written to the tile", async () => {
+        /*
+         * E106 P1, 13.11.2026 (the coordinator's default until the owner answers Q-E106-1). After a student becomes a
+         * Monocub the GM sees two things with the student's picture, the token and the body tile, and took the tile for the
+         * Monocub (the owner's answer, docs/dev/e106/STATUS.md). The tile's picture in grey tells them apart at a glance;
+         * the token keeps its colour. Display only, on every browser that draws the tile, from Foundry's `drawTile` and
+         * `refreshTile` (R5404). On a stand-in tile placeable: a PIXI container with a sprite as its `mesh` and a document
+         * of plain fields; whether v14's Tile placeable names its picture `mesh` and draws a filter on it is LIVE-E106-03.
+         * Red at E106 P1's base: body-tile.mjs exports no `greyBodyPicture`.
+         */
+        const B = await import("./body-tile.mjs");
+        must(typeof B.greyBodyPicture === "function", "body-tile.mjs exports no greyBodyPicture");
+        const flag = { actorId: "SUITER5403VICTIM", deathId: null, level: null, at: 1 };
+        const placeable = mark => {
+            const tile = new PIXI.Container();
+            tile.mesh = new PIXI.Sprite();
+            tile.document = { width: 100, height: 100, hidden: false, parent: { grid: { size: 100 } },
+                getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? mark.flag : undefined) };
+            return tile;
+        };
+        const mark = { flag };
+        const tile = placeable(mark);
+        const other = new PIXI.Filter();
+        tile.mesh.filters = [other];
+        const first = B.greyBodyPicture(tile);
+        const again = B.greyBodyPicture(tile);
+        const greys = () => (tile.mesh.filters ?? []).filter(f => f !== other);
+        const m = first?.matrix ?? [];
+        const row = i => m.slice(i * 5, i * 5 + 5).map(v => Math.round(v * 1000) / 1000);
+        equal(stableJson({ rows: [row(0), row(1), row(2), row(3)], count: greys().length, same: first !== null && first === again, kept: tile.mesh.filters.includes(other) }),
+            stableJson({ rows: [[0.299, 0.587, 0.114, 0, 0], [0.299, 0.587, 0.114, 0, 0], [0.299, 0.587, 0.114, 0, 0], [0, 0, 0, 1, 0]], count: 1, same: true, kept: true }),
+            "the grey on a body tile ([its matrix's four rows], greys on the mesh after two draws, the same filter, another's kept)");
+        mark.flag = undefined;
+        const gone = B.greyBodyPicture(tile);
+        equal(stableJson({ gone, count: greys().length, kept: tile.mesh.filters.includes(other) }), stableJson({ gone: null, count: 0, kept: true }),
+            "a tile that lost its flag ([the answer, greys left, another's kept])");
+        const bare = placeable({ flag });
+        bare.mesh = null;
+        ok(B.greyBodyPicture(bare) === null && B.greyBodyPicture(null) === null, "a tile with no mesh, and no tile: nothing");
+        tile.destroy({ children: true });
+    }],
+    ["R5404 - the grey is put on at Foundry's `drawTile` and `refreshTile`, beside the mark (body-tile.mjs `registerBodyMarks`, E106 P1), and nothing in body-tile.mjs writes a tile's tint or texture for it", async () => {
+        /*
+         * E106 P1, 13.11.2026. The source of `registerBodyMarks`: both hooks call `greyBodyPicture` as they call
+         * `drawBodyMark`, so a tile drawn or redrawn (a hover, a move) is grey on every browser, the tiles laid before
+         * P1 among them; and the file has no write of `texture.tint` (the grey is a display, the tile's data as E95
+         * laid it). Red at E106 P1's base: the hooks drew the mark alone.
+         */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/body-tile.mjs`).then(lfText);
+        const reg = bodyOf(src, "export function registerBodyMarks", { length: 600 });
+        const draw = /Hooks\.on\("drawTile",[^\n]*greyBodyPicture\(tile\)/.test(reg);
+        const refresh = /Hooks\.on\("refreshTile",[^\n]*greyBodyPicture\(tile\)/.test(reg);
+        equal(stableJson({ draw, refresh, tint: /["'.]tint["']?\s*:/.test(stripComments(src)) }), stableJson({ draw: true, refresh: true, tint: false }),
+            "the hooks ([drawTile greys, refreshTile greys, a tint written in body-tile.mjs])");
+    }],
 ];
 
 /**
