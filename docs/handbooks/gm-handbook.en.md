@@ -24,7 +24,7 @@ Then install the system and the modules below from their own package pages. The 
 | Needs | Version |
 |---|---|
 | Foundry VTT | 14.364 or newer (verified on 14.365) |
-| Daggerheart (Foundryborne) | 2.6.5 or newer (verified on 2.6.5; a newer version loads and the module tells the GM once per version) |
+| Daggerheart (Foundryborne) | 2.6.5 or newer (verified on 2.12.8; a newer version loads and the module tells the GM once per version) |
 
 | Module | Status | Why |
 |---|---|---|

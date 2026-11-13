@@ -24,7 +24,7 @@ Potem zainstaluj system i poniższe moduły z ich własnych stron. Moduł odmawi
 | Wymaga | Wersja |
 |---|---|
 | Foundry VTT | 14.364 lub nowsza (sprawdzone na 14.365) |
-| Daggerheart (Foundryborne) | 2.6.5 lub nowsza (sprawdzone na 2.6.5; nowsza wersja się ładuje, a moduł mówi o tym GM-owi raz na wersję) |
+| Daggerheart (Foundryborne) | 2.6.5 lub nowsza (sprawdzone na 2.12.8; nowsza wersja się ładuje, a moduł mówi o tym GM-owi raz na wersję) |
 
 | Moduł | Status | Po co |
 |---|---|---|

@@ -10437,7 +10437,7 @@ const INVARIANTS = [
          * E11 fix r2-H4, 1.2.73; the goal's D3 / S06-49 (a) and (c), the plan's 3.3. The cast's "notes they
          * wrote on their own sheets" cleared `system.notes` and `system.biography.notes`, which a Daggerheart
          * character does not have (character.mjs:80-88 at Daggerheart's tag 2.6.5, the version module.json
-         * verifies: `biography` is background, connections and characteristics), so the tick wiped nothing.
+         * verified until 1.2.111: `biography` is background, connections and characteristics), so the tick wiped nothing.
          * And the actions row ended "and betrayal window cleared": the offer is the cast's record since
          * CASE-04 and goes with the incident group, so with the incident unticked the row promised what
          * stayed. Read: the groups, the reset's source for the two paths, and both lang files for the two

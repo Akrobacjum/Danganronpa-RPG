@@ -9,7 +9,7 @@
  * Stress, Scars, Proficiency, Max Evasion Increase) and Experiences (experiences.hbs: each one's name, value and
  * description, New and the bin). It submits on every change (`form.submitOnChange`). The owner, 11.11.2026: "sa tam
  * statystyki nieuzywane przez modul i ogolnie sa nieruszane w obu motywach" - statistics the module does not use, and
- * neither theme touched it. Read at the tag 2.6.5 (module.json's verified version), S/stages/E49/dh-src.
+ * neither theme touched it. Read at the tag 2.6.5 (module.json's verified version until 1.2.111), S/stages/E49/dh-src.
  *
  * WHAT THE MODULE USES OF IT (read in scripts/ on 11.11.2026 at 54493dbf, `grep` for each path; the tests' copy is
  * `SETTINGS_FIELDS` below, R3550):

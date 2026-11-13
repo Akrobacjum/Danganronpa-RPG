@@ -226,7 +226,7 @@ checks that a LiveKit server answers.
 | Needs | Version |
 |---|---|
 | Foundry VTT | 14.364 or newer (verified on 14.365) |
-| [Daggerheart (Foundryborne)](https://foundryvtt.com/packages/daggerheart) | 2.6.5 or newer (verified on 2.6.5; a newer version loads, and the GM is told once per version that it has not been measured) |
+| [Daggerheart (Foundryborne)](https://foundryvtt.com/packages/daggerheart) | 2.6.5 or newer (verified on 2.12.8; a newer version loads, and the GM is told once per version that it has not been measured) |
 
 | Module | What it is for | |
 |---|---|---|
