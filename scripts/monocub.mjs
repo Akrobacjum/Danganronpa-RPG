@@ -50,7 +50,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
-import { cubStore, cubCopy, cubTargetStore, bountyStore } from "./gm-stores.mjs";
+import { cubStore, cubCopy, cubTargetStore, bountyStore, projectWorkStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
@@ -1245,6 +1245,15 @@ async function noteCubMove(row, target, slot = moveSlotNow()) {
 export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
     if (!game.user.isGM) return null;
     return serialWrite(`drpg-cub-ability:${actorId}`, async () => {
+        /* THE STORES FIRST (the 1.2.110 review, E72 reader #7): the refusals, the caps and the order read the Monocubs'
+           rows, the students' shares and the project work synchronously, as patchCubRow's write and the roll guard do
+           not; on a primary just reloaded beside a second GM an empty row let a once-a-day move or a cap through. A
+           time-out refuses the move, as the other GMs' rows are not here to judge it by. */
+        const held = await Promise.all([cubStore.whenHydrated(), cubTargetStore.whenHydrated(), projectWorkStore.whenHydrated()]);
+        if (held.includes("timedOut")) {
+            warn(`Refused a Monocub's "${key}": the other GMs' copies of the Monocubs' record did not arrive.`);
+            return null;
+        }
         const actor = game.actors.get(actorId);
         const row = abilityRow(key);
         const target = await targetOf(row, targetId);

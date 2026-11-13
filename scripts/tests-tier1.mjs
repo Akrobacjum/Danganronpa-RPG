@@ -32788,6 +32788,26 @@ const INVARIANTS = [
         }), "a Monocub's states are not one card ([kind, title, Monocub, lines] of three states, of the last two, none; the list draws cubCard() and none of the three)");
     }],
 
+    ["R4476 - a Monocub's move and a fog answer read the GMs' stores only once they hold the other GMs' copies (scripts/monocub.mjs `cubAbilityOnGm`, fog.mjs FOG_REQUEST; the E101 line's review of 1.2.110, E72 reader #7 and #8, 13.11.2026): `cubAbilityOnGm` waits for `cubStore`, `cubTargetStore` and `projectWorkStore` (and refuses on a time-out) before the refusals, caps and order it reads; the fog request waits for `mastermindStore`, whose record leaves the Mastermind's row out of a Monocub's and a Spectator's fog, as it waits for `discoveryStore`", async () => {
+        /*
+         * The review's #7 and #8 (suspected there, read again here): `patchCubRow` and the bridge's roll guard wait for their
+         * stores, but the move's readers (`cubRowOf`, `cubCapRefusal`, `orderOpen`, `workersNow`) did not, so on a primary
+         * just reloaded beside a second GM a once-a-day rule or a cap could read an empty row; and FOG_REQUEST waited for the
+         * discoveries alone. Read in source, cut with the kit; whether a real hydration window lets a second Redeem through is
+         * not measured. Red at the E72 #6 commit: neither waits.
+         */
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        must(src("monocub.mjs").length > 10000 && src("fog.mjs").length > 10000, "the sources were not read");
+        const move = fnSource(src("monocub.mjs"), "cubAbilityOnGm");
+        const fogCase = bodyOf(src("fog.mjs"), "case FOG_REQUEST:", { until: "case FOG_SHARE_ASK:" });
+        equal(stableJson({
+            stores: ["cubStore", "cubTargetStore", "projectWorkStore"].map(name => new RegExp(`${name}\\.whenHydrated\\(`).test(move)),
+            refuses: /timedOut/.test(move),
+            fog: [/discoveryStore\.whenHydrated\(/.test(fogCase), /mastermindStore\.whenHydrated\(/.test(fogCase)]
+        }), stableJson({ stores: [true, true, true], refuses: true, fog: [true, true] }),
+            "{stores: the move waits for [cubStore, cubTargetStore, projectWorkStore]; refuses: a time-out refuses it; fog: the request waits for [the discoveries, the Mastermind]}");
+    }],
     ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
         /*
          * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load
