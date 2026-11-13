@@ -8,14 +8,18 @@ export const layers = ["ci"];
    line, one run alone under the harness lock - seven minutes stands. E51 fix FG5 (31.10.2026) adds a console's discard:
    374.8 s green and 389.0 s red (each of D1, D3 and D4 waits its 5 s for a row that never comes), one run each alone
    under the harness lock on 4 cores, against 365 s before it (the end review's run) - 31 s from the bound on a red
-   run, so eight minutes. */
-export const timeoutMs = 480000;
+   run, so eight minutes. E43 C4 (13.11.2026) adds the fuzz, its last part: 17 s alone in a probe of its own on 4 cores
+   (630 table packets and 126 others, then its waits); the whole scenario 454.6 s and 467.1 s, two runs alone on 4 cores
+   with it - 13% under nine minutes, so ten. */
+export const timeoutMs = 600000;
 
 import { MARK, standE15, sitE15, proposeE15, approveE15 } from "./76-passages.mjs";
+import { fuzz } from "../lib/fuzz.mjs";
+import { REPO } from "../lib/shim.mjs";
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissionDenials, repoUrl, canary, IDS }) {
+export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissionDenials, repoUrl, canary, IDS, opLog, settingLog }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
@@ -6631,6 +6635,27 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify({ noticeCard, ...noticeSeen }));
     if (noticeCard) await gm.eval(`await game.messages.get("${noticeCard}")?.delete(); return true;`);
     await settle(300);
+
+    /* THE FUZZ (E43 C4, 13.11.2026; the plan's item 3, its "31-fuzz"; lib/fuzz.mjs says what is sent and measured). From
+       p1's console: every request of the four tables the primary GM judges, in six shapes - bare, every field null, every
+       field of a type it is not, every field too long or too big, every id one that names nothing, the null and ghost
+       shapes again with own `__proto__` and `constructor` keys - and every other packet name a module listener reads, in
+       three junk shapes, to every browser. Red-first by mutants, run on a copy of the tree (docs/dev/e43/STATUS.md). */
+    phase("the fuzz: junk from a player's console to every request and listener");
+    const fz = await fuzz({ gm, p1, p2, p3, settle, opLog, settingLog, repoUrl, repo: REPO });
+    const fzEvidence = JSON.stringify({ counts: fz.counts, codes: fz.codes, writes: fz.writes, errors: fz.errors, unanswered: fz.unanswered,
+        handlerFailed: fz.handlerFailed, handlerFailedOnGm: fz.handlerFailedOnGm, badCodes: fz.badCodes, answered: fz.answered,
+        polluted: fz.polluted, note: fz.note });
+    check("SECURITY (fuzz): every request of the four tables was sent in its shapes, and every other listener's packet name in its three",
+        fz.counts.actions >= 80 && fz.counts.tablePackets >= fz.counts.actions * 6 && fz.counts.others >= 30, fzEvidence);
+    check("SECURITY (fuzz): no exception escaped the module on any browser, and nothing was polluted through a prototype key",
+        Object.keys(fz.errors).length === 0 && fz.polluted.length === 0, fzEvidence);
+    check("SECURITY (fuzz): nothing in the world was written but p1's own pre-session note, which note.save takes from any text, and it is put back",
+        fz.writes.every(w => w === `gm update User ${fz.p1}`) && fz.note.putBack, fzEvidence);
+    check("SECURITY (fuzz): every request p1 waits on was answered - a refusal with a code of the closed list, logged on the GM, or note.save's done - and none ended as a handler that threw",
+        fz.unanswered.length === 0 && fz.handlerFailed.length === 0 && fz.handlerFailedOnGm.length === 0 && fz.badCodes.length === 0
+            && fz.counts.refused > fz.counts.tablePackets / 2 && fz.refusalsLogged > 0 && fz.answered.every(a => a.startsWith("note.save ")),
+        fzEvidence);
 
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));
