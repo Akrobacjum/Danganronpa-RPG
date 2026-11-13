@@ -96,6 +96,38 @@ export function leaveIconOnly(app, root) {
 }
 
 /**
+ * A PROJECT IS A "NARRATIVE" COUNTDOWN, AND THE TOGGLE THAT HID THAT TYPE IS GONE (A113-C1-2, 13.11.2026).
+ *
+ * projects-ui.mjs removes Daggerheart's "Short"/"Long" type toggles for everyone, and `createProject` makes every
+ * project a "narrative" countdown. In 2.12.8 which types a user's tray shows is the user flag
+ * `countdown-type-modes` (module/config/flagsConfig.mjs userFlags.countdownTypeModes), read by countdowns.mjs
+ * `visibleCountdownTypes`: a type left out has its category drawn `hidden` and, with no other type visible, no rows'
+ * container at all. The toggles (`#onToggleCountdownTypes`) were the only control that wrote it. So a user whose flag
+ * left "narrative" out - set before the module was enabled, or on a build that still drew the toggles - saw no
+ * project, permanently, with nothing to press. The audit found the road, not a user on it (suspected; LIVE-A113-C1-2).
+ *
+ * As `leaveIconOnly` does for the icon-only view: on the tray's render, on each user's own client and their own User,
+ * a flag that is an array without "narrative" is given it, and the tray drawn again. No flag is Daggerheart's default,
+ * every type, and is left alone; so is a flag holding it, and the other types the user chose stay as they are. Read
+ * from CONFIG rather than written out, so a Daggerheart that renames its flag or its types makes this a no-op. The
+ * user and the config are arguments so that the suite, which has no Daggerheart flags, can hand in both (R6001).
+ *
+ * @returns {boolean} whether the flag was written.
+ */
+export function keepNarrativeShown(app, user = game.user, dh = globalThis.CONFIG?.DH) {
+    const id = dh?.id;
+    const key = dh?.FLAGS?.userFlags?.countdownTypeModes;
+    const narrative = dh?.GENERAL?.countdownTypes?.narrative?.id;
+    if (!id || !key || !narrative || typeof user?.getFlag !== "function") return false;
+    const shown = user.getFlag(id, key);
+    if (!Array.isArray(shown) || shown.includes(narrative)) return false;
+    user.setFlag(id, key, [...shown, narrative])
+        .then(() => app?.render?.())
+        .catch(err => error("Could not show the projects in the projects tray again", err));
+    return true;
+}
+
+/**
  * Translate labels the system left as raw keys.
  *
  * The tray's own view-mode control announces itself as

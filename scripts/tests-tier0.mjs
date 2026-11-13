@@ -8627,6 +8627,7 @@ const REGRESSIONS = [
             ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
             ["passages-gm.mjs", "crossTunnel", "doc", "a token moved through a tunnel by the primary GM: 'Go through', its default write, the crossing judged and paid before it (E80 C2; a bridge run, gated on the primary)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
+            ["projects-tray.mjs", "keepNarrativeShown", "user", "the user's own countdown types in the projects tray, \"narrative\" put back (A113-C1-2; game.user unless the suite hands one in)"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
             ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
             ["remnants.mjs", "retuneRemnant", "token", "a Remnant's token, replaced by its retuned one"],

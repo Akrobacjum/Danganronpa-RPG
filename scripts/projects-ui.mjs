@@ -31,7 +31,7 @@ import { SETTINGS } from "./settings.mjs";
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
+    leaveIconOnly, keepNarrativeShown, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 
@@ -70,7 +70,8 @@ export function registerProjectsUi() {
  *     (projects.mjs) always makes "narrative" ones. There is only ever one
  *     category in this tray, so a filter for it is a control with nothing to
  *     do - and reads as a mysterious pair of buttons that just narrow what
- *     you can see for no visible reason.
+ *     you can see for no visible reason. With them gone, a user whose own flag
+ *     hides that category is given it back - see `keepNarrativeShown`.
  *   - "Toggle Icon Only" is removed, and anyone already in that view is taken
  *     out of it - see `leaveIconOnly`. It strips the name and the progress off
  *     every row, and a project is its name: what is left is four identical
@@ -87,6 +88,8 @@ function onRenderCountdowns(app, element) {
         root.querySelector(".header-type-toggles")?.remove();
         root.querySelector('[data-action="toggleViewMode"]')?.remove();
         leaveIconOnly(app, root);
+        // With the type toggles gone, a user's flag that hides "narrative" - every project's type - is put back (A113-C1-2).
+        keepNarrativeShown(app);
 
         localiseRawKeys(root);
         hideUndiscovered(root);
