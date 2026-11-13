@@ -50308,6 +50308,26 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ moved: "hour", hint: "top", again: null, still: null, off: null, trial: "E61", trialHint: null, writes: [] }),
             "[evening to night heard; the direction handed; the same clock again; reduced motion; the switch off; the trial's entry's owner; no direction for it; the world written]");
     }],
+    ["R4653 - a season's last chapter sends the GM to where Reset the season is (gaps, 1.2.105's known gap \"Season's end\"): End of chapter's warning (`DRPG.Chapter.lastChapter`) names, in each language, the button by its label (`DRPG.Season.resetButton`), the window it stands in by its title (`DRPG.Season.title`) and the GM panel's section that window's tile is in (`DRPG.Panel.section.between`)", async () => {
+        /*
+         * 1.2.105's notes, Known gaps, "Season's end": the warning still said "Reset the season from Between sessions" and
+         * "Zresetuj sezon z Between sessions" (English inside the Polish text as well), while Reset the season stands at the
+         * foot of Season setup (season-setup.mjs, `result === "reset"`), a tile of the GM panel's Between sessions (the GM
+         * handbook's table of the panel). Read off both language files: the button's label, the window's title and the
+         * section's name, each the one that language's interface shows. Red at 8e472522: neither names Season setup, and
+         * the Polish names the section in English.
+         */
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const warning = json.DRPG?.Chapter?.lastChapter ?? null;
+            const title = json.DRPG?.Season?.title ?? null, button = json.DRPG?.Season?.resetButton ?? null, section = json.DRPG?.Panel?.section?.between ?? null;
+            must(warning && title && button && section, `lang/${lang}.json lacks a key this reads - this reads nothing`);
+            read[lang] = [warning.includes(button), warning.includes(title), warning.includes(section), warning.includes("{n}") && warning.includes("{next}")];
+        }
+        equal(stableJson(read), stableJson({ en: [true, true, true, true], pl: [true, true, true, true] }),
+            "{language: [names Reset the season's label, Season setup's title, the section's name, keeps {n} and {next}]}");
+    }],
     ["R4652 - a body announced while the Investigation's entry flashes cuts its flashes, so one screen never holds more than three onsets in a second (scripts/transitions.mjs `onBodyAnnounced`; gaps, 1.2.109's known gap \"Two flash sequences on one screen\")", async () => {
         /*
          * 1.2.109's notes, Known gaps: `onBodyAnnounced` added its four flicker timers without clearing the Investigation's,
