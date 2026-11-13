@@ -649,7 +649,7 @@ export function morningLineOf(text) {
     const line = String(text ?? "").replace(/\s+/g, " ").trim().slice(0, MORNING_LINE_MAX);
     return line || null;
 }
-export const MORNING_LINE_MAX = 200;
+const MORNING_LINE_MAX = 200;
 
 /**
  * What a move of the clock folds into its one write for the morning line and the mood (E94 C1, C4; clock.mjs

@@ -1209,7 +1209,7 @@ export const PATCHES = [
  * ========================================================================== */
 
 /** The three answers a row of the contract may give. */
-export const CONTRACT_STATES = Object.freeze(["ok", "failed", "unknown"]);
+const CONTRACT_STATES = Object.freeze(["ok", "failed", "unknown"]);
 
 /* The own property relay-guard.mjs's wrapper carries (`ensureWrapped`). */
 const GUARD_MARK = "__drpgRelayGuard";
@@ -1299,7 +1299,7 @@ function whereOf(entry) {
  * sentence of its own (a stand-in a test draws) and is never what a GM reads in a sentence of the table's language
  * when the register has one.
  */
-export function insteadOf(entry) {
+function insteadOf(entry) {
     const key = `DRPG.Contract.instead.${entry.insteadKey ?? entry.id}`;
     return game.i18n?.has?.(key) ? game.i18n.localize(key) : entry.fallback;
 }

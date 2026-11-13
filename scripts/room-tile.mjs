@@ -90,7 +90,7 @@ const WINDOW_CLASS = "drpg-window-room";
  * @param {TokenDocument} tokenDoc
  * @returns {{x: number, y: number, level?: *}|null}
  */
-export function settledPosition(tokenDoc) {
+function settledPosition(tokenDoc) {
     return settledSpot(tokenDoc);
 }
 

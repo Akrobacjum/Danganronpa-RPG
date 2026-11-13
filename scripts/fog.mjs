@@ -1222,7 +1222,7 @@ export async function resetLedger() {
  * still carry. Both are the group - the same fact, stored in two places - each tried (`everyPart`), and the store's
  * players are sent the cleared rows (`resetLedger`).
  */
-export async function clearSeasonDiscovered() {
+async function clearSeasonDiscovered() {
     await everyPart(() => game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {}), () => resetLedger());
 }
 
@@ -3936,7 +3936,7 @@ function stopDrift() {
  */
 
 /** The fewest milliseconds between two pictures of the drift: ten a second at most (E88-08). */
-export const RASTER_STEP_MS = 100;
+const RASTER_STEP_MS = 100;
 
 /** The drift's state: the offset as it accumulates (`raw`) and the one the tiles show (`shown`), on a clock of its own. */
 export function driftState() {

@@ -116,7 +116,7 @@ function registered(key) {
 }
 
 /** Whether `user` may write world settings: Foundry's own permission (the Assistant GM up). */
-export function mayModifyWorld(user = game.user) {
+function mayModifyWorld(user = game.user) {
     try {
         return typeof user?.can === "function" ? Boolean(user.can("SETTINGS_MODIFY")) : Boolean(user?.isGM);
     } catch {
@@ -125,7 +125,7 @@ export function mayModifyWorld(user = game.user) {
 }
 
 /** The keys of a section `user` is drawn: a client section's to everybody, a game one's to a user who may write them. */
-export function keysFor(section, user = game.user) {
+function keysFor(section, user = game.user) {
     if (section.place === "game" && !mayModifyWorld(user)) return [];
     return section.keys.filter(key => registered(key));
 }
@@ -159,7 +159,7 @@ function controlHtml(key, reg, value, off) {
  * its hint with the rest as the line's tooltip (a caption, not a paragraph: the glass sets a `<p>` at its prose rung). `theme` is the theme the window shows (a setting of the other theme's
  * is drawn disabled, its reason the row's title). Answers "" for a key not registered.
  */
-export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {}) {
+function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {}) {
     const reg = registered(key);
     if (!reg) return "";
     const owner = ownerTheme(key);
@@ -222,7 +222,7 @@ function extrasOf(key, { voice = false } = {}) {
 }
 
 /** The sections of `sections` that `user` is drawn, each with its keys and extras: one with nothing to draw is left out. */
-export function sectionsFor(sections, user = game.user, { voice = false } = {}) {
+function sectionsFor(sections, user = game.user, { voice = false } = {}) {
     return sections.map(s => ({ ...s, shown: keysFor(s, user), extra: s.place === "game" && !mayModifyWorld(user) ? { html: "", count: 0 } : extrasOf(s.key, { voice }) }))
         .filter(s => s.shown.length || s.extra.count);
 }
@@ -231,7 +231,7 @@ export function sectionsFor(sections, user = game.user, { voice = false } = {}) 
  * The two columns' markup of a place: the sections' list and every section's pane, `picked` (else the first) shown.
  * `foot` is a line under the list. Answers wideWindow's `columns`.
  */
-export function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), picked = null, foot = "" } = {}) {
+function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), picked = null, foot = "" } = {}) {
     const open = sections.find(s => s.key === picked)?.key ?? sections[0]?.key ?? null;
     const words = s => localize(`DRPG.SettingsWindow.sections.${s.key}`);
     const list = `<nav class="drpg-settings-sections" aria-label="${esc(localize("DRPG.SettingsWindow.sectionsLabel"))}">${sections.map(s =>
@@ -298,7 +298,7 @@ export function placeVoice(root, fieldset) {
 }
 
 /** The rows of the other theme's settings disabled, the rest enabled, for `theme` (the window's select before Save). */
-export function syncTheme(root, theme) {
+function syncTheme(root, theme) {
     for (const row of root?.querySelectorAll?.("[data-drpg-theme-only]") ?? []) {
         const off = row.dataset.drpgThemeOnly !== theme;
         row.classList.toggle("is-off", off);
@@ -324,7 +324,7 @@ function fieldValue(field, reg) {
 }
 
 /** Foundry's reload question after a setting with `requiresReload` (SettingsConfig `reloadConfirm`), else a plain reload. */
-export async function askReload({ world = false } = {}) {
+async function askReload({ world = false } = {}) {
     try {
         const SettingsConfig = foundry.applications?.settings?.SettingsConfig ?? globalThis.SettingsConfig;
         if (SettingsConfig?.reloadConfirm) return SettingsConfig.reloadConfirm({ world });

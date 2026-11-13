@@ -4215,7 +4215,7 @@ export function typeScale() {
     return Math.round(sliderScale() * Math.max(0.85, autoScale()) * 100) / 100;
 }
 /** The factor the theme's GEOMETRY uses: the slider on the screen's own factor. */
-export function effectiveScale() {
+function effectiveScale() {
     return Math.round(sliderScale() * autoScale() * 100) / 100;
 }
 /* The screen's factor changes when the window does, and so can its shape; the theme
@@ -4450,7 +4450,7 @@ export function applyTheme() {
  * `vw` x `vh` less 48 px: what `scaleWindow` hands `setPosition`. Pure, so the fit sweep's sheet stand-in reads the
  * same numbers (E21 C1c, `sheetBox`). Answers the dimensions it could read, each a whole number of pixels.
  */
-export function scaledBox(want, vw, vh, scale) {
+function scaledBox(want, vw, vh, scale) {
     const size = {};
     for (const dim of ["width", "height"]) {
         const n = Number(want?.[dim]);

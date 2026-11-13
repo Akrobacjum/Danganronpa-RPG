@@ -887,7 +887,7 @@ export function dualityPresetHere() {
  * On the source's own browser, the table's Hope and Despair dice written to the world where they are not its preset;
  * true when written. Nothing on any other browser, with the switch off, or where the system keeps no preset.
  */
-export async function keepDualityLook() {
+async function keepDualityLook() {
     if (!isFullGm(game.user) || !enforcing() || lookSource()?.id !== game.user.id) return false;
     const look = dualityPresetHere();
     if (!look || sameSwitch(switchValue(SETTINGS.diceDualityLook), look)) return false;

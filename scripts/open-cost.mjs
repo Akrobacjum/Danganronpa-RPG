@@ -215,7 +215,7 @@ export function warmFirstOpens({ delayMs = START_DELAY_MS } = {}) {
 }
 
 /** What the warming has done so far: a copy, with its time in ms once it has finished. */
-export function warmState() {
+function warmState() {
     return {
         held: { ...state.held },
         ms: state.finished === null || state.started === null ? null : Math.round(state.finished - state.started),

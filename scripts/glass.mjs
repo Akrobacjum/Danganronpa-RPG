@@ -630,7 +630,7 @@ const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOIC
    is compact, as the GM's is. */
 const VOICE_FULL = 114, VOICE_MIN = 42;
 /** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
-export const OPEN_AREAS = [];
+const OPEN_AREAS = [];
 
 /* AN EMPTY PANE LETS THE MAP THROUGH (E49 B1, S12-64; the owner's amend [1]). A pane cut for a block that is not
    there - the notice tile between notices, a GM's bar on a player's screen, any block measured as absent - was painted
@@ -667,7 +667,7 @@ const voiceWall = W => W - (PIN.rail ?? 0);
  * stacked screen, which puts it in the tiles' row, or Monokuma Legacy). Upright here; `buildColumn`
  * settles it against its column's turn (`settleVoice`).
  */
-export function voicePlacement(W, H, tray) {
+function voicePlacement(W, H, tray) {
   if (!tray || !document.getElementById("drpg-voice-tile") || narrowLayout()) return null;
   if (!document.body.classList.contains("drpg-theme-stained-glass")) return null;
   const w = Math.round(VOICE_WIDE * noteTile().w * uiScale()), y = Math.round(tray.y + trayCapacity(tray) + VOICE_SEAM);
@@ -1540,7 +1540,7 @@ function hitStack() {
   };
 }
 /** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
-export function debugGlass() {
+function debugGlass() {
   /* `panes` and `live` are here for one question: does the pane cut for a block actually
      straddle the block? A tone missing from `panes` means that block lost its pane to a
      neighbour's column; a pane whose x0/x1 do not sit either side of the block's live box

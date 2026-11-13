@@ -979,7 +979,7 @@ export function passageResetTally({ stores = PASSAGE_STORES, scenes = game.scene
  * (D36). A project's breach (E15 part 2 C3) is a hole in a world's wall, not a row the cut can take: every one is
  * closed first, its wall given back, read off the walls themselves, before anything of the group's own goes.
  */
-export async function clearSeasonPassages() {
+async function clearSeasonPassages() {
     await closeEveryBreach();
     await passagesAfterReset();
 }
@@ -2532,8 +2532,8 @@ async function noteFindFact({ actorId, rollId, by, place = null }) {
  * measured: a fifth of a cell is a slip of the hand, half a cell reaches into the room beyond the
  * thickest wall the seeded maps draw. A stretch shorter than `PICK_SHORTEST` is a double click.
  */
-export const PICK_RADIUS = 20;
-export const PICK_REACH = 50;
+const PICK_RADIUS = 20;
+const PICK_REACH = 50;
 export const PICK_SHORTEST = 8;
 const PROBES = [0.35, 0.6, 0.85, 1];
 
@@ -2822,7 +2822,7 @@ async function tuck(dialog, away) {
 }
 
 /** The pick's stretch on the overlay's layer "pick": the start, the snapped pointer and the line between; nothing for none. */
-export function drawPickLayer({ first = null, at = null, ok = true } = {}) {
+function drawPickLayer({ first = null, at = null, ok = true } = {}) {
     const layer = overlayLayer("pick");
     if (!layer) return;
     clearLayer(layer);

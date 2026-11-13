@@ -66,7 +66,7 @@ const WIDGET_ID = "drpg-events";
  * a11y sweep and the suite name when they ask whether this panel is a thing,
  * and a predicate that is true everywhere is cheaper to read than an absence.
  */
-export function eventsWindowActive() {
+function eventsWindowActive() {
     return true;
 }
 

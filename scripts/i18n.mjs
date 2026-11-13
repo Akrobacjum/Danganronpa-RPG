@@ -55,7 +55,7 @@ let pending = null;
 let applied = false;
 
 /** Start fetching the file. Called first thing at `init`; harmless to call twice. */
-export function prefetchLanguage() {
+function prefetchLanguage() {
     const lang = moduleLanguage();
     setPageLanguage(lang);
     if (lang === "en" || pending) return pending;
@@ -113,7 +113,7 @@ export async function applyModuleLanguage() {
  * Only where the file carries the key: an untranslated field keeps its
  * English, which is the right fallback for a half-finished file.
  */
-export function localizeConfig() {
+function localizeConfig() {
     let swapped = 0;
     walkConfigProse(CONFIG_TABLES_SOURCE, (key, value, set) => {
         if (!game.i18n.has(key)) return;

@@ -51,7 +51,7 @@ const SCENE_ROLES = "sceneRoles";
  * behaviour may be a room, and the migration leaves every region with behaviours for the GM to
  * decide (`markRooms`).
  */
-export const NOT_ROOM_BEHAVIOURS = new Set(["teleportToken", "changeLevel"]);
+const NOT_ROOM_BEHAVIOURS = new Set(["teleportToken", "changeLevel"]);
 
 /** A region's behaviours as a list, whatever collection holds them. */
 function behavioursOf(region) {
@@ -400,7 +400,7 @@ export function placeRoomNames() {
  * and, whatever that list says, x, y, elevation and level - whether v14's list names `level`
  * was not read (LIVE-E12-03), and a floor change missed here is a move nothing judges.
  */
-export const MOVE_FIELDS = Object.freeze([...new Set([
+const MOVE_FIELDS = Object.freeze([...new Set([
     ...(globalThis.foundry?.documents?.BaseToken?.MOVEMENT_FIELDS ?? ["width", "height", "depth", "shape"]),
     "x", "y", "elevation", "level"
 ])]);
