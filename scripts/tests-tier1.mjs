@@ -57097,6 +57097,24 @@ const INVARIANTS = [
         equal(stableJson([named, /contestedOf\(claims\)/.test(fnSource(source, "voiceTargets"))]), stableJson([["twoDead", "twoRooms"], true]),
             "[the accounts contestedOf names; voiceTargets reads it]");
     }],
+    ["R5903 - a GM's Now reaches the primary for every mode a GM's Now is sent for: the bridge's floor.now row keeps each mode of floor-machine.mjs MODES but the debate (which has no next mode, trial-floor.mjs `advanceFloorNow`), and turns any other word to null (audit A113-C3-2, 13.11.2026)", async () => {
+        /*
+         * E73 (5101742c) taught `advanceFloorNow` to send a zone mode's floor - a Straw Poll or a Logic Dive question
+         * counted, a Scrum turn passed - and left the row's sanitizer at its five modes (`as.oneOf("objection", ...)`):
+         * the primary read the mode as null, `floorAsSeen` found no such floor, and a second GM's Skip in a zone mode was
+         * refused "movedOn" and moved nothing. A census over the modes, read off MODES, so a mode added later is asked
+         * here by itself. Red at ceb9e9c8: straw, dive and scrum come back null.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { MODES } = await import("./floor-machine.mjs");
+        const row = BRIDGE_ACTIONS["floor.now"];
+        must(row && typeof row.sanitize === "function", "the bridge has no floor.now row - this test reads nothing");
+        const modes = Object.values(MODES).filter(mode => mode !== MODES.debate);
+        must(modes.length >= 8 && modes.includes("scrum"), `MODES read ${modes.join(", ")} - this test would measure too little`);
+        const dropped = modes.filter(mode => row.sanitize({ mode, startedAt: 5 }).mode !== mode);
+        equal(stableJson([dropped, row.sanitize({ mode: "R5903-none", startedAt: 5 }).mode, row.sanitize({ mode: "scrum", startedAt: "7" }).startedAt]),
+            stableJson([[], null, 7]), "[the modes a GM's Now is sent for that the row drops; a word that is no mode; a start sent as text]");
+    }],
 ];
 
 /**

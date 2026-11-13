@@ -74,8 +74,12 @@ export function modeLabel(mode) {
     return game.i18n.has?.(key) ? L(key) : String(mode ?? "");
 }
 
-const STATE_KEYS = { held: "DRPG.CaseMap.state.held", onMap: "DRPG.CaseMap.state.onMap", planned: "DRPG.CaseMap.state.planned" };
-const STATE_GLYPHS = { held: "held", onMap: "on-map", planned: "planned" };
+/* A state's word and glyph, each state `nodeState` answers but "schema". "sent" since audit A113-C3-1 (13.11.2026): 6964661f
+   taught `nodeState` the answer and both files its word, and this table neither, so a sent Autopsy or a given Truth Bullet
+   lost its state on the node and its State row on the panel (R5902 reads the states off `nodeState` itself). */
+const STATE_KEYS = { held: "DRPG.CaseMap.state.held", onMap: "DRPG.CaseMap.state.onMap", planned: "DRPG.CaseMap.state.planned",
+    sent: "DRPG.CaseMap.state.sent" };
+const STATE_GLYPHS = { held: "held", onMap: "on-map", planned: "planned", sent: "send" };
 /**
  * A glyph's slot (E48's inventory names the drawing: tests-glyphs.mjs rows 33, 34, 92-94). The drawings of E97's and E98's
  * rows are in tools/glyphs.json but not yet declared as `--drpg-pix-*` in styles/pixel-icons.css, which tools/glyph-map.mjs

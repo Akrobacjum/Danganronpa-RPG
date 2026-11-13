@@ -24559,6 +24559,78 @@ const REGRESSIONS = [
         equal(JSON.stringify(missing), "[]", "[each set's member whose key is missing, by language]");
     }],
 
+    ["R5902 - every state of a Case Map node has its word: each state case-map.mjs `nodeState` answers but \"schema\" is put by `nodeInfoHtml` on the side panel's State row, in the language's text of DRPG.CaseMap.state.<state>, which lang/en.json and lang/pl.json both hold (audit A113-C3-1, 13.11.2026)", async () => {
+        /*
+         * 6964661f (13.11.2026) taught `nodeState` a fifth answer, "sent" (a planned Autopsy sent, a Truth Bullet given),
+         * and added DRPG.CaseMap.state.sent to both files; the table that maps a state to its key (`STATE_KEYS`) was not
+         * told, so the node's spoken text lost its state and the side panel its State row. The states are read off the
+         * function's own `return "..."`, so a sixth comes here by itself. Red at ceb9e9c8: "sent" has no row.
+         */
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/case-map.mjs`);
+        must(res.ok, `case-map.mjs: HTTP ${res.status}`);
+        const answers = [...new Set([...stripComments(fnSource(await lfText(res), "nodeState")).matchAll(/\breturn\b[^;]*/g)]
+            .flatMap(m => [...m[0].matchAll(/"(\w+)"/g)].map(x => x[1])))].filter(state => state !== "schema");
+        must(answers.length >= 4 && answers.includes("planned"), `nodeState read ${answers.join(", ")} - this test would measure too little`);
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const r = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(r.ok, `${code}.json: HTTP ${r.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(r)));
+        }
+        const CM = await import("./case-map.mjs");
+        // One node per state, made to answer it: the finders' map names a holder of "R5902T"'s token.
+        const finders = new Map([["R5902T", new Set(["Someone"])]]);
+        const NODES = {
+            sent: { id: "n1", kind: "autopsy", evidence: true, planned: true, sent: true },
+            planned: { id: "n2", kind: "slot", evidence: true, planned: true },
+            held: { id: "n3", kind: "remnant", evidence: true, trace: "S.R5902T" },
+            onMap: { id: "n4", kind: "remnant", evidence: true, trace: "S.R5902U" }
+        };
+        const graph = { nodes: Object.values(NODES), edges: [] };
+        const wrong = [];
+        for (const state of answers) {
+            for (const code of ["en", "pl"]) if (typeof lang[code].get(`DRPG.CaseMap.state.${state}`) !== "string") wrong.push(`${state}: no ${code} key`);
+            const node = NODES[state];
+            if (!node) { wrong.push(`${state}: this test has no node for it`); continue; }
+            if (CM.nodeState(node, finders) !== state) { wrong.push(`${state}: the node answers ${CM.nodeState(node, finders)}`); continue; }
+            const word = game.i18n.localize(`DRPG.CaseMap.state.${state}`);
+            const box = document.createElement("div");
+            box.innerHTML = CM.nodeInfoHtml({ graph, node, finders });
+            const stateRow = game.i18n.localize("DRPG.CaseMap.panelState");
+            if (!box.textContent.includes(stateRow) || !box.textContent.includes(word)) wrong.push(`${state}: no State row with "${word}"`);
+        }
+        equal(JSON.stringify(wrong), "[]", "[each state with no key, no node or no State row with its word]");
+    }],
+
+    ["R5904 - an action the GMs' Reroll bookmark keeps is named in the GM's lines: every key reroll.mjs `replayAction` replays has a name from reroll.mjs `rollActionLabel` that is no key and no code word, and calls.mjs `rollAfterReload` and reroll.mjs `recoverOne` read it there, and calls.mjs `callAbout` its `rollActionName` (audit A113-C3-3, 13.11.2026)", async () => {
+        /*
+         * calls.mjs's GM row of the last roll and the interrupted Reroll's whisper to the GMs printed
+         * `ACTIONS[key]?.label ?? key`: the Infiltrate tile's dash, tail, shut, force, pick and keepWatch, a room action's
+         * facility, Palm's steal, a Frisk's rummage and frisk, a crisis action, a clean-up and a Take from the body are
+         * no keys of ACTIONS, and read as the code word (trait-ruling.mjs had fixed tail alone). The keys are read off
+         * `replayAction`'s own `case "..."` lines. Red at ceb9e9c8: `rollActionLabel` does not exist, and both lines read
+         * ACTIONS alone.
+         */
+        const text = async file => {
+            const r = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
+            must(r.ok, `${file}: HTTP ${r.status}`);
+            return stripComments(await lfText(r));
+        };
+        const reroll = await text("reroll.mjs"), calls = await text("calls.mjs");
+        const keys = [...new Set([...fnSource(reroll, "replayAction").matchAll(/\bcase\s+"(\w+)"/g)].map(m => m[1]))];
+        must(keys.length >= 15 && keys.includes("keepWatch") && keys.includes("loot"), `replayAction read ${keys.join(", ")} - this test would measure too little`);
+        const IR = await import("./reroll.mjs");
+        must(typeof IR.rollActionLabel === "function", "reroll.mjs `rollActionLabel` is not exported");
+        const raw = keys.map(key => [key, IR.rollActionLabel(key)])
+            .filter(([key, name]) => typeof name !== "string" || !name.trim() || name === key || /^DRPG\./.test(name)).map(([key, name]) => `${key}: ${JSON.stringify(name)}`);
+        equal(JSON.stringify(raw), "[]", "[each replayed key whose name is a key, empty or the code word]");
+        // And the player's Reroll window (calls.mjs `callAbout`), which named a tile's roll and none of these.
+        const readers = [["calls.mjs rollAfterReload", fnSource(calls, "rollAfterReload"), "rollActionLabel("],
+            ["reroll.mjs recoverOne", fnSource(reroll, "recoverOne"), "rollActionLabel("], ["calls.mjs callAbout", fnSource(calls, "callAbout"), "rollActionName("]]
+            .filter(([, body, call]) => !body.includes(call) || /ACTIONS\[(?:row|last)\.action(?:Key)?\]\?\.label/.test(body)).map(([where]) => where);
+        equal(JSON.stringify(readers), "[]", "[the GM's lines that do not name the action through rollActionLabel]");
+    }],
+
 ];
 
 
