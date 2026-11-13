@@ -34993,6 +34993,48 @@ const INVARIANTS = [
         equal(stableJson(page.map(([id, a]) => [id, a === null ? "no row" : a.present === false ? "failed on absence" : "found or unknown"])),
             stableJson(PAGE.map(id => [id, "found or unknown"])), "a page anchor not on the page is failed, or has no row");
     }],
+    ["R6000 - the character sheet in Daggerheart's pips layout reads whole: the bar layout's three places are named as drawn without, none missing, nothing said", async () => {
+        /*
+         * A113-C1-3 (audit 113, 13.11.2026). Daggerheart's client option `useResourcePips` draws Health and Sanity as
+         * slots: 2.12.8's templates/sheets/global/partials/resource-bar.hbs, its first branch, `.slot-value > .slot-bar >
+         * .slot[data-action]` and no `.status-bar`, `input.bar-input` or `progress.progress-bar` (the three occur nowhere
+         * else in the character sheet's templates). sheet.mjs `paintReserves` draws either layout, so a GM on pips was
+         * told by the contract that the sheet "has no" the bar's places and that what the module puts there "is not
+         * drawn" - a false alarm. Here the sidebar's resources are copied from that branch (Health 6 with 2 marked, Sanity
+         * 6), the rest of the sheet as R1548's, and read: nothing missing, the three bar places named as drawn without,
+         * the two pip places found, and no console line. The bar layout of R1548 still names the pips as drawn without.
+         * Red at ceb9e9c8: the three bar places missing and said.
+         */
+        const mod = await import("./patches.mjs");
+        ok(Array.isArray(mod.SHEET_ANCHORS) && typeof mod.readSheetAnchors === "function" && typeof mod.noteSheetRender === "function",
+            "patches.mjs has no SHEET_ANCHORS, readSheetAnchors or noteSheetRender");
+        if (typeof mod.noteSheetRender !== "function") return;
+        const pips = (action, label, value, max) => `<div class="slot-value"><div class="slot-bar">`
+            + Array.from({ length: max }, (_, i) => `<span class="slot ${i < value ? "filled" : ""}" data-action="${action}" data-value="${i + 1}"></span>`).join("")
+            + `</div><div class="slot-label"><span class="label">${label}</span><span class="value">${value} / ${max}</span></div></div>`;
+        const sheet = document.createElement("div");
+        sheet.innerHTML = `<div class="window-content"><nav class="sheet-tabs"></nav><div class="character-header-sheet"><div class="name-row"></div>
+            <div class="character-row"><div class="resource-section"></div></div><div class="character-details"></div>
+            <div class="hope-section"><span class="hope-value"></span></div><div class="character-traits"><div class="trait"><span class="trait-value"></span></div></div></div>
+            <div class="character-sidebar-sheet"><div class="resources-section">${pips("toggleHitPoints", "HP", 2, 6)}${pips("toggleStress", "Stress", 0, 6)}</div>
+            <div class="equipment-section"><h3></h3><div class="items-sidebar-list"></div></div><div class="loadout-section"><h3></h3></div>
+            <div class="shortcut-items-section"><div class="experience-section"></div></div></div></div>`;
+        must(sheet.querySelectorAll(".slot[data-action]").length === 12 && !sheet.querySelector(".status-bar, input.bar-input, progress"),
+            "the pips sheet is not drawn as resource-bar.hbs's first branch - this test would read nothing");
+        const state = { done: null };
+        const log = watchLog();
+        let read;
+        try {
+            read = mod.noteSheetRender({}, sheet, { state, isSheet: () => true });
+        } finally {
+            log.stop();
+        }
+        const BAR = [".character-sidebar-sheet .resources-section .status-bar", "input.bar-input", "progress.progress-bar"];
+        equal(stableJson([read?.missing ?? null, BAR.map(s => (read?.optional ?? []).some(o => o.startsWith(`${s} (`))),
+            (read?.optional ?? []).some(o => /toggle(HitPoints|Stress)/.test(o)), log.count(/The contract: the character sheet/)]),
+            stableJson([[], [true, true, true], false, 0]),
+            "the pips layout reads a missing place, does not name the bar's three as drawn without, names a pip place as absent, or says it [missing | bar named | pips absent | said]");
+    }],
     ["R1550 - game.drpg.diagnose(): one report of every diagnose* this client may run, the data migration, the contract and this session's failures, read without a chat message; its window copies the text once per Copy report (E52 C4, E52-14; S17-51)", async () => {
         /*
          * E52 C4, 30.10.2026; audit S17-51, E52-14. The module had eighteen diagnose* commands in ten files, each
