@@ -135,7 +135,8 @@ function incidentFields(raw) {
         tie: own ? (TIES.includes(raw.tie) ? raw.tie : ((PLANNED_TYPES.includes(raw.type) ? raw.type : "incident") === "incident" ? "tied" : "")) : null,
         reinforced: own ? raw.reinforced === true : null,
         analysis: on || bullet ? (typeof raw.analysis === "string" ? raw.analysis : "") : null,
-        img: str(raw.img),
+        // and a picture, a planned Truth Bullet's as well since 1.2.113 (the owner's "yes", 13.11.2026)
+        img: on || bullet ? (typeof raw.img === "string" ? raw.img : "") : null,
         ...bulletFields(raw)
     };
 }
@@ -307,7 +308,7 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
             nodes.push({ id, kind: "bullet", evidence: true, planned: true, slot: null, trace: null, type: node.realType, label: node.label,
                 tied: node.tied === true, faint: node.faint === true, room: null, chapter, foundAt: null, text: node.text, recipient: node.recipient,
                 tell: node.tell, realType: node.realType, shown: node.shown, vis: node.vis, analysis: node.analysis, note: node.note,
-                given: node.given, sent: node.given !== null, needs: [...(node.label ? [] : ["name"]), ...(node.recipient ? [] : ["recipient"])] });
+                img: node.img, given: node.given, sent: node.given !== null, needs: [...(node.label ? [] : ["name"]), ...(node.recipient ? [] : ["recipient"])] });
             continue;
         }
         // A PLANNED AUTOPSY (13.11.2026) is evidence too, planned until it is sent; its holders are its bullets' (investigation.mjs `caseReach`)

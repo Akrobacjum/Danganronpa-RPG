@@ -1046,6 +1046,16 @@ export const REMNANT_TYPES = {
  * Remnant's type is its label and whether it is reinforced: the Remnant types'
  * hints, read by nothing, went in E41 C1b (audit S02-64).
  */
+/**
+ * "EVERYONE" AS A TRUTH BULLET'S RECIPIENT (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to
+ * everyone' option"): the value Give a Truth Bullet's recipient select and a Planned Truth Bullet's `recipient` hold for
+ * every living student - chapter.mjs `livingStudentsForGm`, the roster less the dead for the GMs, so no Monocub (a dead
+ * student back), no Spectator, no Monokuma and no NPC (monokuma.mjs `studentActors`): the planned Autopsies' roster
+ * (case-realize.mjs). No actor id is 8 letters long, so it never names one. Each gets a copy of their own
+ * (gm-items.mjs `giveToEveryone`).
+ */
+export const RECIPIENT_EVERYONE = "everyone";
+
 export const TRUTH_BULLET_TYPES = {
     key: {
         label: "Key Truth Bullet",
@@ -5575,6 +5585,7 @@ export const DRPG = {
     PRICE_CHAINS,
     PROJECT_OBSERVE,
     PROSE_NUMBERS,
+    RECIPIENT_EVERYONE,
     RESOLUTION_HEALTH_COST,
     ROOM_IMAGE_LIMITS,
     ROOM_OWNER_FLAG,

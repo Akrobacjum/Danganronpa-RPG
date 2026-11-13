@@ -30741,7 +30741,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await gmStoresIdle();
         }
         equal(stableJson(seen), stableJson({
-            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "recipient", "tell"],
+            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "img", "recipient", "tell"],
             stored: { label: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true, text: "SUITE e104 bullet words",
                 analysis: "SUITE e104 bullet lab", note: "SUITE e104 bullet note", recipient: student.id, tell: false },
             window: { tab: "create", name: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true,
@@ -30749,6 +30749,319 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             given: { name: "SUITE e104 the bullet", real: "incident", vis: "subtle", note: "SUITE e104 bullet note" },
             marked: true
         }), "{the editor's fields in order; the row after the close; the Give window's tab and fields; the given Truth Bullet: name, real type, visibility, GM note; the plan marked given}");
+    }],
+
+    ["planned kinds draw the Truth Bullet glyph by default: a planned Remnant's, a planned Final Truth's and a Key slot's picture field, left empty, shows the module's Truth Bullet drawing (config.mjs `itemIcon(\"truthBullet\")`), the plan keeps its picture empty, the placed Final Truth and a realized Key slot carry it as their Remnant's picture, and a planned Truth Bullet given with no picture carries it (1.2.113; the owner, 13.11.2026: \"let the module choose the already available Truth Bullet glyph by default\")", async () => {
+        /*
+         * investigation.mjs `PLANNED_GLYPH`: `schemaEditor`'s planned Remnant and Final Truth, `keyPlanExtras` (a Key slot
+         * not yet placed, on the Table), `traceShows` (the Traces tab's row of a placed trace with no picture) and the
+         * pickers' starting folder. Fixture plans in the chapter running, none with a picture: their nodes opened on the
+         * Map and the picture read, then closed (every close writes the node), and the rows read back; the first Key slot
+         * not yet placed read on the Table with its picture emptied for the test; the Final Truth placed from its plan
+         * (`placePlannedFinal`, which writes no picture it was not given) and its Traces row drawn (`caseTraceRows`); the
+         * planned Truth Bullet given through its window and the item's picture read; the Key slot realized
+         * (case-realize.mjs `runRealization` -> `createKeyRemnant`) and its Remnant's picture read. The Remnants, the
+         * bullet, the rows, the slot and the case's marks are put back. Red at ceb9e9c8: every picture field drew
+         * Foundry's `icons/svg/hazard.svg`, and a plan with no picture placed its Remnant with the question mark
+         * (remnants.mjs `defaultPublic`), which Observe copies onto the finder's Truth Bullet.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { itemIcon } = await import("./config.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        const { workingScene } = await import("./utils.mjs");
+        const R = await import("./case-realize.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const glyph = itemIcon("truthBullet");
+        const plan = I.keyPlan();
+        const chapter = plan.chapter;
+        const slot = plan.entries.findIndex(e => !e.tokenId);
+        must(slot >= 0, "every Key slot of the chapter is placed - nothing to read");
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give it to - this would measure nothing");
+        const scene = workingScene();
+        const room = allRooms(scene)[0] ?? null;
+        must(room, "the working scene has no room - the Final Truth could not be placed");
+        const ids = { incident: "incident-suiteglyph", final: "final-suiteglyph", bullet: "bullet-suiteglyph" };
+        const key = `${chapter}:${slot}`;
+        const slotBefore = foundry.utils.deepClone(keyPlanStore.get(key) ?? null);
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const bulletsBefore = new Set(TB.bulletsOf(student).map(i => i.uuid));
+        const fresh = () => TB.bulletsOf(student).filter(i => !bulletsBefore.has(i.uuid));
+        const seen = {};
+        let win = null, token = null, keyToken = null;
+        try {
+            await S.setCaseNode(chapter, ids.incident, { kind: "incident", label: "SUITE glyph remnant" });
+            await S.setCaseNode(chapter, ids.final, { kind: "final", label: "SUITE glyph truth", room, scene: scene?.id ?? null });
+            await S.setCaseNode(chapter, ids.bullet, { kind: "bullet", label: "SUITE glyph bullet", recipient: student.id, tell: false });
+            if (slotBefore?.img) await keyPlanStore.patch(key, { img: "" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            seen.preview = {};
+            for (const kind of ["incident", "final"]) {
+                const id = ids[kind];
+                root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+                await until(() => root?.querySelector(`img[data-drpg-portrait="${id}"]`), 3000).catch(() => {});
+                seen.preview[kind] = root?.querySelector(`img[data-drpg-portrait="${id}"]`)?.getAttribute("src") ?? null;
+                root?.querySelector(".drpg-case-edit:not([hidden]) [data-drpg-case-close]")?.click();
+                await wait(300);
+            }
+            await win.close();
+            win = await drawnCaseWindow({ view: "table" });
+            seen.preview.key = win.app?.element?.querySelector(`img[data-drpg-portrait="key-${slot}"]`)?.getAttribute("src") ?? null;
+            await win.close();
+            win = null;
+            await gmStoresIdle();
+            seen.stored = Object.fromEntries(["incident", "final"].map(kind => [kind, S.caseNodeOf(S.caseRows(chapter).rows[ids[kind]])?.img ?? null]));
+            seen.stored.key = I.keyPlan().entries[slot]?.img ?? null;
+            token = await I.placeIncident(chapter, ids.final);
+            const data = token ? remnants.remnantData(token) : null;
+            const host = document.createElement("table");
+            host.innerHTML = data ? I.caseTraceRows([{ token, data, scene: token.parent }], new Map()) : "";
+            seen.placed = data ? { img: data.public?.img || null, row: host.querySelector("img[data-drpg-portrait]")?.getAttribute("src") ?? null } : null;
+            const giving = I.placeIncident(chapter, ids.bullet).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            giveWindow()?.element?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([giving, wait(5000)]);
+            await gmStoresIdle();
+            seen.given = fresh()[0]?.img ?? null;
+            await R.runRealization(chapter, [{ slot, room, sceneId: scene?.id ?? null }]);
+            const placedSlot = I.keyPlan().entries[slot];
+            keyToken = placedSlot?.tokenId ? game.scenes.get(placedSlot.sceneId)?.tokens?.get(placedSlot.tokenId) ?? null : null;
+            seen.key = keyToken ? remnants.remnantData(keyToken)?.public?.img ?? null : null;
+        } finally {
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const t of [token, keyToken]) {
+                if (!t) continue;
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                await t.delete().catch(() => {});
+            }
+            for (const item of fresh()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.setCaseMeta(chapter, { run: metaBefore.run, made: metaBefore.made }).catch(() => {});
+            for (const id of Object.values(ids)) await S.dropCaseNode(chapter, id).catch(() => {});
+            await keyPlanStore.drop(key).catch(() => {});
+            if (slotBefore) await keyPlanStore.patch(key, slotBefore).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            preview: { incident: glyph, final: glyph, key: glyph },
+            stored: { incident: "", final: "", key: "" },
+            placed: { img: glyph, row: glyph },
+            given: glyph,
+            key: glyph
+        }), "{the empty picture field of a planned Remnant, a planned Final Truth and a Key slot; the three plans' pictures after the close; the placed Final Truth's own picture and its Traces row's; the given planned Truth Bullet's picture; the realized Key slot's Remnant's picture}");
+    }],
+
+    ["planned Truth Bullet's picture: its node draws a picture field after the GM's note (the Truth Bullet glyph while empty), keeps a picked picture at the node's close, the plan's Give window shows it and the student's new Truth Bullet carries it, and until the give no world data holds it (1.2.113; the owner, 13.11.2026: \"yes\" to a picture field like a planned Remnant's)", async () => {
+        /*
+         * investigation.mjs `schemaEditor`'s planned Truth Bullet, case-schema.mjs `caseNodeOf`, `givePlannedBullet` ->
+         * gm-items.mjs `giveTruthBulletDialog` (`fill.img`) -> `bulletFromForm`. A fixture plan for the first student, not
+         * told: its node opened on the Map, the field names in order and the empty picture's preview read, a picture set
+         * (a path no world data holds: the probe), the node closed and the row read back. Then, before the give, every
+         * world setting and every actor's, item's, user's, scene's token's and chat message's flags searched for the
+         * probe (the plan is a GM store, a client setting: R3374), the search's control being the same search finding it
+         * on the given item after. Then Give: the window's picture read, Give pressed, the
+         * new Truth Bullet's picture read. The bullet and the row are taken away. Red at 1ffc6fc2: no picture field, and
+         * the given bullet wore the glyph whatever the plan held.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { itemIcon } = await import("./config.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const glyph = itemIcon("truthBullet");
+        const probe = "icons/svg/book.svg?drpg-plan-picture-probe";
+        const chapter = I.keyPlan().chapter;
+        const id = "bullet-suitepicture", base = `case:${chapter}:${id}`;
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give it to - this would measure nothing");
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const before = new Set(TB.bulletsOf(student).map(i => i.uuid));
+        const fresh = () => TB.bulletsOf(student).filter(i => !before.has(i.uuid));
+        const inWorld = () => {
+            const hits = [];
+            const look = (where, value) => { try { if (JSON.stringify(value ?? null).includes("drpg-plan-picture-probe")) hits.push(where); } catch { /* unreadable */ } };
+            /* the world's settings as the suite's world dump reads them (tests-kit.mjs `worldDump`): each registered one of
+               world scope, through `game.settings.get` */
+            for (const [full, def] of game.settings.settings) {
+                if (def?.scope !== "world") continue;
+                const [, space, key] = full.match(/^([^.]+)\.(.+)$/) ?? [];
+                if (!key) continue;
+                try { look(`setting ${full}`, game.settings.get(space, key)); } catch { /* unreadable */ }
+            }
+            for (const a of game.actors) { look(`actor ${a.name}`, a.flags); for (const i of a.items) look(`item ${a.name}/${i.name}`, { img: i.img, flags: i.flags }); }
+            for (const i of game.items) look(`item ${i.name}`, { img: i.img, flags: i.flags });
+            for (const u of game.users) look(`user ${u.name}`, u.flags);
+            for (const sc of game.scenes) for (const t of sc.tokens) look(`token ${sc.name}/${t.name}`, t.flags);
+            for (const m of game.messages) look(`message ${m.id}`, { flags: m.flags, content: m.content });
+            return hits;
+        };
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE picture bullet", recipient: student.id, tell: false });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
+            const edit = root?.querySelector(".drpg-case-edit:not([hidden])");
+            must(edit && win.field(`${base}:recipient`), "the planned Truth Bullet's node did not open with its fields");
+            seen.order = [...edit.querySelectorAll("[name]")].map(el => el.getAttribute("name").split(":").pop());
+            seen.empty = edit.querySelector(`img[data-drpg-portrait="${id}"]`)?.getAttribute("src") ?? null;
+            const field = win.field(`${base}:img`);
+            if (field) field.value = probe;
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[id])?.img === probe, 4000).catch(() => {});
+            seen.stored = S.caseNodeOf(S.caseRows(chapter).rows[id])?.img ?? null;
+            await win.close();
+            win = null;
+            seen.worldBefore = inWorld();
+            const giving = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            const el = giveWindow()?.element;
+            seen.window = el?.querySelector("img.drpg-bullet-planned-img")?.getAttribute("src") ?? null;
+            el?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([giving, wait(5000)]);
+            await gmStoresIdle();
+            seen.given = fresh()[0]?.img ?? null;
+            // the scan's control: the same search finds the picture once it is on the given item
+            seen.worldAfter = inWorld().filter(hit => hit.startsWith("item ")).length;
+        } finally {
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const item of fresh()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "img", "recipient", "tell"],
+            empty: glyph,
+            stored: probe,
+            worldBefore: [],
+            window: probe,
+            given: probe,
+            worldAfter: 1
+        }), "{the node's fields in order; the empty picture's preview; the row's picture after the close; world data holding the planned picture before the give; the Give window's picture; the given Truth Bullet's picture; the scan's control: items holding it after the give}");
+    }],
+
+    ["planned Truth Bullet to Everyone: its node's recipient offers Everyone, kept at the close; its Give opens on Everyone and gives each living student their own copy (the dead, a Monocub and a Spectator none), the plan marked given once; a copy refused for one student gives the rest, names who got none and leaves the plan not given (1.2.113; the owner, 13.11.2026: \"In planned bullets I'm missing a 'give it to everyone' option\")", async () => {
+        /*
+         * investigation.mjs `schemaEditor`'s planned Truth Bullet, `givePlannedBullet` -> gm-items.mjs
+         * `giveTruthBulletDialog` with config.mjs `RECIPIENT_EVERYONE` -> `giveToEveryone`, which runs the window's own
+         * `giveBulletNow` once per student of chapter.mjs `livingStudentsForGm`. Fixtures: of four students, the third dead
+         * for the GMs (the deaths store) and back as a Monocub (its flag), the fourth a Spectator (its flag); both put back
+         * after. A plan set to Everyone in its node and closed; given through its window; every character's new Truth
+         * Bullets counted and the plan's `given` read. Then a second plan to Everyone with a `preCreateItem` hook refusing
+         * the first living student's item (as another module could): the others get theirs, the window answers no, the
+         * warning names the student and the plan stays not given. Every new bullet, the rows, the hook and the flags are
+         * taken away. Red at 68057fcf: no Everyone to pick, so one student got one copy.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const C = await import("./config.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const EVERYONE = C.RECIPIENT_EVERYONE;
+        const students = studentActors();
+        must(students.length >= 4 && students.slice(0, 4).every(a => !deathStore.has(a.id)), "four living students are needed - this would measure nothing");
+        const cub = students[2], spectator = students[3];
+        const chapter = I.keyPlan().chapter;
+        const ids = ["bullet-suiteeveryonea", "bullet-suiteeveryoneb"];
+        const characters = game.actors.filter(a => a.type === "character");
+        const before = new Map(characters.map(a => [a.id, new Set(TB.bulletsOf(a).map(i => i.uuid))]));
+        const fresh = a => TB.bulletsOf(a).filter(i => !before.get(a.id)?.has(i.uuid));
+        const counts = () => Object.fromEntries(characters.map(a => [a.id, fresh(a).length]).filter(([, n]) => n));
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const flagsWere = { cub: cub.getFlag(MODULE_ID, FLAGS.monocub), spectator: spectator.getFlag(MODULE_ID, FLAGS.spectator) };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        const seen = {};
+        let win = null, hook = null, dead = false, living = [];
+        const give = async id => {
+            const giving = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            const picked = giveWindow()?.element?.querySelector('select[name="recipient"]')?.value ?? null;
+            giveWindow()?.element?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            const answer = await Promise.race([giving, wait(8000).then(() => "timeout")]);
+            await gmStoresIdle();
+            return { picked, answer };
+        };
+        try {
+            await deathStore.patch(cub.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            dead = true;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await spectator.setFlag(MODULE_ID, FLAGS.spectator, true);
+            living = livingStudentsForGm().map(a => a.id);
+            must(living.length >= 2, "fewer than two living students once the fixtures stand - this would measure nothing");
+            for (const id of ids) await S.setCaseNode(chapter, id, { kind: "bullet", label: `SUITE everyone ${id.slice(-1)}`, tell: false });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const base = `case:${chapter}:${ids[0]}`;
+            root?.querySelector(`[data-drpg-node="${ids[0]}"]`)?.click();
+            await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
+            const select = win.field(`${base}:recipient`);
+            must(select, "the planned Truth Bullet's node did not open with its recipient");
+            seen.option = [...select.options].find(o => o.value === EVERYONE)?.textContent.trim() ?? null;
+            select.value = EVERYONE;
+            root.querySelector(".drpg-case-edit:not([hidden]) [data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.recipient === EVERYONE, 4000).catch(() => {});
+            seen.stored = S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.recipient ?? null;
+            await win.close();
+            win = null;
+            const first = await give(ids[0]);
+            seen.first = { picked: first.picked, answer: first.answer, copies: counts(), given: Number.isFinite(S.caseNodeOf(S.caseRows(chapter).rows[ids[0]])?.given) };
+            // the second plan, Everyone written in its row, one living student's copy refused
+            const before2 = counts();
+            await S.setCaseNode(chapter, ids[1], { recipient: EVERYONE });
+            await gmStoresIdle();
+            const refused = living[0];
+            hook = Hooks.on("preCreateItem", item => (item.parent?.id === refused ? false : undefined));
+            ui.notifications.warn = (msg, ...rest) => { warned.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+            const second = await give(ids[1]);
+            const after2 = counts();
+            seen.second = { answer: second.answer, added: Object.fromEntries(Object.entries(after2).map(([id, n]) => [id, n - (before2[id] ?? 0)]).filter(([, n]) => n)),
+                named: warned.some(m => m.includes(game.actors.get(refused)?.name ?? "\u0000")), given: S.caseNodeOf(S.caseRows(chapter).rows[ids[1]])?.given ?? null };
+        } finally {
+            ui.notifications.warn = warn;
+            if (hook !== null) Hooks.off("preCreateItem", hook);
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const a of characters) for (const item of fresh(a)) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            for (const id of ids) await S.dropCaseNode(chapter, id).catch(() => {});
+            if (dead && deathStore.has(cub.id)) await deathStore.drop(cub.id);
+            if (flagsWere.cub === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagsWere.cub);
+            if (flagsWere.spectator === undefined) await spectator.unsetFlag(MODULE_ID, FLAGS.spectator); else await spectator.setFlag(MODULE_ID, FLAGS.spectator, flagsWere.spectator);
+            await gmStoresIdle();
+        }
+        const one = list => Object.fromEntries(list.map(id => [id, 1]));
+        equal(stableJson(seen), stableJson({
+            option: game.i18n.localize("DRPG.Items.everyone"),
+            stored: EVERYONE,
+            first: { picked: EVERYONE, answer: true, copies: one(living), given: true },
+            second: { answer: false, added: one(living.slice(1)), named: true, given: null }
+        }), "{the node's Everyone option; the row's recipient after the close; the first give: the window's recipient, its answer, each character's new Truth Bullets, the plan given; the second, one copy refused: its answer, the copies it added, the warning naming the student, the plan's given}");
     }],
 
     ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {

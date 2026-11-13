@@ -15,7 +15,7 @@
 import {
     MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
     USABLE_KIND_EFFECTS, EQUIPPABLE, itemIcon,
-    TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
+    TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, RECIPIENT_EVERYONE
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
     pickableCategories, isStashed, isBroken, ITEM_FLAGS }
@@ -38,7 +38,7 @@ function recipientOptions(students, selectedId) {
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }
-import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite } from "./utils.mjs";
+import { whisperToOwner, log, error, plural, cardHead, esc, serialWrite, listOf } from "./utils.mjs";
 import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid, modeBar } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
@@ -1238,7 +1238,12 @@ function bulletCreatePane(fill = null, { nameField = "name" } = {}) {
            for it. The Autopsy dialog further down deliberately has no twin of this box: an autopsy identifies itself,
            so no Analyze will ever be thrown at it - see SELF_EVIDENT in truth-bullets.mjs. */
         row("DRPG.TruthBullet.analyzedText", "drpg-bullet-analyzedText", text("analyzedText", "DRPG.TruthBullet.analyzedTextPlaceholder", f.analysis)),
-        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder", f.note))]);
+        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder", f.note)),
+        /* A PLANNED TRUTH BULLET'S PICTURE (1.2.113; the owner's "yes", 13.11.2026): shown, and carried to the bullet, only
+           when the plan holds one. Write new opened by hand has no picture field (the coordinator's default, kept): its
+           bullet wears the category's drawing, as it always did. */
+        ...(f.img ? [row("DRPG.CaseMap.field.img", "drpg-bullet-plannedImg", `<img src="${esc(f.img)}" alt="" class="drpg-project-portrait drpg-bullet-planned-img" />`
+            + `<input type="hidden" name="plannedImg" id="drpg-bullet-plannedImg" value="${esc(f.img)}" />`)] : [])]);
 }
 
 /** The name follows the picked trace; the trace list follows the recipient. */
@@ -1311,7 +1316,9 @@ function readBulletFields(f, active, { recipient = "recipient", nameField = "nam
         tied: f.elements.tied.checked,
         playerText: f.elements.playerText.value.trim(),
         analyzedText: f.elements.analyzedText.value.trim(),
-        gmNote: f.elements.gmNote.value.trim()
+        gmNote: f.elements.gmNote.value.trim(),
+        // a planned Truth Bullet's picture (1.2.113), when the window was opened from a plan that holds one
+        img: f.elements.plannedImg?.value || null
     };
 }
 
@@ -1415,7 +1422,9 @@ function bulletFromForm(result) {
         // what the GM typed is what the bullet keeps. It still waits in the
         // secret until the holder identifies it, like every other reading.
         analyzedText: result.analyzedText,
-        gmNote: result.gmNote
+        gmNote: result.gmNote,
+        // the plan's picture (1.2.113); null leaves the category's drawing (inventory.mjs `grantItem`)
+        img: result.img || null
     };
 }
 
@@ -1461,7 +1470,10 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
         return false;
     }
 
-    const recipients = recipientOptions(students, initial.id);
+    /* EVERYONE (1.2.113; config.mjs `RECIPIENT_EVERYONE`): last in the list, picked where the plan names it */
+    const everyone = fill?.recipient === RECIPIENT_EVERYONE;
+    const recipients = recipientOptions(students, everyone ? null : initial.id)
+        + `<option value="${RECIPIENT_EVERYONE}"${everyone ? " selected" : ""}>${esc(game.i18n.localize("DRPG.Items.everyone"))}</option>`;
     const { traces, writers, traceContextLine } = await bulletTraces(only);
 
     const existingPane = bulletExistingPane(traces, initial, traceContextLine);
@@ -1488,7 +1500,38 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null, fill =
     });
 
     if (!result || result === "cancel") return false;
+    if (result.recipient === RECIPIENT_EVERYONE) return giveToEveryone(result, traces, writers);
     return giveBulletNow(result, game.actors.get(result.recipient) ?? initial, traces, writers);
+}
+
+/**
+ * GIVE A TRUTH BULLET TO EVERYONE (1.2.113; the owner, 13.11.2026: "In planned bullets I'm missing a 'give it to everyone'
+ * option"): the window's own give (`giveBulletNow`) once for each living student (chapter.mjs `livingStudentsForGm`; who
+ * that is, config.mjs `RECIPIENT_EVERYONE`), one after another, so each copy takes the road a single give takes - its
+ * queue, its answer key, its receipt when Tell the player is ticked, and its own line. On the browser of the GM who
+ * pressed Give, as a single give is (`giveBullet`'s note). A copy that is not made (the give answered no, or threw) is
+ * kept by name, and the GM told who got none. Answers true only when every one got theirs, false otherwise and when there
+ * is nobody to give it to. Exported for the suite.
+ */
+export async function giveToEveryone(result, traces, writers) {
+    if (!result.name) {
+        ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.needsName"));
+        return false;
+    }
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    const students = livingStudentsForGm();
+    if (!students.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
+        return false;
+    }
+    const missed = [];
+    for (const who of students) {
+        let made = false;
+        try { made = await giveBulletNow(result, who, traces, writers); } catch (err) { error(`Give to everyone: no Truth Bullet for ${who.name}`, err); }
+        if (made !== true) missed.push(who.name);
+    }
+    if (missed.length) ui.notifications.warn(game.i18n.format("DRPG.TruthBullet.everyoneMissed", { names: listOf(missed) }));
+    return !missed.length;
 }
 
 /* Every scene's traces, as Give a Truth Bullet lists them, with the writers a give from one needs (E101 F2: its window
