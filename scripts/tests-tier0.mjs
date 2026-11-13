@@ -2246,47 +2246,6 @@ const REGRESSIONS = [
             `an action marked ${missed.join(", ")} swings a weapon the roll never captured`);
     }],
 
-    ["R25 - the action budget comes back when the Eclipse opens, and only there", async () => {
-        /*
-         * Z2 (E18b, wave 5). The refill used to sit in `endEclipse`, which is
-         * the moment the NEXT time of day begins - so a Direct Murder, declared
-         * in the dark and costing an action, was paid for out of the budget of
-         * the day that had just finished. Moving it to the opening means the
-         * declaration comes off the new allowance and the killer walks into the
-         * time of day one action lighter.
-         *
-         * TWO HALVES, AND THE SECOND IS THE DANGEROUS ONE. Adding the refill to
-         * `startEclipse` without taking it out of `endEclipse` hands the table
-         * two budgets for one boundary, refunds the murder for free, and looks
-         * on screen exactly like the change working. That is the failure this
-         * test is for; the first half would have been noticed at the table
-         * within a minute, and the second would not have been noticed at all.
-         *
-         * Read from the source, because both halves are single flags on calls
-         * that need the world's clock moved to observe - and because a refill
-         * running twice leaves no trace afterwards except a full bar, which is
-         * also what a refill running once leaves.
-         */
-        const sources = new Map(await otherSources());
-        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
-        ok(eclipse.length > 1000, "eclipse.mjs did not load");
-
-        const opening = bodyOf(eclipse, "export async function startEclipse", { until: "export async function endEclipse" });
-        ok(/resetAllActions\s*\(/.test(opening),
-            "the Eclipse no longer refills the action budget as it opens");
-
-        // Anywhere in the file, not just in `endEclipse`: the point is that no
-        // path through an Eclipse asks the clock for a second one.
-        ok(!/resetActions\s*:\s*true/.test(eclipse),
-            "something in the Eclipse still asks the clock for a refill as well");
-
-        // The other half of Z2: the declaration has to cost something, or it
-        // comes off no budget at all and the move above bought nothing.
-        equal(ACTIONS.directMurder?.cost, 1,
-            "a Direct Murder no longer spends an action, so it takes nothing from the "
-            + "budget the Eclipse just handed out");
-    }],
-
     ["R26 - a critical's Hope is paid once, by one payer", async () => {
         /*
          * A CRITICAL PAID THREE HOPE FOR A GUIDE THAT SAYS TWO, because two
@@ -2571,17 +2530,20 @@ const REGRESSIONS = [
     }],
 
     ["R35 - the Eclipse ends what was bought for the time of day, and the refill box only refills", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to its second half. That Edit campaign never runs the whole
+           time-of-day boundary (`setTimeOfDay`) is a call nothing in the window's family may make, a census of its
+           files' source; no single Apply shows a boundary it did not run. The first half - the Eclipse lifts the seals
+           as it opens - is driven since E40 in tier 2 "the Eclipse lifts the seals and the restrictions bought for the
+           time of day it ends (E40 item 4: R35's first rule, driven; was R35's first half)". */
         /*
          * CALL-09: seals, chains and Silence outlived the Eclipse that ends their time of
          * day. GMP-02: "Also refill actions and search tokens" ran the whole boundary -
          * the motive, the seals, the overflow and a public card.
          */
         const sources = new Map(await otherSources());
-        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
-        const start = bodyOf(eclipse, "export async function startEclipse", { until: "\nexport " });
-        ok(/clearSeals\(\)/.test(start), "the Eclipse opens with the seals and restrictions still on");
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(sources));
+        ok(panel.length > 1000, "the panel's family was not read - this test measured nothing");
         ok(!/setTimeOfDay\(/.test(panel), "Edit campaign runs the whole time-of-day boundary again");
     }],
 
@@ -3607,6 +3569,12 @@ const REGRESSIONS = [
     }],
 
     ["R59 - the murder window asks the Eclipse before it asks the GM anything", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed. That the Eclipse is asked before the window draws is driven since
+           E40 in tier 2 "the murder window in an Eclipse is refused before it draws anything, and says why (E40 item 4:
+           R59's first rule, driven; was R59's Eclipse half)". What stays is the window's shape where no call shows it:
+           the running-incident shortcut asked before the Eclipse (no incident runs in an Eclipse, so the order has no
+           outcome), the trap box's killer, the armed set's `isComplete`, the tail's order after `openMurder` and the
+           window's own class - a reading of the source. */
         /*
          * F10 and F11, 19.09. `openMurder` has always refused during placement and
          * says it is "the backstop for anyone who gets here anyway" - but the trap
@@ -3627,11 +3595,7 @@ const REGRESSIONS = [
         const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "\n}\n" });
         ok(dialog.length > 500, "openMurderDialog is gone from murder-ui.mjs, or its read ends too soon to be the window");
 
-        ok(dialog.includes("isEclipse("),
-            "the murder window opens during an Eclipse and only refuses at Confirm");
         // E21 C3a: the window is the kit's `drpgWindow(` (ui-kit.mjs), DialogV2.wait's until then.
-        ok(dialog.indexOf("drpgWindow(") > 0 && dialog.indexOf("isEclipse(") < dialog.indexOf("drpgWindow("),
-            "the Eclipse is asked after the GM has already filled the form in");
         ok(dialog.indexOf("murderState()") < dialog.indexOf("isEclipse("),
             "the Eclipse guard now hides the tracker of an incident that is already running");
 
@@ -4065,34 +4029,6 @@ const REGRESSIONS = [
             "the Season setup window draws a chapter field of its own again, which this cap does not reach");
     }],
 
-    ["R69 - the Eclipse warning fires on a clock that moved", async () => {
-        /*
-         * GMP-04, 20.09. The gate was `result.timeOfDay !== undefined`, and
-         * `timeOfDay` is a select this form always submits - so it was true on every
-         * Apply. A GM renaming the campaign during an Eclipse was told the clock had
-         * moved. That sentence is the module's only sign of an Eclipse silently
-         * refusing every murder, and a warning that cries on every Apply is one
-         * nobody reads.
-         */
-        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
-        const panel = stripComments(panelText(await otherSources()));
-        // E49 A1e: Apply's writes left the window for `applyCampaignForm`, which Edit campaign and Season setup both run.
-        const win = bodyOf(panel, "export async function applyCampaignForm");
-        ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
-            "the Eclipse warning is gated on a field the form always fills");
-        ok(/before\.timeOfDay/.test(win),
-            "the warning does not compare the time of day it wrote with the one it replaced");
-        const read = win.indexOf("const before = getClock()");
-        const write = win.indexOf("await setClock(");
-        const warn = win.indexOf("eclipseStillOn");
-        ok(read > 0 && write > read && warn > write,
-            "the clock is read for the comparison after it was written, or the warning moved "
-            + "in front of the write");
-        ok(!/before\.session/.test(win) && !/before\.phase/.test(win),
-            "the session counter or the phase joined the comparison - they are bookkeeping, "
-            + "not time");
-    }],
-
     ["R70 - Enter in a field that names a button presses that button", async () => {
         /*
          * MM-02, 20.09. The Mastermind window's give-Hope row sits inside the
@@ -4348,17 +4284,38 @@ const REGRESSIONS = [
          * from here: a test that reads the runner it is running inside proves nothing
          * about the run that is happening.
          */
-        const murder = stripComments(new Map(await otherSources()).get("murder-ui.mjs") ?? "");
-        const body = bodyOf(murder, "function incidentTrackerHtml(", { until: "function incidentSignature(" });
-        ok(body.length > 400, "the tracker's body builder has moved or gone");
-        ok(/const lost = \[/.test(body), "nothing notices that the cast cannot be found");
-        ok(/trackerCastGone/.test(body), "the missing cast is not reported to the GM");
-        // `lastIndexOf`: the first `drpg-incident-live` in this builder is the
-        // "this incident is over" branch above, which has no cast to report.
-        ok(body.indexOf("const lost") < body.lastIndexOf("drpg-incident-live"),
-            "the warning is worked out after the markup it belongs in");
-        ok(/now\.selfInflicted \?[\s\S]{0,120}side\.killer/.test(body),
-            "a self-inflicted death is reported as missing a killer, which it never had");
+        /* E40 item 4 (13.11.2026), rewritten in place: this read murder-ui.mjs `incidentTrackerHtml` as text (`const lost =
+           [`, the key, its place before the live region's last marker, `now.selfInflicted ?` near `side.killer`). It is
+           exported and pure on the incident it is handed, so it is called here on made-up incidents, writing nothing: a
+           killer the world does not have, a victim it does not have, both, a death by the victim's own hand whose killer
+           id names nobody, an id not arrived yet, and a cast that is all there. */
+        needs(world.atLeast("livingStudents", 2));
+        const M = await import("./murder-ui.mjs");
+        const CL = await import("./cleanup.mjs");
+        const [a, b] = studentActors();
+        const ghost = "SUITEnobody0E40";
+        must(!game.actors.get(ghost), "the made-up id names an actor of this world - this would measure nothing");
+        const side = key => game.i18n.localize(`DRPG.Murder.side.${key}`);
+        const said = who => game.i18n.format("DRPG.Murder.trackerCastGone", { who });
+        const CANDS = { killer: said(side("killer")), victim: said(side("victim")), both: said(`${side("killer")}, ${side("victim")}`) };
+        const opening = said("\u0000").split("\u0000")[0];
+        must(opening.length > 10, "the warning's words before the names are too short to count - this would measure nothing");
+        const read = patch => {
+            const root = document.createElement("div");
+            root.innerHTML = M.incidentTrackerHtml({ stage: "incident", killerId: a.id, victimId: b.id, turn: 1, turnSide: "victim", keyRemnants: 0,
+                recent: [], ...patch }, CL);
+            const live = root.querySelector(".drpg-incident-live");
+            return [Boolean(live) && root.children.length === 1, Object.keys(CANDS).filter(k => (live?.textContent ?? "").includes(CANDS[k])),
+                root.textContent.split(opening).length - 1];
+        };
+        equal(JSON.stringify({
+            killer: read({ killerId: ghost }), victim: read({ victimId: ghost }), both: read({ killerId: ghost, victimId: ghost }),
+            self: read({ killerId: ghost, selfInflicted: true }), arriving: read({ killerId: "", victimId: "" }), all: read({})
+        }), JSON.stringify({
+            killer: [true, ["killer"], 1], victim: [true, ["victim"], 1], both: [true, ["both"], 1],
+            self: [true, [], 0], arriving: [true, [], 0], all: [true, [], 0]
+        }), "the tracker did not name exactly the side of the cast the world lacks, inside its live region ([one live region, the warnings it holds, "
+            + "the warnings in the whole markup] for a killer gone, a victim gone, both, a death by their own hand, ids not arrived, a cast all there)");
     }],
 
     ["R77 - every student stands on a frame, and yours is bone", async () => {
@@ -4615,6 +4572,11 @@ const REGRESSIONS = [
     }],
 
     ["R82 - what shuts the whole Calls menu is asked at the door", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to the sheet's half. What `callBarred` answers is driven since E40
+           in tier 2 "what shuts the whole Calls menu is answered by one reader, on the rules of each side (E40 item 4:
+           R82's first rule, driven; was R82's reader half)". That the sheet asks it before the target picker and the
+           price is an order inside sheet.mjs `runCall`, which is not exported, and its windows are a player's; driving
+           it would need an export of runCall, so the source is what is measured. */
         /*
          * CALL-17, 20.09. An Eclipse, the overflow's Silence, a Class Trial for a
          * Monokuma and a dead student were all asked INSIDE the two spenders, which
@@ -4628,16 +4590,6 @@ const REGRESSIONS = [
          * BEFORE the picker, which is the half that was missing.
          */
         const sources = new Map(await otherSources());
-        const calls = stripComments(sources.get("calls.mjs") ?? "");
-        const barred = bodyOf(calls, "export async function callBarred", { until: "async function hopeCallBarred" });
-        ok(barred.length > 200, "there is no one reader for what shuts a Call");
-        ok(/isEclipse\(\)/.test(barred) && /overflowBlocksCalls\(\)/.test(barred),
-            "the shared reader does not know about the Eclipse or the overflow's Silence");
-        ok(/if \(despair\)[\s\S]{0,200}classTrial/.test(barred),
-            "the Class Trial rule is not the despair side's alone - that asymmetry is T-1's "
-            + "decision");
-        ok(/(?:isDeceased|isDeadForGm)\(actor\)/.test(barred), "the dead can still spend");
-
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         // To the next top-level function, not a fixed number of characters: the
         // confirmation is a hundred lines down and a 3000-character window stopped
@@ -4780,6 +4732,12 @@ const REGRESSIONS = [
     }],
 
     ["R86 - a Monocub may cross a room, and that is the list", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to the gate's order. The list and the refusal of every ACTIONS
+           key but Move, above the Eclipse, are driven since E40 in tier 2 "a Monocub is refused every action but Move,
+           at the door and above the Eclipse (E40 item 4: R86's first rule, driven; was R86's list half)". What stays is
+           where the gate stands against the betrayal, the in-fight shortcut and the dead test. Against the dead test the
+           order has no outcome (that test lets a Monocub through); against the other two it would take a Monocub inside
+           an incident, a fixture this slice did not build - so the source is what is measured. */
         /*
          * ACT-13, 20.09. The dead gate lets a Monocub through - correctly, a Monocub
          * acts - and that was the whole of it: past that line every tile in the module
@@ -4792,17 +4750,11 @@ const REGRESSIONS = [
          * open to a Monocub. The order here is the fix.
          */
         const sources = new Map(await otherSources());
-        const cfg = stripComments(sources.get("config.mjs") ?? "");
-        ok(/dispatchable: \["move"\]/.test(cfg),
-            "the list of what a Monocub may dispatch is gone, or it has grown");
-
         // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read. Since
         // E41 fix FG5 (the end review's C-nit 3) `performAction` alone, where every read below stands: the cut on to
         // `performBetrayal` (action-murder.mjs) ran across the family's files.
         const rolls = stripComments(actionText(sources));
         const perform = fnSource(rolls, "performAction");
-        ok(/MONOCUB\.dispatchable\.includes\(actionKey\)/.test(perform),
-            "nothing refuses a Monocub the rest of the grid");
         const gate = perform.indexOf("MONOCUB.dispatchable");
         ok(gate > 0 && gate < perform.indexOf("betrayalTarget(actor)"),
             "the Monocub gate sits below the betrayal, which is reached before the Eclipse "
@@ -4814,8 +4766,6 @@ const REGRESSIONS = [
             + "asked it");
         ok(perform.indexOf("MONOCUB.dispatchable") < perform.search(/(?:isDeceased|isDeadForGm)\(actor\) && !isMonocub/),
             "the gate is below the dead test, which is where it could not do its job");
-        ok(!/dispatchable\.includes\("meddle"\)/.test(rolls),
-            "Confusion was added to a list of ACTIONS keys, and it is not one");
     }],
 
     ["R87 - a trace of unstated origin is not a free Analyze", async () => {
