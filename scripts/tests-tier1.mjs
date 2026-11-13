@@ -25337,16 +25337,17 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the four tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control", async () => {
+    ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
         /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const T = l => l.DRPG?.Tips ?? {};
         must(Object.keys(T(en)).length >= 4 && Object.keys(T(pl)).length >= 4, "lang has no DRPG.Tips families - this would measure nothing");
         const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
-        const [dyn, rest, projects, scene, zones] = await Promise.all(["action-dynamic.mjs", "rest.mjs", "projects-ui.mjs", "trial-scene.mjs", "trial-zones-ui.mjs"].map(read));
-        must([dyn, rest, projects, scene, zones].every(s => s.length > 500), "a script read as nothing - this would measure nothing");
-        const titled = (src, key) => new RegExp(`tipAttr\\(\\s*"DRPG\\.Tips\\.${key.replace(/\./g, "\\.")}",\\s*null,\\s*\\{\\s*title:\\s*true\\s*\\}\\)`).test(src);
+        const [dyn, rest, projects, scene, zones, sound] = await Promise.all(["action-dynamic.mjs", "rest.mjs", "projects-ui.mjs", "trial-scene.mjs", "trial-zones-ui.mjs", "sound-panel.mjs"].map(read));
+        must([dyn, rest, projects, scene, zones, sound].every(s => s.length > 500), "a script read as nothing - this would measure nothing");
+        const titled = (src, key) => [(src.match(new RegExp(`tipAttr\\(\\s*"DRPG\\.Tips\\.${key.replace(/\./g, "\\.")}",\\s*null,\\s*\\{\\s*title:\\s*true\\s*\\}\\)`, "g")) ?? []).length,
+            (src.match(new RegExp(`tipAttr\\(\\s*"DRPG\\.Tips\\.${key.replace(/\./g, "\\.")}"`, "g")) ?? []).length];
         const cost = T(en).Actions?.doItCostTooltip, costPl = T(pl).Actions?.doItCostTooltip;
         equal(stableJson({
             passesAt: /roll\.total\s*>=\s*dynamicBar\(band\)/.test(dyn),
@@ -25358,11 +25359,11 @@ const INVARIANTS = [
             escape: /window with the Remnants/i.test(T(en).Trial?.openTheRemnantTableTooltip ?? "window with the Remnants"),
             gone: ["Actions.whichRemnantEraseATooltip", "Trial.endAndMoveTheTooltip", "Trial.endWithoutAdvancingTooltip", "Trial.endTheMurderTooltip"]
                 .filter(k => k.split(".").reduce((x, p) => x?.[p], T(en)) !== undefined || k.split(".").reduce((x, p) => x?.[p], T(pl)) !== undefined),
-            titled: [titled(projects, "Actions.secretAProjectSTooltip"), titled(scene, "Trial.zoneAZoneBTooltip"), titled(zones, "Trial.monokumaConfirmsTooltip")]
+            titled: [titled(projects, "Actions.secretAProjectSTooltip"), titled(scene, "Trial.zoneAZoneBTooltip"), titled(zones, "Trial.monokumaConfirmsTooltip"), titled(sound, "Setup.playTooltip")]
         }), stableJson({
             passesAt: true, difficulty: [false, false], anyRoom: [true, true], frisk: false,
-            rest: [true, true, ["one", "other"], ["few", "many", "one", "other"]], escape: false, gone: [], titled: [true, true, true]
-        }), "{the roll passes at the number; 'beat' in the difficulty's words (en, pl); any room in the room's (en, pl); the Polish Frisk answer's plural or gendered form; Rest passes the cost, draws the plural key, its forms (en, pl); the escape's words promise a filtered window; dropped keys still in lang; title on the disabled controls}");
+            rest: [true, true, ["one", "other"], ["few", "many", "one", "other"]], escape: false, gone: [], titled: [[2, 2], [1, 1], [1, 1], [1, 1]]
+        }), "{the roll passes at the number; 'beat' in the difficulty's words (en, pl); any room in the room's (en, pl); the Polish Frisk answer's plural or gendered form; Rest passes the cost, draws the plural key, its forms (en, pl); the escape's words promise a filtered window; dropped keys still in lang; each disabled-at-times key's [sites with title, sites in all] in projects-ui, trial-scene, trial-zones-ui, sound-panel}");
     }],
     ["R4761 - the voice list's volume and push-to-talk's key button draw their tooltips (E102 C8, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 2 keys under DRPG.Tips.More has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 1957091a with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.More key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
@@ -25408,7 +25409,7 @@ const INVARIANTS = [
             monocub: [false, true], tier: [false, true, true], play: [true, true], observer: [false, true], donor: [true, true, true]
         }), "{a new Monocub: 'at zero', 'full' in en and pl; tier: 'last longer', a usable in en and pl; play: a state with its own music in en and pl; Observer: 'no longer owns', the own player keeps; one donor key in both windows and the old one gone}");
     }],
-    ["R4763 - a card's close button says the notice history keeps the card only when it does (E102; REVIEW-102-C4C5 S7 as corrected at 6732a09d on claude/gaps-radio: `record: false` on showWaiting and on the ready round's card is deliberate): popup.mjs `showPopup` writes DRPG.Tips.Setup.closeXTooltip on the close only under `record`; a `record: false` card's close carries no data-tooltip, and keeps its aria-label", async () => {
+    ["R4763 - a card's close button says the notice history keeps the card only when it does (E102; REVIEW-102-C4C5 S7 as corrected at 6732a09d on claude/gaps-radio: `record: false` on showWaiting and on the ready round's card is deliberate): popup.mjs `showPopup` writes DRPG.Tips.Setup.closeXTooltip on the close only under `record` (`if (record) setTip(close, ...)`), and a drawn `record: false` card's close carries no data-tooltip and keeps its aria-label. The recorded card is drawn by scenario 94 (REVIEW-E102-code C8): drawn here it makes this browser's notice history write its section, which a later write in the same run keeps, and tier 1 must change nothing (measured 13.11.2026)", async () => {
         /* Red at 34c2fac7: every card's close said "the notice history keeps it", a record: false card's too. */
         const own = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/popup.mjs`).then(r => (r.ok ? lfText(r) : "")));
         must(own.length > 500, "popup.mjs read as nothing - this would measure nothing");
@@ -25417,12 +25418,11 @@ const INVARIANTS = [
         const host = () => document.getElementById("drpg-popups");
         const before = new Set(host()?.querySelectorAll(".drpg-popup") ?? []);
         const dismiss = showPopup("<p>R4763</p>", { title: "R4763", record: false, sticky: true });
-        let close = null;
         try {
             await wait(50);
             const card = [...(host()?.querySelectorAll(".drpg-popup") ?? [])].find(c => !before.has(c));
             must(card, "showPopup drew no card - this would measure nothing");
-            close = card.querySelector(".drpg-popup-close");
+            const close = card.querySelector(".drpg-popup-close");
             equal(stableJson({
                 guarded: /if\s*\(\s*record\s*\)\s*setTip\(\s*close,\s*"DRPG\.Tips\.Setup\.closeXTooltip"\s*\)/.test(body),
                 unguarded: /^\s*(?:close\.dataset\.tooltip\s*=|setTip\(\s*close\b)/m.test(body),

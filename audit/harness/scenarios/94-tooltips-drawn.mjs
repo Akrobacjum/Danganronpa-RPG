@@ -90,6 +90,24 @@ export async function run({ gm, p1, check, note, evidence, settle, repoUrl }) {
     check("every key DRAWN holds is drawn on a control of a window, in its English words", expected.length > 0 && lost.length === 0,
         lost.length ? `not drawn: ${lost.join(", ")}` : `${expected.length} key(s) drawn`);
     if (fresh.length) note("drawn and not held", `${fresh.length}: ${fresh.join(", ")} - add them to DRAWN`);
+    /* A card's close (REVIEW-E102-code C8, R4763's other half): a recorded card says the notice history keeps it, a
+       record: false card says nothing. Drawn on p1 here, not in tier 1: recording writes this browser's history. */
+    const cards = await p1.eval(`
+        const { showPopup } = await import("${repoUrl}/scripts/popup.mjs");
+        const host = () => document.getElementById("drpg-popups");
+        const draw = async opts => {
+            const before = new Set(host()?.querySelectorAll(".drpg-popup") ?? []);
+            const dismiss = showPopup("<p>94</p>", { title: "94", sticky: true, ...opts });
+            await new Promise(r => setTimeout(r, 80));
+            const card = [...(host()?.querySelectorAll(".drpg-popup") ?? [])].find(c => !before.has(c));
+            const close = card?.querySelector(".drpg-popup-close");
+            const read = close ? close.getAttribute("data-tooltip") : "no card";
+            if (typeof dismiss === "function") dismiss();
+            return read;
+        };
+        return { kept: await draw({ record: true, persist: "session" }), unkept: await draw({ record: false }) };`);
+    check("a recorded card's close says the notice history keeps it; a record: false card's says nothing",
+        cards.kept === words.get("DRPG.Tips.Setup.closeXTooltip") && cards.unkept === null, JSON.stringify(cards));
     const notHere = [...words.keys()].filter(k => !drawn.has(k));
     evidence?.("tooltips", { drawn: Object.fromEntries(drawn), notDrawnHere: notHere, opened, failed });
     note("not drawn here", `${notHere.length} of ${words.size} keys (held by their family tests and the census)`);
