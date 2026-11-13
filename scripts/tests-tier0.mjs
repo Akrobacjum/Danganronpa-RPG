@@ -24189,6 +24189,156 @@ const REGRESSIONS = [
             css: [true, true]
         }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
+    ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
+        /*
+         * perf-open line, 12.11.2026. The owner, at a table on 1.2.108 (Foundry 14.365 on a hosted server): the module's
+         * windows are slow the first time each opens, and fine after. Probe 09 (audit/harness/probes/09-open-cost.mjs)
+         * found no first-open premium in the module's own code headless, and the style harness none worth the name in
+         * Chromium (docs/dev/PERF-OPEN/STATUS.md); what a first open does that a second does not, and the harness cannot
+         * time, is fetch: a file reached only by `import()` is asked of the server the first time a window needs it -
+         * the Settings window is three such fetches in a row (settings-window.mjs, then look.mjs, then voice-panel.mjs).
+         * open-cost.mjs fetches them at idle after ready (`WARM_IMPORTS`). This holds the list to the code: every file
+         * that `import()` reaches and module.mjs's static graph does not is in it, or in `NOT_WARMED` with its reason,
+         * and nothing in it is loaded at boot already. The reader is shown a planted graph first.
+         */
+        const lazyOf = files => {
+            const boot = new Set();
+            const queue = ["module.mjs"];
+            while (queue.length) {
+                const file = queue.pop();
+                if (boot.has(file) || !files.has(file)) continue;
+                boot.add(file);
+                queue.push(...staticImports(files.get(file)));
+            }
+            const reached = new Set([...files.values()].flatMap(text => [...text.matchAll(/\bimport\(\s*["'`]\.\/([\w-]+\.mjs)["'`]\s*\)/g)].map(m => m[1])));
+            return [...reached].filter(file => files.has(file) && !boot.has(file)).sort();
+        };
+        const planted = new Map([
+            ["module.mjs", `import "./a.mjs";`],
+            ["a.mjs", `import { b } from "./b.mjs";\nexport const later = () => import("./lazy.mjs");`],
+            ["b.mjs", `export const b = () => import('./a.mjs');\nexport const gone = () => import("./missing.mjs");`],
+            ["lazy.mjs", `export const x = 1;`]
+        ]);
+        equal(JSON.stringify(lazyOf(planted)), JSON.stringify(["lazy.mjs"]),
+            "the reader does not find exactly the one planted file reached only by import() - it would read the module's graph wrong too");
+
+        const sources = new Map([...await moduleSources()].map(([file, text]) => [file, stripComments(text)]));
+        must(sources.has("module.mjs") && sources.has("settings-window.mjs"), "module.mjs or settings-window.mjs is not served - this test reads nothing until they are");
+        const served = new Map([...sources].filter(([file]) => !/^tests(-[\w-]+)?\.mjs$/.test(file)));
+        const lazy = lazyOf(served);
+        ok(lazy.includes("settings-window.mjs"), `the reader finds ${lazy.length} lazy file(s) and not settings-window.mjs, which the gear reaches by import(): ${lazy.join(", ")}`);
+        const W = await import("./open-cost.mjs");
+        const planned = [...W.WARM_IMPORTS.everyone, ...W.WARM_IMPORTS.gm];
+        const left = lazy.filter(file => !planned.includes(file) && !W.NOT_WARMED[file]);
+        ok(!left.length, `reached only by import() and neither warmed nor named in NOT_WARMED: ${left.join(", ")}`);
+        const stale = [...planned, ...Object.keys(W.NOT_WARMED)].filter(file => !lazy.includes(file));
+        ok(!stale.length, `listed in open-cost.mjs but loaded at boot already, or not served: ${stale.join(", ")}`);
+        const twice = planned.filter((file, i) => planned.indexOf(file) !== i || W.NOT_WARMED[file]);
+        ok(!twice.length, `listed twice in open-cost.mjs: ${twice.join(", ")}`);
+        const bare = Object.entries(W.NOT_WARMED).filter(([, why]) => typeof why !== "string" || why.length < 20).map(([file]) => file);
+        ok(!bare.length, `a file left cold with no reason written beside it: ${bare.join(", ")}`);
+        log(`R4200: ${lazy.length} file(s) reached only by import(), ${planned.length} warmed, ${Object.keys(W.NOT_WARMED).length} left cold with a reason`);
+    }],
+    ["R4201 - the open times are read first open against later ones, and the templates off the classes' parts", async () => {
+        /*
+         * perf-open line, 12.11.2026. open-cost.mjs's two pure readers, on fixtures: `summarizeOpens`, the table
+         * `game.drpg.openTimes()` prints (a window's first open, the middle of its later ones, an open no click came before
+         * left blank), and `templatePaths`, the Daggerheart templates the warming asks for - every part's `template` and
+         * `templates` of the character and party sheets' classes and of the classes under the system's
+         * `api.applications`, three levels deep, a path that is no template left out, each once.
+         */
+        const W = await import("./open-cost.mjs");
+        const rows = [
+            { key: "A", first: true, toRender: 900, toFrame: 950 },
+            { key: "A", first: false, toRender: 100, toFrame: 140 },
+            { key: "B", first: true, toRender: null, toFrame: null },
+            { key: "A", first: false, toRender: 120, toFrame: 160 },
+            { key: "A", first: false, toRender: 80, toFrame: 130 }
+        ];
+        equal(JSON.stringify(W.summarizeOpens(rows)), JSON.stringify([
+            { window: "A", firstRender: 900, firstShown: 950, laterRender: 100, laterShown: 140, laterOpens: 3 },
+            { window: "B", firstRender: null, firstShown: null, laterRender: null, laterShown: null, laterOpens: 0 }
+        ]), "the summary of five opens of two windows: [window, first render, first shown, later render, later shown, later opens]");
+        class Sheet { static PARTS = { a: { template: "s/a.hbs" }, b: { template: "s/b.hbs", templates: ["s/p.hbs", "not-a-template"] } }; }
+        class Roll { static PARTS = { f: { template: "s/a.hbs" }, g: { template: "s/d.html" } }; }
+        class Deep { static PARTS = { x: { template: "s/deep.hbs" } }; }
+        class Bare {}
+        const config = { Actor: { sheetClasses: { character: { "dh.Sheet": { cls: Sheet } }, npc: { "dh.Npc": { cls: Deep } } } } };
+        const api = { applications: { dialogs: { Roll, Bare }, one: { two: { three: { four: { Deep } } } } } };
+        equal(JSON.stringify(W.templatePaths({ config, api }).sort()), JSON.stringify(["s/a.hbs", "s/b.hbs", "s/d.html", "s/p.hbs"]),
+            "the templates read off a character sheet and a roll window: an npc's sheet, a class four levels down and a path that is no template left out, a shared one once");
+        equal(JSON.stringify(W.templatePaths({ config: {}, api: null })), "[]", "a Foundry with no sheet classes and a system with no API gives no template");
+    }],
+    ["R4203 - a warming step waits for the browser's idle time with no deadline, so a busy page is never pushed", async () => {
+        /*
+         * perf-open line, 12.11.2026 (the coordinator's ask of the same day). The boards and the curtain of 1.2.109 play at
+         * load and at a change of day, and no event marks their end; a step forced after 3 s of a busy page could land in
+         * the middle of one. So `whenIdle` asks `requestIdleCallback` with no `timeout`: a page that is never idle simply
+         * waits. Read on stand-ins for the two: the callback asked once, with no deadline; the step not done before the
+         * browser calls back, and done after; and with no `requestIdleCallback` (Safari) a 50 ms timer instead.
+         */
+        const W = await import("./open-cost.mjs");
+        const asked = [];
+        let call = null;
+        const ric = (cb, options) => { asked.push(options ?? null); call = cb; return 1; };
+        let done = false;
+        const quiet = { body: document.createElement("div"), heardAt: () => -Infinity };
+        const step = W.whenIdle({ ric, later: () => { throw new Error("the timer was asked while requestIdleCallback is there"); }, ...quiet }).then(() => { done = true; });
+        await null; await null;
+        equal(asked.length, 1, "requestIdleCallback asked for one step");
+        equal(JSON.stringify(asked[0]?.timeout ?? null), "null", "the step's idle wait has a deadline - a busy page would be pushed after it");
+        ok(!done, "the step went on before the browser called back");
+        call();
+        await step;
+        ok(done, "the step did not go on once the browser called back");
+        const timers = [];
+        await W.whenIdle({ ric: null, later: (fn, ms) => { timers.push(ms); fn(); }, ...quiet });
+        equal(JSON.stringify(timers), "[50]", "with no requestIdleCallback the step waits one 50 ms timer");
+    }],
+    ["R4204 - a warming step waits while a sequence, a curtain's turn or a transition plays, and goes on after it", async () => {
+        /*
+         * perf-open line, 12.11.2026 (the coordinator's ask, on 1.2.109). The boards and cut-ins of sequence.mjs mark the
+         * body `data-drpg-sequence` for as long as one plays, glass.mjs's turn marks it `data-drpg-turning`, the
+         * transitions' flicker `drpg-flicker`, and a transition runs from the clock's hook for about 3 s (the
+         * Investigation's flashes, 2.8 s, the longest read). `whenIdle` reads all four through `playingNow` when the
+         * browser calls back, and while one stands it waits `RECHECK_MS` and asks for the next idle period again,
+         * counting the step as held. Read on a body of the test's own and stand-ins for the two callbacks; the page's
+         * own body is not touched.
+         */
+        const W = await import("./open-cost.mjs");
+        const body = document.createElement("div");
+        const now = 100000;
+        equal(JSON.stringify([
+            W.playingNow(body, { now, heardAt: -Infinity }),
+            (body.setAttribute("data-drpg-sequence", "dayStart"), W.playingNow(body, { now, heardAt: -Infinity })),
+            (body.removeAttribute("data-drpg-sequence"), body.setAttribute("data-drpg-turning", ""), W.playingNow(body, { now, heardAt: -Infinity })),
+            (body.removeAttribute("data-drpg-turning"), body.classList.add("drpg-flicker"), W.playingNow(body, { now, heardAt: -Infinity })),
+            (body.classList.remove("drpg-flicker"), W.playingNow(body, { now, heardAt: now - 1000 })),
+            W.playingNow(body, { now, heardAt: now - W.QUIET_AFTER_CLOCK_MS - 1 })
+        ]), JSON.stringify([null, "sequence", "turn", "flicker", "transition", null]),
+            "what plays: [nothing, a board, the curtain's turn, the flicker, a second after the clock's hook, past the quiet span]");
+
+        body.setAttribute("data-drpg-sequence", "dayEnd");
+        let idleCall = null;
+        const timers = [];
+        let done = false;
+        const step = W.whenIdle({ ric: cb => { idleCall = cb; }, later: (fn, ms) => { timers.push({ fn, ms }); }, body, heardAt: () => -Infinity })
+            .then(() => { done = true; });
+        await null;
+        must(typeof idleCall === "function", "whenIdle asked for no idle period");
+        const first = idleCall; idleCall = null;
+        first();
+        await null; await null;
+        ok(!done, "the step went on while a board played");
+        equal(JSON.stringify(timers.map(t => t.ms)), JSON.stringify([W.RECHECK_MS]), "while a board plays, the step waits one recheck");
+        body.removeAttribute("data-drpg-sequence");
+        timers[0].fn();
+        await null;
+        must(typeof idleCall === "function", "after the recheck no idle period was asked again");
+        idleCall();
+        await step;
+        ok(done, "the step did not go on once the board had ended");
+    }],
 ];
 
 

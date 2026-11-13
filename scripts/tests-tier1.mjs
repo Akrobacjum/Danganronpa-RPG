@@ -20614,6 +20614,21 @@ const INVARIANTS = [
             J([null, null, "that roll was not thrown for that action", "that roll was not thrown for that action", "that roll was not thrown for that action"]),
             "[an Analyze thrown as a Find Passage (the record, the row's reading), a Search's roll, an Analyze for a bullet or a hint, a record of before C3] - a passage was found on another action's roll");
     }],
+    ["R4202 - the files a window reaches only by import() are fetched at idle after ready, each without an error", async () => {
+        /*
+         * perf-open line, 12.11.2026 (open-cost.mjs, R4200). The warming starts a few seconds after ready on every
+         * client; by the time this tier runs it has finished. Every file of this browser's plan - everyone's, and the
+         * GMs' on a GM - was imported, none failed (a path the list spells wrong fails here, where R4200 reads only the
+         * list), and the warming says how long it took.
+         */
+        const W = await import("./open-cost.mjs");
+        const warmed = await Promise.race([W.warmFirstOpens(), new Promise(resolve => setTimeout(() => resolve(null), 30000))]);
+        must(warmed, "the warming had not finished 30 s into this test - it starts 4 s after ready and fetches one file an idle callback");
+        const plan = W.warmPlan();
+        equal(JSON.stringify(warmed.imports.failed), "[]", "files of the plan that did not load");
+        equal(warmed.imports.ok, plan.length, `files imported, of the ${plan.length} in this browser's plan (${plan.join(", ")})`);
+        ok(typeof warmed.ms === "number" && warmed.ms >= 0, `the warming's time is not read: ${warmed.ms}`);
+    }],
     ["R599 - the sound of a secret passage: a find rings passageFound for the finder's owner and the GMs, a miss searchNothing for the owner alone, a show passageFound for the owner of the one shown it alone; a revoke, a Close and the season's reset write no card and ring nothing - the reset takes every cell a find wrote and keeps the tunnel; the sound's line names a find and a show in English and in Polish", async () => {
         /*
          * E80 C3, 18.10.2026; the stage's A10-14 (P1-14, P1-15). The harms: a find nobody hears, a sound that tells the
