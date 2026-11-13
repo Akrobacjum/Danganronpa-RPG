@@ -343,7 +343,13 @@ Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzu
 
 Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 1*, *Nieodkryty pokój 2* i tak dalej, na liście wyboru i w odpowiedzi: Listen mówi ci, kto jest za drzwiami, nie jaki pokój za nimi leży.
 
-Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+**Podsłuch pod drzwiami** (od 1.2.113). Gdy głos według pokoi jest włączony, Listen z wynikiem 14 lub więcej po swojej karcie robi jeszcze jedno: twój głos przechodzi na kanał głosowy pokoju, którego słuchałeś. Słyszysz ten pokój, a twój mikrofon jest wyłączony - nikt tam cię nie słyszy i nie włączysz go, dopóki nie przestaniesz. Nikt w tym pokoju nie dostaje wiadomości, ale liczba na głośniku jego kafla głosu liczy wszystkich na kanale, także ciebie. **Przestań słuchać** na twoim kaflu głosu przenosi cię z powrotem na kanał twojego pokoju, a mikrofon wraca kilka sekund później. Podsłuch kończy się też, gdy wyjdziesz z pokoju, z którego słuchasz (krok w jego obrębie albo w drzwi tego nie robi), gdy kończy się pora dnia, przy Eclipse, incydencie albo Class Trial. Ponowny podsłuch tego samego pokoju w tej samej porze dnia nie kosztuje akcji ani rzutu. Bez głosu według pokoi Listen to sama karta.
+
+Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Echoes, Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+
+### Echoes - bez rzutu, 1 akcja
+
+Najbliższy pokój, w którym stoi żywy uczeń innego gracza, licząc przejścia - drzwi, schody i tunele, które znasz. Karta podaje pokój, nigdy kto ani ilu; pokoje w tej samej odległości są wybierane losowo. Nie liczą się: twój pokój, ciała, Monokuma, Monocub, Widz, ukryty token ani postać GM-a. Nie w czasie Eclipse: wiersz jest przekreślony z powodem. Potrzebny jest połączony GM; gdy nie ma kogo znaleźć, karta mówi, że nikogo nie słychać.
 
 ### Tail Someone - Shadow, potem Leg albo Shadow, 1 akcja
 
