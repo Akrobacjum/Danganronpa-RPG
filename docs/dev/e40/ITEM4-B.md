@@ -13,7 +13,7 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | --- | --- | --- | --- |
 | R32 | (b), not built | the dashboard's Save driven on a filtered list and a renamed trace: a window, a fixture |  |
 | R34 | (b), not built | a Search that finds nothing must leave the plant: a Search driven with a planted item; the `lateMs` and one-caller lines are a census |  |
-| R36 | (b), not built | `plantOnPerson` (palm.mjs, exported) judged against the plant's thresholds, and Tamper's incident exemption: fixtures with a plant and an incident |  |
+| R36 | (b), trimmed | `plantOnPerson` driven at the plant's bars; Tamper's two resolver lines stay as text, not driven | batch 3 |
 | R37 | (b), not built | `releaseTamper` (not exported) reached by closing Tamper's window after a landed concealment roll |  |
 | R39 | (c) | which readers the fee, the charge and the finders call; the fee's counts are tier 2's (four named tests); `keyPlanStatus`'s off-plan count and the case's bar are read as text only | batch 2 |
 | R40 | (c) | a census over the action family and cleanup.mjs, and a branch of `concealSabotage`, not exported | batch 2 |
@@ -25,7 +25,7 @@ was not reached on this line: it stands unchanged in tier 0, unmarked, for a lat
 | R87 | (b) | `analyzeDc` and `resolveAnalyze` driven: a Neutral priced as Prep, its card's sentence | batch 1 |
 | R88 | (b), trimmed | the cards' buttons pressed as a GM presses them; four assertions stay as text (below) | batch 1 |
 | R89 | (b), trimmed | the store's scope read off Foundry's registry; a resolve with no record driven; the write-through stays as text | batch 2 |
-| R91 | (b), not built | `openNewTrace` (exported) answered as a GM; the door and the i18n keys can follow it |  |
+| R91 | (b), trimmed | `openNewTrace` answered as a GM, refused off the form and from a console; the markup, the dashboard's door and the keys stay | batch 3 |
 | R92 | (b), not built | the reshape's ruling roads; the one-writer census is (c) |  |
 | R96 | (b), not built | the project card read as a player; the CSS line is (c) |  |
 | R143 | (b), not built | ownership raised and a bullet edited by a player, each put back |  |
@@ -104,6 +104,36 @@ an export of it.
 R145's Stage 6 half and the clean-up undo's receipt stay in tier 0 as text (its comment says which tier-2 test drives
 Stage 6's refusals and what is not built).
 
+### R36 -> "the GM judges a plant by the plant's own bars, not a theft's (R36's plant half, driven; was R36)"
+
+| Mutant of palm.mjs `plantOnPerson` | Old R36 | New test |
+| --- | --- | --- |
+| m36i: both bars the theft's (`def.threshold`, `def.unseen.threshold`) | FAIL | FAIL |
+| m36ii: `def.plant?.threshold ? def.threshold : def.threshold`, and the unseen bar likewise (the names still there) | ok - missed | FAIL |
+| the clean copy | ok | ok |
+
+R36's Tamper half (cleanup.mjs: no refusal of another student's trace via the action, the incident exemption's shape)
+stays in tier 0 as text, not driven on this line.
+
+### R91 -> "the GM's New trace places the trace the window was told ... (was R91)"
+
+| Mutant of investigation.mjs `openNewTrace` | Old R91 | New test |
+| --- | --- | --- |
+| m91i-a: `reinforced: false` | FAIL | FAIL |
+| m91ii-a: `reinforced: result.reinforced && false` (the matched text a prefix of it) | ok - missed | FAIL |
+| m91i-b: the description's `playerText` line removed | FAIL | FAIL |
+| m91ii-b: `playerText: ""` written after the description's line | ok - missed | FAIL |
+| m91i-c: the kind's own check (`if (!REMNANT_TYPES[result.type])`) never true | FAIL | FAIL (first draft: ok) |
+| m91i-d: `tiedToCrime: null` | FAIL | FAIL |
+| the clean copy | ok | ok |
+
+m91i-c passed the first draft of the new test: an unknown kind is refused by the Observe-number check below the kind's
+own, with other words. The test now also reads that the off-list kind was warned with `newTraceBadType`, and fails it.
+
+R91's assertions not held by the new test, kept in tier 0 and marked: the kind list read from `REMNANT_TYPES` through
+`findableKind`, the window's two flag fields, the dashboard's `newTrace` button and its handler (`runDashboardButton`
+not exported), and the nine keys localized.
+
 ## Gates
 
 - Batch 1 (R87, R88, R172, R305, R306, R430, R1120): `node --check` on both test files; `node tools/check.mjs` 19 parts,
@@ -115,3 +145,5 @@ Stage 6's refusals and what is not built).
   (438 s). R171 was right: R89's new test read the Observe store's key as `SETTINGS.observePending`, a GM store's key raw
   outside the engine. It reads `observeStore.spec.key` now (the R3712 fix's road); R171 and the test by name 0 failed,
   and m89i-a, m89ii-a and m89ii-b, run again on the copy with the corrected test, still fail it. Lint again 0 problems. Second run: 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (429 s).
+- Batch 3 (R36, R91): `node --check`; check 19 parts, all green; lint 346 files, 0 problems; the new tests by name 2 ran,
+  0 failed; R36 and R91 by name 0 failed; tiers 0-1 whole 1418 ran, 1403 passed, 0 failed, 16 skipped, 0 red (422 s).

@@ -2586,18 +2586,15 @@ const REGRESSIONS = [
     }],
 
     ["R36 - the GM side judges a plant and a Tamper by the rules the player's menu used", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the Tamper half, read as text and not driven on this
+           line (a Tamper on another student's trace, and one on an incident trace by a participant, through cleanup.mjs's
+           resolver). The plant half is tier 2's "the GM judges a plant by the plant's own bars, not a theft's (E40 item 4:
+           R36's plant half, driven; was R36)". */
         /*
          * ACT-01: the plant was judged against the steal thresholds. ACT-02: Tamper
          * refused every trace somebody else had left, after the menu offered it.
          */
         const sources = new Map(await otherSources());
-        // E41 C6 (1.2.97): vault.mjs holds no code; the stash's family's text (the kit's `vaultText`), where its alone
-        // was read. `plantOnPerson` is palm.mjs's last function now, cut by name: an `until: "\nexport "` would run on
-        // into room-setup.mjs.
-        const vault = stripComments(vaultText(sources));
-        const plant = fnSource(vault, "plantOnPerson");
-        ok(/def\.plant\?\.threshold/.test(plant) && /def\.plant\?\.unseen/.test(plant),
-            "a plant is judged against the steal thresholds again");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         ok(!/viaAction\s*&&\s*data\.sourceActor\s*!==\s*actor\.id/.test(cleanup),
             "Tamper refuses a trace somebody else left again, after its menu offered it");
@@ -4949,63 +4946,39 @@ const REGRESSIONS = [
     }],
 
     ["R91 - the GM can state that a trace exists", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): what is left here is the window's markup, the dashboard's door and its
+           keys. What the window places - the kind, the tie, the reinforced mark, the public name and description - and its
+           refusals (a player, a kind off the list, an Autopsy) are tier 2's "the GM's New trace places the trace the window
+           was told, with its two flags and its words, and refuses a player and a kind off the form (E40 item 4: R91's rule,
+           driven; was R91)", as is `game.drpg.newTrace`. Read here: the kind list built from `REMNANT_TYPES` through
+           `findableKind`, the window asking for the two flags, the dashboard's button and its handler (`runDashboardButton`
+           is not exported), and the window's keys localized (a live read, kept beside the rest). */
         /*
          * N-4, Dawid 21.09. There was no general "put a trace here" control at all:
          * every road onto the map placed a KEY Remnant (the planner's per-row button,
          * the Observe ruling card) or a trace an action had earned (`dropRemnant`,
          * the Final Remnant). A GM who simply wanted a Prep trace in the kitchen had
          * to build a token and flag it by hand.
-         *
-         * THE TWO FLAGS ARE THE TEST. A Key Remnant is tied to the crime and
-         * reinforced because that is what a Key Remnant IS; a hand-placed trace can
-         * be either, and those two booleans decide whether the chapter-end sweep
-         * takes it and whether a killer can clean it up. A window that assumed them
-         * would quietly make every hand-placed trace unsweepable and uncleanable.
          */
         const sources = new Map(await otherSources());
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
         const body = bodyOf(inv, "export async function openNewTrace", { until: "export" });
         ok(body.length > 400, "openNewTrace has moved or been hollowed out");
-
-        ok(/if \(!game\.user\.isGM\)/.test(body.slice(0, 400)),
-            "a player reaching openNewTrace is not turned away at the door");
         ok(/Object\.entries\(REMNANT_TYPES\)/.test(body),
             "the kind list is written out rather than read from REMNANT_TYPES, so a "
             + "new kind will be missing from the one window that can place any of them");
         ok(/name="tied"/.test(body) && /name="reinforced"/.test(body),
             "the window does not ask for the two flags");
-        // The tie is a three-way select since E09 C4 ("-", Tied, Not tied), read back through `tieTaken`.
-        ok(/tiedToCrime: tieTaken\(result\.tied\)/.test(body) && /reinforced: result\.reinforced/.test(body),
-            "the flags are asked for and then not carried, so every hand-placed trace "
-            + "is an ordinary one whatever the GM ticked");
-        ok(/if \(!REMNANT_TYPES\[result\.type\]\)/.test(body),
-            "the kind comes back off a form and is written without being checked");
         // The list's rule has its own name since E09 C13, which the Traces tab's kind reads too (S05-20).
         const findable = bodyOf(inv, "function findableKind(", { until: "\n}" });
-        ok(/\.filter\(\(\[key\]\) => findableKind\(key\)\)/.test(body) && /observeDc\(v, key\) !== null/.test(findable)
-            && /observeDc\(result\.visibility, result\.type\) === null/.test(body),
-            "a kind Observe has no number for can be placed, and then nobody can ever find it");
-        ok(/placeRemnant\(/.test(body),
-            "the trace is built by hand instead of through the one writer that owns "
-            + "the flags, the art and the name");
-        /* MEASURED, 21.09: the first cut passed `name` and `text` to `placeRemnant`,
-           which has neither parameter and dropped both without a word. The window
-           looked right and produced a trace the finder would read as "Trace" with no
-           description. The public pair is a SECOND write, and every other road that
-           offers those words makes it. */
-        ok(/setRemnantPublic\(token, \{/.test(body),
-            "the name and the description the GM typed never reach the player's record");
-        ok(/playerText: result\.text/.test(body),
-            "the description is written under the wrong key, so the bullet is blank");
+        ok(/\.filter\(\(\[key\]\) => findableKind\(key\)\)/.test(body) && /observeDc\(v, key\) !== null/.test(findable),
+            "a kind Observe has no number for is offered, and then nobody can ever find it");
 
         /* The door. A window nothing opens is a window nobody has. */
         const dash = bodyOf(inv, "export async function openInvestigationDashboard");
         ok(/action: "newTrace"/.test(dash), "the dashboard has no button for it");
         const door = bodyOf(inv, "async function runDashboardButton(", { until: "export async function openInvestigationDashboard" });
         ok(/if \(action === "newTrace"\)/.test(door), "the button leads nowhere");
-
-        const api = stripComments(sources.get("api.mjs") ?? "");
-        ok(/newTrace: openNewTrace/.test(api), "it is not on game.drpg, so a macro cannot reach it");
 
         /* A localise() that misses prints its own key at the table - and it prints it
            truthy, so only comparing against the key itself catches it. */

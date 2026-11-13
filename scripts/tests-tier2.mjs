@@ -38163,6 +38163,136 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 + "ask of a locked bullet, an undo of a fresh one, the locked bullet identified)");
     }],
 
+    ["the GM judges a plant by the plant's own bars, not a theft's (E40 item 4: R36's plant half, driven; was R36)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R36 (tier 0, trimmed in E40 to its Tamper half) read palm.mjs `plantOnPerson`
+         * as text: `def.plant?.threshold` and `def.plant?.unseen` named in it. It passed a mutant that named both and
+         * judged by the theft's bars all the same (`def.plant?.threshold ? def.threshold : def.threshold`, and the unseen
+         * bar likewise). ACT-01, 17.09: the player's menu measures a plant against `ACTIONS.palm.plant` (D10a: easier on
+         * both axes), and the GM's side, which decides, measured it against the steal's. Two students alone in one room
+         * (`aloneTogether`); the first plants a Tool on the second twice, as the GM's side is asked: once at the plant's
+         * bars exactly, once one under each. Read: what each answered (done, seen), and whether the second holds the Tool.
+         */
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ACTIONS, ITEM_CATEGORIES } = await import("./config.mjs");
+        const { forcedDeletion } = await import("./utils.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const def = ACTIONS.palm;
+        const bar = def.plant?.threshold, unseen = def.plant?.unseen;
+        must(Number.isFinite(bar) && Number.isFinite(unseen) && (bar < def.threshold || unseen < def.unseen?.threshold),
+            "the plant's bars are not below the theft's on either axis - this would measure nothing");
+        const [planter, victim] = cast(2);
+        const fixture = await aloneTogether(planter, victim);
+        const NAME = "SUITE E40 R36 a planted tool", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const stowed = [], read = [];
+        try {
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(victim, "tool").ok) for (const i of victim.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(victim, "tool").ok, `${victim.name} has no hand free for a Tool - this would measure nothing`);
+            for (const [total, unseenTotal] of [[bar, unseen], [bar - 1, unseen - 1]]) {
+                const item = await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                must(item, `${planter.name} could not be handed a Tool - this would measure nothing`);
+                await sheetAuditIdle();
+                const answer = await V.plantOnPerson({ plannerId: planter.id, victimId: victim.id, itemId: item.id, total, isCritical: false,
+                    unseenTotal, unseenCritical: false });
+                await settle();
+                read.push([answer?.done ?? null, answer?.seen ?? null, victim.items.some(i => i.name === NAME)]);
+                for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            }
+        } finally {
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const [i, was] of stowed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) await m.delete();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[true, false, true], [false, true, false]]),
+            "the GM's side judged a plant by other bars than the plant's (at the plant's bars, and one under each: done, seen, "
+                + "the victim holds the Tool)");
+    }],
+
+    ["the GM's New trace places the trace the window was told, with its two flags and its words, and refuses a player and a kind off the form (E40 item 4: R91's rule, driven; was R91)", async () => {
+        /*
+         * E40 item 4, slice B, 13.11.2026. R91 (tier 0, trimmed in E40 to the dashboard's door and the window's keys) read
+         * investigation.mjs `openNewTrace` as text: the GM gate in its first 400 characters, `tiedToCrime: tieTaken(...)`
+         * and `reinforced: result.reinforced`, `placeRemnant(` and `setRemnantPublic(token, {` and `playerText:
+         * result.text`, the kind checked. It passed mutants that kept every one of those lines: `reinforced:
+         * result.reinforced && false` (a ticked box carried as unticked: the matched text is a prefix of it), and the
+         * public words written under `{ ...(result.text ? { playerText: result.text } : {}), playerText: "" }`. N-4, Dawid
+         * 21.09: a hand-placed trace can be tied or not and reinforced or not, and the GM's name and description reach the
+         * player's record. Here the window is answered as a GM fills it (`answerWindows`): the first room, Prep, evident,
+         * tied, reinforced, a name and a description; then a kind the list does not hold written into the form, then an
+         * Autopsy; then the function called from a player's console. Read: the ledger's row and public pair of the trace
+         * placed, what the three refused calls answered (the first, and whether it was told as no kind at all: without the
+         * kind's own check the Observe-number check below it still refuses one, in other words), whether the console's call
+         * asked any window, and `game.drpg.newTrace`.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        needs(world.atLeast("namedRooms", 1), "a room to place the trace in");
+        const inv = await import("./investigation.mjs");
+        const R = await import("./remnants.mjs");
+        const NAME = "SUITE E40 R91 a trace", TEXT = "SUITE E40 R91 what the student reads";
+        const before = new Set(canvas.scene.tokens.map(t => t.id));
+        let kind = "prep";
+        const handle = answerWindows((cfg, root) => {
+            const form = root.querySelector("form");
+            if (!form) return null;
+            form.room.selectedIndex = 0;
+            if (![...form.type.options].some(o => o.value === kind)) {
+                const option = document.createElement("option");
+                option.value = kind;
+                form.type.append(option);
+            }
+            form.type.value = kind;
+            form.vis.value = "evident";
+            form.tied.value = "tied";
+            form.reinforced.checked = true;
+            form.tname.value = NAME;
+            form.ttext.value = TEXT;
+            return press(cfg, root);
+        });
+        let read = null;
+        try {
+            const token = await inv.openNewTrace();
+            await settle();
+            must(token, "New trace placed nothing - this would measure nothing");
+            const row = R.remnantData(token), shown = R.remnantPublic(token);
+            kind = "suite-not-a-kind";
+            const warn = ui.notifications.warn, warned = [];
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            let offList;
+            try {
+                offList = [await inv.openNewTrace(), warned.includes(game.i18n.localize("DRPG.Investigation.newTraceBadType"))];
+            } finally {
+                ui.notifications.warn = warn;
+            }
+            kind = "autopsy";
+            const unfindable = await inv.openNewTrace();
+            const asked = handle.asked.length;
+            const consoled = await asConsole(() => inv.openNewTrace());
+            await settle();
+            read = [[row?.type ?? null, row?.tiedToCrime ?? null, row?.reinforced ?? null, shown?.name ?? null, shown?.playerText ?? null],
+                offList, unfindable, consoled, handle.asked.length - asked, game.drpg?.newTrace === inv.openNewTrace];
+        } finally {
+            handle.restore();
+            for (const doc of canvas.scene.tokens.filter(t => !before.has(t.id))) {
+                if (typeof R.removeRemnant === "function") await R.removeRemnant(doc);
+                else await doc.delete();
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["prep", true, true, NAME, TEXT], [null, true], null, null, 0, true]),
+            "New trace placed another trace than the window was told, or placed one it should refuse ([the row's kind, tie, "
+                + "reinforced; the public name and description], [a kind off the list, told it is no kind], an Autopsy, a player's console call, windows "
+                + "the console's call asked, game.drpg.newTrace)");
+    }],
+
 
     ["the GM's popup for a veiled ask", async () => {
         /*
