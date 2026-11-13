@@ -427,7 +427,7 @@ async function choosePicks(kind, count) {
         footer: {
             primary: {
                 action: "ok",
-                label: game.i18n.localize("DRPG.Action.proceed"),
+                label: game.i18n.localize("DRPG.Action.restNow"),
                 callback: (e, b, d) => Array.from(d.element.querySelectorAll("[name=pick]:checked")).map(i => i.value)
             },
             close: "cancel"

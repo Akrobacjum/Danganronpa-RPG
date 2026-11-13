@@ -81,7 +81,8 @@ const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
  * the mockup round's to build, not this probe's.
  */
-const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes", "description", "fog", "scenes"];
+// No "scenes" since E101 item 5: the Scenes are Season setup's part (`season-setup`, `season-setup--zones`).
+const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes", "description", "fog"];
 /* The player's action windows (E21 C1c): `performAction` on the character p1 owns, each window dismissed. */
 const MINE = "game.actors.find(a => a.type === \"character\" && a.isOwner)";
 const ACTION_WINDOWS = ["observe", "search", "analyze", "tamper", "rest", "project", "palm", "dynamic"];
@@ -273,7 +274,11 @@ export const WINDOWS = [
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
     // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
     { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
-    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
+    /* E101 item 2: Pre-season checks are the checklist's further checks, filled under its rows once the window stands - the
+       page keeps its id (audit/style-baseline.json and R1323's pages name it) and is the checklist with them drawn
+       (`waitFor`); their technical lines are Foundry and modules, from the Debug log. */
+    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", waitFor: "[data-drpg-season-more] [data-drpg-check-part=\"anonymity\"]" },
+    { id: "foundry-report", module: "season-setup.mjs", call: "m.openFoundryReport()" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard({ view: \"table\" })" },
     { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
@@ -307,7 +312,8 @@ export const WINDOWS = [
     { id: "zone-picker", module: "trial-zones-ui.mjs", before: SEED_HALL + SEED_DIVE, after: DROP_DIVE + DROP_HALL, call: "m.openZonePicker({ mode: \"dive\" })" },
     { id: "dive-editor", module: "trial-zones-ui.mjs", before: SEED_DIVE, after: DROP_DIVE, call: "m.editDiveSet(\"probe08set\")" },
     { id: "findings", module: "trial-zones-ui.mjs", before: SEED_FINDINGS, after: DROP_FINDINGS, call: "m.openFindings()" },
-    { id: "rooms-scenes--zones", module: "room-setup.mjs", before: SEED_HALL, after: DROP_HALL, perTab: false, call: "m.openRoomSetupDialog({ tab: \"scenes\" })" },
+    // E101 item 5: the hall's zones in Season setup's scenes part (Room setup's Scenes tab until then, `rooms-scenes--zones`).
+    { id: "season-setup--zones", module: "season-setup.mjs", before: SEED_HALL, after: DROP_HALL, perTab: false, call: "m.openSeasonSetup()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
     { id: "reveal-confirm", module: "trial-floor-ui.mjs", call: "m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })" },
@@ -318,6 +324,11 @@ export const WINDOWS = [
     { id: "incident-tracker", module: "murder-ui.mjs", call: "m.openIncidentTracker()" },
     { id: "level-up", module: "level-up.mjs", call: "m.openAdvancementFor(game.actors.find(a => a.type === \"character\"))" },
     { id: "item-manager", module: "gm-items.mjs", call: "m.openItemManager()" },
+    // E101 F2: the Give tab's other forms, each its bars pressed in the drawn window (Give opens on Item > From the tables).
+    { id: "item-manager--item-new", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-from] button[data-drpg-mode="create"]'], call: "m.openItemManager()" },
+    { id: "item-manager--bullet", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="bullet"]'], call: "m.openItemManager()" },
+    { id: "item-manager--bullet-new", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="bullet"]', '[data-drpg-give-from] button[data-drpg-mode="create"]'], call: "m.openItemManager()" },
+    { id: "item-manager--key", module: "gm-items.mjs", perTab: false, click: ['[data-drpg-give-what] button[data-drpg-mode="key"]'], call: "m.openItemManager()" },
     { id: "item-tables", module: "tables-editor.mjs", call: "m.openItemTables()" },
     // E49 A4: Room pools with a room pool seeded (the header's SEEDED).
     { id: "item-tables--rooms", module: "tables-editor.mjs", before: SEED_ROOM_POOL, after: DROP_ROOM_POOL, open: "editRooms", perTab: false, call: "m.openItemTables()" },
@@ -370,12 +381,16 @@ const capture = (repoUrl, w) => `
         app.element.querySelector(\`nav.drpg-tabs > button[data-drpg-tab-key="\${open}"]\`)?.click();
         await new Promise(r => setTimeout(r, 150));
     }
-    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked). */
+    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked); a list is clicked in
+       its order (E101 F2: the item window's Give tab, a bar and then the other). */
     const click = ${JSON.stringify(w.click ?? null)};
-    if (app && click) {
-        app.element.querySelector(click)?.click();
+    for (const selector of app && click ? [].concat(click) : []) {
+        app.element.querySelector(selector)?.click();
         await new Promise(r => setTimeout(r, 300));
     }
+    /* A part the window fills after it stands (E101: the Season checklist's further checks), waited for, up to 6 s. */
+    const waitFor = ${JSON.stringify(w.waitFor ?? null)};
+    for (let i = 0; app && waitFor && i < 120 && !app.element.querySelector(waitFor); i++) await new Promise(r => setTimeout(r, 50));
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {
         const step = new Set(foundry.applications.instances.keys());

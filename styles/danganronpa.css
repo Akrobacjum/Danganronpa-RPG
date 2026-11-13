@@ -1660,11 +1660,11 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
     flex: 0 0 auto;
 }
 
-.drpg-action-button:hover:not(:disabled) .drpg-action-icon {
+.drpg-action-button:hover:not(:disabled):not(.drpg-action-still) .drpg-action-icon {
     opacity: 1;
 }
 
-.drpg-action-button:hover:not(:disabled) {
+.drpg-action-button:hover:not(:disabled):not(.drpg-action-still) {
     background: none;
     border-color: var(--drpg-eye);
     box-shadow: 0 0 6px var(--drpg-eye-glow);
@@ -2374,7 +2374,7 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
    the end of this file - stating them twice is what made "why is this window
    clipped" depend on which rule came last. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) .window-content {
@@ -4771,7 +4771,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 /* …but prose inside a wide window still reads at a measure, rather than being
    stretched to whatever the widest column needed. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table) :is(p, blockquote, .notes) {
@@ -4797,7 +4797,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    both use it - and a column of data centred cell by cell is harder to scan,
    not easier. Everything under a `table` is left exactly as the table set it. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table)
@@ -4859,7 +4859,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    and centring the lines of it makes it read as a caption. The block still
    moves to the middle. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table) blockquote,
@@ -7750,7 +7750,7 @@ body.drpg-player #scene-controls {
 
 /* With the fill gone the border IS the tile, so the hover state has to carry
    the whole affordance: the outline brightens to Eye and lights up. */
-.drpg-action-button:hover:not(:disabled),
+.drpg-action-button:hover:not(:disabled):not(.drpg-action-still),
 .drpg-call-button:hover:not(:disabled) {
     background-color: rgba(var(--drpg-eye-rgb), 0.14) !important;
     border-color: var(--drpg-eye) !important;
@@ -11568,7 +11568,7 @@ body.drpg-stacked .application.sheet.actor.character {
 .drpg-free-move .drpg-move-slot[data-drpg-state="off"] { opacity: 0.28; }
 
 /* THE NAME ROW'S CAPTIONS (E49 B2, S03-31; sheet.mjs `headerButton`): Level Up's and Give / take's words beside the
-   icon, and the Stop's "Safeword" before the table's word. */
+   icon (the Stop's "Safeword" caption before the table's word went in E100: the word alone). */
 .character-header-sheet .name-row .drpg-advance-button .drpg-header-caption {
     margin-left: 0.35em;
     font-size: 0.8em;
@@ -11576,7 +11576,6 @@ body.drpg-stacked .application.sheet.actor.character {
     text-transform: uppercase;
     white-space: nowrap;
 }
-.drpg-safeword-button .drpg-safeword-caption { opacity: 0.8; }
 
 /* And a pixel down, because the ink sits high in a box that is already right.
    --------------------------------------------------------------------------
@@ -11741,7 +11740,7 @@ body.drpg-stacked .application.sheet.actor.character {
    `line-height` is tightened because two lines of the pixel face at the
    default leading push the row taller than it needs to be. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) footer.form-footer button {
@@ -11766,7 +11765,7 @@ body.drpg-stacked .application.sheet.actor.character {
    different module's window sitting inside this one, and it took the red edge
    below with it by association. Bone at the module's own line weight instead. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) footer.form-footer button:not(.drpg-gm-route) {
@@ -12015,7 +12014,7 @@ body.drpg-stacked .application.sheet.actor.character {
 
 /* The lead, for windows that do not open with a briefing block. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) .dialog-form > div > p:first-child {
@@ -12026,7 +12025,7 @@ body.drpg-stacked .application.sheet.actor.character {
    Size and tracking do the work so the heading reads as STRUCTURE - the same
    move the chat card's action slot and the GM panel's section bars make. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) .dialog-form :is(h3, h4):not(table *) {
@@ -12042,7 +12041,7 @@ body.drpg-stacked .application.sheet.actor.character {
    `.drpg-rest-option` and a Frisk's ways (`.drpg-frisk-mode`, H81-12) are
    excluded: those labels ARE the control. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) .dialog-form label:not(.drpg-choice):not(.drpg-rest-option):not(.drpg-frisk-mode):not(:has(.drpg-choice)) {
@@ -12053,7 +12052,7 @@ body.drpg-stacked .application.sheet.actor.character {
    the Investigation window - see the width rules above, which learned this
    the hard way. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) .dialog-form .notes:not(td):not(th):not(table *) {
@@ -12064,7 +12063,7 @@ body.drpg-stacked .application.sheet.actor.character {
 /* What the fine print emphasises is the one thing in it that must not be
    dim - "costs 2 Sanity", "once per chapter". */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) .dialog-form .notes:not(td):not(th):not(table *) strong {
@@ -14458,7 +14457,7 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
    delete confirmation, a file picker - are left alone: they are not ours to
    repaint, and stage 5's font work already made that split. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
@@ -15035,7 +15034,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
    ========================================================================== */
 
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
@@ -15051,7 +15050,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
 }
 
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
@@ -15167,7 +15166,7 @@ body.drpg-theme-monokuma-legacy #pause.paused {
 }
 
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
@@ -15503,7 +15502,7 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
    with this it reads as the top edge of a frame instead of a strip laid on a
    dark rectangle. */
 .application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
     .drpg-summary-dialog, .drpg-safeword-dialog
@@ -18032,6 +18031,11 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
     display: revert;
     visibility: hidden;
 }
+/* An unpicked row keeps its line in an action window (E100, 12.11.2026; the owner's standing rule "nie chowajmy w oknach
+   akcji wyboru statystyki ani opisu akcji NIGDY", the E72 line's finding): the line is the row's description, which the
+   columns' rule above (`display: none` under an unpicked row) folded away. Overruled here, not edited there, so this and
+   the E72 line's override for the Call windows merge clean. R4109 reads the cascade. */
+.drpg-action-window .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: revert; }
 /* Details' toggle wears the kit's face (the footer's, `--drpg-kit-face-*` and its fallbacks): with no ground of its own
    Chromium drew it on its dark-scheme ButtonFace under Legacy, rgb(107, 107, 107), the bone on it 3.99:1 (A8.4's probe of
    every sheet's rules on it: only `.drpg-panel button ... { color: var(--drpg-bone) }` matched). The glass draws its own. */

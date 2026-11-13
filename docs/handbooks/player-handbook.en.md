@@ -657,7 +657,7 @@ A death by one's own hand uses the killer's roll and skips straight to the clean
 
 ### If you are the victim
 
-The incident is turn-based. **You go first**. Alone with a trap, you roll every crisis action with advantage, and every turn is yours: nobody acts against you, and each turn you end comes back to you. Every other tile on your sheet goes dark; **Fight back** opens your crisis actions, and is dimmed while it is not your turn. Pick an action and it unfolds what it costs, what it rolls and who picks the statistic, and what a miss does; **Roll it** sends it on - to the GM's pick first, where it lists several statistics. Hope Calls still work.
+The incident is turn-based. **You go first**. Alone with a trap, you roll every crisis action with advantage, and every turn is yours: nobody acts against you, and each turn you end comes back to you. Every other tile on your sheet goes dark; **Fight back** opens your crisis actions, and is dimmed while it is not your turn. Pick an action and it unfolds what it costs, what it rolls and who picks the statistic, and what a miss does; **Roll** sends it on - to the GM's pick first, where it lists several statistics. Hope Calls still work.
 
 > [!WARNING]
 > From your second turn on, every turn costs you: **1 Sanity** in a direct murder, **2** when you are alone with a trap - Sanity until it runs out, then Health.

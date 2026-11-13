@@ -711,6 +711,32 @@ rzucie go nie zrobisz.” w B18 (wpis `reroll` w glosariuszu).
 | B50 | `DRPG.Assign.footnote` | gm-diagnostics | “Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody.” | „Despair z rzutów ucznia trafia do puli tego Monokumy, do którego jest tu przypisany. „(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Przypisania dostaje przeglądarka każdego gracza, więc gracz może odczytać, kto jest ustawiony na „- nikt -”.” | E66 |
 | B51 | `DRPG.Season.hint.assignments` | gm-diagnostics | “In Despair Flow, assign each student a Monokuma; Despair from their rolls goes to that Monokuma's pool. A student with no Monokuma assigned falls back to the first pool and is named here until assigned. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody. The step is done when every student is assigned by hand or set to “- nobody -”.” | „Despair z rzutów ucznia trafia do puli tego Monokumy, do którego przypiszesz go w Despair Flow. Uczeń bez przypisania zasila pierwszą pulę i jest tu wymieniony, dopóki go nie przypiszesz. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC i szablonów. Przeglądarka każdego gracza może odczytać, kto jest tak ustawiony. Ten krok jest gotowy, gdy każdy uczeń ma pulę wybraną ręcznie albo ustawienie „- nikt -”.” | E66 |
 
+### E100: słowa przycisków i teksty ekranów gracza (12.11.2026)
+
+Teksty nowe i zmienione przez E100 (porządki ekranów gracza; sześć punktów przeglądu zatwierdzonych przez właściciela
+12.11.2026). Przyciski według reguły punktu 6, która dla przycisków okien akcji zastępuje O11: jedno słowo na rodzaj
+przycisku, bez dopełnienia. Przycisk, który rzuca, mówi „Rzuć”; przycisk, po którym decyduje GM, „Wyślij do GM-a”;
+przycisk, który tylko prowadzi do następnego okna, „Dalej”. Okno Infiltrate (przegląd r112, G1, 13.11.2026): „Rzuć” na
+wierszach, które rzucają od razu (Dash, Shut the Door, Keep Watch), „Dalej” na tych, po których jest okno (Listen, Tail,
+Force, Pick). Lista okien jest w `docs/dev/e100/STATUS.md`.
+
+| Klucz | Gdzie | EN | PL | Zmiana |
+| --- | --- | --- | --- | --- |
+| `DRPG.Action.roll` | przycisk okna akcji, która rzuca | “Roll” | „Rzuć” | PL było „Rzut” |
+| `DRPG.Action.next` | przycisk okna, po którym jest następne okno | “Next” | „Dalej” | nowy |
+| `DRPG.Action.restNow` | przycisk okna wyboru odpoczynku | “Rest” | „Odpocznij” | nowy |
+| `DRPG.Action.askThem` | przycisk jawnego Frisk | “Ask them” | „Poproś” | nowy |
+| `DRPG.Bridge.send` | przycisk okna prośby do GM-a | “Send to the GM” | „Wyślij do GM-a” | EN było “Send to GM” |
+| `DRPG.Project.proposeButton` | przycisk propozycji projektu | “Send to the GM” | „Wyślij do GM-a” | EN było “Send it to the GM” |
+| `DRPG.Murder.briefRoll` | przycisk akcji kryzysowej z rzutem | “Roll” | „Rzuć” | EN było “Roll it” |
+| `DRPG.Action.gotIt` | przycisk okna Move | - | - | usunięty z oknem |
+| `DRPG.Move.drag` | dymek wiersza Move na HUD-zie | “To move to another room, drag your token there.” | „Żeby przejść do innego pokoju, przeciągnij tam swój token.” | nowy |
+| `DRPG.Move.dragShort` | linia na kaflu Move | “Drag your token” | „Przeciągnij token” | nowy |
+| `DRPG.Move.free` | linia pod kaflami Monocuba (zamiast opisu Move) | “Free” | „Za darmo” | nowy |
+| `DRPG.Notices.filter.more` | pierwsza pozycja menu filtrów | “More filters” | „Więcej filtrów” | nowy |
+| `DRPG.Notices.filter.moreLabel` | nazwa menu dla czytnika ekranu | “More filters” | „Więcej filtrów” | nowy |
+| `DRPG.Notices.filter.withCount` | pozycja menu z liczbą | “{label} ({n})” | „{label} ({n})” | nowy |
+
 ## 13. Why so much is rebuilt
 
 On 30.10.2026 the owner wrote: „Nie mam juz cztery kierunki niestety. Myslalem ze czat wszystko przeniosl do audytu.

@@ -803,12 +803,13 @@ export const DrpgApi = {
      *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's
      *  "Show the hall" and "Back to school"; GM only. `trialSceneReport()` answers the linked scenes, the
      *  active one, the cast's hall tokens shown now, the tokens the module made there (E81 DZ6) and the
-     *  Scenes tab's warnings (GM only, else null);
-     *  `openTrialCast()` opens Room Setup on its Scenes tab, where the cast is chosen. */
+     *  scenes part's warnings (GM only, else null);
+     *  `openTrialCast()` opens Season setup, whose scenes part chooses the cast (Room Setup's Scenes tab until E101). */
     showCourtroom: (...a) => import("./trial-scene.mjs").then(m => m.showCourtroom(...a)),
     showSchool: (...a) => import("./trial-scene.mjs").then(m => m.showSchool(...a)),
     trialSceneReport: () => import("./trial-scene.mjs").then(m => m.trialSceneReport()),
-    openTrialCast: () => import("./vault.mjs").then(m => m.openRoomSetupDialog({ tab: "scenes" })),
+    // Season setup's scenes part since E101 item 5 (Room setup's Scenes tab until then).
+    openTrialCast: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()),
 
     /* ---- the chapter's life -----------------------------------------------
      * None of these fire on a clock tick. Two of them delete things that do not
@@ -1188,7 +1189,7 @@ export const DrpgApi = {
     diagnoseDespair,
 
     /** Who is still missing the guide's starting resources - run before a session
-     *  zero. Also a line of Season setup's pre-session checks and of `diagnose()`. */
+     *  zero. Also a line of `diagnose()`; the Season checklist's rows check the same since E101. */
     diagnoseCharacters,
 
     /** Why does the sheet look different here than on another install? */

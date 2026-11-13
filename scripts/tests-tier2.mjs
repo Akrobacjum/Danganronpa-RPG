@@ -50225,12 +50225,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             return target.key;
         };
         const resolve = key => observe.resolveObserve({ key, total: 24, isCritical: true, actorId: actor.id });
-        // The hub's two windows: the character's "Truth Bullet", then the trace handed over, after `meanwhile`.
+        // The hub's Give tab: Truth Bullet > From a Remnant, the trace handed over, after `meanwhile` (E101 F2, changed on
+        // purpose: until then the hub's door and the Truth Bullet's own window, two answers).
         const hand = (trace, meanwhile = null) => {
-            answers.push({ who: actor.id, go: "bullet" }, async () => {
+            answers.push(async () => {
                 await meanwhile?.();
-                return { recipient: actor.id, tell: false, mode: "existing", remnantId: trace.id,
-                    name: R.remnantData(trace)?.public?.name || "SUITE E09 G1 a trace a GM hands over", shown: "real" };
+                return { go: "give", who: actor.id, what: "bullet", from: "existing", result: { recipient: actor.id, tell: false, mode: "existing", remnantId: trace.id,
+                    name: R.remnantData(trace)?.public?.name || "SUITE E09 G1 a trace a GM hands over", shown: "real" } };
             });
             return openItemManager(actor);
         };
@@ -50329,8 +50330,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             const trace = lootTrace();
             must(trace && R.remnantData(trace)?.tiedToCrime === true, "the loot left no trace tied to the crime - this would measure nothing");
-            answers.push({ who: holder.id, go: "bullet" }, { recipient: holder.id, tell: false, mode: "existing", remnantId: trace.id,
-                name: "SUITE E09 r2-G4 a loot's trace", shown: "real" });
+            // The hub's Give tab, Truth Bullet > From a Remnant (E101 F2, changed on purpose: one answer where there were two).
+            answers.push({ go: "give", who: holder.id, what: "bullet", from: "existing", result: { recipient: holder.id, tell: false, mode: "existing", remnantId: trace.id,
+                name: "SUITE E09 r2-G4 a loot's trace", shown: "real" } });
             await openItemManager(holder);
             await settle();
             const item = holder.items.find(i => !had.get(holder.id).has(i.id) && T.secretOf(i.uuid).remnantId === trace.id);
@@ -65253,7 +65255,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const keep = new Set([...played, monokuma].map(a => a.id));
                 await T.saveTrialCast(hall, Object.fromEntries(game.actors.filter(a => a.type === "character" && !keep.has(a.id)).map(a => [a.id, false])));
                 await settle();
-                const dark = T.hallIsDark(hall) ? [`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`] : [];
+                const dark = T.hallIsDark(hall) ? [`<p>${game.i18n.localize("DRPG.TrialScene.hallDarkLine")}</p>`] : [];
                 const seen = new Set(game.messages.map(m => m.id));
                 const enter = async () => {
                     const entered = await T.enterTrialScene(hall);
@@ -65976,6 +65978,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * Since E81 DZ6 (12.10.2026) the list holds a box per character of the world (`cast:${actorId}`), the second
          * token of the first student none of its own, and the choice is stored by actor; red at 0697d0f, where the
          * boxes were the hall's tokens and the second token's drawn off.
+         * E101 item 5 (13.11.2026, changed on purpose): the Scenes are Season setup's part, its Save their write; the three
+         * answers are Season setup's (season-setup.mjs `openSeasonSetup`), and Room setup over the bare scene opens on Rooms.
          */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.wireScenesTab === "function", "there is no Scenes tab - trial-scene.mjs has no `wireScenesTab`");
@@ -66053,15 +66057,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 const prepareBefore = Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })).sort();
                 let drawn = null;
                 const answer = fill => async cfg => {
-                    const element = document.createElement("div"), form = document.createElement("form");
-                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
-                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
-                    element.append(form);
+                    // Season setup's content holds its own form (E101 item 5): drawn as it is, not inside a second one.
+                    const element = document.createElement("div");
+                    if (typeof cfg?.content === "string") element.innerHTML = cfg.content;
+                    else if (cfg?.content) element.append(cfg.content.cloneNode(true));
+                    const form = element.querySelector("form") ?? element;
                     T.wireScenesTab(element);
                     const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
-                    must(field("scenes:school") && field("scenes:trial"), "Room Setup drew no Scenes tab - this would measure nothing");
+                    must(field("scenes:school") && field("scenes:trial"), "Season setup drew no scenes part - this would measure nothing");
                     fill(field, element);
-                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "save");
                     return apply.callback(new Event("click"), apply, { element });
                 };
                 const pick = (field, role, value) => { field(`scenes:${role}`).value = value; field(`scenes:${role}`).dispatchEvent(new Event("change")); };
@@ -66078,7 +66083,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     if (field(`cast:${second.id}`)) field(`cast:${second.id}`).checked = false;
                     field("scenes:prepare").checked = true;
                 });
-                await V.openRoomSetupDialog();
+                await SS.openSeasonSetup();
                 await settle();
                 const shown = hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
                 const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().later ?? null), writes];
@@ -66088,12 +66093,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 writes = 0;
                 warned.length = 0;
                 D.wait = answer(field => { pick(field, "school", hall.id); pick(field, "trial", hall.id); });
-                const refused = await V.openRoomSetupDialog();
+                const refused = await SS.openSeasonSetup();
                 await settle();
-                const clash = [refused, warned.includes(game.i18n.localize("DRPG.TrialScene.sameScene")), writes, R.schoolScene() === school];
+                // Since the r112 review's S2 (13.11.2026) a clash drops the scenes part alone and the rest of the window is
+                // written: Season setup answers its Save with `scenes: null`, where it answered null for the whole (E101-T11).
+                const clash = [refused?.scenes === null, warned.includes(game.i18n.localize("DRPG.TrialScene.sameScene")), writes, R.schoolScene() === school];
                 writes = 0;
                 D.wait = answer(() => {});
-                await V.openRoomSetupDialog();
+                await SS.openSeasonSetup();
                 await settle();
                 const untouched = [writes, trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null];
                 const rows = () => SS.steps().filter(row => ["roomCount", "rooms", "scenes"].includes(row.key))
@@ -66119,11 +66126,14 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
         });
         const warnings = read?.at(-1) ?? [];
-        equal(JSON.stringify(read), JSON.stringify(["scenes", [warnings, true, true, true, true],
+        equal(JSON.stringify(read), JSON.stringify(["bedrooms", [warnings, true, true, true, true],
             [true, true, stableJson([ZONE]), 1], [false, false], ["prop"],
             [["environment.globalLight.enabled", "fog.exploration", "tokenVision"], [], true],
-            [null, true, 0, true], [0, false],
-            [["rooms", true], ["scenes", true]], true, warnings]),
+            [true, true, 0, true], [0, false],
+            /* E101 (13.11.2026, changed on purpose): the Scenes row reads not done - this hall has no Zone A and Zone B, and
+               since E73 C1 the report the row reads warns of that (`zonesNone`, the last of the warnings below). Measured
+               at eb9431dc, e93 merged and before E101's items 3-5: the same false, the test red there. */
+            [["rooms", true], ["scenes", false]], true, warnings]),
             "[the tab Room Setup opened on over a scene with no region; the hall's warnings, the Stand alone named, the cast list the hall's, a box per character "
             + "of the world and none per token, the second student's ticked before the untick; the school and the hall linked, the field the tab does not show kept, the role setting's writes; the second student's untick stored, "
             + "a row for the first; the hall's tokens shown after Apply; what Prepare had to do and has left, and the isometric flag; the clash's answer, its "
@@ -77241,7 +77251,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "(the draws that broke the rule as [named, Hope, Fear]; the pool's move after a plain 2d12, a duality roll's JSON, one with its dice getters)");
     }],
 
-    ["Despair Flow writes only the rows the GM changed and marks what it shows (E15-T8): a pool renamed and a student ticked a Monokuma leave two fallbacks fallbacks and give the new Monokuma no row; the fallback is named in its select, Split evenly sits on the students' tab alone", async () => {
+    ["Despair Flow writes only the rows the GM changed and marks what it shows (E15-T8): a pool renamed and a student moved to nobody leave two fallbacks fallbacks (no Monokuma box since E101); the fallback is named in its select, Split evenly sits on the students' tab alone", async () => {
         /*
          * E15 C6, 25.10.2026; E15-27 to E15-29, audit S10-47, S10-62, S13-11. Despair Flow opened as a GM
          * opens it (`openGmTeamDialog`, the harness's drawn DialogV2), over four students: one assigned to
@@ -77282,13 +77292,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             must(root, "Despair Flow did not open - this would measure nothing");
             const shown = () => [...root.querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
             const tab = key => root.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${key}"]`)?.click();
+            // With one GM the three tabs are folded behind Show (E101 item 6, R4051): shown first, as a GM would.
+            read.unfold = root.querySelectorAll("[data-drpg-flow-unfold]").length <= 1;
+            root.querySelector("[data-drpg-flow-unfold]")?.click();
             tab("pools");
             read.footer = { pools: shown() };
             tab("students");
             read.footer.students = shown();
             read.account = root.querySelector('[data-drpg-pane="pools"] thead th')?.textContent?.trim() ?? null;
-            const mkRow = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`)?.closest("tr");
-            read.notMonokuma = [mkRow?.querySelector("[data-drpg-pool-none]")?.hidden ?? null, mkRow?.querySelector("[data-drpg-pool]")?.hidden ?? null];
+            // No Monokuma box since E101 item 6: the role is the Students window's, and this tab lists Monokumas alone.
+            read.notMonokuma = [root.querySelectorAll("input[name^='mk.']").length, Boolean(root.querySelector(`[name="pool.${CSS.escape(ticked.id)}"]`))];
             const select = actor => root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
             read.rows = [explicit, nobody, implicit].map(actor => {
                 const s = select(actor);
@@ -77300,9 +77313,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const name = root.querySelector(`[name="poolName.${CSS.escape(gm.id)}"]`);
             must(name, "the pool's name field is not drawn - this would measure nothing");
             name.value = "SUITE E15 C6 pool";
-            const mk = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`);
-            mk.checked = true;
-            mk.dispatchEvent(new Event("change", { bubbles: true }));
             const moved = select(ticked);
             moved.value = NO_MONOKUMA;
             moved.dispatchEvent(new Event("change", { bubbles: true }));
@@ -77317,6 +77327,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await until(() => open()[0]?.element, 6000);
             const again = open()[0]?.element;
             must(again, "Despair Flow did not open again - this would measure nothing");
+            again.querySelector("[data-drpg-flow-unfold]")?.click();
             again.querySelector('nav.drpg-tabs [data-drpg-tab-key="students"]')?.click();
             const pin = again.querySelector(`[name="assign.${CSS.escape(implicit.id)}"]`);
             must(pin, "the never-assigned student's select is not drawn - this would measure nothing");
@@ -77344,15 +77355,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             // In the kit's tree order since E21 C2a: the primary, then the closing word, then the secondary ones (ui-kit.mjs).
             footer: { pools: ["save", "cancel"], students: ["save", "cancel", "auto"] },
             account: game.i18n.localize("DRPG.Despair.account"),
-            notMonokuma: [false, true],
+            unfold: true,
+            notMonokuma: [0, false],
             rows: [[false, label], [false, game.i18n.localize("DRPG.Assign.nobody")], [true, game.i18n.format("DRPG.Assign.fallbackOption", { name: label })]],
             asterisks: 0,
             outside: true,
-            saved: { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA },
+            saved: { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA, [ticked.id]: NO_MONOKUMA },
             pin: [true, false, true],
             pinned: true
         }), "Despair Flow wrote a row the GM did not change, or its marks are not the rule's [the footer on the pools' and the students' tab; "
-            + "the pools' first header; a student not ticked: its \"-\" hidden, its select hidden; per student (assigned, nobody, never): the "
+            + "the pools' first header; [Monokuma boxes, a pool select for a student] (E101 item 6); per student (assigned, nobody, never): the "
             + "fallback's class, the option shown; asterisks; \"Outside every pool: 1\"; the assignments after a rename and a student ticked; "
             + "the never-assigned student's pool picked: the option shown is its plain name, still dim, the pool counted; saved: their row names the pool]");
     }],
@@ -81670,6 +81682,456 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), "[the footer's buttons on each tab]; [Apply buttons in the window]; [the first change stored with its row saying saved, the window open, "
             + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
             + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]; [the map after the test's own restore]");
+    }],
+    ["E101-T7 - the Sound window's two switches save as they are flipped: Music follows the game state on the Music tab and Vary the sounds on the Effects tab write their world settings with no Apply, and the window stays open (E101 item 7; R4050)", async () => {
+        /*
+         * E101 item 7, 12.11.2026 (the owner's yes to the GM screens' review, #8). As the GM: the Sound window opened, each
+         * switch flipped from what it is and the setting read, then flipped back and read; Close. Both settings are put
+         * back whatever happened. Red at 4dfac3a: no switch in the window.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its switches flipped");
+        must(game.user.isGM, "the Sound window's switches are a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const was = { musicEnabled: getSetting(SETTINGS.musicEnabled), sfxVary: getSetting(SETTINGS.sfxVary) };
+        const read = {};
+        let answer = null;
+        const root = () => document.querySelector(".drpg-window-sound");
+        try {
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            must(await until(() => root()?.querySelector("[data-drpg-sound-setting]"), 6000), "the Sound window did not open with its switches");
+            const drawn = root();
+            for (const [tab, key] of [["music", "musicEnabled"], ["effects", "sfxVary"]]) {
+                root().querySelector(`nav.drpg-tabs [data-drpg-tab-key="${tab}"]`)?.click();
+                const input = root().querySelector(`[data-drpg-sound-setting="${key}"] input[role="switch"]`);
+                const flip = async to => {
+                    input.checked = to;
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                    return Boolean(await until(() => getSetting(SETTINGS[key]) === to, 3000));
+                };
+                read[key] = input ? [input.checked === (was[key] === true), await flip(!(was[key] === true)), await flip(was[key] === true)] : "no switch";
+            }
+            read.sameWindow = root() === drawn;
+            read.save = root().querySelectorAll('[data-action="save"]').length;
+            root().querySelector('footer.form-footer button[data-action="close"]')?.click();
+            const done = await Promise.race([answer, wait(3000).then(() => "still open")]);
+            read.closed = done !== "still open" && Boolean(await until(() => !root(), 2000));
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            for (const key of ["musicEnabled", "sfxVary"]) if (getSetting(SETTINGS[key]) !== was[key]) await setSetting(SETTINGS[key], was[key]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ musicEnabled: [true, true, true], sfxVary: [true, true, true], sameWindow: true, save: 0, closed: true }),
+            "{each switch: [drawn as the setting stood, flipped and stored, flipped back and stored]; the same window; Apply buttons; Close closes}");
+    }],
+    ["E101-T6 - Despair Flow's Monokumas tab lists the Monokumas alone with their pool, and two on one pool are said in a warning box above its table (E101 item 6; R4051, R2030)", async () => {
+        /*
+         * E101 item 6, 12.11.2026 (the owner's yes to the GM screens' review, #7). The Monokuma box is gone, so the warning
+         * R2030 read by ticking two boxes is read here on two characters made Monokumas by monokuma.mjs `setMonokuma` (the
+         * Students window's road), both put on the GM's pool in the form; closed with Cancel, so the form writes nothing.
+         * Each character's flag and the tracks `setMonokuma` clears are put back.
+         */
+        needs(env.dialogs(), "Despair Flow is read on a drawn window");
+        needs(world.atLeast("livingStudents", 2), "two characters to make Monokumas");
+        const T = await import("./gm-team-dialog.mjs");
+        const { monokumas } = await import("./despair.mjs");
+        const { isMonokuma, setMonokuma, studentActors } = await import("./monokuma.mjs");
+        const gms = monokumas();
+        must(gms.length >= 1, "nobody holds a Despair pool here - the window would not open");
+        const pair = studentActors().filter(a => !isMonokuma(a)).slice(0, 2);
+        must(pair.length === 2, "two students to mark - this would measure nothing");
+        const R = "system.resources";
+        const was = pair.map(actor => ({ actor, flag: actor._source.flags?.[MODULE_ID]?.[FLAGS.monokuma],
+            tracks: Object.fromEntries(["hope", "actions"].filter(k => foundry.utils.getProperty(actor._source, `${R}.${k}`) !== undefined)
+                .map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(actor._source, `${R}.${k}`))])) }));
+        const poolsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.monokumaPools) ?? {});
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-gmteam"));
+        const read = {};
+        let answer = null;
+        try {
+            for (const actor of pair) await setMonokuma(actor, true);
+            await settle();
+            answer = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            await until(() => open()[0]?.element, 6000);
+            const root = open()[0]?.element;
+            must(root, "Despair Flow did not open - this would measure nothing");
+            root.querySelector("[data-drpg-flow-unfold]")?.click();
+            root.querySelector('nav.drpg-tabs [data-drpg-tab-key="monokumas"]')?.click();
+            const pane = root.querySelector('[data-drpg-pane="monokumas"]');
+            const rows = [...pane.querySelectorAll("tbody tr")];
+            read.rows = rows.map(tr => tr.dataset.actor).filter(id => pair.some(a => a.id === id)).sort();
+            read.others = rows.filter(tr => !isMonokuma(game.actors.get(tr.dataset.actor))).length;
+            read.boxes = pane.querySelectorAll("input[type=checkbox]").length;
+            for (const actor of pair) {
+                const select = pane.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`);
+                select.value = gms[0].id;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            const warn = pane.querySelector(".drpg-monokuma-warning");
+            const table = pane.querySelector("table.drpg-data-table");
+            read.warning = [Boolean(warn?.querySelector('.drpg-box[data-drpg-box="warning"]')), Boolean(warn && !warn.hidden),
+                Boolean(warn && table && (warn.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                pair.every(a => warn?.textContent.includes(a.name))];
+            root.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+        } finally {
+            for (const app of open()) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            for (const { actor, flag, tracks } of was) {
+                if (flag === undefined) { if (actor._source.flags?.[MODULE_ID]?.[FLAGS.monokuma] !== undefined) await actor.unsetFlag(MODULE_ID, FLAGS.monokuma); }
+                else await actor.setFlag(MODULE_ID, FLAGS.monokuma, flag);
+                if (Object.keys(tracks).length) await actor.update(Object.fromEntries(Object.entries(tracks).map(([k, v]) => [`${R}.${k}`, v])));
+            }
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.monokumaPools) ?? {}) !== stableJson(poolsWas)) await game.settings.set(MODULE_ID, SETTINGS.monokumaPools, poolsWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ rows: pair.map(a => a.id).sort(), others: 0, boxes: 0, warning: [true, true, true, true] }),
+            "{the two Monokumas' rows; rows of a character that is no Monokuma; checkboxes on the tab; the warning [a warning box, shown, above the table, both names]}");
+    }],
+    ["E101-T4 - Season setup stays as it is while a window opened from its row comes and goes: Despair Flow pressed from the row opens in front, and closed, Season setup is the same window, not drawn again, with a field as typed and its scroll kept (E101 F4; the owner at a 1.2.108 table)", async () => {
+        /*
+         * E101 F4, 12.11.2026. Until E101 a tile of Season setup's row closed Season setup and brought it back built from
+         * the world once the tile's window answered (`handOff`, SEASON-02), which a GM saw as the window refreshing. The
+         * fields it holds are Edit campaign's and the safeword, which no tile's window writes. Here, as the GM: Season
+         * setup opened, the campaign name typed (not saved), the body scrolled, Despair Flow pressed from the row and
+         * closed with Cancel; read: Season setup's element before and after, the field, the scroll. Season setup is closed
+         * with Cancel; nothing is written. Red at 251b0136: a new element after the round trip, the field as the world has it.
+         */
+        needs(env.dialogs(), "Season setup is drawn and its row pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const SS = await import("./season-setup.mjs");
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length && !of("drpg-window-gmteam").length, "Season setup or Despair Flow stands open already");
+        const read = {};
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector(".drpg-season-tiles"), 6000);
+            const first = of("drpg-window-season")[0];
+            must(first, "Season setup did not open - this would measure nothing");
+            const el = first.element;
+            const name = el.querySelector('[name="campaignName"]');
+            name.value = "E101-T4 typed, not saved";
+            const body = el.querySelector(".drpg-kit-body");
+            if (body) body.scrollTop = 40;
+            const scrolled = body?.scrollTop ?? 0;
+            el.querySelector('.drpg-season-tiles button[data-drpg-run="gmTeam"]')?.click();
+            must(await until(() => of("drpg-window-gmteam")[0]?.element, 6000), "Despair Flow did not open from the row");
+            of("drpg-window-gmteam")[0].element.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await until(() => !of("drpg-window-gmteam").length, 4000);
+            await settle();
+            await wait(300);
+            const now = of("drpg-window-season")[0] ?? null;
+            read.same = now === first && now?.element === el;
+            read.field = now?.element?.querySelector('[name="campaignName"]')?.value ?? null;
+            read.scroll = (now?.element?.querySelector(".drpg-kit-body")?.scrollTop ?? -1) === scrolled;
+            read.count = of("drpg-window-season").length;
+        } finally {
+            for (const app of of("drpg-window-gmteam")) await app.close().catch(() => {});
+            for (const app of of("drpg-window-season")) {
+                const cancel = app.element?.querySelector('footer.form-footer button[data-action="close"]');
+                if (cancel) cancel.click(); else await app.close().catch(() => {});
+            }
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ same: true, field: "E101-T4 typed, not saved", scroll: true, count: 1 }),
+            "{the same Season setup window after Despair Flow came and went; the name as typed; the body's scroll; Season setup windows open}");
+    }],
+    ["E101-T5 - Give / take items gives an item and a Truth Bullet in its own window: Give > Item > Create new and Give > Truth Bullet > Write a new one, each pressed on the drawn hub with one Give, put the thing on the student picked, and the hub comes back on the same student and the same choice (E101 F2; the owner at a 1.2.108 table)", async () => {
+        /*
+         * E101 F2, 12.11.2026. Here, as the GM, on the harness's drawn windows: the hub opened on a student, Give's
+         * Item > Create new filled with a name and Give pressed; then Truth Bullet > Write a new one filled with a name and
+         * Give pressed. Read: the student's new items by name and category, the windows asked for between (none but the
+         * hub), and the hub's choice after each. The two items are deleted after, and the hub closed. Red at 251b0136: no
+         * bar in the hub.
+         */
+        needs(env.dialogs(), "the hub is drawn and pressed");
+        needs(world.atLeast("livingStudents", 1), "a student to give to");
+        must(game.user.isGM, "the hub is a GM's");
+        const G = await import("./gm-items.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const student = studentActors()[0];
+        const had = new Set(student.items.map(i => i.id));
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-items").length, "the hub stands open already");
+        const others = () => [...foundry.applications.instances.values()].filter(a => a.rendered && ["drpg-window-give", "drpg-window-bullet", "drpg-give-key"]
+            .some(c => a.options?.classes?.includes(c))).length;
+        const read = { steps: [] };
+        let answer = null;
+        const step = async (what, from, field, value) => {
+            const hub = of("drpg-window-items")[0];
+            must(hub?.element, "the hub is not open");
+            const el = hub.element;
+            el.querySelector(`[data-drpg-give-what] button[data-drpg-mode="${what}"]`)?.click();
+            el.querySelector(`[data-drpg-give-from] button[data-drpg-mode="${from}"]`)?.click();
+            const input = el.querySelector(`[data-drpg-give-pane="${what}:${from}"] [name="${field}"]`);
+            must(input, `no ${field} in ${what}:${from}`);
+            input.value = value;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            const tell = el.querySelector('[name="tell"]');
+            if (tell) tell.checked = false;
+            el.querySelector('footer.form-footer button[data-action="give"]')?.click();
+            await until(() => student.items.some(i => !had.has(i.id) && i.name === value), 6000);
+            await until(() => of("drpg-window-items")[0]?.element && of("drpg-window-items")[0] !== hub, 6000);
+            await settle();
+            const back = of("drpg-window-items")[0]?.element ?? null;
+            const pressed = bar => back?.querySelector(`[data-drpg-give-${bar}] button[aria-pressed="true"]`)?.dataset.drpgMode ?? null;
+            read.steps.push([student.items.find(i => !had.has(i.id) && i.name === value)?.getFlag("danganronpa-rpg", "category") ?? null,
+                back?.querySelector('[name="who"]')?.value === student.id, pressed("what"), pressed("from"), others()]);
+        };
+        try {
+            answer = Promise.resolve().then(() => G.openItemManager(student)).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-items")[0]?.element?.querySelector("[data-drpg-give-what]"), 6000), "the hub did not open with a choice of what - this would measure nothing");
+            await step("item", "create", "name", "E101-T5 a lamp");
+            await step("bullet", "create", "bulletName", "E101-T5 a note");
+        } finally {
+            for (const app of of("drpg-window-items")) {
+                const close = app.element?.querySelector('footer.form-footer button[data-action="cancel"]');
+                if (close) close.click(); else await app.close().catch(() => {});
+            }
+            if (answer) await Promise.race([answer, wait(3000)]);
+            const made = student.items.filter(i => !had.has(i.id)).map(i => i.id);
+            if (made.length) await student.deleteEmbeddedDocuments("Item", made);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ steps: [["usable", true, "item", "create", 0], ["truthBullet", true, "bullet", "create", 0]] }),
+            "{per Give: [the new item's category, the hub back on the student, its what, its from, other give windows open]}");
+    }],
+    ["E101-T9 - Season setup links the school, and holds its Save while one scene is picked for both (E101 item 5): on the drawn window, a scene of the suite's own picked as the school is held as the school once Save is pressed; picked for the trial hall as well, Save is off with the reason, and back on when the hall is cleared", async () => {
+        /*
+         * E101 item 5, 13.11.2026. The Scenes were Room setup's last tab until E101; they are Season setup's part now, its
+         * Save their write (trial-scene.mjs `applyScenesTab`). Here, as the GM: a scene of the suite's own made, Season
+         * setup opened, the scene picked as the school and then as the hall too (Save read), the hall put back, Save
+         * pressed. Read: the scene roles after. The roles setting and the scene are put back. At eb9431dc Season setup has
+         * no scenes part, which its first `must` reads (not run there: the test is this commit's).
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const R = await import("./rooms.mjs");
+        const SS = await import("./season-setup.mjs");
+        const KEY = "sceneRoles";
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, KEY) ?? {});
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        let school = null, answer = null;
+        const read = {};
+        try {
+            school = await Scene.create({ name: "SUITE E101-T9 the school", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="scenes:school"]'), 6000), "Season setup has no scenes part - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const set = (name, value) => { const s = el.querySelector(`[name="scenes:${name}"]`); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); };
+            const save = () => el.querySelector('footer.form-footer button[data-action="save"]');
+            const trialWas = el.querySelector('[name="scenes:trial"]').value;
+            set("school", school.id);
+            set("trial", school.id);
+            read.held = [save()?.disabled ?? null, save()?.getAttribute("aria-label") === game.i18n.localize("DRPG.TrialScene.sameScene")];
+            set("trial", trialWas);
+            read.free = save()?.disabled ?? null;
+            save()?.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(4000)]);
+            await settle();
+            R.forgetSceneRoles();
+            read.school = R.sceneRoles().school === school.id;
+        } finally {
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            R.forgetSceneRoles();
+            await school?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ held: [true, true], free: false, school: true }),
+            "{held: [Save off with one scene for both, its label the reason]; free: Save off once the hall is put back; school: the scene picked is the school after Save}");
+    }],
+    ["E101-T10 - one Season setup Save that links a new trial hall and sets the phase to Class Trial enters the trial in the new hall (scripts/season-setup.mjs `openSeasonSetup`, trial-scene.mjs `applyScenesTab`, `enterTrialScene`; the r112 review's S1, 13.11.2026): the trial question names the new hall, the new hall is the one activated and given the way back, the old one is left alone, and the link names the new hall", async () => {
+        /*
+         * The r112 review's S1 (REVIEW-112, 13.11.2026). E101 item 5 put the scenes part and Edit campaign's phase in one
+         * Save; the campaign was written first, so the trial the phase opened entered the hall still linked, and only then
+         * was the new one linked - the table in the old hall, the link naming the new one, End the trial working on a hall
+         * nobody stood in (the state E13 fix r1-F2 was written against). Here, as the GM, from Daily Life: two scenes of
+         * the suite's own, the old one linked as the hall; Season setup drawn, the hall select moved to the new one and
+         * the phase to Class Trial, Save pressed; the trial's question answered yes (DialogV2.wait answered for that
+         * title alone, every other window drawn). The record is set so no second-trial question or Key charge comes
+         * (as the test of the roads into the trial does). Read: which hall the question named, which hall holds the way
+         * back and which is active, the link. Put back: the phase, the clock, the record, the roles, the active scene,
+         * both scenes. Red at 25d6573a: the old hall named, flagged and active.
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const R = await import("./rooms.mjs");
+        const SS = await import("./season-setup.mjs");
+        const TS = await import("./trial-scene.mjs");
+        const V = await import("./vote.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const trialTitle = game.i18n.localize("DRPG.Clock.trialFromEditTitle");
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, "sceneRoles") ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const activeBefore = game.scenes.active ?? null;
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        must(!clockBefore.eclipse, "an Eclipse holds the trial shut");
+        let oldHall = null, newHall = null, answer = null;
+        const asked = [];
+        const read = {};
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter,
+                verdictApplied: false, keysCharged: true });
+            oldHall = await Scene.create({ name: "SUITE E101-T10 the old hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            newHall = await Scene.create({ name: "SUITE E101-T10 the new hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await game.settings.set(MODULE_ID, "sceneRoles", { ...rolesBefore, trial: oldHall.id });
+            R.forgetSceneRoles();
+            must(R.trialScene()?.id === oldHall.id, "the old hall could not be linked - this would measure nothing");
+            D.wait = async function (cfg) {
+                if ((cfg?.window?.title ?? "") === trialTitle) {
+                    const text = typeof cfg?.content === "string" ? cfg.content : String(cfg?.content?.outerHTML ?? cfg?.content?.textContent ?? "");
+                    asked.push(text.includes(newHall.name) ? "new" : text.includes(oldHall.name) ? "old" : "none");
+                    return "ok";
+                }
+                return drawWait.call(this, cfg);
+            };
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="scenes:trial"]'), 6000), "Season setup has no scenes part - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const pick = (name, value) => { const s = el.querySelector(`[name="${name}"]`); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); return s.value === value; };
+            must(pick("scenes:trial", newHall.id) && pick("phase", "classTrial"), "the hall or the phase could not be picked - this would measure nothing");
+            el.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(6000)]);
+            await settle();
+            R.forgetSceneRoles();
+            read.phase = getClock().phase;
+            read.asked = asked;
+            read.wayBack = [Boolean(oldHall.getFlag(MODULE_ID, TS.TRIAL_RETURN_FLAG)), Boolean(newHall.getFlag(MODULE_ID, TS.TRIAL_RETURN_FLAG))];
+            read.active = game.scenes.active?.id === newHall.id ? "new" : game.scenes.active?.id === oldHall.id ? "old" : "other";
+            read.linked = R.trialScene()?.id === newHall.id;
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== clockBefore.phase) await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await game.settings.set(MODULE_ID, "sceneRoles", rolesBefore);
+            R.forgetSceneRoles();
+            if (activeBefore && !activeBefore.active) await activeBefore.activate();
+            await oldHall?.delete();
+            await newHall?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ phase: "classTrial", asked: ["new"], wayBack: [false, true], active: "new", linked: true }),
+            "{phase after Save; asked: the hall the trial question named; wayBack: [the old hall given the way back, the new one]; active: the hall the table stands in; linked: the new hall is the trial's} - the trial entered in the hall the Save links");
+    }],
+    ["E101-T11 - a Season setup Save whose scenes part is held still writes the rest of the window (scripts/season-setup.mjs `openSeasonSetup`; the r112 review's S2, 13.11.2026): one scene picked for both roles and Save pressed anyway, the campaign's name typed in the same window is written, the scene roles are not, and the GM is told why", async () => {
+        /*
+         * The r112 review's S2 (REVIEW-112, 13.11.2026). Season setup holds its Save while the scenes part cannot be
+         * written, but a Save that arrives anyway (the hold is drawn only on the scene selects' change, so a trial
+         * started meanwhile is not seen) returned before any write: the campaign's name, chapter, day, time of day, the
+         * refill and the safeword typed in the same window were dropped with the window already closed. Here, as the GM:
+         * a scene of the suite's own picked for both roles, the hold taken off by hand (as a Save that arrives anyway),
+         * a new campaign name typed, Save pressed. Read: the name written, the roles as they were, the warning told.
+         * Put back: the clock, the roles, the scene. Red at 25d6573a: the name not written.
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const R = await import("./rooms.mjs");
+        const SS = await import("./season-setup.mjs");
+        const NAME = "SUITE E101-T11 a campaign";
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, "sceneRoles") ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const ownWarn = ui.notifications.warn;
+        const told = [];
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        let scene = null, answer = null;
+        const read = {};
+        try {
+            ui.notifications.warn = function (message, ...rest) { told.push(message); return ownWarn.call(this, message, ...rest); };
+            scene = await Scene.create({ name: "SUITE E101-T11 both", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="scenes:trial"]'), 6000), "Season setup has no scenes part - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const pick = (name, value) => { const s = el.querySelector(`[name="${name}"]`); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); return s.value === value; };
+            must(pick("scenes:school", scene.id) && pick("scenes:trial", scene.id), "the scene could not be picked - this would measure nothing");
+            const name = el.querySelector('[name="campaignName"]');
+            must(name, "Season setup has no campaign name - this would measure nothing");
+            name.value = NAME;
+            name.dispatchEvent(new Event("change", { bubbles: true }));
+            const save = el.querySelector('footer.form-footer button[data-action="save"]');
+            must(save?.disabled === true, "Save was not held with one scene for both - this would measure nothing");
+            save.disabled = false;
+            save.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(6000)]);
+            await settle();
+            R.forgetSceneRoles();
+            read.name = getClock().campaignName === NAME;
+            read.roles = stableJson(game.settings.get(MODULE_ID, "sceneRoles") ?? {}) === stableJson(rolesBefore);
+            read.told = told.includes(game.i18n.localize("DRPG.TrialScene.sameScene"));
+        } finally {
+            ui.notifications.warn = ownWarn;
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, "sceneRoles", rolesBefore);
+            R.forgetSceneRoles();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ name: true, roles: true, told: true }),
+            "{name: the campaign name typed is written; roles: the scene roles unchanged; told: the GM warned of the one scene for both} - a held scenes part drops itself alone");
+    }],
+    ["E101-T12 - the next morning's line typed in Season setup is kept by its Save, as Edit campaign's Apply keeps it (E101 item 1): on the drawn window, a line typed in the Edit campaign block's next morning's field is this browser's `morningLineDraft` after Save, the line drawn again when Season setup opens next", async () => {
+        /*
+         * E101 item 1, 13.11.2026 (the GM screens' review, #2). As the GM: Season setup drawn, the field filled, Save pressed;
+         * read the setting, then the field of the window opened again (closed unsaved). The draft is put back. Red at eb0cd30a:
+         * Season setup has no such field (the first `must`).
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const SS = await import("./season-setup.mjs");
+        const LINE = "SUITE E101-T12 the gym opens at noon";
+        const draftWas = game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? "";
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        let answer = null;
+        const read = {};
+        try {
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]'), 6000), "Season setup has no next morning's line - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const field = el.querySelector('[name="morningLine"]');
+            field.value = LINE;
+            field.dispatchEvent(new Event("change", { bubbles: true }));
+            el.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(6000)]);
+            await settle();
+            read.kept = game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) === LINE;
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]'), 6000);
+            read.shown = of("drpg-window-season")[0]?.element?.querySelector('[name="morningLine"]')?.value === LINE;
+        } finally {
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, draftWas);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ kept: true, shown: true }),
+            "{kept: the line is this browser's draft after Save; shown: the window opened again draws it}");
     }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*
@@ -89528,12 +89990,11 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                     stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "hidden"; }]),
                     description: await applyWith([`desc:${ROOM}`, el => { el.value = "E46-T1 words"; }]),
                     fog: await applyWith([`fog:${ROOM}:${a.id}`, el => { el.checked = !el.checked; }]),
-                    passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}]),
-                    scenes: await applyWith(["scenes:school", el => { el.value = opened.id; }])
+                    passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}])
+                    // No Scenes step since E101 item 5 (changed on purpose): the school is Season setup's Save's (E101-T9).
                 };
-                const linked = R.sceneRoles().school === opened.id;
                 steps.again = await applyWith(null);
-                reading = { steps, fog: scenes.map(fogOf), linked };
+                reading = { steps, fog: scenes.map(fogOf) };
             } finally {
                 Hooks.off("updateRegion", hook);
                 if (stableJson(game.settings.get(MODULE_ID, ROLES) ?? {}) !== stableJson(rolesBefore)) await game.settings.set(MODULE_ID, ROLES, rolesBefore);
@@ -89570,13 +90031,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             steps: { none: [false, 0, [], []], bedrooms: [true, 0, ["drpgStashes", "drpgVaultOwner"], []], doors: [true, 0, ["drpgLocked"], []],
                 search: [true, 0, ["drpgNoSearch"], []], rest: [true, 0, ["restShort"], []], stashes: [true, 0, ["drpgStashes"], []],
                 description: [true, 0, ["drpgRoomDescription"], []], fog: [false, 0, [], []], passages: [false, 0, [], []],
-                scenes: [false, 0, [], []], again: [false, 0, [], []] },
-            fog: [true, false], linked: true,
+                again: [false, 0, [], []] },
+            fog: [true, false],
             footers: Object.fromEntries(V.ROOM_SETUP_TABS.map(([tab]) => [tab, ["ok", "cancel"]]))
         }), `{steps: per Apply [a region update on the scene opened on, the updates on the scene on screen, the module flags whose value changed on each]; fog: ${a.name}'s fog box on each scene; footers: the buttons after each tab}`);
     }],
 
-    ["E46-T4 - Pre-season checks drawn on the GM (E46-C5b; card M4): the window holds its parts in today's order - the cast and the scenes always, the room pictures and the voice when they have a row, the contract, the dice look, the anonymity audit - each but the audit a kit checklist under its heading (or its one line, or the contract's unread rows folded); red only where a row is blocking, in a part whose rows may block (the cast, the scenes, the room pictures); no `pre`, no `p.drpg-check-report`, no mark of `checkMarks` outside the audit", async () => {
+    ["E46-T4 - Pre-season checks drawn on the GM (E46-C5b; card M4; the Season checklist's further checks since E101): the parts in order - the room pictures and the voice when they have a row, the dice look, the anonymity audit - each but the audit a kit checklist under its heading (or its one line); red only where a row is blocking, in a part whose rows may block (the room pictures); no `pre`, no `p.drpg-check-report`, no mark of `checkMarks` outside the audit", async () => {
         /*
          * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"). R2033 reads `preSessionReport` with the
          * facts handed in; this reads the window a GM opens (Season setup's Pre-season checks, `runPreSessionChecks`) over
@@ -89584,20 +90045,23 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * look. It is closed with Close; nothing is written. Red first on c1046f5e: `runPreSessionChecks` is not exported
          * (and the window drew `pre`).
          */
+        /* E101 item 2 (12.11.2026): Pre-season checks are the Season checklist's further checks, under its rows
+           (`fillMoreChecks`); the cast and the scenes are the rows', the contract and given-back line gone from the
+           report (Diagnostics' `foundryReport`, the What the module holds row). Changed on purpose: read in the checklist. */
         needs(env.dialogs(), "Pre-season checks are read on a drawn window");
         const SS = await import("./season-setup.mjs");
-        must(typeof SS.runPreSessionChecks === "function", "season-setup.mjs exports no runPreSessionChecks");
-        const ORDER = ["givenBack", "cast", "scenes", "pictures", "voice", "contract", "dice", "anonymity"];
-        const ALWAYS = ["cast", "scenes", "contract", "dice", "anonymity"];
-        const MAY_BLOCK = ["cast", "scenes", "pictures"];
-        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-preseason"));
-        must(of().length === 0, "a Pre-season checks window stands open already");
-        const run = SS.runPreSessionChecks();
+        must(typeof SS.openSeasonChecklist === "function", "season-setup.mjs exports no openSeasonChecklist");
+        const ORDER = ["pictures", "voice", "dice", "anonymity"];
+        const ALWAYS = ["dice", "anonymity"];
+        const MAY_BLOCK = ["pictures"];
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-season-checklist"));
+        must(of().length === 0, "a Season checklist window stands open already");
+        const run = SS.openSeasonChecklist();
         let got = null;
         try {
-            await until(() => of()[0]?.element?.querySelector('[data-drpg-check-part="anonymity"]'), 20000);
-            const el = of()[0]?.element;
-            must(el, "no Pre-season checks window was drawn - this would measure nothing");
+            await until(() => of()[0]?.element?.querySelector('[data-drpg-season-more] [data-drpg-check-part="anonymity"]'), 20000);
+            const el = of()[0]?.element?.querySelector("[data-drpg-season-more]");
+            must(el, "no Season checklist with its further checks was drawn - this would measure nothing");
             const parts = [...el.querySelectorAll("[data-drpg-check-part]")];
             const names = parts.map(p => p.dataset.drpgCheckPart);
             got = {
@@ -89616,7 +90080,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await Promise.race([run, wait(3000)]);
         }
         equal(stableJson(got), stableJson({ order: true, always: true, listed: true, headed: true, red: [], old: 0, marks: 0 }),
-            "Pre-season checks on the GM [its parts in today's order, the five that are always there, a checklist, a line or the contract's "
+            "The Season checklist's further checks on the GM [its parts in order, the two that are always there, a checklist, a line or the contract's "
             + "unread rows folded in each but the audit, a heading on each | parts with a blocking row that may not have one | pre and p.drpg-check-report left | checkMarks' "
             + "marks outside the audit]");
     }],
@@ -89800,7 +90264,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * E47-C8, 09.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on the
          * module's own roads: the Role select through monokuma.mjs `markFromSheet` (its question drawn and answered by
          * its own buttons), `setMonokuma` and `setNotInClass`; the Level Up through level-up.mjs `openAdvancementFor`
-         * (its two menus answered Standard and the player picks, every other window left to DialogV2); Items through
+         * (its one window answered Standard and the player picks, since E101; every other window left to DialogV2); Items through
          * gm-items.mjs `openItemManager` (the hub closed by hand). A character of the suite's own, owned by nobody, is
          * the one marked out of the class. Then the player's own write of the Monokuma flag, as tier 2 makes one
          * (`asPlayerWrite`): the GMs' audit puts it back (E24 fix G1, sheet-audit.mjs `GM_FLAGS`). Red first on
@@ -89891,8 +90355,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 if ((cfg?.classes ?? []).includes("drpg-window-alive")) return realWait.call(this, cfg);
                 const markup = typeof cfg?.content === "string" ? cfg.content : (cfg?.content?.outerHTML ?? "");
                 const choices = [...markup.matchAll(/name="variant" value="([^"]*)"/g)].map(m => m[1]);
-                menus.push(choices.filter(v => !v.startsWith("take:")));
-                return Promise.resolve(choices.includes("standard") ? { value: "standard" } : choices.includes("player") ? { value: "player" } : null);
+                /* One window since E101 (R4056; changed on purpose): the kinds and, under them, who picks (`name="who"`),
+                   answered Standard with the player's row ticked on the window's own form, as Grant reads it. */
+                const who = [...markup.matchAll(/name="who" value="([^"]*)"/g)].map(m => m[1]);
+                menus.push(choices.filter(v => !v.startsWith("take:")), who);
+                const form = document.createElement("template");
+                form.innerHTML = markup;
+                const player = form.content.querySelector('input[name="who"][value="player"]');
+                if (player) player.checked = true;
+                return Promise.resolve(choices.includes("standard") ? { value: "standard", form: form.content } : null);
             };
             const first = of()[0];
             el()?.querySelector(`[data-drpg-levelup="${CSS.escape(theirs.id)}"]`)?.click();
@@ -91476,7 +91947,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         const rows = made.map(a => [`${ACT.actionsLeft(a)} / ${ACT.actionsMax(a)}`, ACT.hasFreeMove(a) ? "yes" : "no"]);
         equal(stableJson(read), stableJson({ rows, kinds: new Set(rows.map(r => r.join(" "))).size,
-            line: [String(made.filter(a => ACT.actionsLeft(a) > 0).length), true] }),
+            // E101 (changed on purpose): no door to Students on the line; the Now section's tile is the door (R4054).
+            line: [String(made.filter(a => ACT.actionsLeft(a) > 0).length), false] }),
         "{rows: each seeded student's [Actions cell, Free Move's state]; kinds: the distinct readings; line: [the panel's count over the sixteen, its door to Students]}");
     }],
     ["End the chapter from Edit campaign runs the chapter's end once after its confirm, and Cancel at the question writes nothing (scripts/gm-campaign.mjs `openClockDialog`, `endTheChapter`; E49 A2; the owner's 10.11 [12] and [16])", async () => {

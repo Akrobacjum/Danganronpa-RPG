@@ -759,7 +759,15 @@ async function openFailureLog() {
         </div>`,
         footer: {
             close: { role: "close", action: "close" },
-            secondary: rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : [],
+            /* FOUNDRY AND MODULES (E101 item 2; the owner's yes of 12.11.2026 to the GM screens' review, #3): the lines of
+               Pre-season checks a GM cannot act on before a session - which of the module's places in Foundry hold and
+               which could not be read here, and the console command that reads another person's dice look - are this
+               section's since Pre-season checks became part of the Season checklist (season-setup.mjs `openFoundryReport`).
+               A button of the Debug log, the Diagnostics window a report of a fault starts from, not a tile of its own. */
+            secondary: [
+                ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : []),
+                { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport") }
+            ],
             destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : []
         },
         rejectClose: false
@@ -787,6 +795,11 @@ async function openFailureLog() {
         }
         // Back to the log - the button copied, it did not mean "and close".
         return openFailureLog();
+    }
+
+    if (action === "foundry") {
+        const { openFoundryReport } = await import("./season-setup.mjs");
+        return openFoundryReport();
     }
 
     if (action === "clear") {
@@ -1099,9 +1112,11 @@ function buildPanelContent() {
     return `<div class="drpg-gmp-standing">
                 ${caseLine}
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
-                <p><strong>${clockSummary(clock)}</strong>
-                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
-                   ${advance}</p>
+                <p class="drpg-gmp-clockline"><strong>${clockSummary(clock)}</strong>
+                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span></p>
+                ${/* Its own centred row since E101 F1 (the owner at a 1.2.108 table): beside the clock, Foundry's block-level
+                     button stood at the window's left edge under it (R4058). */ ""}
+                <p class="drpg-gmp-advance-row">${advance}</p>
                 ${suggestion}
                 ${incidentAsksHtml(clock.chapter)}
                 ${studentsLeftHtml()}
@@ -1130,16 +1145,15 @@ export function advanceHtml(clock = getClock(), eclipse = isEclipse()) {
  * The table that stood here - a row per acting student, its actions and its free Move - is two columns of the Students
  * window now (gm-students.mjs `aliveTableHtml`), and the panel keeps the one number a GM reads it for: how many of the
  * living cast, a Monocub included (monokuma.mjs `actingStudents`, as `nextStep` counts them), still have an action this
- * time of day, `plural()`'s words, and beside it the door to Students - the tile's own key, so the panel's delegate runs
- * it and the panel comes back after it as after any tile. ONE LINE IN EVERY STATE: nobody left, everybody left and an
- * empty cast draw the same paragraph and the same button, only the number changes (the owner's 10.11 rule: a state
+ * time of day, in `plural()`'s words (its button to Students went in E101: the Students tile is the door). ONE LINE IN
+ * EVERY STATE: nobody left, everybody left and an empty cast draw the same paragraph, only the number changes (the owner's 10.11 rule: a state
  * changes look, never layout). Exported for R3345 and the tier-2 reading.
  */
 export function studentsLeftHtml(roster = actingStudents()) {
     const n = roster.filter(a => actionsLeft(a) > 0).length;
-    return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}
-                <button type="button" class="drpg-gmp-next-go" data-drpg-run="whoIsAlive">
-                    <i class="fa-solid fa-heart-pulse" inert></i> ${esc(game.i18n.localize("DRPG.Panel.whoIsAlive"))}</button></p>`;
+    // The count alone since E101 (the owner's yes of 12.11.2026 to the GM screens' review): its Students button was the
+    // Now section's Students tile again, two rows below, and that tile stays the door (R4054).
+    return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}</p>`;
 }
 
 /** The case tile's second line (E47-C3; the Back up tile's before it): when the case was last backed up, from the world's case mark (E04). */

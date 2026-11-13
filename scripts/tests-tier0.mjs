@@ -1041,7 +1041,8 @@ const REGRESSIONS = [
         read.frame = [/\bclass NoticeHistoryApp extends DrpgApp\(\)/.test(src), /scrollRegion:\s*"\.drpg-notices-list"/.test(src)];
         read.foot = footer === null ? null : [/destructive:\s*\[\{\s*action:\s*"clear"/.test(footer), /close:\s*\{\s*role:\s*"close",\s*side:\s*"right"\s*\}/.test(footer),
             /\bdefault\s*:/.test(footer), /\bprimary\s*:/.test(footer)];
-        read.chips = /\bchips\(FILTERS\.map\(/.test(render);
+        // The chips are the three on top since E100 item 4 (R4103: the other four are a menu), still through the kit.
+        read.chips = /\bchips\(ON_TOP\.map\(/.test(render);
         read.empty = (src.match(/\bemptyState\("DRPG\.Notices\.(empty|noMatch)"\)/g) ?? []).length;
         read.live = [(src.match(/\bkeepLive\(/g) ?? []).length, /\bkeepLive\(this,\s*\{\s*region:\s*"\.drpg-notices-list",\s*build:/.test(src),
             /\bkeepLive\(this,[^\n]*\bwatch\s*:/.test(src), /\bonNoticeHistoryChange\(\(\) => this\.changed\(\)\)/.test(src)];
@@ -4302,9 +4303,11 @@ const REGRESSIONS = [
         ok(/handOff\(dialog, \(\) => reopen\(\{ draft(, [^}]*)? \}\)\)/.test(rows)
             && /wireSetupSteps\(dialog, trip => \{ roundTrip = trip; \}, openSeasonChecklist\)/.test(season),
             "the row still closes and reopens on its own, so the close answers the caller");
+        // E101 F4 (changed on purpose): a tile of Season setup opens its window and leaves Season setup as it stands - no
+        // close and no reopen at all, so there is no round trip to answer the caller with (tier 2 E101-T4).
         const tiles = bodyOf(season, "function wireSeasonTiles(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(tiles) && !/await dialog\.close\(\)/.test(tiles),
-            "a tile of Season setup's row closes and reopens on its own, so the close answers the caller");
+        ok(tiles.length > 0 && !/handOff\(/.test(tiles) && !/dialog\.close\(\)/.test(tiles),
+            "a tile of Season setup's row closes Season setup, which the owner saw as the window refreshing");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
@@ -4314,7 +4317,7 @@ const REGRESSIONS = [
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        for (const name of ["openSeasonSetup", "openSeasonChecklist"]) {
+        for (const name of ["openSeasonChecklist"]) {
             const opener = bodyOf(season, `export async function ${name}(`);
             const tail = bodyOf(opener, "rejectClose: false");
             ok(/if \(roundTrip\) return roundTrip;/.test(tail),
@@ -10575,6 +10578,7 @@ const REGRESSIONS = [
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
             ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
+            ["WHO explain.mjs#openStateExplainer#subjectActor -> which", "the same actor's own action count in Daily Life's paragraph (E100 item 7, R4106); no room text - the room is `roomBlock`'s row above"],
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else of several the controlled one, else the first by name (E51 C4, monokuma.mjs `chooseOwnStudent`, R1117), and the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
@@ -21713,7 +21717,8 @@ const REGRESSIONS = [
                 if (m[1] === "callWindow" && !inner.includes("footer")) wrong.push(`${file}: a callWindow call with no footer slots`);
             }
         }
-        must(calls.chooseVariant.length >= 10 && calls.callWindow.length >= 7,
+        // 9 chooseVariant calls since E101, which made Level Up's two questions one window (R4056); 10 before.
+        must(calls.chooseVariant.length >= 9 && calls.callWindow.length >= 7,
             `read ${calls.chooseVariant.length} chooseVariant and ${calls.callWindow.length} callWindow call(s) - fewer than the module's, this would measure too little`);
         const old = [...texts].filter(([, t]) => /\btableDialog\b/.test(blankLiterals(blankComments(t)))).map(([f]) => f);
         equal(JSON.stringify({ wrappers, wrong, tableDialog: old }), JSON.stringify({
@@ -23197,7 +23202,7 @@ const REGRESSIONS = [
         JSON.stringify([["chapter.mjs#BODY_ANNOUNCED_HOOK"], ["chapter.mjs#callBodyAnnounced"], ["chapter.mjs#announceArrivedBodies", "chapter.mjs#announceBody"], true, true]),
         "[where the hook's name is spelt, where it is called, who calls callBodyAnnounced, the stamp before the call in announceBody, the announcement before the gather in runDiscovery]");
     }],
-    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen, Move's briefing) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
+    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen; Move's briefing until E100 item 1 took it away) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
         /*
          * E68 C12, 10.11.2026. Round M (S/stages/E68/mockups/NOTES.md) drew the actions' windows in two layouts; the owner
          * took B, Observe's columns, for every action window ("layout B for every action window"), and asked the blocks of
@@ -23232,7 +23237,7 @@ const REGRESSIONS = [
         const OPENERS = {
             "action-observe.mjs": ["askDeclaration"], "action-search.mjs": ["chooseSearchCategory"], "action-analyze.mjs": ["askWhatToAnalyze"],
             "action-tamper.mjs": ["chooseTamper"], "action-rest.mjs": ["performRest"], "action-project.mjs": ["performProject", "chooseProject"],
-            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"], "action-briefing.mjs": ["briefing"]
+            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"]
         };
         for (const file of [...Object.keys(OPENERS), "action-menus.mjs", "ui-columns.mjs", "level-up.mjs", "call-gm.mjs", "action-dynamic.mjs"]) {
             src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : ""));
@@ -23258,7 +23263,8 @@ const REGRESSIONS = [
                 /promptForRequest\(\{[^;]*?\bcolumns:\s*true\b/.test(topLevelFunction(blankComments(src["action-dynamic.mjs"]), "performDynamic") ?? "")]
         }), JSON.stringify({
             builder: [true, true, false], menu: [true, true], blocks: [], imports: ["./ui-kit.mjs", "./utils.mjs"], outside: [],
-            narrow: ["level-up.mjs#openAdvancementFor 2"], dynamic: [true, true]
+            // E101: Level Up's two questions are one window (R4056), so one chooseVariant there (changed on purpose).
+            narrow: ["level-up.mjs#openAdvancementFor 1"], dynamic: [true, true]
         }), "[actionWindow exported, opening through wideWindow and not drpgWindow; chooseVariant's columns on by default and opening through "
             + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false; "
             + "Dynamic: askForRequest opens actionWindow on columns, performDynamic asks columns]");
@@ -23304,7 +23310,8 @@ const REGRESSIONS = [
         }), JSON.stringify({
             // E49 A1e: Killing game rules left Between sessions for Season setup's row of windows (R3582).
             twice: [], moved: { rules: [], voiceReset: ["fixes"], chapterEndTile: [] },
-            standing: [false, true], line: [true, true, true, true], columns: [true, true, true], end: [true, true, true, true, true]
+            // E101 (changed on purpose): the line's door to Students went, the Now section's Students tile is the door (R4054).
+            standing: [false, true], line: [true, false, true, true], columns: [true, true, true], end: [true, true, true, true, true]
         }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
@@ -23519,7 +23526,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
             "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
     }],
-    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` or the Sound window's two switches (`SOUND_WINDOW_SETTINGS`, E101) - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
          * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
@@ -23539,7 +23546,10 @@ const REGRESSIONS = [
         let W = null;
         try { W = await import("./settings-window.mjs"); } catch (err) { W = { failed: String(err?.message ?? err) }; }
         const sections = Array.isArray(W?.SETTINGS_SECTIONS) ? W.SETTINGS_SECTIONS : [];
-        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length);
+        /* E101 item 7 (12.11.2026): the music's switch and Vary the sounds are drawn in the Sound window
+           (settings-window.mjs `SOUND_WINDOW_SETTINGS`, R4050), a place as the sections are; changed on purpose. */
+        const soundWindow = Array.isArray(W?.SOUND_WINDOW_SETTINGS) ? W.SOUND_WINDOW_SETTINGS : [];
+        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length + (soundWindow.includes(k) ? 1 : 0));
         const named = sections.flatMap(s => s.keys);
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -23561,7 +23571,7 @@ const REGRESSIONS = [
             loaded: W?.failed ?? true,
             sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
             once: FROZEN.filter((k, i) => seen[i] !== 1),
-            others: named.filter(k => !FROZEN.includes(k)),
+            others: [...named, ...soundWindow].filter(k => !FROZEN.includes(k)),
             mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),
             configTrue: shown,
             menuCalls,
@@ -23573,9 +23583,10 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
-                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 5, true], ["foundry", "game", 2, true]],
+                // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
+                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 2, true], ["foundry", "game", 7, true]],
             // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
-            once: [], others: ["sfxVary", "sequences"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            once: [], others: ["sequences", "sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
