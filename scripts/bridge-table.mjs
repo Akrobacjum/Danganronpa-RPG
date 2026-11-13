@@ -146,7 +146,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_FACILITY_USE]: {
         label: "DRPG.Bridge.what.facility.use",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, actionId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFacilityUse,
         // The asker's window says what the use did (`useFacility`), so the answer is the run's.
@@ -160,7 +160,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_DASH]: {
         label: "DRPG.Bridge.what.dash.settle",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleDash,
         // The asker's card says how many free crossings came (`performDash`).
@@ -172,7 +172,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_DOOR_SHUT]: {
         label: "DRPG.Bridge.what.door.shut",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, rollId: as.id }),
         run: handleDoorShut,
         // The asker's card says the door is shut, or nothing was (`performShut`).
@@ -183,7 +183,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_DOOR_FORCE]: {
         label: "DRPG.Bridge.what.door.force",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, room: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
         run: handleDoorForce,
         // The asker's card says whether the door gave (`performForce`).
@@ -197,7 +197,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_DOOR_PICK]: {
         label: "DRPG.Bridge.what.door.pick",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, room: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, coverTotal: as.num,
             coverCritical: as.bool, rollId: as.id, coverRollId: as.id }),
         run: handleDoorPick,
@@ -213,7 +213,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_WATCH_DECLARE]: {
         label: "DRPG.Bridge.what.watch.declare",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
         run: handleWatchDeclare,
         // The asker's card says whether a watch is kept (`performWatch`).
@@ -224,7 +224,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_DOOR_KNOCK]: {
         label: "DRPG.Bridge.what.door.knock",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, room: as.text }),
         run: handleDoorKnock,
         // A report nobody waits on: the walker was told by its own veto that the door does not give.
@@ -233,7 +233,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_TAIL_START]: {
         label: "DRPG.Bridge.what.tail.start",
-        guards: [knownSender, guardUndoIsTheGms, owns("tailerId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("tailerId"), guardUndoIsTheGms, owns("tailerId", "sender does not own that character")],
         sanitize: pick({ tailerId: as.id, targetId: as.id, total: as.num, isCritical: as.bool, unseenTotal: as.num,
             unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handleTailStart,
