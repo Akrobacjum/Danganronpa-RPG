@@ -51003,7 +51003,7 @@ const INVARIANTS = [
             stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, health: 6 }),
             "the submit's data: the three hidden fields, the statistic changed in the window, Max Health");
     }],
-    ["R3920 - every field the wrench's window shows has a name a screen reader reads (dh-settings.mjs `dressCharacterSettings`, `markStatistics`; a11y.mjs `CONTROLS`): on the dressed stand-in with two statistics and one experience, every control a11y.mjs sweeps that is not in a hidden cell carries an aria-label, an aria-labelledby, a label of its own or (not a field) words - and each statistic's field is named by the words of its own name, as Daggerheart drew them", async () => {
+    ["R3920 - every field the wrench's window shows has a name a screen reader reads (dh-settings.mjs `dressCharacterSettings`, `markStatistics`; a11y.mjs `CONTROLS`): on the dressed stand-in with two statistics and one experience, every control a11y.mjs sweeps, shown or in a hidden cell, carries an aria-label, an aria-labelledby, a label of its own or (not a field) words - and each statistic's field is named by the words of its own name, as Daggerheart drew them", async () => {
         /*
          * 13.11.2026. Daggerheart draws a statistic as `.trait-container > span + input`: the span is beside the field, not
          * a label of it, so the field had no name - and once the window is dressed as the module's (`drpg-panel`), a11y.mjs
@@ -51027,9 +51027,15 @@ const INVARIANTS = [
             || (!el.matches("select, textarea, input") && el.textContent.trim()));
         const traits = [...content.querySelectorAll('.trait-container input[name^="system.traits."]')].map(el =>
             [el.name, el.getAttribute("aria-label") === el.closest(".trait-container").querySelector(":scope > span").textContent.trim()]);
-        equal(stableJson({ unnamed: controls.filter(el => !named(el)).map(el => el.name || el.outerHTML.slice(0, 80)), traits }),
-            stableJson({ unnamed: [], traits: [["system.traits.instinct.value", true], ["system.traits.knowledge.value", true]] }),
-            "unnamed: each shown control with no name; traits: each statistic's field and whether its aria-label is its name's words");
+        /* AND THE HIDDEN ONES (the review of 13.11.2026, docs/dev/gaps/REVIEW-111-r3551-icon.md): the tier-2 chrome test
+           this stands for sweeps every control of a `.drpg-panel`, hidden or not (a11y.mjs `nameControls` has no
+           visibility filter), so the fields in the hidden cells - scars, proficiency, evasion - are read as well. */
+        const hidden = [...content.querySelectorAll(A.CONTROLS)].filter(el => el.closest("[hidden]"));
+        must(hidden.length >= 3, `the stand-in hides ${hidden.length} controls, not the three hidden fields - the second reading would measure nothing`);
+        const nameOf = el => el.name || el.outerHTML.slice(0, 80);
+        equal(stableJson({ unnamed: controls.filter(el => !named(el)).map(nameOf), unnamedHidden: hidden.filter(el => !named(el)).map(nameOf), traits }),
+            stableJson({ unnamed: [], unnamedHidden: [], traits: [["system.traits.instinct.value", true], ["system.traits.knowledge.value", true]] }),
+            "unnamed: each shown control with no name; unnamedHidden: each control in a hidden cell with no name; traits: each statistic's field and whether its aria-label is its name's words");
     }],
     ["R3553 - the wrench's window is the kit's in both themes (styles/components.css, the block of `drpg-window-dh-settings`; E49): read through the suite's cascade (tests-kit.mjs `styleCascade`, the module's sheets as module.json loads them) on the dressed stand-in under Monokuma Legacy and under Stained Glass, every declaration the block states for a part wins there, and each part - the name, the tabs (the selected one and the other), each group and its heading, a statistic's cell, name and field, Max Health's label and field, New, an experience's box, its fields and its bin, the description, the window's body - takes its colour, ground, edge and type from a rule of the module; the hidden cells are `display: none` and a number field shows no spinner", async () => {
         /*
