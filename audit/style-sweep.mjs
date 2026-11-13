@@ -24,6 +24,7 @@
  *                                         text field fills its column; `--pl-windows <dir>` as --settings
  *   node audit/style-sweep.mjs --tabs     THE OPEN TAB (13.11.2026), below: every tab bar's open tab against an unopened
  *                                         one, both themes, a planted control first
+ *   node audit/style-sweep.mjs --frame    THE FRAME COUNTED ONCE (E54 W5), below: a kit window fitted to a table of known width
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
  *
@@ -1681,6 +1682,85 @@ async function tabsPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * THE FRAME COUNTED ONCE (`--frame`; E54 W5, the plan's F7b, 13.11.2026). Whether utils.mjs `windowWidthFor` - the width
+ * ui-kit.mjs `fitKitWidth` gives a kit window whose widest table is known - counts the window's frame once, in a real
+ * layout: jsdom lays nothing out, so R168's stand-in decides nothing about a frame's border and padding. On every
+ * captured window (audit/windows) the kit draws as a fit window (`drpg-kit-fit`), in both themes, at 1920x1080 and
+ * 1366x768, each where the fit pass places it (style-harness.html `?w=<id>&fit=1`): in the window a
+ * table of a known width (WIDE px) planted in its body, the window set to the answer (as `setPosition({ width })`
+ * does, here as important: the kit states a window's width with !important), and read: the room the table is left
+ * inside the body's content box (`slack`, 0 to 3 px: the answer's two px and a ceiling) and whether the table's right
+ * edge passes the content box's. THE CONTROLS FIRST: the same answer with the frame counted
+ * twice must read too wide, and two px less than the table must read cut; a run whose controls do not read their
+ * fault is red whatever the windows read.
+ */
+const FRAME_SIZES = [[1920, 1080], [1366, 768]];
+const WIDE = 720;
+async function framePass(browser) {
+    const problems = [];
+    let read = 0;
+    // the captured windows (audit/windows) that the kit draws as fit windows, each on its own page
+    const manifest = JSON.parse(fs.readFileSync(path.join(REPO, "audit", "windows", "manifest.json"), "utf8"));
+    const fitWindows = manifest.windows.filter(win => win.captured && fs.existsSync(path.join(REPO, "audit", "windows", `${win.id}.html`))
+        && /\bdrpg-kit-fit\b/.test(fs.readFileSync(path.join(REPO, "audit", "windows", `${win.id}.html`), "utf8")))
+        .filter(win => !ONLY.size || ONLY.has(win.id));
+    if (!fitWindows.length) problems.push("no captured window is a fit window - this would read nothing");
+    for (const fw of fitWindows) for (const [w, h] of FRAME_SIZES) for (const theme of THEMES) {
+        const page = await browser.newPage({ viewport: { width: w, height: h } });
+        await load(page, withTheme(`/audit/style-harness.html?w=${encodeURIComponent(fw.id)}&fit=1${fw.client === "gm" ? "" : "&role=player"}`, theme));
+        const rows = await page.evaluate(async wide => {
+            const { windowWidthFor } = await import("/scripts/utils.mjs");
+            const out = [];
+            const measure = (win, body, width) => {
+                // important: the kit's own rules state a window's width with !important (R63), which outranks an inline one
+                win.style.setProperty("width", `${width}px`, "important");
+                win.style.setProperty("max-width", "none", "important");
+                win.style.setProperty("min-width", "0", "important");
+                const cs = globalThis.getComputedStyle(body);
+                const box = body.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+                // the planted table against the body's content box: the window's own content may be wider, which is
+                // not this question (a wider table of its own decides its fit, as `fitKitWidth` measures it)
+                const table = body.querySelector(".drpg-frame-planted");
+                const inner = body.getBoundingClientRect().left + body.clientLeft + (parseFloat(cs.paddingLeft) || 0) + box;
+                return { slack: Math.round((box - wide) * 10) / 10, overflow: Boolean(table) && table.getBoundingClientRect().right > inner + 0.5 };
+            };
+            // the windows `fitKitWidth` sizes: the kit's fit windows (ui-kit.mjs FIT_CLASS); a prose window's measure is
+            // its content's on purpose (stained-glass.css, the `.dialog-content` cap) and is not this question
+            for (const win of globalThis.document.querySelectorAll(".application.drpg-ui.drpg-kit-fit")) {
+                const body = win.querySelector(".drpg-kit-body");
+                if (!body || !win.getBoundingClientRect().width) continue;
+                const pane = body.querySelector("[data-drpg-pane]:not([hidden])") ?? body;
+                pane.insertAdjacentHTML("afterbegin", `<table class="drpg-frame-planted" style="width: ${wide}px; table-layout: fixed"><tr><td>planted</td></tr></table>`);
+                const id = win.closest("[data-window]")?.dataset.window ?? win.id ?? "?";
+                const answer = windowWidthFor(win, body, wide);
+                const frame = Math.max(0, win.getBoundingClientRect().width - body.clientWidth);
+                const capped = answer >= Math.min(Math.round(globalThis.innerWidth * 0.94), parseFloat(globalThis.getComputedStyle(win).getPropertyValue("--drpg-window-max")) || 1400);
+                out.push({ id, answer, capped, frame: Math.round(frame), ...measure(win, body, answer),
+                    twice: measure(win, body, answer + frame), short: measure(win, body, answer - 4) });
+                for (const prop of ["width", "max-width", "min-width"]) win.style.removeProperty(prop);
+            }
+            return out;
+        }, WIDE);
+        if (!rows.length) problems.push(`${fw.id} ${w}x${h} ${theme}: no fit window drawn to plant a table in`);
+        for (const r of rows) {
+            read++;
+            const where = `${fw.id} ${w}x${h} ${theme}`;
+            if (r.capped) { console.log(`style-sweep: --frame ${where}: the answer is the window's cap (${r.answer} px), not read`); continue; }
+            // the controls: the frame counted twice reads too wide, the table less four px reads cut
+            if (!(r.twice.slack > 3)) problems.push(`${where}: control "frame twice" reads slack ${r.twice.slack} - the reading would not see a frame counted twice`);
+            if (!(r.short.slack < 0)) problems.push(`${where}: control "four px short" reads slack ${r.short.slack} - the reading would not see a cut table`);
+            const ok = r.slack >= 0 && r.slack <= 3 && !r.overflow;
+            console.log(`style-sweep: --frame ${where}: ${r.answer} px for a ${WIDE} px table, frame ${r.frame} px, slack ${r.slack}${r.overflow ? ", overflows" : ""}${ok ? "" : " - WRONG"}`);
+            if (!ok) problems.push(`${where}: slack ${r.slack}${r.overflow ? ", the body overflows" : ""} (0 to 3 px wanted)`);
+        }
+        await page.close();
+    }
+    for (const p of problems) console.log(`style-sweep: --frame ${p}`);
+    console.log(`style-sweep: --frame ${read} window reading(s), ${problems.length} problem(s); ${problems.length ? "RED" : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -1692,6 +1772,10 @@ async function main() {
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
     if (argv.includes("--tabs")) {
         try { process.exitCode = await tabsPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
+    if (argv.includes("--frame")) {
+        try { process.exitCode = await framePass(browser); } finally { await browser.close(); server?.kill(); }
         return;
     }
     if (argv.includes("--panel")) {
