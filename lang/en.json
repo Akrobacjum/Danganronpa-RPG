@@ -658,8 +658,6 @@
       "elapsed": "{minutes} min in",
       "elapsedUnknown": "not started",
       "elapsedTooltip": { "one": "How long this time of day has run. Amber at {first} minute, red at {second}.", "other": "How long this time of day has run. Amber at {first} minutes, red at {second}." },
-      "bodyFound": "Body found",
-      "bodyFoundTooltip": "A body has been found, and the Investigation has not started yet: the GM starts it.",
       "stillToAct": "Still to act",
       "stillToActTooltip": "Students with actions left. The roster on the left says which ones.",
       "stillPlacing": "Still placing",
@@ -1004,7 +1002,6 @@
         "analyze": "e.g. Analyzing the torn cloth from the hallway.",
         "directMurder": "Who, where and how - as agreed beforehand."
       },
-      "analyzeGm": "Score this against the Analyze table for that Truth Bullet. A failure locks it for them until the chapter ends.",
       "murderNobody": "Nobody here to kill. The attempt is spent; try again another time of day.",
       "murderWitness": {
         "one": "You are not alone with your victim - {n} other person would see it. The attempt is spent; try again another time of day.",
@@ -1015,8 +1012,6 @@
       "sabotageWatched": "{actor} is doing something to {project} in {room}, and everyone here can see roughly what.",
       "sabotageWatchedAnon": "{actor} is doing something to a project in {room}, and everyone here can see roughly what.",
       "sabotageSeenOn": "You are doing it in front of them. The action is already spent, so it goes ahead.",
-      "costCrossings": { "one": "{left} / {max} crossing", "other": "{left} / {max} crossings" },
-      "costAnyRoom": "any room",
       "tierShort": "Tier {tier}",
       "situationAfterRoll": "{n} from the situation: the total that counts is {total}.",
       "waitsForGm": "GM",
@@ -1186,7 +1181,6 @@
       "discardKept": "{item} is still on you.",
       "tabGive": "Give",
       "tabTake": "Take away",
-      "giveNote": "An item from the tables or one you write, a Truth Bullet, or a key to a room.",
       "takeNote": "Anything they are holding or have stashed - Truth Bullets and keys to other people's rooms included.",
       "giveWhat": "What",
       "whatItem": "Item",
@@ -1710,7 +1704,6 @@
       },
       "holdingRound": "{mode}: {who} speaks - {seconds} s. Next: {next}.",
       "holdingRoundLast": "{mode}: {who} speaks - {seconds} s, the last turn.",
-      "startTestimony": "Testimony",
       "startPanic": "Panic Round",
       "endRound": "End the round",
       "closing": {
@@ -1993,21 +1986,10 @@
       }
     },
     "Look": {
-      "language": "Language",
-      "title": "Settings",
       "launcherTooltip": "Settings",
-      "legend": "Look",
-      "theme": "Theme",
-      "uiScale": "Interface scale",
       "uiScaleAuto": "This screen ({w} x {h}) is drawn at {auto}% of 1440p on its own; with the slider, {total}%.",
       "uiScaleSlider": "This screen is {w} x {h}. Monokuma Legacy takes the slider on its own: {slider}%.",
-      "pixelFont": "Pixel font",
-      "pulse": "Glass pulse",
-      "reducedMotion": "Reduced motion",
-      "contrast": "High contrast",
       "contrastAuto": "Your system already asks for more contrast, so this is on whatever the switch says.",
-      "ticker": "State name behind the clock",
-      "blur": "Glass blurs the map",
       "messengerSound": "Messenger sounds",
       "stepUp": "One more",
       "stepDown": "One fewer",
@@ -2015,8 +1997,7 @@
       "stepDownBy": "-{n}",
       "atMost": "At most {n}",
       "atLeast": "At least {n}",
-      "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference.",
-      "redraw": "Redraw the glass"
+      "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference."
     },
     "Sound": {
       "title": "Sound",
@@ -2771,10 +2752,7 @@
       },
       "manageTitle": "Room setup",
       "manageTitleOn": "Room setup - {scene}",
-      "manageIntro": "Everything a room is, one kind of fact per tab. Apply saves every tab at once, whichever one is showing.",
       "manageNote": "A favoured category gives advantage to anyone searching here for it; a bad one gives disadvantage, and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
-      "bedroomsIntro": "Whose bedroom each room is. One student, one bedroom. Whether a stash is hidden is set on the Stashes tab.",
-      "doorsIntro": "Which doors are locked right now, and which start a season locked. A season reset puts every door back to its start column.",
       "roomRatio": "{rooms}. Living students: {living} ({per} rooms each). This season was built on {target} per student, so this cast wants {want}.",
       "roomCensus": {
         "one": "{n} shared room (bedrooms and “No privacy” rooms left out, locked rooms counted)",
@@ -2791,7 +2769,6 @@
       "searchIntro": "What searching each room draws from, how many search tokens it has left, and what it is a sensible place to look for.",
       "room": "Room",
       "owner": "Whose bedroom",
-      "concealed": "Stash hidden",
       "concealedShort": "hidden",
       "table": "Draws from",
       "favours": "Good place to look for",
@@ -2809,7 +2786,6 @@
         "one": "{count} room changed on {scene}.",
         "other": "{count} rooms changed on {scene}."
       },
-      "tabBedrooms": "Bedrooms",
       "tabRooms": "Rooms",
       "applyLine": "Apply saves every tab at once. Secret passages, the Search Token buttons and room actions work at once, without Apply.",
       "roomsIntro": "Which regions are rooms, whose bedroom each is, and which are not counted as private. One student, one bedroom.",
@@ -2819,7 +2795,6 @@
       "tabDoors": "Doors",
       "tabPassages": "Passages",
       "tabSearching": "Searching",
-      "tabRest": "Rests",
       "tabFacilities": "Facilities",
       "tabDescription": "Description",
       "descriptionColumn": "What it looks like",
@@ -2878,7 +2853,6 @@
       "isRoomHint": "Whether this region is a room. A region with a Teleport or level-change behaviour, or one a player drew, cannot be one.",
       "notSharedColumn": "No privacy",
       "notSharedHint": "Leave this region out of the rooms-per-player count. Changes no rule.",
-      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the room count - the ratio line above, the same row in Season setup and Pre-season checks; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
       "neighboursColumn": "Neighbours",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
       "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
@@ -3829,7 +3803,6 @@
       "markedOut": "{name} is not in the class: no actions, ballots or Level Ups.",
       "markedIn": "{name} is a student again.",
       "npcLine": "Not in the class: no actions, ballots or Level Ups.",
-      "candidates": "No player owns {names}. If one is an NPC, mark it Not in the class on its sheet.",
       "deathMark": "Dead",
       "deadStill": "Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot."
     },
@@ -6628,7 +6601,6 @@
         "remnant": "Remnant"
       },
       "state": {
-        "sent": "Sent",
         "held": "Found",
         "onMap": "On the map",
         "planned": "Planned"
@@ -6636,7 +6608,6 @@
       "slotNumber": "Slot {n}",
       "noName": "(no name)",
       "leftBy": "left by {name}",
-      "panelKind": "Kind",
       "panelState": "State",
       "panelRoom": "Room",
       "panelAuthor": "Left by (GMs only)",
@@ -6650,7 +6621,6 @@
       "sumDeductions": "Deductions",
       "sumCounters": "Counters",
       "noSchema": "No deduction yet.",
-      "cycle": "These inputs go round in a circle, so the map leaves them out: {nodes}.",
       "noMode": "- no trial mode -",
       "nothingToRefute": "No deduction to refute yet.",
       "removeNode": "Remove from the case",

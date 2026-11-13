@@ -19989,7 +19989,7 @@ const REGRESSIONS = [
             "DRPG.Action.dynamicLabel": "Dynamic Action", "DRPG.Action.dynamicTitle": "Dynamic Action", "DRPG.Remnant.action.dynamic": "Dynamic Action",
             "DRPG.Project.manageTitle": "Projects", "DRPG.Explain.projects.window": "Projects", "DAGGERHEART.UI.Countdowns.title": "Projects",
             "DAGGERHEART.APPLICATIONS.CombatTracker.openCountdowns": "Projects", "DAGGERHEART.APPLICATIONS.CountdownEdit.viewTitle": "Projects",
-            "DRPG.Floor.mode.testimony": "Testimony", "DRPG.Floor.startTestimony": "Testimony", "DRPG.Hud.trial.testimony": "Testimony"
+            "DRPG.Floor.mode.testimony": "Testimony", "DRPG.Hud.trial.testimony": "Testimony"
         };
         // DB16: every word capitalised but a, an, the, and, or, of, with, in, on, to, for, by, at after the first; a hyphen's parts each.
         const SMALL = new Set(["a", "an", "the", "and", "or", "of", "with", "in", "on", "to", "for", "by", "at"]);
