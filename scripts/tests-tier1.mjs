@@ -1752,6 +1752,15 @@ const INVARIANTS = [
             }
             equal(opens.length, 0, `a contents entry opened a browser tab: ${opens.join(", ")}`);
             ok(text.scrollTop > 0, "the contents list does not move the text");
+            /* A SECTION ASKED BY NAME (E57 C4a, 13.11.2026): every book has a section 2 (the brochure's by its place),
+               and asked of the open window its heading stands 8 px under the text's top, as R4721 reckons it. */
+            const { openHandbooks } = await import("./handbooks.mjs");
+            await openHandbooks(null, { section: "2" });
+            await app.shown;
+            equal(app.landed, "2", `${app.book} did not open on its section 2`);
+            const second = text.querySelector('[data-drpg-section="2"]');
+            ok(second && Math.abs(second.getBoundingClientRect().top - text.getBoundingClientRect().top - 8) <= 2,
+                `${app.book}'s section 2 is not at the top of the text`);
             ok(app.element.getBoundingClientRect().bottom <= window.innerHeight + 1,
                 "the handbook window runs off the bottom of the screen");
         } finally {
@@ -1845,6 +1854,115 @@ const INVARIANTS = [
             window.open = realOpen;
             toc.remove();
             text.remove();
+        }
+    }],
+
+    ["R4720 - every section of a handbook carries an anchor that is no id: a \"## \" heading its number, or its place among them where it has none, a numbered sub-heading its \"N.M\", one per section, and the same list in English and in Polish", async () => {
+        /*
+         * E57 C4a, 13.11.2026 (D35: a "?" opens the handbook on its section, by a section number shared by EN and PL).
+         * The headings take no `id` on purpose (toHtml's NO IDS AT ALL: a section called "Chat" would shadow Foundry's
+         * `#chat`), so the anchor is an attribute, `data-drpg-section`, by tools/handbook-facts.mjs's rule for a
+         * section: the number a "## " heading starts with ("## 8. Traces" is 8), or that heading's place among the
+         * "## " headings where it has none (the brochure). A "### " heading is anchored only when it is numbered
+         * ("### 9.1 Rooms"). Read on a planted text, then on the six files as served: showdown is not in the headless
+         * harness, so the headings are cut from the Markdown and the same function marks them.
+         */
+        const { markSections, handbookPath } = await import("./handbooks.mjs");
+        const marks = root => [...root.querySelectorAll("[data-drpg-section]")].map(h => `${h.tagName}:${h.dataset.drpgSection}`);
+        const probe = document.createElement("div");
+        probe.innerHTML = "<h1>Book</h1><h2>1. One</h2><h3>1.1 Sub</h3><h3>Plain</h3><h2>Two</h2><h2>3. Three</h2><h2>3. Again</h2>";
+        markSections(probe);
+        equal(marks(probe).join(), "H2:1,H3:1.1,H2:2,H2:3",
+            "the planted headings are not anchored by the rule (a number, else the place; a sub-heading only when numbered; a repeat once)");
+        ok(!probe.querySelector("[id]"), "an anchor was written as an id");
+
+        const headingsOf = markdown => {
+            const root = document.createElement("div");
+            let fence = false;
+            for (const line of String(markdown).split(/\r?\n/)) {
+                if (/^\s*(```|~~~)/.test(line)) { fence = !fence; continue; }
+                const m = fence ? null : /^(#{2,3}) (.+)$/.exec(line);
+                if (!m) continue;
+                const heading = document.createElement(m[1].length === 2 ? "h2" : "h3");
+                heading.textContent = m[2].trim();
+                root.append(heading);
+            }
+            return root;
+        };
+        for (const id of ["player-brochure", "player-handbook", "gm-handbook"]) {
+            const lists = {};
+            for (const lang of ["en", "pl"]) {
+                const response = await fetch(handbookPath(id, lang));
+                ok(response.ok, `${id}.${lang} is not served`);
+                const root = headingsOf(await response.text());
+                markSections(root);
+                const sections = root.querySelectorAll("h2").length;
+                ok(sections > 0, `${id}.${lang}: no "## " heading was read`);
+                equal(root.querySelectorAll("h2[data-drpg-section]").length, sections, `${id}.${lang}: a section has no anchor, or two share one`);
+                lists[lang] = [...root.querySelectorAll("[data-drpg-section]")].map(h => h.dataset.drpgSection);
+            }
+            equal(lists.pl.join(), lists.en.join(), `${id}: the Polish book's sections are not the English book's`);
+        }
+    }],
+
+    ["R4721 - a section asked of the handbook's text is where the text goes, by the contents list's own reckoning, and a section the text lacks moves nothing", async () => {
+        /*
+         * E57 C4a, 13.11.2026. One reckoning for both: the contents entry and a section asked by name put the heading
+         * 8 px under the text's top, from the two boxes (fillContents' comment says why not `scrollIntoView`). The
+         * boxes are a browser's; here they are stood in for, so the arithmetic is read without a layout. Where a real
+         * window lands is R111's, which has a layout.
+         */
+        const { markSections, goToSection, fillContents } = await import("./handbooks.mjs");
+        const text = document.createElement("article");
+        text.innerHTML = "<h2>1. One</h2><p>a</p><h2>2. Two</h2><h3>2.1 Sub</h3><p>b</p>";
+        document.body.append(text);
+        try {
+            markSections(text);
+            const sub = text.querySelector("h3");
+            text.getBoundingClientRect = () => ({ top: 100 });
+            sub.getBoundingClientRect = () => ({ top: 400 });
+            text.scrollTop = 20;
+            equal(goToSection(text, "2.1"), sub, "the section asked for is not the heading the text went to");
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "the text did not put the section 8 px under its top");
+            text.scrollTop = 20;
+            equal(goToSection(text, "7"), null, "a section the text lacks was found");
+            equal(text.scrollTop, 20, "a section the text lacks moved the text");
+            equal(goToSection(text, null), null, "no section asked found one");
+            const toc = document.createElement("nav");
+            fillContents(toc, text);
+            text.scrollTop = 20;
+            toc.children[2]?.click();
+            equal(text.scrollTop, 20 + 400 - 100 - 8, "the contents entry and the section asked for land in different places");
+        } finally {
+            text.remove();
+        }
+    }],
+
+    ["R4722 - openHandbooks hands the section asked for to the window, opening it or open, and a section no book has leaves the text at its top; asked with no book, it remembers none", async () => {
+        /*
+         * E57 C4a, 13.11.2026: `openHandbooks(book, { section })`. The window keeps what it was last asked
+         * (`sectionAsked`) and where it landed (`landed`). Section "999" is in no book, so the text stays at its top
+         * whatever the page renders (headless, showdown is absent and the text is the Markdown). No book is named, so
+         * nothing is written: the book last read (`handbookBook`) is as it was.
+         */
+        const { openHandbooks } = await import("./handbooks.mjs");
+        const remembered = getSetting(SETTINGS.handbookBook);
+        const wasOpen = Boolean(foundry.applications.instances.get("drpg-handbooks")?.rendered);
+        let app = null;
+        try {
+            app = await openHandbooks(null, { section: "999" });
+            await app?.shown;
+            ok(app?.rendered, "openHandbooks with a section opened no window");
+            equal(app.sectionAsked, "999", "the window was not handed the section asked for");
+            equal(app.landed, null, "a section no book has was landed on");
+            equal(app.element.querySelector(".drpg-handbook-text")?.scrollTop, 0, "a section no book has moved the text");
+            const again = await openHandbooks(null, { section: "998" });
+            await again?.shown;
+            equal(again, app, "asked again, openHandbooks opened a second window");
+            equal(app.sectionAsked, "998", "the open window was not handed the new section");
+            equal(getSetting(SETTINGS.handbookBook), remembered, "asked with no book, openHandbooks remembered one");
+        } finally {
+            if (!wasOpen) await app?.close();
         }
     }],
 
