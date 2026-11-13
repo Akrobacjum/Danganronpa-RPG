@@ -746,7 +746,8 @@ export function helpText(key, data = null) {
  * reader's language, formatted with `data` when given. `tipText` is the words alone (a `dataset.tooltip`, a footer
  * button's `tooltip:`, a tab's); `tipAttr` the attribute to write into a control's tag, with its leading space -
  * Foundry's `data-tooltip`, as the stepper's - and + and the icon buttons carry, or with `{ title: true }` the browser's
- * `title`, the footer's form (a disabled button shows a title; Foundry's tooltip over one was not tried on v14).
+ * `title`, the footer's form (a disabled button shows a title; Foundry's tooltip over one was not tried on v14,
+ * LIVE-E102-01).
  * A key with no words in either language draws nothing, never the raw key.
  */
 export function tipText(key, data = null) {
