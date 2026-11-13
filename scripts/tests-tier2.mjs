@@ -91296,6 +91296,52 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "size, the recorded GM's size]; [a project of 3 for a tool raised to Tier 3, then the same recorded as the GM's: crossed, the tool still broken]; "
             + `the GMs told why): ${stableJson(read)}`);
     }],
+    ["1.2.110 V3 - a Tamper's fresh scene counts on the GM only the unfound bodies its roller's player may know, as that player's own copy does (scripts/cleanup.mjs `freshSceneBonus`, `cleanupDc`; incident-store.mjs `knowsOfDeath`; the E101 line's review of 1.2.110, V3, 13.11.2026): with a body of this chapter in the GMs' deaths that one player may know (its row names them) and another may not, the GM's threshold for the first takes the -3 and for the second does not, which is what the second player's own browser reads (it holds no row of that body); with no roller the GMs' whole store counts", async () => {
+        /*
+         * The review's V3. E64 C1a gave the fresh scene's -3 to an unfound body of this chapter, read on a GM from the GMs'
+         * whole deaths store and on a player from that player's copy (gm-stores.mjs `deathCopy`, built by incident-store.mjs
+         * `deathsFor` with `knowsOfDeath`). A player who may not know of the body saw the higher number while the GM scored the
+         * lower, so a roll between the two came back a hit and told them a body lies unfound. Here, on the GM: a row of the
+         * deaths store for one fixture student, this chapter, naming a second student's player as knowing it; a third student's
+         * player names no row. Read through the scoring's own road, `cleanupDc(visibility, actor)`, for the knower and the
+         * other, and what the other's copy would hold (`deathsFor`). No incident runs and no body is found (read). The row is
+         * dropped after. Red at 12a7e309: both thresholds took the -3.
+         */
+        const C = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { deathsFor } = await import("./incident-store.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const [dead, knower, other] = cast(3);
+        const ownerOf = actor => game.users.find(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+        const [knowerUser, otherUser] = [ownerOf(knower), ownerOf(other)];
+        must(knowerUser && otherUser && knowerUser.id !== otherUser.id && !dead.testUserPermission?.(otherUser, "OWNER"),
+            "two fixture students with players of their own, neither owning the dead - this would measure nothing");
+        must(!murderState()?.active && !bodyDiscovery(), "an incident runs or a body is found - the fresh scene would not stand on the body alone");
+        must(!(CLEANUP.freshScene?.until ?? []).includes(getClock().phase), "the clock stands in a phase with no fresh scene - this would measure nothing");
+        const bonus = Number(CLEANUP.freshScene?.bonus) || 0;
+        must(bonus > 0 && (CLEANUP.freshScene?.onlyWith ?? []).includes("unfoundBody"), "the rule gives no fresh scene for an unfound body - this would measure nothing");
+        const visibility = "subtle";
+        const had = deathStore.has(dead.id);
+        must(!had, "the fixture student is already dead in the GMs' store");
+        const read = {};
+        try {
+            await deathStore.patch(dead.id, { chapter: getClock().chapter, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [knowerUser.id] });
+            await settle();
+            read.thresholds = [C.cleanupDc(visibility, knower), C.cleanupDc(visibility, other)];
+            read.bonus = [C.freshSceneBonus({ actor: knower }), C.freshSceneBonus({ actor: other }), C.freshSceneBonus()];
+            read.otherCopy = Object.keys(deathsFor(otherUser.id).deaths).includes(dead.id);
+            read.otherOwnReading = C.freshSceneBonus({ deaths: deathsFor(otherUser.id).deaths });
+        } finally {
+            if (deathStore.has(dead.id)) await deathStore.drop(dead.id);
+            await settle();
+        }
+        const full = C.atLeastFloor(CLEANUP.dc[visibility] - (CLEANUP.toolTierReducesDc ? C.cleaningTier(other) : 0));
+        must(C.cleaningTier(knower) === C.cleaningTier(other), "the two fixture students hold cleaning tools of different tiers - their thresholds would differ anyway");
+        equal(stableJson(read), stableJson({ thresholds: [C.atLeastFloor(full - bonus), full], bonus: [bonus, 0, bonus], otherCopy: false, otherOwnReading: 0 }),
+            "{thresholds: [the knower's, the other's]; bonus: [the knower's, the other's, with no roller]; otherCopy: the body in the other's copy; otherOwnReading: the other's copy's reading} - the GM's fresh scene follows what the roller may know");
+    }],
     ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima and each change is the GM's to confirm: a pick taken back hands out a statistic point on an offer limited to statistics, a past Head, Body or Leg point gets its rise, a change left unticked stays; the world is asked once; a pick of another option on that offer is refused", async () => {
         /*
          * E64, the owner's DRPG-D1 of 12.11.2026 ("Rekompensujemy by lvl upy byly spojne"; "Akceptuje nowe E64"; "Co do
