@@ -63,8 +63,10 @@
 
 export const FLOWS = Object.freeze([
     // E18 C1 (19.10.2026): a Dynamic answer goes by the primary (`dynamic.answer`), which 40 drives from the card's button.
+    // E39 C2 (13.11.2026): 99-actions drives every row of ACTIONS from p1's page, its price and its bands; still partial: the
+    // Dynamic action's difficulty is driven to the GM's card and no further there (40 and 88 answer it).
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
-        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length"], status: "partial", stage: "E39" },
+        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow", "88-flow-length", "99-actions"], status: "partial", stage: "E39" },
     // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
@@ -158,8 +160,10 @@ export const FLOWS = Object.freeze([
         status: "covered", stage: "1.2.97" },
     // E17 C3 (26.10.2026): a GM's "Refund last crossing" (`token.refundCrossing`, gmOnly), given back on the primary from the
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
+    // E39 C1 (13.11.2026): 70-movement drives a player's crossings past the budget, ten at once, and the GM's Refund at its
+    // exact price; partial still: no scenario drives the GMs' send-back of a player's ask (`token.sendBack`) beyond 66 and 76.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
-        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
+        entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length", "70-movement"], status: "partial", stage: "E39" },
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a
@@ -174,8 +178,10 @@ export const FLOWS = Object.freeze([
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
+    // E39 C1 (13.11.2026): 70-movement drives an Eclipse's crossings allowed and the one past them refused on the mover and,
+    // from a console past its own veto, put back; partial still: the free-placement Eclipse and Darkness are tier 2's.
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
-        entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths", "70-movement"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
     // E50 fix FG2 (30.10.2026; the end review's G7): 87-messenger-sound's part E presses a body's Take on a player's page.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",

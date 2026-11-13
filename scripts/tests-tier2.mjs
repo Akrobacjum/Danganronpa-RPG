@@ -25473,6 +25473,66 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
     }],
 
+    ["the verdict sentences but kills nobody; the condemned dies when the trial closes (E40-T1, DC36)", async () => {
+        /*
+         * E40 C1, 13.11.2026; the plan's DC36 ("the verdict kills nobody; the condemned dies when the trial is closed"),
+         * E70 C4. A wrong verdict naming the accused is applied in the Class Trial: the accused is still alive, the record
+         * holds the sentence (`verdict.sentenced`), and the public card says the execution waits for the trial's end
+         * (`executionPending`), not that it has happened. Then the trial closes (vote.mjs `executeAtExit`): the accused
+         * dies, the record is stamped (`executedAt`), and one execution card is posted. Read on this GM (the primary),
+         * two states of the one actor - alive after the verdict, dead after the close - so a change that killed at the
+         * verdict, or never at the close, is caught. The two halves are what the mutants break (sentenceOf -> null leaves
+         * the accused alive at the close; the card's classTrial branch dropped says executionNow at the verdict).
+         */
+        const [accused] = cast(2), killer = cast(2)[1];
+        const V = await import("./vote.mjs");
+        const { executeAtExit, trialProgress } = V;
+        const { isDeceased } = await import("./chapter.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { reviveCharacter } = await import("./chapter.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const clock = foundry.utils.deepClone(getClock());
+        const from = new Set(game.messages.map(m => m.id));
+        const dead = id => isDeceased(flagsHeldNow(game.actors.get(id)));
+        const saidOf = async flag => {
+            const cards = game.messages.filter(m => !from.has(m.id) && m.getFlag(MODULE_ID, flag));
+            const said = await Promise.all(cards.map(m => wordsOf(m, 1000)));
+            return said.map(String);
+        };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, phase: "classTrial" });
+            await withVerdictOpen(async () => {
+                await withAdvanceWindows(() => null,
+                    () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
+                await settle();
+                const record = trialProgress();
+                const verdictCards = await saidOf("verdictCard");
+                /* THE VERDICT, IN THE TRIAL: nobody dead, the sentence held, the card says the execution waits. */
+                equal(stableJson([dead(accused.id), (record.verdict?.sentenced ?? []).includes(accused.id), record.executedAt ?? null,
+                    verdictCards.some(text => text.includes(game.i18n.format("DRPG.Vote.executionPending", { names: esc(accused.name) }))),
+                    verdictCards.some(text => text.includes(game.i18n.format("DRPG.Vote.executionNow", { names: esc(accused.name) })))]),
+                    stableJson([false, true, null, true, false]),
+                    "the verdict killed the accused, did not hold the sentence, or said the execution happened now (dead, sentenced, executedAt, saysPending, saysNow)");
+                /* THE TRIAL CLOSES: the accused dies, the record is stamped, one execution card is posted. */
+                const done = await executeAtExit();
+                await settle();
+                const executionCards = await saidOf("executionCard");
+                equal(stableJson([dead(accused.id), Boolean(trialProgress().executedAt), (done?.executed ?? []).includes(accused.id),
+                    executionCards.filter(text => text.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))).length]),
+                    stableJson([true, true, true, 1]),
+                    "the trial's close did not execute the accused once and stamp the record (dead, executedAt, done, cards)");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await reviveCharacter(accused, { quiet: true });
+            await deferredOfferStore.drop(killer.id);
+            for (const m of game.messages.filter(m => !from.has(m.id))) { try { await m.delete(); } catch { /* gone */ } }
+            await settle();
+        }
+    }],
+
     ["a wrong verdict's card names the executed and never the Blackened", async () => {
         /* E10 C5, 1.2.71; audit S06-06; ledger V6. The verdict was a whisper to the GMs and the
            execution's card went to them alone as well: the class never read its own verdict, the
@@ -72351,7 +72411,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         };
         const roads = async () => {
             const out = {};
-            for (const road of ["give", "rifle", "steal", "plant"]) out[road] = await run(road);
+            for (const road of Object.keys(ROADS).filter(road => road !== "loot")) out[road] = await run(road);
             let dead = false;
             try {
                 dead = Boolean(await killCharacter(giver, { secret: false, keepBullets: true }));
@@ -72402,6 +72462,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             stash: { give: stays(["DRPG.Handover.theirHandsFull"]), rifle: lands(["DRPG.Vault.overflowed", "DRPG.Vault.stole"]),
                 steal: lands(["DRPG.Vault.overflowed", "DRPG.Steal.cardTook"]), plant: stays(["DRPG.Steal.cardTheirHandsFull"]), loot: lands(["DRPG.Vault.overflowed"]) }
         }), "a road into full hands moved what its policy keeps, kept what it moves, or told its asker another road's line, or none (per road, with no stash of the taker's and with one: [the taker's copies, of them in a stash, the giver still holds it, the lines the asker's players read, the lines the other student's read])");
+        /* EVERY MODE OF THE POLICY HAS ITS ROAD HERE (E39 C3, 13.11.2026; the plan's "every transferItem mode"). The roads were
+           written out by hand, five for five, so a sixth mode of TRANSFER_POLICY would have passed this test unread. Red on a
+           copy of this tree with a mode `lend: "refuse"` added to the policy: the census below failed and the world was put back. Last,
+           after the world is put back: an `equal` that fails throws. */
+        equal(Object.keys(INV.TRANSFER_POLICY).sort().join(", "), Object.keys(ROADS).sort().join(", "),
+            "a mode of inventory.mjs TRANSFER_POLICY has no road driven here, or a road here is no mode of it - give the new mode its road and its expected row");
+        /* And each mode as its policy says, read off the table itself (E39 C3): with a stash of the taker's, a "refuse" leaves
+           the taker nothing and the giver the item, an "overflow" puts one copy in that stash and none in hand. */
+        const byPolicy = Object.fromEntries(Object.entries(INV.TRANSFER_POLICY).map(([mode, rule]) => [mode, rule === "refuse" ? [0, 0, true] : [1, 1, false]]));
+        equal(stableJson(Object.fromEntries(Object.keys(INV.TRANSFER_POLICY).map(mode => [mode, (read.stash?.[mode] ?? []).slice(0, 3)]))), stableJson(byPolicy),
+            "a mode into full hands, with a stash of the taker's, did not do what TRANSFER_POLICY says of it ([the taker's copies, of them in a stash, the giver still holds it])");
     }],
 
     ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a give (since E64, D001), a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
@@ -75035,6 +75106,79 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "its caller's error, the project, the change behind it; a held step: another key's step, the bar while held and after; "
             + "an after that does not settle: whether its caller returned, the next change, the bars; the packets: judged, a GM's lands once, "
             + "a player's lands nothing, the answers]");
+    }],
+
+    ["the one entry's cases, one after another on fresh projects (E39-T1): no such project and an empty change answer null; a +1 moves the bar; a fill to the target crosses once, and a full bar renamed does not cross again; a +1 on a full bar and a -1 on an empty one change nothing, each with its reason; a -1 from full uncrosses; a delta past either end stops at it; a target lowered under the progress crosses; a name and a room change it; a frozen bar's +1 is refused; a target of 0 asked is written as 1; a removed project is gone and a change of it answers null", async () => {
+        /*
+         * E39 C4, 13.11.2026; the plan's item 4 ("the 14 project cases on applyProjectChange from E36"). The S09 list the
+         * plan names is not in this checkout, so the cases are the ones projects.mjs `changeStep`'s header states (its
+         * CROSSING paragraph, the clamp, alreadyFull and alreadyEmpty, the frozen bar, a target of 0) and the entry's own
+         * answers (null for no project, an empty change, a removed one). Each case reads the entry's answer -
+         * `{ from, to, target, changed, reason, crossed, uncrossed, removed }` - on a project made for it, so no case leans
+         * on another's bar. A target of 0 cannot be asked for: the entry writes 1 (`cleanProjectChange`; measured here, 13.11.2026),
+         * so the header's "a target of 0 is never reached" holds of no project the entry makes or changes. Red first as mutants of a copy of the tree (the entry exists since E36 C1): the clamp's
+         * `Math.max(0, ...)` dropped, the crossing's `!wasDone` dropped (read by the full bar renamed), the frozen check's `isFrozen` turned false - each
+         * fails this test.
+         */
+        const P = await import("./projects.mjs");
+        const made = [];
+        const make = async (target, name = "SUITE E39-T1 a project") => {
+            const project = await P.createProject({ name, target });
+            must(project?.id, `could not create "${name}"`);
+            made.push(project.id);
+            return project.id;
+        };
+        const gm = { by: { kind: "gm" } };
+        const go = (id, change) => P.applyProjectChange(id, change, gm);
+        const cut = r => (r ? [r.from, r.to, r.target, r.changed, r.reason ?? null, r.crossed, r.uncrossed, r.removed] : null);
+        const read = {};
+        try {
+            read.missing = await go("zE39T1nosuchone0", { delta: 1 });
+            const a = await make(4);
+            read.empty = await go(a, {});
+            read.plus = cut(await go(a, { delta: 1 }));
+            read.fill = cut(await go(a, { delta: 3 }));
+            read.full = cut(await go(a, { delta: 1 }));
+            read.fullNamed = cut(await go(a, { name: "SUITE E39-T1 still full" }));
+            read.uncross = cut(await go(a, { delta: -1 }));
+            read.down = cut(await go(a, { delta: -10 }));
+            read.emptyBar = cut(await go(a, { delta: -1 }));
+            read.up = cut(await go(a, { delta: 10 }));
+            const b = await make(6);
+            await go(b, { delta: 3 });
+            read.lowered = cut(await go(b, { target: 2 }));
+            const c = await make(5);
+            const named = await go(c, { name: "SUITE E39-T1 renamed" });
+            read.named = [named?.changed ?? null, P.allProjects().find(p => p.id === c)?.name ?? null];
+            await go(c, { meta: { room: "SUITE E39-T1 room" } });
+            read.room = P.projectMeta()[c]?.room ?? null;
+            await P.setProjectMeta(c, { frozenBy: "zE39T1saboteur00" });
+            read.frozen = cut(await go(c, { delta: 1 }));
+            const d = await make(3);
+            read.zero = [cut(await go(d, { target: 0 })), cut(await go(d, { delta: 5 }))];
+            const e = await make(3);
+            read.removed = cut(await go(e, { remove: true }));
+            read.gone = [P.allProjects().some(p => p.id === e), await go(e, { delta: 1 })];
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+        }
+        equal(stableJson(read), stableJson({
+            missing: null, empty: null,
+            plus: [0, 1, 4, true, null, false, false, false],
+            fill: [1, 4, 4, true, null, true, false, false],
+            full: [4, 4, 4, false, "DRPG.Project.alreadyFull", false, false, false],
+            fullNamed: [4, 4, 4, true, null, false, false, false],
+            uncross: [4, 3, 4, true, null, false, true, false],
+            down: [3, 0, 4, true, null, false, false, false],
+            emptyBar: [0, 0, 4, false, "DRPG.Project.alreadyEmpty", false, false, false],
+            up: [0, 4, 4, true, null, true, false, false],
+            lowered: [3, 2, 2, true, null, true, false, false],
+            named: [true, "SUITE E39-T1 renamed"], room: "SUITE E39-T1 room",
+            frozen: [0, 0, 5, false, "DRPG.Project.frozenNoProgress", false, false, false],
+            zero: [[0, 0, 1, true, null, false, false, false], [0, 1, 1, true, null, true, false, false]],
+            removed: [0, 0, 3, true, null, false, false, true],
+            gone: [false, null]
+        }), "a case of the one entry answered other than projects.mjs changeStep says ([from, to, target, changed, reason, crossed, uncrossed, removed] per case)");
     }],
 
     ["D40 and the table of what a completion does (E36-T3): a trap's bar taken back under its target disarms it and keeps firedAt, filled again it arms unless it has fired, one receipt per arming; a finished repair thaws its project once and goes; a lowered target crosses; a row's keep holds the project until the character's Reroll bookmark names another roll", async () => {
