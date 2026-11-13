@@ -286,7 +286,7 @@ function apiSurfaceProblems({ live = {}, same = [], surface = null, version = "0
 
 /** What is wrong with a red marker before anything is run, or null. */
 function markerProblem(red, ledger) {
-    if (red?.[RED] !== true || !/^E\d{2}$/.test(red.stage ?? "") || !red.why) {
+    if (red?.[RED] !== true || !/^E\d{2,3}$/.test(red.stage ?? "") || !red.why) {
         return `expectedRed is malformed (a stage "E" and two digits, and a reason): ${describe(red)}`;
     }
     if (!ledger) return null;
@@ -303,7 +303,7 @@ function untilProblem(rule, ledger) {
     if (!String(rule?.why ?? "").trim()) return "a dump rule with no reason";
     const until = String(rule?.until ?? "");
     if (until === "never" || until === "1.3.x (D27)") return null;
-    if (!/^E\d{2}$/.test(until)) return `until "${until}" is not a stage, "1.3.x (D27)" or "never"`;
+    if (!/^E\d{2,3}$/.test(until)) return `until "${until}" is not a stage, "1.3.x (D27)" or "never"`;
     if (!ledger) return null;
     const row = ledger.get(until);
     if (!row) return `until names "${until}", which tools/stages.json does not know`;
