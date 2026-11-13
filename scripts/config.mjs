@@ -1467,17 +1467,23 @@ export const PRICE_CHAINS = {
  * declares which traits may roll it and what it costs.
  * ========================================================================== */
 /**
- * `kind` on each entry below, and the ORDER they are written in.
+ * `kind` on each entry below.
  *
- * The sheet draws every `universal` entry as the action grid, in exactly this
- * order - so the table is the layout, and moving a tile means moving a block
- * of text here rather than editing a list somewhere else that could disagree
- * with it. Ten of them, two rows of five.
+ * The sheet draws every `universal` entry as the action grid - ten of them,
+ * two rows of five - in the order `ACTION_GRID` (below the table) names them.
+ * Until E103 the table's own key order was the layout; the owner's order of
+ * 13.11.2026 moved Infiltrate and Palm into the first row, and a list of ten
+ * keys says that where moving three blocks of this table would also have moved
+ * every reader that walks ACTIONS in order (`ruledDefinitions`, the suite's
+ * loops) for no reason of theirs. The suite holds the list to the universal
+ * entries, each once (R5300, and "the action grid is two rows of five").
  *
  * The other two kinds are entries that are NOT tiles and must not be deleted:
  *
- *   panel    drawn by a panel of its own. `move` is the Monocub's, whose
- *            grid is exactly Move and Meddle.
+ *   panel    no tile draws it. `move` was the Monocub's first tile until E103
+ *            (the owner, 13.11.2026: "kafel move u monocuba usuwamy"); a
+ *            Monocub moves by its token, and `performAction` still dispatches
+ *            it (`MONOCUB.dispatchable`) to the Move's own briefing.
  *   variant  reached through another action's menu. `sabotage` is the third
  *            branch of Projects, and `reroll.mjs` still dispatches on
  *            `case "sabotage"` while `briefingBlock` reads its description -
@@ -1904,6 +1910,15 @@ export const ACTIONS = {
         leavesRemnant: { type: "prep", faint: true }
     }
 };
+
+/**
+ * THE ACTION GRID'S ORDER (E103, 13.11.2026; the owner: "Zmieniamy tylko kolejnosc akcji u gracza"): the first row
+ * Search, Observe, Analyze, Infiltrate (`listen`), Palm; the second Projects, Facilities (`rest`), Dynamic, then Tamper
+ * and Direct Murder, which the owner's words did not name and which keep the last two places (the stage's default, owner
+ * to confirm). Every `universal` key of ACTIONS once, nothing else; sheet.mjs `injectActionPanel` draws them in this
+ * order. Until E103: Search, Observe, Analyze, Projects, Dynamic | Facilities, Infiltrate, Palm, Tamper, Direct Murder.
+ */
+export const ACTION_GRID = Object.freeze(["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper", "directMurder"]);
 
 /* ==========================================================================
  * WHAT THE STATE-DEPENDENT `callsGm` PREDICATES ASK
@@ -3409,8 +3424,9 @@ export const MONOCUB = {
      * The only ACTIONS keys a Monocub may dispatch through `performAction`
      * (ACT-13, Dawid's list, 20.09).
      *
-     * Moving is how a Monocub is anywhere at all, and it is what their own panel
-     * offers beside Confusion. Everything else on the grid belongs to the living:
+     * Moving is how a Monocub is anywhere at all; their panel drew it as a tile
+     * beside Confusion until E103, and the token is the Move now (the owner,
+     * 13.11.2026), the key kept for the Move's briefing. Everything else on the grid belongs to the living:
      * a Monocub searching a room, working a project or analysing evidence is a
      * dead student playing the game they are out of.
      *
@@ -5492,6 +5508,7 @@ export const DRPG = {
     observeDc,
     KEY_REMNANTS,
     ACTIONS,
+    ACTION_GRID,
     INDIRECT_MURDER,
     BROKEN_ITEMS,
     SABOTAGE_CONCEAL,

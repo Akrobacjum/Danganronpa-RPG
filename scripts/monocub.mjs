@@ -12,8 +12,9 @@
  * flag on the token, keeps the normal action budget (refilled by the same
  * pass that refills everyone else - nothing to change there), and keeps the
  * same room-restricted vision every other student has. What changes is the
- * action panel on the sheet: Move and Meddle instead of the full grid, and
- * a Hope total that only a GM can top up, by converting their own Despair.
+ * action panel on the sheet: the abilities' tiles instead of the full grid
+ * (Meddle first; the Move tile beside it went in E103 - the token moves, free),
+ * and a Hope total that only a GM can top up, by converting their own Despair.
  *
  * MEDDLE'S ROLL. The guide marks its difficulty table "Stat: -" - the one roll
  * in the system with no trait behind it. Daggerheart's own `rollTrait` insists

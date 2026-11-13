@@ -38,7 +38,7 @@
                         `&state=dead|monocub|npc` (E24 C3a) the header (the name row with the GM's controls, the Actions
                         pips) above the parts and the sheet as sheet.mjs `markSheetState`, `injectActionBar` and
                         `injectActionPanel` draw it for the dead (still, the death mark, the dead's panel), a Monocub (live,
-                        its two tiles) or an NPC not in the class (still, the GM's line); without it the page is as before
+                        an ability tile; no Move tile since E103) or an NPC not in the class (still, the GM's line); without it the page is as before
        ?fit=1           THE PLACEMENT (E21 C1c, for `style-sweep.mjs --fit`): each window stands where Foundry puts a new
                         one - fixed, centred, its top max(0, (vh - h) / 2), a model of `_updatePosition` (LIVE-E21-01) -
                         and `window.drpgFit()` reads each window in each tab state: placed with its first tab, then the
@@ -387,7 +387,7 @@
       dead: `<div class="drpg-action-panel drpg-dead-panel"><h3 class="drpg-keep">${esc(L("DRPG.Chapter.deadPanelTitle"))}</h3>`
         + `<p class="notes">${esc(L("DRPG.Chapter.deadPanelNote"))}</p><p class="notes drpg-dead-still">${esc(L("DRPG.Class.deadStill"))}</p></div>`,
       monocub: `<div class="drpg-action-panel drpg-monocub-panel"><h3 class="drpg-keep">${esc(L("DRPG.Monocub.panelTitle"))}</h3>`
-        + `<div class="drpg-action-grid">${tile("move", "fa-shoe-prints", "Move")}${tile("confusion", "fa-shuffle", "Confusion")}</div></div>`,
+        + `<div class="drpg-action-grid">${tile("confusion", "fa-shuffle", "Confusion")}</div></div>`,
       npc: `<div class="drpg-action-panel drpg-npc-panel"><p class="notes drpg-keep">${esc(L("DRPG.Class.npcLine"))}</p></div>`
     };
     const features = viewer ? "" : STATES[state] ?? (`<div class="drpg-action-panel"><h3 class="drpg-keep">${esc(L("DRPG.Action.panelTitle"))}</h3><p class="notes drpg-keep drpg-budget-line">${esc(left)}</p>`

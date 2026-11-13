@@ -124,16 +124,20 @@ const INVARIANTS = [
         /*
          * THE TABLE IS THE LAYOUT (E12), so the table is what this asks.
          *
-         * The sheet draws every `universal` entry in the order they appear in
-         * ACTIONS. Eleven is a row of five and a row of five with one hanging
-         * underneath, which is the layout this order was rewritten to avoid;
-         * nine leaves a hole. Both are invisible in a diff of config.mjs and
-         * obvious on a sheet, which is exactly the kind of thing a test is for.
+         * The sheet draws every `universal` entry, since E103 in the order
+         * config.mjs `ACTION_GRID` names them (R5300 holds the order and the
+         * list to these entries). Eleven is a row of five and a row of five with
+         * one hanging underneath, which is the layout this order was rewritten
+         * to avoid; nine leaves a hole. Both are invisible in a diff of
+         * config.mjs and obvious on a sheet, which is exactly the kind of thing
+         * a test is for.
          *
          * And the two entries that stopped being tiles must still be ENTRIES.
          * `reroll.mjs` dispatches on `case "sabotage"`, `briefingBlock` reads
-         * its description, and `injectMonocubPanel` draws `ACTIONS.move` - so
-         * deleting either one breaks something a long way from here, silently.
+         * its description, and `performAction` dispatches `move` to its own
+         * briefing (`MONOCUB.dispatchable`; the Monocub's Move tile that drew
+         * `ACTIONS.move` is gone since E103) - so deleting either one breaks
+         * something a long way from here, silently.
          */
         const kinds = Object.entries(ACTIONS).map(([key, def]) => [key, def.kind]);
         const universal = kinds.filter(([, kind]) => kind === "universal");
@@ -9729,8 +9733,8 @@ const INVARIANTS = [
             must(res.ok, `gm-handbook.${lang}.md did not load`);
             const text = await lfText(res);
             const word = lang === "en" ? { then: "then", another: "another" } : { then: "potem", another: "inna" };
-            // The ten tiles.
-            const keys = ["search", "observe", "analyze", "project", "dynamic", "rest", "listen", "palm", "tamper", "directMurder"];
+            // The ten tiles, in the order the sheet draws them (config.mjs ACTION_GRID, E103's order since 13.11.2026).
+            const keys = ["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper", "directMurder"];
             const tiles = tableAfter(text, lang === "en" ? "| Action | Statistic |" : "| Akcja | Statystyka |");
             if (tiles.length !== keys.length) wrong.push(`${lang}: ${tiles.length} tile rows, expected ${keys.length}`);
             keys.forEach((key, i) => {
@@ -47185,6 +47189,182 @@ const INVARIANTS = [
         }), "{pure: moveSlots out of an Eclipse (free, fogged) and in one (0, 1, 3 left, free placement); strip: [slot:state:weight] at 0, 1, 2 "
             + "left and free placement; out: feet on the strip out of an Eclipse; sheet: the sheet's feet out of an Eclipse, in one at noon, in free placement} "
             + "- the Move must be two feet in the same places in every state");
+    }],
+    ["R5300 - a student's action grid is drawn in the owner's order of 13.11.2026 (config.mjs `ACTION_GRID`, sheet.mjs `injectActionPanel`; E103): Search, Observe, Analyze, Infiltrate, Palm, then Projects, Facilities, Dynamic, Tamper and Direct Murder, two rows of five; the list names every universal entry of ACTIONS once", async () => {
+        /*
+         * E103, 13.11.2026. The owner: "Zmieniamy tylko kolejnosc akcji u gracza" - the first row Search, Observe,
+         * Analyze, Infiltrate (key `listen`), Palm; the second Project, Facilities (key `rest`), Dynamic. Until E103 the
+         * grid followed ACTIONS' own key order: Search, Observe, Analyze, Projects, Dynamic | Facilities, Infiltrate,
+         * Palm, Tamper, Direct Murder. Tamper and Direct Murder, which the owner's words do not name, keep the last two
+         * places (the stage's default, owner to confirm). Drawn for this GM on a stand-in sheet (R3487's way).
+         */
+        const C = await import("./config.mjs");
+        const want = ["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper", "directMurder"];
+        const universal = Object.entries(C.ACTIONS).filter(([, def]) => def.kind === "universal").map(([key]) => key);
+        must(universal.length === want.length, `ACTIONS holds ${universal.length} universal entries, not ${want.length} - this would measure another grid`);
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the sheet's character");
+        const { isMonocub } = await import("./monocub.mjs");
+        const who = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const root = e24SheetRoot();
+        Hooks.callAll("renderCharacterSheet", { id: "R5300", document: who, isEditable: true }, root, {}, { isFirstRender: true });
+        const drawn = [...(root.querySelector(".drpg-action-panel:not(.drpg-monocub-panel) > .drpg-action-grid")?.children ?? [])]
+            .map(tile => tile.dataset?.drpgAction ?? null);
+        equal(stableJson({ list: C.ACTION_GRID ?? null, sorted: [...(C.ACTION_GRID ?? [])].sort(), drawn }),
+            stableJson({ list: want, sorted: [...universal].sort(), drawn: want }),
+            "{list: config.mjs ACTION_GRID; sorted: its keys sorted, against ACTIONS' universal ones sorted; drawn: the grid's tiles on the sheet, in order}");
+    }],
+    ["R5301 - a Monocub's panel draws no Move tile and keeps one tile per ability (sheet.mjs `monocubTiles`, `injectMonocubPanel`; E103): the grid holds MONOCUB.abilities' tiles in their order and no tile with an action key or the Move's prints", async () => {
+        /*
+         * E103, 13.11.2026. The owner: "kafel move u monocuba usuwamy". Until E103 `monocubTiles` drew `ACTIONS.move`
+         * first, a tile whose press only opened the Move briefing - a Monocub moves by dragging its token and pays nothing
+         * (movement.mjs `cubStep`, E72 C10). A student of this world drawn as a Monocub by its flags in memory
+         * (`e24Flagged`, nothing written), on a stand-in sheet for this GM.
+         */
+        const { MONOCUB } = await import("./config.mjs");
+        const abilities = Object.values(MONOCUB.abilities ?? {}).map(def => def.label);
+        must(abilities.length > 0, "MONOCUB has no abilities - this would measure nothing");
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the Monocub's stand-in");
+        const { isMonocub } = await import("./monocub.mjs");
+        const who = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const got = await e24Flagged(who, { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }, async () => {
+            const root = e24SheetRoot();
+            Hooks.callAll("renderCharacterSheet", { id: "R5301", document: who, isEditable: true }, root, {}, { isFirstRender: true });
+            const grid = root.querySelector(".drpg-monocub-panel .drpg-action-grid");
+            const tiles = [...(grid?.children ?? [])];
+            return { panel: Boolean(grid), keyed: tiles.filter(t => t.dataset?.drpgAction).map(t => t.dataset.drpgAction),
+                prints: tiles.filter(t => t.querySelector(".fa-shoe-prints")).length,
+                labels: tiles.map(t => t.querySelector(".drpg-action-name")?.textContent?.split(String.fromCharCode(173)).join("").trim() ?? null) };
+        });
+        equal(stableJson(got), stableJson({ panel: true, keyed: [], prints: 0, labels: abilities }),
+            "{panel: the Monocub's grid drawn; keyed: its tiles' action keys; prints: tiles wearing the Move's prints; labels: its tiles' names, in order}");
+    }],
+    ["R5302 - a Monocub's two feet always read as available, by day, after a crossing and in an Eclipse, on the sheet and the strip, with the Monocub's own sentence (sheet.mjs `moveSlots`, `freeMovePip`; player-status.mjs `buildPlayerView`; E103): the first foot solid by day with the second off as everyone's, both solid in an Eclipse, `anywhere` in free placement", async () => {
+        /*
+         * E103, 13.11.2026. The owner: "u monocuba zawsze zaznaczamy ruch w karcie postaci, ze jest dostepny (chodzi o
+         * glif)". A Monocub pays nothing for a crossing and counts no Eclipse crossing (movement.mjs `cubStep`,
+         * `chargeRoute`, E72 C10), so a foot outlined as spent said something the module does not do. The default the
+         * stage took (owner to confirm): out of an Eclipse the second foot stays `off`, as everyone's, for the stable
+         * layout (E49 B2); in an Eclipse both are solid, as a free placement's. Before E103 a Monocub's feet were a
+         * student's: `freeMoveUsed` drew the first one spent, an Eclipse with no crossing left both spent. The Monocub is a
+         * student of this world by its flags in memory (`e24Flagged`), its free Move marked used; the clock answered in
+         * memory (R3487's way); nothing written. A Monocub's header acts (`sheetMode`: `header.acts` for a cub), so the
+         * owner and the GMs read the tooltip; a viewer is drawn none, as before (the branch is unchanged).
+         */
+        const SH = await import("./sheet.mjs");
+        const PS = await import("./player-status.mjs");
+        const E = await import("./eclipse.mjs");
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the Monocub's stand-in");
+        const { isMonocub } = await import("./monocub.mjs");
+        const who = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const sentence = game.i18n.localize("DRPG.Actions.cubMovesFree");
+        must(sentence !== "DRPG.Actions.cubMovesFree", "DRPG.Actions.cubMovesFree has no text - the tooltip would read its key");
+        const slots = s => s.map(x => `${x.slot}:${x.state}`).join(" ");
+        const pure = [{ cub: true }, { cub: true, free: false, fog: true }, { cub: true, eclipse: true, moves: 0 }, { cub: true, eclipse: true, moves: 1 },
+            { cub: true, eclipse: true, moves: null }].map(o => slots(SH.moveSlots(o)));
+        const feet = el => [...(el?.querySelectorAll(".drpg-free-move .drpg-move-slot") ?? [])]
+            .map(i => `${i.dataset.drpgSlot}:${i.dataset.drpgState}:${i.classList.contains("fa-solid") ? "solid" : "outline"}`);
+        const stamp = { session: 1, day: 1, timeOfDay: "noon" };
+        const freeAt = ["morning", "noon", "afternoon", "evening", "night"].find(t => E.isFreePlacement({ ...stamp, eclipse: true, timeOfDay: t })) ?? null;
+        const boundAt = ["morning", "noon", "afternoon", "evening", "night"].find(t => !E.isFreePlacement({ ...stamp, eclipse: true, timeOfDay: t })) ?? null;
+        must(freeAt && boundAt, "no time of day places anywhere, or none places by rooms, in an Eclipse - a sheet below would measure nothing");
+        const got = await e24Flagged(who, { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true, [FLAGS.freeMoveUsed]: true }, async () => {
+            const sheet = clock => {
+                const real = game.settings.get;
+                game.settings.get = function (module, key, ...rest) {
+                    if (module === MODULE_ID && key === SETTINGS.clock) return { ...stamp, ...clock };
+                    return real.call(this, module, key, ...rest);
+                };
+                try {
+                    const root = e24SheetRoot();
+                    Hooks.callAll("renderCharacterSheet", { id: `R5302-${clock.timeOfDay}-${clock.eclipse}`, document: who, isEditable: true }, root, {}, { isFirstRender: true });
+                    const move = root.querySelector(".drpg-free-move");
+                    return { feet: feet(root), lit: move?.classList.contains("available") ?? null, says: (move?.dataset.tooltip ?? "").startsWith(sentence) };
+                } finally { game.settings.get = real; }
+            };
+            const strip = (eclipse, moves) => {
+                const el = PS.buildPlayerView(who, { eclipse, ...(eclipse ? { moves } : {}), dead: false, remember: false });
+                const row = el?.querySelector(".is-move");
+                return { feet: feet(el), spent: row?.classList.contains("spent") ?? null, says: (row?.dataset.tooltip ?? "").startsWith(sentence) };
+            };
+            return { day: sheet({ eclipse: false }), eclipse: sheet({ eclipse: true, timeOfDay: boundAt }), placement: sheet({ eclipse: true, timeOfDay: freeAt }),
+                strip: [strip(false), strip(true, 0), strip(true, null)] };
+        });
+        const day = ["free:available:solid", "eclipse:off:outline"], both = ["free:available:solid", "eclipse:available:solid"],
+            anywhere = ["free:anywhere:solid", "eclipse:anywhere:solid"];
+        equal(stableJson({ pure, ...got }), stableJson({
+            pure: ["free:available eclipse:off", "free:available eclipse:off", "free:available eclipse:available", "free:available eclipse:available",
+                "free:anywhere eclipse:anywhere"],
+            day: { feet: day, lit: true, says: true }, eclipse: { feet: both, lit: true, says: true }, placement: { feet: anywhere, lit: true, says: true },
+            strip: [{ feet: day, spent: false, says: true }, { feet: both, spent: false, says: true }, { feet: anywhere, spent: false, says: true }]
+        }), "{pure: moveSlots for a Monocub by day, under Fog, in an Eclipse with 0 and 1 crossings left, in free placement; day, eclipse, placement: "
+            + "the Monocub's sheet with its free Move used, [slot:state:weight], the row lit, the tooltip opening with DRPG.Actions.cubMovesFree; "
+            + "strip: the same by day, in an Eclipse with 0 left and in free placement, the row not dimmed}");
+    }],
+    ["R5303 - a student's feet are as before E103 (sheet.mjs `freeMovePip`; player-status.mjs `buildPlayerView`): with the free Move used the first foot is spent and the tooltip says so, with no Monocub's sentence", async () => {
+        /*
+         * E103, 13.11.2026: the Monocub's road (R5302) must leave the student's alone. A living student of this world with
+         * `freeMoveUsed` answered in memory (`e24Flagged`), drawn out of an Eclipse on a stand-in sheet and on the strip.
+         * Fog is the world's: under it the sheet's first foot reads `fogged` with Fog's sentence (E24 C3b), the strip's
+         * spent with the spent one, and the expectation says so.
+         */
+        const { overflowBlocksFreeMove } = await import("./overflow.mjs");
+        const PS = await import("./player-status.mjs");
+        const fog = overflowBlocksFreeMove();
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the sheet's and the strip's character");
+        const { isMonocub } = await import("./monocub.mjs");
+        const who = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const cub = game.i18n.localize("DRPG.Actions.cubMovesFree"), spent = game.i18n.localize("DRPG.Actions.freeMoveSpent");
+        const sheetSays = fog ? game.i18n.localize("DRPG.SheetNotes.fogFreeMove") : spent;
+        const feet = el => [...(el?.querySelectorAll(".drpg-free-move .drpg-move-slot") ?? [])]
+            .map(i => `${i.dataset.drpgSlot}:${i.dataset.drpgState}:${i.classList.contains("fa-solid") ? "solid" : "outline"}`);
+        const got = await e24Flagged(who, { [FLAGS.freeMoveUsed]: true }, async () => {
+            const real = game.settings.get;
+            game.settings.get = function (module, key, ...rest) {
+                if (module === MODULE_ID && key === SETTINGS.clock) return { session: 1, day: 1, timeOfDay: "noon", eclipse: false };
+                return real.call(this, module, key, ...rest);
+            };
+            try {
+                const root = e24SheetRoot();
+                Hooks.callAll("renderCharacterSheet", { id: "R5303", document: who, isEditable: true }, root, {}, { isFirstRender: true });
+                const move = root.querySelector(".drpg-free-move");
+                const el = PS.buildPlayerView(who, { eclipse: false, dead: false, remember: false });
+                const row = el?.querySelector(".is-move");
+                return { sheet: { feet: feet(root), lit: move?.classList.contains("available") ?? null, says: (move?.dataset.tooltip ?? "").startsWith(sheetSays),
+                    cub: (move?.dataset.tooltip ?? "").includes(cub) },
+                strip: { feet: feet(el), spent: row?.classList.contains("spent") ?? null, says: (row?.dataset.tooltip ?? "").startsWith(spent), cub: (row?.dataset.tooltip ?? "").includes(cub) } };
+            } finally { game.settings.get = real; }
+        });
+        const out = ["free:spent:outline", "eclipse:off:outline"];
+        equal(stableJson(got), stableJson({ sheet: { feet: fog ? ["free:fogged:outline", "eclipse:off:outline"] : out, lit: false, says: true, cub: false },
+            strip: { feet: out, spent: true, says: true, cub: false } }),
+            "{sheet, strip: a student with the free Move used, out of an Eclipse: [slot:state:weight], lit or dimmed, the tooltip opening with "
+            + "DRPG.Actions.freeMoveSpent (the sheet's with Fog's sentence under Fog), the Monocub's sentence in it}");
+    }],
+    ["R5304 - the texts name no Monocub Move tile (lang `DRPG.Chapter.deadPanelNote`, the player handbooks' Monocub panel; E103): neither language's dead panel promises Move, and the handbooks' lists of a Monocub's tiles do not open with Move", async () => {
+        /*
+         * E103, 13.11.2026. "Brought back as a Monocub, this panel becomes Move and Confusion" outlived the tile it named.
+         * Read off the files the module serves: both lang files' note, and the player handbook's two sentences that list a
+         * Monocub's tiles (ch. "Monocub" and the sheet's Actions tab) in English and Polish.
+         */
+        const wrong = [];
+        for (const lang of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            must(res.ok, `lang/${lang}.json did not load`);
+            const note = JSON.parse(await lfText(res))?.DRPG?.Chapter?.deadPanelNote ?? "";
+            must(note.length > 20, `lang/${lang}.json has no DRPG.Chapter.deadPanelNote - this would measure nothing`);
+            if (/\bMove\b/.test(note)) wrong.push(`${lang} deadPanelNote: "${note}"`);
+            const book = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            must(book.ok, `player-handbook.${lang}.md did not load`);
+            const text = await lfText(book);
+            const panel = lang === "en" ? /the action panel becomes ([^.]+)\./ : /panel akcji (?:staje się|to) ([^.]+)\./;
+            const listed = panel.exec(text)?.[1] ?? null;
+            if (!listed) wrong.push(`${lang} handbook: no sentence listing the Monocub's panel`);
+            else if (/\bMove\b/.test(listed)) wrong.push(`${lang} handbook panel: "${listed}"`);
+            const tab = text.split("\n").find(l => l.startsWith("- *Actions*") || l.startsWith("- *Akcje*")) ?? "";
+            must(tab.length > 40, `player-handbook.${lang}.md has no Actions line - this would measure nothing`);
+            if (/Move (?:and|i) Confusion/.test(tab)) wrong.push(`${lang} handbook Actions line names Move for a Monocub`);
+        }
+        equal(stableJson(wrong), "[]", "the texts that still name a Monocub's Move tile");
     }],
     ["R3488 - the name row's buttons come from one builder with their words, and the Stop says what it is (sheet.mjs `headerButton`, `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads \"Safeword\" before the table's word; a Monokuma's sheet draws no Stop", async () => {
         /*
