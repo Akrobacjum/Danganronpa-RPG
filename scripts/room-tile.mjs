@@ -76,7 +76,7 @@ import { phaseLabel } from "./clock.mjs";
 import { trialScene, roomNames } from "./rooms.mjs";
 import { hallRoom, HALL_ROOM_FLAG } from "./trial-scene.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { setTip } from "./ui-kit.mjs";
 
 const TILE_ID = "drpg-room-tile";
 const PROSE_ID = "drpg-room-tile-prose";
@@ -331,7 +331,7 @@ function paintTileRow(view, image) {
         const thumb = document.createElement("button");
         thumb.type = "button";
         thumb.className = "drpg-room-tile-thumb";
-        thumb.dataset.tooltip = tipText("DRPG.Tips.Setup.roomPictureThumbnailTooltip");
+        setTip(thumb, "DRPG.Tips.Setup.roomPictureThumbnailTooltip", null, { text: true });
         thumb.setAttribute("aria-label", game.i18n.format("DRPG.Room.imageOpen", { room: view.room }));
         const img = document.createElement("img");
         img.alt = "";

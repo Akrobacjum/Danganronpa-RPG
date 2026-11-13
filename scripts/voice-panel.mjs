@@ -25,7 +25,7 @@
 import { pushToTalkKey } from "./voice-tile.mjs";
 import { error } from "./utils.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { setTip } from "./ui-kit.mjs";
 
 /** The client settings this section may write, and nothing else (R542 holds the names). */
 const WRITABLE = ["audioSrc", "audioSink", "voice.mode"];
@@ -141,7 +141,7 @@ export async function voiceFieldset({ client = game.webrtc?.client, settings = g
     if (typeof foundry.applications?.sidebar?.apps?.ControlsConfig === "function") {
         const change = node("button", "drpg-voice-panel-key-change", t("pttChange"));
         change.type = "button";
-        change.dataset.tooltip = tipText("DRPG.Tips.More.changeTheKeyTooltip");
+        setTip(change, "DRPG.Tips.More.changeTheKeyTooltip");
         change.addEventListener("click", event => {
             event.preventDefault();
             try {

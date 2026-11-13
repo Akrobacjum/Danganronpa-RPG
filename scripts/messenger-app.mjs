@@ -35,7 +35,7 @@ import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { tipText, setTip } from "./ui-kit.mjs";
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
@@ -322,7 +322,7 @@ export class DrpgMessengerApp extends DrpgApp() {
             const fill = document.createElement("button");
             fill.type = "button";
             fill.className = "drpg-messenger-note-template";
-            fill.dataset.tooltip = tipText("DRPG.Tips.Setup.useTheTemplateTooltip");
+            setTip(fill, "DRPG.Tips.Setup.useTheTemplateTooltip");
             fill.textContent = game.i18n.localize("DRPG.Note.useTemplate");
             fill.addEventListener("click", () => { area.value = noteTemplate(); area.focus(); });
             row.append(fill);

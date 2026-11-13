@@ -25163,7 +25163,7 @@ const INVARIANTS = [
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
@@ -25216,7 +25216,7 @@ const INVARIANTS = [
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
@@ -25277,7 +25277,7 @@ const INVARIANTS = [
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
@@ -25324,7 +25324,7 @@ const INVARIANTS = [
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
@@ -25372,7 +25372,7 @@ const INVARIANTS = [
         const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"|setTip\\(\\s*\\w+,\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
@@ -25414,14 +25414,35 @@ const INVARIANTS = [
             must(card, "showPopup drew no card - this would measure nothing");
             close = card.querySelector(".drpg-popup-close");
             equal(stableJson({
-                guarded: /if\s*\(\s*record\s*\)\s*close\.dataset\.tooltip\s*=\s*tipText\(\s*"DRPG\.Tips\.Setup\.closeXTooltip"\s*\)/.test(body),
-                unguarded: /^\s*close\.dataset\.tooltip\s*=/m.test(body),
+                guarded: /if\s*\(\s*record\s*\)\s*setTip\(\s*close,\s*"DRPG\.Tips\.Setup\.closeXTooltip"\s*\)/.test(body),
+                unguarded: /^\s*(?:close\.dataset\.tooltip\s*=|setTip\(\s*close\b)/m.test(body),
                 drawn: close ? [close.hasAttribute("data-tooltip"), Boolean(close.getAttribute("aria-label"))] : null
             }), stableJson({ guarded: true, unguarded: false, drawn: [false, true] }),
             "{the close's tooltip written under record; written for every card; a record: false card's close [has data-tooltip, has its aria-label]}");
         } finally {
             if (typeof dismiss === "function") dismiss();
         }
+    }],
+    ["R4764 - a tooltip written in code is written only when it has words, through one kit helper (E102; REVIEW-E102-code C5, C6 on claude/e93 de7aff40): ui-kit.mjs `setTip(el, key, data, { text })` sets `dataset.tooltip`, or `dataset.tooltipText` with `text: true`, only when the key has words, and leaves the element alone otherwise (an empty data-tooltip makes Foundry read the aria-label through cleanHTML, the E02-D01 hole, R509); the six controls made in code take their tooltip through it, the room tile and the voice tile in the `data-tooltip-text` form their files' headers name, and none writes `dataset.tooltip = tipText(` by hand", async () => {
+        /* Red at 7f42e72b: no setTip; six `dataset.tooltip = tipText(` by hand, two of them in the tile files. */
+        const K = await import("./ui-kit.mjs");
+        must(typeof K.setTip === "function", "ui-kit.mjs has no setTip - the six sites have no one place");
+        const key = "DRPG.Look.stepDownBy", words = game.i18n.format(key, { n: 3 });
+        must(typeof words === "string" && words !== key, `${key} has no words here - this would measure nothing`);
+        const a = document.createElement("button"), b = document.createElement("button"), c = document.createElement("button");
+        K.setTip(a, key, { n: 3 }); K.setTip(b, key, { n: 3 }, { text: true }); K.setTip(c, "DRPG.Tips.NoSuch.keyTooltip");
+        const files = ["anonymity.mjs", "messenger-app.mjs", "popup.mjs", "room-tile.mjs", "voice-panel.mjs", "voice-tile.mjs"];
+        const src = Object.fromEntries(await Promise.all(files.map(async f => [f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")))])));
+        must(files.every(f => src[f].length > 500), "a script read as nothing - this would measure nothing");
+        const uses = f => [...src[f].matchAll(/\bsetTip\(\s*\w+,\s*"DRPG\.Tips\.[^"]+"(?:,\s*null)?(,\s*\{\s*text:\s*true\s*\})?\)/g)].map(m => (m[1] ? "text" : "html"));
+        equal(stableJson({
+            drawn: [a.dataset.tooltip === words && !("tooltipText" in a.dataset), b.dataset.tooltipText === words && !("tooltip" in b.dataset), c.hasAttribute("data-tooltip") || c.hasAttribute("data-tooltip-text")],
+            byHand: files.filter(f => /\.dataset\.tooltip(?:Text)?\s*=\s*tipText\(/.test(src[f])),
+            sites: Object.fromEntries(files.map(f => [f, uses(f)]))
+        }), stableJson({
+            drawn: [true, true, false], byHand: [],
+            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text"] }
+        }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
     }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*

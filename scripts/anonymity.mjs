@@ -55,7 +55,7 @@ import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
 
-import { tipAttr, tipText } from "./ui-kit.mjs";
+import { tipAttr, setTip } from "./ui-kit.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
@@ -312,7 +312,7 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
         const pick = document.createElement("input");
         pick.type = "checkbox";
         pick.className = "drpg-loot-pick";
-        pick.dataset.tooltip = tipText("DRPG.Tips.Setup.onALootedItemTooltip");
+        setTip(pick, "DRPG.Tips.Setup.onALootedItemTooltip");
         pick.value = item.id;
         pick.setAttribute("aria-label", item.name);
         row.prepend(pick);

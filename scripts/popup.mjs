@@ -45,7 +45,7 @@ import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from 
 
 import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { setTip } from "./ui-kit.mjs";
 
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
@@ -928,7 +928,7 @@ export function showPopup(bodyHtml, {
         close.type = "button";
         close.className = "drpg-popup-close";
         // Only a card the notice history keeps says so: a record: false card (showWaiting, the ready round's) is kept nowhere.
-        if (record) close.dataset.tooltip = tipText("DRPG.Tips.Setup.closeXTooltip");
+        if (record) setTip(close, "DRPG.Tips.Setup.closeXTooltip");
         close.innerHTML = `<i class="fa-solid fa-xmark" inert></i>`;
         close.setAttribute("aria-label", game.i18n.localize("DRPG.Panel.close"));
         head.append(close);

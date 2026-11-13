@@ -27,7 +27,8 @@
  *     attribute name: `data-drpg-title=` is not one), a `tooltip:` that is not "", null or undefined,
  *     `aria-describedby`, or the kit's `tipAttr(` / `tipText(`; for an element made in code, a statement on the
  *     variable it was assigned to within the next 14 lines (`<v>.title =`, `<v>.dataset.tooltip =` or `.tooltipText =`,
- *     `<v>.setAttribute("title"|"data-tooltip"|"data-tooltip-text"`). iconButton and launcher always carry one (their name).
+ *     `<v>.setAttribute("title"|"data-tooltip"|"data-tooltip-text"`, the kit's `setTip(<v>, ...)`). iconButton and
+ *     launcher always carry one (their name).
  *   - a HINT LINE: a drpg-help paragraph, `helpText(`, a `*-hint` class, a `...Hint` / `.hint` key or `class="notes"`
  *     within 3 lines above to 2 below - BY PROXIMITY, not by the label or row it belongs to (the review's M2: a hint
  *     beside an unrelated control credits it too). Read as that, not as more.
@@ -137,11 +138,14 @@ function tipOf(text) {
     const outside = text.replace(/\$\{[^}]*\?[^}]*:\s*(""|''|``)\s*\}/g, "");
     return TIP.test(outside) ? "always" : "conditional";
 }
+/** The label's key: the first DRPG key in the site's text, else the last in the 160 characters before it - never a
+ *  DRPG.Tips key, which is a tooltip's words and not a label (one beside a site renamed it, REVIEW-E102-code C5's sites). */
 function keyNear(src, a, b) {
-    const own = src.slice(a, b).match(KEY);
-    if (own) return own[0];
-    const before = src.slice(Math.max(0, a - 160), a).match(new RegExp(KEY.source, "g"));
-    return before ? before[before.length - 1] : null;
+    const label = k => !k.startsWith("DRPG.Tips.");
+    const own = (src.slice(a, b).match(new RegExp(KEY.source, "g")) ?? []).filter(label);
+    if (own.length) return own[0];
+    const before = (src.slice(Math.max(0, a - 160), a).match(new RegExp(KEY.source, "g")) ?? []).filter(label);
+    return before.length ? before[before.length - 1] : null;
 }
 const reEsc = t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -209,7 +213,7 @@ export function scan(file, raw, es = espree()) {
         const line = lineOf(s, at), after = lines.slice(line - 1, line + 14).join("\n");
         const v = s.slice(Math.max(0, at - 120), at).match(/(?:const|let|var)\s+(\w+)\s*=\s*$|(?<![\w.])(\w+)\s*=\s*$/);
         const name = v?.[1] ?? v?.[2] ?? null;
-        const helped = name && new RegExp(`(?<![\\w.])${reEsc(name)}\\.(?:title\\s*=|dataset\\.tooltip(?:Text)?\\s*=|setAttribute\\(\\s*["'](?:title|data-tooltip(?:-text)?)["'])`).test(after);
+        const helped = name && new RegExp(`(?<![\\w.])${reEsc(name)}\\.(?:title\\s*=|dataset\\.tooltip(?:Text)?\\s*=|setAttribute\\(\\s*["'](?:title|data-tooltip(?:-text)?)["'])|(?<![\\w.])setTip\\(\\s*${reEsc(name)}\\s*,`).test(after);
         sites.push({ file, line, kind, tip: helped ? "always" : "none", hint: hintNear(line), key: keyNear(s, at, end + after.length), closing: false,
             unit: unitOf(line), context: context(line, 8) });
     };
@@ -340,6 +344,7 @@ export const PLANTS = [
     ["d2", 'export function d2() { const b = document.createElement("button"); const h = document.createElement("h3"); h.title = "x"; return [b, h]; }', [["d2", "dom:button", true]]],
     ["d3", 'export function d3(x) { return document.createElement(x ? "button" : "span"); }', [["d3", "dom:button", true]]],
     ["d5", 'export function d5() { const b = document.createElement("button"); b.dataset.tooltipText = "x"; return b; }', [["d5", "dom:button", false]]],
+    ["d6", 'export function d6() { const b = document.createElement("button"); setTip(b, "DRPG.Tips.X.bTooltip"); return b; }', [["d6", "dom:button", false]]],
     ["d4", 'function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }\nexport function d4() { const go = el("button", "go"); return go; }', [["d4", "dom:button", true]]]
 ];
 export const PLANT_HEAD = 'import { stepper, toggle, iconButton, slider as kitSlider, kitTabs, modeBar, tipAttr, tipText } from "./ui-kit.mjs";';

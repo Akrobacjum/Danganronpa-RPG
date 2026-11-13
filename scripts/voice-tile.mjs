@@ -139,7 +139,7 @@ import { tileRow } from "./narrow.mjs";
 import { objectionControl, renderHud } from "./hud.mjs";
 import { trialFloor } from "./trial-floor.mjs";
 
-import { tipText } from "./ui-kit.mjs";
+import { setTip } from "./ui-kit.mjs";
 
 const TILE_ID = "drpg-voice-tile";
 
@@ -1353,7 +1353,7 @@ function listRow(watch, userId) {
     const dot = textNode("span", "drpg-voice-row-dot", "");
     dot.setAttribute("aria-hidden", "true");
     const slider = kitSlider({ className: "drpg-voice-row-volume", min: 0, max: 1, step: VOLUME_STEP });
-    slider.dataset.tooltip = tipText("DRPG.Tips.More.volumeTooltip");
+    setTip(slider, "DRPG.Tips.More.volumeTooltip", null, { text: true });
     slider.addEventListener("input", () => {
         const volume = volumeOfSlider(slider.value);
         setPeerVolume(watch, userId, volume, { save: false }).catch(err => error("Could not change a volume", err));

@@ -761,6 +761,18 @@ export function tipAttr(key, data = null, { title = false } = {}) {
 }
 
 /**
+ * The same words on an element made in code (E102; REVIEW-E102-code C5): `dataset.tooltip`, or with `{ text: true }`
+ * `dataset.tooltipText` - Foundry's plain-text form, which the room tile and the voice tile use for every tooltip (their
+ * headers say why). Written only when the key has words: an empty `data-tooltip` makes Foundry read the element's
+ * `aria-label` through `cleanHTML` (the E02-D01 hole, R509). Returns the element.
+ */
+export function setTip(el, key, data = null, { text = false } = {}) {
+    const words = tipText(key, data);
+    if (el && words) el.dataset[text ? "tooltipText" : "tooltip"] = words;
+    return el;
+}
+
+/**
  * What the - and + of a number field say (E20 C6, 30.10.2026; S01-48): "One fewer" and "One more" at a step of 1 (or
  * none, or "any"), and the step itself otherwise - the debate length moves by 10, and its buttons said "One more".
  * `input` is the field or anything with its `step` (R1521). Moved here from chrome.mjs in E44 C4b with the stepper.
