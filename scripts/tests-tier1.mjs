@@ -52311,6 +52311,31 @@ const INVARIANTS = [
         const sides = el => { const v = C.winner(el, "inset", "::before")?.value ?? ""; return v.split(/\s+/).some(part => part.startsWith("-")); };
         equal(stableJson([sides(li), sides(button)]), stableJson([false, false]), "[a negative side in the brush's inset: the Equipped row's, a button's in the column]");
     }],
+    ["R5840 - what the module writes into the sheet's Experience list spans the list's three tracks (fix-113e; the owner at a table on 1.2.112, 13.11.2026: \"The scroll in the character sheet still occurs\", a student with no experiences): the empty line (`p.drpg-experience-empty`) is not left in the first, `max-content` track, where it never wraps and the column scrolls sideways", async () => {
+        /*
+         * fix-113e, 13.11.2026. Measured in Chromium on Daggerheart 2.12.8's own sidebar.hbs and the rules of its stylesheet
+         * that reach it, with the module's stylesheets and sheet.mjs's injections (audit/sheet-column.mjs): at ceb9e9c8 the
+         * Experience list's grid (`max-content minmax(0, 1fr) max-content`, E24-C5 fix) placed the empty line in its first
+         * track, one line wide - the column's scrollWidth 623 in a clientWidth of 264 under the glass, 1032 under Legacy.
+         * The layout itself is that script's; this holds the cause in the suite. Red at ceb9e9c8: no `grid-column` on the line.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            body.innerHTML = `<form class="application sheet daggerheart actor dh-style character"><section class="window-content"><aside class="character-sidebar-sheet">`
+                + `<div class="shortcut-items-section"><section class="experience-section"><div class="title"><h3>Experience</h3></div>`
+                + `<div class="experience-list"><p class="notes drpg-experience-empty">No experiences yet.</p></div></section></div></aside></section></form>`;
+            const list = body.querySelector(".experience-list"), line = body.querySelector(".drpg-experience-empty");
+            // The list is the module's grid: without it the line's track is no question, and this would measure nothing.
+            must(/^grid\b/.test(C.winner(list, "display")?.value ?? ""), "the cascade read no grid on the Experience list - this would measure nothing");
+            read[theme] = (C.winner(line, "grid-column")?.value ?? null);
+        }
+        equal(stableJson(read), stableJson({ "drpg-theme-stained-glass": "1 / -1", "drpg-theme-monokuma-legacy": "1 / -1" }),
+            "{each theme: the grid-column the Experience's empty line wins}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when
