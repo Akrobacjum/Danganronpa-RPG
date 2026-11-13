@@ -42,8 +42,7 @@ audit/ export-ignore
 .github/ export-ignore
 
 # Read by nothing at a table (E59 C5a, 13.11.2026; D47, E59 plan M6; `node tools/check.mjs package` holds the archive
-# to this). macros/ holds five Foundry macro bodies that no script, language file or module.json reads. The sprite is
-# tools/glyph-map.mjs's generated file: only the glyph tests read it, R3333 behind `needs(env.tools())`, so where the
-# repository's tools/ is served, and an installed zip has none.
-macros/ export-ignore
+# to this). The sprite is tools/glyph-map.mjs's generated file: only the glyph tests read it, R3333 behind
+# `needs(env.tools())`, so where the repository's tools/ is served, and an installed zip has none. macros/, five
+# Foundry macro bodies that nothing read, stood here too until it left the repository (the owner, 13.11.2026).
 icons/pixel-sprite.svg export-ignore

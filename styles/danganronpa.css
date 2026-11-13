@@ -8005,8 +8005,8 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
    nothing. E13 C7 (12.10.2026; S12-18) gave it back to the GM by an element
    class (`drpg-gm-hotbar`); the owner had it gone again the same day (DZ5,
    "niepotrzebne", on a tablet), so it is hidden for everybody in every theme
-   as in 1.2.73. The five macros the repository carries (macros/) and a GM's
-   own run from the Macro Directory. The combat tracker (its sidebar tab, the tab's pane and its popped-out window) and
+   as in 1.2.73. A GM's macros run from the Macro Directory (the five the
+   repository carried in macros/ left it in 1.2.111). The combat tracker (its sidebar tab, the tab's pane and its popped-out window) and
    Daggerheart's effects display share the rule since E49 FT batch 3 (E105 FT-36; the owner, 11.11.2026, "Tak": hidden
    for everybody, as the hotbar). A display rule only: no Combat or effect is touched, and a condition stays visible
    where the game reads it - the token's status icons and the sheet. Read before hiding (scripts/, 11.11): nothing

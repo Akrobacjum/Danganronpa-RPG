@@ -140,7 +140,6 @@ const LANG = { ecmaVersion: "latest", sourceType: "module" };
 export default [
     { ignores: ["**/node_modules/**", "audit/harness/results/**", "audit/gate/evidence/**", "audit/gate/.work/**",
         "docs/**",                         // design papers (docs/design/glass-recipe.js), not code that runs
-        "macros/**",                       // Foundry macro bodies: top-level return and await, which a module parser refuses
         "audit/handoff/**",                // a temporary hand-over folder, deleted in the 1.2.61 release commit
         "audit/harness/lib/dh-relay.mjs",  // Daggerheart's relay, copied verbatim and never edited (CLAUDE.md)
         "audit/harness/lib/dh-dice/dice/**", // Daggerheart's dice, copied verbatim and never edited (audit/harness/README.md)
