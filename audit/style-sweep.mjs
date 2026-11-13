@@ -22,6 +22,8 @@
  *                                         its cell, one size at every category; `--pl-windows <dir>` and `--shots <dir>` as --settings
  *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round; widened by E49 A7), below: every captured window's
  *                                         text field fills its column; `--pl-windows <dir>` as --settings
+ *   node audit/style-sweep.mjs --tabs     THE OPEN TAB (13.11.2026), below: every tab bar's open tab against an unopened
+ *                                         one, both themes, a planted control first
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
  *
@@ -1509,6 +1511,176 @@ async function tablesPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * THE OPEN TAB (`--tabs`; 13.11.2026, the owner at a table on 1.2.112: "some tabs still don't show which one is open,
+ * e.g. in the Investigation table or the chat"). Every tab bar the module draws or styles, in each theme at 1366x768:
+ * the kit's bar (`kitTabs`) in every captured window that has one and in the glass harness's messenger (Chat and Note),
+ * the kit gallery's, Settings' sections (`aria-pressed`), the mode bars (Investigation's Table and Map, the gallery's
+ * `modeBar`), and four bars drawn here as stand-ins on the module's sheets, their markup a model and not a capture:
+ * Foundry's sidebar tabs (v13's `templates/sidebar/tabs.hbs` as this module's CSS names it - `#sidebar-tabs`,
+ * `button.ui-control` with `active` and `aria-pressed` on the open one; v14's own markup is not read here, LIVE-E30's
+ * class), the character sheet's (Daggerheart 2.12.8's tab-navigation.hbs, as R4110 reads it), an item sheet's and a
+ * Foundry window's (`nav.sheet-tabs` / `nav.tabs`, `a.active`), and the Daggerheart settings window's. No core
+ * stylesheet is loaded: what is read is what the module's sheets draw.
+ *
+ * Read per bar: the open tab and the first unopened one - each one's ground (its own background over the grounds under
+ * it, and its brush, the `::before` the glass paints, at its opacity), its ink (its colour; on the sidebar the glyph, a
+ * mask filled with the `::before`'s background), its edge (border colour and box shadow). "Apart" is any of: the grounds
+ * at 1.2:1 or more, the inks at 1.2:1 or more, the edges different. And the open tab and an unopened one under the
+ * cursor (Playwright's hover) must each read their words at 3:1 on their ground at least. THE CONTROL FIRST: on the
+ * Investigation capture under the glass a rule planted that gives the open tab the unopened one's look must read
+ * "alike". Exit 1 on a bar alike, a word under 3:1, a bar not found, or the control not read.
+ */
+const TAB_BARS = (() => {
+    const kit = ["investigation", "rooms-bedrooms", "sound", "give", "despair-flow", "item-manager", "item-tables", "bullet"];
+    const style = (id, q) => `/audit/style-harness.html?${q}`;
+    const rows = kit.map(id => ({ id: `kit ${id}`, url: style(id, `w=${id}`), bar: "nav.drpg-tabs", tab: 'button[role="tab"]', open: '[aria-selected="true"]' }));
+    rows.push({ id: "kit messenger (Chat, Note)", url: "/audit/glass-harness.html?gmp=1&msgr=1&still=1", bar: ".drpg-messenger nav.drpg-tabs", tab: 'button[role="tab"]', open: '[aria-selected="true"]' });
+    rows.push({ id: "kit gallery", url: style("", "kit=1"), bar: "nav.drpg-tabs", tab: 'button[role="tab"]', open: '[aria-selected="true"]' });
+    rows.push({ id: "settings sections", url: style("", "w=drpg-settings"), bar: ".drpg-settings-sections", tab: "button[data-drpg-section]", open: '[aria-pressed="true"]' });
+    rows.push({ id: "investigation mode bar", url: style("", "w=investigation"), bar: "div:has(> button[data-drpg-mode])", tab: "button[data-drpg-mode]", open: '[aria-pressed="true"]' });
+    rows.push({ id: "kit gallery mode bar", url: style("", "kit=1"), bar: ".drpg-window-kit-modes div:has(> button[data-drpg-mode])", tab: "button[data-drpg-mode]", open: '[aria-pressed="true"]' });
+    rows.push({ id: "Foundry sidebar tabs (stand-in)", url: "/audit/glass-harness.html?still=1&windows=off", plant: "sidebar", bar: "#sidebar-tabs", tab: "button.ui-control", open: ".active", glyph: true });
+    rows.push({ id: "character sheet tabs (stand-in)", url: style("", "sheet=1"), plant: "sheet", bar: "nav.sheet-tabs", tab: "a", open: ".active" });
+    rows.push({ id: "item sheet tabs (stand-in)", url: style("", "w=investigation"), plant: "item", bar: "[data-drpg-stand-in] nav.sheet-tabs", tab: "a", open: ".active" });
+    rows.push({ id: "Foundry window tabs (stand-in)", url: style("", "w=investigation"), plant: "foundry", bar: "[data-drpg-stand-in] nav.tabs", tab: "a", open: ".active" });
+    rows.push({ id: "Daggerheart settings tabs (stand-in)", url: style("", "w=investigation"), plant: "dhSettings", bar: "[data-drpg-stand-in] nav.sheet-tabs", tab: "a", open: ".active" });
+    return rows;
+})();
+
+/** The stand-ins' markup, planted into the loaded page (a model of each bar's markup, named in TAB_BARS's comment). */
+function plantStandIn(kind) {
+    const doc = globalThis.document;
+    const four = (tag, cls = "") => ["one", "two", "three", "four"].map((t, i) => `<${tag} class="${cls}${i === 0 ? " active" : ""}" data-tab="${t}" data-group="primary"><span>Tab ${t}</span></${tag}>`).join("");
+    const frame = (cls, inner) => {
+        const w = doc.createElement("div");
+        w.className = `application ${cls}`;
+        w.dataset.drpgStandIn = "1";
+        w.style.cssText = "position:relative;width:640px;margin:20px";
+        w.innerHTML = `<header class="window-header"><h1 class="window-title">Stand-in</h1></header><section class="window-content">${inner}</section>`;
+        doc.body.append(w);
+    };
+    if (kind === "sidebar") {
+        const n = doc.getElementById("sidebar-tabs");
+        n.className = "tabs faded-ui";
+        n.innerHTML = `<menu class="flexcol">${[["chat", "fa-comments"], ["actors", "fa-user"], ["items", "fa-suitcase"], ["journal", "fa-book-open"], ["settings", "fa-gears"]]
+            .map(([t, icon], i) => `<li><button type="button" class="ui-control plain icon fa-solid ${icon}${i === 0 ? " active" : ""}" data-action="tab" data-tab="${t}" role="tab" aria-pressed="${i === 0}" aria-controls="${t}" data-group="primary"></button></li>`).join("")}</menu>`;
+    } else if (kind === "sheet") {
+        const host = doc.querySelector(".application.sheet.actor .window-content") ?? doc.querySelector(".application.sheet.actor");
+        const head = doc.createElement("header");
+        head.className = "character-header-sheet";
+        head.innerHTML = `<section class="tab-navigation"><div class="navigation-container"><div class="navigation-inner-container"><nav class="feature-tab sheet-tabs tabs" data-group="primary">`
+            + ["features", "inventory", "loadout", "biography"].map((t, i) => `<a class="${t}${i === 0 ? " active" : ""}" data-action="tab" data-group="primary" data-tab="${t}"><span>${t}</span></a>`).join("")
+            + `</nav></div></div></section>`;
+        host.prepend(head);
+    } else if (kind === "item") frame("daggerheart dh-style sheet item", `<nav class="sheet-tabs tabs">${four("a", "item")}</nav>`);
+    else if (kind === "foundry") frame("sheet journal-sheet", `<nav class="tabs">${four("a", "item")}</nav>`);
+    else if (kind === "dhSettings") frame("daggerheart dh-style dialog drpg-window-dh-settings",
+        `<section class="tab-navigation"><div class="navigation-container"><div class="navigation-inner-container"><nav class="feature-tab sheet-tabs tabs">${four("a")}</nav></div></div></section>`);
+}
+
+/** One bar read: the open tab and the first unopened one (see THE OPEN TAB above). */
+function readTabBar({ bar, tab, open, glyph }) {
+    const parse = c => {
+        const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+        if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+        if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+        return [0, 0, 0, 0];
+    };
+    const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+    const cs = (el, pseudo) => globalThis.getComputedStyle(el, pseudo);
+    const groundUnder = el => {
+        const chain = [];
+        for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+        let g = chain.at(-1)[3] >= 1 ? chain.pop() : [14, 12, 17, 1];
+        while (chain.length) g = over(chain.pop(), g);
+        return g;
+    };
+    const nav = [...globalThis.document.querySelectorAll(bar)].find(b => b.getClientRects().length);
+    if (!nav) return { error: `no bar ${bar}` };
+    const tabs = [...nav.querySelectorAll(tab)].filter(t => t.getClientRects().length);
+    const hov = tabs.find(t => t.dataset.drpgHover === "1") ?? null;
+    const on = tabs.find(t => t.matches(open)), off = tabs.find(t => !t.matches(open) && t !== hov) ?? tabs.find(t => !t.matches(open));
+    if (!on || !off) return { error: `${tabs.length} tab(s), open ${Boolean(on)}, unopened ${Boolean(off)}` };
+    const look = t => {
+        const s = cs(t), b = cs(t, "::before");
+        let g = groundUnder(t), ink;
+        if (glyph) ink = over(parse(b.backgroundColor), g);
+        else {
+            if (b.content !== "none" && b.display !== "none" && Number(b.opacity) > 0) g = over(parse(b.backgroundColor), g, Number(b.opacity));
+            const words = t.querySelector("span") ?? t;
+            ink = over(parse(cs(words).color), g);
+        }
+        return { ground: g, ink, edge: `${s.borderTopColor} ${s.borderBottomColor} ${s.borderBottomWidth} ${s.boxShadow}`, words: ratio(ink, g) };
+    };
+    const a = look(on), z = look(off);
+    const round = c => c.slice(0, 3).map(Math.round).join(",");
+    return {
+        open: (on.textContent || on.dataset.tab || "").trim().slice(0, 16), unopened: (off.textContent || off.dataset.tab || "").trim().slice(0, 16),
+        ground: ratio(a.ground, z.ground), ink: ratio(a.ink, z.ink), edge: a.edge !== z.edge,
+        openWords: a.words, unopenedWords: z.words, hovered: hov ? { under: hov.matches(":hover"), words: look(hov).words } : null,
+        seen: `open ${round(a.ink)} on ${round(a.ground)}, unopened ${round(z.ink)} on ${round(z.ground)}`
+    };
+}
+
+async function tabsPass(browser) {
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    const problems = [];
+    const apart = r => r.ground >= 1.2 || r.ink >= 1.2 || r.edge;
+    const loadBar = async (row, theme) => {
+        await load(page, withTheme(row.url, theme));
+        await page.addStyleTag({ content: "*, *::before, *::after { transition: none !important; }" });
+        if (row.plant) await page.evaluate(plantStandIn, row.plant);
+        await page.mouse.move(0, 0);
+        await page.waitForTimeout(150);
+    };
+    const args = row => ({ bar: row.bar, tab: row.tab, open: row.open, glyph: Boolean(row.glyph) });
+    /* The control: the open tab given the unopened one's look by a planted rule must read alike. */
+    {
+        const row = TAB_BARS[0];
+        await loadBar(row, "glass");
+        await page.addStyleTag({ content: `nav.drpg-tabs > button[role="tab"][aria-selected="true"] { color: var(--drpg-sg-ink) !important; --brush-on: 0 !important; background: transparent !important; box-shadow: none !important; border-color: transparent !important; }` });
+        await page.waitForTimeout(100);
+        const r = await page.evaluate(readTabBar, args(row));
+        const seen = !r.error && !apart(r);
+        console.log(`style-sweep: --tabs control (the open tab planted with an unopened one's look, ${row.id}, glass): ${seen ? "read alike" : `NOT read (${JSON.stringify(r)})`}`);
+        if (!seen) problems.push("control: a planted open tab with an unopened one's look did not read alike");
+    }
+    for (const theme of THEMES) {
+        for (const row of TAB_BARS) {
+            await loadBar(row, theme);
+            const r = await page.evaluate(readTabBar, args(row));
+            if (r.error) { problems.push(`${row.id} ${theme}: ${r.error}`); console.log(`style-sweep: --tabs ${row.id} ${theme}: ${r.error}`); continue; }
+            /* Under the cursor: the last unopened tab hovered, its words read on the ground it then has (the reading
+               above, at rest, is of the first unopened tab). */
+            const marked = await page.evaluate(({ bar, tab, open }) => {
+                const nav = [...globalThis.document.querySelectorAll(bar)].find(b => b.getClientRects().length);
+                const t = [...nav.querySelectorAll(tab)].filter(x => !x.matches(open) && x.getClientRects().length).at(-1);
+                if (t) t.dataset.drpgHover = "1";
+                return Boolean(t);
+            }, args(row));
+            if (marked) await page.hover('[data-drpg-hover="1"]', { force: true });
+            await page.waitForTimeout(100);
+            const h = marked ? (await page.evaluate(readTabBar, args(row))).hovered : null;
+            const hoverRead = h?.under ? h.words : null;
+            const bad = [];
+            if (!apart(r)) bad.push("ALIKE: the open tab looks like an unopened one");
+            if (!(r.openWords >= 3)) bad.push(`the open tab's words ${r.openWords}:1`);
+            if (!(r.unopenedWords >= 3)) bad.push(`an unopened tab's words ${r.unopenedWords}:1`);
+            if (hoverRead === null) bad.push("no tab read under the cursor");
+            else if (!(hoverRead >= 3)) bad.push(`a hovered tab's words ${hoverRead}:1`);
+            console.log(`style-sweep: --tabs ${row.id} ${theme}: "${r.open}" against "${r.unopened}": ground ${r.ground}:1, ink ${r.ink}:1, edge ${r.edge ? "apart" : "same"}; words open ${r.openWords}, unopened ${r.unopenedWords}, hovered ${hoverRead ?? "not read"} (${r.seen})${bad.length ? ` - ${bad.join("; ")}` : ""}`);
+            for (const b of bad) problems.push(`${row.id} ${theme}: ${b}`);
+        }
+    }
+    await page.close();
+    for (const p of problems) console.log(`style-sweep: --tabs ${p}`);
+    console.log(`style-sweep: --tabs ${TAB_BARS.length} bar(s) x ${THEMES.length} theme(s); ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -1518,6 +1690,10 @@ async function main() {
         for (let i = 0; i < 50; i++) { try { await fetch(`${BASE}/module.json`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
     }
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
+    if (argv.includes("--tabs")) {
+        try { process.exitCode = await tabsPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
     if (argv.includes("--panel")) {
         try { process.exitCode = await panelPass(browser); } finally { await browser.close(); server?.kill(); }
         return;

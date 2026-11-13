@@ -61,6 +61,10 @@ body {
     --drpg-kit-tab-on-bg: var(--drpg-ink);
     --drpg-kit-tab-on-edge: var(--drpg-kit-tab-selected-edge);
     --drpg-kit-tab-on-ink: var(--drpg-bone);
+    /* the open tab's and the hovered tab's words, and the brush they stand on where a theme draws one (the glass; Legacy
+       draws none, so its brush is only declared): Bone as every tab's words here (13.11.2026, R5860) */
+    --drpg-kit-tab-lit-ink: var(--drpg-bone);
+    --drpg-kit-tab-brush: var(--drpg-ink);
     --drpg-kit-tab-bar: transparent;
     --drpg-kit-tab-radius: 3px;
     --drpg-kit-tab-size: max(11px, var(--drpg-text-sm));
@@ -199,6 +203,10 @@ body.drpg-theme-stained-glass {
     --drpg-kit-tab-on-bg: transparent;
     --drpg-kit-tab-on-edge: transparent;
     --drpg-kit-tab-on-ink: var(--drpg-sg-ink);
+    /* the kit bar's brush Ink and the words on it Bone, as the sheet's bar since E100 (13.11.2026, R5860): the on-ink above
+       stays Ink for Settings' sections and the Daggerheart settings window, which read it on their own Bone */
+    --drpg-kit-tab-lit-ink: var(--drpg-sg-bone);
+    --drpg-kit-tab-brush: var(--drpg-sg-ink);
     --drpg-kit-tab-bar: var(--drpg-sg-bone);
     /* the size and the padding of a tab under the glass are the brush's (below); its spacing, 0.08em measured on M1
        today at 1366x768, is the kit's, and the one-line fit's lever here */
@@ -447,6 +455,21 @@ body.drpg-theme-stained-glass .application .drpg-tabs[role="tablist"] > button[d
     --brush-on: 1;
     --brush-ink: var(--drpg-kit-tab-on-ink);
     --brush-edge: var(--brush);
+}
+/* THE OPEN TAB IS AN INK BRUSH ON THE BONE BAR (13.11.2026; the owner at a table on 1.2.112: "some tabs still don't show
+   which one is open, e.g. in the Investigation table or the chat"). Under the glass the bar is Bone (`--drpg-kit-tab-bar`)
+   and the panel's brush, which every kit tab wears (every kit window is a .drpg-panel, ui-kit.mjs KIT_CLASSES, or the
+   messenger), Bone since E48 K2; the open tab's words were Ink (`--drpg-kit-tab-on-ink`), so it drew Ink on Bone on Bone,
+   as every other tab: read in Chromium at ceb9e9c8 on every captured kit window and the messenger's Chat and Note, the
+   open tab and an unopened one both rgb(7, 7, 10) on rgb(242, 238, 230). The sheet's bar had the fault and E100 its fix;
+   this is that model on the kit's bar: the brush Ink, its words Bone - the open tab, and the one under the cursor, whose
+   brush the panel's hover rule lights. Both rules are written for both themes, through two tokens (`--drpg-kit-tab-brush`,
+   `--drpg-kit-tab-lit-ink`): under Legacy the words are the Bone they were, and no brush is drawn. The brush's rule is level
+   with the glass's panel brush (0,5,2) and later than it, as the tab's rule above. R5860; audit/style-sweep.mjs --tabs. */
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"] { --brush: var(--drpg-kit-tab-brush); }
+body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:is([aria-selected="true"], :hover:not(:disabled)) {
+    --brush-ink: var(--drpg-kit-tab-lit-ink);
+    color: var(--drpg-kit-tab-lit-ink);
 }
 body:not(.drpg-theme-stained-glass) .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:hover:not([aria-selected="true"]) { background: var(--drpg-kit-tab-hover); }
 /* Q13's edge under Legacy (the tokens above): a 2 px bar along the selected tab's foot, inset, as the sheet's tab
@@ -4353,6 +4376,14 @@ body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-wind
     color: var(--drpg-sg-ink);
     background: var(--drpg-sg-bone);
     border-color: var(--drpg-sg-bone);
+}
+/* A TAB UNDER THE CURSOR KEEPS ITS INK (13.11.2026, read by audit/style-sweep.mjs --tabs in Chromium at ceb9e9c8): the
+   hover above takes the tab's ground to `--drpg-kit-tab-hover`, transparent under the glass, so the Bone bar showed
+   through behind the Bone words, 1:1. Under the glass the hovered tab stays Ink and takes the open tab's colour as an
+   edge at its foot. */
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:hover:not(.active) {
+    background: var(--drpg-ink);
+    box-shadow: inset 0 -2px 0 var(--drpg-sg-bone);
 }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:focus-visible,
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a:focus-visible {
