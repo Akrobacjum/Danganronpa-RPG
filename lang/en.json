@@ -2369,7 +2369,7 @@
       "descriptionColumn": "What it looks like",
       "descriptionPlaceholder": "e.g. Long tables, a serving hatch, and a smell of bleach nobody can place.",
       "descriptionIntro": "What each room looks like. Whoever stands in it sees the text and picture on their room tile.",
-      "descriptionNote": "An empty line starts a new paragraph. Players can look up every room's description, so keep secrets in stashes and Remnants.",
+      "descriptionNote": "Plain text, shown as typed; an empty line starts a new paragraph. Pictures come only from this game's files, or on The Forge from your Assets Library. Every browser holds the descriptions and pictures of all rooms, so keep a room's secrets in its stashes and traces.",
       "imageColumn": "Picture",
       "imagePick": "Choose a picture",
       "imageClear": "Remove the picture",
