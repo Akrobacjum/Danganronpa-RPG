@@ -949,10 +949,11 @@ export const lootRollStore = defineGmStore({
 
 /**
  * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
- * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at }`, the
+ * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at, unseen }`, `at` the
  * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time
- * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`). A Search's find
- * writes and reads none: it paid an action for its reach. The audit's fix named an actor flag (`FLAGS.rifled`) on
+ * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`); `unseen` (1.2.112)
+ * a reach that took something while the stash's owner was not in the room, whose notice waits for the owner's next
+ * crossing into it (`tellStashDisturbed`), then false. Until 1.2.112 a Search's find wrote and read none. The audit's fix named an actor flag (`FLAGS.rifled`) on
  * the thief, which the thief's own console could clear - the GMs' memory instead (design note 14). Written and read
  * by the GM that serves the reach, synced so that another GM serves the next one alike; not backed up: a row is worth
  * one time of day, and a restore that lost one gives one reach back. Cut by the reset's "stashesFound" group with the

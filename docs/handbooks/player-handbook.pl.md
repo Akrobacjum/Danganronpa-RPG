@@ -140,10 +140,10 @@ Szkoła narysowana jest jako pokoje. Wszystko - ruch, Search, Listen, to, kto ci
 | Pierwsze przejście do połączonego pokoju o tej porze dnia | twój **Free Move** |
 | Każde kolejne przejście | **1 akcja** za każde |
 | Po schodach w górę lub w dół do innego pokoju | przejście jak każde inne; zmiana piętra na klatce schodowej to ruch wewnątrz własnego pokoju |
-| Przejście kupione Hope Callem Sprint | za darmo |
-| Przejście, gdy nie masz już Free Move ani Sprint, a masz Burst | twój **Burst**, zanim pójdzie akcja |
+| Przejście, gdy masz darmowe przejście (kupione Hope Callem Sprint, wybiegane Dashem albo dane przez akcję pokoju z Facilities) | to darmowe przejście |
+| Przejście, gdy nie masz już Free Move ani darmowego przejścia, a masz Burst | twój **Burst**, zanim pójdzie akcja |
 
-Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Opis akcji Move mówi, co zabierze następny pokój - Free Move, Sprint, twój Burst albo akcję. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
+Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Opis akcji Move mówi, co zabierze następny pokój - Free Move, darmowe przejście, twój Burst albo akcję. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
 
 Zawraca cię:
 
@@ -229,7 +229,7 @@ O co możesz prosić:
 
 Znajdujesz to, co ma pokój: pokój, który GM zaopatrzył, odpowiada pierwszy, więc znalezisko może być czymś innym, niż prosisz, albo mieć niższy Tier - nigdy wyższy, niż wywalczył twój rzut.
 
-Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z jednym stopniem utrudnienia więcej (jedna z twoich kości premii odłożona albo jeszcze jedna kość kary). Okno rzutu tego stopnia nie pokazuje, bo powiedziałoby ci, że jest tu ukryta skrytka, zanim cokolwiek wydasz: dokłada się go, gdy kości już upadną, a twoja karta mówi, co zrobił.
+Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Search losuje tylko z pokoju: nigdy nie sięga do czyjejś skrytki, otwartej ani ukrytej.
 
 > [!WARNING]
 > Wzięcie narzędzia zbrodni albo narzędzia do sprzątania **zostawia Prep Remnant** w pokoju - ślad, że ktoś tu zbierał narzędzia. Narzędzie nie zostawia nic, chyba że to, co się znajdzie, jest też bronią.
@@ -449,7 +449,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Reroll** | 3 | Zrób Reroll ostatniej akcji. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Na akcji kryzysowej, która kogoś zabiła, nie da się zrobić Rerolla: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. Rzut po Rerollu liczy to, co GM policzył za pierwszym razem. Reroll Find Passage albo Find Stash szuka jeszcze raz nowymi kośćmi (w pokoju, w którym padł rzut, i tylko wtedy, gdy wciąż tam stoisz - inaczej Reroll wraca w całości): w górę znajduje raz; w dół skrytka, którą otworzył, zostaje otwarta, a przejście, które znalazł tylko ten rzut, przepada. |
 | **Resolve** | 2 | Na jeden rzut sam wybierz dowolną statystykę: nikt nie jest pytany, także gdy akcja wymienia kilka. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
-| **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
+| **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. Breath jest w nim wyszarzony: oddałby mniej Hope, niż kosztuje Relief. |
 | **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. Jeśli kość nie zadziała - ustawienie kości przy stole, które ją pomija - Call wraca do ciebie na następny rzut, a szept to mówi. |
 | **Bribe** | 1 | Zaproponuj Monocubowi 1 Hope za przysługę, którą ustalicie między sobą. Płacisz tylko wtedy, gdy Monocub przyjmie, do jego sakiewki; propozycja bez odpowiedzi wygasa w następnej porze dnia. Nikt inny się nie dowie. |
 
@@ -541,8 +541,8 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 - Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany. Drzwi otwiera tylko klucz w twoim ręku: ten w skrytce nie otwiera niczego. Gdy GM daje sypialnię komuś innemu, klucze jej starego właściciela przepadają, a razem z nimi każda kopia, którą dostał ktoś inny; dostajesz wiadomość, jeśli tracisz swoją. W Investigation sypialnia kogoś, o czyjej śmierci wiadomo, stoi otworem.
 - Twoja sypialnia ma **skrytkę**. Skrytka mieści **3** rzeczy, a żeby coś włożyć albo wyjąć, musisz stać w pokoju. Truth Bulletów nie da się schować.
 - **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć z niej jedną rzecz, raz na porę dnia. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
-- **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z jednym stopniem utrudnienia więcej (karta powie ci o tym po rzucie), albo Analyze *Find Stash* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
-- To, że ktoś częstuje się z twojej skrytki, nie jest ogłaszane. Tylko złodziej, którego Search wypadło z Despair, zostawia ją na tyle naruszoną, że da się to zauważyć: dowiadujesz się, że ktoś w niej był - nigdy kto.
+- **Ukrytą** skrytkę trzeba najpierw znaleźć, a znajduje ją tylko Analyze *Find Stash* na 16+; to otwiera ją przed tobą na dobre i odtąd przeglądasz ją jak otwartą. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
+- To, że ktoś częstuje się z twojej skrytki, nie jest ogłaszane w chwili, gdy to robi. Gdy następnym razem wejdziesz do tego pokoju, dowiesz się, że ktoś był w twojej skrytce - nigdy kto ani kiedy. Dowiadujesz się raz, choćby zdarzyło się to kilka razy, tylko gdy coś zniknęło, i nigdy o tym, co wzięto, gdy stałeś w pokoju.
 - GM może dać ci skrytkę w innym pokoju. Nie daje ona klucza do tego pokoju.
 - Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, wyjęte ze skrytki albo zabrane z ciała? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone, tak samo jak coś, co ktoś próbuje wsunąć ci do pełnych kieszeni: zostaje u tego, kto próbował, a ty nie dowiadujesz się niczego. Jedna akcja przenosi ze stosu tylko jedną sztukę.
 
@@ -667,7 +667,7 @@ Incydent toczy się na tury. **Zaczynasz ty**. Sam z pułapką masz przewagę na
 | Akcja kryzysowa | Rzut | Co robi |
 |---|---|---|
 | **Leave a Clue** | Hand / Leg / Shadow, 12 | Zostawia ślad, który ma pomóc innym (Evident przy Hope, Subtle przy Despair, Obvious i Reinforced na krytyku - i zachowujesz turę). Porażka z Hope daje przewagę przy twojej następnej próbie tej akcji. Wobec pułapki: Body / Hand / Leg, Hope zostawia Reinforced ślad, krytyk dwa. |
-| **Secure a Trace** | Hand / Leg / Shadow, 15 | Zabierz coś zabójcy i zamień to w ślad powiązany z jego tożsamością. Ten sam kształt co wyżej. |
+| **Secure a Trace** | Hand / Leg / Shadow, 15 | Zostawia na miejscu ślad powiązany ze zbrodnią, przy każdym trafieniu **Reinforced**, więc zabójca go nie usunie (Evident przy Hope, Subtle przy Despair, Obvious na krytyku - i zachowujesz turę). Porażka z Hope daje przewagę przy twojej następnej próbie tej akcji. Wobec pułapki: Body / Hand / Leg, krytyk zostawia dwa. |
 | **Self-Defense** | Hand / Leg / Body, 18 | Walczysz. Jedna próba. Hope otwiera Survive i Role Reversal, Despair tylko Role Reversal, krytyk zatrzymuje drenaż i pozwala wziąć jedno z nich w tej turze bez rzutu. Przedmiot nadający się na broń daje przewagę. Porażka z Despair kosztuje 1 dodatkowo. Jeśli otworzyłoby tylko Role Reversal, którego nie możesz wziąć, nie zostaje zużyte i możesz spróbować znowu. |
 | **Survive** | Leg, 18 | Wycofujesz się. Incydent się kończy i drenaż ustaje. Despair dodaje podpowiedź, kto to był; krytyk daje też nietykalność na ten i następny rozdział. Porażka kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. |
 | **Role Reversal** | Hand / Leg / Body, 15 | Przechylasz szalę i zostajesz zabójcą. Hope albo krytyk przywraca też całe Health i Sanity; krytyk zabija ich od razu. Porażka z Despair kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. Niedostępne wobec pułapki ani wtedy, gdy ktoś już dołączył do zabójcy. |

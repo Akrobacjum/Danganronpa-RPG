@@ -6,7 +6,7 @@
  * the Level Up and its offers (`sendOffersTo`), a Truth Bullet or an item
  * handed over, the passages, the stashes, Plant, Steal, Frisk and Palm with
  * the rolls they are scored on (`friskRolls`, `palmRolls`, `friskForceRoll`,
- * `findPassageRoll`, `searchTheftOf` ...), the opening roll's result, the
+ * `findPassageRoll` ...), the opening roll's result, the
  * crisis, the park, the betrayal, the clean-up, a Monocub's ability, and the
  * rulings asked by card (a Call, a Dynamic action's difficulty and answer, a
  * trait ruling, a ruling received or expired).
@@ -711,46 +711,10 @@ export async function friskForceRoll(record, payload) {
     // which the thief has no business writing to.
 export async function handleVaultSteal(payload, sender, ctx) {
     const { stealFromVault } = await import("./vault.mjs");
-    const out = await stealFromVault({
-        thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
-        // Set only by the Search action, which pays for the concealment it is
-        // beating. See the note in `stealFromVault`. Since E08+E28 C15 a packet
-        // that says so names the Search's roll, and this is the GMs' record of it
-        // (`searchTheftOf`).
-        viaSearch: payload.viaSearch,
-        // Whether the Search fumbled it, read off the same record: the sender's
-        // word until C15, which a client could only ever bend one way - a steady
-        // hand, and the victim not told. On a GM whose Daggerheart is not the build
-        // the draw was written for nobody keeps a record, and it is the sender's
-        // word again (bridge-guards.mjs, "TWO PACKETS PASS WITH NO RECORD").
-        clumsy: payload.clumsy
-    });
+    const out = await stealFromVault({ thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId });
     if (out?.refused) return { refused: out.refused };
-    // Whether the thing moved (E16 fix e1-G2): a Search leaves its trace only on `taken` (action-search.mjs `searchStash`).
+    // Whether the thing moved (E16 fix e1-G2).
     return { reply: { taken: Boolean(out) } };
-}
-
-/*
- * WHAT A SEARCH EARNED AT A STASH, ON THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06).
- * `viaSearch` and `clumsy` were the sender's word: that a Search had paid for a concealed stash,
- * and that its hand was steady. A packet that says `viaSearch` now names the Search's roll, and
- * both are read off the GMs' record of it: the Search found the stash when its total, with the
- * hidden stash's step the GM drew with the dice (`used.stash`, roll-draw.mjs `drawOnGm`), reaches
- * a tier of the Search's table, or the roll is a critical - action-search.mjs `searchTier`, as
- * `performSearch` reads it before it opens the stash (`searchStash`); it fumbled on Despair with no
- * critical, as `searchStash` says. A packet that does not say `viaSearch` asks no roll: it is the
- * drawer's free route, which `stealFromVault` holds to a stash that is not concealed or was found,
- * and its `clumsy` can only tell the stash's owner on the sender.
- */
-export async function searchTheftOf(record) {
-    const { searchTier } = await import("./action-rolls.mjs");
-    const { sheetMarkStore } = await import("./gm-stores.mjs");
-    const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
-    if (!hit && !record.isCritical) return { why: "that roll did not find the stash" };
-    // A Search ends in a find or in a stash's loot, never both (`performSearch`): a record a find
-    // already stood on (sheet-audit.mjs `searchFind`, the mark's `finds`) takes no theft (E29 fix r1-G8).
-    if (sheetMarkStore.get(record.actorId)?.finds?.[record.rollId]) return { why: "that roll has already settled that action" };
-    return { fields: { viaSearch: true, clumsy: Boolean(record.withFear) && !record.isCritical } };
 }
 
     // Stage 4 thrown on the participant's own client. Same guard as a crisis

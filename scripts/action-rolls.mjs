@@ -60,8 +60,7 @@ export { rollTone, report } from "./action-report.mjs";
 export { briefingBlock, moveLine } from "./action-briefing.mjs";
 export { chooseVariant } from "./action-menus.mjs";
 export {
-    searchOdds, stashStep, stashDiceOf, stashStepFor, stashStepOf, searchTier, stashText, situationLine,
-    unclaimedOutcome, searchDraw, findOf, grantDrawn, traceTheFind
+    searchOdds, searchTier, unclaimedOutcome, searchDraw, findOf, grantDrawn, traceTheFind
 } from "./action-search.mjs";
 export {
     projectProgress, PROJECT_BONUS_MOST, projectExtrasHeld, sabotageExtrasHeld, hideProjectTraces, sabotageWatchedLine,

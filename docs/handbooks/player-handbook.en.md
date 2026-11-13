@@ -140,10 +140,10 @@ The school is drawn as rooms. Everything - movement, Search, Listen, who can hea
 | First crossing into a connected room this time of day | your **Free Move** |
 | Every further crossing | **1 action** each |
 | Up or down the stairs into another room | a crossing like any other; changing floor inside a stairwell is moving inside your own room |
-| A crossing bought with the Sprint Hope Call | free |
-| A crossing with no Free Move and no Sprint left, while you hold a Burst | your **Burst**, before an action |
+| A crossing while you hold a free crossing (bought with the Sprint Hope Call, run with a Dash, or given by a Facilities room action) | that free crossing |
+| A crossing with no Free Move and no free crossing left, while you hold a Burst | your **Burst**, before an action |
 
-Drag your token; the cost is applied when you arrive. The Move briefing says what the next room takes - the Free Move, a Sprint, your Burst or an action. A crossing that you cannot pay for is refused and the token goes back.
+Drag your token; the cost is applied when you arrive. The Move briefing says what the next room takes - the Free Move, a free crossing, your Burst or an action. A crossing that you cannot pay for is refused and the token goes back.
 
 You are turned back by:
 
@@ -229,7 +229,7 @@ What you can ask for:
 
 What turns up is what the room holds: a room the GM has stocked answers first, so what you find can be another kind of thing than you asked for, or of a lower tier - never of a higher one than your roll earned.
 
-Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one with one more step of disadvantage on your roll (one of your bonus dice set aside, or one more penalty die). The window does not show that step, because it would tell you a hidden stash is here before you had spent anything: it is taken once the dice have fallen, and your card says what it did.
+Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. A Search draws from the room alone: it never reaches into somebody's stash, open or hidden.
 
 > [!WARNING]
 > Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a trace that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
@@ -449,7 +449,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. A rolled-again roll counts what the GM counted the first time. A Reroll of a Find Passage or a Find Stash searches again with the new dice (in the room its roll was thrown in, and only while you still stand there - else the Reroll is given back whole): going up, it finds once; going down, a stash it opened stays open, and a passage only that roll found is taken back. |
 | **Resolve** | 2 | For one roll, pick any statistic yourself: nobody is asked, even where the action lists several. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
-| **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
+| **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. Breath is greyed in it: it would give back less Hope than Relief costs. |
 | **Loaded Die** | 6 | On the next roll one of the two dice, at random, is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. When it is the Despair die that is set, the roll comes out with Despair. If the die does not hold - a dice setting at the table that ignores it - you get the Call back for your next roll, and a whisper says so. |
 | **Bribe** | 1 | Offer a Monocub 1 Hope for a favour you two agree. You pay only if the Monocub accepts, into its purse; an offer nobody answered lapses at the next time of day. Nobody else is told. |
 
@@ -541,8 +541,8 @@ An item can also serve as another category (a screwdriver under Tools that is al
 - One student, one bedroom. The **door is locked** to everyone but the owner; anybody else needs a **key**. You hold your own key and can give a copy to somebody - the owner keeps theirs. A key opens its door whoever holds it: one Palmed off somebody, lifted from a stash or taken from a body works like one that was given. Only a key in your hand opens the door: one in your stash opens nothing. When the GM gives a bedroom to somebody else, its old owner's keys go, and so does every copy somebody else was given; you are told if you lose one. In an Investigation the bedroom of someone whose death is known stands open.
 - Your bedroom comes with a **stash**. A stash holds **3** things, and you have to be standing in the room to put things in or take them out. Truth Bullets cannot be stashed.
 - An **open** stash is a drawer: anyone standing in the room can go through it for free and take one thing from it, once each time of day. Your bedroom's stash is open unless a hiding place has been built for it (a project the GM approves).
-- A **hidden** stash has to be found first: a Search in the room, with one more step of disadvantage (your card tells you after the roll), or Analyze's *Find Stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
-- Somebody helping themselves from a stash of yours is not announced. Only a thief whose Search came up with Despair leaves it disturbed enough to notice: you are told somebody has been in it - never who.
+- A **hidden** stash has to be found first, and only Analyze's *Find Stash* at 16+ finds it; that opens it to you for good, and from then on you go through it as you would an open one. If the GM removes a stash, whoever had found it forgets it.
+- Somebody helping themselves from a stash of yours is not announced when it happens. The next time you enter that room, you are told somebody has been in your stash - never who, nor when. You are told once however many times it happened, only when something was taken, and never for what was taken while you stood in the room.
 - The GM may give you a stash in another room. It does not come with a key to that room.
 - Your hands were full when something reached you - found, stolen, lifted out of a stash or taken off a body? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused, and so is something slipped into full pockets: it stays with whoever tried, and you are told nothing. From a stack, one piece moves at a time.
 
@@ -667,7 +667,7 @@ The incident is turn-based. **You go first**. Alone with a trap, you roll every 
 | Crisis action | Roll | What it does |
 |---|---|---|
 | **Leave a Clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Body / Hand / Leg, and Hope leaves a Reinforced trace, a critical two. |
-| **Secure a Trace** | Hand / Leg / Shadow, 15 | Take something off the killer and turn it into a trace tied to their identity. Same shape as above. |
+| **Secure a Trace** | Hand / Leg / Shadow, 15 | Leaves a trace tied to the crime at the scene, **Reinforced** on every hit, so the killer cannot erase it (Evident on Hope, Subtle on Despair, Obvious on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Body / Hand / Leg, and a critical leaves two. |
 | **Self-Defense** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role Reversal, Despair opens Role Reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. If all it would open is a Role Reversal you cannot take, it is not spent and you may try again. |
 | **Survive** | Leg, 18 | Withdraw. The incident ends and the drain stops. Despair adds a hint about who they were; a critical also gives immunity for this chapter and the next. A failure costs 1 extra. Needs Self-Defense first. |
 | **Role Reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope or a critical also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-Defense first. Not available against a trap, or once somebody has joined the killer. |

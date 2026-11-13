@@ -10,7 +10,10 @@
  * summary, `<a>` or an element with role="tab" - and holds each key of DRAWN to its English words on such a control.
  *
  * DRAWN is the keys the run of 13.11.2026 found drawn, by family. A key a window stops drawing is red; a key found and
- * not in DRAWN is noted (add it). The keys these windows never draw (a window probe 08 does not open, a state it does not
+ * not in DRAWN is noted (add it). Since the 1.2.112 tree (CI 43479554811 on af9792c5): DRPG.Tips.Gm.studentsTooltip is out,
+ * as the merge of E102 (472e1ea0) dropped it with the Students left line's button that E101 took away (R4054; R4753 counts
+ * the family's 38 Gm keys), and the six keys that run noted drawn and not held are in - chapter.mjs's two and
+ * level-up.mjs's three on windows of the 1.2.111 tree E102's run did not draw, and rest.mjs's doItTooltip. The keys these windows never draw (a window probe 08 does not open, a state it does not
  * build, a card, a sheet) are counted and listed in the evidence as not drawn here: what holds them is their family test
  * and `node tools/check.mjs tooltips`. A key with a placeholder or a plural is not looked for (its words vary).
  */
@@ -28,31 +31,33 @@ const REPO = path.resolve(HERE, "..", "..", "..");
 /** The keys this scenario holds drawn, by family (the run of 13.11.2026). */
 export const DRAWN = {
     Actions: [
-        "DRPG.Tips.Actions.clearTheOverflowTooltip", "DRPG.Tips.Actions.detailsTooltip", "DRPG.Tips.Actions.frameStudentTooltip",
-        "DRPG.Tips.Actions.indirectMurderWindowTooltip", "DRPG.Tips.Actions.notTheOneWhoTooltip", "DRPG.Tips.Actions.onPerRuleTooltip",
-        "DRPG.Tips.Actions.onlyAfterDarkTooltip", "DRPG.Tips.Actions.requiredWork2Tooltip", "DRPG.Tips.Actions.room2Tooltip",
-        "DRPG.Tips.Actions.secretAProjectSTooltip"
+        "DRPG.Tips.Actions.clearTheOverflowTooltip", "DRPG.Tips.Actions.detailsTooltip", "DRPG.Tips.Actions.doItTooltip",
+        "DRPG.Tips.Actions.frameStudentTooltip", "DRPG.Tips.Actions.indirectMurderWindowTooltip", "DRPG.Tips.Actions.notTheOneWhoTooltip",
+        "DRPG.Tips.Actions.onlyAfterDarkTooltip", "DRPG.Tips.Actions.onPerRuleTooltip", "DRPG.Tips.Actions.requiredWork2Tooltip",
+        "DRPG.Tips.Actions.room2Tooltip", "DRPG.Tips.Actions.secretAProjectSTooltip"
     ],
     Gm: [
         "DRPG.Tips.Gm.aCharacterDiesTooltip", "DRPG.Tips.Gm.campaignNameTooltip", "DRPG.Tips.Gm.categoryTooltip",
         "DRPG.Tips.Gm.chapterTooltip", "DRPG.Tips.Gm.despairPoolTooltip", "DRPG.Tips.Gm.giveATruthBulletTooltip",
         "DRPG.Tips.Gm.howHardTheOriginalTooltip", "DRPG.Tips.Gm.phaseTooltip", "DRPG.Tips.Gm.poolNameTooltip",
-        "DRPG.Tips.Gm.roleTooltip", "DRPG.Tips.Gm.stateTooltip", "DRPG.Tips.Gm.studentsTooltip",
-        "DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip", "DRPG.Tips.Gm.tierTooltip", "DRPG.Tips.Gm.whatItReallyIsTooltip",
-        "DRPG.Tips.Gm.whatThePlayerIsTooltip", "DRPG.Tips.Gm.whichRemnantTooltip", "DRPG.Tips.Gm.whichStudentTooltip"
+        "DRPG.Tips.Gm.roleTooltip", "DRPG.Tips.Gm.stateTooltip", "DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip",
+        "DRPG.Tips.Gm.tierTooltip", "DRPG.Tips.Gm.whatItReallyIsTooltip", "DRPG.Tips.Gm.whatThePlayerIsTooltip",
+        "DRPG.Tips.Gm.whichRemnantTooltip", "DRPG.Tips.Gm.whichStudentTooltip"
     ],
     Setup: [
-        "DRPG.Tips.Setup.aStudentKnownAtTooltip", "DRPG.Tips.Setup.aStudentSNameStartTooltip", "DRPG.Tips.Setup.aStudentSNameTooltip",
-        "DRPG.Tips.Setup.aStudentWhoKnowsTooltip", "DRPG.Tips.Setup.addAnItemTooltip", "DRPG.Tips.Setup.categoryTooltip",
-        "DRPG.Tips.Setup.createTableTooltip", "DRPG.Tips.Setup.deleteTableTooltip", "DRPG.Tips.Setup.installReinstallTooltip",
-        "DRPG.Tips.Setup.nameInATableTooltip", "DRPG.Tips.Setup.playTooltip", "DRPG.Tips.Setup.playlistForAStateTooltip",
+        "DRPG.Tips.Setup.addAnItemTooltip", "DRPG.Tips.Setup.allThePlayersPickTooltip", "DRPG.Tips.Setup.aStudentKnownAtTooltip",
+        "DRPG.Tips.Setup.aStudentSNameStartTooltip", "DRPG.Tips.Setup.aStudentSNameTooltip", "DRPG.Tips.Setup.aStudentWhoKnowsTooltip",
+        "DRPG.Tips.Setup.categoryTooltip", "DRPG.Tips.Setup.createTableTooltip", "DRPG.Tips.Setup.deleteTableTooltip",
+        "DRPG.Tips.Setup.handThemOutTooltip", "DRPG.Tips.Setup.installReinstallTooltip", "DRPG.Tips.Setup.iPickThePlayerTooltip",
+        "DRPG.Tips.Setup.nameInATableTooltip", "DRPG.Tips.Setup.playlistForAStateTooltip", "DRPG.Tips.Setup.playTooltip",
         "DRPG.Tips.Setup.resetMusicTooltip", "DRPG.Tips.Setup.resetTheSeasonTooltip", "DRPG.Tips.Setup.sectionTooltip",
         "DRPG.Tips.Setup.tabsTierPoolsRoomTooltip"
     ],
     Trial: [
-        "DRPG.Tips.Trial.findingWhenSolvedTooltip", "DRPG.Tips.Trial.findingsNTooltip", "DRPG.Tips.Trial.killerTooltip",
-        "DRPG.Tips.Trial.rightAnswerZoneATooltip", "DRPG.Tips.Trial.schoolTrialHallTooltip", "DRPG.Tips.Trial.setTooltip",
-        "DRPG.Tips.Trial.thesisTooltip", "DRPG.Tips.Trial.trialEvidenceLogTooltip", "DRPG.Tips.Trial.zoneAZoneBTooltip"
+        "DRPG.Tips.Trial.countThisAsSessionTooltip", "DRPG.Tips.Trial.findingsNTooltip", "DRPG.Tips.Trial.findingWhenSolvedTooltip",
+        "DRPG.Tips.Trial.killerTooltip", "DRPG.Tips.Trial.moveToChapterToTooltip", "DRPG.Tips.Trial.rightAnswerZoneATooltip",
+        "DRPG.Tips.Trial.schoolTrialHallTooltip", "DRPG.Tips.Trial.setTooltip", "DRPG.Tips.Trial.thesisTooltip",
+        "DRPG.Tips.Trial.trialEvidenceLogTooltip", "DRPG.Tips.Trial.zoneAZoneBTooltip"
     ]
 };
 
