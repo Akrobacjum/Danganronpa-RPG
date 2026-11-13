@@ -3839,7 +3839,8 @@ const REGRESSIONS = [
             "on an ultrawide screen the GM panel is the one window whose box ignores the slider");
 
         const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
-        const body = bodyOf(settings, "function scaleWindow", { until: 'Hooks.on("renderApplicationV2"' });
+        // E54 W2: the function's own end - its render hooks stand in `registerWindows` since, after this function.
+        const body = bodyOf(settings, "function scaleWindow", { until: "\n}\n" });
         ok(body.length > 400, "scaleWindow has moved or gone");
         ok(body.includes("if (!el) return;"), "scaleWindow's door is not the element test");
         ok(!/if \(!el \|\|[^\n]*stained-glass/.test(body),
@@ -24020,6 +24021,31 @@ const REGRESSIONS = [
             },
             css: [true, true]
         }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
+    }],
+    ["R4800 - the windows' size is registered at init by settings.mjs `registerWindows(readers)` (E54 W2; the plan's F2): the two render hooks of `scaleWindow` stand inside it and nowhere else at the top of the file, module.mjs calls it once under `safely(` before `registerSettings()`, and `scaleWindow` and `scaleMemo` read the slider, the layout height and the registration through the readers it was handed, not settings.mjs's own `sliderScale`, `layoutHeight` and `settingsRegistered`", async () => {
+        /*
+         * E54 W2, 13.11.2026. The window's size was hooked at import (`Hooks.on("renderApplicationV2", scaleWindow)` at the
+         * foot of settings.mjs), and `scaleWindow` read three of settings.mjs's own readers, so the code could not leave the
+         * file it hooked from without importing it back (the plan's F2: a new file may not import its facade). W2 hands
+         * the readers over at init, under the module's `safely`, so a throw there costs the windows' size and not the rest
+         * of init. Read off the sources, comments stripped. Red on 32f5093f: the hooks at the top level, no
+         * `registerWindows`, and the three readers called in `scaleWindow` (two of them) and `scaleMemo` (one).
+         */
+        const sources = new Map(await otherSources());
+        const settings = stripComments(sources.get("settings.mjs") ?? ""), module = stripComments(sources.get("module.mjs") ?? "");
+        must(settings.length > 100000 && module.length > 5000, "settings.mjs or module.mjs was not read - this would measure nothing");
+        const HOOK = /^\s*Hooks\.on\("renderApplication(?:V2)?", scaleWindow\);/gm;
+        const register = fnSource(settings, "registerWindows") ?? "";
+        const scale = fnSource(settings, "scaleWindow") ?? "", memo = fnSource(settings, "scaleMemo") ?? "";
+        const READERS = /\b(?:sliderScale|layoutHeight|settingsRegistered)\(/g;
+        const call = module.match(/^\s*safely\("the windows' size", \(\) => registerWindows\(/m);
+        const settingsCall = module.search(/^\s*registerSettings\(\);/m), stop = module.search(/if \(!requirementsMet\(\)\)/);
+        equal(JSON.stringify({
+            hooks: [(settings.match(HOOK) ?? []).length, (register.match(HOOK) ?? []).length],
+            module: [(module.match(/\bregisterWindows\(/g) ?? []).length, Boolean(call), call ? call.index < settingsCall : null, call ? stop >= 0 && call.index > stop : null],
+            reads: [(scale.match(READERS) ?? []).length, (memo.match(READERS) ?? []).length, scale.length > 400, memo.length > 50]
+        }), JSON.stringify({ hooks: [2, 2], module: [1, true, true, true], reads: [0, 0, true, true] }),
+            "{hooks: scaleWindow's two render hooks in settings.mjs, and of them inside registerWindows; module: its calls of registerWindows, one under safely(\"the windows' size\"), before registerSettings(), after the requirements' stop (a module that did not start registers none, R1516); reads: settings.mjs's own readers in scaleWindow and scaleMemo, and both read}");
     }],
 ];
 
