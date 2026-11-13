@@ -100,6 +100,7 @@ import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
 import { registerSpectatorUi } from "./spectator-ui.mjs";
+import { registerDeadSpectator } from "./spectator-dead.mjs";
 import { registerVoiceTile, registerVoiceKeybinding } from "./voice-tile.mjs";
 import { registerTrialSpeakers } from "./trial-speakers.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
@@ -415,6 +416,8 @@ Hooks.once("ready", () => {
     safely("the room tile", () => { ensureRoomTile(); registerRoomTile(); });
     // The Spectator's line under the clock and its hidden chat (E92 C5): on a Spectator's browser alone.
     safely("the Spectator's line", registerSpectatorUi);
+    // The dead's Spectator token, read on the victim's browser (E62 C3b): the curtain's hook and the fade's sound.
+    safely("the dead's Spectator", registerDeadSpectator);
     // Foundry's rails out of its columns (E77 C5): a player's scene controls hidden with their Tokens
     // layer kept, a GM's sidebar and scene controls into two windows. Before the narrow layout and the
     // glass, which measure a rail only while it stands in Foundry's columns.

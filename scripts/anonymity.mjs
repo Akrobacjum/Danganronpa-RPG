@@ -649,8 +649,11 @@ function enforcing() {
  * without this file touching one. NONE would leave a window nobody can open and
  * a redaction with nothing to redact.
  */
-function onPreCreateActor(actor, data) {
+function onPreCreateActor(actor, data, options) {
     if (actor.type !== "character" || !enforcing()) return;
+    // A dead student's Spectator (E62 C3b, spectator-dead.mjs) is made owned by its player and seen by nobody else: a
+    // sheet the whole table could open would list a death nobody has found in every player's Actors tab.
+    if (options?.drpgDeadSpectator) return;
     if ((data.ownership?.default ?? NONE) === OBSERVER) return;
 
     actor.updateSource({ "ownership.default": OBSERVER });

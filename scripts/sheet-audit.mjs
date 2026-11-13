@@ -160,7 +160,7 @@ import { readSpectatorsWith } from "./spectator.mjs";
  * since E92 C1 (R3851): the same, and its account's microphone held and its token hidden from the other players.
  */
 const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
-    "swungWeapon", "betrayalWindow", "monokuma", "notInClass", "spectator"].map(key => FLAGS[key]),
+    "swungWeapon", "betrayalWindow", "monokuma", "notInClass", "spectator", "watcherOf"].map(key => FLAGS[key]),
     /* The stashes a student has found (vault-store.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
        part 2 C3 (design-notes D10): its owner could write it, no judgement read it (`kindOf` answered null), and
        `stealFromVault` opened a concealed stash on it. Spelt here, not imported: this file reaches nothing that imports

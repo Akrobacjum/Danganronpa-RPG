@@ -629,7 +629,8 @@ export async function applyAliveStates(chosen = {}) {
             let died = null;
             if (want.state === "alive") {
                 await setMonocub(actor, false);
-                await reviveCharacter(actor);
+                // A correction (E62 C3b, SB-C3 #17): the Spectator goes with no return drawn.
+                await reviveCharacter(actor, { silent: true });
             } else if (want.state === "dead") {
                 await setMonocub(actor, false);
                 if (!isDeceased(actor)) died = await makeKnown(actor);

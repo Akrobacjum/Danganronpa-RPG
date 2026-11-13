@@ -53,6 +53,7 @@ import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-s
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
 import { leaveBody, removeBodyTiles, bodyPlaceOf } from "./body-tile.mjs";
+import { ensureDeadSpectator, removeDeadSpectator, removeAllDeadSpectators } from "./spectator-dead.mjs";
 
 /* ==========================================================================
  * DEATH
@@ -139,7 +140,7 @@ function verdictBefore(chapter) {
     }
 }
 
-export async function markDeceased(actor, { record: when = null, phase = null, cause = null, chapter = null } = {}) {
+export async function markDeceased(actor, { record: when = null, phase = null, cause = null, chapter = null, silent = true } = {}) {
     if (!game.user.isGM || !actor) return null;
 
     // A death published after the kill carries the kill's chapter, day and time of day
@@ -185,10 +186,20 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
         error(`Could not leave ${actor.name}'s body on the map`, err);
     }
 
+    /* THE DEAD WATCH (E62 C3b, 13.11.2026; spectator-dead.mjs): the student's Spectator where the body lies, made here
+       for a death public at once and the Players window's "dead", and found here for a kept death made the table's
+       (`publishDeath`), whose link then leaves the GMs' row for the watcher's flag. `silent` by default: every caller
+       but `killCharacter` is a GM's correction or a publication, and only a death in play fades (SB-C3 #17). */
+    try {
+        await ensureDeadSpectator(actor, { silent });
+    } catch (err) {
+        error(`Could not make ${actor.name}'s Spectator`, err);
+    }
+
     return record;
 }
 
-export async function killCharacter(actor, { keepBullets = false, secret = null, phase = null, cause = null, chapter = null } = {}) {
+export async function killCharacter(actor, { keepBullets = false, secret = null, phase = null, cause = null, chapter = null, silent = false } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (isDeadForGm(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
@@ -229,13 +240,20 @@ export async function killCharacter(actor, { keepBullets = false, secret = null,
         if (!record) {
             warn(`${actor.name}'s death could not be kept by the GMs, so it is the table's at once.`);
             secretly = false;
+        } else {
+            // The kept death's Spectator (E62 C3b): its link in the GMs' row, no flag (spectator-dead.mjs).
+            try {
+                await ensureDeadSpectator(actor, { silent, kept: true });
+            } catch (err) {
+                error(`Could not make ${actor.name}'s Spectator`, err);
+            }
         }
     }
     if (!secretly) {
         if (!keepBullets) removed = await destroyBullets(actor);
         // The record and the token marker, which the Players window's repair
         // dropdown writes on its own (F16) - one place decides what deceased means.
-        record = await markDeceased(actor, { phase, cause, chapter });
+        record = await markDeceased(actor, { phase, cause, chapter, silent });
     }
     if (!record) return null;
 
@@ -629,8 +647,16 @@ async function offerStageSix(victim) {
  * Undo the marking. The inventory does NOT come back - those documents are
  * gone - so this is for a mis-click, not for a resurrection.
  */
-export async function reviveCharacter(actor, { quiet = false } = {}) {
+export async function reviveCharacter(actor, { quiet = false, silent = false } = {}) {
     if (!game.user.isGM || !actor) return false;
+
+    // The dead's Spectator goes first, while a kept death's row still names it (E62 C3b, Q-C3b-4): its token with the
+    // curtain's return, none for a correction (`silent`). Tried on its own: the revive stands either way.
+    try {
+        await removeDeadSpectator(actor, { silent });
+    } catch (err) {
+        error(`Could not take ${actor.name}'s Spectator away`, err);
+    }
 
     // A death nobody has found is a row of the GMs' store and nothing on the actor (E05
     // C10): dropped, and its copies told, with no write to the actor - an unset flag on
@@ -686,6 +712,11 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
  */
 export async function clearSeasonDeaths(ctx) {
     await everyPart(async () => {
+        /* The Spectators of the dead (E62 C3b, the storyboard's F: a Spectator "to the season's end"): a revive below
+           takes a public death's; the kept deaths' go here, while their rows still name them, and any watcher left
+           besides. Not when the caller hands its own `removeBodyTiles` - tier 2's fence (E95 fix RV-1), which must not
+           take a table's own Spectators: the suite's revives take its own. */
+        if (typeof ctx?.removeBodyTiles !== "function") await removeAllDeadSpectators();
         await ctx.everyStudent("deaths");
         if (isPrimaryGm()) await deathStore.clear();
         else await deathStore.dropMany(Object.keys(deathStore.entries()));

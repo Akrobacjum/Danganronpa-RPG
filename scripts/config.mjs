@@ -252,7 +252,19 @@ export const FLAGS = {
      * (sheet-audit.mjs `GM_FLAGS`). Who watches is no secret - every player may know a Spectator is at the table, as
      * who is a student is the table's to know - so world-secrets.mjs has no rule for it.
      */
-    spectator: "spectator"
+    spectator: "spectator",
+    /**
+     * Character: the watcher of a dead student whose death is the table's (E62 C3b, 13.11.2026; spectator-dead.mjs): the
+     * student's actor id, on the new actor the student's player watches through. Written by a GM only, and only once
+     * the death is public (a kept death's link is the GMs' `deaths` row, never a flag); a player's write of it is put back
+     * by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
+     */
+    watcherOf: "watcherOf",
+    /**
+     * Token: a dead student's Spectator token the student walks as a Monocub (E62 C3b; Q-C3b-7's default), so that a
+     * Monocub no more gets that token back as its Spectator's (spectator-dead.mjs `monocubBecomesWatcher`). A GM's write.
+     */
+    cubToken: "cubToken"
 };
 
 /**
@@ -5003,6 +5015,12 @@ export const SFX_EVENTS = {
         label: "A student dies",
         hint: "Heard by the GMs and by everyone whose character was part of the incident. Nobody else learns of a death this way.",
         category: "incident"
+    },
+    deathFade: {
+        label: "Death fade",
+        hint: "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction.",
+        category: "incident",
+        fallsBackTo: "death"
     },
     bodyFound: {
         label: "A body is found",

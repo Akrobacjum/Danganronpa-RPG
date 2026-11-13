@@ -5303,11 +5303,11 @@
     },
     "Voice": {
       "silenceNow": "Wycisz teraz",
-      "silenceNowTip": "Przenosi głos tego gracza z pokoju już teraz, zanim ktoś znajdzie ciało.",
+      "silenceNowTip": "Przenosi głos tego gracza do Widzów już teraz, zanim ktoś znajdzie ciało.",
       "silenced": "Wyciszony",
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
-      "deadRoom": "kanał zmarłych",
+      "deadRoom": "kanał Widzów",
       "claimTrial": "Class Trial - wszyscy w jednym pokoju",
       "trialMuteLeft": "Mikrofon gracza {name} jest nadal zablokowany po rozprawie: zdejmij blokadę z listy na kafelku głosu.",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
@@ -5358,7 +5358,7 @@
       "held": {
         "eclipse": "Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.",
         "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
-        "deadAlone": "Twoja postać nie żyje: żywi cię nie słyszą, a ty nie słyszysz ich.",
+        "deadAlone": "Twoja postać nie żyje: rozmawiasz z Widzami. Żywi cię nie słyszą.",
         "spectator": "Jesteś Widzem: słyszysz pokój, w którym jesteś, a mikrofon masz wyłączony.",
         "spectatorTalk": "Rozmawiasz z innymi Widzami.",
         "gmBlock": "GM zablokował twój mikrofon.",
@@ -7260,6 +7260,10 @@
         "death": {
           "label": "Uczeń ginie",
           "hint": "Słyszą GM-owie i każdy, czyja postać brała udział w incydencie. Nikt inny nie dowiaduje się o śmierci w ten sposób."
+        },
+        "deathFade": {
+          "label": "Gaśnięcie",
+          "hint": "Słyszy tylko gracz zmarłego ucznia, gdy jego ekran gaśnie w chwili śmierci. Puste: gra dźwięk śmierci. Nigdy przy poprawce GM-a."
         },
         "bodyFound": {
           "label": "Znaleziono ciało",

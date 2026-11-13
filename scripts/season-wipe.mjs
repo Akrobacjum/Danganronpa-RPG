@@ -453,7 +453,7 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
             const { setMonocub } = await import("./monocub.mjs");
             // Quiet (E51 C6; audit S06-46): the reset's own report says what it did, not a toast per Monocub.
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false, { quiet: true });
-            if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
+            if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true, silent: true });
             // Everybody comes back whole, the living too: `reverse` resources, 0 is unharmed.
             await trustedWrite(actor, { "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 },
                 { reason: "setup" });

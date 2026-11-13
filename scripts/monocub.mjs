@@ -169,6 +169,17 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     }
 
     log(`${actor.name} is ${value ? "now" : "no longer"} a Monocub.`);
+    /* THE SPECTATOR'S TOKEN (E62 C3b; Q-C3b-7's default, asked of the owner): becoming a Monocub, the dead's Spectator
+       token stays where it stands and becomes the student's own (the curtain's return on the player's browser); the
+       Spectator actor goes and the body's token stays the corpse. A Monocub no more, still dead: the Spectator back,
+       silently (spectator-dead.mjs). Tried on its own: the flag stands either way. */
+    try {
+        const D = await import("./spectator-dead.mjs");
+        if (value) await D.watcherBecomesMonocub(actor);
+        else if (isDeceased(actor)) await D.monocubBecomesWatcher(actor);
+    } catch (err) {
+        error(`Could not move ${actor.name}'s Spectator token`, err);
+    }
     // `quiet` for a caller that reports what it did itself (E51 C6; audit S06-46): the season reset, one toast per cub.
     if (!quiet) ui.notifications.info(game.i18n.format(
         value ? "DRPG.Monocub.opted" : "DRPG.Monocub.unopted", { name: actor.name }));
