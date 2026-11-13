@@ -24479,6 +24479,86 @@ const REGRESSIONS = [
         equal(JSON.stringify(raw), "[]", "[each floor's line that is a key, empty, or the Discussion's under a zone mode]");
     }],
 
+    ["R5901 - a name read from a closed set has a key for every member, in lang/en.json and lang/pl.json: each set below is read off its source - an exported constant, or the actions the module's dropRemnant and placeRemnant calls write - and every member's key is in both files (the owner's report of 13.11.2026, its class)", async () => {
+        /*
+         * The class of R5900's bug: `localize(`DRPG.X.${member}`)` over a set that grows somewhere else. Swept by hand on
+         * 13.11.2026 across every template-literal key of scripts/ (about 150): one more gap, `DRPG.Remnant.action`, whose
+         * `facility` (facilities-gm.mjs, E93) and `infiltrate` (doors-gm.mjs, E69) a GM read as the bare words on the
+         * Remnant's name, its ring card, the ledger and the dashboard (remnants.mjs `actionLabel` falls back to the code
+         * word). Red at ceb9e9c8 on those two, in both files. The sets held here are the ones whose source is an exported
+         * constant mapping one to one onto keys; the rest of the sweep (literals at their call sites, small local lists,
+         * the sets already held by their own test) is listed in the fix's report, not here.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const C = await import("./config.mjs");
+        const FM = await import("./floor-machine.mjs");
+        const ZM = await import("./zone-machine.mjs");
+        const BG = await import("./bridge-guards.mjs");
+        const TF = await import("./trial-floor.mjs");
+        const SQ = await import("./sequence.mjs");
+        const NH = await import("./notice-history.mjs");
+        const CS = await import("./case-schema.mjs");
+        const CL = await import("./case-layout.mjs");
+        const CU = await import("./case-summary.mjs");
+        const PG = await import("./passages-gm.mjs");
+
+        /* THE REMNANTS' ACTIONS: each call of dropRemnant or placeRemnant in scripts/, cut at its own closing parenthesis,
+           and every `action: "<word>"` inside it, with the default `placeRemnant` and `dropRemnant` take ("manual"). A call
+           that hands an action on in a variable (the API, a player's request, a Reroll's drop, a restore) adds nothing:
+           what it carries came from one of these. */
+        // Each call cut by the kit's `callArgs` on its blanked text (literals blank, so their brackets do not count), and its
+        // arguments read in the code with the literals kept.
+        const remnantActions = new Set(["manual"]);
+        let calls = 0;
+        for (const [file, text] of await otherSources()) {
+            if (file.startsWith("tests")) continue;
+            const code = blankComments(text), blank = blankLiterals(code);
+            for (const m of blank.matchAll(/\b(?:dropRemnant|placeRemnant)\s*\(/g)) {
+                if (/function\s+$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                calls++;
+                for (const arg of callArgs(blank, m.index + m[0].length - 1).args) {
+                    for (const a of code.slice(arg.start, arg.end).matchAll(/\baction:\s*"(\w+)"/g)) remnantActions.add(a[1]);
+                }
+            }
+        }
+        must(calls >= 15 && ["search", "loot", "incident", "discard"].every(a => remnantActions.has(a)),
+            `the Remnants' calls read ${calls} calls and ${[...remnantActions].join(", ")} - this test would measure too little`);
+
+        const SETS = [
+            ["floor-machine.mjs MODES", Object.values(FM.MODES), m => [`DRPG.Floor.mode.${m}`, `DRPG.Hud.trial.${m}`]],
+            ["zone-machine.mjs ZONE_MODES", Object.values(ZM.ZONE_MODES), m => [`DRPG.Zones.${m}.opened`, `DRPG.Zones.${m}.openedBare`, `DRPG.Zones.picker.hint.${m}`]],
+            ["config.mjs OVERFLOW.effects", Object.keys(C.OVERFLOW.effects ?? {}), k => [`DRPG.Overflow.name.${k}`, `DRPG.Overflow.what.${k}`]],
+            ["config.mjs FACILITIES.effects", Object.keys(C.FACILITIES.effects ?? {}), k => [`DRPG.Facility.effect.${k}`]],
+            ["config.mjs FACILITIES.scopes", [...(C.FACILITIES.scopes ?? [])], k => [`DRPG.Facility.scope.${k}`]],
+            ["config.mjs FACILITIES.timedUntil", [...(C.FACILITIES.timedUntil ?? [])], k => [`DRPG.Facility.until.${k}`]],
+            ["config.mjs TRAP_TRIGGERS", Object.keys(C.TRAP_TRIGGERS ?? {}), k => [`DRPG.Trap.trigger.${k}`,
+                ...(C.TRAP_TRIGGERS[k]?.watch === "action" ? [`DRPG.Trap.why.${k}`] : [])]],
+            ["bridge-guards.mjs REASONS", [...BG.REASONS], r => [`DRPG.Bridge.why.${r}`]],
+            ["trial-floor.mjs TRIAL_NEXT_STEPS", [...new Set(TF.TRIAL_NEXT_STEPS.map(([, step]) => step))], s => [`DRPG.Floor.next.${s}`]],
+            ["sequence.mjs MOOD_BANDS", [...SQ.MOOD_BANDS], m => [`DRPG.Sequence.mood.${m}`]],
+            ["notice-history.mjs NOTICE_KINDS", [...NH.NOTICE_KINDS], k => [`DRPG.Popup.kind.${k}`]],
+            ["case-schema.mjs CASE_PROBLEMS", [...CS.CASE_PROBLEMS], c => [`DRPG.CaseMap.problem.${c}`]],
+            ["case-layout.mjs LAYOUT_SORTS", [...CL.LAYOUT_SORTS], k => [`DRPG.CaseMap.sort.${k}`]],
+            ["case-summary.mjs SUMMARY_ROLES", [...CU.SUMMARY_ROLES], r => [`DRPG.CaseSummary.role.${r}`]],
+            ["passages-gm.mjs PASSAGE_PRESETS", Object.keys(PG.PASSAGE_PRESETS), k => [`DRPG.Project.preset.${k}`]],
+            ["the Remnants' actions", [...remnantActions], a => [`DRPG.Remnant.action.${a}`]]
+        ];
+        const thin = SETS.filter(([, members]) => members.length < 2).map(([name, members]) => `${name}: ${members.length}`);
+        equal(JSON.stringify(thin), "[]", "[a set read with fewer than two members - its source moved or was renamed]");
+        const missing = [];
+        for (const [name, members, keysOf] of SETS) for (const member of members) for (const key of keysOf(member)) for (const code of ["en", "pl"]) {
+            // A plural family is held by its `.other` (overflow.mjs `overflowWhat` reads Darkness, Shift, Panic and Toll so).
+            const text = lang[code].get(key) ?? lang[code].get(`${key}.other`);
+            if (typeof text !== "string" || !text.trim()) missing.push(`${name} ${member}: ${code} ${key}`);
+        }
+        equal(JSON.stringify(missing), "[]", "[each set's member whose key is missing, by language]");
+    }],
+
 ];
 
 

@@ -3670,7 +3670,9 @@
         "resolution": "Sprzątanie",
         "discard": "Wyrzucone",
         "loot": "Zabrane z ciała",
-        "manual": "Postawione przez GM-a"
+        "manual": "Postawione przez GM-a",
+        "facility": "Facilities",
+        "infiltrate": "Infiltrate"
       },
       "cardTitle": "Remnant",
       "cardWhat": "Remnant",
