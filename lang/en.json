@@ -627,6 +627,14 @@
         "one": "{n} owed",
         "other": "{n} owed"
       },
+      "owedTip": {
+        "one": "{n} owed, paid at the next time of day",
+        "other": "{n} owed, paid at the next time of day"
+      },
+      "owedGiven": {
+        "one": "{n} Despair owed from {pool}. The pool pays at the next time of day; only GMs see it owed.",
+        "other": "{n} Despair owed from {pool}. The pool pays at the next time of day; only GMs see it owed."
+      },
       "tabPools": "Pools",
       "tabMonokumas": "Monokumas",
       "tabStudents": "Students",

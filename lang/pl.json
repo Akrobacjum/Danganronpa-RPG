@@ -618,6 +618,18 @@
         "many": "{n} do spłaty",
         "other": "{n} do spłaty"
       },
+      "owedTip": {
+        "one": "{n} do spłaty przy następnej porze dnia",
+        "few": "{n} do spłaty przy następnej porze dnia",
+        "many": "{n} do spłaty przy następnej porze dnia",
+        "other": "{n} do spłaty przy następnej porze dnia"
+      },
+      "owedGiven": {
+        "one": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+        "few": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+        "many": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie.",
+        "other": "{n} Despair do spłaty z puli {pool}. Pula płaci przy następnej porze dnia; dług widzą tylko GM-owie."
+      },
       "tabPools": "Pule",
       "tabMonokumas": "Monokumy",
       "tabStudents": "Uczniowie",

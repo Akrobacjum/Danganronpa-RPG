@@ -7511,6 +7511,44 @@ const INVARIANTS = [
         }
     }],
 
+    ["R5880 - a pool's owed Despair is drawn for a GM and for no player: despair.mjs `despairRowOf` with 5 held and 2 owed marks the last two filled pips `owed` and names the debt on the count for a GM, and marks and names nothing for a player; the Despair window's body (explain.mjs `despairExplainerBody`) names it for a GM alone; `DRPG.Despair.owedTip` and `owedGiven` have every plural form in both languages (the owner's report of 13.11.2026 on 1.2.112)", async () => {
+        /*
+         * The owner, 13.11.2026, at a table on 1.2.112: "Giving a Monocub Hope doesn't take Despair from the GM." It does -
+         * owed, and paid at the next time of day (E05 C12; tier 2's "giving a Monocub Hope, road by road") - but until the
+         * settlement the pool drew nothing different on any browser, and "(n owed)" stood only in the donors' pickers. The
+         * owed pips are drawn on a GM's bar now, the count names the debt, and the Despair window's GM body does; a
+         * player's bar and body stay as the pool shows (the drop at the gift would tell every player a GM gave Hope, S09-28).
+         * Driven on rows built here, the pool and its debt handed in, nothing written. Red on ceb9e9c8: no `despairRowOf`.
+         */
+        const D = await import("./despair.mjs");
+        const { despairExplainerBody } = await import("./explain.mjs");
+        const { plural } = await import("./utils.mjs");
+        const user = D.monokumas()[0] ?? null;
+        must(Boolean(user), "no Monokuma pool - this would measure nothing");
+        must(D.despairMax() >= 5, "the pool's maximum is under 5 - this would measure nothing");
+        must(typeof D.despairRowOf === "function", "despair.mjs exports no despairRowOf");
+        const row = gm => {
+            const el = D.despairRowOf(user, { gm, held: 5, owed: 2 });
+            const pips = [...el.querySelectorAll(".drpg-despair-pip")];
+            const count = el.querySelector(".drpg-despair-count");
+            return [pips.filter(p => p.classList.contains("owed")).map(p => Number(p.dataset.value)),
+                pips.filter(p => p.classList.contains("owed") && !p.classList.contains("filled")).length,
+                count?.dataset.tooltip ?? null, count?.textContent ?? null];
+        };
+        const tip = plural("DRPG.Despair.owedTip", { n: 2 });
+        equal(stableJson([row(true), row(false)]), stableJson([[[4, 5], 0, tip, `5/${D.despairMax()}`], [[], 0, null, `5/${D.despairMax()}`]]),
+            "the owed pips are not drawn on a GM's row alone, or the count's debt is not named for a GM alone ([owed pips, owed pips not filled, the count's tooltip, its text] for a GM, then a player)");
+        const owedWords = plural("DRPG.Despair.owed", { n: 2 });
+        const bodies = await Promise.all([true, false].map(gm => despairExplainerBody({ gm, owed: () => 2 })));
+        equal(stableJson(bodies.map(b => b.includes(foundry.utils.escapeHTML(owedWords)))), stableJson([true, false]),
+            "the Despair window does not name the owed Despair for a GM, or names it for a player ([GM, player])");
+        for (const [lang, forms] of [["en", ["one", "other"]], ["pl", ["one", "few", "many", "other"]]]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const missing = ["owedTip", "owedGiven"].flatMap(k => forms.filter(f => typeof foundry.utils.getProperty(text, `DRPG.Despair.${k}.${f}`) !== "string").map(f => `${k}.${f}`));
+            ok(!missing.length, `the owed Despair's texts have no ${lang} form for ${missing.join(", ")}`);
+        }
+    }],
+
     ["R198 - a self-hosted LiveKit secret in the world is told to the GM, and nothing else is", async () => {
         /*
          * E05 C15, 27.09.2026; audit S11-59. avclient-livekit keeps a self-hosted server's API
