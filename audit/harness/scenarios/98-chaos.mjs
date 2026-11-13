@@ -11,8 +11,8 @@
  *   A  a GM's card across the GM's reload: p1 asks the GM (call-gm.mjs `callGm`), the GM reloads before ruling, and
  *      once back it claims the card and settles it, once, and p1's copy reads the ruling (A1-A2).
  *   B  a player offline at a private card: p2's browser is closed, the GM posts a private card to p2 and itself and
- *      one to p2 alone (secret.mjs `postSecret`); p2, back with its storage, reads the first card's words, which the
- *      GM gives back (B1), and holds none of the second's, which no GM held (B2).
+ *      one to p2 alone (secret.mjs `postSecret`); p2, back with its storage, reads both cards' words, which the author
+ *      GM gives back (B1, B2; the second by `authorHold`, E38), while the GM itself reads the second as a dash.
  *   C  the GM's reload mid-incident: an incident opened with Chie (p3) the killer and Aiko (p1) the victim, the opening
  *      forced to succeed; the GM reloads; the GM, the killer's browser and the victim's read the same incident after,
  *      and the bystander p2 holds no part of it (C1-C2); then the incident is ended.
@@ -68,11 +68,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, connect, disco
     /* ------------------------------------------------------------------ B */
     phase("B a player offline at a private card");
     /* The words travel once, to the browsers connected as a card is posted; a reader back later asks the GMs for them
-       (secret.mjs `askForWords` at its ready), and a GM answers from its own store only for a card it was a reader of
-       (`answerWordsRequest`; the file's "WORDS AFTER A RETURN"). So: one card to p2 and the GM, one to p2 alone (as
-       utils.mjs `whisperToOwnerOnly` posts a placement's card), both while p2's browser is closed. Read 13.11.2026 at
-       this commit's first run: the card to p2 alone came back with no words, the GM holding no entry of it - the
-       header's stated trade, held here as it stands. */
+       (secret.mjs `askForWords` at its ready), and a GM answers from its own store (`answerWordsRequest`; the file's
+       "WORDS AFTER A RETURN"). So: one card to p2 and the GM, one to p2 alone (as utils.mjs `whisperToOwnerOnly` posts
+       a tail's or a door's card), both while p2's browser is closed. Since E38 the author GM keeps the words of a card
+       it whispered to players alone (`authorHold`) and gives them to its readers on return, so p2 reads both once back;
+       before E38 the card to p2 alone came back a dash (no GM held it). The GM, its author, still reads neither card's
+       words (its authorHold entry is hidden from its own reads). */
     const WORDS_B = "E38 chaos private words for p2 and the GM", ALONE_B = "E38 chaos private words for p2 alone";
     await p2.eval(`localStorage.setItem("e38.chaos", "p2"); return true;`);
     await disconnect("p2");
@@ -88,9 +89,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, connect, disco
     const p1Has = await p1.eval(WORDS_OF(posted.both, WORDS_B));
     check("B1: a private card to p2 and the GM, posted while p2's browser was closed, is read by p2 once back (its storage kept), and not by p1",
         Boolean(posted.both) && p2Reads?.has === true && p2Reads.words === true && p2Kept === "p2" && p1Has.words === false, J({ posted, p2Reads, p2Kept, p1Has }));
-    const alone = await p2.eval(WORDS_OF(posted.alone, ALONE_B));
-    check("B2: a private card to p2 alone, posted while p2 was away, comes back with no words - no GM was its reader, so none holds them (secret.mjs's stated trade)",
-        Boolean(posted.alone) && p2Reads?.words === true && alone.has === true && alone.words === false, J({ alone }));
+    const alone = await until(() => p2.eval(WORDS_OF(posted.alone, ALONE_B)), v => v?.words === true, 12000);
+    const gmReadsAlone = await gm.eval(WORDS_OF(posted.alone, ALONE_B));
+    check("B2: a private card to p2 alone, posted while p2 was away, is read by p2 once back - its author GM kept the words and gave them on return (E38); the author GM itself reads a dash",
+        Boolean(posted.alone) && alone?.has === true && alone.words === true && gmReadsAlone.has === true && gmReadsAlone.words === false,
+        J({ alone, gmReadsAlone }));
 
     /* ------------------------------------------------------------------ C */
     phase("C the GM's reload mid-incident");

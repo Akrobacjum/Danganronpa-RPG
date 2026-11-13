@@ -21110,6 +21110,26 @@ const REGRESSIONS = [
         ok(/ACTION_BULLET_GIVE/.test(request) && /onPrimary:\s*true/.test(request) && /local:[\s\S]*giveBullet\s*\(/.test(request),
             "requestGiveBullet does not ask bullet.give on the primary, with the GM's own give as its local run");
     }],
+    ["R5001 - a private card's author keeps its words for a reader who was away (E38): secret.mjs `post`, when the poster is a GM and not among the recipients, calls `remember(` with an `authorHold` flag; `secretHtml` and `cardMeta` give that author nothing (they return for `authorHold`), and `answerWordsRequest` serves the card's readers from the author's store as before", async () => {
+        /*
+         * E38, 13.11.2026; the second finding of E38 (97/98's STATUS). A card a GM whispers to players alone - a tail's
+         * result, a door, a reroll receipt (whisperToOwnerOnly) - left no GM holding its words, so a player offline when
+         * it was posted read a dash for good: the catch-up (`answerWordsRequest`) serves only from a GM who was a reader.
+         * The author GM keeps them now, hidden from its own reads (`authorHold`) and served to the card's readers alone.
+         * The documented trade stands (a player whose author GM is also away still waits: no server copy). Read off the
+         * source: `post`'s branch, and the two readers' guards. Red before the fix: no `authorHold` anywhere in secret.mjs.
+         */
+        const secret = stripComments((new Map(await moduleSources())).get("secret.mjs") ?? "");
+        const post = fnSource(secret, "post");
+        ok(/authorHold/.test(post), "secret.mjs post() does not keep a non-recipient author's words (authorHold)");
+        ok(/game\.user\.isGM[\s\S]{0,160}recipients\.includes\(game\.user\.id\)[\s\S]{0,200}\bremember\s*\(/.test(post)
+            || /!recipients\.includes\(game\.user\.id\)[\s\S]{0,200}\bremember\s*\([\s\S]{0,400}authorHold/.test(post),
+            "post() does not remember the words when a GM posts to players it is not among");
+        ok(/\bif\s*\(\s*entry\.authorHold\s*\)\s*return null/.test(fnSource(secret, "secretHtml")),
+            "secretHtml does not hide an authorHold card from its own author");
+        ok(/\bif\s*\(\s*entry\.authorHold\s*\)\s*return undefined/.test(fnSource(secret, "cardMeta")),
+            "cardMeta does not hide an authorHold card's meta from its own author");
+    }],
     ["R1291 - the GM panel has no Public roll (E60 C5a; E60-13): no tile of its sections and no code of the panel's family names `publicRoll`, `openPublicRollDialog` or a DRPG.Panel.publicRoll key; that key's label, formula, flavour and roll are gone from lang/en.json and lang/pl.json and its gmOnly and badFormula stay, both read by private-rolls.mjs; `game.drpg.publicRoll` stays, in api.mjs and in tools/api-surface.json as a function (a macro's road)", async () => {
         /*
          * E60 C5a, 03.11.2026; the owner after installing 1.2.97: "Usunmy funkcje public roll z gm panel". E33 C12 put a
