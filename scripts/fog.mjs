@@ -4064,7 +4064,7 @@ function onScreen(node) {
 
 /**
  * Let `node` (the raster's group or the backdrop) draw its picture in its place: its own render, kept, draws it live
- * whenever the picture is not the frame's, and the render into the picture itself (`heldBusy` on the node).
+ * whenever the picture is not the frame's, and the render into the picture itself (`drpgHeldDrawing` on the node).
  */
 export function holdStill(node, kind) {
     if (!node || node.drpgHeldRender) return;

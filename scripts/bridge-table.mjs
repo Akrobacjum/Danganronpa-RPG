@@ -1302,7 +1302,7 @@ export const BRIDGE_ACTIONS = table({
     },
     /*
      * A GM'S CHANGE OF THE FLOOR, RUN ON THE PRIMARY GM (E70 C0, 27.10.2026; amend 5 (d)). Every public writer of the
-     * floor (trial-floor.mjs `startFloor`, `openObjection`, `openRebuttal`, `fillObjection`, `withdrawObjection`,
+     * floor (trial-floor.mjs `startFloor`, `openObjection`, `openRebuttal`, `withdrawObjection`,
      * `repointObjection`, `returnToDebate`, `extendFloor`, `endFloor`, and since E70 C1 the bar's `adjustTime` and
      * `endMode`, and since E70 C2 `overruleObjection`, which the primary refuses outside a Class Trial) asks this on a GM that is not the primary, and
      * the primary runs the op's twin in a step of the floor's key (`floorOnPrimary`): one writer of the floor, the

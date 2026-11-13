@@ -1041,7 +1041,7 @@ export async function openObjectionInStep(objectorId, targetId, { pending = fals
      * PENDING, OR WITH ITS EVIDENCE (E79 C16, 1.2.79). A player's Objection opens the floor before its Truth Bullet
      * is chosen (trial.mjs `objectOnPrimary`, the owner's rule of 17.10.2026): `pending` gives the objector
      * `TRIAL.objectionPickSeconds` to fill the card `messageId` names, and the minute starts at the fill
-     * (`fillObjection`). Every other caller - the GM's card road (`seizeFloor`), the API, the suite - opens it with
+     * (`fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`). Every other caller - the GM's card road (`seizeFloor`), the API, the suite - opens it with
      * its evidence, as before.
      */
     /*
@@ -1127,7 +1127,10 @@ export async function fillObjection(objectorId, messageId) {
     return floorStep("fill", { actorId: objectorId, messageId });
 }
 
-/** `fillObjection`'s judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`). */
+/**
+ * The fill's judgement and write, in a step of `SEIZE_KEY` on the primary (trial.mjs `evidenceOnPrimary`, its one road;
+ * `fillObjection` above, which would ask it through the floor's op `fill`, has no caller).
+ */
 export async function fillObjectionInStep(objectorId, messageId) {
     // Under the heartbeat's latch (`advancing`): a fill read inside the seconds and written after the lapse would
     // turn the debate the lapse wrote into an objection's floor with nobody's card on it.

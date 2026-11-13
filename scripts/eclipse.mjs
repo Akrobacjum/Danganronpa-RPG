@@ -1108,7 +1108,8 @@ async function recordMove(actor, to = null) {
  * With `card: false` the card is not posted here but handed back as `tell`, for a crossing
  * this GM has still to write (E80 fix r1-G2; the review's E80-C2-5 = E80-C3-9): a 'Go through'
  * is counted before the primary moves the token (movement.mjs `settleCrossingOnGm`), and a
- * card posted then stayed when the write failed and the count was taken back (`unrecordMove`),
+ * card posted then stayed when the write failed and the count was taken back (`uncountCrossingInStep`,
+ * through movement.mjs `refundCrossingOnGm`),
  * telling the owner the student had crossed into a room the token never reached. The caller
  * calls `tell()` once the write stands (passages-gm.mjs `crossTunnel`).
  *
@@ -1186,7 +1187,10 @@ export async function unrecordMove(actorId) {
     return serialWrite(crossingKey(actorId), () => uncountCrossingInStep(actorId));
 }
 
-/** `unrecordMove`'s, inside a step of the character's `crossingKey`: its own, or `crossTunnel`'s (`refundCrossingOnGm`). */
+/**
+ * One counted crossing taken back inside a step of the character's `crossingKey`: `crossTunnel`'s (movement.mjs
+ * `refundCrossingOnGm`, the road that calls it), or `unrecordMove`'s own step above, which nothing calls.
+ */
 export async function uncountCrossingInStep(actorId) {
     if (!game.user.isGM) return false;
     await eclipseMoveStore.whenHydrated();

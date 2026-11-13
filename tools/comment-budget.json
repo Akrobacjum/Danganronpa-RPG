@@ -15,7 +15,7 @@
       "doubledJsdoc": 0
     },
     "scripts/action-pipeline.mjs": {
-      "citations": 2,
+      "citations": 1,
       "doubledJsdoc": 1
     },
     "scripts/action-project.mjs": {
@@ -37,10 +37,6 @@
     "scripts/actions.mjs": {
       "citations": 0,
       "doubledJsdoc": 1
-    },
-    "scripts/analyze.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
     },
     "scripts/api.mjs": {
       "citations": 2,
@@ -83,7 +79,7 @@
       "doubledJsdoc": 3
     },
     "scripts/config.mjs": {
-      "citations": 8,
+      "citations": 6,
       "doubledJsdoc": 7
     },
     "scripts/crossing-settle.mjs": {
@@ -91,7 +87,7 @@
       "doubledJsdoc": 0
     },
     "scripts/despair.mjs": {
-      "citations": 1,
+      "citations": 0,
       "doubledJsdoc": 1
     },
     "scripts/dh-settings.mjs": {
@@ -115,7 +111,7 @@
       "doubledJsdoc": 1
     },
     "scripts/events.mjs": {
-      "citations": 3,
+      "citations": 0,
       "doubledJsdoc": 1
     },
     "scripts/facilities.mjs": {
@@ -139,11 +135,11 @@
       "doubledJsdoc": 0
     },
     "scripts/fog.mjs": {
-      "citations": 5,
+      "citations": 4,
       "doubledJsdoc": 0
     },
     "scripts/glass.mjs": {
-      "citations": 3,
+      "citations": 2,
       "doubledJsdoc": 0
     },
     "scripts/gm-bridge.mjs": {
@@ -206,10 +202,6 @@
       "citations": 0,
       "doubledJsdoc": 3
     },
-    "scripts/messenger-app.mjs": {
-      "citations": 1,
-      "doubledJsdoc": 0
-    },
     "scripts/monocub.mjs": {
       "citations": 1,
       "doubledJsdoc": 1
@@ -235,7 +227,7 @@
       "doubledJsdoc": 1
     },
     "scripts/music-play.mjs": {
-      "citations": 5,
+      "citations": 4,
       "doubledJsdoc": 0
     },
     "scripts/overflow.mjs": {
@@ -351,7 +343,7 @@
       "doubledJsdoc": 0
     },
     "scripts/states.mjs": {
-      "citations": 8,
+      "citations": 7,
       "doubledJsdoc": 1
     },
     "scripts/tables-pools.mjs": {

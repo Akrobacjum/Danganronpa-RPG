@@ -297,7 +297,8 @@ async function identify(item, actor, realType, isCritical, dc, total) {
      * the description on the sheet. It is on the item as well - this is the
      * announcement, the item is the record.
      *
-     * `typeHint` is the module's own line about what this CATEGORY means and it
+     * `hint` (config.mjs `TRUTH_BULLET_TYPES`, the kind's `analysedHint`, else its `hint`)
+     * is the module's own line about what this CATEGORY means and it
      * stays where it was, under the reading: general first-read guidance after
      * the specific fact, not instead of it.
      */

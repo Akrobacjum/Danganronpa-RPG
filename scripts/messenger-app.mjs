@@ -1069,7 +1069,7 @@ async function ruleApproveReshape(action, data) {
     const applied = await askReshapeRuling("approve", { by: data.by, trace: data.trace, attempt: data.attempt ?? "" });
     /* `false` is a ruling that went through - a Reroll had taken the attempt back,
        and the card says so - where `null` leaves the card open to be answered. The
-       same split `ruleApproveMurder` draws. */
+       same split `ruleApproveMurderOrRefuseMurder` draws. */
     if (applied === false) return settled("DRPG.Cleanup.reshapeVoided");
     return applied ? settled("DRPG.Bridge.settledApproved") : null;
 }

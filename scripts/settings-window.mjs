@@ -38,7 +38,7 @@
  * LIVE-E49-02's): each setting whose value changed is written by `game.settings.set` - which runs its `onChange`, once -
  * and a setting left as it was is not written at all; when one written carries `requiresReload`, the reload is asked
  * once after the last write, through Foundry's own `SettingsConfig.reloadConfirm({ world })` (`world` when a world
- * setting asked: Foundry then reloads every client), as i18n.mjs `confirmLanguageReload` asks it. Nothing of a setting
+ * setting asked: Foundry then reloads every client), in `askReload` below. Nothing of a setting
  * row is written before Save; Cancel and the window's close write nothing. The volumes and the Voice section are not
  * setting rows (`data-drpg-setting`) and keep their own writes, at once, as the Look window had them: a volume is heard
  * while it moves, and a device is tried as it is picked; the section says so in a line of its own.

@@ -228,7 +228,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
          * per roll turns a forty-second run into minutes and times the
          * scenarios out - measured, three failures, none of them about the
          * thing under test. Whether the window opens at all is its own
-         * question with its own scenario. See `autoRollForSuite`.
+         * question with its own scenario. See `suiteRolling` above (the suite's own
+         * switch, `game.drpg.suiteRolling`).
          */
         dialog: { configure: !suiteRolling() },
         /*

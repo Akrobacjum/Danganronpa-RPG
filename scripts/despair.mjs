@@ -1141,7 +1141,7 @@ function buildRow(user) {
 
     // Everyone has a reading now (D3): the pool's count is shown on every
     // client, so the pips that were just paid animate on every client too.
-    // Only the OVERFLOW stays masked for a player - see `renderOverflowCaption`.
+    // Only the OVERFLOW stays masked for a player - see `buildOverflowCaption`.
     const spent = spentSince("despair", user.id, held);
 
     const row = document.createElement("div");

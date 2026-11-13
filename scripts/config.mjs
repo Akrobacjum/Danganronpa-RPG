@@ -98,7 +98,7 @@ export const FLAGS = {
      * in the GM's incident cast now (`murder.mjs`, `CAST_FIELDS`). An actor flag
      * is world data every client receives, so for the whole of Stage 6 these
      * two named the accomplice, the killer and the weapon to anybody reading
-     * `game.actors`. The keys stay so `migrateIncidentSecrets` can lift a live
+     * `game.actors`. The keys stay so `liftIncidentSecrets` (migrate.mjs) can lift a live
      * offer and scrub the rest off a world that updated mid-chapter.
      *
      * The offer itself is unchanged: `{ thirdId, killerId, chapter, day }`,
@@ -886,8 +886,8 @@ export const USABLE_EFFECTS = {
  * The guide never says a weapon has to be drawn - but "Jeśli zdobyła przedmiot,
  * którego może użyć jako broń" and the crime tool being consumed after a murder
  * both assume a specific object is in hand, and the incident engine had no way
- * to be told WHICH. Equipping is that answer: one per category, and it is what
- * `bestWeaponTier` reads first.
+ * to be told WHICH. Equipping is that answer: one per category, and the murder's
+ * weapon is the one readied (murder-rules.mjs `equippedWeapon`, through `equippedFor`).
  */
 export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
 
@@ -4266,7 +4266,7 @@ export const TRIAL = {
      * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
      * 17.10.2026: the bullet is chosen AFTER the objection, and the card waits "pending" for it). The floor is the
      * objector's while they choose, and the minute above starts only when the bullet is on the card
-     * (trial-floor.mjs `fillObjection`), so the minute is the minute they argue with it. Past these seconds the
+     * (trial-floor.mjs `fillObjectionInStep`, run by trial.mjs `evidenceOnPrimary`), so the minute is the minute they argue with it. Past these seconds the
      * Objection is withdrawn, the floor goes back to the debate and the price stays paid (trial-floor.mjs
      * `advanceIfDue`): an interruption that stopped the room and showed nothing is not free. The owner's default D4.
      */

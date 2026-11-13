@@ -1166,7 +1166,8 @@ function wireNewItemForm(root) {
     };
     tierSelect?.addEventListener("change", gateRoles);
     // ONE EXTRA ROLE, NOT TWO. The home is a tag as well, so a second
-    // tick would make three - see MAX_EXTRA_ROLES.
+    // tick would make three: ticking one unticks the others below (the rule
+    // is this handler's; tables-pools.mjs `MAX_EXTRA_ROLES` states it and nothing reads it).
     for (const box of roleBoxes) {
         box.addEventListener("change", () => {
             if (!box.checked) return;

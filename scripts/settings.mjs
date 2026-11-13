@@ -3935,7 +3935,7 @@ export function moduleLanguage() {
 /*
  * THE LANGUAGE THIS PAGE WAS BUILT IN (E51 C8, 31.10.2026; audit S12-38; E51-45). The setting changes the moment a
  * player picks another language in the Look window, and the page does not: everything on it was built in the old one
- * until the reload `confirmLanguageReload` offers, which a player may decline. A reader that asked the setting then
+ * until the reload the settings window asks for (settings-window.mjs `askReload`), which a player may decline. A reader that asked the setting then
  * mixed the two - an open handbook kept its English tabs and loaded the next book in Polish. Set by i18n.mjs
  * `prefetchLanguage`, the first thing `init` does (`registerLanguage`), so after a reload it is the new one; and by an
  * `applyModuleLanguage` that fetches a file, whose strings are then the page's. A first form kept the first reading

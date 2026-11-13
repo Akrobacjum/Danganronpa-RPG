@@ -3321,7 +3321,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 /**
  * THE ONE QUEUE'S KEY FOR A CHARACTER'S CROSSINGS ON THE PRIMARY (E17 C0, 26.10.2026; A10, session 0). One key per
  * character, so a crossing waits only for that character's: the Eclipse's count (eclipse.mjs `applyRecordedMove`,
- * `unrecordMove`), a tunnel's 'Go through' (passages-gm.mjs `crossTunnel`, keyed ``passage.cross/${actorId}`` until
+ * `uncountCrossingInStep`), a tunnel's 'Go through' (passages-gm.mjs `crossTunnel`, keyed ``passage.cross/${actorId}`` until
  * this commit) and the primary's charge of a door's route (`settleRoute`). `settleCrossingOnGm` and
  * `refundCrossingOnGm` run inside `crossTunnel`'s step and count through the in-step functions, as a second step of a
  * key its holder awaits would never start. Tier 0 R991 holds the census, tier 1 R992 the keys.

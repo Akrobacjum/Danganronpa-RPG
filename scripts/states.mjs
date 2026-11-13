@@ -25,8 +25,8 @@
  * expressible as one. Both are enforced by reading the resource directly, so
  * the status marker and the rule can never disagree about who is wounded:
  *
- *   Breakdown  `stateAdvantage()` below, folded into the roll dialog's own
- *              advantage sum alongside Calls and situational modifiers.
+ *   Breakdown  roll-dialog.mjs `stateGrant` (character.mjs `isBrokenDown`), folded into
+ *              the roll window's own advantage sum alongside Calls and situational modifiers.
  *   Wounded    `actionBudget()` in actions.mjs, which already subtracted the
  *              action - the guide's rule was in force before it had an icon.
  */
