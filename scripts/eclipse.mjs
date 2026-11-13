@@ -16,7 +16,7 @@
  * advance while one is running; it sits between them.
  */
 
-import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
+import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
@@ -25,7 +25,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, ec
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel, boundaryStamp, boundarySnapshot, takeBackFor, takeBackBoundary, boundaryMemory, afterTakeBack, withTakeBack } from "./clock.mjs";
 import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossingKey } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, log, error, plural, cardHead, esc, isPrimaryGm,
+import { announce, whisperToOwner, whisperToOwnerOnly, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy, timedCrossingsOf } from "./gm-stores.mjs";

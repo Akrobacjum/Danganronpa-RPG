@@ -29,8 +29,7 @@ import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { neighbouringRooms, ROOM_FLAGS, roomBroken, setRoomBroken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { SEARCH_FLAGS } from "./search-tokens.mjs";
-import { SearchTokens } from "./search-tokens.mjs";
+import { SEARCH_FLAGS, SearchTokens } from "./search-tokens.mjs";
 // Static is safe: the tables' family reaches back into this one only lazily (tables-pools.mjs `tableForRoom`'s
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";

@@ -15,7 +15,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { monokumas } from "./despair.mjs";
-import { isMonokuma, studentActors } from "./monokuma.mjs";
+import { studentActors } from "./monokuma.mjs";
 import { log, warn, plural } from "./utils.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";

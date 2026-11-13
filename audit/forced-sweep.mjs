@@ -26,7 +26,6 @@
  *
  * Exit 1 on any pair red, on a pair whose elements are not on the page, and on a control not seen.
  */
-import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
 import net from "node:net";

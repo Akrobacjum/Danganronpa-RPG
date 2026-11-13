@@ -12,7 +12,7 @@ import * as U from "./lib/futil.mjs";
 import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
 import { readVersions } from "./lib/versions.mjs";
 import { attachModuleStyles, wrapGetComputedStyle } from "./lib/css.mjs";
-import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, modifyResource, updateFear } from "./lib/daggerheart.mjs";
+import { AUTOMATION_DEFAULT, resourceTables, modifyResource, updateFear } from "./lib/daggerheart.mjs";
 import { HooksImpl, Collection, buildDocumentClasses, buildPolygonBackends, buildPIXI, buildApplications, RollImpl, Die, NumericTerm, OperatorTerm, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";

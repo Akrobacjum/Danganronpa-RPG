@@ -58,13 +58,11 @@
  * on this side against the ledger the sender cannot read.
  */
 
-import { PRICE_CHAINS, ACTIONS } from "./config.mjs";
+import { PRICE_CHAINS, ACTIONS, MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } from "./config.mjs";
 import { cardWarn } from "./chat-card.mjs";
 // The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
 // mark when there is no action - never both, which is what this file used to do.
 import { quotePrice, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
-import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES }
-    from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup, knowsOfDeath } from "./murder.mjs";

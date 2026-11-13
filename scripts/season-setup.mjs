@@ -56,7 +56,7 @@ import { sceneUncoveredShare, roomCheckProblems } from "./fog-diagnostics.mjs";
 import { sceneVisionReady } from "./fog.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
+import { foundryGivenBack, openGiveBackFoundry, permissionsInForce } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
@@ -68,7 +68,6 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // conversion, and the permissions in force where `core.permissions` names none.
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
-import { permissionsInForce } from "./enforced.mjs";
 
 import { tipText } from "./ui-kit.mjs";
 

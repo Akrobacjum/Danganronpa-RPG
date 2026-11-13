@@ -26,7 +26,7 @@ import { pairOf, reserveLine } from "./murder-ui.mjs";
 import { motive, shownMotive, incidentKey } from "./rules.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
 import { pendingGather } from "./call-effects.mjs";
-import { roomOfActor, locateActor } from "./movement.mjs";
+import { locateActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES, closingLine } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,

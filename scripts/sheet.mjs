@@ -47,13 +47,12 @@ import { isMonocub, isCrimeSilenced, cubBlockSaid, purseOf, cubPanelLines } from
 import { isCallSilenced, isChained, pendingGather, armedCallsShown, alreadyArmed } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
-import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
-    durabilityLeft } from "./inventory.mjs";
+import { isStashed, ITEM_FLAGS, isBroken, durabilityOf,
+    durabilityLeft, countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
 import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf, noDiscardNow, usedCreatively }
     from "./use-items.mjs";
-import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
 // now (action-rolls.mjs), because that is where the body tile lives.
 import { isCleaner, tamperQuote, witnessesTo, freeTonightText } from "./cleanup.mjs";
