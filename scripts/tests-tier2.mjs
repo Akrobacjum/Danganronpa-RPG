@@ -44174,6 +44174,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * Everything is put back.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 2), "Present's copies go to the other participants, two connected players' students");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the Share of (0) is asked of two students stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this browser is not the primary GM, which posts the card and mints the copies - this would measure nothing");
         const T = await import("./truth-bullets.mjs");
@@ -44225,12 +44227,20 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                there (5), and the row a console sends is refused on the primary with a closed reason - no copy for O. NOT red
                at 2fc865ac (measured): handover.mjs `verify` asks inventory.mjs `transferRefusal` mode "give", which refuses
                in a Class Trial ("that waits until the Class Trial is over", cannotNow) - the review's road was closed
-               already; this holds it closed. */
+               already; this holds it closed. Since E64 (D001) a give asks frisk.mjs `personActionRefusal`, which reads the
+               room before the trial: P and O in two rooms were refused as not there ("notThere", 1.2.110's first CI run,
+               43352869429, suite 6/8), a refusal that says nothing of the trial. So P and O stand alone together in one
+               room (`aloneTogether`) for this step, and the trial is what refuses. */
             const shareSent = [];
-            await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
-                { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
-            await sheetAuditIdle();
-            await settle();
+            const stood = await aloneTogether(P.actor, O.actor, { asked: true });
+            try {
+                await G.judge(B.BRIDGE_ACTIONS, { action: "handover.bullet", requestId: "E70T12s", fromId: P.actor.id, toId: O.actor.id, itemId: item.id }, P.user.id,
+                    { send: (to, reply) => { if (reply?.action !== "bridge.ack") shareSent.push([reply?.action ?? null, reply?.reason ?? null]); } });
+                await sheetAuditIdle();
+                await settle();
+            } finally {
+                await stood.back();
+            }
             read.share = [shareSent, O.actor.items.filter(ofTrace).length];
 
             /* (1) Without the analysis. */
