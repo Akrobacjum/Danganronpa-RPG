@@ -71,8 +71,8 @@ export function registerActionResource() {
  * none of those: by reading, any item equipped, used, given or taken refilled a student's Actions to 2/2 (the model
  * seeds the key again from ACTIONS_DEFINITION) and dropped a time-of-day maximum - the 2.10.5 probe's E24-1
  * (audit/probe-daggerheart-2.10.5.md), still in 2.12.8. A hook before the write, rather than a wrapper on the system's
- * method or a Homebrew entry: it takes the one key out of any update that deletes it - as the system's operator or as
- * `-=actions` - and cancels an update that held nothing else, so the system's clean-up of its own keys still runs. The
+ * method or a Homebrew entry: it takes the one key out of any update that deletes it with the deletion operator (the
+ * system's `_del`; the old dash spelling deletes nothing in v14, CLAUDE.md) and cancels an update that held nothing else, so the system's clean-up of its own keys still runs. The
  * module never deletes the key itself. On a character only, where the resource is registered. R5762; at a table the
  * Actions before and after an item change are the probe's own live check (its list of live checks, item 2), not run.
  * ========================================================================== */
@@ -102,11 +102,8 @@ export function keepActionsResource(actor, changes) {
     if (actor?.type !== "character") return undefined;
     const resources = changes?.system?.resources;
     if (!resources || typeof resources !== "object") return undefined;
-    const dash = `-=${ACTIONS_RESOURCE}`;
-    const deletes = dash in resources || (ACTIONS_RESOURCE in resources && isDeletion(resources[ACTIONS_RESOURCE]));
-    if (!deletes) return undefined;
-    delete resources[dash];
-    if (isDeletion(resources[ACTIONS_RESOURCE])) delete resources[ACTIONS_RESOURCE];
+    if (!isDeletion(resources[ACTIONS_RESOURCE])) return undefined;
+    delete resources[ACTIONS_RESOURCE];
     if (!Object.keys(resources).length) delete changes.system.resources;
     if (!Object.keys(changes.system).length) delete changes.system;
     log(`Kept "${ACTIONS_RESOURCE}" on ${actor.name ?? actor.id}: an update would have deleted it.`);
