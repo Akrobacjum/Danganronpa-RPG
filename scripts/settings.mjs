@@ -1011,6 +1011,21 @@ export const SETTINGS = {
     regionFog: "regionFog"
 };
 
+/* Foundry's settings window: the module's row marked. Stands here, under the table, since E54 (W3): at the file's end it
+   followed `registerWindows`, which moves to window-scale.mjs, and a test that cuts a function reads to the next one. */
+Hooks.on("renderSettingsConfig", (_app, element) => {
+    if (!settingsRegistered()) return;
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+    /* THE MODULE'S ROW MARKED (E47-C5, 09.11.2026; audit S01-44): components.css reaches it by this class, since how
+       v14 names a category's section was not read here (a live check, LIVE-E47-06). Since E49 A1 the module's one row
+       there is the DRPG Settings button (`SETTINGS_MENU`): every setting is `config: false`, so the theme's show and
+       hide of the glass-only and the pixel switches went with them (look.mjs `themeOnlyKeys`, read by the window). */
+    for (const field of root.querySelectorAll(`[name^="${MODULE_ID}."], button[data-key^="${MODULE_ID}."]`)) {
+        field.closest(".form-group")?.classList.add("drpg-settings-row");
+    }
+});
+
 /*
  * THE LIFETIME OF EVERY WORLD SETTING (E42 C4, 1.2.97; E42-16; D36 = option 2, Q-E42-2; audit S17-30). Foundry sends every
  * world setting to every browser and keeps it until somebody writes it: nothing says whether a value belongs to this
@@ -4491,16 +4506,3 @@ export function registerWindows(readers) {
     Hooks.on("renderApplication", scaleWindow);
     return true;
 }
-
-Hooks.on("renderSettingsConfig", (_app, element) => {
-    if (!settingsRegistered()) return;
-    const root = element instanceof HTMLElement ? element : element?.[0];
-    if (!root) return;
-    /* THE MODULE'S ROW MARKED (E47-C5, 09.11.2026; audit S01-44): components.css reaches it by this class, since how
-       v14 names a category's section was not read here (a live check, LIVE-E47-06). Since E49 A1 the module's one row
-       there is the DRPG Settings button (`SETTINGS_MENU`): every setting is `config: false`, so the theme's show and
-       hide of the glass-only and the pixel switches went with them (look.mjs `themeOnlyKeys`, read by the window). */
-    for (const field of root.querySelectorAll(`[name^="${MODULE_ID}."], button[data-key^="${MODULE_ID}."]`)) {
-        field.closest(".form-group")?.classList.add("drpg-settings-row");
-    }
-});
