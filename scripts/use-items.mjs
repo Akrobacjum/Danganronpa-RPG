@@ -164,11 +164,6 @@ export function readiedItems(actor) {
         && !isStashed(i)) ?? [];
 }
 
-/** The one thing in their hands, whatever it is. */
-export function readiedItem(actor) {
-    return readiedItems(actor)[0] ?? null;
-}
-
 /**
  * Whether a roll costs the tool it used a point of its wear: a tier 0 thing on any roll (the
  * amend of 25.09.2026, `breakOnDespair`'s note), anything else on a Despair that is no critical.

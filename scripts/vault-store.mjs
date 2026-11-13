@@ -873,7 +873,7 @@ export function primaryStashRoom(actor, scene) {
     if (!actor) return null;
 
     // ONE WALK ANSWERS BOTH HALVES. The obvious spelling - `stashRoomsFor` and
-    // then `vaultRoomOwnedBy` - builds the region map twice inside a function
+    // then a second walk for the bedroom's owner flag - builds the region map twice inside a function
     // that `stashItemsIn` used to call once per stashed item: measured at
     // 0.218 ms per call with twelve things in a stash and eighteen regions,
     // which is the same order as the whole visibility pass this module
@@ -886,15 +886,6 @@ export function primaryStashRoom(actor, scene) {
         if (flagOver(pieces, VAULT_FLAGS.owner) === actor.id) bedroom = name;
     }
     return bedroom ?? first;
-}
-
-/** The room this character's bedroom IS, owner flag only. */
-export function vaultRoomOwnedBy(actor, scene) {
-    if (!actor) return null;
-    for (const [name, pieces] of piecesByName(scene)) {
-        if (flagOver(pieces, VAULT_FLAGS.owner) === actor.id) return name;
-    }
-    return null;
 }
 
 /**

@@ -63312,7 +63312,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(favoured && hindered && owner && other, "two students and two categories - this would measure nothing");
         const K = "SUITE r1-G1 Kitchen", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
         const read = scene => [V.stashesIn(K, scene).map(entry => entry.actorId), V.stashRoomsFor(owner, scene).map(entry => entry.room),
-            V.primaryStashRoom(owner, scene), V.vaultRoomOwnedBy(owner, scene), V.vaultOwnerOf(K, scene), V.roomTable(K, scene),
+            V.primaryStashRoom(owner, scene), V.vaultOwnerOf(K, scene), V.roomTable(K, scene),
             V.roomDescription(K, scene), V.roomFavours(K, scene), V.roomHinders(K, scene), Rest.roomAllows(K, "long", scene),
             Rest.restRooms("long", scene), V.sharedRooms(scene), V.allVaults(scene).map(entry => [entry.room, entry.owner?.id, entry.bedroom])];
         let scene = null, reading = null;
@@ -63333,10 +63333,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             await scene?.delete();
         }
-        const set = [[owner.id], [K], K, K, owner.id, "SUITE r1-G1 table", "SUITE r1-G1 tiles", [favoured], [hindered], true, [K], [], [[K, owner.id, true]]];
+        const set = [[owner.id], [K], K, owner.id, "SUITE r1-G1 table", "SUITE r1-G1 tiles", [favoured], [hindered], true, [K], [], [[K, owner.id, true]]];
         equal(stableJson(reading), stableJson([set, set, [owner.id, other.id].sort(), [], 2]),
             `a Kitchen set up in one piece, then a second piece and a Teleport of its name drawn and the name marked a room ([every room reader before the mark: `
-            + "the stashes, the owner's stash rooms, primary stash room and bedroom, the bedroom's owner, the table, the description, the favours, the hindrances, "
+            + "the stashes, the owner's stash rooms, primary stash room, the bedroom's owner, the table, the description, the favours, the hindrances, "
             + "a long rest, the long-rest rooms, the shared rooms, every stash; the same after the mark; the stashes after another student's was added; "
             + "the Teleport's flags; the room's pieces])");
     }],
@@ -73927,7 +73927,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             }
             const tool = await INV.grantItem(killer, { name: "SUITE E14-T7 a stowed tool", category: "tool", tier: 1, override: true, quiet: true });
             await sheetAuditIdle();
-            must(tool && knife && INV.isStashed(killer.items.get(knife.id)) && U.stowedInGroup(killer, "gear").length === 1 && !U.readiedItem(killer),
+            must(tool && knife && INV.isStashed(killer.items.get(knife.id)) && U.stowedInGroup(killer, "gear").length === 1 && U.readiedItems(killer).length === 0,
                 `${killer.name} does not hold one stowed Tool and an empty hand, the knife stashed - this would measure nothing`);
             const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true });
             await settle();
