@@ -53559,10 +53559,14 @@ const INVARIANTS = [
          * `setPhase` (a debate opened outside a trial among its callers), Edit campaign, `setClock` - writes the clock,
          * and the clock's row is the one place `drpgPhaseChanged` is fired (sync.mjs `phaseHook`), so the roads are read
          * as the one event here. The theme's class is taken off for the run so the entry draws the lids.
+         * The clock read is a road that plays, so it carries that road's mark (`trialCut: true`, as Start the Class Trial
+         * and `setPhase` write it) and not the world's: 13.11.2026, release run 43428636380, 01-runtests' A2 crosses into
+         * the trial with a bare `setClock`, which marks the crossing false, and this test, reading the world's mark, saw
+         * the entry play nothing there (first null, look null, lids 0, stillPlaying null) - the module right, the test not.
          */
         const S = await import("./sequence.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), phase = body.dataset.drpgPhase;
-        const clock = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R3704:${Date.now()}` }, read = {};
+        const clock = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R3704:${Date.now()}`, trialCut: true }, read = {};
         try {
             body.classList.remove("drpg-theme-stained-glass");
             read.key = S.trialEntryKey(clock) === `classTrial:${clock.timeOfDayStartedAt}`;
@@ -53589,10 +53593,11 @@ const INVARIANTS = [
             "[the key is the edge's stamp; another phase has none; the first hearing; its look with no curtain; its lids; a second hearing; still playing; another phase; ended; the clock's row fires the hook once a phase moved; the sequences hear it; rebuildAll turns nothing while the entry holds it]");
     }],
     ["R3705 - the entry's still frame is the title on the closed curtain, and the tiles come back with it (scripts/sequence.mjs `drawTrialEntry`; E61 C3, C4, MK-R1 #3: \"reduced motion: a still board with the title for 1.5 s\"; A8): under reduced motion the entry's host holds the title in this language - CLASS TRIAL and the chapter's line - and the closed lids, and the room and voice tiles are covered (`data-drpg-sequence-cover`) while it stands and uncovered after; it ends on its own at 1.5 s", async () => {
-        /* E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. */
+        /* E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. The road's mark, not the world's: R3704's
+           comment (13.11.2026: mode null, lids 0 inside 01-runtests' A2, whose clock is marked false). */
         const S = await import("./sequence.mjs");
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
-        const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}` }, read = {};
+        const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}`, trialCut: true }, read = {};
         try {
             body.classList.remove("drpg-theme-stained-glass");
             body.classList.add("drpg-reduced-motion");
@@ -53620,7 +53625,8 @@ const INVARIANTS = [
          * pieces were never held, handed back or let go; glass.mjs had no `holdPulse`; the cover named the two tiles alone.
          * The probe of the seam report read the base's blink in Chromium on the glass harness at 1366x768 (whole frame
          * -11 at the start, +19 at 900 ms, +7 at the end); its after-numbers are in docs/dev/trial-exit/STATUS.md. jsdom
-         * plays no animation, so what is read here is who is held when, and the stylesheet.
+         * plays no animation, so what is read here is who is held when, and the stylesheet. The clocks carry the road's
+         * mark, not the world's (R3704's comment; 13.11.2026 inside 01-runtests' A2: motion null, calls []).
          */
         const S = await import("./sequence.mjs"), G = await import("./glass.mjs");
         const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
@@ -53632,7 +53638,7 @@ const INVARIANTS = [
                 hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]), release: () => calls.push(["release", null, at()]) };
         };
         const near = (got, want, slack = 250) => Number.isFinite(got) && got >= want && got <= want + slack;
-        const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}` });
+        const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}`, trialCut: true });
         try {
             body.classList.remove("drpg-reduced-motion");
             S.endSequence("cut");
@@ -53704,13 +53710,15 @@ const INVARIANTS = [
             "[the trial's exit; the same with the next morning in the write; out into the Investigation; heard; the direction handed to the curtain]");
     }],
     ["R4422 - the trial's exit plays once on this browser, TRIAL ADJOURNED and the chapter's line, with no sound of its own (scripts/sequence.mjs `playTrialExit`, `trialExitKey`; lang; the owner's decision of 12.11.2026, every default accepted): with no curtain it closes the lids as the entry does, the title in this language - TRIAL ADJOURNED / KONIEC ROZPRAWY and \"Chapter {n} · Back to school\" / \"Rozdział {n} · Powrót do szkoły\" - and covers the tiles; its key is the trial's end stamp, so a second hearing starts nothing; Escape ends it; its frames are the entry's and its length too (3.4 s, still 1.5 s); under reduced motion it is the still frame and ends on its own; with the switch off, or for a crossing Edit campaign wrote, it plays nothing; it plays no sound", async () => {
-        /* The trial's exit, 12.11.2026. Red at 421f2395: sequence.mjs had no `playTrialExit` and no exit's words. */
+        /* The trial's exit, 12.11.2026. Red at 421f2395: sequence.mjs had no `playTrialExit` and no exit's words. The clocks
+           carry End the trial's mark, `trialCut: true`, and `quiet` its own false, not the world's (R3704's comment; 13.11.2026
+           inside 01-runtests' A2: motion null, lids 0, so `quiet` told nothing apart). */
         const S = await import("./sequence.mjs"), C = await import("./perf-counters.mjs");
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
         const stamp = `R4422:${Date.now()}`, read = {};
-        const clock = (k, extra = {}) => ({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `${stamp}${k}`, ...extra });
+        const clock = (k, extra = {}) => ({ ...getClock(), phase: "dailyLife", chapter: 3, trialEndedAt: `${stamp}${k}`, trialCut: true, ...extra });
         const words = t => ["exitTitle", "exitSubtitle", "exitSubtitleNoChapter"].map(k => t?.DRPG?.Sequence?.[k] ?? null);
         read.words = { en: words(en), pl: words(pl) };
         const T = S.SEQUENCE_TIMES.trialExit ?? {}, E = S.SEQUENCE_TIMES.trialEntry;
@@ -53781,7 +53789,13 @@ const INVARIANTS = [
             wipe: !/trialCut/.test(wipe), chapterClock: !/trialCut/.test(chapter)
         };
         const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), phase = body.dataset.drpgPhase;
-        const c = (k, extra) => ({ ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R4423${k}:${Date.now()}`, ...extra });
+        /* `unmarked` is a clock with no mark at all, so the world's is taken off first (13.11.2026, inside 01-runtests' A2,
+           whose bare `setClock` marked the crossing false: `unmarked` read null, the world's false and not the case named). */
+        const c = (k, extra) => {
+            const x = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R4423${k}:${Date.now()}` };
+            delete x.trialCut;
+            return { ...x, ...extra };
+        };
         try {
             body.classList.remove("drpg-theme-stained-glass");
             S.endSequence("cut");
