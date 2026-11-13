@@ -1601,15 +1601,6 @@ function onPreUpdateToken(tokenDoc, changes, options) {
 }
 
 /**
- * Dead, and not a Monocub - so this token is a body rather than a person.
- *
- * Death is asked of settings.mjs (E05 C9) and the Monocub flag read directly
- * rather than through `monocub.mjs`: this runs inside the synchronous
- * `preUpdateToken` veto, where there is no chance to await an import. On the
- * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
- * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
- */
-/**
  * Whether this token is a body that does not walk (E62 C3b fix; the e93 review's F3): its actor a corpse (`isCorpse`), or
  * a Monocub's corpse beside the token it walks (spectator.mjs `isMonocubCorpse`). The veto, the GMs' judge and the body
  * tile's follow (body-tile.mjs `followBody`) ask it.
@@ -1619,6 +1610,15 @@ export function isCorpseToken(tokenDoc) {
     return Boolean(actor && isCorpse(actor)) || isMonocubCorpse(tokenDoc);
 }
 
+/**
+ * Dead, and not a Monocub - so this token is a body rather than a person.
+ *
+ * Death is asked of settings.mjs (E05 C9) and the Monocub flag read directly
+ * rather than through `monocub.mjs`: this runs inside the synchronous
+ * `preUpdateToken` veto, where there is no chance to await an import. On the
+ * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
+ * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
+ */
 export function isCorpse(actor) {
     try {
         if (!isDeadForGm(actor) && !isMutedDead(actor)) return false;

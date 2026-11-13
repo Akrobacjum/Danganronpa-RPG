@@ -7,7 +7,24 @@
     "incidentVeil": "secret.mjs: history - fix r1-G3's call-site veil, replaced by `incidentVeils` in fix r2-G2 (past tense in both comments)",
     "difficultyTag": "remnants.mjs: history - the Observe DC's word the header says is gone",
     "attemptTransform": "cleanup.mjs: a function that was not written ('a second ... would have been a copy'), named to say why",
-    "raisesVisibility": "cleanup.mjs, config.mjs: history - an outcome field no outcome carries any more, said so in both comments"
+    "raisesVisibility": "cleanup.mjs, config.mjs: history - an outcome field no outcome carries any more, said so in both comments",
+    "searchTheftOf": "stash-reach.mjs: history - the Search's road into a stash (bridge-runs-acts.mjs), removed with that road in 1.2.112, named as the road that was (E56, after the merge of 13.11.2026)",
+    "sanitizeAppearance": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "resolveRoleSlot": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "systemDefaults": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "playDelayBase": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "playDelayJitter": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "handleSpecialEffectsInit": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "SAVED": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "DEFAULT_SFX": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "SFX_LIST": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "APPEARANCE": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "addSFXDefaults": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "ROLE_APPEARANCE": "dice-look.mjs, dice-sync.mjs: Dice So Nice's source, cited by file (E108's reading of DSN 6.2.9 and 6.4.5); no code of this module declares it",
+    "NEEDS_OWN_BRIEFING": "action-rolls.mjs: history - the list that went with the Move window, said so ('went with the window')",
+    "searchStash": "action-search.mjs: history - the Search's road into a stash, 'gone in 1.2.112' as the comment says",
+    "tierWanted": "action-search.mjs: the camelCase spelling `dataset` would lowercase, named to say why the keys are lowercase",
+    "tierwanted": "action-search.mjs: what `dataset` turns `tierWanted` into, named with it"
   },
   "files": {
     "scripts/a11y.mjs": {
@@ -28,10 +45,6 @@
     },
     "scripts/action-project.mjs": {
       "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/action-search.mjs": {
-      "citations": 2,
       "doubledJsdoc": 0
     },
     "scripts/api.mjs": {
@@ -84,14 +97,6 @@
     },
     "scripts/diagnostics.mjs": {
       "citations": 1,
-      "doubledJsdoc": 0
-    },
-    "scripts/dice-look.mjs": {
-      "citations": 3,
-      "doubledJsdoc": 0
-    },
-    "scripts/dice-sync.mjs": {
-      "citations": 8,
       "doubledJsdoc": 0
     },
     "scripts/enforced.mjs": {
