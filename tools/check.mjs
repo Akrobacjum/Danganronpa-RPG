@@ -670,8 +670,8 @@ const PACKAGE_NOTES = {
 };
 const PACKAGE_EXT = "mjs|js|css|json|svg|png|webp|jpe?g|gif|woff2?|ttf|otf|md|ogg|mp3|wav|webm";
 
-/** The file names of a tar archive (ustar and pax `path=`), directories left out. */
-function tarNames(buf) {
+/** The files of a tar archive (ustar and pax `path=`), directories left out, each `{ name, data }` (a Buffer). */
+function tarEntries(buf) {
     const names = [];
     let off = 0, pax = null;
     while (off + 512 <= buf.length) {
@@ -684,7 +684,7 @@ function tarNames(buf) {
         if (type === "x") pax = /\d+ path=([^\n]*)\n/.exec(body)?.[1] ?? null;
         else if (type === "0" || type === "7") {
             const prefix = field(345, 500);
-            names.push(pax ?? (prefix ? `${prefix}/${field(0, 100)}` : field(0, 100)));
+            names.push({ name: pax ?? (prefix ? `${prefix}/${field(0, 100)}` : field(0, 100)), data: buf.subarray(off + 512, off + 512 + size) });
             pax = null;
         } else if (type !== "g") pax = null;
         off += 512 + Math.ceil(size / 512) * 512;
@@ -725,38 +725,51 @@ function packageProblems(files, readers) {
     return problems;
 }
 
-function packageReaders(files) {
-    return files.filter(f => /^scripts\/[\w-]+\.mjs$/.test(f) || /^styles\/[\w-]+\.css$/.test(f) || f === "module.json").map(file => {
-        const text = read(file);
-        const code = file.endsWith(".mjs") ? lint.blankComments(text) : file.endsWith(".css") ? text.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " ")) : text;
-        return { file, code };
-    });
+/** One reader: its code with the comments blanked, a script's by lint.blankComments, a stylesheet's block comments. */
+function readerOf(file, text) {
+    const code = file.endsWith(".mjs") ? lint.blankComments(text) : file.endsWith(".css") ? text.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " ")) : text;
+    return { file, code };
+}
+
+/* The readers' text is the archive's own (REVIEW-111 L3): the file list and what names a file come from one tree, so an
+   uncommitted delete or edit neither stops the part nor changes its reading. */
+function packageReaders(entries) {
+    return entries.filter(({ name }) => /^scripts\/[\w-]+\.mjs$/.test(name) || /^styles\/[\w-]+\.css$/.test(name) || name === "module.json")
+        .map(({ name, data }) => readerOf(name, lint.lf(data.toString("utf8"))));
 }
 
 function packageList() {
     const buf = execFileSync("git", ["-C", REPO, "archive", "--format=tar", "--worktree-attributes", "HEAD"], { maxBuffer: 512 * 1024 * 1024 });
-    return tarNames(buf);
+    return tarEntries(buf);
 }
 
 function pkg() {
-    let files;
-    try { files = packageList(); }
+    let entries;
+    try { entries = packageList(); }
     catch (err) { return [`not a git checkout, or git archive failed (${String(err.message).split("\n")[0]})`]; }
-    /* The self-check: a planted package of five, two of them faults (a folder that is not the module's, an icon nothing
-       names), one icon named by a template, one by a literal path, one script named by a test only. */
+    const files = entries.map(e => e.name);
+    /* The self-check: a planted package of seven, four of them faults - a folder that is not the module's, an icon
+       named only in a script's comment, an icon named only by a test (the sprite's case: R3333 reads it, at a table it
+       never does) and an icon named only in a stylesheet's comment (the sprite's other mention; REVIEW-111 M1) - and
+       three that are read: an icon by a template, one by a literal path, a script by a test only. Through readerOf, the
+       real readers' own blanking. */
     const plant = packageProblems(
-        ["macros/x.js", "icons/item-tool.svg", "icons/unread.svg", "icons/state-dead.svg", "scripts/tests-only.mjs"],
-        [{ file: "scripts/config.mjs", code: lint.blankComments("const a = `modules/${MODULE_ID}/icons/item-${kind}.svg`, b = \"icons/state-dead.svg\"; // icons/unread.svg\n") },
-            { file: "scripts/tests.mjs", code: lint.blankComments("await import(\"./tests-only.mjs\");") }]);
-    const planted = ["macros/x.js ships", "icons/unread.svg ships"];
+        ["macros/x.js", "icons/item-tool.svg", "icons/unread.svg", "icons/state-dead.svg", "scripts/tests-only.mjs", "icons/test-only.svg", "icons/css-comment.svg"],
+        [readerOf("scripts/config.mjs", "const a = `modules/${MODULE_ID}/icons/item-${kind}.svg`, b = \"icons/state-dead.svg\"; // icons/unread.svg\n"),
+            readerOf("scripts/tests.mjs", "await import(\"./tests-only.mjs\"); fetch(\"icons/test-only.svg\");"),
+            readerOf("styles/x.css", "/* icons/css-comment.svg */ a { color: red; }")]);
+    const planted = ["macros/x.js ships", "icons/unread.svg ships", "icons/test-only.svg ships", "icons/css-comment.svg ships"];
     const seen = planted.filter(p => plant.some(q => q.startsWith(p))).length;
-    const problems = packageProblems(files, packageReaders(files));
+    const readers = packageReaders(entries);
+    const problems = packageProblems(files, readers);
+    /* The tests' exclusion reads something: a rename of the suite's files would leave it holding nothing. */
+    if (!readers.some(r => /^scripts\/tests[\w-]*\.mjs$/.test(r.file))) problems.push("no reader matches scripts/tests*.mjs - the tests' exclusion reads nothing; rename it with the suite");
     const tops = [...new Set(files.map(f => (f.includes("/") ? `${f.split("/")[0]}/` : f)))];
+    if (!files.length) problems.push("the archive listed no file - this part read nothing");
+    if (seen !== planted.length || plant.length !== planted.length) problems.push(`the self-check's planted package gave ${JSON.stringify(plant)}`);
     console.log(`package: git archive HEAD (the working tree's .gitattributes): ${files.length} file(s), top level ${tops.join(" ")}; `
         + `${Object.keys(PACKAGE_NOTES).length} note(s) shipped with no reader; self-check ${seen}/${planted.length} planted fault(s) seen, `
         + `${plant.length - seen} other(s); ${problems.length} problem(s)`);
-    if (!files.length) problems.push("the archive listed no file - this part read nothing");
-    if (seen !== planted.length || plant.length !== planted.length) problems.push(`the self-check's planted package gave ${JSON.stringify(plant)}`);
     return problems;
 }
 
