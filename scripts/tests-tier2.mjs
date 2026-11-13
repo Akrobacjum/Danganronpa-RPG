@@ -69394,7 +69394,7 @@ const SCENARIOS = [
         };
         const roads = async () => {
             const out = {};
-            for (const road of ["give", "rifle", "steal", "plant"]) out[road] = await run(road);
+            for (const road of Object.keys(ROADS).filter(road => road !== "loot")) out[road] = await run(road);
             let dead = false;
             try {
                 dead = Boolean(await killCharacter(giver, { secret: false, keepBullets: true }));
@@ -69445,6 +69445,17 @@ const SCENARIOS = [
             stash: { give: stays(["DRPG.Handover.theirHandsFull"]), rifle: lands(["DRPG.Vault.overflowed", "DRPG.Vault.stole"]),
                 steal: lands(["DRPG.Vault.overflowed", "DRPG.Steal.cardTook"]), plant: stays(["DRPG.Steal.cardTheirHandsFull"]), loot: lands(["DRPG.Vault.overflowed"]) }
         }), "a road into full hands moved what its policy keeps, kept what it moves, or told its asker another road's line, or none (per road, with no stash of the taker's and with one: [the taker's copies, of them in a stash, the giver still holds it, the lines the asker's players read, the lines the other student's read])");
+        /* EVERY MODE OF THE POLICY HAS ITS ROAD HERE (E39 C3, 13.11.2026; the plan's "every transferItem mode"). The roads were
+           written out by hand, five for five, so a sixth mode of TRANSFER_POLICY would have passed this test unread. Red on a
+           copy of this tree with a mode `lend: "refuse"` added to the policy: the census below failed and the world was put back. Last,
+           after the world is put back: an `equal` that fails throws. */
+        equal(Object.keys(INV.TRANSFER_POLICY).sort().join(", "), Object.keys(ROADS).sort().join(", "),
+            "a mode of inventory.mjs TRANSFER_POLICY has no road driven here, or a road here is no mode of it - give the new mode its road and its expected row");
+        /* And each mode as its policy says, read off the table itself (E39 C3): with a stash of the taker's, a "refuse" leaves
+           the taker nothing and the giver the item, an "overflow" puts one copy in that stash and none in hand. */
+        const byPolicy = Object.fromEntries(Object.entries(INV.TRANSFER_POLICY).map(([mode, rule]) => [mode, rule === "refuse" ? [0, 0, true] : [1, 1, false]]));
+        equal(stableJson(Object.fromEntries(Object.keys(INV.TRANSFER_POLICY).map(mode => [mode, (read.stash?.[mode] ?? []).slice(0, 3)]))), stableJson(byPolicy),
+            "a mode into full hands, with a stash of the taker's, did not do what TRANSFER_POLICY says of it ([the taker's copies, of them in a stash, the giver still holds it])");
     }],
 
     ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
