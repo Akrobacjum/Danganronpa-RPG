@@ -1105,13 +1105,13 @@ export function requestVaultSteal({ thiefId, ownerId, itemId }) {
  */
 export function requestSteal({
     thiefId, victimId, itemId = null,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, unseenWithHope = true, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
+    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope, rollId, unseenRollId }, {
         // A GM's own Palm refused is said as the bridge would say it, and its answer keeps the refusal, which the Palm
         // reads to give its action back (palm.mjs `performPalm`; E14 part 1 C1, Q3).
         local: () => import("./vault.mjs").then(m => m.stealFromPerson({
-            thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+            thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope
         })).then(out => {
             if (out?.refused) sayNotDone(ACTION_STEAL, reasonOf(out.refused));
             return out;
@@ -1201,11 +1201,11 @@ export function requestFriskFollow({ searcherId, askId, rollId = null, total = 0
  */
 export function requestPlant({
     plannerId, victimId, itemId,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, unseenWithHope = true, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
+    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope, rollId, unseenRollId }, {
         local: () => import("./vault.mjs").then(m => m.plantOnPerson({
-            plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+            plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, unseenWithHope
         })).then(out => {
             if (out?.refused) sayNotDone(ACTION_PLANT, reasonOf(out.refused));
             return out;

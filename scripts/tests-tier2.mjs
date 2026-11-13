@@ -12242,7 +12242,7 @@ const SCENARIOS = [
             `${owner.name}'s Tool a player made and no GM decided on, then decided (in the theft's pool, in the Frisk's list, log lines naming it)`);
     }],
 
-    ["an unseen Frisk is judged on the primary from a player's two drawn rolls (A11-5, A11-15): the list or a miss at the searcher alone, the target told only when it noticed, a third student in the room told nothing, both criticals as the design words them, and a console's own totals or another action's roll refused", async () => {
+    ["an unseen Frisk is judged on the primary from a player's two drawn rolls (A11-5, A11-15): the list or a miss at the searcher alone, the target told only when it noticed, a third student in the room told of a noticed hand and never shown the list (privacy line 2, #7), both criticals as the design words them, and a console's own totals or another action's roll refused", async () => {
         /*
          * E80 part 2 C2, 19.10.2026; the A11 design's steps 5 and 6, its A11-5 and A11-15. The harms: a target told of a
          * Frisk it did not notice (or never told of one it did), a list read by anybody but the searcher and the GMs, and a
@@ -12266,6 +12266,9 @@ const SCENARIOS = [
          * third's documents (a sheet redraws on its document's update). An unnoticed Frisk sends the two nothing and
          * writes nothing; a noticed one sends the target its card alone. Red with `friskPerson` whispering the list to
          * `roomWitnessesOnGm(searcher)` (the review's mutant): the third gets a card.
+         * Privacy line 2 (#7, the owner's rule of 13.11.2026) changed this test: a noticed Frisk sends the third one card,
+         * the hand by name (`DRPG.Steal.wHand`, frisk.mjs `tellOnlookers`), with no item and no list; an unnoticed one still
+         * sends the two nothing. Until 1.2.113 a noticed one sent the third nothing too.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
         needs(world.atLeast("studentTokensOnScreen", 3), "the searcher, the one searched and a third, each a token on the scene on screen");
@@ -12301,6 +12304,7 @@ const SCENARIOS = [
             if (words.includes(line("DRPG.Frisk.missed", other))) return "missed";
             if (words.includes(line("DRPG.Frisk.caughtTrying", theirs))) return "caughtTrying";
             if (words.includes(line("DRPG.Frisk.caught", theirs))) return "caught";
+            if (words.includes(game.i18n.format("DRPG.Steal.wHand", { who: foundry.utils.escapeHTML(theirs.name), target: foundry.utils.escapeHTML(other.name) }))) return "witness";
             return `other: ${words.slice(0, 80)}`;
         };
         const judged = async (rolls, out) => {
@@ -12379,13 +12383,15 @@ const SCENARIOS = [
             const mixed = [];
             const wrongKind = await judged({ rollId: take.message.id, unseenRollId: shadow.message.id }, mixed);
             const P = ["player"], PT = targetOwner ? ["player", "target"] : ["player"];
-            const felt = targetOwner ? ["target secret.card"] : [];
+            // A noticed Frisk: the target's card, and the third's (privacy line 2, #7), neither naming the item.
+            const PTW = [...PT, "third"], felt = [...(targetOwner ? ["target secret.card"] : []), "third secret.card"];
+            const W = ["witness", null, null, false];
             equal(stableJson(read.map(r => [r.out, r.cards, r.to.filter(who => who !== "gm"), r.needle, r.inData, r.reached, r.wrote])), stableJson([
                 [["settled"], [["list", "unseen", null, true]], P, [], 0, [], []],
-                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0, felt, []],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false], W], PTW, [], 0, felt, []],
                 [["settled"], [["missed", "unseen", null, false]], P, [], 0, [], []],
-                [["settled"], [["missed", "seen", null, false], ["caughtTrying", null, "stolen", false]], PT, [], 0, felt, []],
-                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0, felt, []],
+                [["settled"], [["missed", "seen", null, false], ["caughtTrying", null, "stolen", false], W], PTW, [], 0, felt, []],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false], W], PTW, [], 0, felt, []],
                 [["settled"], [["missed", "unseen", null, false]], P, [], 0, [], []]
             ]), "[for each Frisk: the reply, the cards (what it says, seen or unseen, its sound, the item named), "
                 + "who the words went to besides the GMs, who else had the item's name, the cards' documents naming it, "
@@ -12743,6 +12749,237 @@ const SCENARIOS = [
         for (const [phase, want] of Object.entries(expected)) {
             equal(stableJson(seen[phase] ?? null), stableJson(want), `${phase}: what the ask, its answers and its end did`);
         }
+    }],
+
+    ["an open Frisk turned out in front of the room shows each witness the searcher's list (privacy line 2, #6; the owner's rule of 13.11.2026): the third student's card names what the target carries, never a Truth Bullet, never a stashed item, and the target's own card no list", async () => {
+        /*
+         * Privacy line 2 (#6), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. Pockets turned out in front of the room are seen by the room: the witnesses' card of a
+         * "shown" or "forced" open Frisk carries the list the searcher gets, the ask's snapshot (frisk.mjs `endAsk`,
+         * `row.lines`), which `pocketsFrom` already holds to no Truth Bullet and no stashed item. Before, the witnesses read
+         * only "{target} turns out their pockets for {who}." A player's character and another (whose connected player
+         * answers) alone in a room, a third student with a connected player of their own walked in; the target given a tool,
+         * a Truth Bullet and an item in a stash, each named here; the player's `action.friskAsk` judged as the bridge judges
+         * it after a payment written as the player's, and the target's player's allow. Read: each card with words, as [the
+         * line it opens with, who its words went to besides the GMs, the tool, the Truth Bullet, the stashed item named].
+         * The forced road's card is the same list and is read in scenario 40's "an open Frisk at the table" (p3, forceWon).
+         * Red at af9792c5: the third's card names no item.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the searcher, the one asked and a third, each a token on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const F = await import("./frisk.mjs");
+        const D = await import("./roll-draw.mjs");
+        const S = await import("./secret.mjs");
+        const Mv = await import("./movement.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const scene = canvas.scene;
+        const third = game.actors.find(a => a.type === "character" && ![theirs.id, other.id].includes(a.id) && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && scene?.tokens?.some(t => t.actorId === a.id) && ownerIdsOf(a).some(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active)) ?? null;
+        must(third, "no third student with a connected player of their own has a token on the scene on screen - this would measure nothing");
+        const thirdUser = ownerIdsOf(third).find(id => ![player.id, answerer].includes(id) && game.users.get(id)?.active);
+        const role = id => (id === player.id ? "searcher" : id === answerer ? "target" : id === thirdUser ? "third" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const TOOL = "Suite PV6 a silver lighter", BULLET = "Suite PV6 a torn receipt", STASHED = "Suite PV6 a hidden ledger";
+        const ACT = "system.resources.actions.value";
+        const left = actionsLeft(theirs), top = Math.max(1, left);
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", [D.PAID_AS_PLAYER]: true });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", [D.PAID_AS_PLAYER]: true });
+        };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [["toRoom shown", "DRPG.Frisk.wShown", { who: theirs.name, target: other.name }],
+            ["shownList", "DRPG.Frisk.shownHeading", { who: other.name }], ["toTarget shown", "DRPG.Frisk.shown", { who: theirs.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? `other: ${words.slice(0, 80)}`;
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        const judged = async (action, fields, from) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `PV6${foundry.utils.randomID(8)}`, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const force = game.settings.settings.has(`${MODULE_ID}.friskForce`) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const stood = await aloneTogether(theirs, other);
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        let seen = null;
+        try {
+            F.forgetFriskAsks?.();
+            await INV.grantItem(other, { name: TOOL, category: "tool", tier: 1, override: true, quiet: true });
+            await INV.grantItem(other, { name: BULLET, category: "truthBullet", tier: 1, override: true, quiet: true });
+            await INV.grantItem(other, { name: STASHED, category: "tool", tier: 1, override: true, quiet: true, location: INV.LOCATIONS.vault });
+            must(other.items.some(i => i.name === STASHED && INV.isStashed(i)), "the stashed item is not in a stash - this would measure nothing");
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await settle();
+            must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
+            const from = made.length, sent = packets.length;
+            await pay();
+            const asked = await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id);
+            const row = [...(F.friskAsks?.values?.() ?? [])].find(r => r.searcherId === theirs.id) ?? null;
+            const yes = row ? await judged("action.friskAnswer", { askId: row.askId, allow: true }, answerer) : null;
+            const fresh = packets.slice(sent);
+            seen = { asked, yes, cards: made.slice(from).map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null)
+                .map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort(),
+                    words.includes(TOOL), words.includes(BULLET), words.includes(STASHED)]) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            F.forgetFriskAsks?.();
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const i of other.items.filter(i => [TOOL, BULLET, STASHED].includes(i.name))) await i.delete();
+            await thirdToken.update(thirdWas, PLACE);
+            await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            await stood.back();
+        }
+        equal(stableJson(seen), stableJson({ asked: [], yes: ["shown"], cards: [
+            ["shownList", ["searcher"], true, false, false], ["toTarget shown", ["target"], false, false, false],
+            ["toRoom shown", ["third"], true, false, false]] }),
+        "{asked, the allow's answer, cards: [the card's line, its readers besides the GMs, names the tool, the Truth Bullet, the stashed item]}");
+    }],
+
+    ["a Palm or an unseen Frisk the victim catches is seen by the room (privacy line 2, #7; the owner's rule of 13.11.2026): a third student reads the hand by name, the item only with Despair on the Shadow roll the GMs drew, and nothing when the cover holds", async () => {
+        /*
+         * Privacy line 2 (#7), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. A Palm's or an unseen Frisk's missed Shadow roll told the victim alone (palm.mjs
+         * `stealFromPerson`, `plantOnPerson`; frisk.mjs `friskPerson`: "No witness is told"), while a Take from a body rolls
+         * its cover against every witness and names the items only with Despair (handover.mjs `lootCover`). Now the
+         * students in the room read the hand too (frisk.mjs `tellOnlookers`), the item only when the Shadow roll the GMs
+         * drew came with Despair (bridge-runs-acts.mjs `palmRolls`: its Hope in `unseenWithHope`). A player's character,
+         * another (whose connected player is the victim) and a third student with a connected player of their own, stood in
+         * one room; the other given items named here. Each Palm is the player's `action.steal` or `action.plant` judged as
+         * the bridge judges it, naming a hand and a Shadow roll the GM drew from that player on set faces
+         * (`drawnForPlayer`): a Steal, its Shadow missed with Despair; a Steal, missed with Hope; a Steal whose Shadow holds;
+         * a Plant, missed with Despair. Then an unseen Frisk judged on this GM (`friskPerson`) with a missed cover. Read for
+         * each: the cards whose words went to the victim's or the third's player, as [the line, its readers besides the
+         * GMs, the item named]. Red at af9792c5: the third reads nothing.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the thief, the victim and a third, each a token on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const F = await import("./frisk.mjs");
+        const S = await import("./secret.mjs");
+        const Mv = await import("./movement.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const victimUser = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(victimUser, `${other.name} has no connected player - this would measure nothing`);
+        const scene = canvas.scene;
+        const third = game.actors.find(a => a.type === "character" && ![theirs.id, other.id].includes(a.id) && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && scene?.tokens?.some(t => t.actorId === a.id) && ownerIdsOf(a).some(id => ![player.id, victimUser].includes(id) && game.users.get(id)?.active)) ?? null;
+        must(third, "no third student with a connected player of their own has a token on the scene on screen - this would measure nothing");
+        const thirdUser = ownerIdsOf(third).find(id => ![player.id, victimUser].includes(id) && game.users.get(id)?.active);
+        const role = id => (id === player.id ? "thief" : id === victimUser ? "victim" : id === thirdUser ? "third" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const NAMES = ["Suite PV7 a brass key", "Suite PV7 a paper crane", "Suite PV7 a spare button", "Suite PV7 a folded note"];
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const LINES = [["wHand", "DRPG.Steal.wHand"], ["wTaking", "DRPG.Steal.wTaking"], ["wPlanting", "DRPG.Steal.wPlanting"],
+            ["caughtTaking", "DRPG.Steal.caughtTaking"], ["caughtPlanting", "DRPG.Steal.caughtPlanting"], ["caughtTrying", "DRPG.Steal.caughtTrying"],
+            ["frisk caught", "DRPG.Frisk.caught"], ["frisk caughtTrying", "DRPG.Frisk.caughtTrying"]];
+        // A line's words up to its item (the whole line where it names none): wHand, which names none, is asked first, as its
+        // words begin wPlanting's.
+        const kindOf = words => LINES.find(([, key]) => words.includes(line(key, { who: theirs.name, target: other.name, item: "\u0000" }).split("\u0000")[0]))?.[0]
+            ?? `other: ${words.slice(0, 80)}`;
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const read = item => {
+            const fresh = packets.slice(marks.packets);
+            const out = made.slice(marks.made).map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null)
+                .map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort(),
+                    Boolean(item) && words.includes(esc(item))])
+                .filter(([, to]) => to.includes("victim") || to.includes("third"));
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const drawn = [];
+        const palm = async (action, fields, hand, cover) => {
+            const h = await drawnForPlayer(player, theirs, { actionKey: "steal", faces: hand });
+            const c = await drawnForPlayer(player, theirs, { actionKey: "palm", faces: cover });
+            drawn.push(h, c);
+            must(h.record && c.record, `the GM kept no record of a roll it drew - this would measure nothing: ${stableJson([h.value, c.value])}`);
+            marks = { packets: packets.length, made: made.length };
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `PV7${foundry.utils.randomID(8)}`, total: 0, isCritical: false, unseenTotal: 30,
+                unseenCritical: true, unseenWithHope: true, rollId: h.message.id, unseenRollId: c.message.id, ...fields }, player.id, { send: () => {} });
+            await settle();
+            return [c.record.total >= ACTIONS.palm.unseen.threshold || c.record.isCritical ? "cover held" : c.record.withHope ? "missed, Hope" : "missed, Despair"];
+        };
+        const stood = await aloneTogether(theirs, other);
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        const seen = {};
+        try {
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await settle();
+            must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
+            const give = async (actor, name) => {
+                const item = await grantItem(actor, { name, category: "usable", tier: 1, override: true, quiet: true });
+                must(item, `${actor.name} could not be handed ${name} - this would measure nothing`);
+                return item;
+            };
+            const HIGH = { hope: 11, fear: 12 }, DESPAIR = { hope: 1, fear: 2 }, HOPE = { hope: 2, fear: 1 }, HELD = { hope: 12, fear: 11 };
+            await give(other, NAMES[0]);
+            seen.stealDespair = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, DESPAIR), read(NAMES[0])];
+            for (const i of other.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await give(other, NAMES[1]);
+            seen.stealHope = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, HOPE), read(NAMES[1])];
+            for (const i of other.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await give(other, NAMES[2]);
+            seen.stealUnseen = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, HELD), read(NAMES[2])];
+            const planted = await give(theirs, NAMES[3]);
+            seen.plantDespair = [...await palm("action.plant", { plannerId: theirs.id, victimId: other.id, itemId: planted.id }, HIGH, DESPAIR), read(NAMES[3])];
+            marks = { packets: packets.length, made: made.length };
+            const frisked = await F.friskPerson({ searcherId: theirs.id, targetId: other.id, total: 0, isCritical: false, unseenTotal: 0, unseenCritical: false });
+            await settle();
+            seen.friskCaught = [frisked?.outcome ?? frisked?.refused ?? null, read(NAMES[3])];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            // Newest first: each puts Fear back to what it was before its own draw.
+            for (const d of drawn.reverse()) await d.putBack();
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await thirdToken.update(thirdWas, PLACE);
+            await stood.back();
+        }
+        equal(stableJson(seen), stableJson({
+            stealDespair: ["missed, Despair", [["caughtTaking", ["victim"], true], ["wTaking", ["third"], true]]],
+            stealHope: ["missed, Hope", [["caughtTaking", ["victim"], true], ["wHand", ["third"], false]]],
+            stealUnseen: ["cover held", []],
+            plantDespair: ["missed, Despair", [["caughtPlanting", ["victim"], true], ["wPlanting", ["third"], true]]],
+            friskCaught: ["settled", [["frisk caughtTrying", ["victim"], false], ["wHand", ["third"], false]]]
+        }), "{each Palm: [its Shadow roll as the GMs drew it, the cards to the victim's and the third's players: [line, readers besides the GMs, the item named]]; the unseen Frisk: [its outcome, the cards]}");
     }],
 
     ["an open Frisk is forced only behind the searcher's own refused or unanswered ask, on a Body roll the GMs drew for it inside its window (A11-8): won, the list as at the ask; lost, the neutral miss; another's roll, one older than the ask or past its window refused; no force before an answer, none with the GMs' friskForce off; 'Leave it' names no roll", async () => {
@@ -86534,6 +86771,109 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "fuel: Fuel a Monocub - [bought, Hope, its cards as above]; dark: under the Despair darkening - [a conversion granted, the Call "
             + "bought, its effect failed, Hope, owed]}");
     }],
+    ["a Despair Call's public card names no secret project and no Chained room (privacy line 2, #5; the owner's rule of 13.11.2026): Patronage on a secret project says 'a project' to the table with no name and no numbers, and its whole line goes veiled to the GMs and the project's insiders alone; Chained leaves the room to the target's own notice", async () => {
+        /*
+         * Privacy line 2 (#5), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. A Despair Call's card is public (calls.mjs `spendDespairCallFor`), and on the GM's
+         * browser that buys it a secret project's name is the secret one (projects-secrecy.mjs `shownName`): Game
+         * Integrity or Patronage on a secret project put its name and its progress in front of the table, and Chained put
+         * the target's room there. A Monokuma's pool of this GM's (or the first), a secret project created here with this
+         * suite's player in on it, and another connected player who is not; Patronage bought on it, then Chained on a
+         * student who stands in a room. Read: the public card (no whisper) - whether it holds the project's name, its
+         * progress as "n/target" or "+2", the public line, and Chained's room and target; the veiled cards - whether their words
+         * name the project and who besides the GMs they went to; the target's own notice - whether it names the room.
+         * Red at af9792c5: the public card names the project and its progress, no veiled card, and the room on the card.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool pays the Calls");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a player in on the project, as Foundry names only connected ones");
+        const D = await import("./despair.mjs");
+        const M = await import("./monokuma.mjs");
+        const P = await import("./projects.mjs");
+        const S = await import("./secret.mjs");
+        const GS = await import("./gm-stores.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { contentOf } = S;
+        const { roomOfActor } = await import("./movement.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const kuma = M.monokumaActors().find(a => M.poolUserFor(a)?.id === game.user.id) ?? M.monokumaActors().find(a => M.poolUserFor(a)) ?? null;
+        const donor = kuma ? M.poolUserFor(kuma) : null;
+        must(kuma && donor, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!getClock().eclipse, "an Eclipse is open, where no Despair Call is bought - this would measure nothing");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const outsider = game.users.find(u => !u.isGM && u.active && u.id !== player.id) ?? null;
+        must(outsider, "no second connected player who is not in on the project - this would measure nothing");
+        const room = roomOfActor(other);
+        must(typeof room === "string" && room.length >= 3, `${other.name} stands in no named room - this would measure nothing`);
+        const role = id => (id === player.id ? "insider" : id === outsider.id ? "outsider" : game.users.get(id)?.isGM ? "gm" : ownerIdsOf(other).includes(id) ? "target" : `other ${id}`);
+        const NAME = "Suite PV5 the quiet plan";
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const phase = getClock().phase ?? "dailyLife";
+        const despairWas = D.getDespair(donor.id);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const fresh = () => {
+            const out = { messages: made.slice(marks.made), packets: packets.slice(marks.packets) };
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const publicOf = messages => messages.filter(m => !(m.whisper?.length) && m.getFlag(MODULE_ID, "veiled") !== true).map(m => String(contentOf(m) ?? ""));
+        const veiledOf = ({ messages, packets: sent }) => messages.filter(m => m.getFlag(MODULE_ID, "veiled") === true).map(m => [
+            Boolean(S.secretHtml(m)?.includes(esc(NAME))),
+            [...new Set(sent.filter(p => p.id === m.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort()]);
+        let id = null;
+        const read = {};
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            id = (await P.createProject({ name: NAME, target: 6, room: null, secret: true, viewers: [player.id] }))?.id ?? null;
+            must(id && P.isSecret(id), "could not create a secret project - this would measure nothing");
+            await D.setDespair(donor.id, DESPAIR_CALLS.favoriteProject.cost + DESPAIR_CALLS.chained.cost);
+            await settle();
+            fresh();
+            const bought = Boolean(await spendDespairCallFor(kuma, "favoriteProject", { choice: { project: id } }));
+            await settle();
+            const now = P.allProjects().find(p => p.id === id);
+            const patronage = fresh();
+            read.patronage = { bought, progress: now?.current ?? null,
+                // Its numbers as the receipt says them: "n/target" for a bar a GM's write moved, "+2" for progress sent.
+                public: publicOf(patronage.messages).map(text => [text.includes(esc(NAME)),
+                    /\b\d+\/\d+\b/.test(text) || text.includes(`+${DESPAIR_CALLS.favoriteProject.progress}`),
+                    text.includes(esc(game.i18n.localize("DRPG.Calls.progressSecret")))]),
+                veiled: veiledOf(patronage) };
+            const chainedBought = Boolean(await spendDespairCallFor(kuma, "chained", { choice: { target: other } }));
+            await settle();
+            const chained = fresh();
+            const notice = chained.messages.filter(m => m.whisper?.length && m.getFlag(MODULE_ID, "veiled") !== true && ownerIdsOf(other).some(u => m.whisper.includes(u)));
+            read.chained = { bought: chainedBought,
+                public: publicOf(chained.messages).map(text => [text.includes(esc(room)), text.includes(esc(other.name))]),
+                notice: notice.map(m => String(contentOf(m) ?? "").includes(esc(room))) };
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            if (id) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            if (id && GS.projectWorkStore?.has?.(id)) await GS.projectWorkStore.drop(id);
+            await D.setDespair(donor.id, despairWas);
+            for (const m of made) await game.messages.get(m.id)?.delete().catch(() => {});
+            await setClock({ phase });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            patronage: { bought: true, progress: 2, public: [[false, false, true]], veiled: [[true, ["insider"]]] },
+            chained: { bought: true, public: [[false, true]], notice: [true] }
+        }), "{patronage: [bought, the project's progress, public cards: [names the project, says its n/target or +2, says 'a project'], veiled cards: [names the project, its readers besides the GMs]]; chained: [bought, public cards: [names the room, names the target], the target's notice names the room]}");
+    }],
+
     ["E37-T7 - Daggerheart's own whole writes of the countdowns wait in the projects' queue (E37 C6, E37-29; the deferred D100): a model of the system's `updateCountdowns` (read the setting, wait, write it whole), wrapped by projects-ui.mjs `wrapCountdownUpdate` and called while a project's step holds `COUNTDOWNS_KEY`, leaves the project's +1 standing; so do the tray menu's Delete and Reveal of a row that is no project", async () => {
         /*
          * E37 C6, 01.11.2026; E37-29, D100 ("Daggerheart's whole writes inside the key", deferred 31.10). Since E36 every

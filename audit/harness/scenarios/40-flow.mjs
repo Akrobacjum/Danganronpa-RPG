@@ -1765,6 +1765,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * Hope, `friskForce`, Chie alive and no Monocub, the asks forgotten. Measured on the harness on 19.10.2026: green, and
      * red under a mutant that drops the cancel's `clock` (frisk.mjs `noYes`: p2 told 'withdrawn' in the silence) and one
      * that names no roll on the force (`performFriskOpenly`: each force read as 'Leave it', the list never shown).
+     * Since privacy line 2 (#6, the owner's rule of 13.11.2026) p3, the witness, reads the comb on an allow, a force won
+     * and the Monocub's allow: pockets turned out in front of the room are seen by the room (frisk.mjs `endAsk`).
      */
     phase("an open Frisk at the table", { flow: "frisk-openly" });
     const FRISK_ROOM = `const M = await import("${REPO}/scripts/movement.mjs"), F = await import("${REPO}/scripts/frisk.mjs");
@@ -1889,9 +1891,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     await settle(800);
     const friskExpected = {
         allow: { asked: "shown", success: null, left: 1, unread: 0, forceAsked: 0, p1: { lines: ["shownHeading"], comb: true },
-            p2: { lines: ["shown"], comb: false }, p3: { lines: ["wShown"], comb: false }, p2Withdrawn: false, row: null },
+            p2: { lines: ["shown"], comb: false }, p3: { lines: ["wShown"], comb: true }, p2Withdrawn: false, row: null },
         forceWon: { asked: "refused", success: true, left: 1, unread: 0, forceAsked: 1, p1: { lines: ["refused", "listHeading", "forceSent"], comb: true },
-            p2: { lines: ["forced"], comb: false }, p3: { lines: ["wForced"], comb: false }, p2Withdrawn: false, row: null },
+            p2: { lines: ["forced"], comb: false }, p3: { lines: ["wForced"], comb: true }, p2Withdrawn: false, row: null },
         forceLost: { asked: "refused", success: false, left: 1, unread: 0, forceAsked: 1, p1: { lines: ["refused", "missed", "forceSent"], comb: false },
             p2: { lines: ["forcedFailed"], comb: false }, p3: { lines: ["wForcedFailed"], comb: false }, p2Withdrawn: false, row: null },
         silence: { midway: { asking: true, swept: 1 }, asked: "noAnswer", success: null, left: 1, unread: 0, forceAsked: 1, p1: { lines: ["noAnswer"], comb: false },
@@ -1899,11 +1901,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         walkedOut: { midway: { asking: true, moved: friskSet.away }, asked: "gone", success: null, left: 1, unread: 0, forceAsked: 0, p1: { lines: ["gone"], comb: false },
             p2: { lines: [], comb: false }, p3: { lines: ["wWalkedAway"], comb: false }, p2Withdrawn: true, row: null },
         cubWitness: { asked: "shown", success: null, left: 1, unread: 0, forceAsked: 0, p1: { lines: ["shownHeading"], comb: true },
-            p2: { lines: ["shown"], comb: false }, p3: { lines: ["wShown"], comb: false }, p2Withdrawn: false, row: null }
+            p2: { lines: ["shown"], comb: false }, p3: { lines: ["wShown"], comb: true }, p2Withdrawn: false, row: null }
     };
     const friskRead = Object.fromEntries(Object.entries(friskSeen).map(([phaseKey, seen]) => [phaseKey,
         Object.fromEntries(Object.keys(friskExpected[phaseKey]).map(k => [k, seen[k] ?? null]))]));
-    check("p1, p2, p3: an open Frisk at the table - an allow, a force won and lost after a refusal, silence and 'Leave it', the target walking out and a Monocub witness each say the design's lines in each player's chat, the list to the searcher alone, one action each, and the GM warned of nothing",
+    check("p1, p2, p3: an open Frisk at the table - an allow, a force won and lost after a refusal, silence and 'Leave it', the target walking out and a Monocub witness each say the design's lines in each player's chat, the list to the searcher and, where the pockets are turned out, to the room (privacy line 2, #6), one action each, and the GM warned of nothing",
         !friskSet.err && JSON.stringify(friskSet.others) === JSON.stringify([ids.botan, ids.chie].sort())
             && Object.keys(friskSeen).length === 6 && Object.values(friskSeen).every(seen => !seen.err)
             && JSON.stringify(friskRead) === JSON.stringify(friskExpected) && friskBack.cub === true && friskBack.chieAlive && !friskBack.chieCub

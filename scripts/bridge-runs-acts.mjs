@@ -572,13 +572,14 @@ export function notFindPassageRoll(record) {
  * one against whether anybody watched (`stealFromPerson`, `plantOnPerson`). The packet names both
  * rolls now: the hand's (`rollId`, thrown as "steal" for a Steal and a Plant alike, as it always
  * was) and the unseen one (`unseenRollId`, thrown as "palm" since C15, palm.mjs
- * `performPalm`), whose result goes in `unseenTotal` and `unseenCritical`.
+ * `performPalm`), whose result goes in `unseenTotal` and `unseenCritical`, and since privacy line 2 (#7) its Hope in
+ * `unseenWithHope`: a missed Shadow roll with Despair names the item to the room (palm.mjs `stealFromPerson`).
  * One hand's roll settles one Steal or one Plant.
  */
 export function palmRolls(actor) {
     return [
         { field: "rollId", actor, kind: "steal" },
-        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical", withHope: "unseenWithHope" } }
     ];
 }
 
@@ -600,7 +601,8 @@ export async function handlePlant(payload, sender, ctx) {
         total: payload.total,
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
-        unseenCritical: payload.unseenCritical
+        unseenCritical: payload.unseenCritical,
+        unseenWithHope: payload.unseenWithHope
     }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }
@@ -642,7 +644,8 @@ export async function handleSteal(payload, sender, ctx) {
         total: payload.total,
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
-        unseenCritical: payload.unseenCritical
+        unseenCritical: payload.unseenCritical,
+        unseenWithHope: payload.unseenWithHope
     }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }

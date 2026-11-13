@@ -3716,8 +3716,9 @@
       "refunded": "{call} did nothing, so the {cost} it cost has been returned.",
       "silenced": "{name} cannot spend Hope Calls until this time of day ends.",
       "silencedNotice": "Monokuma has silenced you. No Hope Calls until this time of day ends.",
-      "chained": "{name} is chained to {room} until this time of day ends.",
+      "chained": "{name} is chained where they stand until this time of day ends.",
       "chainedNotice": "Monokuma chained you here. You cannot leave until this time of day ends.",
+      "chainedNoticeIn": "Monokuma chained you to {room}. You cannot leave until this time of day ends.",
       "chainedBlocked": "You are chained here until this time of day ends.",
       "sealedBlocked": "{room} is sealed for this time of day. Nobody gets in.",
       "freeCritTitle": "Loaded Die",
@@ -3766,6 +3767,7 @@
       "progressSent": "{name}: {n} progress sent to the GM.",
       "overflowFed": "{n} Despair poured into the overflow.",
       "progressRefused": "{name} could not take the progress - it is already complete.",
+      "progressSecret": "A project's progress changes.",
       "hopeGranted": "{name} gains {n} Hope.",
       "cannotAfford": "You do not hold enough for this one.",
       "silencedBadge": "Silenced",
@@ -5139,7 +5141,10 @@
       "cardUnseen": "Nobody saw you do it.",
       "cardUnfelt": "They felt nothing.",
       "caughtTaking": "{who} took {item} from you, and you saw them do it.",
-      "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
+      "caughtTrying": "You catch {who} going through your pockets. They come away with nothing.",
+      "wHand": "You see {who} slip a hand into {target}'s pocket - and {target} notices.",
+      "wTaking": "You see {who} take {item} from {target}'s pocket - and {target} notices.",
+      "wPlanting": "You see {who} slip {item} into {target}'s pocket - and {target} notices."
     },
     "Frisk": {
       "rowLabel": "See what they carry",
