@@ -17806,6 +17806,56 @@ const SCENARIOS = [
             "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
     }],
 
+    ["the Students window's Monocub to alive is one step: no Spectator made on the way, one toast, the student alive and no Monocub (A113-C2-4)", async () => {
+        /*
+         * A113-C2-4 (audit 113, 13.11.2026). The State list's "alive" on a Monocub ran `setMonocub(actor, false)`, which
+         * made the dead student's Spectator (spectator-dead.mjs `monocubBecomesWatcher`, a Spectator actor and, where a
+         * Monocub token or a body stands, its token) and toasted "no longer a Monocub", then `reviveCharacter`, which
+         * took that Spectator away again and toasted "revived": every browser saw a Spectator come and go, the GM read
+         * two toasts for one change. Now the flag is cleared with no Spectator and no toast of its own (`setMonocub`'s
+         * `watcher: false`, `quiet`), and the revive is the one step. A living student marked dead and a Monocub by its
+         * flags, then "alive" applied: read the actors created, the toasts, and the state after. Red at ceb9e9c8: a
+         * Spectator actor created and two toasts.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to make a Monocub");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { livingStudents, isDeceased } = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const [actor] = livingStudents();
+        const names = [FLAGS.deceased, FLAGS.monocub];
+        const flagsWas = Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(actor.getFlag(MODULE_ID, f))]));
+        const actorsHad = new Set(game.actors.contents.map(a => a.id));
+        const clock = getClock();
+        const toasts = [], made = [];
+        const info = ui.notifications.info;
+        const onActor = doc => made.push(`Actor ${doc.id}`), onToken = doc => made.push(`Token ${doc.id}`);
+        let read = null;
+        try {
+            await actor.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            await actor.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            must(M.isMonocub(actor) && isDeceased(actor), `${actor.name} was not made a Monocub by its flags - this test would read nothing`);
+            ui.notifications.info = (...args) => { toasts.push(String(args[0])); return null; };
+            Hooks.on("createActor", onActor);
+            Hooks.on("createToken", onToken);
+            const changed = await applyAliveStates({ [actor.id]: { state: "alive" } });
+            await settle();
+            read = [changed, made, toasts.length, M.isMonocub(actor), isDeceased(actor)];
+        } finally {
+            Hooks.off("createActor", onActor);
+            Hooks.off("createToken", onToken);
+            ui.notifications.info = info;
+            for (const f of names) {
+                if (flagsWas[f] === undefined || flagsWas[f] === null) await actor.unsetFlag(MODULE_ID, f);
+                else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
+            }
+            for (const a of game.actors.contents.filter(a => !actorsHad.has(a.id))) { try { await a.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([1, [], 1, false, false]),
+            "Monocub to alive made a Spectator or a token on the way, toasted more or less than once, or left a Monocub or a dead student [changed, made, toasts, a Monocub, dead]");
+    }],
+
     ["a wrong verdict tells the case's dead and the chapter's crime witnesses among the Monocubs, and no other Monocub, that the killer walks free (E72 C7)", async () => {
         /*
          * E72 C7, 12.11.2026; audit S18-58, the owner's DC16. A wrong verdict told the Monocubs nothing, and the ones who
