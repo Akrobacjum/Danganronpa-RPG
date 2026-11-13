@@ -52715,7 +52715,8 @@ const INVARIANTS = [
         const read = {
             minDc: CLEANUP.minDc ?? null,
             lift,
-            cleanupDc: /return atLeastFloor\(base - tool - freshSceneBonus\(\)\)/.test(body("cleanupDc")),
+            // The roller handed in since the 1.2.110 review's V3 (13.11.2026): on a GM the fresh scene is the bodies its player may know.
+            cleanupDc: /return atLeastFloor\(base - tool - freshSceneBonus\(\{ actor \}\)\)/.test(body("cleanupDc")),
             verdict: [/atLeastFloor\(base - relief\)/.test(body("cleanupVerdict")), /Math\.max\(0, base - relief\)/.test(body("cleanupVerdict"))],
             window: [/atLeastFloor\(listed - relief\)/.test(body("attemptCleanup")), /atLeastFloor\(base - relief\)/.test(body("attemptCleanup")), /Math\.max\(0, (listed|base) - relief\)/.test(body("attemptCleanup"))],
             hidden: Cl.cleanupDc("hidden", null) >= 8
