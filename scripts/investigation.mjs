@@ -899,13 +899,15 @@ function keyPlanExtras(i, shows, aria) {
     const vis = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === (shows.vis ?? "evident") ? " selected" : ""}>${
         esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
     const img = shows.img || "";
-    /* each with its word over it: in the slot's status cell, beside the Remnant picker and Place, a bare select did not say
+    /* THE PICTURE'S FIELD IS `keypicture:<slot>`, NOT `keyimg:`: R503's census of the room tile's roads reads every form field
+       whose name ends in "img:" as a room picture's (Room Setup's `img:<room>`), and this is a Remnant's.
+       Each with its word over it: in the slot's status cell, beside the Remnant picker and Place, a bare select did not say
        which of the four it was (the review page's shots, 13.11.2026) */
     const field = (key, html) => `<label class="drpg-key-plan-field"><span class="notes">${esc(L(key))}</span>${html}</label>`;
     return field("DRPG.Investigation.visibility", `<select name="keyvis:${i}"${aria("DRPG.Investigation.visibility")}>${vis}</select>`)
         + field("DRPG.Remnant.authorLabel", `<select name="keyauthor:${i}"${aria("DRPG.Remnant.authorLabel")}>${authorOptions(shows.author || null, studentActors())}</select>`)
         + `<div class="drpg-key-plan-field"><span class="notes">${esc(L("DRPG.CaseMap.field.img"))}</span><img src="${esc(img || ICON)}" alt="" title="${
-            esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="key-${i}" data-drpg-portrait-field="keyimg:${i}" /><input type="hidden" name="keyimg:${i}" value="${
+            esc(L("DRPG.CaseMap.field.img"))}" class="drpg-project-portrait" data-drpg-portrait="key-${i}" data-drpg-portrait-field="keypicture:${i}" /><input type="hidden" name="keypicture:${i}" value="${
             esc(img)}" data-drpg-drawn="${esc(img)}" /></div>`;
 }
 
@@ -1531,7 +1533,7 @@ export async function placeKeyRow(root, slot) {
     const typed = field => root?.querySelector(`[name="${CSS.escape(`${field}:${slot}`)}"]`)?.value.trim() ?? "";
     return placeInSlot(plan, scene, { ...result, slot,
         name: typed("keyname"), text: typed("keytext"), analysis: typed("keyanalysis"), note: typed("note"),
-        author: typedField("keyauthor") ? typed("keyauthor") : drawn.author ?? "", img: typedField("keyimg") ? typed("keyimg") : drawn.img ?? "" });
+        author: typedField("keyauthor") ? typed("keyauthor") : drawn.author ?? "", img: typedField("keypicture") ? typed("keypicture") : drawn.img ?? "" });
 }
 
 /* ==========================================================================
@@ -2950,7 +2952,7 @@ function readCaseFields(form) {
             fields: { ...changed([
                 ["name", `keyname:${i}`], ["text", `keytext:${i}`], ["analysis", `keyanalysis:${i}`],
                 ["note", `note:${i}`], ["token", `token:${i}`], ["room", `keyroom:${i}`],
-                ["vis", `keyvis:${i}`], ["author", `keyauthor:${i}`], ["img", `keyimg:${i}`]
+                ["vis", `keyvis:${i}`], ["author", `keyauthor:${i}`], ["img", `keypicture:${i}`]
             ]), ...roomScene(q(`keyroom:${i}`)) }
         }))
     };

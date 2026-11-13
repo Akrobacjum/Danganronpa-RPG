@@ -29192,18 +29192,18 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         try {
             win = await drawnCaseWindow({ view: "table" });
             const room = win.field(`keyroom:${slot}`);
-            must(room && win.field(`keyvis:${slot}`) && win.field(`keyauthor:${slot}`) && win.field(`keyimg:${slot}`),
+            must(room && win.field(`keyvis:${slot}`) && win.field(`keyauthor:${slot}`) && win.field(`keypicture:${slot}`),
                 "the Table draws no visibility, author or picture for an unplaced Key slot");
             const option = [...room.options].find(o => o.value);
             must(option, "no room is offered - this would measure nothing");
             expected = { room: option.value, scene: option.dataset.scene || null };
             // each planned field with its word over it (the review page's shots): the room's, the visibility's, the author's, the picture's
-            seen.words = [`keyroom:${slot}`, `keyvis:${slot}`, `keyauthor:${slot}`, `keyimg:${slot}`]
+            seen.words = [`keyroom:${slot}`, `keyvis:${slot}`, `keyauthor:${slot}`, `keypicture:${slot}`]
                 .map(n => win.field(n)?.closest(".drpg-key-plan-field")?.querySelector(":scope > span")?.textContent.trim() ?? null);
             room.value = option.value;
             win.field(`keyvis:${slot}`).value = "subtle";
             win.field(`keyauthor:${slot}`).value = student.id;
-            win.field(`keyimg:${slot}`).value = "icons/svg/book.svg";
+            win.field(`keypicture:${slot}`).value = "icons/svg/book.svg";
             win.field(`keyname:${slot}`).value = "SUITE e104 key";
             await win.app.close();
             await Promise.race([win.answer, wait(5000)]);
