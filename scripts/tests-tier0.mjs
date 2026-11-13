@@ -9656,6 +9656,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#action.plant#isCritical", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.plant#unseenTotal", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.plant#unseenCritical", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#unseenWithHope", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt; privacy line 2, #7: the Shadow roll's Hope, read off the GMs' record of it by `palmRolls`, names the item to the room only with Despair); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.plant#rollId", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.plant#unseenRollId", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.findStash#actorId", "judged: knownSender + owns; a found stash is noted as `sceneId::room::ownerId` (`foundKey`), and a stash taken away forgets that note alone since E12 C3 (`forgetStashFound`), not the same owner's stash in another scene's room of the name; refused in a Class Trial on the GMs' clock since E16 part 2 C3 (vault.mjs `resolveStashSearch`), and the note is a GM's flag, read as the GMs hold it (sheet-audit.mjs `GM_FLAGS`)"],
@@ -9669,6 +9670,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#action.steal#isCritical", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#unseenTotal", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#unseenCritical", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#unseenWithHope", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt; privacy line 2, #7: the Shadow roll's Hope, read off the GMs' record of it by `palmRolls`, names the item to the room only with Despair); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#rollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#unseenRollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.friskUnseen#searcherId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
@@ -22868,6 +22870,8 @@ const REGRESSIONS = [
          * reached through an expression (movement-audit.mjs's `(ctx.whisper ?? whisperToGms)(...)`, both cards) is not
          * matched by the grep and is not counted.
          * Red first on 15f44581: chat-card.mjs absent, no helper takes a card, 0 card sites.
+         * Privacy line 2 (#7, 13.11.2026): frisk.mjs `tellOnlookers` adds two sites of the forms its `tellWitnesses` and
+         * `cardToGms` already take (a `message` and a `built`): the room's line is one sentence, as theirs is.
          */
         const WHY = {
             action: "the action card: its own header (action-report.mjs cardHead) and outcome, painted by private-rolls.mjs paintChatCard",
@@ -22896,7 +22900,7 @@ const REGRESSIONS = [
             "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
             "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "doors-gm.mjs": {"line": 6}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
-            "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
+            "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 7, "message": 2},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
             "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},

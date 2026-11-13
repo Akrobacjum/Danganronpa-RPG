@@ -12271,7 +12271,7 @@ const SCENARIOS = [
             `${owner.name}'s Tool a player made and no GM decided on, then decided (in the theft's pool, in the Frisk's list, log lines naming it)`);
     }],
 
-    ["an unseen Frisk is judged on the primary from a player's two drawn rolls (A11-5, A11-15): the list or a miss at the searcher alone, the target told only when it noticed, a third student in the room told nothing, both criticals as the design words them, and a console's own totals or another action's roll refused", async () => {
+    ["an unseen Frisk is judged on the primary from a player's two drawn rolls (A11-5, A11-15): the list or a miss at the searcher alone, the target told only when it noticed, a third student in the room told of a noticed hand and never shown the list (privacy line 2, #7), both criticals as the design words them, and a console's own totals or another action's roll refused", async () => {
         /*
          * E80 part 2 C2, 19.10.2026; the A11 design's steps 5 and 6, its A11-5 and A11-15. The harms: a target told of a
          * Frisk it did not notice (or never told of one it did), a list read by anybody but the searcher and the GMs, and a
@@ -12295,6 +12295,9 @@ const SCENARIOS = [
          * third's documents (a sheet redraws on its document's update). An unnoticed Frisk sends the two nothing and
          * writes nothing; a noticed one sends the target its card alone. Red with `friskPerson` whispering the list to
          * `roomWitnessesOnGm(searcher)` (the review's mutant): the third gets a card.
+         * Privacy line 2 (#7, the owner's rule of 13.11.2026) changed this test: a noticed Frisk sends the third one card,
+         * the hand by name (`DRPG.Steal.wHand`, frisk.mjs `tellOnlookers`), with no item and no list; an unnoticed one still
+         * sends the two nothing. Until 1.2.113 a noticed one sent the third nothing too.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
         needs(world.atLeast("studentTokensOnScreen", 3), "the searcher, the one searched and a third, each a token on the scene on screen");
@@ -12330,6 +12333,7 @@ const SCENARIOS = [
             if (words.includes(line("DRPG.Frisk.missed", other))) return "missed";
             if (words.includes(line("DRPG.Frisk.caughtTrying", theirs))) return "caughtTrying";
             if (words.includes(line("DRPG.Frisk.caught", theirs))) return "caught";
+            if (words.includes(game.i18n.format("DRPG.Steal.wHand", { who: foundry.utils.escapeHTML(theirs.name), target: foundry.utils.escapeHTML(other.name) }))) return "witness";
             return `other: ${words.slice(0, 80)}`;
         };
         const judged = async (rolls, out) => {
@@ -12408,13 +12412,15 @@ const SCENARIOS = [
             const mixed = [];
             const wrongKind = await judged({ rollId: take.message.id, unseenRollId: shadow.message.id }, mixed);
             const P = ["player"], PT = targetOwner ? ["player", "target"] : ["player"];
-            const felt = targetOwner ? ["target secret.card"] : [];
+            // A noticed Frisk: the target's card, and the third's (privacy line 2, #7), neither naming the item.
+            const PTW = [...PT, "third"], felt = [...(targetOwner ? ["target secret.card"] : []), "third secret.card"];
+            const W = ["witness", null, null, false];
             equal(stableJson(read.map(r => [r.out, r.cards, r.to.filter(who => who !== "gm"), r.needle, r.inData, r.reached, r.wrote])), stableJson([
                 [["settled"], [["list", "unseen", null, true]], P, [], 0, [], []],
-                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0, felt, []],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false], W], PTW, [], 0, felt, []],
                 [["settled"], [["missed", "unseen", null, false]], P, [], 0, [], []],
-                [["settled"], [["missed", "seen", null, false], ["caughtTrying", null, "stolen", false]], PT, [], 0, felt, []],
-                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0, felt, []],
+                [["settled"], [["missed", "seen", null, false], ["caughtTrying", null, "stolen", false], W], PTW, [], 0, felt, []],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false], W], PTW, [], 0, felt, []],
                 [["settled"], [["missed", "unseen", null, false]], P, [], 0, [], []]
             ]), "[for each Frisk: the reply, the cards (what it says, seen or unseen, its sound, the item named), "
                 + "who the words went to besides the GMs, who else had the item's name, the cards' documents naming it, "
@@ -12878,6 +12884,131 @@ const SCENARIOS = [
             ["shownList", ["searcher"], true, false, false], ["toTarget shown", ["target"], false, false, false],
             ["toRoom shown", ["third"], true, false, false]] }),
         "{asked, the allow's answer, cards: [the card's line, its readers besides the GMs, names the tool, the Truth Bullet, the stashed item]}");
+    }],
+
+    ["a Palm or an unseen Frisk the victim catches is seen by the room (privacy line 2, #7; the owner's rule of 13.11.2026): a third student reads the hand by name, the item only with Despair on the Shadow roll the GMs drew, and nothing when the cover holds", async () => {
+        /*
+         * Privacy line 2 (#7), 13.11.2026; the owner's rule: a player learns what their character could know in the fiction,
+         * when they could know it. A Palm's or an unseen Frisk's missed Shadow roll told the victim alone (palm.mjs
+         * `stealFromPerson`, `plantOnPerson`; frisk.mjs `friskPerson`: "No witness is told"), while a Take from a body rolls
+         * its cover against every witness and names the items only with Despair (handover.mjs `lootCover`). Now the
+         * students in the room read the hand too (frisk.mjs `tellOnlookers`), the item only when the Shadow roll the GMs
+         * drew came with Despair (bridge-runs-acts.mjs `palmRolls`: its Hope in `unseenWithHope`). A player's character,
+         * another (whose connected player is the victim) and a third student with a connected player of their own, stood in
+         * one room; the other given items named here. Each Palm is the player's `action.steal` or `action.plant` judged as
+         * the bridge judges it, naming a hand and a Shadow roll the GM drew from that player on set faces
+         * (`drawnForPlayer`): a Steal, its Shadow missed with Despair; a Steal, missed with Hope; a Steal whose Shadow holds;
+         * a Plant, missed with Despair. Then an unseen Frisk judged on this GM (`friskPerson`) with a missed cover. Read for
+         * each: the cards whose words went to the victim's or the third's player, as [the line, its readers besides the
+         * GMs, the item named]. Red at af9792c5: the third reads nothing.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the thief, the victim and a third, each a token on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const F = await import("./frisk.mjs");
+        const S = await import("./secret.mjs");
+        const Mv = await import("./movement.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const victimUser = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(victimUser, `${other.name} has no connected player - this would measure nothing`);
+        const scene = canvas.scene;
+        const third = game.actors.find(a => a.type === "character" && ![theirs.id, other.id].includes(a.id) && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && scene?.tokens?.some(t => t.actorId === a.id) && ownerIdsOf(a).some(id => ![player.id, victimUser].includes(id) && game.users.get(id)?.active)) ?? null;
+        must(third, "no third student with a connected player of their own has a token on the scene on screen - this would measure nothing");
+        const thirdUser = ownerIdsOf(third).find(id => ![player.id, victimUser].includes(id) && game.users.get(id)?.active);
+        const role = id => (id === player.id ? "thief" : id === victimUser ? "victim" : id === thirdUser ? "third" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const NAMES = ["Suite PV7 a brass key", "Suite PV7 a paper crane", "Suite PV7 a spare button", "Suite PV7 a folded note"];
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const LINES = [["wHand", "DRPG.Steal.wHand"], ["wTaking", "DRPG.Steal.wTaking"], ["wPlanting", "DRPG.Steal.wPlanting"],
+            ["caughtTaking", "DRPG.Steal.caughtTaking"], ["caughtPlanting", "DRPG.Steal.caughtPlanting"], ["caughtTrying", "DRPG.Steal.caughtTrying"],
+            ["frisk caught", "DRPG.Frisk.caught"], ["frisk caughtTrying", "DRPG.Frisk.caughtTrying"]];
+        // A line's words up to its item (the whole line where it names none): wHand, which names none, is asked first, as its
+        // words begin wPlanting's.
+        const kindOf = words => LINES.find(([, key]) => words.includes(line(key, { who: theirs.name, target: other.name, item: "\u0000" }).split("\u0000")[0]))?.[0]
+            ?? `other: ${words.slice(0, 80)}`;
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        const read = item => {
+            const fresh = packets.slice(marks.packets);
+            const out = made.slice(marks.made).map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null)
+                .map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort(),
+                    Boolean(item) && words.includes(esc(item))])
+                .filter(([, to]) => to.includes("victim") || to.includes("third"));
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const drawn = [];
+        const palm = async (action, fields, hand, cover) => {
+            const h = await drawnForPlayer(player, theirs, { actionKey: "steal", faces: hand });
+            const c = await drawnForPlayer(player, theirs, { actionKey: "palm", faces: cover });
+            drawn.push(h, c);
+            must(h.record && c.record, `the GM kept no record of a roll it drew - this would measure nothing: ${stableJson([h.value, c.value])}`);
+            marks = { packets: packets.length, made: made.length };
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `PV7${foundry.utils.randomID(8)}`, total: 0, isCritical: false, unseenTotal: 30,
+                unseenCritical: true, unseenWithHope: true, rollId: h.message.id, unseenRollId: c.message.id, ...fields }, player.id, { send: () => {} });
+            await settle();
+            return [c.record.total >= ACTIONS.palm.unseen.threshold || c.record.isCritical ? "cover held" : c.record.withHope ? "missed, Hope" : "missed, Despair"];
+        };
+        const stood = await aloneTogether(theirs, other);
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        const seen = {};
+        try {
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await settle();
+            must(Mv.othersInRoom(theirs).some(a => a.id === third.id), "the third student is not in the room - this would measure nothing");
+            const give = async (actor, name) => {
+                const item = await grantItem(actor, { name, category: "usable", tier: 1, override: true, quiet: true });
+                must(item, `${actor.name} could not be handed ${name} - this would measure nothing`);
+                return item;
+            };
+            const HIGH = { hope: 11, fear: 12 }, DESPAIR = { hope: 1, fear: 2 }, HOPE = { hope: 2, fear: 1 }, HELD = { hope: 12, fear: 11 };
+            await give(other, NAMES[0]);
+            seen.stealDespair = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, DESPAIR), read(NAMES[0])];
+            for (const i of other.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await give(other, NAMES[1]);
+            seen.stealHope = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, HOPE), read(NAMES[1])];
+            for (const i of other.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await give(other, NAMES[2]);
+            seen.stealUnseen = [...await palm("action.steal", { thiefId: theirs.id, victimId: other.id }, HIGH, HELD), read(NAMES[2])];
+            const planted = await give(theirs, NAMES[3]);
+            seen.plantDespair = [...await palm("action.plant", { plannerId: theirs.id, victimId: other.id, itemId: planted.id }, HIGH, DESPAIR), read(NAMES[3])];
+            marks = { packets: packets.length, made: made.length };
+            const frisked = await F.friskPerson({ searcherId: theirs.id, targetId: other.id, total: 0, isCritical: false, unseenTotal: 0, unseenCritical: false });
+            await settle();
+            seen.friskCaught = [frisked?.outcome ?? frisked?.refused ?? null, read(NAMES[3])];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            // Newest first: each puts Fear back to what it was before its own draw.
+            for (const d of drawn.reverse()) await d.putBack();
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            await thirdToken.update(thirdWas, PLACE);
+            await stood.back();
+        }
+        equal(stableJson(seen), stableJson({
+            stealDespair: ["missed, Despair", [["caughtTaking", ["victim"], true], ["wTaking", ["third"], true]]],
+            stealHope: ["missed, Hope", [["caughtTaking", ["victim"], true], ["wHand", ["third"], false]]],
+            stealUnseen: ["cover held", []],
+            plantDespair: ["missed, Despair", [["caughtPlanting", ["victim"], true], ["wPlanting", ["third"], true]]],
+            friskCaught: ["settled", [["frisk caughtTrying", ["victim"], false], ["wHand", ["third"], false]]]
+        }), "{each Palm: [its Shadow roll as the GMs drew it, the cards to the victim's and the third's players: [line, readers besides the GMs, the item named]]; the unseen Frisk: [its outcome, the cards]}");
     }],
 
     ["an open Frisk is forced only behind the searcher's own refused or unanswered ask, on a Body roll the GMs drew for it inside its window (A11-8): won, the list as at the ask; lost, the neutral miss; another's roll, one older than the ask or past its window refused; no force before an answer, none with the GMs' friskForce off; 'Leave it' names no roll", async () => {

@@ -196,6 +196,37 @@ export function roomWitnessesOnGm(room, scene, { except = [] } = {}) {
         .map(token => game.actors.get(token.actor?.id) ?? null).filter(actor => actor && !left.has(actor.id));
 }
 
+/**
+ * A HAND THE VICTIM CAUGHT IS SEEN BY THE ROOM (privacy line 2, #7; the owner's rule of 13.11.2026: a player learns what
+ * their character could know in the fiction, when they could know it). A Palm's or an unseen Frisk's missed Shadow roll
+ * told the victim alone, while a Take from a body rolls its cover against every witness (handover.mjs `lootCover`). Now
+ * the students who see `actor`'s room as the GMs read it (`roomWitnessesOnGm`, `actor` and `victim` left out) read
+ * `html` too, on one veiled card to each owner of each and the GMs, as an open Frisk's room is told (`tellWitnesses`); a
+ * witness with no player reads nothing, and nobody watching posts nothing. At a body the GMs keep (`body`) the card is
+ * posted the same, its words to the GMs alone (`whisperToGms`), as the victim's own card is (palm.mjs `tellPalmVictim`):
+ * no player reads of a person the table does not know is dead, and every browser gets the documents a living victim's
+ * Palm posts. The caller words the line - the hand by its owner's name, the item only with Despair, as a Take's cover
+ * names it. Answers the card's readers, or []; a failure is logged, never thrown. On the primary GM.
+ */
+export async function tellOnlookers(actor, victim, html, { body = false } = {}) {
+    const here = gmPlaceOf(actor);
+    const watching = roomWitnessesOnGm(here?.room ?? null, here?.scene ?? null, { except: [actor?.id, victim?.id] });
+    const owners = new Set(watching.flatMap(ownerIdsOf));
+    if (!owners.size) return [];
+    try {
+        if (body) {
+            await whisperToGms(html, { veiled: true });
+            return [...gmIds()];
+        }
+        const readers = [...new Set([...owners, ...gmIds()])];
+        await announce({ content: html, whisper: readers, veiled: true });
+        return readers;
+    } catch (err) {
+        error("Could not tell the room of a hand in somebody's pocket", err);
+        return [];
+    }
+}
+
 /* ==========================================================================
  * FRISK UNSEEN (E80 part 2 C2, S16-24; the A11 design's steps 4, 5 and 9)
  * ========================================================================== */
@@ -241,8 +272,10 @@ function listOfLines(target, lines, heading = "DRPG.Frisk.listHeading") {
  * the pockets; the cover (`rummage.unseen`, Shadow 15) whether the target felt it. A critical hand always sees and a
  * critical cover is never felt; neither adds anything else. The searcher is told both, on one card to its owner and
  * the GMs: the list (or that they got no proper look) and 'Nobody saw you do it.' or 'They noticed.'. The target is
- * told only when it noticed, on its own card with the `stolen` sound, by name: caught looking, or caught trying. No
- * witness is told (as a Palm and Tail Someone). Unnoticed, no card and no card's words reach the target (tier 2 "A11-5").
+ * told only when it noticed, on its own card with the `stolen` sound, by name: caught looking, or caught trying. Since
+ * privacy line 2 (#7, the owner's rule of 13.11.2026) the students in the room are told then too, the hand by name and
+ * no item (`tellOnlookers`), as a Palm's room is; until 1.2.113 no witness was told. Unnoticed, no card and no card's
+ * words reach the target or the room (tier 2 "A11-5").
  * A TARGET THE GMS ALONE KNOW DEAD (E80 fix sec1-G1, the review's sec-1; the owner's Q8, option A, 20.10.2026, over the
  * design's step 8(d), which had such a Frisk always come out unnoticed and post no card of the target's): the searcher's
  * side is judged as at a living target on the same dice. Its card says 'They noticed.' under a missed cover, and the
@@ -282,6 +315,8 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
         const words = `<p>${game.i18n.format(sees ? "DRPG.Frisk.caught" : "DRPG.Frisk.caughtTrying", { who: esc(searcher.name) })}</p>`;
         const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
         await (body ? whisperToGms(words, card) : whisperToOwner(target, words, card));
+        // And the room (privacy line 2, #7): the hand, by name; a Frisk takes nothing, so no item is ever named.
+        await tellOnlookers(searcher, target, say("DRPG.Steal.wHand", { who: searcher.name, target: target.name }), { body });
     }
     log(`${searcher.name} frisked ${target.name} unseen: ${sees ? `saw ${pockets.length} item(s)` : "got no proper look"}, ${
         noticed ? (body ? "noticed as a living target would be, a body the GMs keep (its card's words to the GMs alone)" : "noticed") : "unnoticed"}.`);

@@ -5542,7 +5542,10 @@
       "cardUnseen": "Nikt nie widział.",
       "cardUnfelt": "Niczego nie poczuli.",
       "caughtTaking": "Widzisz to: {who} zabiera ci {item}.",
-      "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
+      "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym.",
+      "wHand": "Widzisz, jak {who} wsuwa rękę do kieszeni: {target} - i to zostaje zauważone.",
+      "wTaking": "Widzisz, jak {who} wyjmuje {item} z kieszeni: {target} - i to zostaje zauważone.",
+      "wPlanting": "Widzisz, jak {who} wsuwa {item} do kieszeni: {target} - i to zostaje zauważone."
     },
     "Frisk": {
       "rowLabel": "Zobacz, co nosi",

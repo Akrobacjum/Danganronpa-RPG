@@ -5144,7 +5144,10 @@
       "cardUnseen": "Nobody saw you do it.",
       "cardUnfelt": "They felt nothing.",
       "caughtTaking": "{who} took {item} from you, and you saw them do it.",
-      "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
+      "caughtTrying": "You catch {who} going through your pockets. They come away with nothing.",
+      "wHand": "You see {who} slip a hand into {target}'s pocket - and {target} notices.",
+      "wTaking": "You see {who} take {item} from {target}'s pocket - and {target} notices.",
+      "wPlanting": "You see {who} slip {item} into {target}'s pocket - and {target} notices."
     },
     "Frisk": {
       "rowLabel": "See what they carry",

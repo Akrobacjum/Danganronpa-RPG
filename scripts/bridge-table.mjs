@@ -356,7 +356,7 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.action.plant",
         guards: [knownSender, notSpectator("plannerId"), owns("plannerId", "sender does not own the character planting")],
         sanitize: pick({ plannerId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
-            unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
+            unseenTotal: as.num, unseenCritical: as.bool, unseenWithHope: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handlePlant,
         // "reply" since E14 part 1 C1 (the owner's Q3): the Palm's browser gives back the action it paid when the one
         // gate refused the Palm before its rolls were read, so it waits for the verdict, not for the "got it".
@@ -442,7 +442,7 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.action.steal",
         guards: [knownSender, notSpectator("thiefId"), owns("thiefId", "sender does not own the character stealing")],
         sanitize: pick({ thiefId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
-            unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
+            unseenTotal: as.num, unseenCritical: as.bool, unseenWithHope: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handleSteal,
         // "reply" since E14 part 1 C1 (the owner's Q3): the Palm's browser gives back the action it paid when the one
         // gate refused the Palm before its rolls were read, so it waits for the verdict, not for the "got it".
