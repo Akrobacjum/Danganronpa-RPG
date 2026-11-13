@@ -3281,8 +3281,11 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
 
     /* CLOSED WITH A NODE OPEN, NOT BY SAVE (the owner, 12.11.2026): its fields written now, off the element as it was
        closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save
-       hands on every changed field, the node's among them, so it writes nothing here. */
-    if (!action || typeof action === "string") await saveOpenNode(drawnRoot);
+       hands on every changed field, the node's among them, so it writes nothing here. CANCEL IS A DISCARD (13.11.2026;
+       perf-open's review for 1.2.111 asked whether Cancel is a close or a discard, and the coordinator set the default
+       for the owner to confirm): its answer "close" writes neither the node nor the Table's changed fields. The X,
+       Escape and the footer's other buttons, which reopen the window, still write the open node. */
+    if (!action || (typeof action === "string" && action !== "close")) await saveOpenNode(drawnRoot);
     if (!action || action === "close") return null;
 
     const ran = await runDashboardButton(action);

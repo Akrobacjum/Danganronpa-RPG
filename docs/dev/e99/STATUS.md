@@ -576,3 +576,25 @@ Defaults, as built (the owner may revise):
   CI runs tier 2 in shards 2-8, apart from tier 1, so it does not see that input.
 - Not done here: shots. The Map's node fields for a zone mode and the filled window are drawn in the harness, and are
   for the shots page with items 3-5.
+
+## perf-open's review for 1.2.111, section 2 (13.11.2026; the coordinator's six points; docs/dev/PERF-OPEN/REVIEW-111.md on the perf-open-b line, 0fafef1)
+
+- (1) The planned Autopsy is sent on the primary GM alone, not on the discovery's writer (case-realize.mjs
+  `registerCaseAsk`): every discovery stamps on the primary today, and one stamped off it would have gone out from
+  nobody. `sending` and `autopsyIssued` keep it once. Tier 2 "planned Autopsy" now hears the hook with `writer: false`:
+  red at c598d3c (nothing went out on it, the later `writer: true` call sent 4), green after.
+- (2) A node's close reads its editor through `readCaseFields(open)`, the traces', schema's and Key slots' part of the
+  reader, which reads no Final Key Remnant field; `readDashboardForm` is the final fields plus `readCaseFields(form)`.
+  The stand-in element that answered every selector with the node is gone. R4454 (tier 1, read in the source): red at
+  c598d3c (no readCaseFields), green after.
+- (3) **Cancel is a discard** (the coordinator's default; for the owner to confirm): its answer "close" writes neither the
+  open node nor the Table's changed fields. Not `if (!action)` alone, as the review's patch read: the footer's other
+  buttons (New trace, Autopsy, Log, Body found, Realize, Clear Faint, Sweep, Undo) also answer a string and reopen the
+  window, and they keep writing the open node, as "every other close keeps autosaving" asks. GM handbook EN/PL: one
+  sentence.
+- (4) Tier 2 "planner autosave: a node's write that fails ...": the case store made to throw, the node closed: the
+  "Not saved" error told, the store unchanged, the field still holding the text; the store given back, the next close
+  writes it. This half passed at c598d3c too (the review's "likely" holds); its Cancel half was red there.
+- (5) The Autopsy test asks `needs(env.primaryGm())`, a skip on a second GM.
+- (6) `DRPG.CaseMap.autopsySent`: "Sent to the students." / "Wysłany uczniom." (DB24).
+

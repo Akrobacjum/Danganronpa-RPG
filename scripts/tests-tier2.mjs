@@ -27159,6 +27159,72 @@ const SCENARIOS = [
             "{the name after the editor's Close, no Save; the name after the window closed mid-edit}");
     }],
 
+    ["planner autosave: a node's write that fails is told and keeps the GM's text in its field, written at the next close; Cancel writes nothing (perf-open's review for 1.2.111, section 2; 13.11.2026)", async () => {
+        /*
+         * The review asked whether "Your text is still in the fields" holds after a failed write: the node closes and
+         * the region is redrawn. A fixture deduction drawn on the Map, its node opened, its name changed, the GMs' case
+         * store made to refuse the write, the node closed: the error told, the store unchanged, the field still holding
+         * the text. The store given back, the node opened and closed with nothing typed: the text written. Then Cancel,
+         * a discard (the coordinator's default for the owner's question): a name typed and Cancel pressed writes nothing.
+         * Red at c598d3c: Cancel wrote the node's name.
+         */
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore } = await import("./gm-stores.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const chapter = getClock().chapter;
+        const id = "deduction-suiteautofail", base = `case:${chapter}:${id}`;
+        const told = [];
+        const toast = ui.notifications.error;
+        const ownPatch = Object.prototype.hasOwnProperty.call(caseSchemaStore, "patch"), realPatch = caseSchemaStore.patch;
+        const givePatchBack = () => { if (ownPatch) caseSchemaStore.patch = realPatch; else delete caseSchemaStore.patch; };
+        const label = () => S.caseNodeOf(S.caseRows(chapter).rows[id])?.label ?? null;
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE autofail as drawn" });
+            await gmStoresIdle();
+            ui.notifications.error = (text, ...rest) => { told.push(String(text)); return toast.call(ui.notifications, text, ...rest); };
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            const openNode = async () => {
+                root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+                await until(() => root?.querySelector(`.drpg-case-edit:not([hidden]) [name="${CSS.escape(`${base}:label`)}"]`), 3000).catch(() => {});
+                return root?.querySelector(".drpg-case-edit:not([hidden])") ?? null;
+            };
+            let edit = await openNode();
+            must(edit, "the fixture node did not open on the Map");
+            caseSchemaStore.patch = async () => { throw new Error("SUITE the case store refused this write"); };
+            win.field(`${base}:label`).value = "SUITE autofail typed";
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => told.length > 0, 4000).catch(() => {});
+            await wait(400);
+            seen.failed = { told: told.includes(game.i18n.localize("DRPG.CaseMap.notSaved")), stored: label(), field: win.field(`${base}:label`)?.value ?? null };
+            givePatchBack();
+            edit = await openNode();
+            edit?.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => label() === "SUITE autofail typed", 4000).catch(() => {});
+            seen.next = label();
+            edit = await openNode();
+            must(edit, "the fixture node did not open a third time");
+            win.field(`${base}:label`).value = "SUITE autofail cancelled";
+            root.querySelector('footer.form-footer button[data-action="close"]')?.click();
+            await Promise.race([win.answer, wait(5000)]);
+            await gmStoresIdle();
+            await wait(400);
+            seen.cancel = label();
+            await win.close();
+            win = null;
+        } finally {
+            givePatchBack();
+            ui.notifications.error = toast;
+            if (win) await win.close().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ failed: { told: true, stored: "SUITE autofail as drawn", field: "SUITE autofail typed" }, next: "SUITE autofail typed", cancel: "SUITE autofail typed" }),
+            "{after the refused write: the error told, the stored name, the field's text; the name after the next close; the name after Cancel}");
+    }],
+
     ["E97 C6: a case node's name, mode and inputs edited on the Map are saved by the panel's Save, and a name another GM moved under the window is refused and told", async () => {
         /*
          * E97 C6, 12.11.2026; Q-E97-6's default (schema edits ride Save, refused where another GM moved them). A fixture
