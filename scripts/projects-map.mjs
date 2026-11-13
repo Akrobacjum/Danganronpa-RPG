@@ -251,12 +251,12 @@ function tintFor(countdownId) {
  * the document as the hammer was). A project with no glyph - one made before glyphs, or in Daggerheart's own window -
  * keeps the hammer.
  */
-const GLYPH_ICON_PREFIX = `modules/${MODULE_ID}/icons/project-`;
-
-/** The picture a project's token wears: its glyph's file, or the hammer for a project with none. */
+/** The picture a project's token wears: its glyph's file, or the hammer for a project with none. The path is one
+ *  template, so tools/check.mjs's `package` part reads it as the reader of icons/project-*.svg (a prefix kept in a
+ *  constant read as no path, and the 21 files as shipped with no reader; 13.11.2026, after the e59-c5a merge). */
 export function projectTokenIcon(countdownId) {
     const glyph = metaFor(countdownId).glyph;
-    return isProjectGlyph(glyph) ? `${GLYPH_ICON_PREFIX}${glyph}.svg` : PROJECT_TOKEN.icon;
+    return isProjectGlyph(glyph) ? `modules/${MODULE_ID}/icons/project-${glyph}.svg` : PROJECT_TOKEN.icon;
 }
 
 /**
