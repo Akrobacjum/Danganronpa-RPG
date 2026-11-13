@@ -986,7 +986,7 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.pl.md | `line 467 (### Kategorie i ile nosisz)` | uspokajające oczyszczają Sanity. | uspokajające przywracają Sanity. | M7 and D5 (S13-40): a resource is said as its reserve - Sanity is restored, never "cleared". |
 | en.json | `DRPG.Action.goalStressHint` | Small comforts. Clears Sanity. | Small comforts that restore Sanity. | M7 and D5 (S13-40): a resource is said as its reserve - Sanity is restored, never "cleared". The Polish is the owner's pair N48 ("Drobne pocieszenia przywracają Sanity."). |
 
-## fact fixes (14)
+## fact fixes (16)
 
 | File | Key / section | Before | After | Why |
 | --- | --- | --- | --- | --- |
@@ -1004,6 +1004,8 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-brochure.pl.md | `line 69` | (Eye przeciw 20) | (Eye albo Head przeciw 20) | E57 prep finding F3 (claude/e57-prep b7575629, MEASURE-numbers.md), asked by the coordinator 13.11: config.mjs MURDER_OPENING.victim: threshold 20, traits eye and head, as the player and GM handbooks say |
 | player-handbook.en.md | `line 850` | arrives from the middle within about a second | arrives from the middle within about 1.2 seconds | E57 prep finding F3 (claude/e57-prep b7575629, MEASURE-numbers.md), asked by the coordinator 13.11: glass.mjs turnPlan dur = 1200 ms (motion.css says so); the GM handbook says 1.2 seconds |
 | player-handbook.pl.md | `line 850` | przychodzi od środka w około sekundę | przychodzi od środka w około 1,2 sekundy | E57 prep finding F3 (claude/e57-prep b7575629, MEASURE-numbers.md), asked by the coordinator 13.11: glass.mjs turnPlan dur = 1200 ms (motion.css says so); the GM handbook says 1,2 sekundy |
+| en.json | `DRPG.Murder.escapeRemnants` | Open the Remnant table | Open the Investigation | E102 prep finding: murder-rules.mjs's escape window's button opens openInvestigationDashboard, titled Investigation, not a Remnant table |
+| pl.json | `DRPG.Murder.escapeRemnants` | Otwórz tabelę Remnantów | Otwórz Investigation | E102 prep finding: murder-rules.mjs's escape window's button opens openInvestigationDashboard, titled Investigation, not a Remnant table |
 
 ## third person (P2) (10)
 
@@ -1555,3 +1557,10 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | pl.json | `DRPG.Assign.noMonokumas` | Nikt jeszcze nie ma puli Despair: ma ją każde konto pełnego GM-a, a w tym świecie nie ma żadnego. Nadaj kontu rolę Gamemastera i otwórz Despair Flow ponownie; tam można przyznać pulę Asystentom GM-a. | Nikt nie ma puli Despair: w tym świecie nie ma konta Gamemastera. Nadaj komuś tę rolę i otwórz Despair Flow ponownie. | overexplains (T29); over the lint's word budget (T4) |
 | en.json | `DRPG.Vote.executionFailed` | The sentence could not be carried out on {names}. It is tried again at the next change of phase and when the GM reloads; if it still fails, mark the death in the Players window. | The sentence on {names} did not go through. It is tried again at the next phase and when the GM reloads; if it still fails, mark the death in the Players window. | overexplains (T29); over the lint's word budget (T4) |
 | pl.json | `DRPG.Vote.executionFailed` | Nie udało się wykonać wyroku na: {names}. Moduł spróbuje ponownie przy następnej zmianie fazy i po przeładowaniu strony przez GM-a; jeśli znów się nie uda, oznacz śmierć w oknie graczy. | Wyrok na: {names} się nie wykonał. Moduł spróbuje ponownie przy następnej fazie i po przeładowaniu u GM-a; jeśli dalej się nie uda, oznacz śmierć w oknie graczy. | overexplains (T29); over the lint's word budget (T4) |
+
+## niejasna nazwa (2)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| en.json | `DRPG.Cleanup.trailWho` | Frame | Who to frame | E102 prep finding: the label of Misleading Trail's list of students (action-tamper.mjs); a bare imperative read like a button |
+| pl.json | `DRPG.Cleanup.trailWho` | Wrób | Kogo wrobić | E102 prep finding: the label of Misleading Trail's list of students (action-tamper.mjs); a bare imperative read like a button |

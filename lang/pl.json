@@ -1959,7 +1959,7 @@
         "monokuma": "Monokuma po sobie nie sprząta. Zabójstwo na pokaz ma zostać znalezione."
       },
       "trailAction": "Misleading Trail",
-      "trailWho": "Wrób",
+      "trailWho": "Kogo wrobić",
       "trailNobody": "Nie ma już kogo wrobić.",
       "moveAction": "Move the Body",
       "moveHint": "Wydaj {n} Sanity, by wynieść ciało z tego pokoju; zawsze zostawia Evident Remnant.",
@@ -2197,7 +2197,7 @@
       "escapeNoRoom": "Dla tego incydentu nie zapisano pokoju, więc to, co po nim zostało, postaw ręcznie.",
       "escapeWitness": "{victim} i {third} widzieli, kto to był. Co z tym zrobią, to już sprawa stołu.",
       "escapeKiller": "{killer} nie jest Blackened. Poza tym, że wiedzą o tym dwie osoby, nic się nie zmieniło.",
-      "escapeRemnants": "Otwórz tabelę Remnantów",
+      "escapeRemnants": "Otwórz Investigation",
       "afterSurvived": "{victim} przeżywa atak, którego sprawcą jest {killer}. Nikt nie zginął, więc nie ma ciała do ogłoszenia, sekcji do wydania ani Class Trial do przeprowadzenia, i nikt nie zostaje za to Blackened. To, co zostawiła walka, leży tam, gdzie upadło.",
       "afterInterrupted": "Incydent przerwano, zanim cokolwiek się rozstrzygnęło - nikt nie zginął. Nie ma ciała, sekcji ani nikogo Blackened; to, co zostawiła walka, leży tam, gdzie upadło.",
       "closedYou": "Incydent się skończył.",

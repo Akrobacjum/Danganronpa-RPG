@@ -1842,7 +1842,7 @@
         "monokuma": "Monokuma does not clean up after himself. A killing made as a point is meant to be found."
       },
       "trailAction": "Misleading Trail",
-      "trailWho": "Frame",
+      "trailWho": "Who to frame",
       "trailNobody": "There is nobody left to frame.",
       "moveAction": "Move the Body",
       "moveHint": "Spend {n} Sanity to carry the body out of this room; it always leaves an Evident Remnant.",
@@ -2050,7 +2050,7 @@
       "escapeNoRoom": "No room is recorded for this incident, so place whatever it left behind by hand.",
       "escapeWitness": "{victim} and {third} both saw who it was. What they do with that is the table's business.",
       "escapeKiller": "{killer} is not Blackened. Nothing has changed for them except that two people know.",
-      "escapeRemnants": "Open the Remnant table",
+      "escapeRemnants": "Open the Investigation",
       "afterSurvived": "{victim} survived the attack by {killer}. Nobody died, so there is no body to announce, no autopsy to issue and no Class Trial to hold, and nobody is Blackened for it. What the fight left behind is still where it fell.",
       "afterInterrupted": "The incident was interrupted before anything was decided - nobody died. There is no body, no autopsy and nobody Blackened for it; what the fight left behind is still where it fell.",
       "closedYou": "The incident is over.",
