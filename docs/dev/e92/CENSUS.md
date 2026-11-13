@@ -38,11 +38,12 @@ ones.
 | fog.mjs:3312 | the layer's owned tokens | leave it out (C4, by `isMine`'s rule) |
 | fog.mjs:4359 | whether this GM holds a Monokuma | character here |
 | gm-stores.mjs:1334 | the trial cast store's `exists` | character here |
+| gm-stores.mjs `fogSectionFor` (E72's, met at the merge of 12.11.2026) | a Monocub's own share of the ledger: the Monocubs the user owns | character here: a Spectator is never a Monocub |
 | gm-stores.mjs:2405 `enterCastByHand` | the GM's killer/victim pick | leave it out (C1) |
 | gm-students.mjs:437 | the Students window's other characters | character here: the Spectators' group (C1) |
 | gm-team-dialog.mjs:269 | assigning characters to accounts | character here: the GM gives the account its Spectator |
 | hud.mjs:1384 | the GM's Monokuma | character here |
-| monocub.mjs:99, 105, 742 | the Monocubs; the dead who may become one; the dead's roster | character here: a Spectator never dies (no State on its row, C1) |
+| monocub.mjs:99, 105 | the Monocubs; the dead who may become one (the dead's roster at 742 went with E72's Monocubs window, met at the merge of 12.11.2026) | character here: a Spectator never dies (no State on its row, C1) |
 | monokuma.mjs:12 | a comment | - |
 | monokuma.mjs:37, 81 | the Monokumas; every character's id (the audit's waits) | character here |
 | monokuma.mjs:125, 131 `ownStudent`, `ownedStudents` | the account's student | leave it out (C1): a Spectator account has no student view |

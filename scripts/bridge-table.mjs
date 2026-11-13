@@ -218,7 +218,7 @@ export const BRIDGE_ACTIONS = table({
      */
     [ACTION_LAIR_LOCK]: {
         label: "DRPG.Bridge.what.mastermind.lairLock",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, lock: as.bool }),
         run: handleLairLock,
         // The Mastermind's line says the door is locked or open: a reply, or nothing changed.
@@ -226,7 +226,7 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_PASSAGE_LAIR_SEAL]: {
         label: "DRPG.Bridge.what.passage.lairSeal",
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, passageId: as.id }),
         run: handlePassageLairSeal,
         answer: "reply",
@@ -453,7 +453,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_CUB_ANSWER]: {
         label: "DRPG.Bridge.what.monocub.answer",
         // E72 C6: the player of a dead student the GMs invited; whether an invitation is open is the GMs' row's (`cubStore`).
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, accept: as.bool }),
         run: handleCubAnswer,
         // The player's window says what came of it (a Monocub now, or the invitation closed).
@@ -462,7 +462,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_BRIBE_OFFER]: {
         label: "DRPG.Bridge.what.bribe.offer",
         // E72 C15: the payer is the sender's own student; the Monocub is judged in the run (`bribeRefusal`).
-        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, cubId: as.id }),
         run: handleBribeOffer,
         // The payer's Call says it was offered, or nothing was spent.
@@ -472,7 +472,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_BRIBE_ANSWER]: {
         label: "DRPG.Bridge.what.bribe.answer",
         // E72 C15: the Monocub's own player; the offer is the GMs' row's (`cubStore`'s `bribes`), never the packet's.
-        guards: [knownSender, owns("cubId", "sender does not own that Monocub")],
+        guards: [knownSender, notSpectator("cubId"), owns("cubId", "sender does not own that Monocub")],
         sanitize: pick({ cubId: as.id, bribeId: as.id, accept: as.bool }),
         run: handleBribeAnswer,
         // The Monocub's window says what came of it.
