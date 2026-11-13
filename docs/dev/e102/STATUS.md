@@ -43,6 +43,8 @@ here, not resolved on another line's files.
 
 | C4-C5 and the import commits (pushed 13.11) | clean | five files where e101 reshapes a control E102 tipped (below) | none | R-REGISTRY.md | R-REGISTRY.md | none (chapter.mjs and level-up.mjs met only through the kit import, now on a line of its own) |
 
+| review fixes (pushed 13.11, about 03:00 UTC) | clean | the same four as before (gm-panel, gm-team-dialog, season-setup, tables-editor), e101's reshapes | none | R-REGISTRY.md; trial-zones-ui.mjs: e97-98's new push writes `named(...)` on the Scrum thesis input and the set select, the two tags E102 tipped - same line, resolved by keeping both attributes | R-REGISTRY.md | none |
+
 How it was read: each branch's conflicts with origin/main alone, against its conflicts with claude/e102; only the
 difference is E102's. R-REGISTRY.md is generated and conflicts wherever two lines add R numbers.
 
