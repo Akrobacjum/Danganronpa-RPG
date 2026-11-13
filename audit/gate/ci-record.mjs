@@ -88,6 +88,31 @@ export function makeRow(fields) {
     return { ...row, digest: digestOf(row) };
 }
 
+/*
+ * THE RUN'S OWN GUARDS (REVIEW-111 H1 and L1, 13.11.2026), pure so the self-check plants them. A row says "this
+ * checkout, at this commit, ran this part whole": `DRPG_REPO` (run-all boots that checkout instead) or `DRPG_SUITE_SHARD`
+ * (01-runtests runs one shard) in the environment would make it say what did not happen, so the writer refuses both;
+ * and run-all.json must name this checkout as the one it ran (`repo`), was written by this run, and holds every part
+ * asked for. A record file that is there and is not JSON is refused, never read as a first record.
+ */
+export const FOREIGN_ENV = Object.freeze(["DRPG_REPO", "DRPG_SUITE_SHARD"]);
+
+/** Why this environment would have run-all test something other than this checkout, whole; null when it would not. */
+export function envRefusal(env) {
+    return null;
+}
+
+/** Why a run-all.json is not this run's reading of this checkout; null when it is. */
+export function reportRefusal(report, { repo, spawnedAt, parts }) {
+    return null;
+}
+
+/** A record file's text (null: no file) as `{ record }`, or `{ error }` when it is there and unreadable. */
+export function parseRecord(text) {
+    if (text === null || text === undefined) return { record: { schema: SCHEMA, rows: [] } };
+    try { return { record: JSON.parse(text) }; } catch { return { record: { schema: SCHEMA, rows: [] } }; }
+}
+
 /** The planted rows the check wants refused, each alone, and a control it wants accepted. */
 export function selfCheck() {
     const base = {
@@ -104,12 +129,33 @@ export function selfCheck() {
         "a gate run-all has not": { schema: SCHEMA, rows: [makeRow({ ...base, gate: "fuzz" })] },
         "not a run of run-all": { schema: SCHEMA, rows: [makeRow({ ...base, command: "echo passed" })] },
         "a short commit": { schema: SCHEMA, rows: [makeRow({ ...base, commit: "421f2395" })] },
-        "edited by hand": { schema: SCHEMA, rows: [{ ...makeRow(base), counts: "edited" }] }
+        "edited by hand": { schema: SCHEMA, rows: [{ ...makeRow(base), counts: "edited" }] },
+        /* REVIEW-111 L2: three refusals no plant reached. */
+        "failed over exit 0": { schema: SCHEMA, rows: [makeRow({ ...base, result: "failed", status: "red", exitCode: 0 })] },
+        "a command without its gate": { schema: SCHEMA, rows: [makeRow({ ...base, command: "node audit/harness/run-all.mjs check" })] },
+        "two exit codes in one run": { schema: SCHEMA, rows: [makeRow({ ...base, command: "node audit/harness/run-all.mjs" }),
+            makeRow({ ...base, gate: "check", files: [...GATE_FILES.check], command: "node audit/harness/run-all.mjs", exitCode: 1, result: "failed", status: "red" })] }
     };
     const missed = Object.entries(plants).filter(([, r]) => !recordProblems(r).length).map(([name]) => `not refused: ${name}`);
+    /* The run's own guards (H1, L1): each planted case refused, each control accepted. */
+    const repo = "/checkout", spawnedAt = Date.parse("2026-11-13T00:00:00.000Z");
+    const report = { repo, startedAt: "2026-11-13T00:00:01.000Z", parts: [{ part: "lint", status: "green" }] };
+    const guards = {
+        "DRPG_REPO set": envRefusal({ DRPG_REPO: "/other" }) !== null,
+        "DRPG_SUITE_SHARD set": envRefusal({ DRPG_SUITE_SHARD: "2/8" }) !== null,
+        "run-all ran another checkout": reportRefusal({ ...report, repo: "/other" }, { repo, spawnedAt, parts: ["lint"] }) !== null,
+        "run-all.json older than the run": reportRefusal({ ...report, startedAt: "2026-11-12T23:00:00.000Z" }, { repo, spawnedAt, parts: ["lint"] }) !== null,
+        "a part asked for and not in run-all.json": reportRefusal(report, { repo, spawnedAt, parts: ["lint", "suite"] }) !== null,
+        "a record file that is not JSON": Boolean(parseRecord("{\"rows\": [").error)
+    };
+    for (const [name, refused] of Object.entries(guards)) if (!refused) missed.push(`not refused: ${name}`);
+    const guardControls = envRefusal({ PATH: "/bin" }) === null && reportRefusal(report, { repo, spawnedAt, parts: ["lint"] }) === null
+        && !parseRecord(null).error && parseRecord("{\"schema\": \"x\", \"rows\": []}").record?.schema === "x";
+    if (!guardControls) missed.push("a guard's control was refused");
     const controlOk = recordProblems(control).length === 0;
     if (!controlOk) missed.push(`the control was refused: ${recordProblems(control).join("; ")}`);
-    return { planted: Object.keys(plants).length, refused: Object.keys(plants).length - missed.filter(m => m.startsWith("not refused")).length, controlOk, missed };
+    const planted = Object.keys(plants).length + Object.keys(guards).length;
+    return { planted, refused: planted - missed.filter(m => m.startsWith("not refused")).length, controlOk: controlOk && guardControls, missed };
 }
 
 /* ---------------------------------- the writer ---------------------------------- */
