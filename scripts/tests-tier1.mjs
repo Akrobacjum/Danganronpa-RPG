@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, subjectNeeds, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText
+    worldDump, dumpDiff, lfText, expectedRed, stripStrings, cssSelfCheck, CSS_DETECTORS, CSS_FIXTURES, cssContrastOf, cssThemeTokens, cssContrastRatio, cssContrastSelfCheck, bridgeFn, bridgeText, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, musicText, sfxText, voteText, sheetText, sheetFetch, sheetBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2077,8 +2077,8 @@ const INVARIANTS = [
         // The CALL, with its semicolon: `holdActionsTab(app, element)` alone also matches
         // the definition's own signature, and passed with the call deleted. Since E24 C3b the
         // call is a step of `SHEET_STEPS`: its row, whole, for the same reason.
-        ok(/function holdActionsTab\(/.test(src("sheet.mjs"))
-            && /^\s*\["holdActionsTab", \(\{ app, element \}\) => holdActionsTab\(app, element\)\],/m.test(src("sheet.mjs")),
+        ok(/function holdActionsTab\(/.test(sheetBy(src))
+            && /^\s*\["holdActionsTab", \(\{ app, element \}\) => holdActionsTab\(app, element\)\],/m.test(sheetBy(src)),
             "nothing grows the glass sheet to hold its Actions tab");
 
         // The pause veil starts at the top of the screen: #pause is a <figure>, with a margin.
@@ -21218,7 +21218,7 @@ const INVARIANTS = [
             J([{ sceneId: site.id, level: "L2", x: 1450, y: 250 }, { sceneId: site.id, level: "L1", x: 100, y: 100 }]),
             "[the GMs' Show of the stairs with no floor asked, with L1 asked]");
         const sources = await moduleSources();
-        const roads = [fnSource(sources.get("passages-tab.mjs") ?? "", "showPassage"), fnSource(sources.get("sheet.mjs") ?? "", "panToPassage")];
+        const roads = [fnSource(sources.get("passages-tab.mjs") ?? "", "showPassage"), fnSource(sheetText(sources), "panToPassage")];
         equal(J(roads.map(src => [/\bviewPassage\(/.test(stripComments(src)), /animatePan|\.view\(/.test(stripComments(src))])), J([[true, false], [true, false]]),
             "[showPassage, panToPassage: ask viewPassage, move the camera themselves] - a road that pans on its own ignores the floor again");
     }],
@@ -21546,7 +21546,7 @@ const INVARIANTS = [
             && !game.i18n.localize("DRPG.Bridge.why.roomSealed").includes("{room}"),
             "the bridge's words for a spent Eclipse are the drag veto's, or its sealed room names the room - this would measure nothing");
         equal(J([M.tunnelRefusalText(null), M.tunnelRefusalText({ near: {}, far: {} })]), J(["", ""]), "[what is said of no verdict, of a crossing allowed] - a crossing allowed was said as a refusal");
-        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(new Map(await otherSources())));
         ok(sheet.length > 0, "sheet.mjs was not read - the button's warning measured nothing");
         const body = fnSource(sheet, "goThrough");
         ok(/ui\.notifications\.warn\(tunnelRefusalText\(verdict\)\)/.test(body) && !/warn\(verdict\.text\)/.test(body),
@@ -28732,8 +28732,8 @@ const INVARIANTS = [
         const noRoom = game.i18n.localize("DRPG.Action.noRoomNote");
         must(ask(nowhere, "search") === noRoom || typeof sheet.roomBlockFor !== "function",
             `a character standing nowhere is not told "${noRoom}" on the Search tile - this would measure nothing`);
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
-        const raw = await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText);
+        const src = stripComments(await sheetFetch());
+        const raw = await sheetFetch();
         const list = (fnSource(src, "roomBlockFor").match(/const roomBound = \[([^\]]*)\]/)?.[1] ?? "").split(",").map(x => x.trim()).filter(Boolean);
         const said = fnSource(raw, "roomBlockFor").match(/Only the (\w+) actions whose subject lives in the room/)?.[1] ?? null;
         const WORDS = { four: 4, five: 5, six: 6, seven: 7 };
@@ -32678,10 +32678,10 @@ const INVARIANTS = [
             DESPAIR_CALLS.fuelTheCub?.choices ?? null]),
             JSON.stringify([false, true, "fuelTheCub", ["fuelTheCub", "bounty"]]),
             "the GM's Calls draw a Bounty tile, or Fuel a Monocub's tile does not offer Fuel and Bounty");
-        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(new Map(await otherSources())));
         // Since R3818 (E72, the action's layout) the window is call-pickers.mjs `pickChoice`, sheet.mjs `callChoice` gone.
         ok(/call\.choices/.test(fnSource(sheet, "runCall")) && /\bpickChoice\s*\(/.test(fnSource(sheet, "runCall")),
-            "sheet.mjs runCall does not ask which Call of a tile's choices (pickChoice)");
+            "sheet-actions.mjs runCall does not ask which Call of a tile's choices (pickChoice)");
     }],
 
     ["R3817 - Experience and Ultimate are one Hope Call, Talent: ten Hope Call tiles with Bribe among them, Talent offering both effects, the two rows kept so an armed one still resolves (E72, the owner's decision of 12.11)", async () => {
@@ -32705,9 +32705,9 @@ const INVARIANTS = [
             JSON.stringify([10, true, true, false, false, ["experience", "ultimate"], 1, "talent", "talent", true]),
             "the Hope Calls are not ten tiles with Talent holding Experience and Ultimate ([tiles, Talent, Bribe, Experience, Ultimate, Talent's choices, its price, "
             + "where each of the two lives, both still wait for a GM])");
-        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(new Map(await otherSources())));
         ok(!/despair\s*&&\s*Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")) && /Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")),
-            "sheet.mjs runCall asks a tile's choice for a Despair Call only");
+            "sheet-actions.mjs runCall asks a tile's choice for a Despair Call only");
     }],
 
     ["R3818 - a Call window that asks a choice or a text is drawn as an action's: the header and its facts on the left, the rows (radio buttons, not a dropdown) and the text or the note to the GM on the right, its side's class kept; Talent's two rows and the note are one window, a shut row greyed with its reason; a Call that asks nothing is the left column alone (E72, the owner's of 12.11)", async () => {
@@ -32859,7 +32859,7 @@ const INVARIANTS = [
             const li = S.knownPassageItem({ passage: { id: "R3820P" }, label: "R3820 A - R3820 B", shut: false, way: null, seal: flag });
             return Boolean(li.querySelector(".drpg-passage-seal"));
         };
-        const sides = typeof S.knownPassageRows === "function" ? fnSource(stripComments(sources.get("sheet.mjs") ?? ""), "knownPassageRows") : "";
+        const sides = typeof S.knownPassageRows === "function" ? fnSource(stripComments(sheetText(sources)), "knownPassageRows") : "";
         equal(J({
             close: /\bsetState\(\s*passageId,\s*"closed",\s*\["secret"\]/.test(seal) && /presetSideRefusal\(/.test(seal),
             refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
@@ -35473,7 +35473,7 @@ const INVARIANTS = [
         read.hud = attr("drpg-hud");
         read.notices = attr("drpg-popups");
         read.launcher = game.user.isGM ? attr("drpg-gm-launcher") : page;
-        const sheet = fnSource(stripComments((await moduleSources()).get("sheet.mjs") ?? ""), "onRenderCharacterSheet") ?? "";
+        const sheet = fnSource(stripComments(sheetText(await moduleSources())), "onRenderCharacterSheet") ?? "";
         read.sheet = /\bmarkLanguage\(\s*root\s*\)/.test(sheet);
         read.description = [/\bEnglish\b/.test(manifest.description ?? ""), /\bPolish\b/.test(manifest.description ?? ""), /\bPolski\b/.test(manifest.description ?? "")];
         /*
@@ -40501,7 +40501,7 @@ const INVARIANTS = [
             stash: /value: "stash", icon: "[\w-]+",(?![^}]*gmRoute)/.test(topLevelFunction(src("action-analyze.mjs"), "askWhatToAnalyze") ?? "")
         };
         // The sheet's tiles, by the flags their windows read.
-        const sheet = src("sheet.mjs");
+        const sheet = sheetBy(src);
         const call = fnSource(sheet, "callButton"), use = fnSource(sheet, "addUseButton");
         read.tiles = {
             call: /const askGm = callAsksGm\(call, monokuma \? "despair" : "hope"\) && !pending;/.test(call)
@@ -43141,7 +43141,7 @@ const INVARIANTS = [
             "roll-draw.mjs heldValues": "the drawn roll's held values (Sanity overflowing into Health), a rule",
             "season-wipe.mjs wipeStudent": "a season's reset to no marks, written",
             "sheet-audit.mjs LEDGER": "the GMs' audit's ledger of what a write may move",
-            "sheet.mjs tamperBlock": "a threshold: no Sanity left and watched dims the Tamper tile"
+            "sheet-actions.mjs tamperBlock": "a threshold: no Sanity left and watched dims the Tamper tile"
         };
         const CURTAIN = ["glass.mjs", "player-status.mjs", "hud.mjs", "room-tile.mjs"];
         const READS = [/resources\??\.(?:hitPoints|stress)\b/g, /\bresourceValue\([^)]*["'](?:hitPoints|stress)["']/g,
@@ -43553,7 +43553,7 @@ const INVARIANTS = [
                 }));
             }
         }
-        const sheet = stripComments((new Map(await otherSources())).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(new Map(await otherSources())));
         const first = fn => /^[^\n]*\)\s*\{\s*if \(!rowGate\(app\)\) return;/.test(fnSource(sheet, fn));
         const bullet = fnSource(sheet, "buildBulletRow");
         const builders = Object.fromEntries(["addUseButton", "addEquipButton", "addDiscardButton", "addStashButton", "addHandoverButton"].map(fn => [fn, first(fn)]));
@@ -45013,7 +45013,7 @@ const INVARIANTS = [
             otherSheet: draw(b, "inventory")
         };
         const step = (SH.SHEET_STEPS ?? []).find(([name]) => name === "keepTabScroll");
-        const source = stripComments((new Map(await otherSources())).get("sheet.mjs") ?? "");
+        const source = stripComments(sheetText(new Map(await otherSources())));
         equal(stableJson({ seen, last: (SH.SHEET_STEPS ?? []).at(-1)?.[0] ?? null, theme: Boolean(step) && /drpg-theme/.test(topLevelFunction(source, "keepTabScroll") ?? "drpg-theme") }),
             stableJson({ seen: { first: 0, again: 140, otherTab: 0, back: 140, features: 60, otherSheet: 0 }, last: "keepTabScroll", theme: false }),
             "[scrollTop on render: the first, the next on the same tab, another tab, back, that tab again, another sheet's same tab]; the table's last step; whether the step reads a theme");
@@ -45468,7 +45468,7 @@ const INVARIANTS = [
         };
         const line = F.presentRefusal(held, who.id);
         must(typeof line === "string" && line.includes(other.name), "presentRefusal answered no line for another's testimony - this would measure nothing");
-        const sheet = stripComments((new Map(await otherSources())).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(new Map(await otherSources())));
         const asks = fn => ({ mode: /\bsheetMode\(|\bmodeOf\(|\.present\b/.test(fnSource(sheet, fn)), own: /\b(?:inClassTrial|isDeceased|isMutedDead|presentRefusal)\(/.test(fnSource(sheet, fn)) });
         equal(stableJson({ out, add: asks("addPresentButton"), paint: asks("paintPresentButton") }), stableJson({
             out: { outside: { shown: false, held: null }, held: { shown: true, held: line }, open: { shown: true, held: null }, muted: { shown: false, held: null },
@@ -47213,7 +47213,7 @@ const INVARIANTS = [
         const caption = kind => row.find(r => r[0] === kind)?.[1];
         const stop = root.querySelector(".drpg-safeword-button");
         const sources = new Map(await moduleSources());
-        const sh = stripComments(sources.get("sheet.mjs") ?? "");
+        const sh = stripComments(sheetText(sources));
         const built = ["injectInitButton", "injectAdvanceButton", "injectClassControls", "injectItemButton"]
             .filter(name => fnSource(sh, name)).map(name => /\bheaderButton\(/.test(fnSource(sh, name)) && !/createElement\("button"\)/.test(fnSource(sh, name)));
         equal(stableJson({ advance: caption("advance"), items: caption("items"), others: row.filter(r => r[0] === "init" || r[0] === "class").every(r => r[1] === null),
@@ -52708,7 +52708,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 3, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 2, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet-mode.mjs": 1, "sheet-repaint.mjs": 1, "sheet-sidebar.mjs": 2, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "trial-zones-ui.mjs": 1, "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
@@ -53630,7 +53630,7 @@ const INVARIANTS = [
         must(!whole.darkened, "a darkened hour stands in this world - its floor would hide the lost action; this would measure nothing");
         const at = phase => { const b = A.actionBudget(actor, { wounded: true, phase }); return [b.total, b.wounded, b.costsAction ?? null]; };
         const src = await moduleSources();
-        const clock = stripComments(src.get("clock.mjs") ?? ""), sheet = stripComments(src.get("sheet.mjs") ?? "");
+        const clock = stripComments(src.get("clock.mjs") ?? ""), sheet = stripComments(sheetText(src));
         must(clock.length > 1000 && sheet.length > 1000, "clock.mjs or sheet.mjs was not read - this would measure nothing");
         equal(stableJson({
             lostIn: STATES.wounded?.actionsLostIn ?? null,

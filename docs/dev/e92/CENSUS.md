@@ -69,7 +69,9 @@ ones.
 | settings.mjs:3221, 4249, 4264 | own characters; sheet hooks | character here |
 | sfx.mjs:299 | whether this account is in the incident | character here |
 | sheet-audit.mjs:783, 803, 927, 1215, 3226, 3320 | the audit's marks | character here: its flag is held there (C1, `GM_FLAGS`) |
-| sheet.mjs:783, 805, 2871, 2959 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
+| sheet-mode.mjs:152 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
+| sheet-repaint.mjs:171 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
+| sheet-sidebar.mjs:748, 889 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
 | spectator.mjs `watcherOf` (new in C4) | the account's own Spectator, for its map | character here |
 | states.mjs:498 | a token's reserves | character here |
 | trial-scene.mjs:195 `castActors` | the trial's cast | leave it out (C1) |

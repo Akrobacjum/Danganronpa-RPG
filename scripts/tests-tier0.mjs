@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -89,6 +89,9 @@ function boundNames(text) {
     for (const m of text.matchAll(/\bcatch\s*\(\s*([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
     for (const m of text.matchAll(/\b(?:const|let|var)\s*([{[][^=;]{0,400}?[}\]])\s*=/g)) add(m[1]);
     for (const m of text.matchAll(/\bfor\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+    // A loop's destructuring binds as a declaration's does: `for (const [name, run] of SHEET_STEPS)` (sheet.mjs `runSheetSteps`).
+    // Read since E54 (13.11.2026): the split left the facade with that loop and no other `run`, and R22 read the call as unbound.
+    for (const m of text.matchAll(/\bfor\s*\(\s*(?:const|let|var)\s*([{[][^;]{0,400}?[}\]])\s+(?:of|in)\b/g)) add(m[1]);
     // `get`/`set` are in the modifiers: `get isVisible() {` declares isVisible, and without them R22 read the
     // declaration as a call to a name nobody has (fog.mjs RoomDoorControl, E12 C13, 11.10.2026 - the first
     // getter in the module whose name nothing else in its file binds).
@@ -1806,7 +1809,7 @@ const REGRESSIONS = [
             `these use an item without asking whether a murder is happening: ${guilty.join(", ")}`);
 
         // And the check itself still means what the caller assumes.
-        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
+        const sheet = stripComments(await sheetFetch());
         const body = bodyOf(sheet, "function inCrisis", { length: 400 });
         ok(/stage\s*!==\s*"incident"/.test(body),
             "inCrisis no longer asks whether the incident has actually started");
@@ -3069,7 +3072,7 @@ const REGRESSIONS = [
          * So the tile reads the QUOTE, from the same table and through the same
          * skip list the charge reads.
          */
-        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(new Map(await otherSources())));
 
         const cost = bodyOf(sheet, "function costOf(", { until: "function costLabelFor(" });
         ok(cost.includes("priceQuoteFor("),
@@ -3389,7 +3392,7 @@ const REGRESSIONS = [
          * The shape that cannot come back: the repaint composes from the two halves
          * the tile kept, and never edits the string it finds.
          */
-        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(new Map(await otherSources())));
         const paint = bodyOf(sheet, "function paintTamper", { until: "function actionButton(" });
         ok(paint.length > 200, "paintTamper has moved or gone");
         ok(!/\.replace\(/.test(paint),
@@ -4560,7 +4563,7 @@ const REGRESSIONS = [
         ok(/LEVEL_UP_OPTIONS\[p\?\.option\]/.test(handler),
             "a pick may name something that is not an option");
 
-        const sheet = stripComments(sources.get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(sources));
         const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
         // E10 C6: a player with nothing on offer has the standing button taken off as well.
         // The GM's role is the sheet's mode's since E45 C1 (`mode.gm`).
@@ -4666,7 +4669,7 @@ const REGRESSIONS = [
             + "decision");
         ok(/(?:isDeceased|isDeadForGm)\(actor\)/.test(barred), "the dead can still spend");
 
-        const sheet = stripComments(sources.get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(sources));
         // To the next top-level function, not a fixed number of characters: the
         // confirmation is a hundred lines down and a 3000-character window stopped
         // short of it, so the order assertions below compared against -1.
@@ -5492,7 +5495,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const level = stripComments(sources.get("level-up.mjs") ?? "");
         const bridge = bridgeText(sources);
-        const sheet = stripComments(sources.get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(sources));
 
         ok(!/pendingAdvance/.test(stripComments(sources.get("config.mjs") ?? "")),
             "the offer still has a flag key, so something can still write it to the character");
@@ -8083,7 +8086,7 @@ const REGRESSIONS = [
          * dims on it as on the price, puts its sentence in the tooltip, and says the grid's own `DRPG.Action.costFree` for a
          * row that costs nothing and `DRPG.Action.costActions` for one with no Hope. Red at f22a7e8: none of it.
          */
-        const src = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const src = stripComments(sheetText(new Map(await otherSources())));
         const fn = bodyOf(src, "function abilityButton(", { until: "\n}\n" });
         must(fn.length > 300, "sheet.mjs has no abilityButton - this would measure nothing");
         const read = [/cubBlockSaid\(actor, def\)/.test(fn), /affordable && !shut/.test(fn), /game\.i18n\.localize\(shut\)/.test(fn), /"DRPG\.Action\.costFree"/.test(fn) && /"DRPG\.Action\.costActions"/.test(fn)];
@@ -8864,7 +8867,7 @@ const REGRESSIONS = [
             ["ITEM observe.mjs#mintFindCopy", "out of scope as a reader (E70 C12, moved out of createFind with its H84 step): `copiedRemnants` asks only whether a copy of this trace is held, in the character's `serialWrite` step, for Observe's find (createFind) and a successful Tamper's copy for its author (cleanup.mjs authorsCopy, on the GM after resolveStageSix scored the roll); the fields it names are the trace's, from the GMs' row"],
             ["ITEM observe.mjs#createFind", "out of scope as a reader (H84): `copiedRemnants` - the character's bullets on the GM's documents with the GMs' answer key (secretOf) - asks only whether a copy of this trace is held, before the GM's describe window and again in the character's `serialWrite` step; a bullet a player's browser deleted reads as none held, as `observeCandidates` reads it; the fields it names are the trace's, from the GMs' row"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
-            ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
+            ["ITEM sheet-inventory.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
             ["ITEM trial.mjs#presentOnPrimary", "judged (E70 C10): on the primary in one PRESENT_KEY step; the holding by itemAsHeld, the card's words from bulletAsHeld (holderView, unreadView without the analysis), the copies by handover.mjs mintCopy (bulletAsHeld, secretOf, copiedRemnants)"],
             ["ITEM trial-modes.mjs#revealInStep", "judged (E70 C9): on the primary in a step of the floor's key, each row judged again (revealRefusal); the copy built from the GMs' row of the trace (remnantData) and the plan, never from an item; copiedRemnants asks only whether a copy of the trace is held, in the character's finds' queue (observeFindKey)"],
             ["ITEM truth-bullets.mjs#publishReading", "judged (C8): takes the held copy from its caller (identify, revealAllBulletTypes through revealPlan); the answer key and the trace's public record for the rest"],
@@ -9166,7 +9169,7 @@ const REGRESSIONS = [
         // the file its function stands in.
         const FILES = ["vote.mjs", "trial-progress.mjs", "verdict.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs", "trial-speakers.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
-            "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
+            "sheet-header.mjs": ["injectAdvanceButton"], "sheet-inventory.mjs": ["addPresentButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
             "season-wipe.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
@@ -12487,7 +12490,7 @@ const REGRESSIONS = [
             "remnant-ring.mjs": [2, "the GM's Remnant card, in the trace's actor sheet"],
             "room-setup.mjs": [1, "Room setup's description column"],
             "rules.mjs": [2, "the rules manager's rule and new rule"],
-            "sheet.mjs": [1, "the character sheet's biography"],
+            "sheet-sidebar.mjs": [1, "the character sheet's biography"],
             "tables-editor.mjs": [1, "Item tables' new item text"],
             "trial-floor-ui.mjs": [1, "the Reveal's text"],
             "trial-scene.mjs": [1, "the hall's words in Room setup's Scenes tab"],
@@ -13197,7 +13200,7 @@ const REGRESSIONS = [
                 aliased.push(`${file}${where(text, m)} ${m[0]}`);
             }
         }
-        const sheet = files.find(([file]) => file === "sheet.mjs")?.[1] ?? "";
+        const sheet = sheetText(files);
         const takes = (name, from) => new RegExp(`import\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from\\s*"\\./${from}\\.mjs"`).test(sheet);
         equal(JSON.stringify([declaring("isCrimeSilenced"), declaring("isCallSilenced"), bare, aliased,
             [takes("isCrimeSilenced", "monocub"), takes("isCallSilenced", "call-effects"), takes("isCrimeSilenced", "call-effects"), takes("isCallSilenced", "monocub")]]),
@@ -15207,7 +15210,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(hudImports.filter(file => file === "trial.mjs" || file === "trial-speakers.mjs")), "[]",
             "hud.mjs's static imports of trial.mjs or trial-speakers.mjs");
         ok(hudImports.length > 3, `hud.mjs's static imports were read (${hudImports.length})`);
-        ok(!/objection/i.test(stripComments(fnSource(src("sheet.mjs"), "addPresentButton"))),
+        ok(!/objection/i.test(stripComments(fnSource(sheetBy(src), "addPresentButton"))),
             "the sheet's Present button names no objection");
         ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
     }],
@@ -15295,7 +15298,7 @@ const REGRESSIONS = [
         sites.sort();
         equal(JSON.stringify(sites), JSON.stringify(["call-world.mjs:marked", "call-world.mjs:marked", "cleanup.mjs:marked"]),
             "the module's region teleports, each as file:marked|unmarked");
-        const sheet = code("sheet.mjs");
+        const sheet = sheetBy(code);
         ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
             "sheet.mjs reads no placing mark before its step onto a tunnel's end");
     }],
@@ -15427,9 +15430,9 @@ const REGRESSIONS = [
         const facts = {
             tunnel: /tunnelEndAt\(scene, end, end\?\.level \?\? null, \{ taken \}\)/.test(fnSource(gmSrc, "tunnelRowFor"))
                 && /if \(at\[0\]\.room === at\[1\]\.room\) return \{ refused: TUNNEL_REFUSALS\.oneRoom \};/.test(fnSource(gmSrc, "tunnelRowFor")),
-            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}, \{ hush \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
+            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}, \{ hush \}\)/.test(fnSource(sheetBy(code), "goThrough"))
                 // H81-13: a token moved onto an end takes the button's road (sheet.mjs `onTunnelStep`).
-                && /if \(step\) await goThrough\(actor, \{ passage: \{ id: step\.id, sceneId: scene\.id \} \}, null, mastermind, \{ hush: \["cannotNow"\] \}\);/.test(fnSource(code("sheet.mjs"), "onTunnelStep"))
+                && /if \(step\) await goThrough\(actor, \{ passage: \{ id: step\.id, sceneId: scene\.id \} \}, null, mastermind, \{ hush: \["cannotNow"\] \}\);/.test(fnSource(sheetBy(code), "onTunnelStep"))
                 && /M\.tunnelVerdict\(actor, passage, token,/.test(cross) && /M\.settleCrossingOnGm\(actor, verdict\.to\)/.test(cross)
                 && /M\.refundCrossingOnGm\(actor, paid\.cost\)/.test(cross)
                 && /\{ teleport: true, movementAction: "displace", animate: false, \[M\.TUNNEL_CROSSING\]: true \}/.test(cross),
@@ -17764,7 +17767,7 @@ const REGRESSIONS = [
          * no repaint on the trial's settings.
          */
         const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
-        const files = Object.fromEntries(await Promise.all(["voice.mjs", "vote.mjs", "trial.mjs", "sheet.mjs", "voice-tile.mjs"].map(async f => [f, await read(f)])));
+        const files = Object.fromEntries(await Promise.all(["voice.mjs", "vote.mjs", "trial.mjs", "sheet.mjs", "sheet-mode.mjs", "sheet-item.mjs", "sheet-repaint.mjs", "sheet-fit.mjs", "sheet-header.mjs", "sheet-sidebar.mjs", "sheet-inventory.mjs", "sheet-actions.mjs", "voice-tile.mjs"].map(async f => [f, await read(f)])));
         must(Object.values(files).every(src => src.length > 1000), "a file of this test was not served - it reads nothing until it is");
         const fn = (file, name) => topLevelFunction(files[file], name) ?? "";
         const settle = fn("voice.mjs", "settleTrialVoices"), dead = fn("voice.mjs", "deadForTrial");
@@ -17777,7 +17780,7 @@ const REGRESSIONS = [
             participants: [/\bheld\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants), /\bactor\.getFlag\(MODULE_ID, FLAGS\.monocub\)/.test(participants)],
             present: ["presentDialog", "presentBullet"].map(name => /\bisMutedDead\(actor\)/.test(fn("trial.mjs", name))),
             // The row asks the sheet's mode since E45 C1 (`presentShown`, built in `sheetMode` of `isMutedDead`).
-            row: /\bisMutedDead\(actor, facts\)/.test(fn("sheet.mjs", "sheetMode")) && /\bpresentShown\b/.test(fn("sheet.mjs", "addPresentButton")),
+            row: /\bisMutedDead\(actor, facts\)/.test(fn("sheet-mode.mjs", "sheetMode")) && /\bpresentShown\b/.test(fn("sheet-inventory.mjs", "addPresentButton")),
             card: [/\bisMutedDead\(/.test(register), /refusePlayersCard\(message, "dead"\)/.test(register), /if \(!playersCard\)\s*showPopup\(/.test(register)],
             tile: [/"updateSetting"/.test(tile), ["clock", "trialQueue", "trialProgress"].every(k => new RegExp(`SETTINGS\\.${k}\\b`).test(tile)), /\bpaintControls\(\)/.test(tile)]
         }), JSON.stringify({
@@ -17948,7 +17951,7 @@ const REGRESSIONS = [
             "the reader does not see a literal as it is - a string, one in a comment, one inside a template's hole");
         ok(Array.isArray(SHEET_ANCHORS) && SHEET_ANCHORS.length >= 15, `SHEET_ANCHORS holds ${SHEET_ANCHORS?.length ?? "no"} place(s)`);
         const sources = await moduleSources();
-        const sheet = literalsOf(sources.get("sheet.mjs") ?? "");
+        const sheet = literalsOf(sheetText(sources));
         must(sheet.size > 500, `sheet.mjs reads as ${sheet.size} literal(s) - this test would read nothing`);
         const selectors = (SHEET_ANCHORS ?? []).map(anchor => anchor.selector);
         equal(new Set(selectors).size, selectors.length, "a selector is twice in SHEET_ANCHORS");
@@ -18194,7 +18197,7 @@ const REGRESSIONS = [
         const analyze = calls.filter(c => c.key === "analyze");
         const perform = fnSource(stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText)), "performAction");
         const performers = Object.keys(ACTIONS).filter(key => !new RegExp(`case\\s+"${key}"\\s*:`).test(perform));
-        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
+        const sheet = stripComments(await sheetFetch());
         const useItem = /takeCrisisAction\(\s*app\.document\s*,\s*"useItem"/.test(sheet) && !/rollTrait\s*\(/.test(bodyOf(sheet, '"useItem"', { length: 400 }));
         equal(JSON.stringify({
             missing, variable, performers,
@@ -18381,12 +18384,12 @@ const REGRESSIONS = [
             proceed: ["planted.mjs#p"], pending: 1 }), "the reader does not read the planted source as planted - the crawl below would measure the wrong calls");
 
         const src = {};
-        for (const file of ["call-pickers.mjs", "calls.mjs", "monocub.mjs", "sheet.mjs"]) {
+        for (const file of ["call-pickers.mjs", "calls.mjs", "monocub.mjs", "sheet.mjs", "sheet-mode.mjs", "sheet-item.mjs", "sheet-repaint.mjs", "sheet-fit.mjs", "sheet-header.mjs", "sheet-sidebar.mjs", "sheet-inventory.mjs", "sheet-actions.mjs"]) {
             src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
             must(src[file].length > 1000, `${file} was not served - this test reads nothing until it is`);
         }
         const regions = [read("call-pickers.mjs", src["call-pickers.mjs"]), read("calls.mjs", src["calls.mjs"]),
-            read("monocub.mjs", src["monocub.mjs"], ["cubAbilityDialog"]), read("sheet.mjs", src["sheet.mjs"], ["runCall"])];
+            read("monocub.mjs", src["monocub.mjs"], ["cubAbilityDialog"]), read("sheet-actions.mjs", src["sheet-actions.mjs"], ["runCall"])];
         const opens = regions.flatMap(r => r.opens);
         const builder = topLevelFunction(blankComments(src["call-pickers.mjs"]), "callWindow") ?? "";
         const builds = regions.flatMap(r => r.builds);
@@ -19608,7 +19611,7 @@ const REGRESSIONS = [
                     eclipse: "GM chce zacząć Eclipse (Noc). Czy kończysz już tę porę dnia?" },
                 picks: ["Level Up (wybierz 4)", "Reinforced Level Up (wybierz 7)"], roller: true
             },
-            sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet.mjs"], helper: ["call-effects.mjs"], joined: true, away: true, kinds: ["level-up.mjs"] }
+            sources: { acc: ["gm-bridge.mjs"], nom: ["roll-dialog.mjs", "sheet-header.mjs"], helper: ["call-effects.mjs"], joined: true, away: true, kinds: ["level-up.mjs"] }
         }), "[in English, then Polish: each host with each grant in its case - those that leave a brace or a key or lose the fragment; "
             + "Calls.armed with advantage and a bonus; armedForYou; pendingTooltip; waitsNextRoll with a list of two; a price given back, the "
             + "Objection's bracket, the lost Hope; a loss of two reserves; then the scripts that read the accusative by a template key, the "
@@ -19739,7 +19742,7 @@ const REGRESSIONS = [
         read.readers = {
             callEffect: [...sources.keys()].filter(f => f.endsWith(".mjs") && !f.startsWith("tests") && f !== "config.mjs" && /\bcallEffect\(/.test(src(f))),
             proseOf: [["calls.mjs", /proseOf\(call, "effect"\)/g, 3], ["call-pickers.mjs", /proseOf\(call, "effect"\)/g, 1], ["despair.mjs", /proseOf\(call, "effect"\)/g, 1],
-                ["sheet.mjs", /proseOf\(call, "effect"\)/g, 1], ["murder-rules.mjs", /proseOf\(def, "effect"\) \|\| proseOf\(def, "hint"\)/g, 1],
+                ["sheet-actions.mjs", /proseOf\(call, "effect"\)/g, 1], ["murder-rules.mjs", /proseOf\(def, "effect"\) \|\| proseOf\(def, "hint"\)/g, 1],
                 // E68 C13: the crisis row reads `short`, and `crisisDetails` the whole hint the row gave up (four reads).
                 ["action-murder.mjs", /proseOf\(def, "(hint|failure|short)"\)/g, 4], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
                 .filter(([file, re, n]) => (src(file).match(re) ?? []).length !== n).map(([file]) => file),
@@ -20029,7 +20032,7 @@ const REGRESSIONS = [
             words[grid] = [en, polish];
             read[grid] = [en.length <= cap, polish.length <= cap];
         }
-        const sheet = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        const sheet = stripComments(sheetText(await moduleSources()));
         const built = bodyOf(sheet, "const LONGEST_TILE_WORD = (() => {", { until: "})();" });
         read.built = ["Object.values(ACTIONS ?? {})", "Object.values(HOPE_CALLS ?? {})", "Object.values(DESPAIR_CALLS ?? {})", "Object.values(MONOCUB?.abilities ?? {})",
             "String(label).split(/\\s+/)"].map(part => built.includes(part));
@@ -21277,7 +21280,7 @@ const REGRESSIONS = [
             return /\bonce\s*:/.test(blank.slice(m.index, close));
         });
         const read = {};
-        for (const [file, name] of [["calls.mjs", "askHopeCallApproval"], ["monocub.mjs", "cubAbilityDialog"], ["sheet.mjs", "runCall"]]) {
+        for (const [file, name] of [["calls.mjs", "askHopeCallApproval"], ["monocub.mjs", "cubAbilityDialog"], ["sheet-actions.mjs", "runCall"]]) {
             const blank = await cut(file, name);
             must(blank.length > 0, `${file} has no ${name} - this would read nothing`);
             read[name] = calls(blank);
@@ -21817,7 +21820,7 @@ const REGRESSIONS = [
             }
             return out;
         };
-        const sheet = literalClasses("sheet.mjs"), anonymity = literalClasses("anonymity.mjs");
+        const sheet = sheetBy(literalClasses), anonymity = literalClasses("anonymity.mjs");
         must(sheet.size > 100 && anonymity.size > 2, "sheet.mjs or anonymity.mjs read no class - this test would read nothing");
         const carried = [...new Set([...parts.matchAll(/(?<![\w-])drpg-[\w-]+/g)].map(m => m[0]))].filter(c => !c.startsWith("drpg-style-"));
         const VIEWER = ["drpg-redacted-sheet"];
@@ -21950,13 +21953,23 @@ const REGRESSIONS = [
         const PREDICATE = /\bisDeceased\(|\bisDeadForGm\(|\bdeadToViewer\(|\bisMonocub\(|\bisMonokuma\(|\bisNotInClass\(|\bFLAGS\.notInClass\b|\bisMastermindActor\(|\btestUserPermission\??\.?\(|\.isOwner\b|\b\w+\??\.isGM\b|\bisEditable\b/;
         const AUDIT_ROLE = "the audit's role: which browser judges, relays or decides a write (the GMs', D2), not a view's gate";
         const ALLOWED = {
-            "sheet.mjs": {
-                sheetMode: "the one gate: the mode is built of these predicates here and nowhere else",
+            "sheet.mjs": {},
+            "sheet-mode.mjs": {
+                sheetMode: "the one gate: the mode is built of these predicates here and nowhere else"
+            },
+            "sheet-item.mjs": {
                 lockItemName: "an item's own sheet: an item has no sheet mode, and a GM keeps its name editable",
                 lockItemDescription: "an item's own sheet: the same, for its description",
-                labelItemKind: "an item's own sheet: whether a GM is told a Truth Bullet's real type",
+                labelItemKind: "an item's own sheet: whether a GM is told a Truth Bullet's real type"
+            },
+            "sheet-repaint.mjs": {},
+            "sheet-fit.mjs": {},
+            "sheet-header.mjs": {},
+            "sheet-sidebar.mjs": {},
+            "sheet-inventory.mjs": {
                 buildOtherSection: "the Remove button's write is the GM's road: its own guard before `item.delete` (R220's census), whatever drew the button"
             },
+            "sheet-actions.mjs": {},
             "sheet-audit.mjs": {
                 itemCovers: "the audit's rule of what a held item covers, read of the world on the GM's road, not a view's gate",
                 itemFindings: "the audit's rule: a dead student's held item spends nothing",
@@ -21981,7 +21994,7 @@ const REGRESSIONS = [
         const found = [], allowedRead = {};
         for (const file of Object.keys(ALLOWED)) {
             const src = strip(sources.get(file) ?? "");
-            must(src.length > 20000, `${file} read nothing - this test would read nothing`);
+            must(src.length > 2000, `${file} read nothing - this test would read nothing`);
             let name = null;
             src.split("\n").forEach((line, i) => {
                 const decl = line.match(/^(?:export )?(?:async )?(?:function\*? (\w+)|(?:const|let) (\w+))/);
@@ -22011,7 +22024,7 @@ const REGRESSIONS = [
             const hits = ["skipNextRender", "markResourceOnlyUpdate", "willReallyChange", "repaintAfterResourceUpdate"]
                 .filter(word => new RegExp(`\\b${word}\\b`).test(src));
             if (hook(src, "preUpdateActor")) hits.push("a preUpdateActor hook");
-            if (name === "sheet.mjs" && hook(src, "updateActor")) hits.push("an updateActor hook");
+            if (SHEET_FAMILY.includes(name) && hook(src, "updateActor")) hits.push("an updateActor hook");
             if (hits.length) found[name] = hits;
         }
         equal(JSON.stringify(found), "{}", "the flicker's old apparatus by file: [the four names, a preUpdateActor hook, sheet.mjs's updateActor hook]");

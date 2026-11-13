@@ -17,7 +17,7 @@ import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
-    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions
+    bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions, sheetText
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -57787,7 +57787,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const three = a => [game.drpg.isCrimeSilenced(a), game.drpg.isSilenced(a), game.drpg.isCallSilenced(a)];
         const rendered = systemSheetsAvailable();
         const readers = { isCrimeSilenced: M.isCrimeSilenced, isCallSilenced: CE.isCallSilenced, isChained: CE.isChained };
-        const guards = rendered ? [] : [...fnSource(stripComments((await moduleSources()).get("sheet.mjs") ?? ""), "standingEffects")
+        const guards = rendered ? [] : [...fnSource(stripComments(sheetText(await moduleSources())), "standingEffects")
             .matchAll(/if \((\w+)\(actor\)\) \{\s*out\.push\(\{ icon: "([\w-]+)"/g)].map(m => [m[1], m[2]]);
         const badges = async a => {
             if (!rendered) return guards.filter(([fn]) => readers[fn]?.(a)).map(([, icon]) => icon);
