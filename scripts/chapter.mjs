@@ -55,6 +55,8 @@ import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-s
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
 import { leaveBody, removeBodyTiles, bodyPlaceOf } from "./body-tile.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /* ==========================================================================
  * DEATH
  * ========================================================================== */
@@ -2035,12 +2037,12 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
     const clock = `
             ${option("endTrial", trialSitting, game.i18n.localize("DRPG.Chapter.optEndTrial"), { why: "DRPG.Chapter.optNoTrial" })}
             <label class="drpg-checkbox">
-                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
+                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"}${tipAttr("DRPG.Tips.Trial.moveToChapterToTooltip")} />
                 ${game.i18n.format("DRPG.Chapter.optNextChapter", { from: chapter, to: chapter + 1 })}</label>
             ${lastChapter ? box("warning", `<p>${game.i18n.format("DRPG.Chapter.lastChapter", {
                     n: chapter, next: chapter + 1 })}</p>`) : ""}
             <label class="drpg-checkbox">
-                <input type="checkbox" name="nextSession" checked />
+                <input type="checkbox" name="nextSession" checked${tipAttr("DRPG.Tips.Trial.countThisAsSessionTooltip")} />
                 ${game.i18n.format("DRPG.Chapter.optNextSession", { from: session, to: session + 1 })}</label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextMorning" checked />
@@ -2730,8 +2732,8 @@ async function askStoppedEnd(record) {
         // Cancel the default, as before (E42 C2). Finish runs the rest of an end and Drop gives it up for good: both cannot
         // be undone (E22 rule 4), destructive, Cancel first under Enter.
         footer: {
-            destructive: [{ action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd") },
-                { action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest") }],
+            destructive: [{ action: "finish", label: game.i18n.localize("DRPG.Chapter.finishEnd"), tooltip: tipText("DRPG.Tips.Trial.finishTheChapterSTooltip") },
+                { action: "drop", label: game.i18n.localize("DRPG.Chapter.dropRest"), tooltip: tipText("DRPG.Tips.Trial.dropTheRestTooltip") }],
             close: "cancel",
             default: "cancel"
         },

@@ -83,6 +83,8 @@ import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 import { stateHeld } from "./states.mjs";
 import { effectBadges as timedBadges } from "./timed-effects.mjs";
 
+import { tipAttr } from "./ui-kit.mjs";
+
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
  * their own questions in 27 functions - 57 lines on E24's tip that tested death, a Monocub, a Monokuma, "Not in the
@@ -2953,8 +2955,8 @@ export function knownPassageItem(row) {
         : `<span class="drpg-passage-note" data-drpg-passage-note="walk">${t("DRPG.Passage.list.walk")}</span>`;
     li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
         foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
-        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`
+        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross"${tipAttr("DRPG.Tips.Setup.goThroughTooltip")}>${t("DRPG.Passage.list.cross")}</button>` : "")
+        + `<button type="button" class="drpg-mini-button drpg-passage-show"${tipAttr("DRPG.Tips.Setup.showThePassageTooltip")}>${t("DRPG.Passage.show.button")}</button>`
         // The Mastermind's Seal on a passage at their door (E91 C5, D038; `injectKnownPassages` marks the row).
         + (row.seal ? `<button type="button" class="drpg-mini-button drpg-passage-seal" data-tooltip="${t("DRPG.Passage.list.sealTip")}">${
             t("DRPG.Passage.list.seal")}</button>` : "");

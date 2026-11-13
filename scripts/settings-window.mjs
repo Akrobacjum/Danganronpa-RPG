@@ -68,6 +68,8 @@ import { alreadyOpen, RAISED } from "./live.mjs";
 import { themeOnlyKeys, systemWantsContrast, isStainedGlass } from "./look.mjs";
 import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
 
+import { tipAttr } from "./ui-kit.mjs";
+
 /**
  * The sections of each place (Q4's seven, split by whose the setting is: E49 A1d), each `{ key, icon, place, keys }`:
  * `key` names its words (`DRPG.SettingsWindow.sections.<key>`, unique over both lists), `icon` a Font Awesome class,
@@ -269,7 +271,7 @@ export function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), p
     const open = sections.find(s => s.key === picked)?.key ?? sections[0]?.key ?? null;
     const words = s => localize(`DRPG.SettingsWindow.sections.${s.key}`);
     const list = `<nav class="drpg-settings-sections" aria-label="${esc(localize("DRPG.SettingsWindow.sectionsLabel"))}">${sections.map(s =>
-        `<button type="button" class="drpg-settings-tab" data-drpg-section="${esc(s.key)}" aria-pressed="${s.key === open}">`
+        `<button type="button" class="drpg-settings-tab" data-drpg-section="${esc(s.key)}" aria-pressed="${s.key === open}"${tipAttr("DRPG.Tips.Setup.sectionTooltip")}>`
         + `<i class="fa-solid ${esc(s.icon)}" inert></i><span>${esc(words(s))}</span><b>${s.shown.length + s.extra.count}</b></button>`).join("")}</nav>`
         + (foot ? `<div class="drpg-settings-note drpg-settings-foot">${esc(foot)}</div>` : "");
     const panes = sections.map(s => `<div class="drpg-settings-pane" data-drpg-settings-pane="${esc(s.key)}"${s.key === open ? "" : " hidden"}>${

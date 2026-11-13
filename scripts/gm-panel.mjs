@@ -31,6 +31,9 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
+
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
 
@@ -765,10 +768,12 @@ async function openFailureLog() {
                section's since Pre-season checks became part of the Season checklist (season-setup.mjs `openFoundryReport`).
                A button of the Debug log, the Diagnostics window a report of a fault starts from, not a tile of its own. */
             secondary: [
-                ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy") }] : []),
+                ...(rows.length ? [{ action: "copy", label: game.i18n.localize("DRPG.Failures.copy"),
+                    tooltip: tipText("DRPG.Tips.Gm.copyToClipboardTooltip") }] : []),
                 { action: "foundry", label: game.i18n.localize("DRPG.Panel.foundryReport") }
             ],
-            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : []
+            destructive: rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear"),
+                tooltip: tipText("DRPG.Tips.Gm.clearTheLogTooltip") }] : []
         },
         rejectClose: false
     });
@@ -1042,7 +1047,7 @@ export function nextLineHtml(step) {
     const go = nextGoKey(step?.action);
     const setup = step?.setup ? `<div class="drpg-gmp-next-setup">
             <span class="drpg-gmp-next-setup-text">${step.setup.text}</span>
-            <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}">
+            <button type="button" class="drpg-mini-button drpg-gmp-next-setup-go" data-drpg-run="${step.setup.action}"${tipAttr("DRPG.Tips.Gm.openTooltip")}>
                 ${game.i18n.localize("DRPG.Season.openIt")}</button>
         </div>` : "";
     return `<div class="drpg-gmp-next">

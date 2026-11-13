@@ -43,6 +43,8 @@ import { kitTabs, wireKitTabs, shownTab, drpgWindow, box, emptyOption, formGrid,
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { homeScene } from "./rooms.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 
 /* ==========================================================================
  * ENTRY POINT
@@ -381,7 +383,7 @@ export async function openItemManager(actor = null, { give = null } = {}) {
         classes: ["drpg-panel", "drpg-window-items"],
         body: `<form>
             <label>${game.i18n.localize("DRPG.Items.whichCharacterHub")}
-                <select name="who">${whoOptions}</select></label>
+                <select name="who"${tipAttr("DRPG.Tips.Gm.whichStudentTooltip")}>${whoOptions}</select></label>
             <div class="drpg-holdings-live">${holdingsHtml(target)}</div>
             ${kitTabs([
                 { key: "give", label: game.i18n.localize("DRPG.Items.tabGive"),
@@ -667,7 +669,7 @@ function giveExistingPane(catalogue, categories, tiers) {
     return catalogue.length
         ? formGrid([
             { label: game.i18n.localize("DRPG.Items.pickTable"), id: "drpg-give-ex-table",
-              field: `<select name="exTable" id="drpg-give-ex-table">${tableOptions}</select>` },
+              field: `<select name="exTable" id="drpg-give-ex-table"${tipAttr("DRPG.Tips.Gm.whichTableTooltip")}>${tableOptions}</select>` },
             { label: game.i18n.localize("DRPG.Items.pickExisting"), id: "drpg-give-ex-item",
               field: `<select name="exItem" id="drpg-give-ex-item">${giveItemOptionsFor(catalogue[0])}</select>` },
             { label: game.i18n.localize("DRPG.Items.category"), id: "drpg-give-ex-category",
@@ -696,10 +698,10 @@ function giveCreatePane({ categories, tiers, suggestions }) {
     const first = pickableCategories()[0]?.value ?? "";
     return formGrid([
         { label: game.i18n.localize("DRPG.Items.category"), id: "drpg-give-category",
-          field: `<select name="category" id="drpg-give-category">${categories}</select><img
+          field: `<select name="category" id="drpg-give-category"${tipAttr("DRPG.Tips.Gm.categoryTooltip")}>${categories}</select><img
                 class="drpg-give-icon" data-drpg-give-icon src="${esc(giveIconOf(first))}" alt="" width="32" height="32" />` },
         { full: kindNote("category") },
-        { label: game.i18n.localize("DRPG.Items.tier"), id: "drpg-give-tier", field: `<select name="tier" id="drpg-give-tier">${tiers}</select>` },
+        { label: game.i18n.localize("DRPG.Items.tier"), id: "drpg-give-tier", field: `<select name="tier" id="drpg-give-tier"${tipAttr("DRPG.Tips.Gm.tierTooltip")}>${tiers}</select>` },
         { label: game.i18n.localize("DRPG.Items.name"), id: "drpg-give-name",
           field: `<input type="text" name="name" id="drpg-give-name" list="drpg-item-names"
                        placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}" /><datalist id="drpg-item-names">${
@@ -1062,7 +1064,8 @@ export async function gmGiveItemDialog(actor) {
         ])}${recipientRows(recipients, "DRPG.Items.overCapNote", "drpg-give")}</form>`,
         render: (event, dialog) => { wireGiveForm(dialog); wireKindNotes(dialog); },
         footer: {
-            primary: { action: "ok", label: game.i18n.localize("DRPG.Items.give"), callback: (e, b, d) => readGiveForm(d) },
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Items.give"), callback: (e, b, d) => readGiveForm(d),
+                       tooltip: tipText("DRPG.Tips.Gm.giveAnItemTooltip") },
             close: { role: "cancel", action: "cancel" }
         },
         rejectClose: false
@@ -1186,7 +1189,7 @@ function bulletTraceOptions(traces, who, traceContextLine) {
 
 /** The "shown as" select: let the rules decide, Neutral, or the real type. */
 function bulletShownSelect(name) {
-    return `<select name="${name}" id="drpg-bullet-${name}">
+    return `<select name="${name}" id="drpg-bullet-${name}"${tipAttr("DRPG.Tips.Gm.whatThePlayerIsTooltip")}>
                 <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
                 <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
                 <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
@@ -1202,7 +1205,7 @@ function bulletExistingPane(traces, initial, traceContextLine) {
     return traces.length
         ? formGrid([
             { label: game.i18n.localize("DRPG.TruthBullet.pickRemnant"), id: "drpg-bullet-remnant",
-              field: `<select name="remnant" id="drpg-bullet-remnant">${bulletTraceOptions(traces, initial, traceContextLine)}</select>` },
+              field: `<select name="remnant" id="drpg-bullet-remnant"${tipAttr("DRPG.Tips.Gm.whichRemnantTooltip")}>${bulletTraceOptions(traces, initial, traceContextLine)}</select>` },
             { label: game.i18n.localize("DRPG.TruthBullet.name"), id: "drpg-bullet-ex-name",
               field: `<input type="text" name="exName" id="drpg-bullet-ex-name" value="${esc(firstName)}" />` },
             { label: game.i18n.localize("DRPG.TruthBullet.shown"), id: "drpg-bullet-exShown", field: bulletShownSelect("exShown") },
@@ -1222,9 +1225,9 @@ function bulletCreatePane({ nameField = "name" } = {}) {
     return formGrid([
         row("DRPG.TruthBullet.name", "drpg-bullet-name", `<input type="text" name="${nameField}" id="drpg-bullet-name"
                        placeholder="${game.i18n.localize("DRPG.TruthBullet.namePlaceholder")}" />`),
-        row("DRPG.TruthBullet.realType", "drpg-bullet-realType", `<select name="realType" id="drpg-bullet-realType">${typeOptions("neutral")}</select>`),
+        row("DRPG.TruthBullet.realType", "drpg-bullet-realType", `<select name="realType" id="drpg-bullet-realType"${tipAttr("DRPG.Tips.Gm.whatItReallyIsTooltip")}>${typeOptions("neutral")}</select>`),
         row("DRPG.TruthBullet.shown", "drpg-bullet-shown", bulletShownSelect("shown")),
-        row("DRPG.TruthBullet.visibility", "drpg-bullet-visibility", `<select name="visibility" id="drpg-bullet-visibility">${visibilityOptions("evident")}</select>`),
+        row("DRPG.TruthBullet.visibility", "drpg-bullet-visibility", `<select name="visibility" id="drpg-bullet-visibility"${tipAttr("DRPG.Tips.Gm.howHardTheOriginalTooltip")}>${visibilityOptions("evident")}</select>`),
         check("faint", "DRPG.TruthBullet.faintField"),
         check("tied", "DRPG.TruthBullet.tiedField"),
         row("DRPG.TruthBullet.playerText", "drpg-bullet-playerText", text("playerText", "DRPG.TruthBullet.playerTextPlaceholder")),
@@ -1471,7 +1474,8 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
         ], { active: traces.length ? "existing" : "create" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet")}</form>`,
         render: (event, dialog) => wireBulletForm(dialog, traces, traceContextLine),
         footer: {
-            primary: { action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), callback: (e, b, d) => readBulletForm(d) },
+            primary: { action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), callback: (e, b, d) => readBulletForm(d),
+                       tooltip: tipText("DRPG.Tips.Gm.giveATruthBulletTooltip") },
             close: { role: "cancel", action: "cancel" }
         },
         rejectClose: false
@@ -1732,7 +1736,7 @@ async function takeItemDialog(actor, { only = null } = {}) {
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
                 <select name="item">${optionsFor(initial)}</select></label>
             <label class="drpg-checkbox">
-                <input type="checkbox" name="tell" checked />
+                <input type="checkbox" name="tell" checked${tipAttr("DRPG.Tips.Gm.tellThePlayerTooltip")} />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
         </form>`,
         render: (event, dialog) => {

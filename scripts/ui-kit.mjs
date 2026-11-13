@@ -305,9 +305,10 @@ const pressable = footer => [...(footer?.querySelectorAll("button[data-action]")
 /** The key a section opens on: `active` when a section has it, else the first. */
 const openKey = (sections, active) => (sections.some(s => s.key === active) ? active : sections[0]?.key ?? null);
 
+/** A tab bar; a section's `tooltip` (text) is its tab's `data-tooltip` (E102 C1, 13.11.2026). */
 function tabNav(sections, open) {
     return `<nav class="drpg-tabs" role="tablist">${sections.map(s =>
-        `<button type="button" role="tab" data-drpg-tab-key="${esc(s.key)}" aria-selected="${s.key === open}">${esc(s.label)}</button>`).join("")}</nav>`;
+        `<button type="button" role="tab" data-drpg-tab-key="${esc(s.key)}" aria-selected="${s.key === open}"${s.tooltip ? ` data-tooltip="${esc(s.tooltip)}"` : ""}>${esc(s.label)}</button>`).join("")}</nav>`;
 }
 
 function tabPanes(sections, open) {
@@ -738,6 +739,37 @@ export function emptyState(key, data = null) {
 /** Fine print: one line of help in the kit's fine-print ink (I1, the owner's choice on 04.11.2026). */
 export function helpText(key, data = null) {
     return `<p class="drpg-help">${esc(data ? game.i18n.format(key, data) : localize(key))}</p>`;
+}
+
+/**
+ * A control's tooltip (E102 C1, 13.11.2026; the owner's stage "Tooltips across the module"): the words of `key` in the
+ * reader's language, formatted with `data` when given. `tipText` is the words alone (a `dataset.tooltip`, a footer
+ * button's `tooltip:`, a tab's); `tipAttr` the attribute to write into a control's tag, with its leading space -
+ * Foundry's `data-tooltip`, as the stepper's - and + and the icon buttons carry, or with `{ title: true }` the browser's
+ * `title`, the footer's form (a disabled button shows a title; Foundry's tooltip over one was not tried on v14,
+ * LIVE-E102-01).
+ * A key with no words in either language draws nothing, never the raw key.
+ */
+export function tipText(key, data = null) {
+    const words = data ? game.i18n.format(key, data) : localize(key);
+    return typeof words === "string" && words && words !== key ? words : "";
+}
+
+export function tipAttr(key, data = null, { title = false } = {}) {
+    const words = tipText(key, data);
+    return words ? ` ${title ? "title" : "data-tooltip"}="${esc(words)}"` : "";
+}
+
+/**
+ * The same words on an element made in code (E102; REVIEW-E102-code C5): `dataset.tooltip`, or with `{ text: true }`
+ * `dataset.tooltipText` - Foundry's plain-text form, which the room tile and the voice tile use for every tooltip (their
+ * headers say why). Written only when the key has words: an empty `data-tooltip` makes Foundry read the element's
+ * `aria-label` through `cleanHTML` (the E02-D01 hole, R509). Returns the element.
+ */
+export function setTip(el, key, data = null, { text = false } = {}) {
+    const words = tipText(key, data);
+    if (el && words) el.dataset[text ? "tooltipText" : "tooltip"] = words;
+    return el;
 }
 
 /**

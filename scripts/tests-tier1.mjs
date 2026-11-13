@@ -14600,7 +14600,7 @@ const INVARIANTS = [
             const prose = box.querySelector(".drpg-room-tile-prose"), name = box.querySelector(".drpg-room-tile-name");
             const art = box.querySelector(".drpg-room-tile-art"), thumb = box.querySelector(".drpg-room-tile-thumb > img");
             return [prose?.textContent === HOSTILE && prose.childElementCount === 0, name?.textContent === "R505 <b>Hall</b>" && name.childElementCount === 0,
-                [...box.querySelectorAll("img, script, iframe, b")].filter(el => el !== thumb).length, box.querySelectorAll("[data-tooltip]").length,
+                [...box.querySelectorAll("img, script, iframe, b")].filter(el => el !== thumb).length, [...box.querySelectorAll("[data-tooltip]")].filter(el => el.dataset.tooltip !== game.i18n.localize("DRPG.Tips.Setup.roomPictureThumbnailTooltip")).length,   // the thumbnail's own words (E102) are no GM's
                 art?.style.backgroundImage ?? null, Boolean(box.querySelector(".drpg-room-tile-open")),
                 thumb?.getAttribute("src") ?? null, Boolean(box.querySelector(".drpg-room-tile-describe"))];
         };
@@ -26147,6 +26147,363 @@ const INVARIANTS = [
         }), "[the primary leaving with a second GM here: the wait's end at once, what it sent], [the only GM leaving: still waiting, then the clock's end and its expiry] - the wait does not end at once only when another GM takes over, the lone GM's leaving ended it, or the clock told the GMs nothing");
     }],
 
+    ["R4750 - a control's tooltip comes from the kit (E102 C1, 13.11.2026; the owner's stage \"Tooltips across the module\"): ui-kit.mjs `tipText(key, data)` is the key's words in the reader's language, formatted with `data`, and \"\" for a key with no words; `tipAttr` is the ` data-tooltip=\"...\"` a tag takes, escaped, or ` title=\"...\"` with `{ title: true }`, and \"\" for a key with no words (never the raw key); a kit tab bar draws a section's `tooltip` as its tab's `data-tooltip`, and a section with none as before", async () => {
+        /* Red at 813d506d: ui-kit.mjs exports neither tipText nor tipAttr, and a tab bar drops a section's tooltip. */
+        const K = await import("./ui-kit.mjs");
+        must(typeof K.tipAttr === "function" && typeof K.tipText === "function", "ui-kit.mjs has no tipAttr or tipText - a control's tooltip has no one place");
+        const key = "DRPG.Look.stepDownBy", data = { n: '"<5>' };
+        const words = game.i18n.format(key, data);
+        must(typeof words === "string" && words !== key && words.includes('"<5>'), `${key} has no words with {n} in this language - this would measure nothing`);
+        const host = document.createElement("div");
+        host.innerHTML = `<button type="button"${K.tipAttr(key, data)}>a</button><button type="button"${K.tipAttr(key, data, { title: true })}>b</button>`
+            + K.kitTabBar([{ key: "one", label: "One", tooltip: 'Say "one"' }, { key: "two", label: "Two" }]);
+        const [a, b] = host.querySelectorAll(":scope > button");
+        const tabs = [...host.querySelectorAll('nav.drpg-tabs > button[role="tab"]')];
+        equal(stableJson({
+            text: K.tipText(key, data) === words, none: [K.tipText("DRPG.Tips.NoSuch.keyTooltip"), K.tipAttr("DRPG.Tips.NoSuch.keyTooltip")],
+            attr: [a?.dataset.tooltip === words, a?.hasAttribute("title")], title: [b?.title === words, b?.hasAttribute("data-tooltip")],
+            tabs: tabs.map(t => [t.dataset.drpgTabKey, t.textContent, t.hasAttribute("data-tooltip") ? t.dataset.tooltip : null])
+        }), stableJson({
+            text: true, none: ["", ""], attr: [true, false], title: [true, false],
+            tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
+        }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
+    }],
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 32 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
+        const TIPS = [
+            ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
+            ["DRPG.Tips.Actions.statisticTooltip","action-dynamic.mjs","askDynamicDifficulty"],
+            ["DRPG.Tips.Actions.refuseTooltip","action-dynamic.mjs","askDynamicDifficulty"],
+            ["DRPG.Tips.Actions.doItTooltip","rest.mjs","choosePicks"],
+            ["DRPG.Tips.Actions.detailsTooltip","action-menus.mjs","detailsHtml"],
+            ["DRPG.Tips.Actions.makeTheAttemptTooltip","action-menus.mjs","promptForNote"],
+            ["DRPG.Tips.Actions.scaleTooltip","action-project.mjs","startProject"],
+            ["DRPG.Tips.Actions.roomTooltip","action-project.mjs","startProject"],
+            ["DRPG.Tips.Actions.requiredWorkTooltip","action-project.mjs","startProject"],
+            ["DRPG.Tips.Actions.itAppliesTooltip","calls.mjs","askHopeCallApproval"],
+            ["DRPG.Tips.Actions.letThemLookTooltip","frisk.mjs","openAskWindow"],
+            ["DRPG.Tips.Actions.leaveItTooltip","frisk.mjs","askToForce"],
+            ["DRPG.Tips.Actions.nextTooltip","call-pickers.mjs","pickText"],
+            ["DRPG.Tips.Actions.indirectMurderAProjectTooltip","projects-ui.mjs","projectManagerRows"],
+            ["DRPG.Tips.Actions.secretAProjectSTooltip","projects-ui.mjs","projectManagerRows"],
+            ["DRPG.Tips.Actions.onlyAfterDarkTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.notTheOneWhoTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.room2Tooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.requiredWork2Tooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.aPlayerSOnTooltip","projects-ui.mjs","viewerTicks"],
+            ["DRPG.Tips.Actions.shareTooltip","projects-ui.mjs","openProjectManager"],
+            ["DRPG.Tips.Actions.deleteTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.share2Tooltip","projects-ui.mjs","openShareDialog"],
+            ["DRPG.Tips.Actions.revokeAccessTooltip","projects-ui.mjs","openShareDialog"],
+            ["DRPG.Tips.Actions.useItTooltip","use-items.mjs","askWhichResource"],
+            ["DRPG.Tips.Actions.clearTheOverflowTooltip","overflow.mjs","overflowSection"],
+            ["DRPG.Tips.Actions.onPerRuleTooltip","overflow.mjs","overflowSection"],
+            ["DRPG.Tips.Actions.grantAllGrantNoneTooltip","roll-draw.mjs","cardButton"],
+            ["DRPG.Tips.Actions.frameStudentTooltip","action-tamper.mjs","chooseTamper"],
+            ["DRPG.Tips.Actions.nothingMatchesRefuseTooltip","observe.mjs","askWhichRemnant"],
+            ["DRPG.Tips.Actions.indirectMurderWindowTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.doItCostTooltip","rest.mjs","choosePicks"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 32, "lang/en.json has not the family's 32 keys under DRPG.Tips.Actions");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
+        const TIPS = [
+            ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
+            ["DRPG.Tips.Trial.countThisAsSessionTooltip","chapter.mjs","chapterEndForm"],
+            ["DRPG.Tips.Trial.finishTheChapterSTooltip","chapter.mjs","askStoppedEnd"],
+            ["DRPG.Tips.Trial.dropTheRestTooltip","chapter.mjs","askStoppedEnd"],
+            ["DRPG.Tips.Trial.bodyFoundTooltip","murder-rules.mjs","afterIncident"],
+            ["DRPG.Tips.Trial.moveToInvestigationTooltip","murder-rules.mjs","afterIncident"],
+            ["DRPG.Tips.Trial.issueAutopsyTruthBulletTooltip","murder-rules.mjs","afterIncident"],
+            ["DRPG.Tips.Trial.openTheRemnantTableTooltip","murder-rules.mjs","afterEscape"],
+            ["DRPG.Tips.Trial.giveTooltip","mastermind.mjs","mastermindHopeBox"],
+            ["DRPG.Tips.Trial.amountTooltip","mastermind.mjs","mastermindHopeBox"],
+            ["DRPG.Tips.Trial.upTooltip","trial-floor-ui.mjs","openRoundWindow"],
+            ["DRPG.Tips.Trial.aClosingArgumentTooltip","trial-floor-ui.mjs","closingButton"],
+            ["DRPG.Tips.Trial.trialEvidenceLogTooltip","trial-floor-ui.mjs","logButton"],
+            ["DRPG.Tips.Trial.findingsNTooltip","trial-floor-ui.mjs","logButton"],
+            ["DRPG.Tips.Trial.pickASpeakerTooltip","trial-floor-ui.mjs","pickClosingDialog"],
+            ["DRPG.Tips.Trial.zoneAZoneBTooltip","trial-scene.mjs","scenesZoneRows"],
+            ["DRPG.Tips.Trial.schoolTrialHallTooltip","trial-scene.mjs","scenesTabRows"],
+            ["DRPG.Tips.Trial.rightAnswerZoneATooltip","trial-zones-ui.mjs","questionRows"],
+            ["DRPG.Tips.Trial.findingWhenSolvedTooltip","trial-zones-ui.mjs","editDiveSet"],
+            ["DRPG.Tips.Trial.thesisTooltip","trial-zones-ui.mjs","pickerHtml"],
+            ["DRPG.Tips.Trial.setTooltip","trial-zones-ui.mjs","pickerHtml"],
+            ["DRPG.Tips.Trial.editTooltip","trial-zones-ui.mjs","findingsListHtml"],
+            ["DRPG.Tips.Trial.deleteTooltip","trial-zones-ui.mjs","findingsListHtml"],
+            ["DRPG.Tips.Trial.monokumaConfirmsTooltip","trial-zones-ui.mjs","findingsListHtml"],
+            ["DRPG.Tips.Trial.saveTooltip","trial-zones-ui.mjs","askFindingText"],
+            ["DRPG.Tips.Trial.saySomethingWithItTooltip","trial.mjs","pickObjectionEvidence"],
+            ["DRPG.Tips.Trial.overruleTooltip","trial.mjs","openObjectionLog"],
+            ["DRPG.Tips.Trial.rePointTooltip","trial.mjs","repointDialog"],
+            ["DRPG.Tips.Trial.callItNameTooltip","cleanup.mjs","reshapeFields"],
+            ["DRPG.Tips.Trial.andItLooksLikeTooltip","cleanup.mjs","reshapeFields"],
+            ["DRPG.Tips.Trial.whichRemnantTooltip","cleanup.mjs","openCleanupDialog"],
+            ["DRPG.Tips.Trial.scrubAtItTooltip","cleanup.mjs","openCleanupDialog"],
+            ["DRPG.Tips.Trial.carryItThereTooltip","cleanup.mjs","openMoveBodyDialog"],
+            ["DRPG.Tips.Trial.killerTooltip","murder-ui.mjs","openMurderDialog"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Trial");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 38 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
+        const TIPS = [
+            ["DRPG.Tips.Gm.minusTooltip","despair.mjs","buildRow"],
+            ["DRPG.Tips.Gm.plusTooltip","despair.mjs","buildRow"],
+            ["DRPG.Tips.Gm.whichStudentTooltip","gm-items.mjs","openItemManager"],
+            ["DRPG.Tips.Gm.whichTableTooltip","gm-items.mjs","giveExistingPane"],
+            ["DRPG.Tips.Gm.categoryTooltip","gm-items.mjs","giveCreatePane"],
+            ["DRPG.Tips.Gm.tierTooltip","gm-items.mjs","giveCreatePane"],
+            ["DRPG.Tips.Gm.whatThePlayerIsTooltip","gm-items.mjs","bulletShownSelect"],
+            ["DRPG.Tips.Gm.whichRemnantTooltip","gm-items.mjs","bulletExistingPane"],
+            ["DRPG.Tips.Gm.whatItReallyIsTooltip","gm-items.mjs","bulletCreatePane"],
+            ["DRPG.Tips.Gm.howHardTheOriginalTooltip","gm-items.mjs","bulletCreatePane"],
+            ["DRPG.Tips.Gm.tellThePlayerTooltip","gm-items.mjs","takeItemDialog"],
+            ["DRPG.Tips.Gm.giveAnItemTooltip","gm-items.mjs","gmGiveItemDialog"],
+            ["DRPG.Tips.Gm.giveATruthBulletTooltip","gm-items.mjs","giveTruthBulletDialog"],
+            ["DRPG.Tips.Gm.poolNameTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.revokeThePoolFromTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.despairPoolTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip","gm-team-dialog.mjs","buildContent"],
+            ["DRPG.Tips.Gm.undoKeepTooltip","sheet-audit.mjs","auditButton"],
+            ["DRPG.Tips.Gm.showAgainTooltip","diagnostics.mjs","openReport"],
+            ["DRPG.Tips.Gm.openTooltip","gm-panel.mjs","nextLineHtml"],
+            ["DRPG.Tips.Gm.copyToClipboardTooltip","gm-panel.mjs","openFailureLog"],
+            ["DRPG.Tips.Gm.clearTheLogTooltip","gm-panel.mjs","openFailureLog"],
+            ["DRPG.Tips.Gm.doNotMentionFoundTooltip","requirements.mjs","announceNewerSystem"],
+            ["DRPG.Tips.Gm.monokumaPoolTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.giveTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.stateTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.aCharacterDiesTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.inviteAsAMonocubTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.roleTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.amountTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.campaignNameTooltip","gm-campaign.mjs","campaignRows"],
+            ["DRPG.Tips.Gm.phaseTooltip","gm-campaign.mjs","campaignRows"],
+            ["DRPG.Tips.Gm.chapterTooltip","gm-campaign.mjs","campaignRows"],
+            ["DRPG.Tips.Gm.keepTheMastermindTooltip","gm-stores.mjs","runHealthCheck"],
+            ["DRPG.Tips.Gm.restoreFromAFileTooltip","gm-stores.mjs","runHealthCheck"],
+            ["DRPG.Tips.Gm.clearTheMastermindTooltip","gm-stores.mjs","runHealthCheck"],
+            ["DRPG.Tips.Gm.backUpTooltip","gm-stores.mjs","openCaseWindow"],
+            ["DRPG.Tips.Gm.enterTooltip","gm-stores.mjs","enterCastByHand"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        // 38 since the 1.2.112 tree: studentsTooltip went with the Students left line's button (E101, R4054) and give2Tooltip with
+        // the Monocubs window (E72 C6), as docs/dev/e102/STATUS.md "Open" planned.
+        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 38, "lang/en.json has not the family's 38 keys under DRPG.Tips.Gm");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4754 - the setup windows, the sheet and the other panels draw their tooltips (E102 C5, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 28 keys under DRPG.Tips.Setup has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 6c2a7935 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Setup key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
+        const TIPS = [
+            ["DRPG.Tips.Setup.roomPictureThumbnailTooltip","room-tile.mjs","paintTileRow"],
+            ["DRPG.Tips.Setup.resetTheSeasonTooltip","season-setup.mjs","seasonResetPart"],
+            ["DRPG.Tips.Setup.setThemToObserverTooltip","anonymity.mjs","auditAnonymity"],
+            ["DRPG.Tips.Setup.onALootedItemTooltip","anonymity.mjs","buildBodyLoot"],
+            ["DRPG.Tips.Setup.chatNoteTabsTooltip","messenger-app.mjs","openMessenger"],
+            ["DRPG.Tips.Setup.useTheTemplateTooltip","messenger-app.mjs","openMessenger"],
+            ["DRPG.Tips.Setup.sectionTooltip","settings-window.mjs","sectionColumns"],
+            ["DRPG.Tips.Setup.goThroughTooltip","sheet.mjs","knownPassageItem"],
+            ["DRPG.Tips.Setup.showThePassageTooltip","sheet.mjs","knownPassageItem"],
+            ["DRPG.Tips.Setup.iPickThePlayerTooltip","level-up.mjs","askWhoPicks"],
+            ["DRPG.Tips.Setup.applyTooltip","level-up.mjs","openAdvancement"],
+            ["DRPG.Tips.Setup.handThemOutTooltip","level-up.mjs","askWhoPicks"],
+            ["DRPG.Tips.Setup.allThePlayersPickTooltip","level-up.mjs","askWhoPicks"],
+            ["DRPG.Tips.Setup.aStudentSNameTooltip","passages-tab.mjs","adder"],
+            ["DRPG.Tips.Setup.aStudentWhoKnowsTooltip","passages-tab.mjs","rowHtml"],
+            ["DRPG.Tips.Setup.aStudentKnownAtTooltip","passages-tab.mjs","rowHtml"],
+            ["DRPG.Tips.Setup.playlistForAStateTooltip","sound-panel.mjs","musicMapTable"],
+            ["DRPG.Tips.Setup.playTooltip","sound-panel.mjs","soundPlayPane"],
+            ["DRPG.Tips.Setup.closeXTooltip","popup.mjs","showPopup"],
+            ["DRPG.Tips.Setup.nameInATableTooltip","tables-editor.mjs","tableRowHtml"],
+            ["DRPG.Tips.Setup.categoryTooltip","tables-editor.mjs","newItemPaneHtml"],
+            ["DRPG.Tips.Setup.deleteTableTooltip","tables-editor.mjs","poolPaneHtml"],
+            ["DRPG.Tips.Setup.tabsTierPoolsRoomTooltip","tables-editor.mjs","openItemTables"],
+            ["DRPG.Tips.Setup.addAnItemTooltip","tables-editor.mjs","openItemTables"],
+            ["DRPG.Tips.Setup.createTableTooltip","tables-editor.mjs","openItemTables"],
+            ["DRPG.Tips.Setup.installReinstallTooltip","tables-editor.mjs","openItemTables"],
+            ["DRPG.Tips.Setup.resetMusicTooltip","sound-panel.mjs","soundPlayPane"],
+            ["DRPG.Tips.Setup.aStudentSNameStartTooltip","passages-tab.mjs","adder"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 28, "lang/en.json has not the family's 28 keys under DRPG.Tips.Setup");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the five tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control, each site counted (REVIEW-E102-code C7: the Secret box twice in projects-ui.mjs, the zone select, a Finding's confirm, the Sound window's Play)", async () => {
+        /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const T = l => l.DRPG?.Tips ?? {};
+        must(Object.keys(T(en)).length >= 4 && Object.keys(T(pl)).length >= 4, "lang has no DRPG.Tips families - this would measure nothing");
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const [dyn, rest, projects, scene, zones, sound] = await Promise.all(["action-dynamic.mjs", "rest.mjs", "projects-ui.mjs", "trial-scene.mjs", "trial-zones-ui.mjs", "sound-panel.mjs"].map(read));
+        must([dyn, rest, projects, scene, zones, sound].every(s => s.length > 500), "a script read as nothing - this would measure nothing");
+        const titled = (src, key) => [(src.match(new RegExp(`tipAttr\\(\\s*"DRPG\\.Tips\\.${key.replace(/\./g, "\\.")}",\\s*null,\\s*\\{\\s*title:\\s*true\\s*\\}\\)`, "g")) ?? []).length,
+            (src.match(new RegExp(`tipAttr\\(\\s*"DRPG\\.Tips\\.${key.replace(/\./g, "\\.")}"`, "g")) ?? []).length];
+        const cost = T(en).Actions?.doItCostTooltip, costPl = T(pl).Actions?.doItCostTooltip;
+        equal(stableJson({
+            passesAt: /roll\.total\s*>=\s*dynamicBar\(band\)/.test(dyn),
+            difficulty: [/\bbeat\b/i.test(T(en).Actions?.difficultyTooltip ?? "beat"), /przebi/i.test(T(pl).Actions?.difficultyTooltip ?? "przebić")],
+            anyRoom: [/any room/i.test(T(en).Actions?.room2Tooltip ?? ""), /dowoln/i.test(T(pl).Actions?.room2Tooltip ?? "")],
+            frisk: /Zobaczą|miałeś/.test(T(pl).Actions?.letThemLookTooltip ?? "Zobaczą"),
+            rest: [/choosePicks\(kind,\s*rules\.picks,\s*cost\)/.test(rest), /plural\("DRPG\.Tips\.Actions\.doItCostTooltip",\s*\{\s*n:\s*cost\s*\}\)/.test(rest),
+                cost && typeof cost === "object" ? Object.keys(cost).sort() : null, costPl && typeof costPl === "object" ? Object.keys(costPl).sort() : null],
+            escape: /window with the Remnants/i.test(T(en).Trial?.openTheRemnantTableTooltip ?? "window with the Remnants"),
+            gone: ["Actions.whichRemnantEraseATooltip", "Trial.endAndMoveTheTooltip", "Trial.endWithoutAdvancingTooltip", "Trial.endTheMurderTooltip"]
+                .filter(k => k.split(".").reduce((x, p) => x?.[p], T(en)) !== undefined || k.split(".").reduce((x, p) => x?.[p], T(pl)) !== undefined),
+            titled: [titled(projects, "Actions.secretAProjectSTooltip"), titled(scene, "Trial.zoneAZoneBTooltip"), titled(zones, "Trial.monokumaConfirmsTooltip"), titled(sound, "Setup.playTooltip")]
+        }), stableJson({
+            passesAt: true, difficulty: [false, false], anyRoom: [true, true], frisk: false,
+            rest: [true, true, ["one", "other"], ["few", "many", "one", "other"]], escape: false, gone: [], titled: [[2, 2], [1, 1], [1, 1], [1, 1]]
+        }), "{the roll passes at the number; 'beat' in the difficulty's words (en, pl); any room in the room's (en, pl); the Polish Frisk answer's plural or gendered form; Rest passes the cost, draws the plural key, its forms (en, pl); the escape's words promise a filtered window; dropped keys still in lang; each disabled-at-times key's [sites with title, sites in all] in projects-ui, trial-scene, trial-zones-ui, sound-panel}");
+    }],
+    ["R4761 - the voice list's volume and push-to-talk's key button draw their tooltips (E102 C8, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 2 keys under DRPG.Tips.More has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it where that control draws it (tests-tips.mjs `tipPlacement`: inside the control's own tag and not as a condition, as a labelled button's or tab's `tooltip`, in a builder's `data-tooltip` attrs, by `setTip`, or through a named local helper that writes it; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 1957091a with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.More key. Since REVIEW-E102-code C1: where the key lands, not only that it is named - red on the review's planted ternary that names the key and draws nothing (action-dynamic.mjs:336). */
+        const TIPS = [
+            ["DRPG.Tips.More.volumeTooltip","voice-tile.mjs","listRow"],
+            ["DRPG.Tips.More.changeTheKeyTooltip","voice-panel.mjs","voiceFieldset"]
+        ];
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = (o, k) => k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o);
+        const src = new Map();
+        for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
+        must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
+        must(Object.keys(words(en, "DRPG.Tips.More") ?? {}).length === 2, "lang/en.json has not the family's 2 keys under DRPG.Tips.More");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
+        const P = await import("./tests-tips.mjs");
+        must(P.tipPlacementSelfCheck().length === 0, `tests-tips.mjs misreads its own plants: ${P.tipPlacementSelfCheck().join("; ")}`);
+        const helpers = P.HELPERS.filter(([f]) => src.has(f)).filter(([f, fn, arg]) => !P.helperWrites(src.get(f), fn, arg)).map(([f, fn]) => `${f} ${fn}() writes no tooltip from its argument`);
+        const bad = TIPS.filter(([k, f, unit]) => {
+            const body = unit ? fnSource(src.get(f), unit) : src.get(f);
+            return !(P.tipPlacement(body, k, f) && fits(words(en, k)) && fits(words(pl, k)));
+        }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`).concat(helpers);
+        equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4762 - the GM panels' and the setup windows' tooltips say what the code does (E102, the review of C4 and C5: docs/dev/gaps/REVIEW-102-C4C5.md on claude/gaps-radio, G1, G2, G4, S1, S2): a new Monocub's Health and Sanity are full, said as the reserve (M7, R1448), not at zero (`setMonocub` writes 0 marks, monocub.mjs); an item's tier is durability for a tool or weapon and what it restores for a usable (ITEM_DURABILITY 0 and 1 alike, USABLE_EFFECTS); the GM's track also ends at a state with its own music (`cueGivesWay`); Observer lowers every player's default and each sheet's own player keeps it (`fixExposed` writes ownership.default alone); the Students window's donor select reads the one donor key (the Monocub window's went with it, E72 C6)", async () => {
+        /* Red at c770b266: "at zero", "Higher tiers last longer", "until Reset music" alone, "no longer owns them", despairPool2Tooltip in monocub.mjs. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const T = l => l.DRPG?.Tips ?? {};
+        must(Object.keys(T(en).Gm ?? {}).length > 10 && Object.keys(T(en).Setup ?? {}).length > 10, "lang has no DRPG.Tips.Gm or .Setup - this would measure nothing");
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        // The Monocubs window and its donor select went with E72 C6 (merged in the 1.2.112 tree): the Students window's alone.
+        const [students] = await Promise.all(["gm-students.mjs"].map(read));
+        must(students.length > 500, "a script read as nothing - this would measure nothing");
+        const g = (f, k, l = en) => String(T(l)[f]?.[k] ?? "");
+        equal(stableJson({
+            monocub: [/at zero|na zero/i.test(g("Gm", "inviteAsAMonocubTooltip") + g("Gm", "inviteAsAMonocubTooltip", pl)), /full/i.test(g("Gm", "inviteAsAMonocubTooltip")) && /pełn/i.test(g("Gm", "inviteAsAMonocubTooltip", pl))],
+            tier: [/last longer|wytrzymuje dłużej/i.test(g("Gm", "tierTooltip") + g("Gm", "tierTooltip", pl)), /usable/i.test(g("Gm", "tierTooltip")), /użytkow/i.test(g("Gm", "tierTooltip", pl))],
+            play: [/state with its own music/i.test(g("Setup", "playTooltip")), /własną muzyką/i.test(g("Setup", "playTooltip", pl))],
+            observer: [/no longer owns|przestaje być/i.test(g("Setup", "setThemToObserverTooltip") + g("Setup", "setThemToObserverTooltip", pl)), /own player keeps/i.test(g("Setup", "setThemToObserverTooltip"))],
+            donor: [/tipAttr\("DRPG\.Tips\.Gm\.monokumaPoolTooltip"\)/.test(students),
+                T(en).Gm?.despairPool2Tooltip === undefined && T(pl).Gm?.despairPool2Tooltip === undefined]
+        }), stableJson({
+            monocub: [false, true], tier: [false, true, true], play: [true, true], observer: [false, true], donor: [true, true]
+        }), "{a new Monocub: 'at zero', 'full' in en and pl; tier: 'last longer', a usable in en and pl; play: a state with its own music in en and pl; Observer: 'no longer owns', the own player keeps; the donor key in the Students window and the old one gone}");
+    }],
+    ["R4763 - a card's close button says the notice history keeps the card only when it does (E102; REVIEW-102-C4C5 S7 as corrected at 6732a09d on claude/gaps-radio: `record: false` on showWaiting and on the ready round's card is deliberate): popup.mjs `showPopup` writes DRPG.Tips.Setup.closeXTooltip on the close only under `record` (`if (record) setTip(close, ...)`), and a drawn `record: false` card's close carries no data-tooltip and keeps its aria-label. The recorded card is drawn by scenario 95 (REVIEW-E102-code C8): drawn here it makes this browser's notice history write its section, which a later write in the same run keeps, and tier 1 must change nothing (measured 13.11.2026)", async () => {
+        /* Red at 34c2fac7: every card's close said "the notice history keeps it", a record: false card's too. */
+        const own = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/popup.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(own.length > 500, "popup.mjs read as nothing - this would measure nothing");
+        const body = fnSource(own, "showPopup");
+        const { showPopup } = await import("./popup.mjs");
+        const host = () => document.getElementById("drpg-popups");
+        const before = new Set(host()?.querySelectorAll(".drpg-popup") ?? []);
+        const dismiss = showPopup("<p>R4763</p>", { title: "R4763", record: false, sticky: true });
+        try {
+            await wait(50);
+            const card = [...(host()?.querySelectorAll(".drpg-popup") ?? [])].find(c => !before.has(c));
+            must(card, "showPopup drew no card - this would measure nothing");
+            const close = card.querySelector(".drpg-popup-close");
+            equal(stableJson({
+                guarded: /if\s*\(\s*record\s*\)\s*setTip\(\s*close,\s*"DRPG\.Tips\.Setup\.closeXTooltip"\s*\)/.test(body),
+                unguarded: /^\s*(?:close\.dataset\.tooltip\s*=|setTip\(\s*close\b)/m.test(body),
+                drawn: close ? [close.hasAttribute("data-tooltip"), Boolean(close.getAttribute("aria-label"))] : null
+            }), stableJson({ guarded: true, unguarded: false, drawn: [false, true] }),
+            "{the close's tooltip written under record; written for every card; a record: false card's close [has data-tooltip, has its aria-label]}");
+        } finally {
+            if (typeof dismiss === "function") dismiss();
+        }
+    }],
+    ["R4764 - a tooltip written in code is written only when it has words, through one kit helper (E102; REVIEW-E102-code C5, C6 on claude/e93 de7aff40): ui-kit.mjs `setTip(el, key, data, { text })` sets `dataset.tooltip`, or `dataset.tooltipText` with `text: true`, only when the key has words, and leaves the element alone otherwise (an empty data-tooltip makes Foundry read the aria-label through cleanHTML, the E02-D01 hole, R509); the six controls made in code take their tooltip through it, the room tile and the voice tile in the `data-tooltip-text` form their files' headers name, and none writes `dataset.tooltip = tipText(` by hand", async () => {
+        /* Red at 7f42e72b: no setTip; six `dataset.tooltip = tipText(` by hand, two of them in the tile files. */
+        const K = await import("./ui-kit.mjs");
+        must(typeof K.setTip === "function", "ui-kit.mjs has no setTip - the six sites have no one place");
+        const key = "DRPG.Look.stepDownBy", words = game.i18n.format(key, { n: 3 });
+        must(typeof words === "string" && words !== key, `${key} has no words here - this would measure nothing`);
+        const a = document.createElement("button"), b = document.createElement("button"), c = document.createElement("button");
+        K.setTip(a, key, { n: 3 }); K.setTip(b, key, { n: 3 }, { text: true }); K.setTip(c, "DRPG.Tips.NoSuch.keyTooltip");
+        const files = ["anonymity.mjs", "messenger-app.mjs", "popup.mjs", "room-tile.mjs", "voice-panel.mjs", "voice-tile.mjs"];
+        const src = Object.fromEntries(await Promise.all(files.map(async f => [f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")))])));
+        must(files.every(f => src[f].length > 500), "a script read as nothing - this would measure nothing");
+        const uses = f => [...src[f].matchAll(/\bsetTip\(\s*\w+,\s*"DRPG\.Tips\.[^"]+"(?:,\s*null)?(,\s*\{\s*text:\s*true\s*\})?\)/g)].map(m => (m[1] ? "text" : "html"));
+        equal(stableJson({
+            drawn: [a.dataset.tooltip === words && !("tooltipText" in a.dataset), b.dataset.tooltipText === words && !("tooltip" in b.dataset), c.hasAttribute("data-tooltip") || c.hasAttribute("data-tooltip-text")],
+            byHand: files.filter(f => /\.dataset\.tooltip(?:Text)?\s*=\s*tipText\(/.test(src[f])),
+            sites: Object.fromEntries(files.map(f => [f, uses(f)]))
+        }), stableJson({
+            drawn: [true, true, false], byHand: [],
+            sites: { "anonymity.mjs": ["html"], "messenger-app.mjs": ["html"], "popup.mjs": ["html"], "room-tile.mjs": ["text"], "voice-panel.mjs": ["html"], "voice-tile.mjs": ["text"] }
+        }), "{setTip [data-tooltip, data-tooltip-text with text, nothing for a key with no words]; files writing a tip by hand; each file's setTip calls and their form}");
+    }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*
          * H84-05, 27.10.2026 (the owner's 1.2.85 table: "minus na panelu Projects nie ma grafiki"). The tray is
@@ -31222,7 +31579,7 @@ const INVARIANTS = [
         const A = "speakerAAAAAAAAA", D = "objectorDDDDDDDD", E = "objectorEEEEEEEE";
         const base = { active: true, mode: "closing", holderId: null, targetId: null, seconds: 30, startedAt: Date.now(), pending: false, messageId: null, before: [], round: null };
         const at = (phase, patch = {}) => ({ ...base, closing: { phase, step: 2, openedAt: 1, count: 2, ...patch } });
-        const ops = html => [...html.matchAll(/data-drpg-closing="([a-z]+)"(?: data-drpg-actor="([^"]+)")?>([^<]*)</g)].map(m => [m[1], m[2] ?? null, m[3]]);
+        const ops = html => [...html.matchAll(/data-drpg-closing="([a-z]+)"(?: data-drpg-actor="([^"]+)")?(?: data-tooltip="[^"]*")?>([^<]*)</g)].map(m => [m[1], m[2] ?? null, m[3]]);
         const names = { volunteers: ["R1048 Aiko", "R1048 Botan"], drawn: "R1048 Botan" };
         const run = (floor, progress = {}, given = names) => U.closingConsole({ floor, progress, running: true, names: given });
         const volunteer = run(at("volunteer"));
@@ -35635,7 +35992,7 @@ const INVARIANTS = [
         const code = stripComments(actionText(sources));
         const labelOf = (fn, name) => {
             const body = fnSource(code, fn) ?? "";
-            const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}">`));
+            const m = body.match(new RegExp(`<label class="drpg-specific-note"(?: data-drpg-when="([\\w-]+)")?>\\s*<span>\\$\\{[^}]*\\}</span>\\s*<select name="${name}"(?:\\$\\{tipAttr\\([^)]*\\)\\})?>`));
             return m ? m[1] ?? "always" : "no such select";
         };
         equal(JSON.stringify({
@@ -49857,7 +50214,7 @@ const INVARIANTS = [
         must(actor, "no actor to name on the cards - this would measure nothing");
         const HP = "system.resources.hitPoints.value";
         const node = html => Object.assign(document.createElement("div"), { innerHTML: html });
-        const buttons = root => [...root.querySelectorAll("button")].map(b => [b.textContent, Object.entries(b.dataset).filter(([k]) => k !== "drpgRole").map(([k, v]) => `${k}=${v}`).join(" "),
+        const buttons = root => [...root.querySelectorAll("button")].map(b => [b.textContent, Object.entries(b.dataset).filter(([k]) => k !== "drpgRole" && k !== "tooltip").map(([k, v]) => `${k}=${v}`).join(" "),
             b.dataset.drpgRole ?? null, b.classList.contains(b.dataset.drpgRole === "gmRoute" ? "drpg-role-gm-route" : "drpg-role-secondary")]);
         const L = key => game.i18n.localize(key);
         const away = node(D.awayRollsCard("<li>line</li>"));

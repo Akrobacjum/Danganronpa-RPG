@@ -32,6 +32,8 @@ import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /**
  * WHO IS ALIVE - three windows, one table.
  * ---------------------------------------------------------------------------
@@ -96,9 +98,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
                 ? `<span data-tooltip="${esc(game.i18n.format("DRPG.Monocub.purseTip", { n: purseOf(a) }))}">${cubHopeTotal(a)} / ${resourceMax(a, "hope")}</span>`
                 : `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}`) : none,
             give: !cub ? none : donors ? `
-                <select name="donor:${a.id}">${donors}</select>
-                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true })}
-                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
+                <select name="donor:${a.id}"${tipAttr("DRPG.Tips.Gm.monokumaPoolTooltip")}>${donors}</select>
+                ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true,
+                    attrs: { "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
+                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}"${tipAttr("DRPG.Tips.Gm.giveTooltip")}>
                     ${L("DRPG.Monocub.give")}</button>` : "-",
             silenced: cub
                 ? `<input type="checkbox" name="silenced:${a.id}" ${isCrimeSilenced(a) ? "checked" : ""} />`
@@ -126,19 +129,19 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         return {
             id: a.id, ...shared(a), ...cubCells, ...economy,
             // Its name, not its options' words (E48 K4: a11y.mjs no longer names a select by what it holds).
-            state: `<select name="state.${a.id}" aria-label="${esc(`${L("DRPG.Panel.stateColumn")} - ${a.name}`)}">
+            state: `<select name="state.${a.id}" aria-label="${esc(`${L("DRPG.Panel.stateColumn")} - ${a.name}`)}"${tipAttr("DRPG.Tips.Gm.stateTooltip")}>
                 ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
                     `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
                         L(sKey === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${sKey}`)}</option>`).join("")}
             </select>`,
             do: `${state === "alive"
                 ? `<button type="button" class="drpg-mini-button drpg-gm-route"
-                       data-drpg-kill="${a.id}">${L("DRPG.Chapter.deathTitle")}</button>`
+                       data-drpg-kill="${a.id}"${tipAttr("DRPG.Tips.Gm.aCharacterDiesTooltip")}>${L("DRPG.Chapter.deathTitle")}</button>`
                 : state === "dead"
                     // An open invitation (E72 C6) is said, with its withdrawal; otherwise the Invite button.
                     ? (invited(a)
                         ? `<span class="notes">${L("DRPG.Monocub.inviteSent")}</span> <button type="button" class="drpg-mini-button" data-drpg-cub-cancel="${a.id}">${L("DRPG.Monocub.cancelInvite")}</button>`
-                        : `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${L("DRPG.Monocub.invite")}</button>`)
+                        : `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}"${tipAttr("DRPG.Tips.Gm.inviteAsAMonocubTooltip")}>${L("DRPG.Monocub.invite")}</button>`)
                     /* A DEATH THE GMS KEEP (E72 C8; the plan's A9): its voice stays in the room it died in until the body is
                        found or the incident ends, and a GM may move it now (incident-store.mjs `silenceDeadNow`); once
                        moved, the row says so. */
@@ -184,7 +187,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         return {
             name: esc(a.name),
             open: `${sheetButton(a)}${role === "monokuma" ? keptSlot() : itemsButton(a)}`,
-            role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
+            role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}"${tipAttr("DRPG.Tips.Gm.roleTooltip")}>${
                 ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
             levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
                 label: n ? plural("DRPG.Advance.standing", { n }) : L("DRPG.Advance.buttonTooltip") })

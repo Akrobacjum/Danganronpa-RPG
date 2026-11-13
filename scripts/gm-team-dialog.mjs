@@ -32,6 +32,8 @@ import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, o
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 
 /**
  * What the GM has typed here but not applied (TEAM-01, 20.09).
@@ -448,7 +450,7 @@ function buildContent(actors, gms, roster, candidates, removable, layout = despa
             account: foundry.utils.escapeHTML(u.name),
             name: `<input type="text" name="poolName.${u.id}" value="${foundry.utils.escapeHTML(poolLabel(u))}"
                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Despair.poolName")}: ${u.name}`)}"
-                       placeholder="${foundry.utils.escapeHTML(u.name)}" />`
+                       placeholder="${foundry.utils.escapeHTML(u.name)}"${tipAttr("DRPG.Tips.Gm.poolNameTooltip")} />`
         }))
     });
 
@@ -460,7 +462,7 @@ function buildContent(actors, gms, roster, candidates, removable, layout = despa
 
     const removeRow = removable.length ? `
         <label>${L("DRPG.Despair.revokeFrom")}
-            <select name="removePoolCandidate">${removable.map(u =>
+            <select name="removePoolCandidate"${tipAttr("DRPG.Tips.Gm.revokeThePoolFromTooltip")}>${removable.map(u =>
                 `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))}</option>`).join("")}</select>
         </label>` : "";
 
@@ -488,7 +490,7 @@ function buildContent(actors, gms, roster, candidates, removable, layout = despa
                 actorId: actor.id,
                 who: `<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait" />${foundry.utils.escapeHTML(actor.name)}`,
                 pool: `<select name="pool.${actor.id}" data-drpg-pool
-                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}">${options}</select>`
+                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}"${tipAttr("DRPG.Tips.Gm.despairPoolTooltip")}>${options}</select>`
             };
         }),
         rowAttrs: r => ({ "data-actor": r.actorId, class: "drpg-is-monokuma" })
@@ -542,7 +544,8 @@ function buildContent(actors, gms, roster, candidates, removable, layout = despa
     const unfold = layout.folded.length ? `<p class="drpg-flow-unfold"><button type="button" class="drpg-mini-button" data-drpg-flow-unfold>${
         L("DRPG.Despair.unfold")}</button> <span class="notes">${L("DRPG.Despair.unfoldNote")}</span></p>` : "";
     const body = kitTabs([
-        { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection },
+        { key: "pools", label: game.i18n.localize("DRPG.Despair.tabPools"), html: poolSection,
+          tooltip: tipText("DRPG.Tips.Gm.tabsPoolsMonokumasStudentsTooltip") },
         { key: "monokumas", label: game.i18n.localize("DRPG.Despair.tabMonokumas"), html: monokumaSection },
         ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Despair.tabStudents"), html: assignSection }] : []),
         { key: "overflow", label: game.i18n.localize("DRPG.Despair.tabOverflow"), html: unfold + overflowSection({ suggestion: overflowSuggestionNow() }) }

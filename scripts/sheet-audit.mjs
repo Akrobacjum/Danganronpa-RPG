@@ -152,6 +152,8 @@ import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 import { box, roleButton } from "./ui-kit.mjs";
 import { readSpectatorsWith } from "./spectator.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
  * E11 C11 (1.2.73): the Level Up's experiences the season reset deletes - a player who unset it would keep them.
@@ -2803,7 +2805,8 @@ export function flaggedCard(row) {
  */
 function auditButton(attr, how, key, id = null) {
     // the kit's `roleButton` since E47-KFa (written by hand from BUTTON_ROLES before it), the same attributes in the same order
-    return roleButton({ role: how === "undo" ? "gmRoute" : "secondary", attrs: { [`data-drpg-${attr}`]: how, "data-drpg-row": id || null },
+    return roleButton({ role: how === "undo" ? "gmRoute" : "secondary", attrs: { [`data-drpg-${attr}`]: how, "data-drpg-row": id || null,
+        "data-tooltip": attr === "audit" && how === "undo" ? tipText("DRPG.Tips.Gm.undoKeepTooltip") : null },
         label: game.i18n.localize(key) });
 }
 

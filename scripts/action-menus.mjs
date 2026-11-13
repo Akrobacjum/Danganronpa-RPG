@@ -26,6 +26,8 @@ import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
 import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 import { holdRowLines } from "./ui-hold.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
  *
@@ -349,7 +351,7 @@ export function detailsHtml(inner) {
     const id = `drpg-details-${++detailsDrawn}`;
     const open = detailsOpen();
     return `<div class="drpg-action-details">
-        <button type="button" class="drpg-action-details-toggle" id="${id}-toggle" aria-expanded="${open}" aria-controls="${id}"><span class="drpg-action-details-mark" aria-hidden="true"></span><span>${esc(game.i18n.localize("DRPG.Kit.details"))}</span></button>
+        <button type="button" class="drpg-action-details-toggle" id="${id}-toggle" aria-expanded="${open}" aria-controls="${id}"${tipAttr("DRPG.Tips.Actions.detailsTooltip")}><span class="drpg-action-details-mark" aria-hidden="true"></span><span>${esc(game.i18n.localize("DRPG.Kit.details"))}</span></button>
         <div class="drpg-action-details-box" id="${id}" role="region" aria-labelledby="${id}-toggle"${open ? "" : " inert"}>${inner}${DETAILS_ROWS}</div>
     </div>`;
 }
@@ -526,7 +528,7 @@ export async function promptForNote(actor, { title, prompt, placeholder, traits 
         ...(propose ? { brief, ask: form } : { body: form }),
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"),
+                action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"), tooltip: tipText("DRPG.Tips.Actions.makeTheAttemptTooltip"),
                 callback: (e, b, d) => propose ? readProposal(d.element, traits) : d.element.querySelector("[name=note]")?.value.trim() ?? ""
             }
         },

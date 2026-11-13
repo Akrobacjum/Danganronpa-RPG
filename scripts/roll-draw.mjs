@@ -68,6 +68,8 @@ import { roomOfActor } from "./movement.mjs";
 import { cardFlag, cardWriter } from "./secret.mjs";
 import { box, roleButton } from "./ui-kit.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");
 
@@ -250,7 +252,7 @@ export function sayRollStatus(state, text) {
    argument as it was: R121's census of the GM's road counts a `role: "gmRoute"` written out, a player's road with its
    sentence, and this is the GMs' own card. */
 function cardButton(role, away, key) {
-    return roleButton({ role, attrs: { "data-drpg-away": away }, label: game.i18n.localize(key) });
+    return roleButton({ role, attrs: { "data-drpg-away": away, ...(away === "grant" ? { "data-tooltip": tipText("DRPG.Tips.Actions.grantAllGrantNoneTooltip") } : {}) }, label: game.i18n.localize(key) });
 }
 
 /**

@@ -39,6 +39,8 @@ import { observeStore } from "./gm-stores.mjs";
 import { stableJson } from "./gm-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /** How the player said they were looking. */
 export const DECLARATIONS = {
     general: "general",
@@ -624,7 +626,7 @@ async function askWhichRemnant(actor, room, request, candidates, { refuse = true
                 action: "ok", label: game.i18n.localize("DRPG.Observe.pickConfirm"),
                 callback: (e, b, d) => d.element.querySelector("[name=remnant]").value
             },
-            secondary: refuse ? [{ action: "refuse", label: game.i18n.localize("DRPG.Observe.pickRefuse") }] : []
+            secondary: refuse ? [{ action: "refuse", label: game.i18n.localize("DRPG.Observe.pickRefuse"), tooltip: tipText("DRPG.Tips.Actions.nothingMatchesRefuseTooltip") }] : []
         },
         rejectClose: false
     });

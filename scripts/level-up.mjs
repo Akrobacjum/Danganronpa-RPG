@@ -19,6 +19,8 @@ import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 
 /**
  * Resolved on use, not at import time. Foundry moved FormDataExtended under
@@ -604,6 +606,7 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
             primary: {
                 action: "apply",
                 label: game.i18n.localize("DRPG.Advance.apply"),
+                tooltip: tipText("DRPG.Tips.Setup.applyTooltip"),
                 callback: (event, button, dialog) => readForm(dialog, picks)
             },
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
@@ -1241,7 +1244,7 @@ async function askWhoPicks(rows) {
     const L = key => game.i18n.localize(key);
     const esc = foundry.utils.escapeHTML;
     const radio = (actor, value, label, checked) =>
-        `<label><input type="radio" name="who-${actor.id}" value="${value}"${checked ? " checked" : ""}> ${L(label)}</label>`;
+        `<label><input type="radio" name="who-${actor.id}" value="${value}"${checked ? " checked" : ""}${tipAttr("DRPG.Tips.Setup.iPickThePlayerTooltip")}> ${L(label)}</label>`;
     const items = rows.map(({ entry, actor, playable, here }) => `<li class="drpg-advance-queue-row" data-actor-id="${actor.id}">
             <strong>${esc(actor.name)}</strong> <span>${plural("DRPG.Advance.queuePicks", { n: entry.picks })}</span>
             ${entry.deferred ? `<small>${L("DRPG.Advance.reason.withClass")}</small>` : ""}
@@ -1261,8 +1264,8 @@ async function askWhoPicks(rows) {
         prompt: true,
         body: `<p>${L("DRPG.Advance.queueIntro")}</p><ul class="drpg-advance-queue-list">${items}</ul>`,
         footer: {
-            primary: { action: "give", label: L("DRPG.Advance.queueGive"), callback: (event, button, dialog) => read(dialog, false) },
-            secondary: [{ action: "allPlayers", label: L("DRPG.Advance.allPlayers"), callback: (event, button, dialog) => read(dialog, true) }]
+            primary: { action: "give", label: L("DRPG.Advance.queueGive"), tooltip: tipText("DRPG.Tips.Setup.handThemOutTooltip"), callback: (event, button, dialog) => read(dialog, false) },
+            secondary: [{ action: "allPlayers", label: L("DRPG.Advance.allPlayers"), tooltip: tipText("DRPG.Tips.Setup.allThePlayersPickTooltip"), callback: (event, button, dialog) => read(dialog, true) }]
         },
         rejectClose: false
     });

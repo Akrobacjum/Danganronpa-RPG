@@ -32,6 +32,8 @@ import {
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
 /* ---------------------------------------------------------------------------
@@ -2596,15 +2598,15 @@ export async function runHealthCheck() {
             body: healthBody(report, { restorable }),
             footer: {
                 // The H4 decision: Keep (the default) stamps the pick again; Clear clears it.
-                primary: decide ? { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind") }
+                primary: decide ? { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind"), tooltip: tipText("DRPG.Tips.Gm.keepTheMastermindTooltip") }
                     : { action: "continue", label: game.i18n.localize("DRPG.Case.continue") },
                 secondary: [
-                    ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
+                    ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }] : []),
                     ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
                     ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
                     ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : [])
                 ],
-                destructive: decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind") }] : []
+                destructive: decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind"), tooltip: tipText("DRPG.Tips.Gm.clearTheMastermindTooltip") }] : []
             },
             rejectClose: false
         });
@@ -2694,8 +2696,8 @@ export async function openCaseWindow() {
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
         body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>`,
         footer: {
-            primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup") },
-            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }],
+            primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup"), tooltip: tipText("DRPG.Tips.Gm.backUpTooltip") },
+            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }],
             close: { role: "close", action: "close" }
         },
         rejectClose: false
@@ -2729,7 +2731,7 @@ export async function enterCastByHand() {
         body: `<form><p>${esc(game.i18n.localize("DRPG.Case.castIntro"))}</p>
             ${seat("killerId", "DRPG.Case.castKiller")}${seat("victimId", "DRPG.Case.castVictim")}${seat("thirdId", "DRPG.Case.castThird")}</form>`,
         footer: {
-            primary: { action: "enter", label: game.i18n.localize("DRPG.Case.castEnter"),
+            primary: { action: "enter", label: game.i18n.localize("DRPG.Case.castEnter"), tooltip: tipText("DRPG.Tips.Gm.enterTooltip"),
                 callback: (e, b, d) => Object.fromEntries(["killerId", "victimId", "thirdId"]
                     .map(name => [name, d.element.querySelector(`[name=${name}]`)?.value || null])) },
             close: { role: "cancel", action: "cancel" }

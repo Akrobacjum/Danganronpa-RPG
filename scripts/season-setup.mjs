@@ -69,6 +69,9 @@ import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { convertSecretDoors } from "./passages-gm.mjs";
 import { permissionsInForce } from "./enforced.mjs";
+
+import { tipText } from "./ui-kit.mjs";
+
 export { resetTallies, resetGoesHtml, resetSeason, RESET_STEPS, RESET_CHOICES, wipeStudent, placeCast, seasonResetRecord, unfinishedGroups } from "./season-wipe.mjs";
 
 
@@ -1295,7 +1298,7 @@ function holdSeasonSave(root, reason) {
  */
 export function seasonResetPart() {
     return box("warning", `<p>${esc(game.i18n.localize("DRPG.Season.resetNote"))}</p>`, {
-        action: roleButton({ role: "destructive", label: game.i18n.localize("DRPG.Season.resetTitle"), attrs: { "data-drpg-reset-season": "1" } })
+        action: roleButton({ role: "destructive", label: game.i18n.localize("DRPG.Season.resetTitle"), attrs: { "data-drpg-reset-season": "1", "data-tooltip": tipText("DRPG.Tips.Setup.resetTheSeasonTooltip") } })
     });
 }
 
