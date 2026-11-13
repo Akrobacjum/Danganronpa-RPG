@@ -918,8 +918,8 @@
   },
   "whichTableTooltip": {
    "key": "DRPG.Tips.Gm.whichTableTooltip",
-   "en": "The item table to pick from. It sets the item's category and tier.",
-   "pl": "Tabela przedmiotów, z której wybierasz. Ustala kategorię i Tier przedmiotu.",
+   "en": "The item table to pick from. It and the item fill in the category and tier below",
+   "pl": "Tabela przedmiotów, z której wybierasz. Ona i przedmiot wypełniają kategorię i Tier poniżej",
    "sites": [
     "gm-items:496"
    ]
@@ -934,8 +934,8 @@
   },
   "tierTooltip": {
    "key": "DRPG.Tips.Gm.tierTooltip",
-   "en": "Higher tiers last longer. A Tier 0 item breaks after one roll.",
-   "pl": "Wyższy Tier wytrzymuje dłużej. Przedmiot z Tier 0 psuje się po jednym rzucie.",
+   "en": "A tool or weapon: how many bad rolls it takes; Tier 0 goes after its first roll. A usable: how much it restores",
+   "pl": "Narzędzie lub broń: ile złych rzutów wytrzyma; Tier 0 znika po pierwszym rzucie. Przedmiot użytkowy: ile przywraca",
    "sites": [
     "gm-items:528"
    ]
@@ -951,7 +951,7 @@
   "whichRemnantTooltip": {
    "key": "DRPG.Tips.Gm.whichRemnantTooltip",
    "en": "The Remnant on the map this Truth Bullet copies",
-   "pl": "Remnant na mapie, który kopiuje ten Truth Bullet",
+   "pl": "Remnant na mapie, z którego ten Truth Bullet powstaje jako kopia",
    "sites": [
     "gm-items:1003"
    ]
@@ -975,7 +975,7 @@
   "tellThePlayerTooltip": {
    "key": "DRPG.Tips.Gm.tellThePlayerTooltip",
    "en": "Leave it unticked to take the item without a word to the player",
-   "pl": "Odznacz, żeby zabrać przedmiot bez słowa do gracza",
+   "pl": "Odznacz, żeby zabrać przedmiot bez informowania gracza",
    "sites": [
     "gm-items:1498"
    ]
@@ -1095,9 +1095,10 @@
   "monokumaPoolTooltip": {
    "key": "DRPG.Tips.Gm.monokumaPoolTooltip",
    "en": "The Monokuma whose Despair pays. The number is what that pool can spend now",
-   "pl": "Monokuma, którego Despair płaci. Liczba to tyle, ile ta pula może teraz wydać",
+   "pl": "Monokuma, którego Despair płaci. Liczba mówi, ile ta pula może teraz wydać",
    "sites": [
-    "gm-students:95"
+    "gm-students:95",
+    "monocub:778"
    ]
   },
   "giveTooltip": {
@@ -1110,8 +1111,8 @@
   },
   "stateTooltip": {
    "key": "DRPG.Tips.Gm.stateTooltip",
-   "en": "Corrects the state quietly on Apply: no announcement, and the inventory stays",
-   "pl": "Poprawia stan po cichu przy Zastosuj: bez ogłoszenia, a ekwipunek zostaje",
+   "en": "Corrects the state on Apply with no announcement; a death the GMs held becomes known, and its body's Truth Bullets go",
+   "pl": "Poprawia stan przy Zastosuj bez ogłoszenia; śmierć ukrywana przez GM-ów staje się znana, a Truth Bullety z ciała przepadają",
    "sites": [
     "gm-students:125"
    ]
@@ -1126,16 +1127,16 @@
   },
   "inviteAsAMonocubTooltip": {
    "key": "DRPG.Tips.Gm.inviteAsAMonocubTooltip",
-   "en": "Makes this dead student a Monocub now, with Hope, Health, and Sanity at zero",
-   "pl": "Od razu robi z tego martwego ucznia Monocuba, z Hope, Health i Sanity na zero",
+   "en": "Makes this dead student a Monocub now: no Hope, with Health and Sanity full",
+   "pl": "Od razu robi z tego martwego ucznia Monocuba: bez Hope, z pełnym Health i Sanity",
    "sites": [
     "gm-students:134"
    ]
   },
   "roleTooltip": {
    "key": "DRPG.Tips.Gm.roleTooltip",
-   "en": "Changes the character's role at once, without waiting for Apply",
-   "pl": "Zmienia rolę postaci od razu, bez czekania na Zastosuj",
+   "en": "Changes the character's role without waiting for Apply; a player's character asks first",
+   "pl": "Zmienia rolę postaci bez czekania na Zastosuj; przy postaci gracza najpierw pyta",
    "sites": [
     "gm-students:173"
    ]
@@ -1183,8 +1184,8 @@
   },
   "keepTheMastermindTooltip": {
    "key": "DRPG.Tips.Gm.keepTheMastermindTooltip",
-   "en": "The picked student stays the Mastermind, and their player is told",
-   "pl": "Wybrany uczeń zostaje Mastermindem, a jego gracz się o tym dowie",
+   "en": "The picked student stays the Mastermind, and their player's door to the lair opens again",
+   "pl": "Wybrany uczeń zostaje Mastermindem, a jego gracz znów ma dostęp do kryjówki",
    "sites": [
     "gm-stores:2363"
    ]
@@ -1217,7 +1218,7 @@
   "backUpTooltip": {
    "key": "DRPG.Tips.Gm.backUpTooltip",
    "en": "Saves every GM secret of this world to a file no player should see",
-   "pl": "Zapisuje do pliku każdy sekret GM-a w tym świecie; żaden gracz nie powinien go zobaczyć",
+   "pl": "Zapisuje każdy sekret GM-a w tym świecie do pliku, którego żaden gracz nie powinien zobaczyć",
    "sites": [
     "gm-stores:2461"
    ]
@@ -1230,18 +1231,10 @@
     "gm-stores:2496"
    ]
   },
-  "despairPool2Tooltip": {
-   "key": "DRPG.Tips.Gm.despairPool2Tooltip",
-   "en": "Whose Despair pays; the number is what that pool can spend",
-   "pl": "Czyj Despair płaci; liczba to to, ile ta pula może wydać",
-   "sites": [
-    "monocub:778"
-   ]
-  },
   "give2Tooltip": {
    "key": "DRPG.Tips.Gm.give2Tooltip",
-   "en": "Turns that much Despair into this Monocub's Hope at once, without Apply",
-   "pl": "Zamienia tyle Despair na Hope tego Monocuba od razu, bez Zastosuj",
+   "en": "Gives this Monocub that much Hope now, without Apply; the pool pays at the next time of day",
+   "pl": "Od razu daje temu Monocubowi tyle Hope, bez Zastosuj; pula płaci przy następnej porze dnia",
    "sites": [
     "monocub:780"
    ]
@@ -1250,72 +1243,72 @@
  "Setup": {
   "roomPictureThumbnailTooltip": {
    "key": "DRPG.Tips.Setup.roomPictureThumbnailTooltip",
-   "en": "Opens the picture of this room",
-   "pl": "Otwiera zdjęcie tego pokoju",
+   "en": "Opens this room's picture at full size",
+   "pl": "Otwiera zdjęcie tego pokoju w pełnym rozmiarze",
    "sites": [
     "room-tile:329"
    ]
   },
   "resetTheSeasonTooltip": {
    "key": "DRPG.Tips.Setup.resetTheSeasonTooltip",
-   "en": "Opens the season reset, which asks before it clears anything",
-   "pl": "Otwiera reset sezonu, który pyta, zanim cokolwiek wyczyści",
+   "en": "Opens the season reset, which asks before it clears anything. Unsaved changes in this window are lost",
+   "pl": "Otwiera reset sezonu, który pyta, zanim cokolwiek wyczyści. Niezapisane zmiany w tym oknie przepadają",
    "sites": [
     "season-setup:1177"
    ]
   },
   "setThemToObserverTooltip": {
    "key": "DRPG.Tips.Setup.setThemToObserverTooltip",
-   "en": "Every player can still open these sheets, but no longer owns them",
-   "pl": "Każdy gracz nadal może otworzyć te arkusze, ale przestaje być ich właścicielem",
+   "en": "Every player gets Observer on these sheets: they can open them and cannot edit them. Each sheet's own player keeps it",
+   "pl": "Obniża uprawnienia każdego gracza do tych arkuszy do Obserwatora: może je otworzyć, ale nie edytować. Właściciel arkusza zachowuje swoje prawa",
    "sites": [
     "anonymity:821"
    ]
   },
   "onALootedItemTooltip": {
    "key": "DRPG.Tips.Setup.onALootedItemTooltip",
-   "en": "Ticked items are taken together with one Hand roll",
-   "pl": "Zaznaczone przedmioty bierzesz razem, jednym rzutem na Hand",
+   "en": "Ticked items are taken together with one Hand roll, and a Shadow roll if someone else is here",
+   "pl": "Zaznaczone przedmioty bierzesz razem jednym rzutem na Hand, a gdy ktoś jeszcze tu jest, także na Shadow",
    "sites": [
     "anonymity:310"
    ]
   },
   "chatNoteTabsTooltip": {
    "key": "DRPG.Tips.Setup.chatNoteTabsTooltip",
-   "en": "The pre-session note the GMs read before every session",
-   "pl": "Notatka przed sesją, którą GM-owie czytają przed każdą sesją",
+   "en": "A note for the GMs, read before every session",
+   "pl": "Notatka dla GM-ów, czytana przed każdą sesją",
    "sites": [
     "messenger-app:269"
    ]
   },
   "useTheTemplateTooltip": {
    "key": "DRPG.Tips.Setup.useTheTemplateTooltip",
-   "en": "Fills the box with the questions the GMs want answered",
-   "pl": "Wpisuje do pola pytania, na które czekają GM-owie",
+   "en": "Puts the GMs' questions in the box, in place of what is typed there",
+   "pl": "Wpisuje do pola pytania od GM-ów w miejsce tego, co już tam jest",
    "sites": [
     "messenger-app:319"
    ]
   },
   "sectionTooltip": {
    "key": "DRPG.Tips.Setup.sectionTooltip",
-   "en": "The number counts the settings in this section",
-   "pl": "Liczba to ustawienia w tej sekcji",
+   "en": "How many settings this section holds",
+   "pl": "Liczba ustawień w tej sekcji",
    "sites": [
     "settings-window:238"
    ]
   },
   "goThroughTooltip": {
    "key": "DRPG.Tips.Setup.goThroughTooltip",
-   "en": "Takes you to the other end of the tunnel. It costs what a door costs.",
-   "pl": "Przenosi cię na drugi koniec tunelu. Kosztuje tyle, co przejście przez drzwi.",
+   "en": "From beside one end, takes you to the other. It costs what a door costs.",
+   "pl": "Gdy stoisz przy jednym końcu, przenosi cię na drugi. Kosztuje tyle, co przejście przez drzwi.",
    "sites": [
     "sheet:2936"
    ]
   },
   "showThePassageTooltip": {
    "key": "DRPG.Tips.Setup.showThePassageTooltip",
-   "en": "Lets somebody in your room use the passage too. It costs no action.",
-   "pl": "Pozwala komuś w twoim pokoju też korzystać z przejścia. Nie kosztuje akcji.",
+   "en": "Lets a student in the same room use the passage too. It costs no action; the GMs are told",
+   "pl": "Pozwala uczniowi w tym samym pokoju też korzystać z tajnego przejścia. Nie kosztuje akcji; GM-owie się o tym dowiedzą",
    "sites": [
     "sheet:2937"
    ]
@@ -1346,8 +1339,8 @@
   },
   "allThePlayersPickTooltip": {
    "key": "DRPG.Tips.Setup.allThePlayersPickTooltip",
-   "en": "Hands every Level Up to its player, whatever the rows say",
-   "pl": "Oddaje każdy Level Up graczowi, niezależnie od wierszy",
+   "en": "Hands every Level Up to its player, whatever the rows say. A student with no player opens here",
+   "pl": "Oddaje każdy Level Up graczowi, niezależnie od wierszy. Uczeń bez gracza otworzy się tutaj",
    "sites": [
     "level-up:1229"
    ]
@@ -1370,8 +1363,8 @@
   },
   "aStudentWhoKnowsTooltip": {
    "key": "DRPG.Tips.Setup.aStudentWhoKnowsTooltip",
-   "en": "Takes the passage away from this student. Asks when, if they stand beside it.",
-   "pl": "Odbiera temu uczniowi tajne przejście. Pyta kiedy, jeśli stoi przy nim.",
+   "en": "Takes the passage away from this student. If they are in a room it joins, asks: now or when they leave",
+   "pl": "Odbiera temu uczniowi tajne przejście. Jeśli jest w pokoju, który ono łączy, pyta: teraz czy przy wyjściu",
    "sites": [
     "passages-tab:132"
    ]
@@ -1394,8 +1387,8 @@
   },
   "playTooltip": {
    "key": "DRPG.Tips.Setup.playTooltip",
-   "en": "Plays the chosen track on repeat for the whole table until Reset music",
-   "pl": "Odtwarza wybrany utwór w pętli dla całego stołu, do Resetuj muzykę",
+   "en": "Plays the chosen track on repeat for the whole table, until Reset music or a state with its own music",
+   "pl": "Odtwarza wybrany utwór w pętli dla całego stołu, do Resetuj muzykę albo do stanu z własną muzyką",
    "sites": [
     "sound-panel:177"
    ]
@@ -1410,8 +1403,8 @@
   },
   "searchTokensStepperTooltip": {
    "key": "DRPG.Tips.Setup.searchTokensStepperTooltip",
-   "en": "Changes this room's tokens at once, without Apply",
-   "pl": "Zmienia tokeny tego pokoju od razu, bez Zastosuj",
+   "en": "Changes this room's Search Tokens at once, without Apply",
+   "pl": "Zmienia Search Tokens tego pokoju od razu, bez Zastosuj",
    "sites": [
     "room-setup:340"
    ]
@@ -1427,8 +1420,8 @@
   },
   "categoryTooltip": {
    "key": "DRPG.Tips.Setup.categoryTooltip",
-   "en": "With the tier, decides which table the item joins; the icon follows it",
-   "pl": "Razem z Tier decyduje, do której tabeli trafi przedmiot; ikona idzie za nią",
+   "en": "With the tier, decides which table the item joins. The icon changes with it unless you pick a picture",
+   "pl": "Razem z Tier wybiera tabelę, do której trafi przedmiot. Ikona zmienia się z kategorią, dopóki nie wybierzesz obrazka",
    "sites": [
     "tables-editor:963"
    ]
@@ -1443,8 +1436,8 @@
   },
   "tabsTierPoolsRoomTooltip": {
    "key": "DRPG.Tips.Setup.tabsTierPoolsRoomTooltip",
-   "en": "The tables a Search draws from, one for each category and tier",
-   "pl": "Tabele, z których losuje Search, po jednej na kategorię i Tier",
+   "en": "One table for each category and tier. A Search draws from them when its room's own table has nothing to give",
+   "pl": "Po jednej tabeli na kategorię i Tier. Search losuje z nich, gdy tabela pokoju nie ma nic do dania",
    "sites": [
     "tables-editor:1653"
    ]

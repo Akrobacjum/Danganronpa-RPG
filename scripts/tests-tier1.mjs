@@ -25221,8 +25221,8 @@ const INVARIANTS = [
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 44 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key)", async () => {
-        /* Red at c5cf2aff with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. */
+    ["R4753 - the GM panels draw their tooltips (E102 C4, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 43 keys under DRPG.Tips.Gm has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
+        /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Gm key. */
         const TIPS = [
             ["DRPG.Tips.Gm.minusTooltip","despair.mjs","buildRow"],
             ["DRPG.Tips.Gm.plusTooltip","despair.mjs","buildRow"],
@@ -25250,6 +25250,7 @@ const INVARIANTS = [
             ["DRPG.Tips.Gm.clearTheLogTooltip","gm-panel.mjs","openFailureLog"],
             ["DRPG.Tips.Gm.doNotMentionFoundTooltip","requirements.mjs","announceNewerSystem"],
             ["DRPG.Tips.Gm.monokumaPoolTooltip","gm-students.mjs","aliveTableHtml"],
+            ["DRPG.Tips.Gm.monokumaPoolTooltip","monocub.mjs","openMonocubDialog"],
             ["DRPG.Tips.Gm.giveTooltip","gm-students.mjs","aliveTableHtml"],
             ["DRPG.Tips.Gm.stateTooltip","gm-students.mjs","aliveTableHtml"],
             ["DRPG.Tips.Gm.aCharacterDiesTooltip","gm-students.mjs","aliveTableHtml"],
@@ -25267,7 +25268,6 @@ const INVARIANTS = [
             ["DRPG.Tips.Gm.clearTheMastermindTooltip","gm-stores.mjs","runHealthCheck"],
             ["DRPG.Tips.Gm.backUpTooltip","gm-stores.mjs","openCaseWindow"],
             ["DRPG.Tips.Gm.enterTooltip","gm-stores.mjs","enterCastByHand"],
-            ["DRPG.Tips.Gm.despairPool2Tooltip","monocub.mjs","openMonocubDialog"],
             ["DRPG.Tips.Gm.give2Tooltip","monocub.mjs","openMonocubDialog"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
@@ -25276,16 +25276,16 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 44, "lang/en.json has not the family's 44 keys under DRPG.Tips.Gm");
-        const fits = w => typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23;
+        must(Object.keys(words(en, "DRPG.Tips.Gm") ?? {}).length === 43, "lang/en.json has not the family's 43 keys under DRPG.Tips.Gm");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`tip(?:Attr|Text)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4754 - the setup windows, the sheet and the other panels draw their tooltips (E102 C5, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 29 keys under DRPG.Tips.Setup has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key)", async () => {
+    ["R4754 - the setup windows, the sheet and the other panels draw their tooltips (E102 C5, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 29 keys under DRPG.Tips.Setup has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 6c2a7935 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Setup key. */
         const TIPS = [
             ["DRPG.Tips.Setup.roomPictureThumbnailTooltip","room-tile.mjs","paintTileRow"],
@@ -25325,10 +25325,10 @@ const INVARIANTS = [
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
         must(Object.keys(words(en, "DRPG.Tips.Setup") ?? {}).length === 29, "lang/en.json has not the family's 29 keys under DRPG.Tips.Setup");
-        const fits = w => typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23;
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`tip(?:Attr|Text)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
@@ -25380,6 +25380,27 @@ const INVARIANTS = [
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4762 - the GM panels' and the setup windows' tooltips say what the code does (E102, the review of C4 and C5: docs/dev/gaps/REVIEW-102-C4C5.md on claude/gaps-radio, G1, G2, G4, S1, S2): a new Monocub's Health and Sanity are full, said as the reserve (M7, R1448), not at zero (`setMonocub` writes 0 marks, monocub.mjs); an item's tier is durability for a tool or weapon and what it restores for a usable (ITEM_DURABILITY 0 and 1 alike, USABLE_EFFECTS); the GM's track also ends at a state with its own music (`cueGivesWay`); Observer lowers every player's default and each sheet's own player keeps it (`fixExposed` writes ownership.default alone); the Monocub window's donor select reads the one donor key the Students window reads", async () => {
+        /* Red at c770b266: "at zero", "Higher tiers last longer", "until Reset music" alone, "no longer owns them", despairPool2Tooltip in monocub.mjs. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const T = l => l.DRPG?.Tips ?? {};
+        must(Object.keys(T(en).Gm ?? {}).length > 10 && Object.keys(T(en).Setup ?? {}).length > 10, "lang has no DRPG.Tips.Gm or .Setup - this would measure nothing");
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const [monocub, students] = await Promise.all(["monocub.mjs", "gm-students.mjs"].map(read));
+        must(monocub.length > 500 && students.length > 500, "a script read as nothing - this would measure nothing");
+        const g = (f, k, l = en) => String(T(l)[f]?.[k] ?? "");
+        equal(stableJson({
+            monocub: [/at zero|na zero/i.test(g("Gm", "inviteAsAMonocubTooltip") + g("Gm", "inviteAsAMonocubTooltip", pl)), /full/i.test(g("Gm", "inviteAsAMonocubTooltip")) && /pełn/i.test(g("Gm", "inviteAsAMonocubTooltip", pl))],
+            tier: [/last longer|wytrzymuje dłużej/i.test(g("Gm", "tierTooltip") + g("Gm", "tierTooltip", pl)), /usable/i.test(g("Gm", "tierTooltip")), /użytkow/i.test(g("Gm", "tierTooltip", pl))],
+            play: [/state with its own music/i.test(g("Setup", "playTooltip")), /własną muzyką/i.test(g("Setup", "playTooltip", pl))],
+            observer: [/no longer owns|przestaje być/i.test(g("Setup", "setThemToObserverTooltip") + g("Setup", "setThemToObserverTooltip", pl)), /own player keeps/i.test(g("Setup", "setThemToObserverTooltip"))],
+            donor: [/tipAttr\("DRPG\.Tips\.Gm\.monokumaPoolTooltip"\)/.test(monocub), /tipAttr\("DRPG\.Tips\.Gm\.monokumaPoolTooltip"\)/.test(students),
+                T(en).Gm?.despairPool2Tooltip === undefined && T(pl).Gm?.despairPool2Tooltip === undefined]
+        }), stableJson({
+            monocub: [false, true], tier: [false, true, true], play: [true, true], observer: [false, true], donor: [true, true, true]
+        }), "{a new Monocub: 'at zero', 'full' in en and pl; tier: 'last longer', a usable in en and pl; play: a state with its own music in en and pl; Observer: 'no longer owns', the own player keeps; one donor key in both windows and the old one gone}");
     }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*

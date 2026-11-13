@@ -777,7 +777,7 @@ export async function openMonocubDialog() {
                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.isOne")}: ${a.name}`)}" /></td>
             <td>${cub ? `${hope} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub ? `
-                <select name="donor:${a.id}"${tipAttr("DRPG.Tips.Gm.despairPool2Tooltip")}>${donors}</select>
+                <select name="donor:${a.id}"${tipAttr("DRPG.Tips.Gm.monokumaPoolTooltip")}>${donors}</select>
                 ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, attrs: { style: "width:3.5em", "data-tooltip": tipText("DRPG.Tips.Gm.amountTooltip") } })}
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}"${tipAttr("DRPG.Tips.Gm.give2Tooltip")}>
                     ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
