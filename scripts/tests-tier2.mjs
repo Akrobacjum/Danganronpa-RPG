@@ -91401,6 +91401,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             read.sheet = [s.hitPoints.max, s.hitPoints.value, s.stress.max, s.stress.value];
             const offer = L.standingOffers(student).at(-1) ?? null;
             read.offer = offer ? [L.offerPicks(offer), offer.only ?? null] : null;
+            /* The player's side (the E101 line's review of 1.2.110, V2, 13.11.2026): the copy the primary sends the owner
+               (`offersFor`), as the owner's browser keeps it (`ownerCopyOf`, the road `receiveOffers` takes), and the picker
+               that browser draws from it (`playerPickerBody`, the body `openAdvancement` draws for a player). Until the review
+               the copy kept `{ id, kind, extra }` alone, so the player's picker offered every option. Red at 12a7e309: no
+               `ownerCopyOf` or `playerPickerBody`, and the copy sent without `only`. */
+            const sent = offer ? L.offersFor(ownerOf(student)?.id)?.offers?.[student.id]?.offers ?? [] : [];
+            const kept = typeof L.ownerCopyOf === "function" ? L.ownerCopyOf({ offers: sent }).find(o => o.id === offer?.id) ?? null : null;
+            const picker = document.createElement("div");
+            if (kept && typeof L.playerPickerBody === "function") picker.innerHTML = L.playerPickerBody(student, kept);
+            read.player = [sent.find(o => o.id === offer?.id)?.only ?? null, kept?.only ?? null,
+                [...new Set([...picker.querySelectorAll('select[name$=".option"] option')].map(o => o.value))]];
             read.done = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
             read.askedAgain = typeof L.startDa39Migration === "function" ? await L.startDa39Migration() : "none";
             const out = offer ? await handleAdvancement({ actorId: student.id, offerId: offer.id,
@@ -91416,10 +91427,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson({ row: [2, 1, 1, 1, 3, 5, 7],
             boxes: ["hpOld.0", "hpOld.1", "sanOld.0", "rise-knowledge.0", "rise-strength.0"],
-            sheet: [6, 6, 7, 0], offer: [2, "trait"], done: true, askedAgain: null, refused: "that offer is for statistics only" }),
+            sheet: [6, 6, 7, 0], offer: [2, "trait"], player: ["trait", "trait", ["trait"]], done: true, askedAgain: null, refused: "that offer is for statistics only" }),
             "[the plan's row: old Health picks, old Sanity picks, Health and Sanity rises owed to past points, the points handed out, the new maxima]; "
             + "the window's boxes for the student; [the sheet after every box but the second Health pick: Health max, its marks, Sanity max, its marks]; "
-            + "[the offer's picks, what it is limited to]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
+            + "[the offer's picks, what it is limited to]; [the owner's copy as sent, as kept, the options its picker draws]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
     }],
 ];
 
