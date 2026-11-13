@@ -55,19 +55,6 @@ import {
  * ========================================================================== */
 
 /**
- * One screen for everything a room IS.
- *
- * Whose bedroom it is, whether the stash in it is hidden, what searching it
- * draws from, what it is a good place to search for - and, since they are the
- * same kind of question asked of the same regions on the same evening, which
- * rests it allows. Those two used to be separate dialogs on separate GM-panel
- * entries, which meant setting up a map was a lap of the panel per room rather
- * than one pass down a table.
- *
- * Every column is a region flag written when the map is built. `rest.mjs` still
- * owns the two rest flags and their readers; this only edits them.
- */
-/**
  * Write the live search-token count into every cell that has one.
  *
  * Read from `SearchTokens` rather than from the cell, so a spend that arrived from a
@@ -1180,6 +1167,19 @@ async function seedOwnerStashes(ownerMoved, scene) {
     return changed;
 }
 
+/**
+ * One screen for everything a room IS.
+ *
+ * Whose bedroom it is, whether the stash in it is hidden, what searching it
+ * draws from, what it is a good place to search for - and, since they are the
+ * same kind of question asked of the same regions on the same evening, which
+ * rests it allows. Those two used to be separate dialogs on separate GM-panel
+ * entries, which meant setting up a map was a lap of the panel per room rather
+ * than one pass down a table.
+ *
+ * Every column is a region flag written when the map is built. `rest.mjs` still
+ * owns the two rest flags and their readers; this only edits them.
+ */
 export async function openRoomSetupDialog({ tab = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

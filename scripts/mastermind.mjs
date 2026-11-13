@@ -213,7 +213,7 @@ function sendDoorFlag(userId, value, room, stamps) {
     }
 }
 
-/**
+/*
  * `iAmTheMastermind()` used to live here and now lives in settings.mjs, beside
  * the copy it reads. It was the single edge every static import cycle in the
  * module passed through - movement.mjs had to reach into this file for it - and
@@ -428,17 +428,10 @@ export function registerMastermind() {
 }
 
 /**
- * Pick, clear, or top up the Mastermind. The one screen for all of it, since
- * showing the current pick and the controls to change it on two different
- * screens is two more places this secret could end up on somebody's shared
- * screen than it needs to be.
- */
-/**
  * Announce or withdraw the Final Trial. Moved here from the GM panel, which used
  * to own a tile for it; it is the same subject as the Mastermind screen and
  * belongs on the same window.
- */
-/**
+ *
  * Exported for the Class Trial console, which is where the button lives now
  * (Dawid, 26.08): announcing the Final Trial is a trial-table act, and the
  * Mastermind screen - the one window that names the season's secret - keeps
@@ -591,6 +584,12 @@ async function applyMastermindChoice(result, current) {
     return who;
 }
 
+/**
+ * Pick, clear, or top up the Mastermind. The one screen for all of it, since
+ * showing the current pick and the controls to change it on two different
+ * screens is two more places this secret could end up on somebody's shared
+ * screen than it needs to be.
+ */
 export async function openMastermindDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

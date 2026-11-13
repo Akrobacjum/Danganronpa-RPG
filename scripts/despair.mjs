@@ -941,7 +941,6 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
  * WIDGET
  * ========================================================================== */
 
-/** Build or rebuild the Despair rows. Safe to call repeatedly. */
 /**
  * THE NAME COLUMN IS AS WIDE AS THE LONGEST NAME (Dawid, 22.09: "napisy w despair pool nachodza
  * na ikonki i sa przez to uciete").
@@ -964,6 +963,9 @@ function fitNameColumn(wrapper) {
     if (widest > 0) wrapper.style.setProperty("--drpg-despair-name-w", `${Math.ceil(widest) + 2}px`);
 }
 
+/**
+ * Build or rebuild the Despair rows. Safe to call repeatedly.
+ */
 export function renderDespairBar() {
     try {
         // the module's own stack on a narrow screen, Foundry's top bar on a desk

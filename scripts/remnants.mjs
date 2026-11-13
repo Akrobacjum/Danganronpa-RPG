@@ -2127,7 +2127,6 @@ export async function reportRemnants(scene = null) {
  *   Reinforced     the killer cannot remove it at all
  * ========================================================================== */
 
-/** Set the sweep-related flags on one Remnant token. GM only. */
 /**
  * The trace that handed over this object is part of the murder now.
  *
@@ -2180,6 +2179,9 @@ export async function tieTraceForItem(identity) {
  * The tie is left alone when it is left OUT (`undefined`), and written as given otherwise - `null`
  * included, which is the Investigation Dashboard's "-": a GM taking a verdict back (E09 C4). The
  * other three keep `null` for "leave alone"; none of them has a third state.
+ */
+/**
+ * Set the sweep-related flags on one Remnant token. GM only.
  */
 export async function setRemnantFlags(tokenDoc,
     { faint = null, tiedToCrime, reinforced = null, type = null, visibility = null } = {}) {
@@ -2453,13 +2455,6 @@ export async function handTiesOn(from, to) {
     return rows.length;
 }
 
-/**
- * Table of every Remnant on the scene, with its three flags editable.
- *
- * Deliberately a table rather than a per-token control: the question the GM is
- * actually asking at chapter end is "which of these survive", and that is a
- * question about the whole scene at once.
- */
 /**
  * Count the Faint traces that would go, confirm, then clear them.
  *

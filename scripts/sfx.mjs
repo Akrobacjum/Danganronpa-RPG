@@ -663,18 +663,6 @@ function countLine() {
 }
 
 /**
- * Wire the panel from the dialog's `render`, never before it.
- *
- * DialogV2 stringifies its content, so listeners attached to markup do not
- * survive the trip - the same reason `wirePortraitPickers` documents, and the
- * reason the FilePicker here has to be opened from a live element.
- *
- * EVERYTHING HERE SAVES AS IT IS TOUCHED, and there is no Apply for it. The
- * volumes are this browser's and want to be heard while being dragged; a
- * mapping wants to be testable the moment it is chosen, and a Test button that
- * needs the window closed and reopened first is a Test button nobody trusts.
- */
-/**
  * Every `[data-drpg-slider]` under `root` wired: its range writes its volume as it moves (`setSfxVolume`), its output
  * follows. The Sound window's (below) and the settings window's Sound section's (E49 A1d) - the one writer of both.
  */
@@ -695,6 +683,18 @@ export function wireVolumeSliders(root) {
     }
 }
 
+/**
+ * Wire the panel from the dialog's `render`, never before it.
+ *
+ * DialogV2 stringifies its content, so listeners attached to markup do not
+ * survive the trip - the same reason `wirePortraitPickers` documents, and the
+ * reason the FilePicker here has to be opened from a live element.
+ *
+ * EVERYTHING HERE SAVES AS IT IS TOUCHED, and there is no Apply for it. The
+ * volumes are this browser's and want to be heard while being dragged; a
+ * mapping wants to be testable the moment it is chosen, and a Test button that
+ * needs the window closed and reopened first is a Test button nobody trusts.
+ */
 export function wireSoundPanel(root) {
     /* ---- volumes ---------------------------------------------------- */
     wireVolumeSliders(root);

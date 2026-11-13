@@ -348,12 +348,6 @@ function copyNamesOf(actor) {
 }
 
 /**
- * How hard this trace is to erase, with the tool in hand taken off the top.
- *
- * Only an EQUIPPED Cleaning Tool counts, matching the weapon rule in murder.mjs:
- * the guide's tools are objects in a hand, not entries on an inventory list.
- */
-/**
  * Was this character standing in the incident that is running?
  *
  * The GM-side twin of `myIncidentTrace` in visibility.mjs, and deliberately the
@@ -374,6 +368,12 @@ function incidentParticipant(actor) {
     }
 }
 
+/**
+ * How hard this trace is to erase, with the tool in hand taken off the top.
+ *
+ * Only an EQUIPPED Cleaning Tool counts, matching the weapon rule in murder.mjs:
+ * the guide's tools are objects in a hand, not entries on an inventory list.
+ */
 export function cleanupDc(visibility, actor) {
     const base = CLEANUP.dc[visibility];
     if (base === undefined) return null;
@@ -1934,29 +1934,6 @@ export async function resolveCleanup({
  * ========================================================================== */
 
 /**
- * Cover what you are doing, when somebody is watching you do it.
- *
- * Guide, p. 27: "Jeśli min. jeden inny gracz zadeklaruje obecność w
- * pomieszczeniu, w którym zabójca realizuje akcje rozwiązania, zabójca na
- * początku akcji musi rzucić kośćmi za ukrycie swoich intencji." Thresh 16,
- * Shadow - the same shape as the sabotage and indirect-murder concealment rolls,
- * and priced the way neither of those is: entirely in Sanity.
- *
- * It never blocks the action. Failing means the room watched you scrub a murder
- * scene, which is a social catastrophe rather than a mechanical one, and the
- * guide gives it no "you may not continue" clause. What it costs is Sanity -
- * the currency Stage 6 runs on - so a botched cover story really does shorten
- * how long the killer can keep cleaning.
- *
- * Rolled with `remember: false`: a supporting roll must not eat a Call armed for
- * the clean-up itself, nor overwrite the Reroll bookmark. Same rule as
- * `INDIRECT_MURDER.concealIntent`.
- *
- * @returns {Promise<"alone"|"rolled"|null>} null only when the roll was
- *   abandoned, which is the one case the caller should read as "they backed
- *   out" - see the note at the top of `concealFromWitnesses` for the other two.
- */
-/**
  * Who in this room could tell on you (D13, Dawid 29.08).
  *
  * AN ACCOMPLICE IS NOT A WITNESS, and the roll this feeds exists entirely to
@@ -2061,6 +2038,29 @@ export async function tamperWatchBlock(actor, { conceals = true } = {}) {
     return game.i18n.localize("DRPG.Tamper.watchedNoSanity");
 }
 
+/**
+ * Cover what you are doing, when somebody is watching you do it.
+ *
+ * Guide, p. 27: "Jeśli min. jeden inny gracz zadeklaruje obecność w
+ * pomieszczeniu, w którym zabójca realizuje akcje rozwiązania, zabójca na
+ * początku akcji musi rzucić kośćmi za ukrycie swoich intencji." Thresh 16,
+ * Shadow - the same shape as the sabotage and indirect-murder concealment rolls,
+ * and priced the way neither of those is: entirely in Sanity.
+ *
+ * It never blocks the action. Failing means the room watched you scrub a murder
+ * scene, which is a social catastrophe rather than a mechanical one, and the
+ * guide gives it no "you may not continue" clause. What it costs is Sanity -
+ * the currency Stage 6 runs on - so a botched cover story really does shorten
+ * how long the killer can keep cleaning.
+ *
+ * Rolled with `remember: false`: a supporting roll must not eat a Call armed for
+ * the clean-up itself, nor overwrite the Reroll bookmark. Same rule as
+ * `INDIRECT_MURDER.concealIntent`.
+ *
+ * @returns {Promise<"alone"|"rolled"|null>} null only when the roll was
+ *   abandoned, which is the one case the caller should read as "they backed
+ *   out" - see the note at the top of `concealFromWitnesses` for the other two.
+ */
 async function concealFromWitnesses(actor) {
     // Three answers, not two (ACT-04): "alone" nothing was rolled, "rolled" a
     // concealment roll landed and paid out, null its window was closed. The
@@ -3694,20 +3694,6 @@ export async function clearUsedTools() {
 }
 
 /**
- * RUINED, NOT VANISHED.
- *
- * These used to be deleted, and deleting them is the one outcome that costs the
- * killer nothing: the murder weapon left the world by itself, tidily, the
- * instant it stopped being useful. The guide's sentence is that the tool "zostaje
- * usunięte z ekwipunku" - removed from what you can use - and the module read
- * that as removed from existence.
- *
- * It stays now, marked Broken, in the same slot and against the same carry
- * limit. Getting rid of it is the killer's own problem and their own decision:
- * throw it away and leave a trace somewhere, or put it in their bedroom stash.
- * See BROKEN_ITEMS in config.mjs and `discardBroken` in use-items.mjs.
- */
-/**
  * The things this character used in the incident, as far as anything wrote them
  * down - or null when nothing could have, and the hand is the answer.
  *
@@ -3736,6 +3722,20 @@ function rememberedTools(actor, category) {
     return row ? row.cleaning.map(id => actor.items.get(id)).filter(kept) : null;
 }
 
+/**
+ * RUINED, NOT VANISHED.
+ *
+ * These used to be deleted, and deleting them is the one outcome that costs the
+ * killer nothing: the murder weapon left the world by itself, tidily, the
+ * instant it stopped being useful. The guide's sentence is that the tool "zostaje
+ * usunięte z ekwipunku" - removed from what you can use - and the module read
+ * that as removed from existence.
+ *
+ * It stays now, marked Broken, in the same slot and against the same carry
+ * limit. Getting rid of it is the killer's own problem and their own decision:
+ * throw it away and leave a trace somewhere, or put it in their bedroom stash.
+ * See BROKEN_ITEMS in config.mjs and `discardBroken` in use-items.mjs.
+ */
 async function destroyTools(actor, categories) {
     if (!game.user.isGM || !actor || !categories?.length) return [];
 

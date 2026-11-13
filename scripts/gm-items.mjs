@@ -1423,8 +1423,9 @@ export async function issueAutopsyDialog() {
  * TAKING AWAY
  * ========================================================================== */
 
-/** Remove one item the module knows about. */
 /**
+ * Remove one item the module knows about.
+ *
  * @param {Actor} [actor]        Whose pockets, as a default the window can change.
  * @param {object} [options]
  * @param {?string} [options.only]  One category key, or null for everything.

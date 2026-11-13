@@ -281,15 +281,6 @@ export function overflowThreshold() {
  */
 export const OVERFLOW_KEY = "overflow";
 
-/**
- * Feed the counter. GM only.
- *
- * TWO CALLERS, AND THEY MEAN DIFFERENT THINGS. `adjustDespair` sends whatever
- * would not fit in a full pool - income the Monokuma never chose to lose. The
- * Feed the Overflow Call sends a point they chose to spend. The counter does
- * not distinguish them, and should not: what darkens the world is the quantity
- * of Despair loose in it, not the mood in which it got there.
- */
 /** Whether this GM is not the primary while another GM, connected, is (`addOverflow`; E37 C7 `takeOverflow`, `checkOverflow`). */
 function primaryElsewhere() {
     if (isPrimaryGm()) return false;
@@ -343,6 +334,15 @@ async function askPrimaryToCheck(ahead, target) {
     return res.reason === "noAnswer" || res.reason === "noGm" ? HERE : null;
 }
 
+/**
+ * Feed the counter. GM only.
+ *
+ * TWO CALLERS, AND THEY MEAN DIFFERENT THINGS. `adjustDespair` sends whatever
+ * would not fit in a full pool - income the Monokuma never chose to lose. The
+ * Feed the Overflow Call sends a point they chose to spend. The counter does
+ * not distinguish them, and should not: what darkens the world is the quantity
+ * of Despair loose in it, not the mood in which it got there.
+ */
 export async function addOverflow(amount, { reason = "spill" } = {}) {
     if (!game.user.isGM) return null;
     const n = Math.round(Number(amount));
@@ -1119,7 +1119,6 @@ export function overflowCrossings(allowance) {
  * checkbox somebody will eventually mis-wire.
  * ========================================================================== */
 
-/** The pane's HTML, for the Despair Flow window's Overflow tab (gm-team-dialog.mjs, `kitTabs`). */
 /**
  * The one line of `overflowSection` that moves on its own.
  *

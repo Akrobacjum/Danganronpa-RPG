@@ -170,14 +170,6 @@ function roleName(role) {
  * WHAT THE SEASON STILL NEEDS
  * ========================================================================== */
 
-/**
- * One row per thing a season needs, each able to say whether it is done.
- *
- * `missing` returns the names it is waiting on, so a row can say "3: Aoi, Leon,
- * Sakura" rather than "not ready" - the GM's next action is on that list, and a
- * count with no names is a second lookup.
- */
-
 /** Is this student carrying anything that counts as their opening item? */
 function hasOpeningItem(actor) {
     const carriable = carriableCategories();
@@ -255,6 +247,12 @@ function undecidedRegionNames(scenes = Array.from(game.scenes ?? [])) {
 }
 
 /**
+ * One row per thing a season needs, each able to say whether it is done.
+ *
+ * `missing` returns the names it is waiting on, so a row can say "3: Aoi, Leon,
+ * Sakura" rather than "not ready" - the GM's next action is on that list, and a
+ * count with no names is a second lookup.
+ *
  * The checklist's rows. Every argument is the world's unless handed in (E20 C1: R1501, R1503 and
  * R1505 hand an empty cast, scenes of plain objects, an assignment map and a record of room checks):
  * `roster` the students, `scenes` the scenes the room rows count, `roomScene` the scene they judge,

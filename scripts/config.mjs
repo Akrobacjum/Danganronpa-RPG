@@ -58,14 +58,6 @@ export const SOCKET = `module.${MODULE_ID}`;
  * Never spell these out inline - a typo in a flag name fails silently.
  */
 export const FLAGS = {
-    /**
-     * A Level Up the GM has handed to the player (N-2, Dawid 20.09).
-     *
-     * `{ kind, by, at }`. It is an OFFER, not an advancement: nothing is written
-     * to the character until they choose, and the GM's client checks this flag
-     * again before it applies anything, because the player's picks arrive over a
-     * socket and a socket carries claims rather than facts.
-     */
     /** Character: the student's Ultimate talent, shown under their name. */
     ultimate: "ultimate",
     /**
@@ -786,8 +778,7 @@ export const TIER_EFFECTS = {
  * labels feed the table names ("DRPG Usables (Healing) - Tier 2") through
  * USABLE_GOALS in tables-pools.mjs, so renaming one here renames what a fresh world
  * installs.
- */
-/**
+ *
  * `chip` is the short form, for the tag on an inventory row.
  *
  * Separate from `label` rather than replacing it: the long names go into item
@@ -892,28 +883,6 @@ export const USABLE_EFFECTS = {
 export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
 
 /**
- * Categories that share one carry limit between them.
- *
- * THREE SLOTS FOR EVERYTHING YOU HOLD IN YOUR HANDS (Dawid, 27.08, G-43).
- *
- * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
- * proportions. The total stands; the division goes. Which three you have is
- * decided by what the dice turned up and what you chose to keep - a player who
- * found two knives no longer has to leave one behind while a slot sits empty
- * beside it, and the new Tool category does not quietly make the number five.
- *
- * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
- * `canCarry` asks changes shape: it stops being "how many of these" and becomes
- * "how much of this budget is spent". Categories with no group keep the old
- * behaviour exactly - Usables still cap at three of their own, Truth Bullets and
- * keys are still uncapped - so nothing outside this group notices.
- *
- * It is also what makes item ROLES safe. With separate counters, moving an
- * item's home moved which counter it drew from, so a screwdriver filed under
- * Tools could serve as a weapon without spending the weapon slot. With one
- * counter every item costs one slot whatever its home and whatever it can do.
- */
-/**
  * How much one stash holds (D10b).
  *
  * Here rather than in vault.mjs because it is the same kind of fact as the
@@ -947,6 +916,28 @@ export const TOOL_IN_HAND = {
     tierReducesThreshold: true
 };
 
+/**
+ * Categories that share one carry limit between them.
+ *
+ * THREE SLOTS FOR EVERYTHING YOU HOLD IN YOUR HANDS (Dawid, 27.08, G-43).
+ *
+ * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
+ * proportions. The total stands; the division goes. Which three you have is
+ * decided by what the dice turned up and what you chose to keep - a player who
+ * found two knives no longer has to leave one behind while a slot sits empty
+ * beside it, and the new Tool category does not quietly make the number five.
+ *
+ * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
+ * `canCarry` asks changes shape: it stops being "how many of these" and becomes
+ * "how much of this budget is spent". Categories with no group keep the old
+ * behaviour exactly - Usables still cap at three of their own, Truth Bullets and
+ * keys are still uncapped - so nothing outside this group notices.
+ *
+ * It is also what makes item ROLES safe. With separate counters, moving an
+ * item's home moved which counter it drew from, so a screwdriver filed under
+ * Tools could serve as a weapon without spending the weapon slot. With one
+ * counter every item costs one slot whatever its home and whatever it can do.
+ */
 export const LIMIT_GROUPS = {
     /*
      * TWO SLOTS, NOT THREE (D10c).
@@ -3728,6 +3719,17 @@ export const INCIDENT = {
 };
 
 /**
+ * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
+ * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
+ * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
+ * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
+ * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
+ * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
+ * whose threshold falls to free as the victim runs out of Health.
+ */
+export const DEFENSE = Object.freeze({ cap: 1 });
+
+/**
  * Crisis actions, by who may take them. Guide pp. 20–25.
  *
  * Every one of these is a roll with three good branches and one bad, and most
@@ -3739,17 +3741,6 @@ export const INCIDENT = {
  * victim takes something of the killer's and makes evidence of it" is a
  * sentence a human has to finish.
  */
-/**
- * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
- * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
- * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
- * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
- * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
- * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
- * whose threshold falls to free as the victim runs out of Health.
- */
-export const DEFENSE = Object.freeze({ cap: 1 });
-
 export const CRISIS_ACTIONS = {
     /**
      * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
@@ -4544,30 +4535,6 @@ export const CLEANUP = {
     remnantType: "resolution",
 
     /**
-     * G-20: what a critical may turn a trace INTO, instead of erasing it.
-     *
-     * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
-     * already on the map: what kind of thing it is, and how easy it is to see.
-     * Erasing is still on the table and is still usually stronger - nothing at
-     * all beats a decoy. What this buys is the option to leave something that
-     * argues for the wrong story rather than a room that has been scrubbed
-     * suspiciously clean.
-     *
-     * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
-     * here, a critical would turn any piece of evidence into any other - and
-     * the four types left out are left out for one reason each:
-     *
-     *   key       the GM placed it for the case to be solvable at all
-     *   final     the same, for the Mastermind
-     *   autopsy   issued from the GM panel, never found in a room
-     *   neutral   a state a Truth Bullet is in, not a kind of trace
-     *
-     * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
-     * business - its own Stage 6 action, with its own roll and its own price -
-     * and folding it in here would make a critical clean-up strictly better than
-     * an action somebody has to spend Sanity on.
-     */
-    /**
      * TRANSFORM AS AN ACTION OF ITS OWN (Z5), not only a critical's reward.
      *
      * The season run's verdict on Stage 6 was that erasing is a bad bet and
@@ -4631,20 +4598,35 @@ export const CLEANUP = {
         limits: { name: 60, text: 400 }
     },
 
+    /**
+     * G-20: what a critical may turn a trace INTO, instead of erasing it.
+     *
+     * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
+     * already on the map: what kind of thing it is, and how easy it is to see.
+     * Erasing is still on the table and is still usually stronger - nothing at
+     * all beats a decoy. What this buys is the option to leave something that
+     * argues for the wrong story rather than a room that has been scrubbed
+     * suspiciously clean.
+     *
+     * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
+     * here, a critical would turn any piece of evidence into any other - and
+     * the four types left out are left out for one reason each:
+     *
+     *   key       the GM placed it for the case to be solvable at all
+     *   final     the same, for the Mastermind
+     *   autopsy   issued from the GM panel, never found in a room
+     *   neutral   a state a Truth Bullet is in, not a kind of trace
+     *
+     * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
+     * business - its own Stage 6 action, with its own roll and its own price -
+     * and folding it in here would make a critical clean-up strictly better than
+     * an action somebody has to spend Sanity on.
+     */
     transform: {
         types: ["faint", "prep", "incident", "resolution"],
         visibilities: ["obvious", "evident", "subtle", "hidden"]
     },
 
-    /**
-     * Both tools are destroyed when Stage 6 closes, not per attempt.
-     *
-     * The crime tool half is the guide's: a weapon that was used in an incident
-     * is gone. The cleaning tool follows it for the
-     * same reason - one crime scene, one set of gloves - rather than being spent
-     * on each individual wipe, which would make a Tier 3 kit worth exactly one
-     * roll and the carry limit of two meaningless.
-     */
     /**
      * The crime tool goes when Stage 6 closes. The cleaning tool does NOT.
      *
@@ -4901,6 +4883,26 @@ export const SFX_CATEGORIES = {
 
 
 /**
+ * How far a repeated sound is allowed to wander.
+ *
+ * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
+ * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
+ * where the second number does its work.
+ *
+ * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
+ * but it is not enough - it sounds a bit like there are two versions of the
+ * sound, they differ so little." The number went to 0.14 and the shape of the
+ * draw changed with it, because a wider spread alone would not have answered
+ * that sentence: half of a uniform draw lands in the middle and is inaudible.
+ *
+ * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
+ * lot for anything with a pitch and nothing at all for a click - which is what
+ * the eleven events that bend actually are. A GM who maps a tonal sting to one
+ * of them will hear it wander against the music; the answer then is to leave
+ * that event out of the bending list, not to flatten the eleven.
+ *
+ * WHAT CAME BEFORE (the note that stood here first, at 0.08; the numbers above replaced it):
+ *
  * How far a varied sound may bend, as a fraction of its normal rate.
  *
  * ONE KNOB, NOT THREE. "Pitch and speed" sound like two controls and are one:
@@ -4937,25 +4939,6 @@ export const SFX_CATEGORIES = {
  *
  * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
  * reasoning settles - which is the lesson of the paragraph this one replaced.
- */
-/**
- * How far a repeated sound is allowed to wander.
- *
- * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
- * to unbent a play is allowed to land - see `rateFor` in sfx-play.mjs, which is
- * where the second number does its work.
- *
- * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
- * but it is not enough - it sounds a bit like there are two versions of the
- * sound, they differ so little." The number went to 0.14 and the shape of the
- * draw changed with it, because a wider spread alone would not have answered
- * that sentence: half of a uniform draw lands in the middle and is inaudible.
- *
- * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
- * lot for anything with a pitch and nothing at all for a click - which is what
- * the eleven events that bend actually are. A GM who maps a tonal sting to one
- * of them will hear it wander against the music; the answer then is to leave
- * that event out of the bending list, not to flatten the eleven.
  */
 export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };
 

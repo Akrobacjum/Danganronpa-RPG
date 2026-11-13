@@ -294,8 +294,7 @@ function box() {
  *
  * The classes are the sheet's own, so the masks, the filled/empty states and
  * the pixel rendering all come from the rules that already style them.
- */
-/**
+ *
  * @param {{from: number, to: number}|null} [options.spent]  Which pips went out
  *   since this tray last drew this pool - see `spentSince`. The tray keeps its
  *   own memory separate from the sheet's, so both surfaces flash the same

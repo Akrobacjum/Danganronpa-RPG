@@ -32,22 +32,6 @@ import { chooseVariant } from "./action-menus.mjs";
  * TAMPER
  * ========================================================================== */
 
-/**
- * Cleaning up, and lying with the evidence, as an ordinary action.
- *
- * NOTHING HERE IS NEW MACHINERY. Both branches end in cleanup.mjs, in the very
- * functions Stage 6 calls, with `viaAction: true` saying which door they came
- * through - see the note at the top of that file. This is the menu, the two
- * lists the menu needs, and nothing else. A second implementation of "erase a
- * trace" would be a second set of thresholds to keep in step with the first.
- *
- * BOTH LISTS ARE FETCHED BEFORE THE MENU OPENS, because both decide whether a
- * row can be offered at all, and a menu that offers you something and then says
- * "actually, no" is the friction `chooseVariant`'s struck-through rows exist to
- * remove. One of the two costs a socket round trip: which traces are yours is a
- * question only a GM's client can answer (trap 85).
- */
-
 /** The Tamper menu: cover, reshape, frame, and - for the killer on their own night - the body. */
 async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup }) {
     return chooseVariant({
@@ -175,6 +159,21 @@ async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, v
     return cleanup.attemptStageSix(actor, "misleadingTrail", whoId, { viaAction });
 }
 
+/**
+ * Cleaning up, and lying with the evidence, as an ordinary action.
+ *
+ * NOTHING HERE IS NEW MACHINERY. Both branches end in cleanup.mjs, in the very
+ * functions Stage 6 calls, with `viaAction: true` saying which door they came
+ * through - see the note at the top of that file. This is the menu, the two
+ * lists the menu needs, and nothing else. A second implementation of "erase a
+ * trace" would be a second set of thresholds to keep in step with the first.
+ *
+ * BOTH LISTS ARE FETCHED BEFORE THE MENU OPENS, because both decide whether a
+ * row can be offered at all, and a menu that offers you something and then says
+ * "actually, no" is the friction `chooseVariant`'s struck-through rows exist to
+ * remove. One of the two costs a socket round trip: which traces are yours is a
+ * question only a GM's client can answer (trap 85).
+ */
 export async function performTamper(actor, def, options) {
     /*
      * WHAT THE CHAIN WOULD TAKE, ASKED BEFORE THE MENU OPENS (T-1).

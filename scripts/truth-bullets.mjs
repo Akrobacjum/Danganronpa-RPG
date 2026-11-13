@@ -139,7 +139,7 @@ export const TRUTH_BULLET_FLAGS = {
      * spelling across the whole module.
      */
     lockedChapter: "lockedChapter",
-    /**
+    /*
      * TWO FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
      * (Dawid, 26.08: "to o czym piszę wchodzi w życie do truth bullets które
      * gracz przeanalizował"). Both live in the bullet's SECRET from creation -
@@ -301,18 +301,6 @@ export function heldCopiesOf(remnantTokenId) {
 }
 
 /**
- * Can this bullet still be analysed, by whoever is holding it?
- *
- * Two ways to be out: it is already identified, or this copy was burned on a
- * failed attempt during the chapter now running. Both are public flags, so a
- * player's client can work this out for itself - unlike the difficulty, which
- * it cannot. See analyze.mjs.
- *
- * The chapter comparison is what gives Faint bullets their second life: a lock
- * stamped in chapter 1 stops mattering the moment chapter 2 begins, which is
- * the guide's "można je przeanalizować ponownie w trakcie Investigation".
- */
-/**
  * Does the holder know what this bullet is?
  *
  * Two ways to know, and `analyzed` alone misses one: a critical Observe hands
@@ -472,6 +460,18 @@ export async function publishReading(item, secret, { held = bulletAsHeld(item), 
     return analyzedText;
 }
 
+/**
+ * Can this bullet still be analysed, by whoever is holding it?
+ *
+ * Two ways to be out: it is already identified, or this copy was burned on a
+ * failed attempt during the chapter now running. Both are public flags, so a
+ * player's client can work this out for itself - unlike the difficulty, which
+ * it cannot. See analyze.mjs.
+ *
+ * The chapter comparison is what gives Faint bullets their second life: a lock
+ * stamped in chapter 1 stops mattering the moment chapter 2 begins, which is
+ * the guide's "można je przeanalizować ponownie w trakcie Investigation".
+ */
 export function isAnalysable(item, chapter = null) {
     if (!isTruthBullet(item)) return false;
     if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return false;
@@ -575,6 +575,46 @@ export function unanalysedType(shownType) {
 }
 
 /**
+ * A Truth Bullet you hold is a Remnant you have seen (Dawid, 31.08).
+ *
+ * Un-hiding the token was the last step of ONE route - Observe - and every
+ * other way a bullet reaches somebody left the marker `hidden` for the whole
+ * table. A player could be handed a copy of a trace, or an autopsy bullet at
+ * the start of an Investigation, and hold evidence whose source was not on
+ * their map.
+ *
+ * visibility.mjs was already ready for this: `myRemnantRefs()` shows the token
+ * to anyone holding a copy, and hides it from everyone else. It was waiting for
+ * a token that never came out of hiding.
+ *
+ * Un-hiding is global and that is correct - it does not show the trace to the
+ * table, it lets the per-client rule decide. See `revealRemnantToFinder`.
+ */
+async function revealSourceOf(sceneId, remnantId) {
+    if (!sceneId || !remnantId) return;
+    try {
+        const { revealRemnantToFinderById } = await import("./remnants.mjs");
+        await revealRemnantToFinderById(sceneId, remnantId);
+    } catch (err) {
+        // A bullet that exists and a marker that stays hidden is worse than
+        // this line failing, but it is not worth losing the bullet over.
+        warn("Could not reveal the Remnant behind a Truth Bullet", err);
+    }
+}
+
+/**
+ * WHO LEFT THE TRACE A BULLET CAME FROM, AS ITS ANSWER KEY NAMES IT (E97 C1, 11.11.2026; R3371): `leftBy`, the
+ * author's actor id, and `leftByName`, read off a trace's ledger row (remnants.mjs `remnantData`: `sourceActor`,
+ * `sourceName`) - `null` and "" for a row with no author or no row at all. The GMs' alone (Q1): it goes into the
+ * bullet's row of `bulletStore`, never onto the item, so the case map and E99 can name the author once the trace is
+ * gone. Pure.
+ */
+export function leftByOf(row) {
+    const leftBy = row?.sourceActor || null;
+    return { leftBy, leftByName: leftBy ? (row?.sourceName ?? "") : "" };
+}
+
+/**
  * Create a Truth Bullet on a character. The single path - the GM's dialog,
  * macro 03 and (from Stage 2) Observe all come through here, so there is one
  * place where a bullet's shape is decided.
@@ -628,46 +668,6 @@ export function unanalysedType(shownType) {
  *   murder. Same rule.
  * @returns {Promise<Item|null>}
  */
-/**
- * A Truth Bullet you hold is a Remnant you have seen (Dawid, 31.08).
- *
- * Un-hiding the token was the last step of ONE route - Observe - and every
- * other way a bullet reaches somebody left the marker `hidden` for the whole
- * table. A player could be handed a copy of a trace, or an autopsy bullet at
- * the start of an Investigation, and hold evidence whose source was not on
- * their map.
- *
- * visibility.mjs was already ready for this: `myRemnantRefs()` shows the token
- * to anyone holding a copy, and hides it from everyone else. It was waiting for
- * a token that never came out of hiding.
- *
- * Un-hiding is global and that is correct - it does not show the trace to the
- * table, it lets the per-client rule decide. See `revealRemnantToFinder`.
- */
-async function revealSourceOf(sceneId, remnantId) {
-    if (!sceneId || !remnantId) return;
-    try {
-        const { revealRemnantToFinderById } = await import("./remnants.mjs");
-        await revealRemnantToFinderById(sceneId, remnantId);
-    } catch (err) {
-        // A bullet that exists and a marker that stays hidden is worse than
-        // this line failing, but it is not worth losing the bullet over.
-        warn("Could not reveal the Remnant behind a Truth Bullet", err);
-    }
-}
-
-/**
- * WHO LEFT THE TRACE A BULLET CAME FROM, AS ITS ANSWER KEY NAMES IT (E97 C1, 11.11.2026; R3371): `leftBy`, the
- * author's actor id, and `leftByName`, read off a trace's ledger row (remnants.mjs `remnantData`: `sourceActor`,
- * `sourceName`) - `null` and "" for a row with no author or no row at all. The GMs' alone (Q1): it goes into the
- * bullet's row of `bulletStore`, never onto the item, so the case map and E99 can name the author once the trace is
- * gone. Pure.
- */
-export function leftByOf(row) {
-    const leftBy = row?.sourceActor || null;
-    return { leftBy, leftByName: leftBy ? (row?.sourceName ?? "") : "" };
-}
-
 export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
     faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",

@@ -24,27 +24,15 @@
     },
     "scripts/action-pipeline.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/action-project.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
-    },
-    "scripts/action-report.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/action-search.mjs": {
       "citations": 2,
       "doubledJsdoc": 0
-    },
-    "scripts/action-tamper.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
-    "scripts/actions.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
     },
     "scripts/api.mjs": {
       "citations": 2,
@@ -56,7 +44,7 @@
     },
     "scripts/bridge-asks.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/bridge-guards.mjs": {
       "citations": 1,
@@ -76,27 +64,19 @@
     },
     "scripts/chapter.mjs": {
       "citations": 0,
-      "doubledJsdoc": 2
+      "doubledJsdoc": 1
     },
     "scripts/chrome.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
     },
-    "scripts/cleanup.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 3
-    },
     "scripts/config.mjs": {
       "citations": 5,
-      "doubledJsdoc": 7
+      "doubledJsdoc": 0
     },
     "scripts/crossing-settle.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
-    },
-    "scripts/despair.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
     },
     "scripts/dh-settings.mjs": {
       "citations": 3,
@@ -115,10 +95,6 @@
       "doubledJsdoc": 0
     },
     "scripts/enforced.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
-    "scripts/events.mjs": {
       "citations": 0,
       "doubledJsdoc": 1
     },
@@ -156,11 +132,7 @@
     },
     "scripts/gm-items.mjs": {
       "citations": 0,
-      "doubledJsdoc": 2
-    },
-    "scripts/gm-panel.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 2
+      "doubledJsdoc": 1
     },
     "scripts/gm-stores.mjs": {
       "citations": 1,
@@ -168,11 +140,7 @@
     },
     "scripts/handbooks.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
-    },
-    "scripts/handover.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/hud.mjs": {
       "citations": 4,
@@ -182,13 +150,9 @@
       "citations": 1,
       "doubledJsdoc": 0
     },
-    "scripts/inventory.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 3
-    },
     "scripts/investigation.mjs": {
       "citations": 1,
-      "doubledJsdoc": 2
+      "doubledJsdoc": 0
     },
     "scripts/iso-shield.mjs": {
       "citations": 2,
@@ -202,13 +166,9 @@
       "citations": 1,
       "doubledJsdoc": 0
     },
-    "scripts/mastermind.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 3
-    },
     "scripts/monocub.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/monokuma.mjs": {
       "citations": 1,
@@ -228,23 +188,15 @@
     },
     "scripts/murder-rules.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/music-play.mjs": {
       "citations": 4,
       "doubledJsdoc": 0
     },
-    "scripts/overflow.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 2
-    },
     "scripts/patches.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
-    },
-    "scripts/player-status.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
     },
     "scripts/private-rolls.mjs": {
       "citations": 5,
@@ -272,7 +224,7 @@
     },
     "scripts/remnants.mjs": {
       "citations": 3,
-      "doubledJsdoc": 2
+      "doubledJsdoc": 0
     },
     "scripts/reroll-receipts.mjs": {
       "citations": 1,
@@ -280,7 +232,7 @@
     },
     "scripts/reroll.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/resources.mjs": {
       "citations": 1,
@@ -294,25 +246,13 @@
       "citations": 2,
       "doubledJsdoc": 0
     },
-    "scripts/room-setup.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
     "scripts/search-tokens.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
     },
     "scripts/season-setup.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
-    },
-    "scripts/season-wipe.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
-    },
-    "scripts/secret.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/settings-window.mjs": {
       "citations": 1,
@@ -320,15 +260,11 @@
     },
     "scripts/settings.mjs": {
       "citations": 1,
-      "doubledJsdoc": 2
+      "doubledJsdoc": 0
     },
     "scripts/sfx-play.mjs": {
       "citations": 1,
       "doubledJsdoc": 0
-    },
-    "scripts/sfx.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
     },
     "scripts/sheet-audit.mjs": {
       "citations": 11,
@@ -336,7 +272,7 @@
     },
     "scripts/sheet.mjs": {
       "citations": 5,
-      "doubledJsdoc": 6
+      "doubledJsdoc": 0
     },
     "scripts/sound-panel.mjs": {
       "citations": 1,
@@ -344,7 +280,7 @@
     },
     "scripts/states.mjs": {
       "citations": 7,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/tables-pools.mjs": {
       "citations": 1,
@@ -364,27 +300,19 @@
     },
     "scripts/truth-bullets.mjs": {
       "citations": 1,
-      "doubledJsdoc": 3
+      "doubledJsdoc": 0
     },
     "scripts/ui-kit.mjs": {
       "citations": 2,
       "doubledJsdoc": 0
     },
-    "scripts/use-items.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 3
-    },
     "scripts/utils.mjs": {
       "citations": 1,
-      "doubledJsdoc": 1
-    },
-    "scripts/verdict.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/visibility.mjs": {
       "citations": 3,
-      "doubledJsdoc": 1
+      "doubledJsdoc": 0
     },
     "scripts/voice-client.mjs": {
       "citations": 6,
@@ -401,10 +329,6 @@
     "scripts/voice.mjs": {
       "citations": 2,
       "doubledJsdoc": 0
-    },
-    "scripts/vote.mjs": {
-      "citations": 0,
-      "doubledJsdoc": 1
     }
   }
 }

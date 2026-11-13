@@ -596,14 +596,6 @@ export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
 }
 
 /**
- * A revealed Remnant is visible to the table by Foundry's own `hidden` flag,
- * but stays a secret from everyone except the finder - see the header note.
- * Unlike the room rule above, this does not depend on the `roomVisibility`
- * setting: it is not about rooms, it is about who has actually copied this
- * specific trace, and it holds regardless of whether the GM has room
- * enforcement switched on.
- */
-/**
  * A project's token, hidden from anybody who does not know it is there.
  *
  * The GM leaves before anything is asked, exactly as with a trace: they are
@@ -619,6 +611,14 @@ function applyToProjectToken(token, projectId) {
     hide(token);
 }
 
+/**
+ * A revealed Remnant is visible to the table by Foundry's own `hidden` flag,
+ * but stays a secret from everyone except the finder - see the header note.
+ * Unlike the room rule above, this does not depend on the `roomVisibility`
+ * setting: it is not about rooms, it is about who has actually copied this
+ * specific trace, and it holds regardless of whether the GM has room
+ * enforcement switched on.
+ */
 function applyToRemnantToken(token) {
     if (game.user.isGM) return;
     // Still hidden: Foundry's own flag already keeps it off every screen but

@@ -1562,34 +1562,6 @@ function evidenceByStudent() {
 }
 
 /**
- * The Investigation at a glance - and, now, the one place a GM edits any of
- * it. One window, three tabs sharing a single Save, because the questions
- * they answer ("what are my clues", "have I placed them", "who has found
- * what") are one GM's one sitting, not three separate trips through the panel.
- *
- *   Traces        every Remnant on every scene - the old per-scene Remnant
- *                 Manager, widened to the whole world, plus the `public`
- *                 record a player will eventually see (see remnants.mjs's
- *                 "ONE RECORD, THREE VIEWS").
- *   Key Remnants  the planner, folded in, now showing how many the opening
- *                 roll actually allows this chapter.
- *
- * THE ENDGAME IS NOT HERE. This window used to carry a third tab holding the
- * Mastermind's identity and the Final Truth Remnant, which meant two screens
- * could write the same two records - and two screens that write one record are
- * two chances to write it differently. Both live on the Mastermind window now,
- * which is the one place the endgame is edited; traces typed `final` still
- * appear in the Traces table here like every other trace, because reading them
- * is not the same act as deciding them.
- *
- * Information only beyond that: an earlier version also handed each Monokuma
- * Despair for every Key Remnant nobody reached, which turned the GM's own
- * planning miss into a resource the GM side got to spend. A clue the players
- * never found is already its own consequence - the trial gets harder - and
- * the "this is getting thin" warning is what a GM actually needs from here.
- */
-
-/**
  * The Truth Bullet sweep, asked for by a person (Z7).
  *
  * The twin of `confirmClearFaint` in remnants.mjs, and deliberately the same
@@ -2131,7 +2103,6 @@ function caseKeyCells({ plan, status, placed, limit }) {
     });
 }
 
-/** The Key Remnants tab: the planner and its warnings. */
 /**
  * The warning that the case is getting thin (E66 C3; S13-29, E66-14): a plural family on the Key Remnants found, and
  * its own sentence for none, which the family's "Only 0 Key Remnants" was. Exported for R1156.
@@ -2142,6 +2113,9 @@ export function tooThinLine(found) {
         : game.i18n.format("DRPG.Investigation.tooThinNone", { min: KEY_REMNANTS.minimum });
 }
 
+/**
+ * The Key Remnants tab: the planner and its warnings.
+ */
 function caseKeyPanel({ plan, status, placed, limit }) {
     // The guide's floor is three Key Remnants; the plan's own warning threshold
     // is one above it, so a GM is told the trial is getting thin BEFORE it is
@@ -3160,6 +3134,33 @@ async function placeFinalFromDashboard(action) {
     }
 }
 
+/**
+ * The Investigation at a glance - and, now, the one place a GM edits any of
+ * it. One window, three tabs sharing a single Save, because the questions
+ * they answer ("what are my clues", "have I placed them", "who has found
+ * what") are one GM's one sitting, not three separate trips through the panel.
+ *
+ *   Traces        every Remnant on every scene - the old per-scene Remnant
+ *                 Manager, widened to the whole world, plus the `public`
+ *                 record a player will eventually see (see remnants.mjs's
+ *                 "ONE RECORD, THREE VIEWS").
+ *   Key Remnants  the planner, folded in, now showing how many the opening
+ *                 roll actually allows this chapter.
+ *
+ * THE ENDGAME IS NOT HERE. This window used to carry a third tab holding the
+ * Mastermind's identity and the Final Truth Remnant, which meant two screens
+ * could write the same two records - and two screens that write one record are
+ * two chances to write it differently. Both live on the Mastermind window now,
+ * which is the one place the endgame is edited; traces typed `final` still
+ * appear in the Traces table here like every other trace, because reading them
+ * is not the same act as deciding them.
+ *
+ * Information only beyond that: an earlier version also handed each Monokuma
+ * Despair for every Key Remnant nobody reached, which turned the GM's own
+ * planning miss into a resource the GM side got to spend. A clue the players
+ * never found is already its own consequence - the trial gets harder - and
+ * the "this is getting thin" warning is what a GM actually needs from here.
+ */
 export async function openInvestigationDashboard({ said = null, node = null, view = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

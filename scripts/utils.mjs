@@ -445,7 +445,6 @@ export function primaryGmId({ arriving = null, leaving = null, users = game.user
     return pool[0] ?? null;
 }
 
-/** The player user who owns this actor, if any. */
 /**
  * "an evident trace", not "a evident trace".
  *

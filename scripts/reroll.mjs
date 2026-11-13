@@ -1152,6 +1152,18 @@ async function settleProgress(actor, bookmark, after, done) {
 }
 
 /**
+ * Whether a Search's Reroll takes a hidden stash's step again. For a roll the GM drew, the
+ * record's answer: the GM drew a step with the dice or it did not (`used.stash`, roll-draw.mjs
+ * `drawOnGm`, E08+E28 C12b; the plan's 2.5) - a step the GM did not draw is not taken. Else the
+ * bookmark's `stashDie`, the roller's claim, as before. Exported for the suite.
+ */
+export async function stashDieOf(bookmark) {
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    const record = drawnRecordOf(game.messages.get(bookmark?.messageId ?? ""));
+    return record ? Boolean(record.used?.stash) : Boolean(bookmark?.stashDie);
+}
+
+/**
  * Take back a Search and run it again.
  *
  * The search token is deliberately NOT returned: the room was searched, and the
@@ -1173,18 +1185,6 @@ async function settleProgress(actor, bookmark, after, done) {
  * it went, and the Search is replayed as an ordinary one. Its identity and its roles are read
  * as the GMs hold them since E29 fix r2-H22 (step 1 below).
  */
-/**
- * Whether a Search's Reroll takes a hidden stash's step again. For a roll the GM drew, the
- * record's answer: the GM drew a step with the dice or it did not (`used.stash`, roll-draw.mjs
- * `drawOnGm`, E08+E28 C12b; the plan's 2.5) - a step the GM did not draw is not taken. Else the
- * bookmark's `stashDie`, the roller's claim, as before. Exported for the suite.
- */
-export async function stashDieOf(bookmark) {
-    const { drawnRecordOf } = await import("./roll-draw.mjs");
-    const record = drawnRecordOf(game.messages.get(bookmark?.messageId ?? ""));
-    return record ? Boolean(record.used?.stash) : Boolean(bookmark?.stashDie);
-}
-
 export async function settleSearch(actor, bookmark, after, done, rerolled = null) {
     // A GM'S (E33 C1a, 06.10.2026; R220's census): a Reroll is replayed on the GM that makes it
     // (`rerollOnGm`, then `replayAction`). Exported, this deleted on a player's console the item a

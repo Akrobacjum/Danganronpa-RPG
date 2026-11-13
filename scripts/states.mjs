@@ -316,13 +316,6 @@ function heldNone(actor) {
 }
 
 /**
- * Bring one character's two conditions into line with their tracks.
- *
- * A Monokuma is skipped outright: they have no action economy to lose and no
- * Hope to spend, and `setMonokuma` zeroes both tracks on purpose - which would
- * otherwise light up both states permanently on every GM's own sheet.
- */
-/**
  * One pass at a time, per actor.
  *
  * The hook that drives this fires on every Health and Sanity write, and an incident
@@ -334,6 +327,13 @@ function heldNone(actor) {
  */
 const running = new Map();
 
+/**
+ * Bring one character's two conditions into line with their tracks.
+ *
+ * A Monokuma is skipped outright: they have no action economy to lose and no
+ * Hope to spend, and `setMonokuma` zeroes both tracks on purpose - which would
+ * otherwise light up both states permanently on every GM's own sheet.
+ */
 export async function syncStates(actor) {
     /*
      * A GM'S (E33 C1a, 06.10.2026; R220's census). Every road here is a GM's - the primary's hook

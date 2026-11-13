@@ -133,11 +133,6 @@ function assemblyCard() {
 }
 
 /**
- * The open incident, for its participants and the GM only. Ownership decides
- * who is a participant, not `game.user.character` (the rule of the header's
- * "WHO SEES THE INCIDENT").
- */
-/**
  * A murder that has opened but not yet reached its incident: the GM's own card, and the
  * participants'. The panel showed nothing for the whole opening stage, which on the GM's
  * screen read as "the Event panel does not show at a murder".
@@ -188,6 +183,11 @@ function openingCard() {
         meta: game.i18n.localize("DRPG.Events.openingMeta")
     };
 }
+/**
+ * The open incident, for its participants and the GM only. Ownership decides
+ * who is a participant, not `game.user.character` (the rule of the header's
+ * "WHO SEES THE INCIDENT").
+ */
 function incidentCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
     /*

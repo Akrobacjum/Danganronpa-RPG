@@ -1935,12 +1935,6 @@ export async function sweepTruthBullets({ actors = null } = {}) {
 }
 
 /**
- * The GM's end-of-chapter panel.
- *
- * One screen with counts, because two of these three cannot be undone and a GM
- * deserves to see the number before it happens rather than after.
- */
-/**
  * Take this chapter's planted Key Remnants off the map.
  *
  * NOTHING DID THIS, AND NOTHING COULD. A Key Remnant is placed `reinforced` and
@@ -2058,6 +2052,12 @@ export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0
         </form>`;
 }
 
+/**
+ * The GM's end-of-chapter panel.
+ *
+ * One screen with counts, because two of these three cannot be undone and a GM
+ * deserves to see the number before it happens rather than after.
+ */
 export async function openChapterEndDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));

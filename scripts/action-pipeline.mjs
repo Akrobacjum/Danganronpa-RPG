@@ -95,8 +95,7 @@ function suiteRolling() {
  * `result.resourceUpdates` for the caller to commit. The sheet's own trait
  * button calls `updateResources()`; ours has to as well, or actions roll dice
  * and quietly hand out nothing.
- */
-/**
+ *
  * @param {Actor} actor
  * @param {string} drpgTrait
  * @param {object} [options]

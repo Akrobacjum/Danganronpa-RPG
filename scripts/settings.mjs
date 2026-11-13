@@ -3260,25 +3260,6 @@ function onDeathsChange() {
 }
 
 /**
- * Who is in the incident, as a bare list of actor ids.
- *
- * HERE, AND NOT IN murder.mjs, for exactly the reason `iAmTheMastermind` lives
- * in this file: movement.mjs and private-rolls.mjs both need it, both are
- * imported by murder.mjs's own graph, and an import the other way would be a
- * cycle. This file is a leaf and reads the client-scoped store directly.
- *
- * Both callers used to read `SETTINGS.murderState` themselves and pick
- * `killerId`, `victimId` and `thirdId` out of it. Those names left world data
- * with LIVE-001, so the list comes from `incidentCast` now - which means a
- * bystander's client gets an empty array, and that is the whole point: a
- * student who is not in the incident is not stopped from walking, and their
- * rolls are not whispered to anybody.
- *
- * A LIST, not the roles. Neither caller ever needed to know which of the three
- * is the killer - one asks "is this actor one of them" and the other asks "who
- * are the others" - so neither is given the answer.
- */
-/**
  * The discovery ledger as THIS client may know it: the union on a GM's
  * browser, this player's own rows on theirs. Shaped
  * `{ [sceneId]: { [actorId]: [roomName, ...] } }` either way. A leaf, so
@@ -3371,6 +3352,25 @@ export function sameSeason(record, epoch = seasonEpoch()) {
     return !(epoch > 0 && Number.isFinite(at) && at > 0 && at < epoch);
 }
 
+/**
+ * Who is in the incident, as a bare list of actor ids.
+ *
+ * HERE, AND NOT IN murder.mjs, for exactly the reason `iAmTheMastermind` lives
+ * in this file: movement.mjs and private-rolls.mjs both need it, both are
+ * imported by murder.mjs's own graph, and an import the other way would be a
+ * cycle. This file is a leaf and reads the client-scoped store directly.
+ *
+ * Both callers used to read `SETTINGS.murderState` themselves and pick
+ * `killerId`, `victimId` and `thirdId` out of it. Those names left world data
+ * with LIVE-001, so the list comes from `incidentCast` now - which means a
+ * bystander's client gets an empty array, and that is the whole point: a
+ * student who is not in the incident is not stopped from walking, and their
+ * rolls are not whispered to anybody.
+ *
+ * A LIST, not the roles. Neither caller ever needed to know which of the three
+ * is the killer - one asks "is this actor one of them" and the other asks "who
+ * are the others" - so neither is given the answer.
+ */
 export function incidentParticipants() {
     const cast = incidentCast();
     return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
@@ -4468,11 +4468,6 @@ export function scaledBox(want, vw, vh, scale) {
 const DAGGERHEART_SHEET = Object.freeze({ width: 850, height: 800 });
 
 /**
- * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
- * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
- * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
- */
-/**
  * The memo a window's scaled box is kept under (E21 C5a): the slider and the layout height (`layoutHeight`, which an
  * on-screen keyboard does not lower), so a resize that changes the height sizes the window again and a second render
  * at the same numbers writes nothing. Until C5a the key was the slider alone.
@@ -4481,6 +4476,11 @@ export function scaleMemo(scale, h = layoutHeight()) {
     return `${scale}@${Math.round(Number(h) || 0)}`;
 }
 
+/**
+ * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
+ * `scaleWindow` sizes it (E21 C1c): the fit sweep's sheet stand-in (audit/style-harness.html `?sheet=1`) is drawn at
+ * these numbers, since the sheet itself is Daggerheart's and is drawn neither headless nor on a harness page.
+ */
 export function sheetBox(vw, vh, scale = 1, theme = "glass") {
     return scaledBox(theme === "glass" ? SHEET_SIZE.glass : DAGGERHEART_SHEET, vw, vh, scale);
 }

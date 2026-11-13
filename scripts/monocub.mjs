@@ -1892,8 +1892,11 @@ async function logCubMove(actor, key, choice, target) {
     await cubStore.patch(actor.id, { log: [...held, entry].slice(-50) });
 }
 
-/** "Wastes an action" - unconditional, unlike `spendAction`, which can refuse. */
-/** A critical Hinder's write. Answers whether an action was there to waste. */
+/**
+ * "Wastes an action" - unconditional, unlike `spendAction`, which can refuse.
+ *
+ * A critical Hinder's write. Answers whether an action was there to waste.
+ */
 async function wasteAction(actor) {
     const left = actionsLeft(actor);
     if (left <= 0) return false;
