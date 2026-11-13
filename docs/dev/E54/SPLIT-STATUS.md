@@ -75,8 +75,8 @@ In a throwaway worktree: `split.mjs` as one commit, `repoint.mjs` as the next, f
 | `npm run quick` on the repoint commit | green: lint 328 files 0 problems; check 17 parts all green; gate 37/37 |
 | tiers 0-1 on the repoint commit, the script as committed (its output on this tree byte for byte the same as the run's) | 1320 tests ran, 399 s: 1305 passed, 0 failed, 16 skipped, 0 red; the 16 skipped are skip-baseline.json's rows of tiers 0-1, name by name (its other 11 are tier-2 tests) |
 
-Main itself was not run again here: the split alone ran the same 1320 tests (1271 + 34 failed + 16 skipped), so 1305
-passed is every test that is not skipped. A run of 421f2395 is the next line of this file once it is made.
+Main itself, 421f2395 in a worktree of its own, later the same day: 1320 tests ran, 404 s: 1305 passed, 0 failed,
+16 skipped, 0 red, the 16 the same tests by name. So the split with its repoint reads as main does, test for test.
 
 What the 46 rewrites are, by rule (the script's own report, `--dry` prints it):
 
@@ -140,7 +140,7 @@ The sheet, made again by the scripts as committed (they grew for the cuts below)
 rewrites; its tree differs from the one proven above in two lists of files, which now read the whole family
 (R1038, R1110); quick and tiers 0-1 running on this tree (13.11.2026), not yet measured.
 
-Main itself, the same tiers 0-1, the same day: quick and tiers 0-1 running on this tree (13.11.2026), not yet measured.
+Main itself, the same tiers 0-1, the same day: 1305 passed, 0 failed, 16 skipped, 0 red (the repoint stage's section).
 
 ### What the cuts asked of the two scripts
 
