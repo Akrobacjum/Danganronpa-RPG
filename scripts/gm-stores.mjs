@@ -1008,6 +1008,22 @@ export const barricadeStore = defineGmStore({
 });
 
 /**
+ * THE BEDROOM NOTES WAITING (privacy line 1, 13.11.2026; the owner's rule #1: a player learns what their character could
+ * know in the fiction, when they could know it). A row per bedroom's owner, scene and room, keyed `<ownerId>:<sceneId>:<room>`
+ * (doors-gm.mjs `bedroomNoteKey`): `{ ownerId, sceneId, room, picked, forced, breached, mended, unsealed }` - each of the four
+ * the time it happened (Date.now()) while the owner stood elsewhere, `unsealed` the seal period a breach lifted a seal in.
+ * Written by the GM that runs the door or the completion (doors-gm.mjs `noteBedroom`), read and dropped by the primary on the
+ * owner's crossing into that room (`tellBedroomNotes`, from traps.mjs `onCrossed`, as the stash notice's `unseen` mark of
+ * `rifleStore` is). Synced; not backed up, as the rifles are not. Cut by the reset's "actions" group. No player copy: what
+ * waits for whom, and when it happened, is the GMs'. No old key.
+ */
+export const bedroomNoteStore = defineGmStore({
+    name: "bedroomNotes", key: SETTINGS.gmBedroomNotes,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
+});
+
+/**
  * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026: "Dodajemy teraz"). A row per character, keyed by its
  * actor id: `{ actorId, effects }`, `effects` its list written whole, each `{ id, kind, n, trait, until, mark, day, at }` -
  * what a room action gave the character for a while (config.mjs `FACILITIES.effects`, the kinds with `untils`), `mark` the

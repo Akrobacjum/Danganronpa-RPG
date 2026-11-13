@@ -721,7 +721,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return { used: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit used in the fight") }),
             drunk: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit a bystander drinks") }),
             broke: game.i18n.format("DRPG.Items.brokeOnDespair", { item: esc("Suite tool a bystander breaks") }),
-            support: game.i18n.format("DRPG.Calls.armedForYou", { what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
+            // Names the bystander who spent the Hope, in its words alone (the owner's rule #9, 13.11.2026; unnamed until then).
+            support: game.i18n.format("DRPG.Calls.armedForYouBy", { name: esc(game.actors.get("${ids.botan}").name), what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
     const handed = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const M = await import("${repoUrl}/scripts/murder.mjs");
         const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");

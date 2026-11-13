@@ -355,15 +355,15 @@ Póki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i po
 
 ### Shut the Door - Body, 1 akcja
 
-Zabarykaduj od środka pokój, w którym stoisz. Działa w pokoju, z którego otwiera się najwyżej dwoje drzwi, we własnej sypialni, ale nie w cudzej. Póki zostajesz w środku, nikt nie wejdzie drzwiami: drzwi nie ustępują. Tajne przejście, wyłom albo tunel wciąż przepuszczają. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, nigdy przez kogo. Ktoś z zewnątrz może je wyważyć (niżej).
+Zabarykaduj od środka pokój, w którym stoisz. Działa w pokoju, z którego otwiera się najwyżej dwoje drzwi, we własnej sypialni, ale nie w cudzej. Póki zostajesz w środku, nikt nie wejdzie drzwiami: drzwi nie ustępują. Tajne przejście, wyłom albo tunel wciąż przepuszczają. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, nigdy przez kogo; osoby stojące z tobą w pokoju widzą, jak to robisz. Kogoś, kto próbuje wejść drzwiami z zewnątrz, słyszą wszyscy w środku, bez imienia. Ktoś z zewnątrz może je wyważyć (niżej).
 
 ### Force the Door - Body, 1 akcja
 
-Przy drzwiach z twojego pokoju do sąsiedniego: jeden rzut na Body przeciw wszystkiemu, co je trzyma, naraz. Barykada ustępuje rzutowi powyżej swojej siły; zamek (MG albo sypialni) i pieczęć ustępują wynikowi 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, póki ktoś go nie naprawi, a wyważona pieczęć znika do końca swojej pory dnia. To głośne: pokoje obok jednego i drugiego pokoju słyszą "Łomot z: {room}" bez imienia, a osoby w obu pokojach widzą, kto to był - przy sukcesie i przy pudle z Despair. Właściciel sypialni dostaje wiadomość, że drzwi wyważono. Nie w trakcie Class Trial, nie gdy jesteś Chained.
+Przy drzwiach z twojego pokoju do sąsiedniego: jeden rzut na Body przeciw wszystkiemu, co je trzyma, naraz. Barykada ustępuje rzutowi powyżej swojej siły; zamek (MG albo sypialni) i pieczęć ustępują wynikowi 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, póki ktoś go nie naprawi, a wyważona pieczęć znika do końca swojej pory dnia. To głośne: pokoje obok jednego i drugiego pokoju słyszą "Łomot z: {room}" bez imienia, a osoby w pokoju za drzwiami widzą, kto to był - przy sukcesie i przy pudle z Despair. Osoby w twoim pokoju zawsze widzą, kto to był, jakikolwiek byłby rzut. Właściciel sypialni, który tego nie widział, dostaje wiadomość, że drzwi wyważono, gdy następnym razem wejdzie do tej sypialni, albo od razu, jeśli w niej jest. Nie w trakcie Class Trial, nie gdy jesteś Chained.
 
 ### Pick the Lock - Shadow, potem Hand, 1 akcja
 
-Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej otwiera je tylko dla ciebie: możesz wejść do tego pokoju, tymi drzwiami albo innymi, i zostać w nim, dopóki z niego nie wyjdziesz; dla reszty zamek zostaje zamknięty. Wejście, z którego nie skorzystasz w tej porze dnia, przepada. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair; przy 18 lub więcej - nigdy.
+Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej otwiera je tylko dla ciebie: możesz wejść do tego pokoju, tymi drzwiami albo innymi, i zostać w nim, dopóki z niego nie wyjdziesz; dla reszty zamek zostaje zamknięty. Wejście, z którego nie skorzystasz w tej porze dnia, przepada. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był; osoby w twoim pokoju widzą to zawsze, jakikolwiek byłby rzut. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair - gdy następnym razem wejdzie do tej sypialni albo od razu, jeśli w niej jest, a jeśli cię widział, nic poza kartą, która cię wymienia; przy 18 lub więcej - nigdy.
 
 ### Keep Watch - Body, 1 akcja
 
@@ -442,7 +442,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 
 | Call | Koszt | Co robi |
 |---|---|---|
-| **Support** | 1 | Daj innemu graczowi przewagę na jeden rzut. Musicie być w tym samym pokoju. |
+| **Support** | 1 | Daj innemu graczowi przewagę na jeden rzut. Musicie być w tym samym pokoju, a ten gracz dowie się, że to ty. |
 | **Talent** | 1 | Jedno z twoich doświadczeń albo twój Ultimate naprawdę stosuje się do następnego rzutu. W jego oknie wybierasz, które: doświadczenie dodaje swój poziom, Ultimate daje przewagę. Czeka na GMa - piszesz, co zamierzasz, a Hope pobierane jest tylko przy zgodzie. |
 | **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. Przy planie morderstwa rzuca też na Hide the Traces, jak praca nad nim. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
@@ -543,6 +543,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 - **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć z niej jedną rzecz, raz na porę dnia. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
 - **Ukrytą** skrytkę trzeba najpierw znaleźć, a znajduje ją tylko Analyze *Find Stash* na 16+; to otwiera ją przed tobą na dobre i odtąd przeglądasz ją jak otwartą. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
 - To, że ktoś częstuje się z twojej skrytki, nie jest ogłaszane w chwili, gdy to robi. Gdy następnym razem wejdziesz do tego pokoju, dowiesz się, że ktoś był w twojej skrytce - nigdy kto ani kiedy. Dowiadujesz się raz, choćby zdarzyło się to kilka razy, tylko gdy coś zniknęło, i nigdy o tym, co wzięto, gdy stałeś w pokoju.
+- Twoje drzwi wyważone, zamek otwierany nieostrożnie, ściana przebita do sypialni albo naprawiony zamek, gdy byłeś gdzie indziej: dowiadujesz się, gdy następnym razem wejdziesz do sypialni, w jednej karcie, ile by tego nie było, nigdy kto. Jeśli jesteś w sypialni, gdy to się dzieje, dowiadujesz się od razu; jeśli widziałeś, jak to się dzieje, dostajesz tylko kartę, która wymienia sprawcę.
 - GM może dać ci skrytkę w innym pokoju. Nie daje ona klucza do tego pokoju.
 - Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, wyjęte ze skrytki albo zabrane z ciała? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone, tak samo jak coś, co ktoś próbuje wsunąć ci do pełnych kieszeni: zostaje u tego, kto próbował, a ty nie dowiadujesz się niczego. Jedna akcja przenosi ze stosu tylko jedną sztukę.
 
