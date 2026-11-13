@@ -2201,7 +2201,7 @@
    "file": "scripts/sheet.mjs",
    "unit": "callButton",
    "kind": "dom:button",
-   "key": "DRPG.Overflow.silenced",
+   "key": null,
    "count": 1,
    "why": "help in code: a Call's summary and its lock note (callButton)",
    "held": {
