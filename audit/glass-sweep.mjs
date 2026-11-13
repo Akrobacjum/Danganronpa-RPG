@@ -2429,8 +2429,10 @@ try {
             await page.route(/glass-harness\.html/, async route => { const res = await route.fetch(), t = await res.text();
                 const body = t.replace(/<nav id="sidebar-tabs">[\s\S]*?<\/nav>/, "").replace(/<section id="drpg-voice-tile"[\s\S]*?<\/section>/, "");
                 fix.page = !body.includes('id="sidebar-tabs"') && !body.includes('id="drpg-voice-tile"'); await route.fulfill({ response: res, body }); });
-            if (patch) await page.route(/scripts\/glass\.mjs/, async route => { const res = await route.fetch(), t = await res.text();
-                const body = t.replace("railed || !side ? tb : null", "tb"); fix.glass = body !== t; await route.fulfill({ response: res, body }); });
+            // glass.mjs's cut (`cutStrips`) moves to glass-geometry.mjs in E54's cut: either file may hold the branch, and
+            // the control is planted when one of them did (a route of glass.mjs alone read NOT PATCHED after the cut)
+            if (patch) await page.route(/scripts\/glass(?:-geometry)?\.mjs/, async route => { const res = await route.fetch(), t = await res.text();
+                const body = t.replace("railed || !side ? tb : null", "tb"); if (body !== t) fix.glass = true; await route.fulfill({ response: res, body }); });
             await page.goto(`${base}/${page0}${page0.includes("?") ? "&" : "?"}role=player`);
             await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
             await page.waitForTimeout(waitMs);
