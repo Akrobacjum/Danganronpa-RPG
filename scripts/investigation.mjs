@@ -3144,8 +3144,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         + `<div class="drpg-case-controls" data-drpg-slot="controls">${said
             ? `<p class="drpg-case-result notes" role="status" title="${esc(said)}">${esc(said)}</p>` : ""}</div></div>${buildCase()}`;
 
-    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the windows it opens and the body secondary; Cancel, since
-       Save is still to answer (E21 rule 3), its answer "discard" (below). No destructive button since E64-inv. */
+    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the windows it opens and the body secondary; Close, which
+       keeps what was typed in an open node (below). No destructive button since E64-inv. */
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
@@ -3191,11 +3191,14 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                chapter both (chapter.mjs `chapterEndForm`: `faint`, `sweep`), so they are End the chapter's alone; the
                Class Trial's evidence log is the trial console's (trial-floor-ui.mjs `logButton`); Undo realization went
                into the realization's preview, behind its own question. R3967 holds the bar to these actions. */
-            /* CANCEL'S ACTION IS "discard", NOT "close" (the planner's review for 1.2.111, 13.11.2026). ApplicationV2 keeps
-               `data-action="close"` for its own close: the press never reaches DialogV2 and the wait answers null
-               (ui-kit.mjs:113-119, measured at a table on 11.09; LIVE-E21-06 is the live check), which reads below as
-               the X and writes the open node. A cancel-role word with an action of its own reaches the wait. */
-            close: { role: "cancel", action: "discard" },
+            /* CLOSE, NOT CANCEL (the owner, 13.11.2026: "Nie, ma zapisywac" - the footer's closing word keeps what was
+               typed). A word that saves is not a Cancel (docs/glossary.json `cancel-word` withdraws a question,
+               `close-word` closes a window with nothing left to answer), so it is the kit's Close. Its action is
+               "close", ApplicationV2's own: at a table the press never reaches DialogV2 and the wait answers null, the
+               X's answer (ui-kit.mjs, "A CLOSING WORD WHOSE ACTION IS "close""; LIVE-E21-06), and the harness answers
+               "close"; both write the open node below. From the planner's review until then it was a Cancel that
+               discarded (4bab7361, da352a81). */
+            close: { role: "close", action: "close" },
             // Two rows at every width, in both views (E97 C2; the owner's Q-C): the kit's grid footer.
             rows: 2
         },
@@ -3277,13 +3280,12 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
 
     /* CLOSED WITH A NODE OPEN, NOT BY SAVE (the owner, 12.11.2026): its fields written now, off the element as it was
        closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save
-       hands on every changed field, the node's among them, so it writes nothing here. CANCEL IS A DISCARD (13.11.2026;
-       perf-open's review for 1.2.111 asked whether Cancel is a close or a discard, and the coordinator set the default
-       for the owner to confirm): its answer "discard" writes neither the node nor the Table's changed fields. The X,
-       Escape and the footer's other buttons, which reopen the window, still write the open node; the X and Escape
-       answer null. Until the planner's review Cancel answered "close", which at a table is the X's null (above). */
-    if (!action || (typeof action === "string" && action !== "discard")) await saveOpenNode(drawnRoot);
-    if (!action || action === "discard") return null;
+       hands on every changed field, the node's among them, so it writes nothing here. EVERY CLOSE WRITES IT (the owner,
+       13.11.2026: "Nie, ma zapisywac"): the X, Escape and the footer's Close (null at a table, "close" headless) and
+       the footer's other buttons, which reopen the window. The Table's changed fields still wait for Save, as with
+       the X. From the planner's review until the owner's answer a Cancel discarded both (4bab7361, da352a81). */
+    if (!action || typeof action === "string") await saveOpenNode(drawnRoot);
+    if (!action || action === "close") return null;
 
     const ran = await runDashboardButton(action);
     if (ran) return openInvestigationDashboard({ said: ran.said ?? null });
