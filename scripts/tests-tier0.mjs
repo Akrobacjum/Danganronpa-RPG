@@ -12071,12 +12071,13 @@ const REGRESSIONS = [
         ok(/registerFoundryWindows/.test(ready) && /registerSequences/.test(ready), "foundry-windows.mjs's or sequence.mjs's registration is no longer in the ready hook: read where their Escape listeners stand now");
     }],
 
-    ["R4672 - every textarea the module draws is in the float survey, in a window the helper floats", async () => {
+    ["R4672 - every textarea the module draws is in the float survey, counted per file", async () => {
         /*
          * float-text line, 13.11.2026 (docs/dev/FLOAT-TEXT/STATUS.md, "The survey"). Each file of scripts/ that draws a
          * `<textarea` or creates one is in FLOAT_SURVEY with the count it draws and the window it stands in; a new one,
-         * or one more in a file, fails here until it is read and listed - read for whether its window is one the helper
-         * floats (`FLOAT_SCOPE`: a module window or an actor's sheet). Comments are stripped before the count.
+         * or one more in a file, fails here until it is listed. Whether its window is one the helper floats (`FLOAT_SCOPE`: a
+         * module window or an actor's sheet) is read by hand when the row is added, and written in its second column: this
+         * test holds the count, not the window (the e93 line's review, T3). Comments are stripped before the count.
          */
         const FLOAT_SURVEY = {
             "action-menus.mjs": [2, "an action's request field and a parked declaration's note (kit windows)"],

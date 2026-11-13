@@ -45,11 +45,20 @@
  *   I3 escape  a listener closing the window on Escape, on `window` in the bubbling phase, as Foundry's keyboard manager
  *              listens (a model: its phase on v14 is read at a table); Escape pressed in the floating field: the window
  *              still in the page, the field no longer focused, back at its own height, no placeholder left.
- * Red runs: `--without` (I1: nothing floats), `--disable follow` (I2: the field stays where the drag left it),
- * `--disable escape` (I3: the window is closed by the same press).
+ *   I4 case map  (the e93 line's review, F1) the case map with a node open (probe 08's `investigation--map-node`, in a
+ *              `--windows` capture; the committed English ones predate it, and I4 is then printed "not read", never ok):
+ *              case-map.mjs's graph listener modelled (Escape with a node open shuts it and stops the key there), beside
+ *              I3's window-closing model; Escape in the node's floating field: the node shut, the window open, the
+ *              field let go;
+ *   I5 sequence (the review's F3) a sequence starts (`data-drpg-sequence` on the body) while the field floats: it lets go;
+ *              clicked while the sequence plays: focused, not floating.
+ * I3 also holds the focus on the field after Escape (the review's F2). Red runs: `--without` (I1: nothing floats),
+ * `--disable follow` (I2: the field stays where the drag left it), `--disable escape` (I3: the window is closed by the
+ * same press). A FLOOR: a run that reads no field, no control, an `--only` naming nothing, or fewer than I1-I3 and I5 in
+ * each theme is red.
  *
- * WHAT IT IS NOT: Foundry's frame or its own stylesheet, a window's live data (the harness's seeded world), a real
- * click (`focus()`), or the actor sheet (the style harness's sheet is the module's parts on a model of Daggerheart's).
+ * WHAT IT IS NOT: Foundry's frame or its own stylesheet, a window's live data (the harness's seeded world), for the field readings a real
+ * click (they use `focus()`; I1, I4 and I5 click), or the actor sheet (the style harness's sheet is the module's parts on a model of Daggerheart's).
  */
 import { createRequire } from "node:module";
 import fs from "node:fs";
@@ -168,7 +177,9 @@ async function open(browser, row, theme) {
 /* THE INTERACTIONS (above). */
 async function interactions(browser, theme) {
     const row = manifest.find(r => r.id === "projects" && r.captured);
-    if (!row) return [`interactions: no captured project manager in ${WINDOWS_DIR}`];
+    // read as a failure, never as a name: an array of a string destructured as [name, pass, line] gave pass "n", an ok
+    // for nothing (the e93 line's review, T1)
+    if (!row) return [[`interactions ${theme}`, false, `no captured project manager in ${WINDOWS_DIR}`]];
     const page = await open(browser, row, theme);
     const out = [];
     const opts = { without: WITHOUT, follow: !DISABLE.includes("follow"), escape: !DISABLE.includes("escape"), text: TEXT.repeat(6) };
@@ -232,15 +243,75 @@ async function interactions(browser, theme) {
     await page.keyboard.press("Escape");
     await settle();
     const r3 = await read();
-    const i3 = r3.connected && !r3.focused && !r3.floating && !r3.hold && Math.abs(r3.field[3] - r3.own) <= 0.5;
+    // the focus stays on the field (the e93 line's review, F2: a blur put a keyboard user on the page's body)
+    const i3 = r3.connected && r3.focused && !r3.floating && !r3.hold && Math.abs(r3.field[3] - r3.own) <= 0.5;
     out.push([`I3 escape ${theme}`, i3, `window open ${r3.connected}, focused ${r3.focused}, floating ${r3.floating}, placeholder ${Boolean(r3.hold)}, height ${Math.round(r3.field[3])} of ${Math.round(r3.own)}`]);
+    // I5: a sequence starts while the field floats, then the field is clicked again while it plays
+    // where the field stands now (I2 moved the window)
+    const here = await page.evaluate(() => { globalThis.__fs.el.blur(); const b = globalThis.__fs.el.getBoundingClientRect(); return [b.left + b.width / 2, b.top + Math.min(b.height / 2, 10)]; });
+    await page.mouse.click(here[0], here[1]);
+    await settle();
+    const floatingBefore = (await read()).floating;
+    await page.evaluate(() => document.body.setAttribute("data-drpg-sequence", "dayStart"));
+    await settle();
+    const r5a = await read();
+    await page.evaluate(() => globalThis.__fs.el.blur());
+    await page.mouse.click(here[0], here[1]);
+    await settle();
+    const r5b = await read();
+    await page.evaluate(() => document.body.removeAttribute("data-drpg-sequence"));
+    const i5 = floatingBefore && !r5a.floating && !r5a.hold && r5b.focused && !r5b.floating && !r5b.hold;
+    out.push([`I5 sequence ${theme}`, i5, `floating before ${floatingBefore}; a sequence starts: floating ${r5a.floating}, placeholder ${Boolean(r5a.hold)}; clicked during it: focused ${r5b.focused}, floating ${r5b.floating}`]);
     await page.close();
     return out;
 }
 
+/* I4, THE CASE MAP (the e93 line's review, F1): Escape in an open node's field shuts the node, as case-map.mjs's graph
+   listener does (it stops the key there), and does not close the window. The graph's own listener is modelled here (an
+   Escape with a node open: its default prevented, its propagation stopped, the node's editor hidden), beside the
+   window-closing model of I3; the capture is the case map with a node open (probe 08's `investigation--map-node`, in
+   the Polish captures of `--windows`; the committed English ones predate it, where I4 is reported not read). */
+async function caseMap(browser, theme) {
+    const row = manifest.find(r => r.id === "investigation--map-node" && r.captured);
+    if (!row) return null;
+    const page = await open(browser, row, theme);
+    const opts = { without: WITHOUT, follow: !DISABLE.includes("follow"), escape: !DISABLE.includes("escape"), text: TEXT.repeat(4) };
+    const at = await page.evaluate(async o => {
+        const F = await import("/scripts/float-text.mjs");
+        if (!o.without) F.registerFloatText({ follow: o.follow, escape: o.escape });
+        const graph = document.querySelector(".drpg-style-shot .drpg-case-graph");
+        const edit = graph?.querySelector(".drpg-case-edit[data-drpg-edit]:not([hidden])");
+        const el = [...(edit?.querySelectorAll("textarea") ?? [])].find(t => t.getBoundingClientRect().height > 0);
+        if (!el) return null;
+        const app = el.closest(".application");
+        graph.addEventListener("keydown", e => {
+            if (e.key !== "Escape" || edit.hidden) return;
+            e.preventDefault(); e.stopPropagation(); edit.hidden = true;
+        });
+        window.addEventListener("keydown", e => { if (e.key === "Escape") app.remove(); });
+        el.value = o.text;
+        el.scrollIntoView({ block: "nearest" });
+        await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+        globalThis.__cm = { el, app, edit };
+        const r = el.getBoundingClientRect();
+        return [r.left + r.width / 2, r.top + Math.min(r.height / 2, 10)];
+    }, opts);
+    if (!at) { await page.close(); return [`I4 case map ${theme}`, false, "no open node with a field in the capture"]; }
+    await page.mouse.click(at[0], at[1]);
+    await page.waitForTimeout(300);
+    const floated = await page.evaluate(() => globalThis.__cm.el.matches(":popover-open"));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => ({ shut: globalThis.__cm.edit.hidden, open: globalThis.__cm.app.isConnected,
+        floating: globalThis.__cm.el.matches(":popover-open"), hold: Boolean(document.querySelector(".drpg-float-text-hold")) }));
+    await page.close();
+    return [`I4 case map ${theme}`, floated && r.shut && r.open && !r.floating && !r.hold,
+        `floated ${floated}; Escape: the node shut ${r.shut}, the window open ${r.open}, floating ${r.floating}, placeholder ${r.hold}`];
+}
+
 const browser = await chromium.launch(EXE ? { executablePath: EXE } : {});
 const fails = [];
-let fields = 0, hidden = 0, interactionsRead = 0;
+let fields = 0, hidden = 0, interactionsRead = 0, controlRead = 0;
 try {
     /* The control: on the first window's first field, two planted faults must each read as `still` failing. */
     /* On the project manager, whose field stands in a form's grid: in a table cell with room to spare (the Remnants
@@ -251,7 +322,7 @@ try {
             const page = await open(browser, controlRow, "glass");
             const got = await measure(page, 0, { plant });
             if (got.still) fails.push(`control: the planted ${plant === "block" ? "12 px block" : "placeholder collapsed"} did not read as a move - the sweep cannot see one`);
-            else console.log(`control ${plant}: read (${got.moved} element(s) moved)`);
+            else { console.log(`control ${plant}: read (${got.moved} element(s) moved)`); controlRead++; }
             await page.close();
         }
     }
@@ -281,12 +352,21 @@ try {
         }
     }
     for (const theme of THEMES) {
-        for (const [name, pass, line] of await interactions(browser, theme)) {
+        const map = await caseMap(browser, theme);
+        if (!map) console.log(`not read: I4 case map ${theme} - no captured case map with a node open in ${WINDOWS_DIR} (probe 08 into --windows has one)`);
+        for (const [name, pass, line] of [...await interactions(browser, theme), ...(map ? [map] : [])]) {
             console.log(`${pass ? "ok  " : "FAIL"} ${name}: ${line}`);
             if (!pass) fails.push(`${name}: ${line}`);
             interactionsRead++;
         }
     }
+    /* A FLOOR ON WHAT WAS READ (the e93 line's review, T2): a run that read no window, no field, no control or fewer
+       interactions than it runs is red, whatever its other lines say. */
+    const unknown = ONLY.filter(id => !manifest.some(r => r.id === id && r.captured));
+    if (unknown.length) fails.push(`--only names no captured window: ${unknown.join(", ")}`);
+    if (!ONLY_INTERACTIONS && !fields) fails.push(`read no field (${withFields.length} window(s) with a textarea in ${WINDOWS_DIR})`);
+    if (!WITHOUT && !ONLY_INTERACTIONS && !controlRead) fails.push("the controls were not read: no captured project manager to plant them on");
+    if (interactionsRead < THEMES.length * 4) fails.push(`read ${interactionsRead} interaction(s), fewer than I1-I3 and I5 in each theme (${THEMES.length * 4})`);
 } finally {
     await browser.close();
 }

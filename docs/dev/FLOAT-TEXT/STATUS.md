@@ -17,8 +17,12 @@ edycji okno zmniejsza sie spowrotem do domyslnego rozmiaru ... dla kazdego pola 
   `.drpg-messenger`) or on an actor's sheet (`FLOAT_SCOPE`). Not a read-only or disabled one, not one marked
   `data-drpg-float="off"` (none is), not a single-line input, not a rich text editor, not Foundry's own windows, the chat
   box, the journal or an item sheet.
-- **When**: from `focusin` to `focusout`, or Escape in the field (which also takes the focus away and goes no further, so
-  the window is not closed by the same press; the next Escape is Foundry's).
+- **When**: from `focusin` to `focusout`, or Escape in the field. Escape lets the float go and keeps the focus on the
+  field (it floats again once it has lost the focus and been given it back); the key goes on to the field and the window
+  around it, so a window's own Escape runs as before (the case map shuts its open node), and only what reaches
+  `document` is stopped, so the same press does not close the window through Foundry's Escape. The next Escape is the
+  window's and Foundry's again. While a sequence plays (`data-drpg-sequence` on the body) no field floats: one floating
+  when it starts goes back, keeping its focus.
 - **How**: the field goes into the browser's top layer (Popover API, `popover="manual"`), so no window's `overflow`,
   `transform` or `backdrop-filter` clips or holds it, and it stays in its place in the page: its events still bubble
   through its window and form, a submit still reads it, every stylesheet rule written for it still matches. A hidden
@@ -30,8 +34,9 @@ edycji okno zmniejsza sie spowrotem do domyslnego rozmiaru ... dla kazdego pola 
   past that; its top on its own top, moved up only as far as the screen's bottom edge needs. It grows and shrinks as
   text is typed and deleted, follows its placeholder every frame (a window dragged or scrolled under it), and is let go
   when its window closes or redraws. 120 ms on the height, none under reduced motion.
-- **Stacking**: the top layer stands over everything on the page, Foundry's notifications and the module's notice tile
-  included, for as long as the field is edited. The coordinator's default was "above the window, below dialogs and
+- **Stacking**: the top layer stands over everything on the page, Foundry's notifications, the module's notice tile and
+  its popup cards included, for as long as the field is edited; a sequence's curtain is the exception, since no field
+  floats while one plays (above). The coordinator's default was "above the window, below dialogs and
   notifications"; the top layer is the one place a window's glass cannot clip it (a `position: fixed` field inside a
   glass window's `.window-content` is placed and clipped by its backdrop filter), and it is the owner's "wierzchnia
   warstwa". A decision for the owner if notifications must stay above it.
@@ -117,6 +122,24 @@ its default prevented, so the field keeps the focus (whether Foundry's own drag 
 not, the field lets go at the drag's start, which is also no fault); and Foundry's Escape is modelled on `window` in the
 bubbling phase, after the helper's capture listener (its phase on v14 is not read here). The whole run after these:
 6 interactions and 56 field readings, 0 failing.
+
+## The e93 line's review (13.11.2026), fixed
+
+| Finding | Fix | Read by |
+| --- | --- | --- |
+| F1, Escape stopped in the capture phase, so the case map's own Escape never shut its node and the next Escape closed the window | the default prevented in capture (foundry-windows.mjs's and sequence.mjs's capture listeners return on it); the key goes on; a one-shot listener on `document`, bubbling, stops only what reaches it | I4 (new): red before (the node not shut), green after |
+| F2, Escape blurred the field to `body` | the field keeps the focus and is `dismissed` until it next loses it | I3 now holds the focus: red before, green after |
+| F3, a floating field stood over a sequence's curtain | a MutationObserver on the body's `data-drpg-sequence` lets the float go; no field lifts while it stands | I5 (new): red before (still floating), green after |
+| F4, the face read after the placeholder went in | every read before the first change | (latent: no sibling-styled textarea in the sheets) |
+| T1, a missing project manager read as an ok | the interactions answer a failing row | `--interactions` with no row: a FAIL line |
+| T2, no floor on what was read | red on an `--only` naming nothing, no field read, no control read, fewer than I1-I3 and I5 in each theme | `--only no-such-window`: two floor failures |
+| T3, R4672's title | "counted per file"; the window read by hand, said in its comment | - |
+| T4, "Since E64" | `1.2.111` by hand, which `--write` keeps | - |
+| C1-C3, comments | the sweep's header, the Escape comment, this file's "When" | - |
+
+A slip on the way, caught by I3: the one-shot `document` listener was first taken away by a microtask, which for a key
+the browser dispatches runs after each listener returns, so it was gone before the key reached `document` and the
+window closed; a timer takes it away now.
 
 ## What is open
 

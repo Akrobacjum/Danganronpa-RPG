@@ -126,26 +126,26 @@ function lift(el) {
     if (!box.width || !box.height) return;
     const cs = getComputedStyle(el);
     const own = { style: el.getAttribute("style"), popover: el.getAttribute("popover"), scrollTop: el.scrollTop };
+    /* EVERY READ BEFORE THE FIRST CHANGE (the e93 line's review, F4): a computed style is live, so a rule that styles the
+       field through its siblings (`label + textarea`, `:first-child`) would stop matching once the placeholder stands
+       beside it, and the ground written below would read back as the field's own. Its place, its face and its colours
+       are read here, then the placeholder goes in and the writes follow. */
+    const placeCss = PLACE.map(k => `${k}:${cs.getPropertyValue(k)}`).join(";");
+    const display = cs.display === "inline" || cs.display === "inline-block" ? "inline-block" : (cs.display === "none" ? "block" : cs.display);
+    const face = FACE.map(k => [k, cs.getPropertyValue(k)]);
+    const fieldColor = cs.backgroundColor, fieldImage = cs.backgroundImage;
+    const bg = rgbaOf(fieldColor);
+    const root = getComputedStyle(document.body);
+    const ground = groundFor(cs.color, { ink: root.getPropertyValue("--drpg-ink").trim() || undefined, bone: root.getPropertyValue("--drpg-bone").trim() || undefined });
     // the placeholder: the field's box, in the field's place
     const hold = document.createElement("div");
     hold.className = HOLD_CLASS;
     hold.setAttribute("aria-hidden", "true");
-    const display = cs.display === "inline" || cs.display === "inline-block" ? "inline-block" : (cs.display === "none" ? "block" : cs.display);
-    hold.style.cssText = `display:${display};box-sizing:border-box;width:${box.width}px;height:${box.height}px;visibility:hidden;pointer-events:none;`
-        + PLACE.map(k => `${k}:${cs.getPropertyValue(k)}`).join(";");
+    hold.style.cssText = `display:${display};box-sizing:border-box;width:${box.width}px;height:${box.height}px;visibility:hidden;pointer-events:none;${placeCss}`;
     el.before(hold);
-    // the face, then the place: written inline while it floats, the field's own style attribute kept to put back
-    const root = getComputedStyle(document.body);
-    const bg = rgbaOf(cs.backgroundColor);
-    const ground = groundFor(cs.color, { ink: root.getPropertyValue("--drpg-ink").trim() || undefined, bone: root.getPropertyValue("--drpg-bone").trim() || undefined });
-    const background = bg && bg.a >= 1 ? `background:${cs.backgroundColor}`
-        : `background-color:${ground};background-image:linear-gradient(${cs.backgroundColor}, ${cs.backgroundColor})${cs.backgroundImage && cs.backgroundImage !== "none" ? `, ${cs.backgroundImage}` : ""}`;
     /* Each written `important`: the module's sheets state a field's face with `!important` in places (Legacy's textarea
        ground, read 13.11.2026 on Room setup's description: its inline ground lost to it and the rows behind showed
        through), and an inline declaration marked important is the one thing that wins over a sheet's. */
-    // read before the first write: a computed style is live, and the ground written below would read back as the field's
-    const face = FACE.map(k => [k, cs.getPropertyValue(k)]);
-    const fieldColor = cs.backgroundColor, fieldImage = cs.backgroundImage;
     for (const [k, v] of face) put(el, k, v);
     if (bg && bg.a >= 1) put(el, "background", fieldColor);
     else {
@@ -227,10 +227,11 @@ export function floatingNow() {
 
 function onFocusIn(event) {
     const el = event.target;
-    if (floats(el)) lift(el);
+    if (el !== dismissed && !sequencePlays() && floats(el)) lift(el);
 }
 
 function onFocusOut(event) {
+    if (event.target === dismissed) dismissed = null;
     if (current && event.target === current.el) drop();
 }
 
@@ -238,17 +239,41 @@ function onInput(event) {
     if (current && event.target === current.el) fit();
 }
 
-/* Escape in a floating field ends the editing here: the field goes back and loses the focus, and the key goes no
-   further, so the window it stands in is not closed by the same press; the next Escape is Foundry's again. Registered
-   in the capture phase on `window` before foundry-windows.mjs's and sequence.mjs's listeners (module.mjs's order). */
+/*
+ * ESCAPE IN A FLOATING FIELD (the e93 line's review of 13.11.2026, F1 and F2). The field goes back to its own size at
+ * once and keeps the focus: it floats again only once it has lost the focus and been given it back (`dismissed`), so a
+ * keyboard or screen reader user stays in the window they were writing in. The key itself goes on to the field and what
+ * stands around it: a window's own Escape - the case map's, which shuts its open node and stops the key there
+ * (case-map.mjs) - runs as it did before this file. Only what reaches `document` is stopped (`stopEscapeAtDocument`, in
+ * the bubbling phase, before `window`'s listeners), so the same press does not close the window through Foundry's
+ * own Escape. The default is prevented in the capture phase, here, because foundry-windows.mjs's and sequence.mjs's
+ * capture listeners on `window` each take an Escape whose default is not prevented and stop it (both return on
+ * `defaultPrevented`): registered after this one (module.mjs: this at init, they at ready), they let it pass. The next
+ * Escape, with the field no longer floating, is Foundry's and the window's again.
+ */
+let dismissed = null;
 function onKeyDown(event) {
     if (!parts.escape || event.key !== "Escape" || !current || event.target !== current.el) return;
     event.preventDefault();
-    event.stopImmediatePropagation();
     const el = current.el;
     drop();
-    el.blur();
+    dismissed = el;
+    const stop = e => {
+        document.removeEventListener("keydown", stop);
+        if (e === event) e.stopImmediatePropagation();
+    };
+    document.addEventListener("keydown", stop);
+    /* Taken away after the dispatch when a window's own handler stopped the key before `document`: by a timer, not a
+       microtask - for a key the browser dispatches, microtasks run after each listener returns, so one queued here ran
+       before the key reached `document` and took the stop away (I3 read the window closed, 13.11.2026). */
+    setTimeout(() => document.removeEventListener("keydown", stop), 0);
 }
+
+/* A SEQUENCE STANDS OVER EVERYTHING (the review's F3): while a board, a cut-in or the trial's entry plays
+   (sequence.mjs marks the body `data-drpg-sequence` for its length) no field floats over it - one floating when it
+   starts goes back at once, keeping its focus, and one focused while it plays stays in its place. */
+const SEQUENCE_ATTR = "data-drpg-sequence";
+const sequencePlays = () => Boolean(document.body?.hasAttribute?.(SEQUENCE_ATTR));
 
 let registered = false;
 /** Once, at init: every editable textarea of the module's windows floats while it has the focus. `follow` and `escape`
@@ -262,5 +287,13 @@ export function registerFloatText({ follow = true, escape = true } = {}) {
     document.addEventListener("focusout", onFocusOut, true);
     document.addEventListener("input", onInput, true);
     window.addEventListener("keydown", onKeyDown, { capture: true });
+    if (typeof MutationObserver === "function" && document.body) {
+        new MutationObserver(() => {
+            if (!current || !sequencePlays()) return;
+            const el = current.el;
+            drop();
+            dismissed = el;
+        }).observe(document.body, { attributes: true, attributeFilter: [SEQUENCE_ATTR] });
+    }
     return true;
 }
