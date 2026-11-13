@@ -203,11 +203,49 @@ which still stands once. Built on each tree itself (`sweep-build.mjs --base`), t
 own new comments that name sheet.mjs: v110 861 comment lines, 213 false, 40 test names, 253 rows; r112 840, 209 false, 43 test names,
 252 rows - so on E54's day they are built again on the commit it runs on.
 
+## The behaviour commits and the glass cut, rehearsed on main 984d1fb1 (13.11.2026)
+
+The behaviour commits are on claude/e54-behaviour, built on v110-fix 32f5093f, each message naming the lines it reads:
+W2 f0fc53dd, W4 40426030, W5 86e8ba27, W6 5db9cb43, Q-E54-7 516395d3, the cut's golden reading and R4805 38727af0,
+G3 df41f149, G4 c4ceea05, G4b 699d5bab, G4c 87eda1af, and the sweep's S12-95 control bf036b2a. E54's day cherry-picks
+them in that order onto main, then runs the cuts.
+
+E54's day, rehearsed in a throwaway worktree: the first ten picked onto origin/main 984d1fb1 (1.2.111) in order.
+Six picked clean. The conflicts, and how each was resolved:
+
+| Commit | File | Resolution |
+| --- | --- | --- |
+| W2, W4, W6, Q-E54-7, 38727af0 | docs/dev/R-REGISTRY.md | `node tools/registry.mjs --write` (the generator's file) |
+| W2 | scripts/tests-tier0.mjs, the end of REGRESSIONS | both appended tests (main R4200-R4204, the branch R4800 on): main's block, its closing `    }],`, then the branch's |
+| Q-E54-7 | scripts/tests-tier0.mjs, line 8 | the config.mjs import takes main's `INFILTRATE` and the branch's `SHEET_SIZE`; the settings.mjs import the branch's |
+
+Then tools/e54/glass.json (the plan's G1 and G5 in one cut: split.mjs refuses a target that exists) on that tree:
+
+| Step | Read |
+| --- | --- |
+| behaviour on main | quick green; tiers 0-1 1410 passed, 0 failed, 16 skipped, 0 red |
+| split | 262 declarations; glass-geometry.mjs 54 (1307 lines), glass-blocks.mjs 4 statements (88 lines), glass.mjs keeps 204 (3720 lines); main's seven new declarations stay |
+| moved-only HEAD~1 on the split | 8/8 green |
+| repoint | 30 rewrites, the manifest's four patches (R509's stand-in sources, R4805's reading), 78 references left |
+| quick, tiers 0-1 on the repoint | green; 1410 passed, 0 failed, 16 skipped, 0 red |
+| audit/glass-golden.mjs, the cut against the tree before it | 276 cuts over 23 sizes: SAME, byte for byte |
+| `node audit/glass-sweep.mjs` | red on one line of 46 sizes with glass: S12-95's control (NOT PATCHED; it rewrote glass.mjs's response, and the branch moved). Fixed by bf036b2a; that check at 1920x1080 then read green before and after the cut. The whole sweep was not run again after the fix |
+| scenarios 74-room-tile, 75-voice-tile | 44/44 and 41/41 checks |
+
+What the glass manifest decides, and why: railBox, resolveAcc and accProbe read the page and stay; centreOrder stands
+among the turn helpers and is not on F6's list; lerp and resample are on it but no cut reads them, and moving lerp
+shortened glassLifecycle's cut by its line. glass-blocks.mjs is a file of its own because in glass-geometry.mjs
+settleVoice's and blockTurns's cuts grew (739 -> 953, 480 -> 31991 characters). split.mjs now writes `export ` before a
+promoted declaration's line when only blanks precede it there (glass.mjs indents the cut two spaces); every top-level
+statement of the other cuts' sources starts at column 0, so their output is as before.
+
 ### Not done here
 
 - The splits' results, as the brief says: only the scripts, the manifests and this file.
-- W2 (`registerWindows(readers)`), W4-W6, Q-E54-7 and the glass cut: behaviour commits or later steps of the plan, not
-  pure moves.
+- The glass cut's comment-sweep table (tools/e54/sweep-glass.json): tools/e54/sweep.mjs refuses a cut with none, and
+  the comments that name glass.mjs for a moved function are not yet listed.
+- The windows' settings half (windows-settings.json, W3) is not rerun after W2 and Q-E54-7, which add
+  `registerWindows`, `windowReaders`, `windowHeight`, `actionsTabHeight` and `callsHeight` to settings.mjs.
 - A comment that names where its code stands moves with the code and says what it said: utils.mjs `windowWidthFor`'s
   header ("Here and not in the kit because R168 reads it here") is now in windows.mjs. moved-only holds every moved line
   to its text, so such sentences are for the stage's comment sweep, not for these scripts.
