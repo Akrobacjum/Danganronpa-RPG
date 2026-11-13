@@ -5,9 +5,9 @@
     "id": "danganronpa-rpg",
     "version": "1.2.111"
   },
-  "commit": "27856009ccbdc4c45f38e3b30cf2391f45838b4a",
+  "commit": "6079d18132a41d1fbb14e4e00fecaa6e8a08d4ba",
   "bound": {
-    "scripts": "4cb88ce5911bd16adc7651c8ba406d30b31ce0ee",
+    "scripts": "4d379979fd6685e4dd32776fe27ee3b2257d7483",
     "styles": "817c26c2cbe1877017a1995480542ac948dcc774",
     "lang": "fe9027abdbdcc66db7753c60a987d1c30d54ea8e",
     "fonts": "5250eed77d36e450eee937cf01d159f78e36b47b",
@@ -23,8 +23,8 @@
     "audit/harness/scenarios/83-roll-integrity.mjs": "d6deca0eaeab2803ed202824725fdde3d6e22151",
     "audit/harness/scenarios/84-viewports.mjs": "fcc7933d6f753787663c1523b494c491863c243e"
   },
-  "startedAt": "2026-11-13T12:09:06.649Z",
-  "finishedAt": "2026-11-13T12:09:06.769Z",
+  "startedAt": "2026-11-13T14:45:19.670Z",
+  "finishedAt": "2026-11-13T14:45:19.795Z",
   "host": {
     "node": "v22.22.0",
     "platform": "linux-x64",
@@ -125,6 +125,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:832280c6113aabd94f3dd826341b87162e44ed7b284d8158383ee11fbda5ddf8",
+  "digest": "sha256:76ec5c28108d9575aa91ff64cb5ebf7db0cc57c93968e74e461c54ee88b2d071",
   "hmac": null
 }
