@@ -91,39 +91,43 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
   the marker included (Q4). Screenshots: none possible headless (no Dice So Nice, no canvas); the table check, both themes,
   is LIVE-E76-07. Daggerheart 2.10+ dice roles: not read further.
 
-## Next
+## The second part, after 1.2.106 (12.11.2026)
 
-- E76 ships as 1.2.106 with C2, C4, C5, the C3 part (R3602) and C6 (the coordinator, 12.11). Release notes and
-  versions.mjs comments are the coordinator's at release.
-- Waiting on the owner (the coordinator asks): C1 (the relay copy from 2.12.8), the C3 copy (the dice from 2.12.8), and
-  E76b, the 2.12 action-roll fix (the module's marks through a MoveContext). This line stops here.
+The owner answered "E76 tak" on 12.11.2026 (about 11:00 Warsaw), relayed by the coordinator: C1, the C3 copy and E76b
+are this line's. The branch took origin/main at 14619ce2 (1.2.106 merged, a6ecbbb9 in it) as a fast-forward first.
+
+| Commit | What | Measured |
+| --- | --- | --- |
+| eb20782 C1a | harness glue: the `SaveField.updateSaveMessage` stub takes both Daggerheart signatures (2.12.8 saveField.mjs:149-156) | 33-bridge-paths 74/74 with the 2.10.11 copy |
+| ec6b04c C1b | **copy**: `lib/dh-relay.mjs` = 2.12.8's socket.mjs lines 3-150 byte for byte (sha1 89f7472022), header updated | 33-bridge-paths 74/74 (A8's saves now through 2.12.8's own handler), 30-security 273/274 + 1 expected red, 0 failed; R132, R133, R344, R345, R3600 |
+| 46b5459 C3a | harness glue: `data/actor/resource-update-map.mjs`, 2.12's import path of `ResourceUpdateMap` | nothing imports it before C3b |
+| 0674ac3 C3b | **copy**: the 12 `dice/` files from 2.12.8, and the two files they reach: `data/action/move-context.mjs`, `helpers/functional.mjs` | tiers 0-1 1210 passed, 0 failed; R217: `reviewBuild` reads 2.12.8's build as reviewed. Every drawn roll threw until C3c (83 3/8) |
+| ca44459 C3c | harness glue: the actor's `rollTrait`/`diceRoll` on 2.12's road (Daggerheart's own MoveContext), `_loc` | E76b's red: 20-crit-hope 3/6, 83-roll-integrity 53/110, 40-flow 65/88, 88-flow-length 26/26 |
+| 4f86946 C3d | harness: the window's experiences off `config.data.experiences` (2.12.8's d20RollDialog.mjs:110), scenario 20's critical off `cfg.evaluated`, lint ignores of the two new copies | with E76b: 83 110/110, 20 6/6 |
+| 2f8e48b E76b | module: `scripts/roll-marks.mjs` (marks carried on the options' event, put back in `drawnBuild` and `daggerheart.preRollDuality`; a 2.12 roll's outcome filled where 2.10 wrote it), critical.mjs reads `config.evaluated`, `seamFor` "ok" on 2.12 where MoveContext keeps the event; R3604-R3606, R3602 revised, `env.moveContext` | red on HEAD+tests: R3602, R3604, R3605, R3606; green: 20 6/6, 83 110/110, 40 88/88, 88 26/26; 5 mutants KILLED |
+
+What R3602 keeps: the draw is left off ("changed") where the MoveContext a 2.12 build offers keeps no event, where none is
+offered, or where `rollTrait` cannot be read. Read in 2.12.8: the dice's `postEvaluate` that filled `config.roll` is
+gone, and `addDualityResourceUpdates` no longer has a reroll branch (2.12.8 dualityRoll.mjs:237-262); the module's Reroll
+on the GM passed 40-flow and 83 on the 2.12.8 copy, which is all that was measured of it.
+
+Not done here: the harness's actor yields no effects to MoveContext's `getActionRelevantEffects` (as its roll carried
+none before), and the window stand-in is still 2.10.5's in everything but the experiences' path (its header says so).
+
+## Ledger rows (for the coordinator's S/stages/E76/LEDGER.md, which is not in this repository)
+
+| Row | Status | Answered by | Limits |
+| --- | --- | --- | --- |
+| E76-02 (the relay copy from the new tag) | ANSWERED | ec6b04c (C1b, a copy alone), eb20782 (the stub); 33-bridge-paths A8 both shapes through 2.12.8's handler, 30-security part 8 against 2.12.8's relay | the `updateSaveMessage` stub is the harness's; what 2.12.8's own field writes is LIVE-E76-02 |
+| E76-05 (the dice copy from the new tag and the draw's review) | ANSWERED | 0674ac3 (C3b, a copy alone), 46b5459, ca44459, 4f86946 (glue); R217 on 2.12.8's build; 83, 20, 40, 88 green on it | MoveContext's effects not modelled (none, as before); a real table's dice and window are LIVE-E76-04 |
+| E76-06 (E76b: the module's marks through 2.12's MoveContext, the GM draw on 2.12) | ANSWERED | 2f8e48b; R3604, R3605, R3606, R3602 (revised); 83-roll-integrity 110/110, 40-flow 88/88 | read on Daggerheart's own MoveContext copy, not on a 2.12.8 table (LIVE-E76-04); the coordinator names the rows, so this mapping is a proposal |
 
 ## CI
 
 | Head | Run | Result |
 | --- | --- | --- |
 | 7130fb4 (C2-C5) | CI run 439 (43132492762) | success: lint/check/gate, 8 suite shards, 8 scenario buckets, verdict; the two crlf jobs skipped, as on every push |
-
-## Blocked: the owner's decision
-
-- **C1 - the relay copy from 2.12.8.** `audit/harness/lib/dh-relay.mjs` may not be edited by this line (the owner's rule).
-  The change needed: re-copy `module/systemRegistration/socket.mjs` lines from tag 2.12.8 (commit 71c318de25) byte for
-  byte, header updated to that tag and its line ranges; in `audit/harness/client-entry.mjs` (the `SaveField.updateSaveMessage`
-  stub, line 859) take 2.12.5's signature `(saveTotal, isCritical, message, targetId)` and write
-  `{ value: saveTotal, isCritical: Boolean(isCritical) }` (2.12.8 saveField.mjs:149-156). Why: until then the harness runs
-  2.10.11's relay, so that 2.12.5's handler marks the card from what the guard forwards is not measured (LIVE-E76-02).
-  The two edits must land together: the stub alone would break the 2.10.11 copy's call.
-- **C3 - the dice copy from 2.12.8.** `audit/harness/lib/dh-dice/` may not be edited by this line. The change needed:
-  re-copy from tag 2.12.8 the files that differ from 2.10.5 (`git diff --stat 2.10.5 2.12.8 -- module/dice`: dhRoll.mjs
-  270 lines changed, dualityRoll.mjs 82, d20Roll.mjs 77, die/baseDie.mjs 23, helpers.mjs 2, _module.mjs 2; the plan also
-  names helpers/utils.mjs, data/action/baseAction.mjs and applications/dialogs/d20RollDialog.mjs) and any new import they
-  pull (2.12.8's dhRoll.mjs names `MoveContext` in its JSDoc and adds `createRollInstance`, `temporaryModifierBuilder`,
-  `config.skips.createMessage`), then run 83-roll-integrity, 20-crit-hope, 40-flow, 88-flow-length.
-  **Finding (read, not run):** `roll-draw.mjs` `reviewBuild` checks the build's structure, not the version. Read in 2.12.8's
-  text: `build` still calls `buildConfigure`, `buildEvaluate`, `buildPost` in order (dhRoll.mjs:47-56), the
-  `post${...}RollConfiguration` template is at :86, `getHooks` adds 'Duality' (dualityRoll.mjs:117-118), and `fromData`,
-  `toMessage`, `buildEvaluate`, `dualityUpdate` are present. So on 2.12.8 the seam would most likely read "ok" and wrap a build
-  no one has reviewed against the draw; whether the draw is still right there is not known. This is the plan's Q-E76-5.
+| a6ecbbb (C6) | CI run 463 (43178172656) | success, the same jobs |
 
 ## Open questions: defaults taken, owner to confirm
 
@@ -133,7 +137,7 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
 | Q-E76-2 | Targets: Foundry 14.370, Daggerheart 2.12.8, Dice So Nice 6.4.5. |
 | Q-E76-3 | foundryvtt.com not allowed in this session; the Foundry half stays secondhand. Not asked of the owner (the brief). |
 | Q-E76-4 | module.json untouched: no `verified` raised without a table run (LIVE-E76-01). |
-| Q-E76-5 | Split: the 2.12 rework (carrying the module's marks through a MoveContext) is not in E76; the draw reads "changed" on 2.12 (R3602) and the GM is told once per version. |
+| Q-E76-5 | Split at 1.2.106 (the draw read "changed" on 2.12); the rework then done in E76b after the owner's yes of 12.11 (2f8e48b). |
 
 ## Live checks added (AUDIT 9.2, items 475-481)
 
@@ -163,6 +167,11 @@ No lang key was added or changed.
 | 13.11, C3-C5 | scenarios 00-boot, 91-old-keys-ignored, 92-old-keys-honoured, 83-roll-integrity, 20-crit-hope | green: 33/33, 8/8, 8/8, 110/110, 6/6 |
 | 13.11, C6 | own: R3603, R940; tier 2 `--only "dice look"`; scenario 17-assistant | pass; 37 passed, 0 failed (33 ran); 46/46 |
 | 13.11, C6 | lint/check/gate; prose; `node run-tests.mjs --tier 1` (whole) | green; 517/517; 1178 ran, 1162 passed, 0 failed, 16 skipped, 1 red (R3339, E48's), 373.7 s |
+
+| 12.11, second part | `node run-all.mjs lint check gate`; prose | green: lint 300 files 0 problems, check 17 parts, gate 37/37; 517/517 |
+| 12.11, second part | `node run-tests.mjs --tier 1` (whole) | 1228 ran, 1213 passed, 0 failed, 16 skipped, 0 red, 404 s |
+| 12.11, second part | own: R217, R3602, R3604, R3605, R3606 | pass; red on HEAD+tests (R3602, R3604-R3606 failed) |
+| 12.11, second part | scenarios 20, 83, 40, 88, 33, 30 | green: 6/6, 110/110, 88/88, 26/26, 74/74, 273/274 + 1 expected red, 0 failed |
 
 ## Tokens so far
 

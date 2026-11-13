@@ -31,7 +31,7 @@ import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
 import { actsAsMastermind, secretDoorHeldShut } from "./passages-gm.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -332,6 +332,8 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             return { verdict: "refused", rule: refused.code, back: refused.back };
         };
         if (isMonokuma((ctx.held ?? (a => a))(actor))) return exempt("Monokuma");
+        // A Spectator walks through walls, as the GMs hold its flag (E92 C3): its moves are a ghost's, judged by no rule.
+        if (isSpectator((ctx.held ?? (a => a))(actor))) return exempt("Spectator");
         if (!isPlaceScene(scene)) return { verdict: "skip", why: "no rooms" };
         if (!was) return rules({ verdict: "skip", why: "never seen" });
         if (options?.[REVERT] || options?.[SENT_BACK]) {

@@ -67,7 +67,7 @@ import {
     MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, TIMING,
     USABLE_EFFECTS
 } from "./config.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, isSpectator } from "./monokuma.mjs";
 import { isDeadForGm, SETTINGS } from "./settings.mjs";
 import { isMoveChange } from "./rooms.mjs";
 import { castStore } from "./gm-stores.mjs";
@@ -3175,6 +3175,7 @@ async function maybeThirdParty(tokenDoc) {
     // came back while somebody else holds the seat would otherwise end.
     if (state.departed?.includes(actor.id)) return;
     if (isMonokuma(actor)) return;       // the GM on the map is not a witness
+    if (isSpectator(actor)) return;      // nor is a Spectator, who watches (E92 C1)
     if (isDeadForGm(actor)) return;
     // A token the GM has hidden is not in the scene as far as the fiction is
     // concerned - the same rule `othersInRoom` applies.

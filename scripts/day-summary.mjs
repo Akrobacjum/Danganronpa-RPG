@@ -29,6 +29,9 @@ import { secretSummaries } from "./secret.mjs";
 import { error, esc, plural } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
+import { sequencesOn } from "./sequence.mjs";
+import { transitionFor } from "./transitions.mjs";
+import { reducedMotion } from "./motion.mjs";
 
 /*
  * WHAT THIS PAGE LAST SAW OF THE CLOCK, AND THE LAST BOUNDARY IT SUMMED UP (E37 C4, 01.11.2026; E37-16, D44c, audit
@@ -80,12 +83,44 @@ export function registerDaySummary() {
 
 /* The clock this page is told of, read against the one it saw: the summary of the time of day that ended, if one did. */
 function sumUp(clock) {
+    const before = seen;
     const window = seen ? summaryWindow(seen, clock, shownFor) : null;
     seen = clock;
     if (!window) return;
     shownFor = { stamp: window.stamp, until: window.until };
     if (clockHiddenHere(murderState())) return;
-    showDaySummary(window).catch(err => error("Could not show the day summary", err));
+    // THE NIGHT'S SUMMARY IS THE END-OF-DAY BOARD'S (E94 C3; the plan's Q-E94-5 default): at the day's roll-over, with the
+    // table's switch on, the board holds the whole day's rows and keeps a card of them, so the Night's own card is not put up
+    if (nightFoldsIntoBoard(window, clock)) return;
+    // after the clock's turn (E62 C5): the summary lands on a still curtain
+    setTimeout(() => showDaySummary(window).catch(err => error("Could not show the day summary", err)), summaryDelay(before, clock));
+}
+
+/**
+ * How long the day summary waits after the change that closed its time of day (E62 C5): the length of that change's
+ * turn (transitions.mjs `transitionFor`), or 0 with none, under reduced motion, or with the table's switch off - the
+ * turn is not played then. Pure but for the two defaults.
+ */
+export function summaryDelay(before, after, { on = sequencesOn(), still = reducedMotion() } = {}) {
+    if (!on || still || !before || !after) return 0;
+    const t = transitionFor(before, after);
+    return t && !t.owner && Number.isFinite(t.dur) ? t.dur : 0;
+}
+
+/**
+ * The end-of-day board kept as one card in this browser's notice history (E94 C3): `html` is the board's last frame as
+ * sequence.mjs drew it (its names escaped there), `title` the board's own i18n title. Sticky, kept as a summary, the
+ * Night's summary it stands in for (`nightFoldsIntoBoard`); posted here so the sequence engine itself puts up no notice.
+ */
+export function keepDayEndCard(html, title) {
+    if (typeof html !== "string" || !html) return;
+    showPopup(html, { title, sticky: true, source: "summary" });
+}
+
+/** Whether the summary of `window` folds into the end-of-day board: the day's last time of day closed by the roll-over to a new day, with the table's switch on. Pure but for the switch. */
+export function nightFoldsIntoBoard(window, after, on = sequencesOn()) {
+    return Boolean(on && window && window.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1]
+        && after?.timeOfDay === TIMES_OF_DAY[0] && after?.eclipse !== true);
 }
 
 const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, clock?.session ?? null,
@@ -200,7 +235,7 @@ export async function showDaySummary(window = null) {
         : entries.filter(e => !e.actorId || game.actors.get(e.actorId)?.isOwner);
     if (!mine.length) return;
 
-    const rows = mine.map(e => {
+    const rows = mine.map((e, i) => {
         const bits = [
             `<span class="drpg-sum-action">${esc(e.action)}</span>`,
             e.room ? `<span class="drpg-sum-room">${esc(e.room)}</span>` : null,
@@ -226,7 +261,7 @@ export async function showDaySummary(window = null) {
             ? `<span class="drpg-sum-who">${esc(game.actors.get(e.actorId)?.name ?? "")}</span>`
             : "";
 
-        return `<li class="drpg-sum-row">${who}<span class="drpg-sum-head">${bits}</span>${
+        return `<li class="drpg-sum-row" style="--drpg-row:${i}">${who}<span class="drpg-sum-head">${bits}</span>${
             tail.length ? `<span class="drpg-sum-tail">${tail.join("")}</span>` : ""}</li>`;
     });
 
@@ -252,5 +287,6 @@ export async function showDaySummary(window = null) {
      * browser's notice history as a summary (the A7 design's P4-0): the four
      * newest whole, the older ones by their words alone (notice-history.mjs, R292).
      */
-    showPopup(content, { title: game.i18n.localize("DRPG.Summary.title"), sticky: true, source: "summary" });
+    // in the middle of the screen, its rows one after another (E62 C5, MK-R2's card)
+    showPopup(content, { title: game.i18n.localize("DRPG.Summary.title"), sticky: true, source: "summary", centre: true });
 }

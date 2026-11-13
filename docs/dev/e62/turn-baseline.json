@@ -1,0 +1,3114 @@
+{
+ "when": "2026-11-12T13:44:42.427Z",
+ "turnMs": 3000,
+ "readings": [
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1600x900",
+   "kind": "phase-recut",
+   "clock": {
+    "kind": "phase-recut",
+    "wall": 1794490358390,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 25,
+      "med": 116.7,
+      "p95": 133.3,
+      "max": 133.3
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 10,
+     "med": 116.7,
+     "p95": 166.6,
+     "max": 166.6
+    },
+    "all": {
+     "n": 24,
+     "med": 116.7,
+     "p95": 216.5,
+     "max": 283.4
+    },
+    "first": 155,
+    "last": 1371,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 11
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 4611,
+     "getContext": 54
+    },
+    "long": [
+     112,
+     110
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      38,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "new",
+    "cuts": 1,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ],
+    "tilt": {
+     "frames": 25,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 0,
+     "y": 216,
+     "w": 320,
+     "h": 72,
+     "cell": 8,
+     "cells": 143,
+     "from": "moved"
+    },
+    "seams": 33,
+    "main": 459,
+    "restMain": 25
+   },
+   "still": {
+    "cut": "new",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.54,
+     "inside": 0.28
+    },
+    "mid": {
+     "edge": 1.09,
+     "inside": 0.58
+    },
+    "tex": {
+     "rest": 6.64,
+     "first": 5.87,
+     "mid": 9.93
+    }
+   },
+   "texture": {
+    "rest": 5.67,
+    "after": 4.24,
+    "low": 4.35,
+    "worst": {
+     "at": "0,256",
+     "ratio": 0.81,
+     "low": 2.51,
+     "ref": 3.09
+    },
+    "n": 10,
+    "series": [
+     [
+      85,
+      5.67
+     ],
+     [
+      218,
+      5.67
+     ],
+     [
+      353,
+      5.67
+     ],
+     [
+      525,
+      4.9
+     ],
+     [
+      641,
+      4.96
+     ],
+     [
+      763,
+      4.56
+     ],
+     [
+      887,
+      4.67
+     ],
+     [
+      1027,
+      4.38
+     ],
+     [
+      1169,
+      4.35
+     ],
+     [
+      1309,
+      4.42
+     ]
+    ],
+    "band": {
+     "x": 0,
+     "y": 216,
+     "w": 320,
+     "h": 72,
+     "cell": 8,
+     "cells": 143,
+     "from": "moved"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 109.4,
+     "n": 4337
+    },
+    "peak": {
+     "p50": 205,
+     "n": 4337
+    },
+    "cut": "new",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1600x900",
+   "kind": "phase",
+   "clock": {
+    "kind": "phase",
+    "wall": 1794490410516,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 27,
+      "med": 116.6,
+      "p95": 116.8,
+      "max": 133.3
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 7,
+     "med": 166.7,
+     "p95": 216.7,
+     "max": 216.7
+    },
+    "all": {
+     "n": 19,
+     "med": 149.9,
+     "p95": 250,
+     "max": 250
+    },
+    "first": 76,
+    "last": 1243,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 4609,
+     "getContext": 50
+    },
+    "long": [
+     104
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      76,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ],
+    "tilt": {
+     "frames": 20,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    },
+    "seams": 33,
+    "main": 451,
+    "restMain": 29
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.49,
+     "inside": 0.29
+    },
+    "mid": {
+     "edge": 0.89,
+     "inside": 0.41
+    },
+    "tex": {
+     "rest": 2.44,
+     "first": 2.34,
+     "mid": 2.31
+    }
+   },
+   "texture": {
+    "rest": 2.44,
+    "after": 2.33,
+    "low": 2.25,
+    "worst": {
+     "at": "384,192",
+     "ratio": 0.9,
+     "low": 4.79,
+     "ref": 5.33
+    },
+    "n": 8,
+    "series": [
+     [
+      84,
+      2.44
+     ],
+     [
+      212,
+      2.44
+     ],
+     [
+      339,
+      2.44
+     ],
+     [
+      465,
+      2.44
+     ],
+     [
+      632,
+      2.3
+     ],
+     [
+      821,
+      3.5
+     ],
+     [
+      1015,
+      2.44
+     ],
+     [
+      1234,
+      2.25
+     ]
+    ],
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 109.4,
+     "n": 4337
+    },
+    "peak": {
+     "p50": 206.9,
+     "n": 4337
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1600x900",
+   "kind": "hour",
+   "clock": {
+    "kind": "hour",
+    "wall": 1794490462314,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 22,
+      "med": 133.3,
+      "p95": 133.4,
+      "max": 250
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 5,
+     "med": 216.7,
+     "p95": 366.6,
+     "max": 366.6
+    },
+    "all": {
+     "n": 18,
+     "med": 133.4,
+     "p95": 366.6,
+     "max": 366.6
+    },
+    "first": 159,
+    "last": 1243,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 4609,
+     "getContext": 50
+    },
+    "long": [
+     112,
+     57,
+     66
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      26,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ],
+    "tilt": {
+     "frames": 19,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    },
+    "seams": 33,
+    "main": 462,
+    "restMain": 28
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.49,
+     "inside": 0.29
+    },
+    "mid": {
+     "edge": 0.67,
+     "inside": 0.3
+    },
+    "tex": {
+     "rest": 2.44,
+     "first": 2.35,
+     "mid": 2.31
+    }
+   },
+   "texture": {
+    "rest": 2.44,
+    "after": 2.34,
+    "low": 2.25,
+    "worst": {
+     "at": "384,192",
+     "ratio": 0.89,
+     "low": 4.77,
+     "ref": 5.35
+    },
+    "n": 7,
+    "series": [
+     [
+      130,
+      2.44
+     ],
+     [
+      321,
+      2.44
+     ],
+     [
+      495,
+      2.44
+     ],
+     [
+      653,
+      2.44
+     ],
+     [
+      851,
+      2.3
+     ],
+     [
+      1045,
+      3.52
+     ],
+     [
+      1274,
+      2.25
+     ]
+    ],
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 109.4,
+     "n": 4337
+    },
+    "peak": {
+     "p50": 206,
+     "n": 4337
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1600x900",
+   "kind": "layout",
+   "clock": {
+    "kind": "layout",
+    "wall": 1794490514895,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 25,
+      "med": 116.6,
+      "p95": 133.3,
+      "max": 216.6
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 12,
+     "med": 83.3,
+     "p95": 150,
+     "max": 150
+    },
+    "all": {
+     "n": 29,
+     "med": 116.6,
+     "p95": 133.4,
+     "max": 150
+    },
+    "first": 326,
+    "last": 1393,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 14
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 5480,
+     "getContext": 28
+    },
+    "long": [
+     91,
+     87
+    ],
+    "checks": [
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     6,
+     0
+    ],
+    "trail": [
+     [
+      93,
+      "[0,0,0]"
+     ],
+     [
+      326,
+      "[0,6,0]"
+     ]
+    ],
+    "cut": "new",
+    "cuts": 1,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(196, 174, 142)"
+    ],
+    "tilt": {
+     "frames": 30,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 0,
+     "y": 0,
+     "w": 840,
+     "h": 864,
+     "cell": 8,
+     "cells": 1392,
+     "from": "moved"
+    },
+    "seams": 45,
+    "main": 259,
+    "restMain": 30
+   },
+   "still": null,
+   "texture": {
+    "rest": 5.77,
+    "after": 4.09,
+    "low": 4.97,
+    "worst": {
+     "at": "256,256",
+     "ratio": 0.39,
+     "low": 1.55,
+     "ref": 3.94
+    },
+    "n": 11,
+    "series": [
+     [
+      345,
+      4.97
+     ],
+     [
+      494,
+      4.97
+     ],
+     [
+      644,
+      6.43
+     ],
+     [
+      728,
+      5.69
+     ],
+     [
+      809,
+      5.56
+     ],
+     [
+      894,
+      5.44
+     ],
+     [
+      995,
+      5.33
+     ],
+     [
+      1082,
+      5.23
+     ],
+     [
+      1179,
+      5.78
+     ],
+     [
+      1268,
+      5.78
+     ],
+     [
+      1360,
+      5.78
+     ]
+    ],
+    "band": {
+     "x": 0,
+     "y": 0,
+     "w": 840,
+     "h": 864,
+     "cell": 8,
+     "cells": 1392,
+     "from": "moved"
+    }
+   },
+   "flash": null,
+   "why": [
+    "the texture inside the turn fell to 39 % of rest in the square at 256,256 (1.55/3.94; E23-04: 80 %)"
+   ]
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1600x900",
+   "control": {
+    "today": {
+     "clip": {
+      "frames": 3,
+      "writes": 3,
+      "all": 14
+     },
+     "today": "planted"
+    },
+    "flash": {
+     "rest": {
+      "p50": 109.4,
+      "n": 4337
+     },
+     "peak": {
+      "p50": 152.4,
+      "n": 4337
+     }
+    },
+    "tilt": {
+     "frames": 18,
+     "none": 18,
+     "straight": [
+      "drpg-book-launcher"
+     ],
+     "worn": 1,
+     "buttons": 5
+    }
+   }
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1366x768",
+   "kind": "phase-recut",
+   "clock": {
+    "kind": "phase-recut",
+    "wall": 1794490570515,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 34,
+      "med": 83.4,
+      "p95": 100,
+      "max": 116.7
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 13,
+     "med": 100,
+     "p95": 183.4,
+     "max": 183.4
+    },
+    "all": {
+     "n": 31,
+     "med": 83.4,
+     "p95": 166.6,
+     "max": 183.4
+    },
+    "first": 88,
+    "last": 1438,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 5
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 2380,
+     "getContext": 58
+    },
+    "long": [
+     91,
+     87
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      88,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "new",
+    "cuts": 1,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ],
+    "tilt": {
+     "frames": 32,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 0,
+     "y": 128,
+     "w": 440,
+     "h": 176,
+     "cell": 8,
+     "cells": 84,
+     "from": "moved"
+    },
+    "seams": 42,
+    "main": 465,
+    "restMain": 43
+   },
+   "still": {
+    "cut": "new",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.64,
+     "inside": 0.35
+    },
+    "mid": {
+     "edge": 1.32,
+     "inside": 0.65
+    },
+    "tex": {
+     "rest": 8.46,
+     "first": 7.49,
+     "mid": 11.64
+    }
+   },
+   "texture": {
+    "rest": 17.93,
+    "after": 6.69,
+    "low": 7.39,
+    "worst": {
+     "at": "64,256",
+     "ratio": 1.3,
+     "low": 1.94,
+     "ref": 1.49
+    },
+    "n": 13,
+    "series": [
+     [
+      168,
+      17.93
+     ],
+     [
+      269,
+      17.93
+     ],
+     [
+      386,
+      8.47
+     ],
+     [
+      479,
+      8.47
+     ],
+     [
+      597,
+      7.39
+     ],
+     [
+      732,
+      21.31
+     ],
+     [
+      816,
+      13.4
+     ],
+     [
+      913,
+      10.59
+     ],
+     [
+      1006,
+      10.46
+     ],
+     [
+      1095,
+      15.62
+     ],
+     [
+      1185,
+      13.01
+     ],
+     [
+      1275,
+      11.52
+     ],
+     [
+      1370,
+      8.17
+     ]
+    ],
+    "band": {
+     "x": 0,
+     "y": 128,
+     "w": 440,
+     "h": 176,
+     "cell": 8,
+     "cells": 84,
+     "from": "moved"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 107.3,
+     "n": 3960
+    },
+    "peak": {
+     "p50": 179.7,
+     "n": 3960
+    },
+    "cut": "new",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1366x768",
+   "kind": "phase",
+   "clock": {
+    "kind": "phase",
+    "wall": 1794490620136,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 34,
+      "med": 83.3,
+      "p95": 116.7,
+      "max": 166.7
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 10,
+     "med": 116.7,
+     "p95": 166.6,
+     "max": 166.6
+    },
+    "all": {
+     "n": 31,
+     "med": 83.4,
+     "p95": 133.3,
+     "max": 166.6
+    },
+    "first": 98,
+    "last": 1298,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 1285,
+     "getContext": 47
+    },
+    "long": [
+     78,
+     98
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      98,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ],
+    "tilt": {
+     "frames": 32,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    },
+    "seams": 32,
+    "main": 389,
+    "restMain": 39
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.53,
+     "inside": 0.34
+    },
+    "mid": {
+     "edge": 0.92,
+     "inside": 0.48
+    },
+    "tex": {
+     "rest": 2.61,
+     "first": 2.6,
+     "mid": 2.51
+    }
+   },
+   "texture": {
+    "rest": 2.29,
+    "after": 2.17,
+    "low": 2.18,
+    "worst": {
+     "at": "704,640",
+     "ratio": 0.98,
+     "low": 2.99,
+     "ref": 3.06
+    },
+    "n": 10,
+    "series": [
+     [
+      130,
+      2.29
+     ],
+     [
+      209,
+      2.29
+     ],
+     [
+      305,
+      2.29
+     ],
+     [
+      400,
+      2.29
+     ],
+     [
+      529,
+      2.3
+     ],
+     [
+      655,
+      2.68
+     ],
+     [
+      788,
+      2.45
+     ],
+     [
+      944,
+      5.26
+     ],
+     [
+      1099,
+      2.69
+     ],
+     [
+      1241,
+      2.18
+     ]
+    ],
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 118.9,
+     "n": 3337
+    },
+    "peak": {
+     "p50": 201.5,
+     "n": 3337
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1366x768",
+   "kind": "hour",
+   "clock": {
+    "kind": "hour",
+    "wall": 1794490669578,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 32,
+      "med": 83.3,
+      "p95": 150,
+      "max": 166.6
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 8,
+     "med": 133.3,
+     "p95": 166.7,
+     "max": 166.7
+    },
+    "all": {
+     "n": 29,
+     "med": 83.4,
+     "p95": 183.4,
+     "max": 249.9
+    },
+    "first": 87,
+    "last": 1137,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 1286,
+     "getContext": 47
+    },
+    "long": [
+     69,
+     84
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      4,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ],
+    "tilt": {
+     "frames": 30,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    },
+    "seams": 32,
+    "main": 344,
+    "restMain": 41
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.53,
+     "inside": 0.34
+    },
+    "mid": {
+     "edge": 0.69,
+     "inside": 0.35
+    },
+    "tex": {
+     "rest": 2.61,
+     "first": 2.6,
+     "mid": 2.52
+    }
+   },
+   "texture": {
+    "rest": 2.29,
+    "after": 2.17,
+    "low": 2.18,
+    "worst": {
+     "at": "704,640",
+     "ratio": 0.98,
+     "low": 3.01,
+     "ref": 3.07
+    },
+    "n": 8,
+    "series": [
+     [
+      158,
+      2.29
+     ],
+     [
+      255,
+      2.29
+     ],
+     [
+      384,
+      2.3
+     ],
+     [
+      537,
+      2.68
+     ],
+     [
+      674,
+      5.31
+     ],
+     [
+      828,
+      3.71
+     ],
+     [
+      978,
+      2.24
+     ],
+     [
+      1123,
+      2.18
+     ]
+    ],
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 118.9,
+     "n": 3337
+    },
+    "peak": {
+     "p50": 200.6,
+     "n": 3337
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "gm",
+   "size": "1366x768",
+   "kind": "layout",
+   "clock": {
+    "kind": "layout",
+    "wall": 1794490718930,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 40,
+      "med": 66.7,
+      "p95": 83.4,
+      "max": 150
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 35,
+     "med": 83.3,
+     "p95": 149.9,
+     "max": 166.5
+    },
+    "all": {
+     "n": 35,
+     "med": 83.3,
+     "p95": 149.9,
+     "max": 166.5
+    },
+    "first": null,
+    "last": null,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 0
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 0,
+     "getContext": 0
+    },
+    "long": [],
+    "checks": [
+     null,
+     null,
+     null
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      34,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(196, 174, 142)"
+    ],
+    "tilt": {
+     "frames": 36,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 5
+    },
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    },
+    "seams": 32,
+    "main": 72,
+    "restMain": 38
+   },
+   "still": null,
+   "texture": {
+    "rest": 2.29,
+    "after": 2.29,
+    "low": null,
+    "n": 0,
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    }
+   },
+   "flash": null,
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1600x900",
+   "kind": "phase-recut",
+   "clock": {
+    "kind": "phase-recut",
+    "wall": 1794490740819,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 23,
+      "med": 116.7,
+      "p95": 149.9,
+      "max": 149.9
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 10,
+     "med": 133.3,
+     "p95": 216.6,
+     "max": 216.6
+    },
+    "all": {
+     "n": 21,
+     "med": 133.3,
+     "p95": 216.6,
+     "max": 266.7
+    },
+    "first": 160,
+    "last": 1543,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 11
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 1890,
+     "getContext": 51
+    },
+    "long": [
+     117,
+     52
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      43,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "new",
+    "cuts": 1,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ],
+    "tilt": {
+     "frames": 22,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 0,
+     "y": 216,
+     "w": 320,
+     "h": 72,
+     "cell": 8,
+     "cells": 143,
+     "from": "moved"
+    },
+    "seams": 33,
+    "main": 540,
+    "restMain": 33
+   },
+   "still": {
+    "cut": "new",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.54,
+     "inside": 0.27
+    },
+    "mid": {
+     "edge": 1.08,
+     "inside": 0.57
+    },
+    "tex": {
+     "rest": 6.64,
+     "first": 5.87,
+     "mid": 9.93
+    }
+   },
+   "texture": {
+    "rest": 5.67,
+    "after": 4.24,
+    "low": 4.37,
+    "worst": {
+     "at": "0,256",
+     "ratio": 0.81,
+     "low": 2.51,
+     "ref": 3.09
+    },
+    "n": 10,
+    "series": [
+     [
+      98,
+      5.67
+     ],
+     [
+      233,
+      5.67
+     ],
+     [
+      364,
+      5.67
+     ],
+     [
+      490,
+      5.67
+     ],
+     [
+      653,
+      4.9
+     ],
+     [
+      768,
+      6.84
+     ],
+     [
+      896,
+      4.56
+     ],
+     [
+      1024,
+      4.39
+     ],
+     [
+      1184,
+      4.37
+     ],
+     [
+      1321,
+      4.54
+     ]
+    ],
+    "band": {
+     "x": 0,
+     "y": 216,
+     "w": 320,
+     "h": 72,
+     "cell": 8,
+     "cells": 143,
+     "from": "moved"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 108.1,
+     "n": 4318
+    },
+    "peak": {
+     "p50": 202.8,
+     "n": 4318
+    },
+    "cut": "new",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1600x900",
+   "kind": "phase",
+   "clock": {
+    "kind": "phase",
+    "wall": 1794490792968,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 23,
+      "med": 116.7,
+      "p95": 166.6,
+      "max": 233.4
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 6,
+     "med": 216.6,
+     "p95": 500,
+     "max": 500
+    },
+    "all": {
+     "n": 15,
+     "med": 183.2,
+     "p95": 500,
+     "max": 500
+    },
+    "first": 59,
+    "last": 1609,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 1887,
+     "getContext": 47
+    },
+    "long": [
+     159
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      59,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ],
+    "tilt": {
+     "frames": 16,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    },
+    "seams": 33,
+    "main": 450,
+    "restMain": 27
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.5,
+     "inside": 0.28
+    },
+    "mid": {
+     "edge": 0.87,
+     "inside": 0.4
+    },
+    "tex": {
+     "rest": 2.44,
+     "first": 2.34,
+     "mid": 2.31
+    }
+   },
+   "texture": {
+    "rest": 2.44,
+    "after": 2.33,
+    "low": 2.3,
+    "worst": {
+     "at": "384,192",
+     "ratio": 0.89,
+     "low": 4.74,
+     "ref": 5.33
+    },
+    "n": 7,
+    "series": [
+     [
+      139,
+      2.44
+     ],
+     [
+      284,
+      2.44
+     ],
+     [
+      429,
+      2.44
+     ],
+     [
+      617,
+      2.3
+     ],
+     [
+      825,
+      3.4
+     ],
+     [
+      1030,
+      2.33
+     ],
+     [
+      1256,
+      2.73
+     ]
+    ],
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 108.1,
+     "n": 4318
+    },
+    "peak": {
+     "p50": 204.9,
+     "n": 4318
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1600x900",
+   "kind": "hour",
+   "clock": {
+    "kind": "hour",
+    "wall": 1794490845710,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 22,
+      "med": 133.3,
+      "p95": 166.6,
+      "max": 233.4
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 7,
+     "med": 183.4,
+     "p95": 183.4,
+     "max": 183.4
+    },
+    "all": {
+     "n": 19,
+     "med": 150,
+     "p95": 183.4,
+     "max": 183.4
+    },
+    "first": 182,
+    "last": 1415,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 1887,
+     "getContext": 47
+    },
+    "long": [
+     113,
+     54,
+     54
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      48,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ],
+    "tilt": {
+     "frames": 20,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    },
+    "seams": 33,
+    "main": 497,
+    "restMain": 24
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.5,
+     "inside": 0.28
+    },
+    "mid": {
+     "edge": 0.66,
+     "inside": 0.29
+    },
+    "tex": {
+     "rest": 2.44,
+     "first": 2.35,
+     "mid": 2.31
+    }
+   },
+   "texture": {
+    "rest": 2.44,
+    "after": 2.34,
+    "low": 2.3,
+    "worst": {
+     "at": "256,64",
+     "ratio": 0.93,
+     "low": 10.94,
+     "ref": 11.79
+    },
+    "n": 7,
+    "series": [
+     [
+      174,
+      2.44
+     ],
+     [
+      297,
+      2.44
+     ],
+     [
+      415,
+      2.44
+     ],
+     [
+      547,
+      2.44
+     ],
+     [
+      725,
+      2.3
+     ],
+     [
+      968,
+      3.24
+     ],
+     [
+      1206,
+      2.69
+     ]
+    ],
+    "band": {
+     "x": 296,
+     "y": 8,
+     "w": 288,
+     "h": 216,
+     "cell": 8,
+     "cells": 882,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 108.1,
+     "n": 4318
+    },
+    "peak": {
+     "p50": 203.8,
+     "n": 4318
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1600x900",
+   "kind": "layout",
+   "clock": {
+    "kind": "layout",
+    "wall": 1794490898692,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 28,
+      "med": 100,
+      "p95": 133.4,
+      "max": 133.4
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 15,
+     "med": 66.7,
+     "p95": 216.7,
+     "max": 216.7
+    },
+    "all": {
+     "n": 30,
+     "med": 100,
+     "p95": 133.4,
+     "max": 216.7
+    },
+    "first": 248,
+    "last": 1548,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 14
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 2757,
+     "getContext": 25
+    },
+    "long": [
+     71,
+     81
+    ],
+    "checks": [
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ],
+     [
+      0,
+      6,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     6,
+     0
+    ],
+    "trail": [
+     [
+      31,
+      "[0,0,0]"
+     ],
+     [
+      248,
+      "[0,6,0]"
+     ]
+    ],
+    "cut": "new",
+    "cuts": 1,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(196, 174, 142)"
+    ],
+    "tilt": {
+     "frames": 31,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 0,
+     "y": 0,
+     "w": 840,
+     "h": 864,
+     "cell": 8,
+     "cells": 1392,
+     "from": "moved"
+    },
+    "seams": 45,
+    "main": 230,
+    "restMain": 27
+   },
+   "still": null,
+   "texture": {
+    "rest": 5.77,
+    "after": 4.09,
+    "low": 4.97,
+    "worst": {
+     "at": "256,256",
+     "ratio": 0.39,
+     "low": 1.55,
+     "ref": 3.94
+    },
+    "n": 12,
+    "series": [
+     [
+      279,
+      5.77
+     ],
+     [
+      395,
+      4.97
+     ],
+     [
+      503,
+      4.97
+     ],
+     [
+      630,
+      6.43
+     ],
+     [
+      768,
+      5.71
+     ],
+     [
+      837,
+      5.24
+     ],
+     [
+      908,
+      5.46
+     ],
+     [
+      978,
+      5.21
+     ],
+     [
+      1052,
+      5.78
+     ],
+     [
+      1125,
+      5.78
+     ],
+     [
+      1188,
+      5.78
+     ],
+     [
+      1236,
+      5.78
+     ]
+    ],
+    "band": {
+     "x": 0,
+     "y": 0,
+     "w": 840,
+     "h": 864,
+     "cell": 8,
+     "cells": 1392,
+     "from": "moved"
+    }
+   },
+   "flash": null,
+   "why": [
+    "the texture inside the turn fell to 39 % of rest in the square at 256,256 (1.55/3.94; E23-04: 80 %)"
+   ]
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1366x768",
+   "kind": "phase-recut",
+   "clock": {
+    "kind": "phase-recut",
+    "wall": 1794490922544,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 37,
+      "med": 66.8,
+      "p95": 100,
+      "max": 150
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 13,
+     "med": 66.7,
+     "p95": 166.7,
+     "max": 166.7
+    },
+    "all": {
+     "n": 33,
+     "med": 83.3,
+     "p95": 166.7,
+     "max": 250
+    },
+    "first": 94,
+    "last": 1227,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 5
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 2595,
+     "getContext": 57
+    },
+    "long": [
+     72,
+     76
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      11,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "new",
+    "cuts": 1,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ],
+    "tilt": {
+     "frames": 34,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 0,
+     "y": 128,
+     "w": 440,
+     "h": 176,
+     "cell": 8,
+     "cells": 84,
+     "from": "moved"
+    },
+    "seams": 42,
+    "main": 421,
+    "restMain": 44
+   },
+   "still": {
+    "cut": "new",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.63,
+     "inside": 0.35
+    },
+    "mid": {
+     "edge": 1.32,
+     "inside": 0.65
+    },
+    "tex": {
+     "rest": 8.46,
+     "first": 7.5,
+     "mid": 11.67
+    }
+   },
+   "texture": {
+    "rest": 17.93,
+    "after": 6.69,
+    "low": 7.39,
+    "worst": {
+     "at": "64,256",
+     "ratio": 1.19,
+     "low": 1.77,
+     "ref": 1.49
+    },
+    "n": 12,
+    "series": [
+     [
+      155,
+      17.93
+     ],
+     [
+      252,
+      8.47
+     ],
+     [
+      387,
+      7.39
+     ],
+     [
+      471,
+      21.69
+     ],
+     [
+      555,
+      13.4
+     ],
+     [
+      633,
+      10.99
+     ],
+     [
+      724,
+      10.76
+     ],
+     [
+      807,
+      15.4
+     ],
+     [
+      900,
+      15.74
+     ],
+     [
+      986,
+      11.51
+     ],
+     [
+      1071,
+      8.53
+     ],
+     [
+      1150,
+      8.12
+     ]
+    ],
+    "band": {
+     "x": 0,
+     "y": 128,
+     "w": 440,
+     "h": 176,
+     "cell": 8,
+     "cells": 84,
+     "from": "moved"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 107.1,
+     "n": 3923
+    },
+    "peak": {
+     "p50": 178.8,
+     "n": 3923
+    },
+    "cut": "new",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(255, 61, 139)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1366x768",
+   "kind": "phase",
+   "clock": {
+    "kind": "phase",
+    "wall": 1794490971582,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 44,
+      "med": 66.7,
+      "p95": 83.4,
+      "max": 83.4
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 11,
+     "med": 100,
+     "p95": 233.4,
+     "max": 233.4
+    },
+    "all": {
+     "n": 31,
+     "med": 83.4,
+     "p95": 150,
+     "max": 233.4
+    },
+    "first": 71,
+    "last": 1304,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 1502,
+     "getContext": 47
+    },
+    "long": [
+     69,
+     82
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      4,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ],
+    "tilt": {
+     "frames": 32,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    },
+    "seams": 32,
+    "main": 425,
+    "restMain": 40
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.52,
+     "inside": 0.34
+    },
+    "mid": {
+     "edge": 0.92,
+     "inside": 0.48
+    },
+    "tex": {
+     "rest": 2.61,
+     "first": 2.6,
+     "mid": 2.51
+    }
+   },
+   "texture": {
+    "rest": 2.29,
+    "after": 2.17,
+    "low": 2.18,
+    "worst": {
+     "at": "704,640",
+     "ratio": 0.98,
+     "low": 2.99,
+     "ref": 3.06
+    },
+    "n": 9,
+    "series": [
+     [
+      110,
+      2.29
+     ],
+     [
+      193,
+      2.29
+     ],
+     [
+      300,
+      2.29
+     ],
+     [
+      433,
+      2.3
+     ],
+     [
+      564,
+      2.68
+     ],
+     [
+      691,
+      5.29
+     ],
+     [
+      845,
+      4.04
+     ],
+     [
+      985,
+      2.27
+     ],
+     [
+      1140,
+      2.18
+     ]
+    ],
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 118.1,
+     "n": 3300
+    },
+    "peak": {
+     "p50": 199.7,
+     "n": 3300
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(87, 182, 255)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1366x768",
+   "kind": "hour",
+   "clock": {
+    "kind": "hour",
+    "wall": 1794491020235,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 39,
+      "med": 66.7,
+      "p95": 150,
+      "max": 150
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 10,
+     "med": 100,
+     "p95": 266.7,
+     "max": 266.7
+    },
+    "all": {
+     "n": 32,
+     "med": 83.4,
+     "p95": 150,
+     "max": 266.7
+    },
+    "first": 83,
+    "last": 1266,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 1
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 1502,
+     "getContext": 47
+    },
+    "long": [
+     62,
+     75
+    ],
+    "checks": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      0
+     ]
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      0,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ],
+    "tilt": {
+     "frames": 33,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    },
+    "seams": 32,
+    "main": 369,
+    "restMain": 38
+   },
+   "still": {
+    "cut": "same",
+    "noise": {
+     "edge": 0,
+     "inside": 0
+    },
+    "first": {
+     "edge": 0.52,
+     "inside": 0.34
+    },
+    "mid": {
+     "edge": 0.69,
+     "inside": 0.35
+    },
+    "tex": {
+     "rest": 2.61,
+     "first": 2.6,
+     "mid": 2.52
+    }
+   },
+   "texture": {
+    "rest": 2.29,
+    "after": 2.17,
+    "low": 2.18,
+    "worst": {
+     "at": "704,640",
+     "ratio": 0.98,
+     "low": 3.01,
+     "ref": 3.07
+    },
+    "n": 10,
+    "series": [
+     [
+      122,
+      2.29
+     ],
+     [
+      215,
+      2.29
+     ],
+     [
+      293,
+      2.29
+     ],
+     [
+      379,
+      2.29
+     ],
+     [
+      494,
+      2.3
+     ],
+     [
+      599,
+      2.69
+     ],
+     [
+      715,
+      5.3
+     ],
+     [
+      857,
+      3.39
+     ],
+     [
+      1000,
+      2.24
+     ],
+     [
+      1132,
+      2.18
+     ]
+    ],
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    }
+   },
+   "flash": {
+    "rest": {
+     "p50": 118.1,
+     "n": 3300
+    },
+    "peak": {
+     "p50": 198.8,
+     "n": 3300
+    },
+    "cut": "same",
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(169, 151, 159)"
+    ]
+   },
+   "why": []
+  },
+  {
+   "theme": "stained",
+   "role": "player",
+   "size": "1366x768",
+   "kind": "layout",
+   "clock": {
+    "kind": "layout",
+    "wall": 1794491069256,
+    "ms": 3000,
+    "today": null,
+    "plant": false,
+    "flash": null,
+    "rest": {
+     "frames": {
+      "n": 38,
+      "med": 66.7,
+      "p95": 100.1,
+      "max": 100.1
+     },
+     "long": 0
+    },
+    "frames": {
+     "n": 39,
+     "med": 66.7,
+     "p95": 100,
+     "max": 100
+    },
+    "all": {
+     "n": 39,
+     "med": 66.7,
+     "p95": 100,
+     "max": 100
+    },
+    "first": null,
+    "last": null,
+    "clip": {
+     "frames": 0,
+     "writes": 0,
+     "all": 0
+    },
+    "draw": {
+     "frames": 0,
+     "calls": 0,
+     "all": 0,
+     "getContext": 0
+    },
+    "long": [],
+    "checks": [
+     null,
+     null,
+     null
+    ],
+    "check0": [
+     0,
+     0,
+     0
+    ],
+    "check": [
+     0,
+     0,
+     0
+    ],
+    "trail": [
+     [
+      60,
+      "[0,0,0]"
+     ]
+    ],
+    "cut": "same",
+    "cuts": 0,
+    "acc": [
+     "rgb(196, 174, 142)",
+     "rgb(196, 174, 142)"
+    ],
+    "tilt": {
+     "frames": 40,
+     "none": 0,
+     "straight": [],
+     "worn": 1,
+     "buttons": 3
+    },
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    },
+    "seams": 32,
+    "main": 83,
+    "restMain": 36
+   },
+   "still": null,
+   "texture": {
+    "rest": 2.29,
+    "after": 2.29,
+    "low": null,
+    "n": 0,
+    "band": {
+     "x": 704,
+     "y": 624,
+     "w": 232,
+     "h": 136,
+     "cell": 8,
+     "cells": 327,
+     "from": "field"
+    }
+   },
+   "flash": null,
+   "why": []
+  }
+ ]
+}

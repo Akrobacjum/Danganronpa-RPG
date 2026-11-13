@@ -54,6 +54,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { log, ownerIdsOf, isPrimaryGm, serialWrite } from "./utils.mjs";
 import { projectSecretStore } from "./gm-stores.mjs";
+import { spectatorUserIds } from "./spectator.mjs";
 
 export const DH = "daggerheart";
 export const COUNTDOWNS = "Countdowns";
@@ -206,6 +207,8 @@ export async function setProjectMeta(countdownId, data) {
 export function canSee(countdownId, user = game.user) {
     if (user?.isGM) return true;
     if (!isSecret(countdownId)) return true;
+    // A Spectator sees every project, the secret ones too (E92, the owner's DRPG-D1 of 12.11.2026; `ownershipMap`).
+    if (user && spectatorUserIds().has(user.id)) return true;
     return viewersOf(countdownId).some(u => u.id === user?.id);
 }
 
@@ -239,12 +242,17 @@ export const ownerIdsOfId = actorId => ownerIdsOf(game.actors.get(actorId ?? "")
  * included. Secrecy has to be spelled out per user: an explicit NONE for every
  * player who is not a viewer.
  */
-export function ownershipMap(viewerIds = []) {
+export function ownershipMap(viewerIds = [], watching = spectatorUserIds()) {
     const viewers = new Set(viewerIds.filter(Boolean));
+    /* EVERY SPECTATOR OBSERVES (E92, the owner's DRPG-D1 of 12.11.2026: "Widzi wszystkie projekty w tym prywatne"). A
+       Spectator's account is an observer of every secret project, so Daggerheart draws it on that browser's tray; it is
+       no viewer (`viewersOf`, `sharedIds` leave it out), so no share, seal or card counts it in, and it leaves the map
+       when it stops being one (projects.mjs `seeAsSpectators`). Read as the GMs hold the flag (scripts/spectator.mjs); the
+       suite hands its own (R3867). */
     const map = { default: NONE };          // kept for our own isSecret() read
     for (const user of game.users) {
         if (user.isGM) continue;            // GMs are owners unconditionally
-        map[user.id] = viewers.has(user.id) ? OBSERVER : NONE;
+        map[user.id] = viewers.has(user.id) || watching.has(user.id) ? OBSERVER : NONE;
     }
     return map;
 }
@@ -257,8 +265,9 @@ export function insidersOf(countdownId) {
 /** Users who can currently see a secret project (excluding GMs). */
 export function viewersOf(countdownId) {
     const ownership = rawCountdown(countdownId)?.ownership ?? {};
+    const watching = spectatorUserIds();
     return Object.entries(ownership)
-        .filter(([key, level]) => key !== "default" && level >= OBSERVER)
+        .filter(([key, level]) => key !== "default" && level >= OBSERVER && !watching.has(key))
         .map(([userId]) => game.users.get(userId))
         .filter(u => u && !u.isGM);
 }
@@ -278,8 +287,9 @@ export function secretChange(countdownId, viewerIds = []) {
 
 /** The users who see a secret project now, read from its ownership map. */
 function sharedIds(countdownId) {
+    const watching = spectatorUserIds();
     return Object.entries(rawCountdown(countdownId)?.ownership ?? {})
-        .filter(([key, level]) => key !== "default" && level >= OBSERVER)
+        .filter(([key, level]) => key !== "default" && level >= OBSERVER && !watching.has(key))
         .map(([id]) => id);
 }
 

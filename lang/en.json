@@ -231,6 +231,33 @@
     }
   },
   "DRPG": {
+    "Sequence": {
+      "trialTitle": "CLASS TRIAL",
+      "trialSubtitle": "Chapter {chapter} · Everyone to the courtroom",
+      "trialSubtitleNoChapter": "Everyone to the courtroom",
+      "stampGuilty": "GUILTY",
+      "stampInnocent": "NOT GUILTY",
+      "votesCounted": "VOTES COUNTED",
+      "dayTitle": "Day {day}",
+      "daySub": "Chapter {chapter} · {time} · Alive: {alive}/{total}",
+      "daySubNoChapter": "{time} · Alive: {alive}/{total}",
+      "weRemember": "we remember",
+      "morningLine": "MORNING ANNOUNCEMENT",
+      "dayEndTitle": "End of day {day}",
+      "dayEndSub": "Chapter {chapter}",
+      "yourDay": "YOUR DAY",
+      "tableDay": "THE TABLE'S DAY",
+      "foundSomething": "found",
+      "dayTally": "Actions: {actions} · Found: {found}",
+      "quietDay": "A quiet day.",
+      "publicEvents": "WHAT THE SCHOOL SAW",
+      "moodLabel": "THE SCHOOL'S MOOD",
+      "mood": {
+        "calm": "Calm",
+        "uneasy": "Uneasy",
+        "spilling": "Close to spilling"
+      }
+    },
     "DhSettings": {
       "title": "Character settings",
       "details": "Details",
@@ -358,6 +385,10 @@
       "highContrast": {
         "name": "High contrast",
         "hint": "Brighter fine print, solid hairlines, opaque panels and no blur behind the chrome. Text sizes belong to the Interface scale rather than to this switch, and the map is left alone. On by itself when your system asks for more contrast. This client only."
+      },
+      "sequences": {
+        "name": "Full-screen sequences",
+        "hint": "The Class Trial's entry, the verdict, the clock's turns and flashes, and the day boards, on every screen. Off, only the trial's and the verdict's sounds play. Esc skips one."
       },
       "reducedMotion": {
         "name": "Reduced motion",
@@ -3477,6 +3508,14 @@
       "fogBudget": "Fog: no Free Move",
       "noExperiences": "No experiences yet. You start with two at +2, and a Level Up can add one."
     },
+    "Spectator": {
+      "role": "Spectator",
+      "marked": "{name} is now a Spectator.",
+      "unmarked": "{name} is no longer a Spectator.",
+      "talk": "Talk with the Spectators",
+      "talkBack": "Go back to your room",
+      "noChat": "A Spectator has no chat."
+    },
     "Class": {
       "notInClass": "Not in the class",
       "outTooltip": "Mark as not in the class: an NPC, with no actions, ballots or Level Ups.",
@@ -4149,6 +4188,7 @@
         "refused": "The GM's client refused it.",
         "noGm": "No GM is connected.",
         "noAnswer": "The GM's client did not answer in time.",
+        "spectator": "A Spectator takes no actions.",
         "answerKeyMissing": "The GM's browser does not hold this bullet's answer key. The GM has been told.",
         "keysNotOpen": "The GM's browser has not opened the answer keys yet. The GM has been told.",
         "rollUnknown": "The GM's client holds no roll of yours that it could be scored on.",
@@ -4312,6 +4352,8 @@
       "phase": "Phase",
       "session": "Session",
       "timeOfDay": "Time of day",
+      "morningLine": "Next morning's line",
+      "morningLineHint": "Shown on the start-of-day board when the next day begins. Empty shows nothing.",
       "chapterCorrectTitle": "Correct the chapter number",
       "endChapterNote": "End the chapter reveals, sweeps and names the Blackened - everything the chapter field above does not. It asks first, and nothing typed above is applied.",
       "endChapterAsk": "End the chapter now? Edit campaign closes without applying, and the chapter's end opens: it lists what it will reveal, sweep and name before anything is done.",
@@ -4459,6 +4501,7 @@
       "nextReady": "The players have been asked before the clock moves. Open the question again.",
       "roleColumn": "Role",
       "openSheet": "Open {name}'s sheet",
+      "openColumn": "Open",
       "role": {
         "student": "Student"
       },
@@ -4466,6 +4509,7 @@
       "group": {
         "students": "Students",
         "monokumas": "Monokumas",
+        "spectators": "Spectators",
         "notInClass": "Not in the class"
       }
     },
@@ -5056,6 +5100,8 @@
         "eclipse": "Eclipse: no player is in a voice channel until the lights come back.",
         "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
         "deadAlone": "Your character is dead: the living do not hear you, and you do not hear them.",
+        "spectator": "You're a Spectator: you hear the room you're in, and your microphone is off.",
+        "spectatorTalk": "You're talking with the other Spectators.",
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",

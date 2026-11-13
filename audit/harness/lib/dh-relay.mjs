@@ -1,15 +1,17 @@
 /*
  * Daggerheart's GM relay, copied VERBATIM for the headless harness.
  *
- * Source: Foundryborne Daggerheart, tag 2.10.11 (commit a093ec5c0f),
- * module/systemRegistration/socket.mjs lines 3-148 - `handleSocketEvent` with
+ * Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25),
+ * module/systemRegistration/socket.mjs lines 3-150 - `handleSocketEvent` with
  * its default branch, `socketEvent`, `GMUpdateEvent`, `RefreshType`,
  * `EVENT_HANDLERS` and `registerSocketHooks`. Left out: the
  * `DamageReductionDialog` import on line 1, `registerUserQueries` (lines
- * 150-153) and the helpers a client sends with (`emitGMUpdate`, `emitGMCreate`,
- * `emitAsGM`, `emitAsOwner`, lines 155-183), none of which the relay calls.
- * Nothing else is changed. It replaced 2.10.8's copy in E75 C1 (10.10.2026);
- * socket.mjs is the same file in 2.10.10 and 2.10.11.
+ * 152-155) and the helpers a client sends with (`emitGMUpdate`, `emitGMCreate`,
+ * `emitAsGM`, `emitAsOwner`, lines 157-185), none of which the relay calls.
+ * Nothing else is changed, the source's trailing spaces included. It replaced
+ * 2.10.11's copy in E76 (12.11.2026; the owner's yes of 12.11, relayed by the
+ * coordinator); socket.mjs is the same file from 2.12.5 to 2.12.8 (sha1
+ * 89f7472022), and 2.10.11's from 2.10.10 to 2.12.4 (59fbfd4bd9).
  *
  * Re-copy it; never edit it. The point of having it here is that the security
  * scenario (30-security, part 8) checks the guard against the real relay, not a
@@ -130,9 +132,11 @@ const EVENT_HANDLERS = {
                 break;
             case GMUpdateEvent.UpdateSaveMessage:
                 const message = game.messages.get(data.data.message);
-                if (!message) return;
+                if (!message || !data.data) return;
+                
                 game.system.api.fields.ActionFields.SaveField.updateSaveMessage(
-                    data.data.result,
+                    data.data.saveTotal,
+                    data.data.isCritical,
                     message,
                     data.data.token
                 );
