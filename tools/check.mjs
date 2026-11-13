@@ -184,6 +184,15 @@
  *             held to tools/css-budget.json: red above a budget, and red below
  *             it until the budget is lowered in the same commit
  *             (`node tools/css-lint.mjs --write`). Bare Node.
+ *   icons     the token pictures tools/token-icons.mjs owns (13.11.2026; E59
+ *             C5's item M7, the owner's default of Q-E59-8): every
+ *             icons/remnant-*.svg and icons/project-*.svg equal to what the
+ *             tool writes from the stylesheets' sprites today, none missing, and
+ *             no project-*.svg left for a glyph config.mjs no longer has - so a
+ *             sprite redrawn without the tool re-run, or a picture edited by
+ *             hand, is red. Bare Node. The nine remnant-*.svg took the tool's
+ *             spelling that day, after a pixel comparison in Chromium at 256,
+ *             64 and 240 px read every pixel equal.
  *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
  *             header says what it reads): its self-check, then every pair of
  *             tools/contrast-pairs.json in its theme from the tokens the sheets
@@ -1171,6 +1180,16 @@ async function css() {
     return problems;
 }
 
+/* --------------------------------- icons ---------------------------------- */
+
+/* THE TOKEN PICTURES (13.11.2026): tools/token-icons.mjs makes the text; this holds the files to it. */
+async function icons() {
+    const { iconProblems } = await import(url.pathToFileURL(path.join(REPO, "tools", "token-icons.mjs")).href);
+    const { problems, count } = await iconProblems(REPO);
+    console.log(`icons: ${count} file(s) the token-icons tool owns; ${problems.length} problem(s)`);
+    return problems;
+}
+
 /* -------------------------------- contrast -------------------------------- */
 
 /* THE CONTRAST (E44 C1c, 04.11.2026; D29 = 2): the arithmetic is tests-css.mjs's, which R1312 runs on the served files. */
@@ -1210,7 +1229,7 @@ async function glyphs() {
     return [...misses, ...problems, ...structure];
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast, glyphs };
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, icons, contrast, glyphs };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {
