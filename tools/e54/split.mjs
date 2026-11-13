@@ -253,7 +253,13 @@ const familyOrder = targets.map(t => rel(t.file));
 const statementText = st => {
     let t = text.slice(st.from, st.to);
     if (st.group !== "facade" && !st.exported && st.names.some(n => exportNeeded.has(n))) {
-        const at = st.s.range[0] - st.from;
+        /* `export ` goes in front of the LINE, not the statement, when only blanks stand before it there: glass.mjs indents
+           its cut two spaces (E54 G5), and moved-only reads a promotion as `export ` + the old line, exactly - `  export
+           const x` was "removed and not added anywhere", 29 lines on the glass cut's first try. A statement at the start
+           of its line is written as before. */
+        const at0 = st.s.range[0] - st.from;
+        const ls = t.lastIndexOf("\n", at0 - 1) + 1;
+        const at = /^[ \t]+$/.test(t.slice(ls, at0)) ? ls : at0;
         t = `${t.slice(0, at)}export ${t.slice(at)}`;
     }
     return t;
