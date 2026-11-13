@@ -141,6 +141,13 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
 export function onBodyAnnounced(payload, { on = sequencesOn(), still = reducedMotion() } = {}) {
     if (!payload || payload.rehearsal === true || !on || still) return null;
     count("transition.discovery");
+    /* CUT, NOT QUEUED, HERE TOO (gaps, R4652; 1.2.109's known gap "Two flash sequences on one screen"). The announcement
+       added its four onsets beside whatever a transition still had pending, so a body announced in the first seconds of
+       the Investigation's entry put both tables on one screen: ten onsets, six in the first second, against the three
+       both are held to (`flashRate`). It cuts them as a new change of the clock does; the Investigation's turn of the
+       glass runs on, only its flashes and their sound go. */
+    clearFlashes();
+    document.body.classList.remove("drpg-flicker");
     for (const at of DISCOVERY_ONSETS) flashTimers.push(setTimeout(() => flicker(), at));
     return [...DISCOVERY_ONSETS];
 }

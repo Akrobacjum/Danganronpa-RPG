@@ -50308,6 +50308,42 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ moved: "hour", hint: "top", again: null, still: null, off: null, trial: "E61", trialHint: null, writes: [] }),
             "[evening to night heard; the direction handed; the same clock again; reduced motion; the switch off; the trial's entry's owner; no direction for it; the world written]");
     }],
+    ["R4652 - a body announced while the Investigation's entry flashes cuts its flashes, so one screen never holds more than three onsets in a second (scripts/transitions.mjs `onBodyAnnounced`; gaps, 1.2.109's known gap \"Two flash sequences on one screen\")", async () => {
+        /*
+         * 1.2.109's notes, Known gaps: `onBodyAnnounced` added its four flicker timers without clearing the Investigation's,
+         * so a body announced in the first seconds of the Investigation's entry put both on one screen - onsets at 0, 0,
+         * 360, 450, 900 and 900 ms, read from the code, not run; R3710 read each table alone. The rule both tables are
+         * held to is three onsets in any second (E62-3, `flashRate`). A change of the clock cuts the running one's flashes
+         * (`onClockHeard`, "CUT, NOT QUEUED"); the announcement now does the same. Read with the page's timers stood in for
+         * (what is scheduled and still pending, by its delay), the Investigation heard and a body announced at once.
+         * Red at 06d7b5b1: ten onsets pending, six in the first second.
+         */
+        const T = await import("./transitions.mjs");
+        const S = await import("./sequence.mjs");
+        const G = await import("./glass.mjs");
+        const c = phase => ({ day: 3, timeOfDay: "morning", phase, eclipse: false });
+        const live = new Map();
+        let next = 0, read = null;
+        const realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+        try {
+            T.onClockHeard(c("dailyLife"), { on: false, still: true });
+            globalThis.setTimeout = (fn, ms) => { const id = `drpg-r4652-${++next}`; live.set(id, Number(ms) || 0); return id; };
+            globalThis.clearTimeout = id => { live.delete(id); };
+            const heard = T.onClockHeard(c("investigation"), { on: true, still: false });
+            const played = T.onBodyAnnounced({ chapter: 1 }, { on: true, still: false });
+            const onsets = [...live.values()].sort((a, b) => a - b);
+            read = [heard?.kind ?? null, played, onsets, T.flashRate(onsets)];
+        } finally {
+            globalThis.setTimeout = realSet;
+            globalThis.clearTimeout = realClear;
+            S.holdEscape(0, null);
+            T.onClockHeard(c("dailyLife"), { on: false, still: true });
+            G.hintTurn(null);
+            document.body.classList.remove("drpg-flicker");
+        }
+        equal(JSON.stringify(read), JSON.stringify(["investigation", [0, 450, 900, 1350], [0, 450, 900, 1350], 3]),
+            "[the transition heard, the discovery's onsets played, the onsets left pending (ms), the most of them in any second]");
+    }],
     ["R3713 - Escape ends a transition here, and the body's flicker plays from the announcement alone (scripts/sequence.mjs `holdEscape`, scripts/transitions.mjs `onBodyAnnounced`; E62 C4, C8, the owner's 10.10 and its 14:10 answer, E95 fix RV-12): while a transition is held Escape is taken and its skip runs once, the next Escape is not taken; the announcement lights the flicker on this page and puts it out, a rehearsal's payload and reduced motion play none; and the Sound window has the row \"Pane flash\", varied, in both languages", async () => {
         /* E62 C2, C4, C8, 12.11.2026. Red at d03c509: sequence.mjs exports no holdEscape, transitions.mjs does not exist. */
         const S = await import("./sequence.mjs");
