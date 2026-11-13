@@ -13,7 +13,8 @@
  *
  * WHEN IT ENDS (the plan: "valid until leaving that room and lost without an entry this time of day"). The picker's
  * settled crossing out of the room, once they have walked in (crossing-settle.mjs `CROSSING_SETTLED`); the time of day's
- * end, for a pass not used in it (one in use is kept until its holder leaves); a new pick, which replaces it; a Reroll
+ * end, for a pass not used in it (one in use is kept until its holder leaves) - with an Eclipse, as it starts, the one
+ * boundary the grants, seals and barricades end at (A113-C2-6, 13.11.2026; at its end until then); a new pick, which replaces it; a Reroll
  * of the pick below its number, while it is not used (infiltrate-reroll.mjs); the season reset (the store's "actions"
  * group).
  *
@@ -174,6 +175,10 @@ export function registerLockpicks() {
     });
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) passesAtNewTimeOfDay().catch(err => error("The unused passes could not be ended", err));
+    });
+    // And as an Eclipse starts, the one boundary of "this time of day" (A113-C2-6; timed-effects.mjs `endAtEclipseStart`).
+    Hooks.on("drpgEclipseChanged", active => {
+        if (active === true && isPrimaryGm()) passesAtNewTimeOfDay().catch(err => error("The unused passes could not be ended as the Eclipse began", err));
     });
     if (game.user.isGM) return;
     askForPasses();

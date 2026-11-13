@@ -9,12 +9,14 @@
  * a GM's write) and keeps a row, in the character's list in the GMs' store `timedEffects` (gm-stores.mjs
  * `timedEffectStore`, keyed by character, the list written whole), with its end, `until`:
  *
- *   - `timeOfDay`: when the time of day it was given in ends (`mark`, facilities.mjs `facilityMark`);
- *   - `day`: when the clock's day changes (`day`, `dayMark`).
+ *   - `timeOfDay`: when the time of day it was given in ends (`mark`, facilities.mjs `facilityMark`) - with an Eclipse,
+ *     as it starts;
+ *   - `day`: when the clock's day changes (`day`, `dayMark`) - with an Eclipse, as Night's starts.
  *
- * WHEN IT ENDS. On the primary at `drpgTimeOfDayChanged` (`endTimedEffects`): each row past its end is taken back
+ * WHEN IT ENDS. On the primary as an Eclipse starts (`endAtEclipseStart`, A113-C2-6: the one boundary, read on the
+ * clock the Eclipse leads into) and at `drpgTimeOfDayChanged` (`endTimedEffects`): each row past its end is taken back
  * (`KINDS[kind].take`) and dropped; a row that lasts until an Eclipse at its end (`endEclipseEffects`). Those two are
- * the only callers of `endTimedEffect` outside the tests: no window, button or game.drpg command ends a row by hand
+ * the only callers of `endTimedEffect` outside the tests (through `endAtEclipseStart` too): no window, button or game.drpg command ends a row by hand
  * (A113-C6-5, 13.11.2026; this line said "a GM may end one by hand" until then). A GM who edits a trait the row raised
  * back to its number by hand does not end the row, and its end takes the bonus again from whatever the sheet holds:
  * measured headless on 13.11.2026, a +2 on a trait of 0, edited back to 0, read -2 after `endTimedEffect`.
@@ -322,13 +324,33 @@ function onTimedSocket(payload, senderId) {
     receiveTimedEffects(payload.effects, payload.stamps).catch(err => error("Could not keep a timed effect", err));
 }
 
-/** At ready: the copy's listener on every client, an owner's first ask, and the primary's clock listener. */
+/**
+ * ONE BOUNDARY: THE ECLIPSE'S START (A113-C2-6, 13.11.2026; the coordinator's default, the owner asked). "Until this
+ * time of day ends" ended at two moments: the grants, the seals and the barricades as an Eclipse begins (eclipse.mjs:
+ * "the Eclipse is the boundary, not a part of the day it follows"), these rows only at `drpgTimeOfDayChanged`, which
+ * with an Eclipse is its END - so a +2 Body bought in the afternoon lasted through the dark, and at the lights
+ * `endTimedEffects`, started from that hook, raced `judgePendingMurders` over whether it was still on the killer's sheet
+ * as the fight opened. Now, as an Eclipse starts, every row is ended that would be past its end on the clock the Eclipse
+ * leads into (clock.mjs `clockAfter`): the time of day's, and at Night's Eclipse the day's too, since that advance
+ * begins a new day. Nothing given before the dark is left to end at the lights; a row given during it ends there, as
+ * before. A time of day changed with no Eclipse still ends them at `drpgTimeOfDayChanged`. Answers how many ended.
+ *
+ * Not taken back: an Eclipse ended without advancing within five minutes puts back the budgets, grants and seals
+ * (clock.mjs `takeBackBoundary`), not these rows - as it does not put back a barricade.
+ */
+export async function endAtEclipseStart(clock = getClock()) {
+    const { clockAfter } = await import("./clock.mjs");
+    return endTimedEffects({ clock: { ...clock, ...clockAfter(clock) } });
+}
+
+/** At ready: the copy's listener on every client, an owner's first ask, and the primary's clock listeners. */
 export function registerTimedEffects() {
     game.socket.on(SOCKET_EVENT, onTimedSocket);
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) endTimedEffects().catch(err => error("The timed effects past their end could not be ended", err));
     });
     Hooks.on("drpgEclipseChanged", active => {
+        if (active === true && isPrimaryGm()) endAtEclipseStart().catch(err => error("The timed effects could not be ended as the Eclipse began", err));
         if (active === false && isPrimaryGm()) endEclipseEffects().catch(err => error("The Eclipse's extra crossings could not be ended", err));
     });
     if (game.user.isGM) return;

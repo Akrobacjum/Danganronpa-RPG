@@ -94200,6 +94200,117 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ended: [0, 0], day: [1, 1], dayEnded: [0, 0] }),
             "{clean; given: [Body's rise, rows]; copy: [whose rows the owner's copy holds, another player's]; line: the sheet's; ended: after the next time of day; day: an effect until the day's end after the next time of day; dayEnded: after the next day} - a timed +X to a trait");
     }],
+    ["A113-C2-6 one boundary - an Eclipse's start ends the timed effects given until the time of day ends and the unused lock passes, as it ends the seals and barricades; one given until the day's end stays (but for Night's Eclipse); a new time of day with no Eclipse still ends them", async () => {
+        /*
+         * A113-C2-6 (audit 113, 13.11.2026; the coordinator's default, the owner asked: one boundary, the Eclipse's start,
+         * eclipse.mjs's "the Eclipse is the boundary, not a part of the day it follows"). Until this fix E93's timed
+         * effects and E74's passes ended at `drpgTimeOfDayChanged` alone, which with an Eclipse is its END, while grants,
+         * seals and barricades end at its start. Here, on the primary: +2 Body until the time of day ends, +1 Body until
+         * the day ends, and a pass not walked through; the Eclipse started. Read: Body's rise and the rows left, and the
+         * pass. Then the same three handed to a time of day's change with no Eclipse (`endTimedEffects` with the next
+         * clock, `passesAtNewTimeOfDay`), as E93-T5 hands it. Red at ceb9e9c8: after the start Body still +3, both rows
+         * and the pass standing.
+         */
+        needs(world.atLeast("playerCharactersInRooms", 1), "a player's character standing in a room");
+        const T = await import("./timed-effects.mjs");
+        const L = await import("./lockpick-gm.mjs");
+        const E = await import("./eclipse.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { actor, where } = await playerInRoom();
+        const body = () => Number(actor.system.traits.strength.value) || 0;
+        const was = body();
+        const passWas = foundry.utils.deepClone(L.passOf(actor.id));
+        const night = getClock().timeOfDay === TIMES_OF_DAY.at(-1);
+        const read = {};
+        try {
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 1, until: "day" });
+            await L.grantPass(actor, where.scene, where.room);
+            await settle();
+            read.given = [body() - was, T.timedEffectsOf(actor.id).map(r => r.until), Boolean(L.passOf(actor.id))];
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            read.start = [body() - was, T.timedEffectsOf(actor.id).map(r => r.until), Boolean(L.passOf(actor.id))];
+            await E.endEclipse({ advance: false });
+            await settle();
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await L.grantPass(actor, where.scene, where.room);
+            const clock = getClock(), i = TIMES_OF_DAY.indexOf(clock.timeOfDay);
+            await T.endTimedEffects({ clock: { ...clock, timeOfDay: TIMES_OF_DAY[i + 1] ?? TIMES_OF_DAY[0] } });
+            await L.passesAtNewTimeOfDay();
+            await settle();
+            read.noEclipse = [body() - was, T.timedEffectsOf(actor.id).length, Boolean(L.passOf(actor.id))];
+            // Night's Eclipse begins a new day: the boundary read on the clock it leads into ends a row of the day too.
+            await T.giveTimed(actor, { kind: "traitBonus", trait: "body", n: 1, until: "day" });
+            const ended = await T.endAtEclipseStart({ ...getClock(), timeOfDay: TIMES_OF_DAY.at(-1) });
+            await settle();
+            read.night = [ended, body() - was, T.timedEffectsOf(actor.id).length];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(actor, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (passWas) await L.grantPass(actor, game.scenes.get(passWas.sceneId), passWas.room);
+            else await L.endPass(actor.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /Body/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 120000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ given: [3, ["timeOfDay", "day"], true], start: night ? [0, [], false] : [1, ["day"], false],
+            noEclipse: [0, 0, false], night: [1, 0, 0] }),
+            "{given: [Body's rise, rows' ends, a pass]; start: the same after the Eclipse's start; noEclipse: [Body's rise, rows, a pass] after a time of day's change with no Eclipse; night: [ended, Body's rise, rows] for a row until the day's end at Night's Eclipse}");
+    }],
+
+    ["A113-C2-6 the murder at the lights - a direct murder judged at an Eclipse's end opens on the killer's sheet without a bonus given until the time of day ended", async () => {
+        /*
+         * A113-C2-6 (audit 113, 13.11.2026). At the Eclipse's end `endEclipse` advances the clock - the primary's
+         * `endTimedEffects` starts from that hook - and goes on to `judgePendingMurders`: whether a trait bonus was still
+         * on the sheet as the murder's fight opened was a race. With one boundary the bonus ended as the Eclipse began, so
+         * nothing is left to race. A killer with +2 Body until the time of day ends, alone with a victim, a declaration
+         * parked as the Eclipse runs, the Eclipse ended without advancing (the clock is the world's), Body read as the
+         * incident stands open. Red at ceb9e9c8: Body +2 (the bonus outlived the dark; no advance, so nothing ended it).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./timed-effects.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const body = () => Number(killer.system.traits.strength.value) || 0;
+        const was = body();
+        let stood = null, read = null;
+        try {
+            stood = await aloneTogether(killer, victim);
+            await T.giveTimed(killer, { kind: "traitBonus", trait: "body", n: 2, until: "timeOfDay" });
+            await settle();
+            must(body() === was + 2, "the bonus was not given - this test would read nothing");
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            must(E.isEclipse() && id, "the Eclipse did not start");
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE A113-C2-6 declared", at: 1, approved: true, eclipse: id, betrayal: null });
+            await E.endEclipse({ advance: false });
+            await settle();
+            const state = M.murderState();
+            read = [state?.killerId ?? null, state?.victimId ?? null, body() - was, T.timedEffectsOf(killer.id).length];
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            for (const row of T.timedEffectsOf(killer.id)) await T.endTimedEffect(row.id);
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            if (body() !== was) await trustedWrite(killer, { "system.traits.strength.value": was }, { reason: "gmRuling" });
+            if (stood) await stood.back();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([killer.id, victim.id, 0, 0]),
+            "the murder at the lights did not open, or opened on the killer's sheet with the bonus of the time of day the Eclipse closed [killer, victim, Body's rise, rows]");
+    }],
+
     ["E93-T6 - a room action's temporary Experience is on the sheet until its end and gone after (scripts/timed-effects.mjs `KINDS.experience`, facilities.mjs `cleanEffect`; the owner's answer to Q-E93-3, 12.11.2026): an Experience named by the GM, +2 until the time of day ends, is added to the character's Experiences with that name and value, its row names it, the sheet's line reads it, and the next time of day deletes it; one with no name is no effect", async () => {
         /*
          * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; the time passing handed to
