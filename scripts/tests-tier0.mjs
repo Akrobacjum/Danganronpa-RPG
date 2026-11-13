@@ -2565,7 +2565,7 @@ const REGRESSIONS = [
         const search = bodyOf(rolls, "async function performSearch(");
         const take = search.indexOf("searchDraw(");
         ok(take > 0, "performSearch no longer draws anything");
-        for (const marker of ["searchSpecific(", "searchNothing(", "searchStash("]) {
+        for (const marker of ["searchSpecific(", "searchNothing("]) {
             const at = search.indexOf(marker);
             ok(at > 0 && at < take, `the plant is taken before ${marker.slice(0, -1)} can end the Search`);
         }
@@ -6394,8 +6394,9 @@ const REGRESSIONS = [
             rerollOnGm: "refused", makeReroll: "refused", rerollRefusal: "why", replayRefusal: "returns",
             // E08+E28 C14: the roll a result is read from, asked by the runner after the guards.
             rollRefusal: "returns",
-            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive` (C16: a Work on a Project's).
-            searchTheftOf: "why", traceBandOf: "why", progressOf: "why",
+            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive` (C16: a Work on a Project's;
+            // a Search's reach into a stash, `searchTheftOf`, until 1.2.112).
+            traceBandOf: "why", progressOf: "why",
             // E08+E28 fix r2-H1: the draw of a player's roll, held to the action it is for before it is thrown.
             drawOnGm: "refused", drawRefusal: "returns",
             // E29 C8: a Call on the buyer's own character, the other half of `guardArmPlayerCall`.
@@ -7708,68 +7709,38 @@ const REGRESSIONS = [
             "a Dynamic action does not ask the player's proposal, or its GM editor does not read it");
     }],
 
-    ["R214 - the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw", async () => {
+    ["R5468 - a Search reaches into no stash (1.2.112, the owner's decision of 13.11.2026: a roll to discover, no roll to take): action-search.mjs reads no stash and asks no theft, its odds are the room's alone, no Search's roll carries or is drawn a stash's step (roll-draw.mjs, the GMs' roll list), and `vault.steal` takes no Search's word - `viaSearch`, `clumsy` or a roll - so a concealed stash opens to Find Stash alone", async () => {
         /*
-         * E32+E07 C11e, 02.10.2026; the owner's decision of 28.09.2026 (the hidden stash's
-         * disadvantage die, back, and still out of the roll window). Until 1.2.64 a hidden stash
-         * was -1 in the count the window turns into dice, and Daggerheart's `applyAdvantage`
-         * (dualityRoll.mjs:146-160, 2.6.5) throws |n| dice of one kind, keeps the highest above
-         * one (`kh`), and adds it for advantage or takes it off for disadvantage; roll-dialog.mjs
-         * caps |n| at ADVANTAGE_CAP. Since E06 C11 the window arms the room's count alone and the
-         * stash is a step on the dice it threw (action-search.mjs `stashStep`). For every window
-         * count n from -3 to 3, every face of its d6s and every value each `draw(m)` may give
-         * (1 to m, each branch weighted 1/m), the distribution of what the dice put on the total
-         * after the step is compared, exactly - counts over a common denominator, not samples -
-         * with that of the old count's n - 1. Red until C11e (no `stashStep`). This body, run
-         * outside the suite on 02.10.2026 against stand-ins: E06 C11's flat -1 differs at every
-         * n; a d6 simply taken off after the roll (the first proposal of 28.09) at every n but 0;
-         * setting aside the lowest bonus die instead of a drawn one, at n = 2 and 3.
+         * Until 1.2.112 a successful Search in a room where somebody else kept a stash took a random thing out of it
+         * (action-search.mjs `searchStash`), a hidden one at one more step of disadvantage (`stashStep`, which R214 held to
+         * the old count's die; R214 went with it), and `vault.steal` opened a concealed stash to a packet saying a Search
+         * paid for it (`viaSearch`, read off that Search's record by bridge-runs-acts.mjs `searchTheftOf`). Read here, comments
+         * stripped: action-search.mjs's source, the GMs' roll list, the context a drawn roll sends, and `vault.steal` as
+         * the bridge declares it, its whitelist asked with a packet carrying the old fields. Tier 2's "a Search where
+         * somebody keeps a stash, hidden or open, draws from the room ..." drives the Search itself.
          */
-        const R = await import("./action-rolls.mjs");
-        ok(typeof R.stashStep === "function", "action-rolls.mjs has no stashStep");
-        if (typeof R.stashStep !== "function") return;
-        const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
-        must(Number.isInteger(ADVANTAGE_CAP), "roll-dialog.mjs exports no ADVANTAGE_CAP");
-        const FACES = 6, SCALE = FACES ** 4, STOP = Symbol("draw");
-        const throws = k => Array.from({ length: FACES ** k }, (_, i) =>
-            Array.from({ length: k }, (__, j) => 1 + Math.floor(i / FACES ** j) % FACES));
-        const kept = (sign, faces) => faces.length ? sign * Math.max(...faces) : 0;
-        const add = (map, value, weight) => map.set(value, (map.get(value) ?? 0) + weight);
-        const stepped = n => {
-            const k = Math.min(ADVANTAGE_CAP, Math.abs(n)), sign = Math.sign(n), out = new Map();
-            for (const results of throws(k)) {
-                const walk = (script, weight) => {
-                    let used = 0, asked = 0;
-                    const draw = m => {
-                        if (used < script.length) return script[used++];
-                        asked = m;
-                        throw STOP;
-                    };
-                    try {
-                        const step = R.stashStep({ sign, results, faces: FACES, cap: ADVANTAGE_CAP }, draw);
-                        add(out, kept(sign, results) + step.change, weight);
-                    } catch (err) {
-                        if (err !== STOP) throw err;
-                        for (let face = 1; face <= asked; face++) walk([...script, face], weight / asked);
-                    }
-                };
-                walk([], SCALE);
-            }
-            return { out, den: FACES ** k * SCALE };
-        };
-        const counted = n => {
-            const m = Math.min(ADVANTAGE_CAP, Math.abs(n)), out = new Map();
-            for (const results of throws(m)) add(out, kept(Math.sign(n), results), 1);
-            return { out, den: FACES ** m };
-        };
-        const differs = [];
-        for (let n = -3; n <= 3; n++) {
-            const now = stepped(n), then = counted(n - 1);
-            const values = [...new Set([...now.out.keys(), ...then.out.keys()])].sort((a, b) => a - b);
-            const off = values.filter(v => (now.out.get(v) ?? 0) * then.den !== (then.out.get(v) ?? 0) * now.den);
-            if (off.length || ![...now.out.values()].every(Number.isInteger)) differs.push(`${n}: ${off.join(" ")}`);
-        }
-        equal(differs.join("; "), "", "the step does not land where the old count's dice did (window count: the values whose odds differ)");
+        const sources = new Map(await moduleSources());
+        const search = stripComments(sources.get("action-search.mjs") ?? "");
+        const draw = stripComments(sources.get("roll-draw.mjs") ?? "");
+        must(search.length > 5000 && draw.length > 5000, "action-search.mjs or roll-draw.mjs was not read - this would measure nothing");
+        const { LEGAL_ROLL_MODIFIERS } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const steal = BRIDGE_ACTIONS["vault.steal"] ?? null;
+        must(steal?.sanitize?.fields, "vault.steal is no declaration of the bridge's - this would measure nothing");
+        const taken = steal.sanitize.fields;
+        const sent = bodyOf(draw, "const CONTEXT_SENT = ", { until: "});" });
+        must(sent.length > 20, "roll-draw.mjs's CONTEXT_SENT was not found - this would measure nothing");
+        equal(JSON.stringify({
+            reads: ["stashesIn", "stashItemsIn", "requestVaultSteal", "stashStep", "stashDie", "fromVault"].filter(name => search.includes(name)),
+            odds: /\{ situational \} = searchOdds\(/.test(search),
+            list: LEGAL_ROLL_MODIFIERS.map(row => row.key).filter(key => /stash/i.test(key)),
+            sent: /stashDie/.test(sent),
+            drawn: /stashStepFor|stashStep\b/.test(draw),
+            steal: [Object.keys(taken).sort(), steal.rolled ?? null]
+        }), JSON.stringify({ reads: [], odds: true, list: [], sent: false, drawn: false, steal: [["itemId", "ownerId", "thiefId"], null] }),
+        "a Search still reads a stash, arms more than the room's odds, a stash step is still on the GMs' roll list, sent with a drawn roll or "
+            + "drawn, or vault.steal still takes a Search's word or names a roll (names read, the odds' shape, the list's stash rows, sent, "
+            + "drawn, [the fields vault.steal takes, its rolled row])");
     }],
 
     ["R215 - no player packet carries an undo", async () => {
@@ -7860,8 +7831,8 @@ const REGRESSIONS = [
          * as a declaration that takes nothing it has to name a roll for.
          */
         const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
-        const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
-            "vault.steal": ["viaSearch", "clumsy"] };
+        // `vault.steal` derived `viaSearch` and `clumsy` from a Search's record until 1.2.112, when a Search stopped reaching into stashes.
+        const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"] };
         const WAITING = [];
         // A Facilities roll (E93 C3) is thrown from the tile whose key is still `rest` (the Facilities tile).
         // A Dash (E69 C5) and a tail's two rolls (E69 C3) are thrown from the Infiltrate tile, whose key is still `listen`.
@@ -7938,7 +7909,7 @@ const REGRESSIONS = [
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
             + `${WAITING.length} wait for a later commit; monocub.ability takes ${JSON.stringify(takes("monocub.ability", all["monocub.ability"] ?? {}))} from its packet`);
         equal(JSON.stringify(["action.friskFollow", "action.friskUnseen", "action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
-            "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
+            "project.progress", "project.sabotage", "remnant.place", "vault.findStash"].filter(action => !rolled.includes(action))), "[]",
             "Observe, Analyze, the search for a hidden stash, a Palm, an unseen Frisk, an open Frisk's force, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
         equal(JSON.stringify([Boolean(all["monocub.ability"]?.sanitize), takes("monocub.ability", all["monocub.ability"] ?? {})]), JSON.stringify([true, []]),
             "monocub.ability is no declaration of the bridge's, or a Monocub ability's packet carries a result the GM would read");
@@ -9692,9 +9663,6 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#vault.steal#thiefId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#ownerId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#itemId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#vault.steal#viaSearch", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#vault.steal#clumsy", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#vault.steal#rollId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.progress#countdownId", "judged on the primary: knownSender + owns; `guardProjectRoom` (bridge-guards.mjs) holds the character in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` (projects.mjs: the token's scene, else `sceneOfRoom`) by `standsAtProject` since E12 fix r1-G3; a trait ruling for a project (`guardTraitRuling`'s `projectWithinReach`) is held by the same pickers"],
             ["PACKET gm-bridge.mjs#project.progress#amount", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.progress#actorId", "judged on the primary: knownSender + owns; `guardProjectRoom` (bridge-guards.mjs) holds the character in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` (projects.mjs: the token's scene, else `sceneOfRoom`) by `standsAtProject` since E12 fix r1-G3; a trait ruling for a project (`guardTraitRuling`'s `projectWithinReach`) is held by the same pickers"],
@@ -13181,7 +13149,8 @@ const REGRESSIONS = [
         const situations = keysIn(fixtures, /^\s*\{ key: "situation", situation: "(\w+)"/gm);
         // To the function's closing brace: `fnSource` runs on to the next declaration, through the readers' table.
         const branches = keysIn(bodyOf(stripComments(sources.get("roll-draw.mjs") ?? ""), "function situationReading(", { until: "\n}\n" }), /\bkey === "(\w+)"/g);
-        ok(rows.length >= 14 && fixed.length > 0 && branches.length >= 6,
+        // 13 rows since 1.2.112, when the hidden stash's step (`stashStep`) left the list with the Search's reach into a stash.
+        ok(rows.length >= 13 && fixed.length > 0 && branches.length >= 6,
             `R291 read ${rows.length} row(s) of the list, ${fixed.length} fixture key(s) and ${branches.length} branch(es) of its situation - this would measure nothing`);
         equal(JSON.stringify([rows.filter(key => !fixed.includes(key)), fixed.filter(key => !rows.includes(key)),
             branches.filter(key => !situations.includes(key)), situations.filter(key => !branches.includes(key))]), JSON.stringify([[], [], [], []]),
@@ -19579,7 +19548,8 @@ const REGRESSIONS = [
                     .map(text => ["Advance.kind", text, [kind]])),
                 ...overflow.flatMap(what => ["DRPG.Overflow.gmHintQueued", "DRPG.Overflow.currentDrawn", "DRPG.Overflow.currentWaiting"]
                     .map(host => ["Overflow.name", fmt(host, { count: 4, max: 10, what }), [what]])),
-                ...["trait", "pick", "modifier", "dice", "advantage", "stash"].map(kind => ["Rolls.flagKind", D.flagText({ kind, claimed: "3", expected: "1" }), [loc(`DRPG.Rolls.flagKind.${kind}`)]]),
+                // The hidden stash's die ("stash") left the kinds in 1.2.112, with the Search's reach into a stash.
+                ...["trait", "pick", "modifier", "dice", "advantage"].map(kind => ["Rolls.flagKind", D.flagText({ kind, claimed: "3", expected: "1" }), [loc(`DRPG.Rolls.flagKind.${kind}`)]]),
                 ...HINDERING.flatMap(def => {
                     const names = def.hinders.actions.map(label);
                     return [["CRISIS_ACTIONS.label", U.plural("DRPG.Murder.hinderedActions", { turns: def.hinders.turns, actions: U.listOf(names) }, "turns"), names],
@@ -19646,7 +19616,7 @@ const REGRESSIONS = [
         const sources = await moduleSources();
         const reading = re => [...new Set([...sources].filter(([file, text]) => !file.startsWith("tests") && re.test(stripComments(text))).map(([file]) => censusFile(file)))].sort();
         const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
-        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 6 + HINDERING.length * 2 + 2 * ECLIPSE_HOSTS.length;
+        const FRAGMENT_HOSTS = 2 * 6 + Object.keys(files.en.DRPG.Overflow.name).length * 3 + 5 + HINDERING.length * 2 + 2 * ECLIPSE_HOSTS.length;
         read.sources = { acc: reading(/DRPG\.Calls\.grants\.\$\{/), nom: reading(/DRPG\.Calls\.grantsNom\.\$\{/), helper: reading(/"DRPG\.Calls\.grantsGen\."/),
             joined: /listOf\(\[\.\.\.new Set\(waiting\.map\(entry => game\.i18n\.localize\(`DRPG\.Calls\.grantsNom\./.test(dialog),
             away: /return listOf\(moves\);/.test(stripComments(fnSource(sources.get("roll-draw.mjs") ?? "", "awayMoves") ?? "")),

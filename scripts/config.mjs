@@ -1755,8 +1755,8 @@ export const ACTIONS = {
      * first question the window asks.
      *
      * Not the stash, in either direction. Stealing from one has its own route
-     * with its own conditions (`rifleStashDialog`, and the Search branch for
-     * concealed ones); a Palm that reached into a stash would walk past all of
+     * with its own conditions (`rifleStashDialog`: an open stash, or a hidden one
+     * Find Stash found); a Palm that reached into a stash would walk past all of
      * them, and planting into one would be the same hole in reverse.
      */
     palm: {
@@ -4842,7 +4842,8 @@ export const LOOT = Object.freeze({
  * gave were whatever the roller's browser had armed. This is the one list of it, each row read on
  * the GM by one reader of the same name (roll-draw.mjs `LEGAL_READERS`) from what that GM holds:
  *   - `kind` says how it reaches the roll: the faces of a die, a flat number, advantage dice, the
- *     face a die is forced to, a step taken after the dice, or the roll's own kind;
+ *     face a die is forced to, or the roll's own kind (a hidden stash's step taken after the dice,
+ *     `stashStep`, was a row until 1.2.112);
  *   - `reader` names where the GM reads it (a path on the character or the store it comes from);
  *   - `bound` is the number the reader holds it to: a die's faces where the rules say none, one
  *     experience, Breakdown's one die, the hostile Call's grace;
@@ -4869,7 +4870,6 @@ export const LEGAL_ROLL_MODIFIERS = Object.freeze([
     { key: "breakdown", kind: "dice", reader: "system.resources.stress", bound: -1, label: "DRPG.Rolls.legal.breakdown" },
     { key: "situation", kind: "dice", reader: "actionKey", bound: null, label: "DRPG.Rolls.legal.situation" },
     { key: "loadedDie", kind: "face", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.loadedDie" },
-    { key: "stashStep", kind: "after", reader: "vault", bound: null, label: "DRPG.Rolls.legal.stashStep" },
     { key: "kind", kind: "kind", reader: "appliedEffects", bound: null, label: "DRPG.Rolls.legal.kind" }
 ].map(row => Object.freeze(row)));
 

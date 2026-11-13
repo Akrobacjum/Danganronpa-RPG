@@ -2287,18 +2287,17 @@ async function placeStands(actor, item, before, now) {
  * A SEARCH'S FIND (the plan's 2.6): an item created `searchFind`, its `ref` the GMs' record of a
  * Search (roll-draw.mjs `rollRecord`; action-search.mjs `grantDrawn` names it) of this student by
  * this player that hit, not used for a find before, and the item's tier at most what the record's
- * total - with the hidden stash's step the GM drew - earns on the Search's table (action-search.mjs
- * `searchTier`, the reading the Search itself makes). Answers the student's finds with this one in
+ * total earns on the Search's table (action-search.mjs `searchTier`, the reading the Search itself
+ * makes; with the hidden stash's step the GM drew, until 1.2.112). Answers the student's finds with this one in
  * them, or null. A find whose record is swept is forgotten with it: a record past a Reroll's reach
  * names no find any more.
  *
  * NOT A SEARCH THAT ENDED WITHOUT A DRAW (round 1's m6, 05.10.2026). A hit asked of the GM ("something
- * specific", action-search.mjs `searchSpecific`) or taken from a stash (`searchStash`) creates nothing
+ * specific", action-search.mjs `searchSpecific`) - or, until 1.2.112, taken from a stash - creates nothing
  * through `grantDrawn`, so its record stayed unused and a console's item named after it stood - a
- * second item for one Search. The record now keeps the Search's goal as the roller sent it (roll-draw.mjs
- * `CONTEXT_SENT`, the roller's word like the category beside it), and a stash's theft settles the
- * record's "search" (bridge-guards.mjs `rollsFor`); a find on either is refused. The other way round,
- * a theft named after a record a find already stood on is refused by bridge-runs-acts.mjs `searchTheftOf`.
+ * second item for one Search. The record keeps the Search's goal as the roller sent it (roll-draw.mjs
+ * `CONTEXT_SENT`, the roller's word like the category beside it), and a find on it is refused, as on a
+ * record whose "search" something else settled (bridge-guards.mjs `rollsFor`).
  *
  * NOR A SEARCH WHOSE TOKEN THE GM NEVER SPENT (E29 fix r2-H11, 06.10.2026). A Search spends its
  * room's token after its roll, and a refused spend settles the record (search-tokens.mjs
@@ -2316,7 +2315,7 @@ async function searchFind(actor, mark, data, stamp, user) {
     if (!record.tokenSpentAt) return null;
     if (record.goal === "specific" || (Array.isArray(record.resolved) && record.resolved.includes("search"))) return null;
     const { searchTier } = await import("./action-rolls.mjs");
-    const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical }, record.used?.stash?.change ?? 0);
+    const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical });
     const found = foundry.utils.getProperty(data, `flags.${MODULE_ID}.${ITEM_FLAGS.tier}`);
     if ((!hit && !record.isCritical) || !Number.isInteger(found) || found > tier) return null;
     const kept = Object.entries(mark.finds ?? {}).filter(([rollId]) => rollStore.has(rollId));
