@@ -2,7 +2,7 @@
  * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E33 C2a; the owner's decision P6
  * of 06.10.2026: Daggerheart's dice classes run in the harness, as its GM relay does in dh-relay.mjs).
  *
- * Source: Foundryborne Daggerheart, tag 2.10.5 (commit 6bf4b69f98), module/dice/die/dualityDie.mjs - the whole file
+ * Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25), module/dice/die/dualityDie.mjs - the whole file
  * (38 lines). Everything after this comment and the one blank line under it is that file byte for
  * byte, its imports included. An import that leaves module/dice/ lands on the harness's glue at the
  * same relative path under lib/dh-dice/ (applications/, helpers/, data/), which says it is not

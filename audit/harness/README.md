@@ -215,6 +215,7 @@ belongs to.
 | 90 | - | - | retired | E30 | results/90-a11ycost.json came from a scratch scenario outside the repository; not reused |
 | 91 | scenarios/91-old-keys-ignored.mjs | ci | exists | E76 | the old keys `-=` and `==` in the "ignored" reading (E76 C4; DY7; lib/old-keys.mjs, lib/operators.mjs): a GM's `-=gone` and `==bookmark` on a world flag change nothing on any client, each reported once with the reading (A); `_del`, a ForcedDeletion and `unsetFlag` remove (B); p1's `-=` on a GM-only module flag of the student p1 owns changes nothing and leaves the GMs no row (C). Which reading v14 has is LIVE-E76-03 |
 | 92 | scenarios/92-old-keys-honoured.mjs | ci | exists | E76 | the same in the "honoured" reading (Foundry issue 14806 as read for 14.369+): the GM's old keys delete and replace on every client (A); the module's deletes still remove (B); p1's `-=` deletes the GM-only flag, and the primary GM puts it back and keeps one `putBack` row naming p1 (C) |
+| 93 | scenarios/93-spectator.mjs | ci | exists | E92 | a Spectator from its assignment to its return to the class (E92 C7): p3's Chie made a Spectator by the Students window's Role - out of the GM's roster and the trial's cast, p3's browser watching with its chat hidden, her token hidden on p1 and every student's left to Foundry on p3 (A); p3's microphone blocked by the trial's row and named held on its tile (B); p3's map one row under Chie's id with the room Aiko found and not the Mastermind's, and p3's world data read against world-secrets.mjs (C); the "Talk with the Spectators" switch on p3's voice tile and not on p1's, a press writing p3's flag and a second taking it off (the LiveKit shim on both, as 75; round 3); p3 dragging her token, its own write, into Aiko's room, where she is nobody, and into the Hall, at no price and finding nothing (D); the end-of-day board on p3's browser holding the day's heading and the school's mood alone, p1's its own day (the owner's 12.11, R3868); a student again, p3's microphone and map as they were (E). The shim's LiveKit only; a real drag through a wall, the grey token and the chat's CSS are LIVE-E92-02, -04 |
 <!-- scenarios:end -->
 
 ## Checks
@@ -415,9 +416,14 @@ part of a roll comes from:
 - **Daggerheart's code, copied verbatim** - `lib/dh-dice/dice/`: baseRoll.mjs,
   dhRoll.mjs, d20Roll.mjs, dualityRoll.mjs, helpers.mjs and die/ (_module,
   baseDie, dualityDie, hopeDie, fearDie, advantageDie, disadvantageDie), from
-  tag 2.10.5 (commit 6bf4b69f98), `module/dice/`. Each is the file byte for
-  byte under a header; never edit one, re-copy them on an upgrade. Lint skips
-  them as it skips dh-relay.mjs (eslint.config.mjs). The licence:
+  tag 2.12.8 (commit 71c318de25), `module/dice/` (2.10.5's until E76 C3b,
+  12.11.2026); since then also `lib/dh-dice/data/action/move-context.mjs` (2.12's
+  roll config, which the harness's `rollTrait` builds) and
+  `lib/dh-dice/helpers/functional.mjs` (what it imports), from the same tag.
+  Each is the file byte for byte under a header; never edit one, re-copy them
+  on an upgrade. Lint skips them as it skips dh-relay.mjs (eslint.config.mjs).
+  The rest of `lib/dh-dice/` is the harness's glue at the paths those files
+  import (the window, `helpers/utils.mjs`, the two `ResourceUpdateMap` paths). The licence:
   `lib/dh-dice/LICENSE`. A copy checks against the tag's file with
   `sed '1,/^ \*\/$/d' <copy> | tail -n +2 | cmp - <tag>/module/dice/<file>`.
   A line number a comment cites in one of them (`dualityRoll.mjs:125`) is the
@@ -551,16 +557,22 @@ roll at a table.
   localStorage, read now or as it closed. The seeded four do not come back, a
   role changes only by a write, nobody is logged out for it, and there is no
   `game.users.activeGM`. `opLog` and `settingLog` say who wrote what.
-- **Daggerheart.** Its GM relay is 2.10.11's own code (`lib/dh-relay.mjs`,
-  re-copied in E75 C1), and its duality roll is 2.10.5's own code since E33 C2a
+- **Daggerheart.** Its GM relay is 2.12.8's own code (`lib/dh-relay.mjs`,
+  re-copied in E76 C1b; 2.10.11's from E75 C1), and its duality roll is 2.12.8's
+  own code since E76 C3b (2.10.5's from E33 C2a). Since E76 C3c a trait roll
+  takes 2.12's road: `rollTrait` builds Daggerheart's own `MoveContext` and
+  `diceRoll` hands it to the actor's roll class (client-entry.mjs), so what that
+  config keeps of the module's options is Daggerheart's (the module carries its
+  marks through it: scripts/roll-marks.mjs)
   ("Daggerheart's dice" above, with C2b's
   glue window, which the module's roll hooks run on unchanged); scenario 83 drives
   every legal road of a player's roll on it and on `audit/live/sandbox-cluster.mjs`
-  alike, taking only what both hand a scenario. A trait
-  roll's config is built as 2.6.5's `rollTrait` and `diceRoll` build it
-  (`lib/daggerheart.mjs`, E30), the card is the harness's, and the resource step
+  alike, taking only what both hand a scenario. Until E76 C3c a trait
+  roll's config was built as 2.6.5's `rollTrait` and `diceRoll` build it
+  (`lib/daggerheart.mjs`, E30); the card is the harness's, and the resource step
   (`addDualityResourceUpdates`, with its Hope-and-Fear automation gate, reaction,
-  `skips`, defeated-actor and reroll rules) fills a `ResourceUpdateMap` that the
+  `skips` and defeated-actor rules, read off `config.evaluated` since 2.12; 2.10.5's
+  had reroll rules too) fills a `ResourceUpdateMap` that the
   caller commits. The faces are scripted by `__forceRoll`, the Automation
   setting is Daggerheart's own shape (the seed turns `hopeFear` on for both), and
   `CONFIG.DH.RESOURCE` is built as Daggerheart builds it. A commit is the

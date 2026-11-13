@@ -88,7 +88,9 @@ export const GAME_SECTIONS = Object.freeze([
     section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile"]),
     section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),
-    section("game", "gm", "fa-map-location-dot", ["regionFog"]),
+    /* "sequences" (1.2.109, E61-62's full-screen sequences) where 1.2.109 put it, beside the rooms' fog: kept in the r112
+       merge with E101's moves (13.11.2026). */
+    section("game", "gm", "fa-map-location-dot", ["regionFog", "sequences"]),
     /* E101 (the owner's yes of 12.11.2026 to the GM screens' review): the five rows that patch Foundry, Daggerheart or
        another module rather than set a rule of the game came here from audio, rules and gm - Voice in Foundry's window,
        Replace Daggerheart's Fear, the module's windows for Foundry's tools, no file browser for players, the token

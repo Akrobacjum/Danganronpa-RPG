@@ -25,7 +25,8 @@
  * `myIncidentTrace` reads the cast that stands. The listeners below are for what is no clock and no incident.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
+import { flaggedSpectator, spectatorViewer } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
@@ -459,6 +460,7 @@ function applyToToken(token) {
         }
 
         if (!token?.actor || token.actor.type !== "character") return;
+        if (game.user?.isGM) dressSpectator(token);
         // The rule is `tokenShownTo`'s (E12 C11); this only carries its answer to the sprite.
         const verdict = tokenShownTo(token.document, viewerHere(() => Boolean(token.isOwner)));
         if (verdict === "show") show(token);
@@ -509,6 +511,13 @@ export function tokenShownTo(tokenDoc, viewer) {
     // The GM sees the whole cast, always. Not a judgement call and never a
     // setting: they are running the game, not standing in a room.
     if (viewer.gm) return null;
+
+    /* A SPECTATOR'S TOKEN IS ITS OWNER'S ALONE (E92 C4, 12.11.2026; the owner's E92 goal (1)): every other player's
+       browser hides it, whatever the room, the Eclipse or the setting - a display, since every browser holds the token
+       (the plan's risk R3). AND A SPECTATOR SEES EVERY CHARACTER (goal (4)): its browser leaves each token to Foundry,
+       whatever the room, in an Eclipse too (Q-E92-6's default) - Foundry's own `hidden` still hides a GM's hidden token. */
+    if (flaggedSpectator(tokenDoc.actor)) return viewer.owns(tokenDoc) ? "show" : "hide";
+    if (viewer.spectator) return null;
 
     /* THE ECLIPSE SITS ABOVE `roomVisibility`, NOT BEHIND IT.
        -------------------------------------------------------------------
@@ -579,6 +588,9 @@ export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
         // Written with a computed key: R22 reads `get lair()` as a call to a function `lair` that
         // this file does not declare (11.10.2026, the first fast run of E12 C11).
         get ["lair"]() { return myLairRoom(); },
+        // Whether this browser watches (E92 C4): read only when the rule gets to it, as the rooms are; a computed key, as
+        // the lair's, so R22 does not read a call to a function `spectator`.
+        get ["spectator"]() { return spectatorViewer(game.user); },
         owns
     };
 }
@@ -688,6 +700,31 @@ function inTheIncident() {
         // A trace nobody can classify is a trace nobody special gets to see.
         return false;
     }
+}
+
+/*
+ * A SPECTATOR'S TOKEN ON A GM'S CANVAS (E92 C3, 12.11.2026; the owner's DRPG-D1 the same day: "transparentny/ledwie
+ * widoczny, by nie mylil sie z graczami"). Its sprite at `SPECTATOR_ALPHA` of the token's own alpha - 0.3, the
+ * coordinator's pick in the owner's 25-30 % - and nothing else: the grey tint and the dark outline of C3 are gone. A
+ * token whose actor is no Spectator any more gets its own alpha back. On a GM's browser only (`applyToToken`): every other
+ * player's is hidden (`tokenShownTo`), and its owner sees it as Foundry draws it. Display only; how it reads on a real
+ * map is LIVE-E92-04.
+ */
+const SPECTATOR_ALPHA = 0.3;
+const dressedSpectators = new WeakSet();
+export function dressSpectator(token) {
+    const watching = Boolean(token?.actor?.getFlag?.(MODULE_ID, FLAGS.spectator));
+    const mesh = token?.mesh;
+    if (!watching) {
+        if (dressedSpectators.has(token)) {
+            dressedSpectators.delete(token);
+            if (mesh) mesh.alpha = token.document?.alpha ?? 1;
+        }
+        return false;
+    }
+    dressedSpectators.add(token);
+    if (mesh) mesh.alpha = SPECTATOR_ALPHA * (token.document?.alpha ?? 1);
+    return true;
 }
 
 function hide(token) {

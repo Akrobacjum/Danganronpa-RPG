@@ -2,8 +2,8 @@
  * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E33 C2a; the owner's decision P6
  * of 06.10.2026: Daggerheart's dice classes run in the harness, as its GM relay does in dh-relay.mjs).
  *
- * Source: Foundryborne Daggerheart, tag 2.10.5 (commit 6bf4b69f98), module/dice/d20Roll.mjs - the whole file
- * (220 lines). Everything after this comment and the one blank line under it is that file byte for
+ * Source: Foundryborne Daggerheart, tag 2.12.8 (commit 71c318de25), module/dice/d20Roll.mjs - the whole file
+ * (157 lines). Everything after this comment and the one blank line under it is that file byte for
  * byte, its imports included. An import that leaves module/dice/ lands on the harness's glue at the
  * same relative path under lib/dh-dice/ (applications/, helpers/, data/), which says it is not
  * Daggerheart's; audit/harness/README.md ("Daggerheart's dice") names the boundary.
@@ -18,6 +18,7 @@ import D20RollDialog from '../applications/dialogs/d20RollDialog.mjs';
 import { triggerChatRollFx } from '../helpers/utils.mjs';
 import DHRoll from './dhRoll.mjs';
 
+/** The class for d20 rolls, but also the base class for all "main action rolls" like duality rolls */
 export default class D20Roll extends DHRoll {
     constructor(formula, data = {}, options = {}) {
         super(formula, data, options);
@@ -67,33 +68,6 @@ export default class D20Roll extends DHRoll {
         return adv === this.constructor.ADV_MODE.DISADVANTAGE;
     }
 
-    static applyKeybindings(config) {
-        let keys = {
-            normal: false,
-            advantage: false,
-            disadvantage: false
-        };
-
-        if (config.event) {
-            keys = {
-                normal: config.event.shiftKey || config.event.altKey || config.event.ctrlKey,
-                advantage: config.event.altKey,
-                disadvantage: config.event.ctrlKey
-            };
-        }
-
-        // Should the roll configuration dialog be displayed?
-        config.dialog.configure ??= !Object.values(keys).some(k => k);
-
-        // Determine advantage mode
-        const advantage = config.roll.advantage === this.ADV_MODE.ADVANTAGE || keys.advantage || config.advantage;
-        const disadvantage =
-            config.roll.advantage === this.ADV_MODE.DISADVANTAGE || keys.disadvantage || config.disadvantage;
-        if (advantage && !disadvantage) config.roll.advantage = this.ADV_MODE.ADVANTAGE;
-        else if (!advantage && disadvantage) config.roll.advantage = this.ADV_MODE.DISADVANTAGE;
-        else config.roll.advantage = this.ADV_MODE.NORMAL;
-    }
-
     constructFormula(config) {
         this.createBaseDice();
         this.configureModifiers();
@@ -114,15 +88,9 @@ export default class D20Roll extends DHRoll {
 
         this.baseTerms = foundry.utils.deepClone(this.dice);
 
-        this.options.roll.modifiers = this.applyBaseBonus();
+        this.options.roll.modifiers = this.getRollBonuses();
 
-        let actorExperiences = this.options.data.system?.experiences ?? {};
-        if (this.options.roll.companionRoll) {
-            const companion = typeof this.options.data.companion === 'string' ? 
-                foundry.utils.fromUuidSync(this.options.data.companion) :
-                this.options.data.companion;
-            actorExperiences = companion?.system?.experiences ?? {};
-        }
+        const actorExperiences = this.data?.experiences ?? {};
         for (const m of this.options.experiences?.filter(m => !!actorExperiences[m]) ?? []) {
             this.options.roll.modifiers.push({
                 label: actorExperiences[m].name,
@@ -148,29 +116,24 @@ export default class D20Roll extends DHRoll {
         }
     }
 
-    applyBaseBonus() {
+    getRollBonuses() {
         const modifiers = foundry.utils.deepClone(this.options.roll.baseModifiers) ?? [];
         modifiers.push(
-            ...this.getBonus(
-                'system.bonuses.roll',
-                'Roll Bonus'
-            )
+            ...this.getBonus('system.bonuses.roll')
         );
 
         return modifiers;
     }
 
+    /** @inheritdoc */
     getActionChangeKeys() {
-        const changeKeys = new Set(['system.bonuses.roll']);
-        return changeKeys;
+        return ['system.bonuses.roll'];
     }
 
     static async buildEvaluate(roll, config = {}, message = {}) {
         await super.buildEvaluate(roll, config, message);
 
         const data = config.roll;
-        data.type = config.actionType;
-        data.difficulty = config.roll.difficulty;
         if (config.targets?.length) {
             config.targets.forEach(target => {
                 const difficulty = config.roll.difficulty ?? target.difficulty ?? target.evasion;
@@ -178,32 +141,6 @@ export default class D20Roll extends DHRoll {
             });
             data.success = config.targets.some(target => target.hit);
         } else if (config.roll.difficulty) data.success = roll.isCritical || roll.total >= config.roll.difficulty;
-        config.successConsumed = data.success;
-
-        data.advantage = {
-            type: config.roll.advantage,
-            dice: roll.dAdvantage?.denomination,
-            value: roll.dAdvantage?.total
-        };
-        data.dice = data.dice.map(dice => ({
-            ...dice,
-            results: dice.results.filter(x => !x.rerolled),
-            rerolled: {
-                any: dice.results.some(x => x.rerolled),
-                rerolls: dice.results.filter(x => x.rerolled)
-            }
-        }));
-        data.isCritical = roll.isCritical;
-        data.extra = roll.dice
-            .filter(d => !roll.baseTerms.includes(d))
-            .map(d => {
-                return {
-                    dice: d.denomination,
-                    value: d.total,
-                    results: d.results
-                };
-            });
-        data.modifierTotal = roll.modifierTotal;
     }
 
     resetFormula() {

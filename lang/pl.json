@@ -231,6 +231,33 @@
     }
   },
   "DRPG": {
+    "Sequence": {
+      "trialTitle": "CLASS TRIAL",
+      "trialSubtitle": "Rozdział {chapter} · Wszyscy do sali rozpraw",
+      "trialSubtitleNoChapter": "Wszyscy do sali rozpraw",
+      "stampGuilty": "WINNY",
+      "stampInnocent": "NIEWINNY",
+      "votesCounted": "GŁOSY POLICZONE",
+      "dayTitle": "Dzień {day}",
+      "daySub": "Rozdział {chapter} · {time} · Ocaleli: {alive}/{total}",
+      "daySubNoChapter": "{time} · Ocaleli: {alive}/{total}",
+      "weRemember": "pamiętamy",
+      "morningLine": "OGŁOSZENIE PORANNE",
+      "dayEndTitle": "Koniec dnia {day}",
+      "dayEndSub": "Rozdział {chapter}",
+      "yourDay": "TWÓJ DZIEŃ",
+      "tableDay": "DZIEŃ STOŁU",
+      "foundSomething": "znalezione",
+      "dayTally": "Akcje: {actions} · Znaleziska: {found}",
+      "quietDay": "Spokojny dzień.",
+      "publicEvents": "CO WIDZIAŁA SZKOŁA",
+      "moodLabel": "NASTRÓJ SZKOŁY",
+      "mood": {
+        "calm": "Spokój",
+        "uneasy": "Niepokój",
+        "spilling": "Na krawędzi"
+      }
+    },
     "DhSettings": {
       "title": "Ustawienia postaci",
       "details": "Szczegóły",
@@ -354,6 +381,10 @@
       "glassPulse": {
         "name": "Puls szkła",
         "hint": "Powolne ciemnienie wędrujące po ramie. Wyłącz, by zostawić szkło, ale zatrzymać jego oddech. Tylko ten klient."
+      },
+      "sequences": {
+        "name": "Sekwencje na cały ekran",
+        "hint": "Wejście do Class Trial, werdykt, obroty i błyski zegara oraz plansze dnia na każdym ekranie. Wyłączone: grają tylko dźwięki rozprawy i werdyktu. Esc pomija jedną."
       },
       "reducedMotion": {
         "name": "Ograniczone animacje",
@@ -3773,6 +3804,14 @@
       "fogBudget": "Fog: bez Free Move",
       "noExperiences": "Nie masz jeszcze doświadczeń. Zaczynasz z dwoma po +2, a Level Up może dodać kolejne."
     },
+    "Spectator": {
+      "role": "Widz",
+      "marked": "{name} jest teraz Widzem.",
+      "unmarked": "{name} nie jest już Widzem.",
+      "talk": "Porozmawiaj z Widzami",
+      "talkBack": "Wróć do swojego pokoju",
+      "noChat": "Widz nie ma czatu."
+    },
     "Class": {
       "notInClass": "Poza klasą",
       "outTooltip": "Oznacz jako poza klasą: NPC bez akcji, głosów i Level Upów.",
@@ -4507,6 +4546,7 @@
         "refused": "Klient GM-a odmówił.",
         "noGm": "Żaden GM nie jest połączony.",
         "noAnswer": "Klient GM-a nie odpowiedział na czas.",
+        "spectator": "Widz nie wykonuje akcji.",
         "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony.",
         "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony.",
         "rollUnknown": "Klient GM-a nie ma twojego rzutu, na podstawie którego mógłby to rozliczyć.",
@@ -4682,6 +4722,8 @@
       "phase": "Faza",
       "session": "Sesja",
       "timeOfDay": "Pora dnia",
+      "morningLine": "Zdanie na następny poranek",
+      "morningLineHint": "Pokaże się na planszy początku dnia, gdy zacznie się następny dzień. Puste nic nie pokaże.",
       "chapterCorrectTitle": "Popraw numer rozdziału",
       "endChapterNote": "Zakończ rozdział ujawnia, sprząta i wskazuje Blackened - wszystko, czego nie robi pole rozdziału wyżej. Najpierw pyta, a nic wpisanego wyżej nie zostaje zapisane.",
       "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
@@ -4857,6 +4899,7 @@
       "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie.",
       "roleColumn": "Rola",
       "openSheet": "Otwórz arkusz: {name}",
+      "openColumn": "Otwórz",
       "role": {
         "student": "Uczeń"
       },
@@ -4864,6 +4907,7 @@
       "group": {
         "students": "Uczniowie",
         "monokumas": "Monokumy",
+        "spectators": "Widzowie",
         "notInClass": "Poza klasą"
       }
     },
@@ -5501,6 +5545,8 @@
         "eclipse": "Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.",
         "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
         "deadAlone": "Twoja postać nie żyje: żywi cię nie słyszą, a ty nie słyszysz ich.",
+        "spectator": "Jesteś Widzem: słyszysz pokój, w którym jesteś, a mikrofon masz wyłączony.",
+        "spectatorTalk": "Rozmawiasz z innymi Widzami.",
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
@@ -7432,6 +7478,22 @@
           "label": "Analiza nie udaje się",
           "hint": "Słyszy uczeń, który ją wykonał. Bullet zablokowany do następnego rozdziału - najdłużej trwająca konsekwencja jakiegokolwiek nieudanego rzutu w tej grze."
         },
+        "dayStart": {
+          "label": "Początek dnia",
+          "hint": "Wznosi się plansza początku dnia. Słyszy cały stół, nie przy wyłączonych sekwencjach."
+        },
+        "dayEnd": {
+          "label": "Koniec dnia",
+          "hint": "Wznosi się plansza końca dnia. Słyszy cały stół, nie przy wyłączonych sekwencjach."
+        },
+        "paneFlash": {
+          "label": "Błysk szyby",
+          "hint": "Błyski szyb na początku Investigation. Słyszy cały stół."
+        },
+        "trialStart": {
+          "label": "Start rozprawy",
+          "hint": "Pojawia się tytuł Class Trial. Słyszy cały stół, także przy wyłączonych sekwencjach."
+        },
         "debateOpen": {
           "label": "Nonstop Debate się otwiera",
           "hint": "Słyszy cały stół. Zmienia to, co robi przycisk Truth Bullet u każdego."
@@ -7453,8 +7515,12 @@
           "hint": "Słyszy cały stół."
         },
         "verdict": {
-          "label": "Werdykt",
-          "hint": "Słyszy cały stół. Najbardziej uroczysty moment rozdziału i ostatni, który powinien być cichy."
+          "label": "Wynik głosowania",
+          "hint": "Słyszy cały stół, gdy głosy są policzone. Najbardziej uroczysty moment rozdziału i ostatni, który powinien być cichy."
+        },
+        "verdictCut": {
+          "label": "Cut-in werdyktu",
+          "hint": "Stempel werdyktu. Słyszy cały stół, także przy wyłączonych sekwencjach."
         },
         "execution": {
           "label": "Egzekucja",

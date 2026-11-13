@@ -486,9 +486,11 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
 
     /* E76 C2 (12.11.2026): the same save in the shape Daggerheart 2.12.5 sends (chatMessage.mjs
        `onRollSave`, 2.12.8:274-290: `saveTotal` and `isCritical` beside the message, no `result`).
-       The guard forwards it in both shapes, so the relay copied here - 2.10.11's, which reads
-       `result` - marks it; until C2 the guard dropped it as "a save with no roll in it". Whether
-       2.12.5's own handler marks it is LIVE-E76-02: this copy is not that build's. */
+       The guard forwards it in both shapes; until C2 it dropped it as "a save with no roll in it".
+       Since E76 C1b the relay copied here is 2.12.8's, whose handler reads `saveTotal` and
+       `isCritical`, so this check reads 2.12.5's own handler marking the card from what the guard
+       sent (and the old-shape save above, the same handler from the guard's `saveTotal`). At a
+       table it is LIVE-E76-02. */
     const card2 = await p1.eval(`const m = await ChatMessage.create({ content: "E76 save card",
         speaker: { scene: canvas.scene.id, actor: "${IDS.aiko}" } }); return m.id;`, { timeout: 30000 });
     await settle(600);

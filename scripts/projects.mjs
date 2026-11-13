@@ -36,6 +36,7 @@ import { discoveredFor, myDiscoveredRooms, roomsStoodInNow } from "./fog.mjs";
 // What a private card's meta says on this browser (H84 fix G3, `proposedBy`). secret.mjs reaches nothing that imports
 // this file (read 27.10.2026: its imports are bridge-guards, utils, rooms, config, settings and gm-store), so no cycle (R161).
 import { cardMeta } from "./secret.mjs";
+import { spectatorUserIds } from "./spectator.mjs";
 // Already reached through fog.mjs, which imports it: the edge adds no cycle (R161).
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
@@ -143,6 +144,8 @@ export function knowsProject(countdownId, user = game.user) {
     if (!canSee(countdownId, user)) return false;
     // In on a secret one: you are one of the people who made it.
     if (isSecret(countdownId)) return true;
+    // A Spectator knows every project, in every room (E92, the owner's DRPG-D1 of 12.11.2026).
+    if (user && spectatorUserIds().has(user.id)) return true;
 
     const room = roomOf(countdownId);
     if (!room) return true;
@@ -242,6 +245,7 @@ export async function tellDescription(countdownId) {
     const words = secretsOf(countdownId).description;
     if (typeof words !== "string" || !words) return 0;
     const told = { ...(secretsOf(countdownId).descriptionTold ?? {}) };
+    // Not to a Spectator (E92, the coordinator's 12.11: "secret projects stay secret (GMs' half untouched)"): it sees the name and progress.
     const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
     if (!readers.length) return 0;
     const name = rawCountdown(countdownId)?.name ?? "?";
@@ -2382,6 +2386,26 @@ export async function resealSecretProjects() {
 
     if (fixed) log(`Re-sealed ${fixed} secret project(s) that were visible to players.`);
     return fixed;
+}
+
+/**
+ * THE SPECTATORS' SIGHT, AFTER A ROLE CHANGED (E92, the owner's DRPG-D1 of 12.11.2026: a Spectator sees every project,
+ * the secret ones too - their name and progress; the GMs' half, the words among it, stays theirs). Called by monokuma.mjs
+ * `setSpectator` once the flag is written, on a GM. `gone` are the users who stopped playing a Spectator with it: each is
+ * taken off every secret project it does not build (an `unshare`, the entry's own), since a Spectator's observer entry is
+ * not told from a share in the map - so a student who watched and comes back loses the secret projects it was let in on
+ * before (the GM shares them again). Then every secret project is resealed, which puts the Spectators in (`ownershipMap`).
+ */
+export async function seeAsSpectators(gone = []) {
+    if (!game.user?.isGM) return 0;
+    const secret = allProjects().filter(project => isSecret(project.id));
+    for (const project of secret) {
+        for (const userId of gone) {
+            if (builderIds(project.id).includes(userId)) continue;
+            await applyProjectChange(project.id, { unshare: userId }, { by: { kind: "system" } });
+        }
+    }
+    return resealSecretProjects();
 }
 
 /* ==========================================================================

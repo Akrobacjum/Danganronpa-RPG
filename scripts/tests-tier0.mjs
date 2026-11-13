@@ -253,6 +253,75 @@ const REGRESSIONS = [
             [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
     }],
 
+    ["R3865 - no student's action reaches the primary for a Spectator (E92 Q-E92-7; the owner's 12.11.2026 \"zgadzam sie, zlecaj\"): in the four tables (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS) every row a player may send names bridge-guards.mjs's Spectator guard right after knownSender - `notSpectator` on the character its owner question asks about (the same field, or a locate of its own) where it asks one, `senderNotSpectator` where it acts for the account - or stands in this test's list of rows that need none, with the reason; a GM's row (gmOnly first) needs none; the list names no row that is gone or that holds the guard; both refusals map to the closed list's \"spectator\", said in both languages", async () => {
+        /*
+         * E92 Q-E92-7, 12.11.2026. The tables are the module's own objects (tests-kit.mjs `bridgeTables`); a guard is known
+         * by its factory's tag (`made`) or by being the exported function. A census over a fixture first: three rows, two
+         * of them wrong, so a reader that finds nothing is not read as a clean table. Red at 3f47b45: no guard.
+         */
+        const G = await import("./bridge-guards.mjs");
+        must(typeof G.notSpectator === "function" && typeof G.senderNotSpectator === "function",
+            "bridge-guards.mjs has no notSpectator or senderNotSpectator - the census has nothing to look for");
+        /* The rows that need no Spectator guard, each with why: none of them acts for a student's character. */
+        const NEEDS_NONE = {
+            "note.save": "the player's own notebook (a User flag), which a Spectator may keep: no character acts, nothing of the game moves",
+            "ruling.expired": "a card's bookkeeping on the primary: the asker's own ruling card ends, no character acts",
+            "ruling.received": "a card's bookkeeping on the primary: the asker's own ruling card is marked seen, no character acts",
+            "action.friskAnswer": "the answer to a Frisk aimed at the sender's character; a Spectator is no Frisk's target (movement.mjs `othersInRoom` leaves it out), and the Frisk itself is guarded",
+            "searchTokens.returnPlant": "gives back what a guarded take handed out (`guardPlantReturn` holds it to the same user), nothing new",
+            "searchTokens.returnToken": "gives back a token a guarded spend took (`guardTokenReturn` holds it to the same user), nothing new"
+        };
+        const census = tables => {
+            const odd = [], rows = new Set();
+            let guarded = 0, account = 0, gms = 0, exempt = 0;
+            for (const { file, table } of tables) {
+                for (const [action, decl] of Object.entries(table)) {
+                    rows.add(action);
+                    const list = decl.guards ?? [];
+                    if (list[0]?.factory === "gmOnly") { gms++; continue; }
+                    const at = list.indexOf(G.knownSender);
+                    const spect = list.filter(g => g?.factory === "notSpectator" || g === G.senderNotSpectator);
+                    const owner = list.find(g => g?.factory === "owns" || g?.factory === "ownsActorAt");
+                    if (Object.hasOwn(NEEDS_NONE, action)) {
+                        exempt++;
+                        if (spect.length) odd.push(`${file} ${action}: listed as needing no guard, and holds one`);
+                        continue;
+                    }
+                    if (spect.length !== 1) { odd.push(`${file} ${action}: ${spect.length} Spectator guards, not one`); continue; }
+                    const [guard] = spect;
+                    if (at < 0 || list[at + 1] !== guard) odd.push(`${file} ${action}: its Spectator guard is not right after knownSender`);
+                    if (owner) {
+                        if (guard.factory !== "notSpectator") odd.push(`${file} ${action}: asks an owner question but guards the account, not the character`);
+                        else if (owner.factory === "owns" && owner.covers.length && JSON.stringify(owner.covers) !== JSON.stringify(guard.covers)) {
+                            odd.push(`${file} ${action}: the owner question reads ${owner.covers.join()}, the Spectator guard ${guard.covers.join()}`);
+                        }
+                        guarded++;
+                    } else if (guard === G.senderNotSpectator) account++;
+                    else guarded++; // a character a guard of the row's own reads (a trap's, a Search's), named to notSpectator
+                }
+            }
+            for (const action of Object.keys(NEEDS_NONE)) if (!rows.has(action)) odd.push(`${action}: listed as needing no guard, and no table has it`);
+            return { odd, guarded, account, gms, exempt };
+        };
+        const fixture = census([{ file: "fixture.mjs", table: {
+            "fixture.right": { guards: [G.knownSender, G.notSpectator("actorId"), G.owns("actorId", "not theirs")] },
+            "fixture.bare": { guards: [G.knownSender, G.owns("actorId", "not theirs")] },
+            "fixture.late": { guards: [G.knownSender, G.owns("actorId", "not theirs"), G.notSpectator("otherId")] }
+        } }]);
+        equal(JSON.stringify(fixture.odd.filter(line => line.startsWith("fixture.mjs"))), JSON.stringify([
+            "fixture.mjs fixture.bare: 0 Spectator guards, not one",
+            "fixture.mjs fixture.late: its Spectator guard is not right after knownSender",
+            "fixture.mjs fixture.late: the owner question reads actorId, the Spectator guard otherId"
+        ]), "the census does not find exactly the three faults planted in its fixture - it would misread the tables too");
+        const tables = await bridgeTables();
+        const read = census(tables);
+        must(read.guarded >= 40 && read.gms >= 20, `only ${read.guarded} guarded and ${read.gms} GM rows were read - the tables are not where this looks`);
+        log(`R3865: ${read.guarded} rows guard the character, ${read.account} the account, ${read.gms} are a GM's, ${read.exempt} need none`);
+        const codes = ["that character is a Spectator", "the sender plays a Spectator"].map(why => G.reasonOf(why));
+        equal(JSON.stringify({ odd: read.odd, codes, said: [game.i18n.has("DRPG.Bridge.why.spectator")] }),
+            JSON.stringify({ odd: [], codes: ["spectator", "spectator"], said: [true] }),
+            "[the rows whose Spectator guard is missing, misplaced or reads another field; the codes of its two refusals; the code's words]");
+    }],
     ["R1b - no socket handler takes a character on somebody's word", async () => {
         /*
          * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
@@ -3656,7 +3725,9 @@ const REGRESSIONS = [
         ok(!bad.length, `these sizes do not follow the Interface scale: ${bad.join(", ")}`);
         // Counted as well, so nobody satisfies the sweep by deleting the token.
         ok(factored >= 22, `only ${factored} stated sizes carry the factor`);
-        equal(clamped, 2, "the pause caption is no longer the only size with a viewport container");
+        // 2 the pause caption's; 4 since E61 C4-C5 (12.11.2026): the sequences' stamp, name and vote sizes, whose host is
+        // the whole screen (danganronpa.css THE SEQUENCES)
+        equal(clamped, 6, "the pause caption and the sequences are no longer the only sizes with a viewport container");
         ok(rungs >= 140, `only ${rungs} declarations read a rung - 164 of them did, so some have been unwired`);
     }],
 
@@ -8212,6 +8283,8 @@ const REGRESSIONS = [
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            // E92 C6: the player's own User document, its "Spectator talk" switch.
+            ["spectator-ui.mjs", "toggleSpectatorTalk", "user", "the player's own Spectator talk switch, a flag on its own User (E92 C6; the voice tile's button since round 3)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
@@ -9542,6 +9615,7 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#deadForTrial", "held (E70 C5; E70 fix p1-G1): on the primary in the record's step, after its deaths store has hydrated and every student's writes are judged (`judgedFor`) - `isDeadForGm` and the Monocub flag read through `flagsHeldNow`, so a dead player's console that unsets its death or sets the Monocub flag leaves the list as it was; an open incident's victim only once the GMs hold the death (no living victim, the review's SEC-1) [1b.2]"],
             ["SHEET voice.mjs#trialVoiceLine", "out of scope as a judgement (E70 fix p1-G3): the viewer's own line of who may speak in the trial, on its own client, where no voice tile is drawn - its voice character as `accountRow` ranks it (the trial's list first) and the Monocub flag from the document, as `micHold` reads them; it moves nothing and judges nobody"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
+            ["SHEET voice.mjs#spectatorAccount", "held (E92 C2): on the primary's settle the Spectator's flag is read through `flagsHeldNow`, after every character's writes are judged (`settleTrialVoices`); elsewhere a display, each client's own microphone line"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
@@ -9835,6 +9909,7 @@ const REGRESSIONS = [
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE day-summary.mjs#keepDayEndCard", "this client's own end-of-day board as one card (E94 C3), drawn by sequence.mjs `dayEndElement` from this browser's own rows, the public cards' text and the names escaped there, under the board's i18n title; kept as a summary (`source: \"summary\"`, R297) in place of the Night's summary it folds (`nightFoldsIntoBoard`), and cleaned at save like every snapshot"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "on a GM, a thread card that asks the GMs (`gmAsk`): the player's words in a card (`cardPreview`), kept as the thread's entry - its message and the conversation it opens - under the thread's player only when a GM's session wrote the card, else under its writer (`cardWriter`; a `thread` flag is the writer's to set, E81 fix r2-H1), an author that is no user of this world dropped (R297), and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage) (2)", "on the thread's player, a message in their own thread that somebody else wrote (`cardWriter`): the other party's words in a card (`cardPreview`), kept as the thread's entry and cleaned at save (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
@@ -9907,6 +9982,7 @@ const REGRESSIONS = [
             ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; kept as the entry's title (R293), which the store clips to 200 characters (R292)"],
             ["FLAG notice-history.mjs#noticeSecretStored#rerolled", "a Reroll's mark on a private card it replaced, written by a GM into the card's meta (reroll.mjs `markReplacedCard`), read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `rerolled`, no snapshot change (R295, 73-notice-history G3)"],
             ["FLAG notice-history.mjs#noticeSecretStored#MESSENGER_FLAGS.settled", "a GM's ruling on a private call (gm-bridge.mjs `settleCall`), written into the card's meta, read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `settled`, no snapshot change (R295, 73-notice-history G3)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupCentre", "where the card stands, not what it says: `true` alone, and from a GM's card only (`cardWriter`, as `popupForce`); the card is kept in the history as any card is (E62 C5)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
@@ -10287,7 +10363,7 @@ const REGRESSIONS = [
             "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
     }],
 
-    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock", async () => {
+    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock, and since E92 round 3 the Spectator switch's team", async () => {
         /*
          * E78 fix r2-H1, 14.10.2026. The orchestrator on G3's glass harness shots (14.10): the tile's two buttons drew as
          * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
@@ -10300,7 +10376,7 @@ const REGRESSIONS = [
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
-        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound", "team"], [], ["no-such-sprite"]]),
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],
 
@@ -12236,7 +12312,8 @@ const REGRESSIONS = [
         const G = await import("./bridge-guards.mjs");
         const cast = BRIDGE_ACTIONS["vote.cast"], asked = BRIDGE_ACTIONS["vote.ask"];
         ok(cast && asked, "the bridge has no `vote.cast` or no `vote.ask` - a ballot has no road to the primary but a raw packet");
-        const shape = decl => [decl.guards?.[0] === G.knownSender, decl.guards?.[1]?.factory ?? null, decl.sanitize?.fields ?? null,
+        // The Spectator's guard stands second since E92 Q-E92-7 (R3865: a Spectator's account casts no ballot); the third is the players' own.
+        const shape = decl => [decl.guards?.[0] === G.knownSender && decl.guards?.[1] === G.senderNotSpectator, decl.guards?.[2]?.factory ?? null, decl.sanitize?.fields ?? null,
             decl.answer, Boolean(decl.patient), Boolean(decl.resend), Boolean(decl.quiet)];
         equal(JSON.stringify(shape(cast)), JSON.stringify([true, "playersOnly", { round: "num", choice: "raw" }, "reply", true, true, false]),
             "vote.cast is not a known player's alone, a round and a list, answered by the primary and asked again when a primary arrives");
@@ -20239,9 +20316,10 @@ const REGRESSIONS = [
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
             // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
-            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches.
-            counts: [20, 11, 36], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 36, the clock's entry does not "
+            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
+            // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences (the r112 merge: e93's 20 and 1.2.109's 37).
+            counts: [20, 11, 37], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the twenty the reset clears, the lifetimes do not count 20, 11 and 37, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -23003,8 +23081,10 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
-                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 1, true], ["foundry", "game", 7, true]],
-            once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+                // The r112 merge (13.11.2026): E101's sections and 1.2.109's `sequences` in gm, where 1.2.109 put it.
+                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 2, true], ["foundry", "game", 7, true]],
+            // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
+            once: [], others: ["sfxVary", "sequences"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
