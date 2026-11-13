@@ -1511,7 +1511,7 @@ async function tablesPass(browser) {
 }
 
 /*
- * THE FRAME COUNTED ONCE (`--frame`; E54 W5, the plan's F7b, 13.11.2026). Whether utils.mjs `windowWidthFor` - the width
+ * THE FRAME COUNTED ONCE (`--frame`; E54 W5, the plan's F7b, 13.11.2026). Whether windows.mjs `windowWidthFor` - the width
  * ui-kit.mjs `fitKitWidth` gives a kit window whose widest table is known - counts the window's frame once, in a real
  * layout: jsdom lays nothing out, so R168's stand-in decides nothing about a frame's border and padding. On every
  * captured window (audit/windows) the kit draws as a fit window (`drpg-kit-fit`), in both themes, at 1920x1080 and
