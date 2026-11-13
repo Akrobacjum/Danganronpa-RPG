@@ -271,7 +271,7 @@ export async function incidentClosedFirst() {
         body: `<p>${game.i18n.localize("DRPG.Floor.incidentOpen")}</p>`,
         footer: {
             secondary: [{ action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep") }],
-            destructive: [{ action: "endMurder", label: game.i18n.localize("DRPG.Murder.endMurder"), tooltip: tipText("DRPG.Tips.Trial.endTheMurderTooltip") }],
+            destructive: [{ action: "endMurder", label: game.i18n.localize("DRPG.Murder.endMurder") }],
             close: "cancel",
             default: "cancel"
         },

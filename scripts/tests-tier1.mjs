@@ -25117,7 +25117,7 @@ const INVARIANTS = [
             tabs: [["one", "One", 'Say "one"'], ["two", "Two", null]]
         }), "{tipText's words; a key with no words; tipAttr's data-tooltip; with title: true; the tab bar's tooltips}");
     }],
-    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 31 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key)", async () => {
+    ["R4751 - the actions' windows and the projects' windows draw their tooltips (E102 C2, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 32 keys under DRPG.Tips.Actions has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 45e36627 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Actions key. */
         const TIPS = [
             ["DRPG.Tips.Actions.difficultyTooltip","action-dynamic.mjs","askDynamicDifficulty"],
@@ -25148,9 +25148,10 @@ const INVARIANTS = [
             ["DRPG.Tips.Actions.clearTheOverflowTooltip","overflow.mjs","overflowSection"],
             ["DRPG.Tips.Actions.onPerRuleTooltip","overflow.mjs","overflowSection"],
             ["DRPG.Tips.Actions.grantAllGrantNoneTooltip","roll-draw.mjs","cardButton"],
-            ["DRPG.Tips.Actions.whichRemnantEraseATooltip","action-tamper.mjs","chooseTamper"],
             ["DRPG.Tips.Actions.frameStudentTooltip","action-tamper.mjs","chooseTamper"],
-            ["DRPG.Tips.Actions.nothingMatchesRefuseTooltip","observe.mjs","askWhichRemnant"]
+            ["DRPG.Tips.Actions.nothingMatchesRefuseTooltip","observe.mjs","askWhichRemnant"],
+            ["DRPG.Tips.Actions.indirectMurderWindowTooltip","projects-ui.mjs","openProjectDialog"],
+            ["DRPG.Tips.Actions.doItCostTooltip","rest.mjs","choosePicks"]
         ];
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -25158,20 +25159,18 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 31, "lang/en.json has not the family's 31 keys under DRPG.Tips.Actions");
-        const fits = w => typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23;
+        must(Object.keys(words(en, "DRPG.Tips.Actions") ?? {}).length === 32, "lang/en.json has not the family's 32 keys under DRPG.Tips.Actions");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`tip(?:Attr|Text)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
     }],
-    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 37 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key)", async () => {
+    ["R4752 - the chapter, murder and Class Trial windows draw their tooltips (E102 C3, 13.11.2026; the owner's stage \"Tooltips across the module\", docs/dev/e102/TOOLTIPS.json and KEYS.json): each of the family's 34 keys under DRPG.Tips.Trial has words in English and in Polish, at most 23 words each (the guide's tooltip limit), and the function that draws its control writes it through the kit (`tipAttr` or `tipText` with the key; a count's words through `plural`, each form within the limit)", async () => {
         /* Red at 70613472 with the keys and this test in place and the family's scripts as they were: no function read a DRPG.Tips.Trial key. */
         const TIPS = [
-            ["DRPG.Tips.Trial.endAndMoveTheTooltip","boundary.mjs","placementTable"],
-            ["DRPG.Tips.Trial.endWithoutAdvancingTooltip","boundary.mjs","placementTable"],
             ["DRPG.Tips.Trial.moveToChapterToTooltip","chapter.mjs","chapterEndForm"],
             ["DRPG.Tips.Trial.countThisAsSessionTooltip","chapter.mjs","chapterEndForm"],
             ["DRPG.Tips.Trial.finishTheChapterSTooltip","chapter.mjs","askStoppedEnd"],
@@ -25186,7 +25185,6 @@ const INVARIANTS = [
             ["DRPG.Tips.Trial.aClosingArgumentTooltip","trial-floor-ui.mjs","closingButton"],
             ["DRPG.Tips.Trial.trialEvidenceLogTooltip","trial-floor-ui.mjs","logButton"],
             ["DRPG.Tips.Trial.findingsNTooltip","trial-floor-ui.mjs","logButton"],
-            ["DRPG.Tips.Trial.endTheMurderTooltip","trial-floor-ui.mjs","incidentClosedFirst"],
             ["DRPG.Tips.Trial.pickASpeakerTooltip","trial-floor-ui.mjs","pickClosingDialog"],
             ["DRPG.Tips.Trial.zoneAZoneBTooltip","trial-scene.mjs","scenesZoneRows"],
             ["DRPG.Tips.Trial.schoolTrialHallTooltip","trial-scene.mjs","scenesTabRows"],
@@ -25214,11 +25212,11 @@ const INVARIANTS = [
         const src = new Map();
         for (const f of new Set(TIPS.map(t => t[1]))) src.set(f, stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...src.values()].every(s => s.length > 500), "a script of the family read as nothing - this would measure nothing");
-        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 37, "lang/en.json has not the family's 37 keys under DRPG.Tips.Trial");
-        const fits = w => typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23;
+        must(Object.keys(words(en, "DRPG.Tips.Trial") ?? {}).length === 34, "lang/en.json has not the family's 34 keys under DRPG.Tips.Trial");
+        const fits = w => (w && typeof w === "object" ? Object.values(w).length > 0 && Object.values(w).every(fits) : typeof w === "string" && w.trim().length > 0 && w.trim().split(/\s+/).length <= 23);
         const bad = TIPS.filter(([k, f, unit]) => {
             const body = unit ? fnSource(src.get(f), unit) : src.get(f);
-            const read = new RegExp(`tip(?:Attr|Text)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
+            const read = new RegExp(`(?:tip(?:Attr|Text)|plural)\\(\\s*"${k.replace(/\./g, "\\.")}"`).test(body);
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
@@ -25334,6 +25332,33 @@ const INVARIANTS = [
             return !(read && fits(words(en, k)) && fits(words(pl, k)));
         }).map(([k, f, unit]) => `${k} in ${f}${unit ? ` ${unit}()` : ""}`);
         equal(bad.join("; "), "", "{the keys whose words are missing or too long, or whose control's function does not draw them}");
+    }],
+    ["R4760 - the tooltips say what the code does (E102, the review of c5cf2aff: docs/dev/e93/REVIEW-102.md T1-T4, T8, T10, T14, T15): Dynamic Action's difficulty passes AT its number (`roll.total >= dynamicBar(band)`), so its tooltip says the lowest total the roll needs, not a number to beat; the project window's room says what any room means; the Polish Frisk answer speaks to one asker and to the reader in no gender; Rest's Do it names the actions it spends (`choosePicks` takes the cost, a plural key); the escape's Remnants button names the whole Investigation window; four tooltips that repeated their label or the window are gone; and the four tipped controls drawn disabled at times carry a `title`, the kit's form for a disabled control", async () => {
+        /* Red at 937082c0: "beat" / "przebić", "Only students standing in this room", "Zobaczą ... miałeś", no cost in Do it, "with the Remnants this fight left", the four keys present, data-tooltip on the four. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const T = l => l.DRPG?.Tips ?? {};
+        must(Object.keys(T(en)).length >= 4 && Object.keys(T(pl)).length >= 4, "lang has no DRPG.Tips families - this would measure nothing");
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(r => (r.ok ? lfText(r) : "")));
+        const [dyn, rest, projects, scene, zones] = await Promise.all(["action-dynamic.mjs", "rest.mjs", "projects-ui.mjs", "trial-scene.mjs", "trial-zones-ui.mjs"].map(read));
+        must([dyn, rest, projects, scene, zones].every(s => s.length > 500), "a script read as nothing - this would measure nothing");
+        const titled = (src, key) => new RegExp(`tipAttr\\(\\s*"DRPG\\.Tips\\.${key.replace(/\./g, "\\.")}",\\s*null,\\s*\\{\\s*title:\\s*true\\s*\\}\\)`).test(src);
+        const cost = T(en).Actions?.doItCostTooltip, costPl = T(pl).Actions?.doItCostTooltip;
+        equal(stableJson({
+            passesAt: /roll\.total\s*>=\s*dynamicBar\(band\)/.test(dyn),
+            difficulty: [/\bbeat\b/i.test(T(en).Actions?.difficultyTooltip ?? "beat"), /przebi/i.test(T(pl).Actions?.difficultyTooltip ?? "przebić")],
+            anyRoom: [/any room/i.test(T(en).Actions?.room2Tooltip ?? ""), /dowoln/i.test(T(pl).Actions?.room2Tooltip ?? "")],
+            frisk: /Zobaczą|miałeś/.test(T(pl).Actions?.letThemLookTooltip ?? "Zobaczą"),
+            rest: [/choosePicks\(kind,\s*rules\.picks,\s*cost\)/.test(rest), /plural\("DRPG\.Tips\.Actions\.doItCostTooltip",\s*\{\s*n:\s*cost\s*\}\)/.test(rest),
+                cost && typeof cost === "object" ? Object.keys(cost).sort() : null, costPl && typeof costPl === "object" ? Object.keys(costPl).sort() : null],
+            escape: /window with the Remnants/i.test(T(en).Trial?.openTheRemnantTableTooltip ?? "window with the Remnants"),
+            gone: ["Actions.whichRemnantEraseATooltip", "Trial.endAndMoveTheTooltip", "Trial.endWithoutAdvancingTooltip", "Trial.endTheMurderTooltip"]
+                .filter(k => k.split(".").reduce((x, p) => x?.[p], T(en)) !== undefined || k.split(".").reduce((x, p) => x?.[p], T(pl)) !== undefined),
+            titled: [titled(projects, "Actions.secretAProjectSTooltip"), titled(scene, "Trial.zoneAZoneBTooltip"), titled(zones, "Trial.monokumaConfirmsTooltip")]
+        }), stableJson({
+            passesAt: true, difficulty: [false, false], anyRoom: [true, true], frisk: false,
+            rest: [true, true, ["one", "other"], ["few", "many", "one", "other"]], escape: false, gone: [], titled: [true, true, true]
+        }), "{the roll passes at the number; 'beat' in the difficulty's words (en, pl); any room in the room's (en, pl); the Polish Frisk answer's plural or gendered form; Rest passes the cost, draws the plural key, its forms (en, pl); the escape's words promise a filtered window; dropped keys still in lang; title on the disabled controls}");
     }],
     ["R1007 - the Projects tray's icons keep Font Awesome in every theme: under Stained Glass the tray's chrome face reaches its text and no icon, so no rule of the module's sheets sets a face on the minus, the plus, the eye-slash or the loop of Daggerheart's row (H84-05)", async () => {
         /*

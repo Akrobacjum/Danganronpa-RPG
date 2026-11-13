@@ -1421,7 +1421,7 @@ export function scenesZoneRows(roles = sceneRoles(), hall = null) {
     return ["a", "b"].map(side => {
         const key = side === "a" ? "zoneA" : "zoneB";
         const id = scenesFieldId(key);
-        const field = `<select id="${id}" name="scenes:${key}" data-drawn="${esc(drawn(side))}"${hall ? "" : " disabled"}${tipAttr("DRPG.Tips.Trial.zoneAZoneBTooltip")}>
+        const field = `<select id="${id}" name="scenes:${key}" data-drawn="${esc(drawn(side))}"${hall ? "" : " disabled"}${tipAttr("DRPG.Tips.Trial.zoneAZoneBTooltip", null, { title: true })}>
         ${zoneOptions(regions, drawn(side))}
     </select>`;
         return { label: game.i18n.localize(`DRPG.TrialScene.${key}`), id, field };

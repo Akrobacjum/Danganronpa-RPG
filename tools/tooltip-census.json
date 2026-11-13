@@ -2160,6 +2160,38 @@
    "key": null,
    "count": 1,
    "why": "none needed: Each row is the student's name; nothing more to say."
+  },
+  {
+   "file": "scripts/action-tamper.mjs",
+   "unit": "chooseTamper",
+   "kind": "select",
+   "key": "DRPG.Tamper.whichTrace",
+   "count": 2,
+   "why": "none needed: the row's own hint (DRPG.Tamper.coverHint) says which Remnants the list holds; a tooltip would repeat it (REVIEW-102 T10, O3)"
+  },
+  {
+   "file": "scripts/boundary.mjs",
+   "unit": "placementTable",
+   "kind": "footer",
+   "key": "DRPG.Eclipse.endAndAdvance",
+   "count": 1,
+   "why": "none needed: the label says the clock moves; a tooltip only repeated it (REVIEW-102 T14, X19)"
+  },
+  {
+   "file": "scripts/boundary.mjs",
+   "unit": "placementTable",
+   "kind": "footer",
+   "key": "DRPG.Eclipse.endOnly",
+   "count": 1,
+   "why": "none needed: the label says the time of day stays; a tooltip only repeated it (REVIEW-102 T14, X19)"
+  },
+  {
+   "file": "scripts/trial-floor-ui.mjs",
+   "unit": "incidentClosedFirst",
+   "kind": "footer",
+   "key": "DRPG.Murder.endMurder",
+   "count": 1,
+   "why": "none needed: the window's own sentence (DRPG.Floor.incidentOpen) says what closing does (REVIEW-102 T14, O3)"
   }
  ]
 }

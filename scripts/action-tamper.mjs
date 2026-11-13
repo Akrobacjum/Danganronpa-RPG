@@ -125,12 +125,12 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
         // the branch below reads by name, not by position.
         extra: `${erasable.length ? `<label class="drpg-specific-note" data-drpg-when="cover">
                 <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
-                <select name="trace"${tipAttr("DRPG.Tips.Actions.whichRemnantEraseATooltip")}>${erasable.map(t =>
+                <select name="trace">${erasable.map(t =>
                     `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
             </label>
             <label class="drpg-specific-note" data-drpg-when="reshape">
                 <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
-                <select name="reshapeTrace"${tipAttr("DRPG.Tips.Actions.whichRemnantEraseATooltip")}>${erasable.map(t =>
+                <select name="reshapeTrace">${erasable.map(t =>
                     `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
             </label>` : ""}${candidates.length ? `<label class="drpg-specific-note" data-drpg-when="frame">
                 <span>${game.i18n.localize("DRPG.Cleanup.trailWho")}</span>

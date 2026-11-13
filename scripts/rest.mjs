@@ -270,7 +270,7 @@ export async function takeRest(actor, kind = "short", {
 
         // `false`, not null: a player who backed out is not a rest that failed,
         // and Relief refunds the two differently (review, 17.09).
-        const picks = await choosePicks(kind, rules.picks);
+        const picks = await choosePicks(kind, rules.picks, cost);
         if (!picks) return false;
 
         if (cost > 0 && !await spendAction(actor, cost)) return null;
@@ -299,8 +299,11 @@ export async function takeRest(actor, kind = "short", {
     }
 }
 
-/** Ask which benefits to take. A long rest takes two, a short one takes one. */
-async function choosePicks(kind, count) {
+/**
+ * Ask which benefits to take. A long rest takes two, a short one takes one. `cost` is the actions the rest spends after
+ * this window (0 for a Relief's free rest), and Do it's tooltip says it (REVIEW-102 T8: the button pays a price).
+ */
+async function choosePicks(kind, count, cost = 0) {
     /*
      * THE COUNT IS ENFORCED IN THE WINDOW, NOT AFTER IT.
      *
@@ -369,7 +372,7 @@ async function choosePicks(kind, count) {
         },
         footer: {
             primary: {
-                tooltip: tipText("DRPG.Tips.Actions.doItTooltip"),
+                tooltip: cost > 0 ? plural("DRPG.Tips.Actions.doItCostTooltip", { n: cost }) : tipText("DRPG.Tips.Actions.doItTooltip"),
                 action: "ok",
                 label: game.i18n.localize("DRPG.Action.proceed"),
                 callback: (e, b, d) => Array.from(d.element.querySelectorAll("[name=pick]:checked")).map(i => i.value)

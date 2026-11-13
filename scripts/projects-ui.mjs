@@ -332,7 +332,7 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
             murder: `<input type="checkbox" name="murder.${p.id}" aria-label="${rowName("DRPG.Project.indirect", p)}"
                        ${isIndirectMurder(p.id) ? "checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderAProjectTooltip")} />`,
             secret: `<input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
-                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip")} />`,
+                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip", null, { title: true })} />`,
             edit: `<button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
                         data-tooltip="${t("DRPG.Project.editTitle")}">
                     <i class="fa-solid fa-pen-to-square" inert></i>
@@ -997,14 +997,14 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         { label: t("DRPG.Project.trait"), id: idOf("trait"), field: `<select name="trait" id="${idOf("trait")}" required${tipAttr("DRPG.Tips.Actions.requiredWork2Tooltip")}>${traitOptions}</select>` },
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="murder"${
-                    start?.indirectMurder ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderAProjectTooltip")} /> ${
+                    start?.indirectMurder ? " checked" : ""}${tipAttr("DRPG.Tips.Actions.indirectMurderWindowTooltip")} /> ${
                     t("DRPG.Project.indirect")}</label>` },
         { full: `<div class="drpg-trap-fields" data-drpg-when-murder>${trapRows}</div>` },
         ...(passageOf ? [{ full: passageFieldset(passageOf) }] : []),
         ...(ownedOf ? [{ full: ownedFieldset(ownedOf) }] : []),
         { full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
-                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip")} /> ${
+                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""}${tipAttr("DRPG.Tips.Actions.secretAProjectSTooltip", null, { title: true })} /> ${
                     t("DRPG.Project.secret")}</label>` },
         ...(players.length ? [{ full: `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${t("DRPG.Project.visibleTo")}</legend>

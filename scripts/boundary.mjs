@@ -217,8 +217,8 @@ function placementTable(rows) {
             </tr></thead><tbody>${body}</tbody></table>`,
         // A question withdrawn: Cancel (E21 rule 3), the answer it was "cancel" before.
         footer: {
-            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance"), tooltip: tipText("DRPG.Tips.Trial.endAndMoveTheTooltip") },
-            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly"), tooltip: tipText("DRPG.Tips.Trial.endWithoutAdvancingTooltip") }],
+            primary: { action: "end", label: game.i18n.localize("DRPG.Eclipse.endAndAdvance") },
+            secondary: [{ action: "endOnly", label: game.i18n.localize("DRPG.Eclipse.endOnly") }],
             close: { role: "cancel", action: "cancel" }
         },
         rejectClose: false

@@ -2,8 +2,8 @@
  "Actions": {
   "difficultyTooltip": {
    "key": "DRPG.Tips.Actions.difficultyTooltip",
-   "en": "The number the student's roll has to beat",
-   "pl": "Wynik, który rzut ucznia musi przebić",
+   "en": "The lowest total the student's roll needs",
+   "pl": "Najniższy wynik, który rzut ucznia musi osiągnąć",
    "sites": [
     "action-dynamic:334"
    ]
@@ -18,8 +18,8 @@
   },
   "refuseTooltip": {
    "key": "DRPG.Tips.Actions.refuseTooltip",
-   "en": "Turns the action down. The student loses nothing.",
-   "pl": "Odrzuca akcję. Uczeń nic nie traci.",
+   "en": "Turns the action down. The student keeps their action.",
+   "pl": "Odrzuca akcję. Uczeń zachowuje akcję.",
    "sites": [
     "action-dynamic:347"
    ]
@@ -34,7 +34,7 @@
   },
   "detailsTooltip": {
    "key": "DRPG.Tips.Actions.detailsTooltip",
-   "en": "Shows or hides the price, the rolls and what each result does",
+   "en": "Shows or hides the price, the rolls, and what each result does",
    "pl": "Pokazuje albo chowa koszt, rzuty i to, co daje każdy wynik",
    "sites": [
     "action-menus:352"
@@ -58,7 +58,7 @@
   },
   "roomTooltip": {
    "key": "DRPG.Tips.Actions.roomTooltip",
-   "en": "Where the project can be worked on. Any room means anywhere.",
+   "en": "Where students work on the project. Any room means anywhere.",
    "pl": "Gdzie można pracować nad projektem. Dowolny pokój znaczy wszędzie.",
    "sites": [
     "action-project:266"
@@ -83,23 +83,23 @@
   "letThemLookTooltip": {
    "key": "DRPG.Tips.Actions.letThemLookTooltip",
    "en": "They see everything you had on you when they asked",
-   "pl": "Zobaczą wszystko, co miałeś przy sobie w chwili prośby",
+   "pl": "Ta osoba zobaczy wszystko, co było przy tobie w chwili prośby",
    "sites": [
     "frisk:1086"
    ]
   },
   "leaveItTooltip": {
    "key": "DRPG.Tips.Actions.leaveItTooltip",
-   "en": "You let it go, and they are told so",
-   "pl": "Odpuszczasz, a ta osoba się o tym dowiaduje",
+   "en": "You let it go; they and anyone watching are told",
+   "pl": "Odpuszczasz; dowiaduje się o tym ta osoba i każdy, kto patrzy",
    "sites": [
     "frisk:1122"
    ]
   },
   "nextTooltip": {
    "key": "DRPG.Tips.Actions.nextTooltip",
-   "en": "Nothing is spent until you confirm in the next window.",
-   "pl": "Nic nie wydajesz, dopóki nie potwierdzisz w następnym oknie.",
+   "en": "You pay only when you confirm in the next window.",
+   "pl": "Płacisz dopiero po potwierdzeniu w następnym oknie.",
    "sites": [
     "call-pickers:255",
     "call-pickers:490"
@@ -110,14 +110,13 @@
    "en": "Marks the project as a murder by trap, secret by default",
    "pl": "Oznacza projekt jako morderstwo przez pułapkę, domyślnie tajne",
    "sites": [
-    "projects-ui:329",
-    "projects-ui:996"
+    "projects-ui:329"
    ]
   },
   "secretAProjectSTooltip": {
    "key": "DRPG.Tips.Actions.secretAProjectSTooltip",
    "en": "Ticked, only the players ticked for it and its builder see it",
-   "pl": "Zaznaczony: widzą go tylko zaznaczeni przy nim gracze i budujący",
+   "pl": "Zaznaczony, widzą go tylko zaznaczeni przy nim gracze i budujący",
    "sites": [
     "projects-ui:331",
     "projects-ui:1003"
@@ -125,7 +124,7 @@
   },
   "onlyAfterDarkTooltip": {
    "key": "DRPG.Tips.Actions.onlyAfterDarkTooltip",
-   "en": "The trap goes off only in the evening, at night or during an Eclipse",
+   "en": "The trap goes off only in the evening, at night, or during an Eclipse",
    "pl": "Pułapka odpala tylko wieczorem, w nocy albo w czasie Eclipse",
    "sites": [
     "projects-ui:968"
@@ -141,8 +140,8 @@
   },
   "room2Tooltip": {
    "key": "DRPG.Tips.Actions.room2Tooltip",
-   "en": "Only students standing in this room can work on it or sabotage it",
-   "pl": "Tylko uczniowie stojący w tym pokoju mogą nad nim pracować albo go sabotować",
+   "en": "Where students work on it and can sabotage it. With any room, they work anywhere and cannot sabotage it",
+   "pl": "Gdzie uczniowie nad nim pracują i mogą go sabotować. Przy dowolnym pokoju pracują wszędzie, a sabotować go nie mogą",
    "sites": [
     "projects-ui:993"
    ]
@@ -197,16 +196,16 @@
   },
   "useItTooltip": {
    "key": "DRPG.Tips.Actions.useItTooltip",
-   "en": "The item is used up, with no way back.",
-   "pl": "Przedmiot zostaje zużyty bez możliwości cofnięcia.",
+   "en": "Restores what you picked and uses up one of this item, with no way back",
+   "pl": "Przywraca to, co wybrano, i zużywa jedną sztukę przedmiotu, bez możliwości cofnięcia",
    "sites": [
     "use-items:648"
    ]
   },
   "clearTheOverflowTooltip": {
    "key": "DRPG.Tips.Actions.clearTheOverflowTooltip",
-   "en": "Sets the spilled Despair back to 0, after asking",
-   "pl": "Zeruje rozlany Despair, po pytaniu",
+   "en": "Asks first, then sets the spilled Despair back to zero",
+   "pl": "Najpierw pyta, potem zeruje rozlany Despair",
    "sites": [
     "overflow:1185"
    ]
@@ -227,15 +226,6 @@
     "roll-draw:252"
    ]
   },
-  "whichRemnantEraseATooltip": {
-   "key": "DRPG.Tips.Actions.whichRemnantEraseATooltip",
-   "en": "Only the Remnants here that are not Reinforced",
-   "pl": "Tylko Remnanty z tego pokoju, które nie są Reinforced",
-   "sites": [
-    "action-tamper:126",
-    "action-tamper:131"
-   ]
-  },
   "frameStudentTooltip": {
    "key": "DRPG.Tips.Actions.frameStudentTooltip",
    "en": "The student the false Remnant points at",
@@ -251,25 +241,33 @@
    "sites": [
     "observe:627"
    ]
+  },
+  "indirectMurderWindowTooltip": {
+   "key": "DRPG.Tips.Actions.indirectMurderWindowTooltip",
+   "en": "Makes the project a murder by trap; saved here, it is always secret",
+   "pl": "Robi z projektu morderstwo przez pułapkę; zapisany tutaj, zawsze jest tajny",
+   "sites": [
+    "projects-ui:996"
+   ]
+  },
+  "doItCostTooltip": {
+   "key": "DRPG.Tips.Actions.doItCostTooltip",
+   "en": {
+    "one": "Spends {n} action and gives you the rest benefits you ticked",
+    "other": "Spends {n} actions and gives you the rest benefits you ticked"
+   },
+   "pl": {
+    "one": "Wydaje {n} akcję i daje ci zaznaczone korzyści odpoczynku",
+    "few": "Wydaje {n} akcje i daje ci zaznaczone korzyści odpoczynku",
+    "many": "Wydaje {n} akcji i daje ci zaznaczone korzyści odpoczynku",
+    "other": "Wydaje {n} akcji i daje ci zaznaczone korzyści odpoczynku"
+   },
+   "sites": [
+    "rest:369"
+   ]
   }
  },
  "Trial": {
-  "endAndMoveTheTooltip": {
-   "key": "DRPG.Tips.Trial.endAndMoveTheTooltip",
-   "en": "Ends the Eclipse and moves on to the next time of day",
-   "pl": "Kończy Eclipse i przechodzi do następnej pory dnia",
-   "sites": [
-    "boundary:218"
-   ]
-  },
-  "endWithoutAdvancingTooltip": {
-   "key": "DRPG.Tips.Trial.endWithoutAdvancingTooltip",
-   "en": "Ends the Eclipse and keeps the current time of day",
-   "pl": "Kończy Eclipse, a pora dnia zostaje ta sama",
-   "sites": [
-    "boundary:219"
-   ]
-  },
   "moveToChapterToTooltip": {
    "key": "DRPG.Tips.Trial.moveToChapterToTooltip",
    "en": "Moves the clock to the next chapter and ends an Investigation still open",
@@ -296,8 +294,8 @@
   },
   "dropTheRestTooltip": {
    "key": "DRPG.Tips.Trial.dropTheRestTooltip",
-   "en": "Gives up the unfinished steps for good. None of them runs later.",
-   "pl": "Porzuca na dobre niedokończone kroki. Żaden z nich nie zostanie wykonany później.",
+   "en": "Gives up the unfinished steps for good",
+   "pl": "Porzuca na dobre niedokończone kroki",
    "sites": [
     "chapter:2710"
    ]
@@ -328,8 +326,8 @@
   },
   "openTheRemnantTableTooltip": {
    "key": "DRPG.Tips.Trial.openTheRemnantTableTooltip",
-   "en": "Opens the Investigation window with the Remnants this fight left",
-   "pl": "Otwiera okno Investigation z Remnantami, które zostawiła walka",
+   "en": "Opens the Investigation window, where you place the Remnants this fight left",
+   "pl": "Otwiera okno Investigation, w którym rozmieszczasz Remnanty po tej walce",
    "sites": [
     "murder-rules:4055",
     "murder-rules:4086"
@@ -383,14 +381,6 @@
     "trial-floor-ui:1110"
    ]
   },
-  "endTheMurderTooltip": {
-   "key": "DRPG.Tips.Trial.endTheMurderTooltip",
-   "en": "Closes the incident now, and its Blackened go on the register",
-   "pl": "Zamyka incydent od razu, a jego Blackened trafiają do rejestru",
-   "sites": [
-    "trial-floor-ui:272"
-   ]
-  },
   "pickASpeakerTooltip": {
    "key": "DRPG.Tips.Trial.pickASpeakerTooltip",
    "en": "Gives the chosen student the floor for the Closing Argument",
@@ -401,8 +391,8 @@
   },
   "zoneAZoneBTooltip": {
    "key": "DRPG.Tips.Trial.zoneAZoneBTooltip",
-   "en": "The hall region a token stands in to take this side in the zone modes",
-   "pl": "Region sali, w którym stoi token, by wybrać tę stronę w trybach stref",
+   "en": "The hall region: a token standing in it takes this side in the zone modes",
+   "pl": "Region sali: token, który w nim stoi, wybiera tę stronę w trybach stref",
    "sites": [
     "trial-scene:1422"
    ]
@@ -410,15 +400,15 @@
   "schoolTrialHallTooltip": {
    "key": "DRPG.Tips.Trial.schoolTrialHallTooltip",
    "en": "The scene the table goes back to when the trial ends",
-   "pl": "Scena, na którą stół wraca po końcu Class Trial",
+   "pl": "Scena, na którą stół wraca po zakończeniu Class Trial",
    "sites": [
     "trial-scene:1444"
    ]
   },
   "rightAnswerZoneATooltip": {
    "key": "DRPG.Tips.Trial.rightAnswerZoneATooltip",
-   "en": "The side the class must stand on to go to the next question",
-   "pl": "Strona, po której klasa musi stanąć, by przejść do następnego pytania",
+   "en": "The side most of the class must stand on for the next question; anything else ends the set",
+   "pl": "Strona, po której musi stanąć większość klasy, by przejść dalej; inaczej zestaw się kończy",
    "sites": [
     "trial-zones-ui:153"
    ]
@@ -498,7 +488,7 @@
   "rePointTooltip": {
    "key": "DRPG.Tips.Trial.rePointTooltip",
    "en": "Aims the running Objection at the chosen student instead",
-   "pl": "Kieruje trwające Objection w wybranego ucznia",
+   "pl": "Kieruje trwające Objection na wybranego ucznia zamiast obecnego",
    "sites": [
     "trial:1523"
    ]
@@ -521,7 +511,7 @@
   },
   "whichRemnantTooltip": {
    "key": "DRPG.Tips.Trial.whichRemnantTooltip",
-   "en": "Reinforced Remnants are listed, but they cannot be wiped",
+   "en": "Reinforced Remnants are listed, but you cannot wipe them",
    "pl": "Remnanty Reinforced są na liście, ale nie da się ich wytrzeć",
    "sites": [
     "cleanup:3356"
@@ -545,8 +535,8 @@
   },
   "killerTooltip": {
    "key": "DRPG.Tips.Trial.killerTooltip",
-   "en": "A killer with a finished trap ticks the trap box by itself",
-   "pl": "Zabójca z gotową pułapką sam zaznacza pole pułapki",
+   "en": "Picking a killer ticks Indirect murder when they have a finished trap, and unticks it when not",
+   "pl": "Wybór zabójcy zaznacza Morderstwo pośrednie, gdy ma gotową pułapkę, a w przeciwnym razie je odznacza",
    "sites": [
     "murder-ui:220"
    ]
@@ -1033,7 +1023,7 @@
   "despairPoolTooltip": {
    "key": "DRPG.Tips.Gm.despairPoolTooltip",
    "en": "The GM pool this Monokuma spends Despair from",
-   "pl": "Pula GM-a, z której ta Monokuma wydaje Despair",
+   "pl": "Pula GM-a, z której ten Monokuma wydaje Despair",
    "sites": [
     "gm-team-dialog:474"
    ]
@@ -1136,7 +1126,7 @@
   },
   "inviteAsAMonocubTooltip": {
    "key": "DRPG.Tips.Gm.inviteAsAMonocubTooltip",
-   "en": "Makes this dead student a Monocub now, with Hope, Health and Sanity at zero",
+   "en": "Makes this dead student a Monocub now, with Hope, Health, and Sanity at zero",
    "pl": "Od razu robi z tego martwego ucznia Monocuba, z Hope, Health i Sanity na zero",
    "sites": [
     "gm-students:134"

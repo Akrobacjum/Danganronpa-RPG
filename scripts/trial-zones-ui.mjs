@@ -364,7 +364,7 @@ export function findingsListHtml(list) {
         ${f.confirmed ? `<strong>${L("DRPG.Zones.findings.confirmedMark")}</strong>` : ""}
         <button type="button" data-drpg-finding-act="edit"${tipAttr("DRPG.Tips.Trial.editTooltip")}>${L("DRPG.Zones.findings.edit")}</button>
         <button type="button" data-drpg-finding-act="delete"${tipAttr("DRPG.Tips.Trial.deleteTooltip")}>${L("DRPG.Zones.findings.delete")}</button>
-        <button type="button" data-drpg-finding-act="confirm"${f.confirmed ? " disabled" : ""}${tipAttr("DRPG.Tips.Trial.monokumaConfirmsTooltip")}>${L("DRPG.Zones.findings.confirm")}</button></li>`).join("")}</ul>`;
+        <button type="button" data-drpg-finding-act="confirm"${f.confirmed ? " disabled" : ""}${tipAttr("DRPG.Tips.Trial.monokumaConfirmsTooltip", null, { title: true })}>${L("DRPG.Zones.findings.confirm")}</button></li>`).join("")}</ul>`;
 }
 
 /** One line of text asked of the GM: a Finding's words. */
