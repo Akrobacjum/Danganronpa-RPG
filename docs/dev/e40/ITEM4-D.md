@@ -28,6 +28,16 @@ test that already drives an assertion the trimmed test dropped.
 | R77 | (c) | - | drawn with PIXI on the canvas (no canvas headless, `env.canvas`); own-ring.mjs `frameOf`, `isMine`, `hourColour` not exported (would need an export of each) |
 | R84 | (c) | its hint half already reads the live text | `promptAndCallGm`'s null needs no GM connected on the browser running the suite (a GM's); the proposal's line and the tile's constant are the code's shape |
 | R118 | (c) | the harm by the tier-2 tests it names | a census over fourteen files: no road reads the camera |
+| R119 | (c) | where the writes land by the tier-2 test it names | a census of Room Setup's calls that take a scene |
+| R291 | (c) | - | pairs config.mjs's roll list with tier 2's `MODIFIER_FIXTURES` (source of a test file, not importable here) and roll-draw.mjs `situationReading`'s branches (not exported: would need an export of it) |
+| R300 | (c) | - | a census of names over every file; its own reason: a name no longer exported is `undefined` until called |
+| R383 | (c) | - | the harness's renderer has no background; fog.mjs `repaintFog`, `stand`, `armRendererFailsafe` not exported |
+| R806 | (c) | - | two texts agreeing (the hint in both languages and the GM's handbook's line): words, not code |
+| R846 | (c) | the helpers by tier 2 "a private card to a student's owners ..." | a census of the callers that name their own readers |
+| R945 | (c) | the cut and the gate by R943, R944 and scenario 76 C | a census: no write, no emit, no copy read over six bodies |
+| R1127 | (c) | `wholeNumber` itself by R1128 (tier 1) | a census of every stepper and the lines that read its value |
+| R1483 | (c) | - | three texts of the harness and its README agreeing: documentation of an assumption |
+| R99 | (c), the pilot's | - | unchanged here (see the note at the end) |
 
 ## Mutant tables
 
@@ -78,3 +88,23 @@ with a gather fixture. R99 is left as the pilot marked it; m4 above is a mutant 
 | --- | --- | --- | --- | --- |
 | 1 | R62, R65, R73, R78, R83, R90, R95 (+ R5170, R5171, three tier-2 tests) | ok; check 19 parts green; lint 346 files, 0 problems | tier 0-1: 8 ran, 9 passed; tier 2: 3 ran, 7 passed | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (446 s); the pilot's 1419/1404 plus R5170 and R5171, less R95 |
 | 2 | R1330, R31, R54, R61, R66, R71, R77, R84, R118 (notes only) | ok; check 19 parts green; lint 0 problems | tier 0-1: 9 ran, 10 passed | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (425 s) |
+| 3 | R119, R291, R300, R383, R806, R846, R945, R1127, R1483 (notes only) | ok; check 19 parts green; lint 0 problems | tier 0-1: 9 ran, 10 passed | 1420 ran, 1405 passed, 0 failed, 16 skipped, 0 red (408 s) |
+
+## Counts
+
+26 tests in the slice (R99 the pilot's). (a): 3 - R90 in place, R5170 off R78, R5171 off R73. (b): 3 - R62, R83, R95
+(three new tier-2 tests). (c): 20 text guards, of which R62, R65, R73, R78 and R83 are trimmed to what stays text,
+R66 and R71 are marked not converted (drivable, not built here), and R99 is the pilot's. Deleted from tier 0: R95.
+New R numbers: R5170, R5171. Every new test failed each mutant it was written for (m2 of R5171 only after a fix,
+recorded above).
+
+## For the owner
+
+- Would need an export (rule 2): hud.mjs `control` (R54); own-ring.mjs `frameOf`, `isMine`, `hourColour` (R77);
+  roll-draw.mjs `situationReading` (R291); fog.mjs `repaintFog`, `stand`, `armRendererFailsafe` (R383).
+- Drivable, not built in this slice: R66 (the Students window's apply and its live watch), R71 (the cue pane), R65's
+  and R31's window halves (a row's round trip; a refused Apply), R1330's RAISED and lazy card.
+- Default taken (ITEM4.md rule 1 and 4): a test with a driven half is split - the driven half its own test (a new R
+  number in tier 0, a named test in tier 2), the original keeping its name and number, trimmed to the rest and marked
+  TEXT GUARD. A trimmed assertion an older test already drives (R167 for R65, R122 for R78) is dropped with that test
+  named in the note.

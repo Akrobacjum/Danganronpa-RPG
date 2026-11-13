@@ -13173,6 +13173,10 @@ const REGRESSIONS = [
     }],
 
     ["R291 - every row of the GMs' roll list has a fixture in tier 2 and every fixture a row", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census pairing two texts: the GMs' roll list (config.mjs
+           `LEGAL_ROLL_MODIFIERS`) and tier 2's fixtures (`MODIFIER_FIXTURES`, a constant of tests-tier2.mjs read as
+           source) and roll-draw.mjs `situationReading`'s branches. The fixtures are not importable from tier 0 and
+           `situationReading` is not exported (would need an export of it, rule 2). */
         /*
          * E33 C3, 07.10.2026; the stage plan's 2.3. Tier 2 drives every row of config.mjs
          * `LEGAL_ROLL_MODIFIERS`, and every branch of its `situation` row as roll-draw.mjs
@@ -13202,6 +13206,10 @@ const REGRESSIONS = [
     }],
 
     ["R300 - each silence has one name: isCrimeSilenced in monocub.mjs, isCallSilenced in call-effects.mjs, isSilenced only as api.mjs's alias (D39)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of names over every module file: each silence's reader
+           declared once, in its own file, the old name only as api.mjs's alias, neither imported under another. The
+           reason is the test's own, below: a name that is no longer exported is `undefined` until it is called, so no
+           call that does not reach it can see it. */
         /*
          * E33 C9 (D39; audit S09-48, S03-46). Two rules carried the name `isSilenced`
          * until 1.2.69: the crime-witness marker on a Monocub (monocub.mjs; information
@@ -13821,6 +13829,9 @@ const REGRESSIONS = [
     }],
 
     ["R119 - Room Setup writes to the scene it was opened on: every read and write it makes is handed that scene, Apply's included", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of Room Setup's calls: every call it makes to a function that
+           takes a scene is handed the window's, and the camera is read once. The tier-2 test it names drives where the
+           writes land; this holds the shape over every call, which no single call shows. */
         /*
          * E12 C4, 11.10.2026; plan-E12 V2, V10 and G3, audit S08-16; the A5 project's reserved R119,
          * here because a tier-2 test carries no number (tools/registry.mjs) - the tier-2 "Room Setup
@@ -14031,6 +14042,9 @@ const REGRESSIONS = [
     }],
 
     ["R383 - the renderer's background is the fog's ink only while the fog is on screen: set after a paint, given back when the fog stands down", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the renderer's background is not measurable here (the harness's
+           renderer has no background: client-entry.mjs, a screen size and a view), and fog.mjs `repaintFog`, `stand`
+           and `armRendererFailsafe` are not exported; it reads which function sets and which gives back the colour. */
         /*
          * E12 C7, 11.10.2026; audit S07-11. `armRendererFailsafe` set the renderer's clear colour to
          * the palette's ink on every `canvasReady` - with the room fog switched off, and on a scene
@@ -15836,6 +15850,8 @@ const REGRESSIONS = [
             + "and no longer with \" - your roll\"]");
     }],
     ["R806 - the hint of the switch for one dice look says only what holds whoever opened the world first: the look is fixed the first time the game runs with it on, as the GM's handbook says, in both languages (E16)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its subject is two texts agreeing: the setting's hint in both languages
+           and the GM's handbook's line on it - words, not code; nothing calls the hint. */
         /*
          * E16 fix r1-G2 of round r1d, 19.10.2026 (finding fd2-3). DRPG.Settings.forceDiceLook.hint named the full
          * Gamemaster "whose browser first ran the game with this on as the primary GM". dice-sync.mjs `lookSource`
@@ -16040,6 +16056,10 @@ const REGRESSIONS = [
             "[the drawing hands `gm` to the stretches and to the tunnels; the words say 'Secret passage from' and 'Secret passage to'; the room beyond is movement.mjs `passageRooms`; the overlay drawn again once it has loaded; drawn again on a region created, changed and deleted, a behaviour made or taken off one, and a scene's update of its regions (H82 fix r1); that redraw a quarter second after the last]");
    }],
     ["R945 - a GM's frame is cut on a GM's own board from the GMs' own rows (H82-05): fog-doorways.mjs `gmPassageGaps` takes `gm` from `game.user?.isGM` and asks it first; in their own bodies it, `withPassageGhosts`, `traceGhostStretches`, fog-reveal.mjs `ghostStyle` and `flashOutline` and fog.mjs `redrawFrameSoon` name no emit, no write of a flag, setting, store, document or chat message and no reader of a player's copy (what they call is not read: on a player's browser `flashOutline` reaches the copy through a knower's `doorwayEdges` and `tunnelMarks`), and passages.mjs `secretSegmentsOn`, the GM's cut's one read of rows, names no emit or write and reads `knownPassages()`, the GMs' open rows on a GM's browser (R554); `flashOutline` cuts its edges as `withPassageGhosts(doorwayEdges(...), gaps)` with `gaps` its `gmPassageGaps(...)`, `traceOutlineGapped` leaves the cut out, and `doorwayEdges` reads none of it, so the map's checks and a player's frame read the map as before; and fog.mjs draws a GM's frame again from one `clientSettingChanged` listener, on the GMs' passage rows, behind a GM's gate, a quarter second after the last change", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census of the GM's frame: none of six functions emits or writes, none
+           reads a player's copy, the gate is the user's role in `gmPassageGaps`' parameters, and fog.mjs has one gated
+           listener. R943, R944 and scenario 76 C drive the cut and the gate; this holds the absence of a write or a
+           copy read over the bodies, which no call shows. */
         /*
          * H82-05 (23.10.2026). A secret passage is the GMs' and its knowers' (D2, D38): a frame cut by every passage would be
          * the whole map of them on any browser that drew it, and a Mastermind player's copy names every passage, so the gate
@@ -16360,6 +16380,9 @@ const REGRESSIONS = [
     }],
 
     ["R846 - a private card to a student's owners goes to every player who owns it: whisperToOwner and whisperToOwnerOnly read ownerIdsOf, and every caller that names its own readers is listed with its reason (E18 C5; S01-33, amend 2)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): the helpers' half is driven by tier 2's "a private card to a student's
+           owners ..." (the test names it); what this holds is a census of every caller of the two helpers that names
+           its own readers, each listed with its reason - a count over the module's files that no call shows. */
         /*
          * E18 C5, 20.10.2026; audit S01-33, the owner's amend 2 (E18-22, E18-23). The two helpers addressed the card to
          * `ownerOf`'s one player, so a co-owner read none of its student's private cards; they read `ownerIdsOf` now (tier
@@ -18709,6 +18732,10 @@ const REGRESSIONS = [
                 + "trace's student and subject; itemFindings' discard line asks takeDiscardTrace of the student and the held name before it stands; both exported]");
     }],
     ["R1127 - every GM number field is a kit stepper read through utils.mjs `wholeNumber`: each `stepper({ name` of the module's windows has its row in this test's table, the field keeps its name, the reader is found and every line that reads the field's value asks `wholeNumber(`; no module file but ui-kit.mjs writes an `<input type=\"number\"`, and a `type=\"number\"` that is no field is listed with its reason; `wholeNumber` is built on `clamp`, and despair.mjs `convertDespairToHope` takes the amount through it (E51 C7; E51-44, audit S10-61; E44 C4b, E44-16, S10-66)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): a census: every kit stepper of the module's windows against the test's
+           table of fields, every line that reads a field's value asking `wholeNumber(`, no raw `<input type="number"`
+           outside ui-kit.mjs - a count over every file. What `wholeNumber` does with a value is a call (R1128, tier
+           1); which fields are read through it is the code's shape. */
         /*
          * E51 C7, 31.10.2026; audit S10-61. The GM's number fields were read with `Number(v) || 1` and the like, so
          * `min="1" step="1"` held nothing a typed value did not: "Day -2" or "Day 2.5" went to the clock as typed in
@@ -22118,6 +22145,9 @@ const REGRESSIONS = [
             "{row: README row 71's layers, state and stage; layers: the file's export; parts: the letters it begins}");
     }],
     ["R1483 - the harness's render after a write is named unconfirmed (E45 C3a, E45-15; STAGE E45 \"71-sheet\"): versions.mjs's `UNCONFIRMED` lists LIVE-E45-01, client-entry.mjs's `renderApps` cites it, and README's \"What the harness cannot do\" names the model", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): its subject is three texts of the harness and its README agreeing
+           (versions.mjs's UNCONFIRMED list, client-entry.mjs's note on `renderApps`, the README's section) -
+           documentation of an assumption, not module behaviour. */
         /* E45 C3a, 08.11.2026. The render on an update is modelled from v13/v14 notes, not v14's source: every results
            file lists the unconfirmed ids (versions.mjs `readVersions`), so a scenario's green on the model says which
            assumption it stands on. Red first on 52955be4: none of the three. */
