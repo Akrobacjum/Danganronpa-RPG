@@ -4,6 +4,11 @@ The owner, 13.11.2026: "Planer zagadki - niech pozwala przypisac od razu lokaliz
 kazdemu zaplanowanemu remnantowi/bulletowi. Upewnijmy sie ze gm moze zaplanowac kazdy rodzaj i kazdy szczegol. Od
 1.2.112." Target 1.2.112, R5330-R5379. The survey: docs/dev/e104/SURVEY.md.
 
+**Review page** (private, Polish captions; every planned kind's editor whole, both themes, Polish and English, and the
+Map's one-row tools): https://claude.ai/artifact/HeYZbpCDuCA23YAmntGn1B. Drawn from probe 08's captures at 10a8a56f
+(audit/harness/probes/08-capture-windows.mjs; investigation--map-planned, -slot, -final, -bullet, -autopsy), each open
+editor drawn whole at 1366 px wide; audit/case-map-sweep.mjs over the same captures: 44 pages, 0 failing.
+
 ## C1. A planned Remnant (Incident, Prep, Neutral, Faint, Tamper) holds every field New Remnant asks
 
 - The Map's editor of a planned Remnant shows New Remnant's fields, in its order and its words: room (on its scene),
