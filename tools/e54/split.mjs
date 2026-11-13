@@ -273,7 +273,7 @@ const refEdits = new Map();   // file -> new text
             return g && g !== "facade" ? `"${g}:${unit}"` : all;
         });
         map = map.replace(new RegExp(`"${srcName.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}:\\*"`, "g"),
-            all => [all, ...targets.map(t => `"${t.file}:*"`)].join(", "));
+            all => [all, ...targets.map(t => `"${t.file}:*"`), ...(manifest.textMapNamed ?? []).map(u => `"${u}"`)].join(", "));
         if (map !== before) refEdits.set("tools/text-map.mjs", map);
     }
     const docsDir = path.join(REPO, "docs", "dev");

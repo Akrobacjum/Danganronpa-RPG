@@ -271,5 +271,14 @@
         "costLabelFor": "function"
       }
     }
+  ],
+  "textMapNamed": [
+    "scripts/sheet-mode.mjs:sheetMode"
+  ],
+  "textMapNamedWhy": [
+    "tools/text-map.mjs reaches a unit of another file one hop from an entry point: the sheet's steps reached",
+    "sheetMode in the same file, and through it trial-floor.mjs presentRefusal's two keys (DRPG.Trial.presentNobody, presentOnly);",
+    "from sheet-mode.mjs that is two hops. Named in the sheet's row, sheetMode is an entry point and the keys stay the sheet's",
+    "(measured 13.11.2026: without it 2 keys unassigned, 5804 of 6162 assigned against main's 5806)."
   ]
 }
