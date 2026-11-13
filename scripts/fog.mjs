@@ -69,7 +69,7 @@ import { isMonokuma, isSpectator, poolUserFor } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
-import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection } from "./gm-stores.mjs";
+import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection, mastermindStore } from "./gm-stores.mjs";
 import { spectatorViewer, watcherOf, flaggedSpectator } from "./spectator.mjs";
 import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
@@ -1386,6 +1386,9 @@ function registerLedgerRoad() {
                     // Asked while tier 2 holds the stores: answered once it lets them go, from this world's cells.
                     await whenGmStoresAudible();
                     await discoveryStore.whenHydrated();
+                    // The Mastermind's record too (the 1.2.110 review, E72 reader #8): it leaves the Mastermind's row out
+                    // of a Monocub's and a Spectator's fog (gm-stores.mjs `cubFogSection`, `spectatorFogSection`).
+                    await mastermindStore.whenHydrated();
                     sendStoreTo(sender);
                     return;
                 case FOG_SHARE_ASK:

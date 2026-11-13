@@ -32914,6 +32914,26 @@ const INVARIANTS = [
         }), "a Monocub's states are not one card ([kind, title, Monocub, lines] of three states, of the last two, none; the list draws cubCard() and none of the three)");
     }],
 
+    ["R4476 - a Monocub's move and a fog answer read the GMs' stores only once they hold the other GMs' copies (scripts/monocub.mjs `cubAbilityOnGm`, fog.mjs FOG_REQUEST; the E101 line's review of 1.2.110, E72 reader #7 and #8, 13.11.2026): `cubAbilityOnGm` waits for `cubStore`, `cubTargetStore` and `projectWorkStore` (and refuses on a time-out) before the refusals, caps and order it reads; the fog request waits for `mastermindStore`, whose record leaves the Mastermind's row out of a Monocub's and a Spectator's fog, as it waits for `discoveryStore`", async () => {
+        /*
+         * The review's #7 and #8 (suspected there, read again here): `patchCubRow` and the bridge's roll guard wait for their
+         * stores, but the move's readers (`cubRowOf`, `cubCapRefusal`, `orderOpen`, `workersNow`) did not, so on a primary
+         * just reloaded beside a second GM a once-a-day rule or a cap could read an empty row; and FOG_REQUEST waited for the
+         * discoveries alone. Read in source, cut with the kit; whether a real hydration window lets a second Redeem through is
+         * not measured. Red at the E72 #6 commit: neither waits.
+         */
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        must(src("monocub.mjs").length > 10000 && src("fog.mjs").length > 10000, "the sources were not read");
+        const move = fnSource(src("monocub.mjs"), "cubAbilityOnGm");
+        const fogCase = bodyOf(src("fog.mjs"), "case FOG_REQUEST:", { until: "case FOG_SHARE_ASK:" });
+        equal(stableJson({
+            stores: ["cubStore", "cubTargetStore", "projectWorkStore"].map(name => new RegExp(`${name}\\.whenHydrated\\(`).test(move)),
+            refuses: /timedOut/.test(move),
+            fog: [/discoveryStore\.whenHydrated\(/.test(fogCase), /mastermindStore\.whenHydrated\(/.test(fogCase)]
+        }), stableJson({ stores: [true, true, true], refuses: true, fog: [true, true] }),
+            "{stores: the move waits for [cubStore, cubTargetStore, projectWorkStore]; refuses: a time-out refuses it; fog: the request waits for [the discoveries, the Mastermind]}");
+    }],
     ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
         /*
          * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load
@@ -41081,6 +41101,11 @@ const INVARIANTS = [
             html.append(body);
             body.innerHTML = `<figure id="pause" class="paused"><img alt=""><figcaption>Game Paused</figcaption></figure>`;
             const pause = body.querySelector("#pause");
+            /* A control first (the 1.2.110 review, E91 reader F6, 13.11.2026): the full-viewport rule this reading stands on
+               must be read, or "none" on every side would be the cascade reading nothing (sheets not loaded, a rule moved
+               under a media query, which styleCascade skips). */
+            must(C.winner(pause, "top")?.value != null && C.winner(pause, "height")?.value != null,
+                `the cascade read no top or height for the paused #pause under ${theme} - this would measure nothing`);
             for (const [side, names] of Object.entries(sides)) {
                 const w = C.winner(pause, names);
                 const drawn = !!w && !/^\s*(none|0(px)?)\b/.test(w.value) && !/\b(none|hidden|transparent)\s*$/.test(w.value.trim());
@@ -53578,6 +53603,36 @@ const INVARIANTS = [
             empty: null,
             reads: [true, true, true, true]
         }), "the reach per band; landings [Hall on 1, Library on 2, Library on 1, a room on neither list on 2 and 1] as [room, short]; none with no room near; the reads");
+    }],
+    ["R4477 - a Tamper the GM could charge nothing for is refused, not scored (scripts/cleanup.mjs `resolveCleanup`, `resolveStageSix`, `chargeUnclaimed`; the E101 line's review of 1.2.110, E64 reader F3, 13.11.2026): on the action's road (`viaAction`), when the packet's price is not one the GMs saw paid and `chargeUnclaimed` finds no action to take, both refuse with \"nothing was carried out\" before the attempt is scored", async () => {
+        /*
+         * The review's F3. E64 made Tamper one action and no Sanity; a packet whose claimed step `validPrice` refuses goes to
+         * `chargeUnclaimed`, which on the action's road takes an action - and with none left answered `{ stress: 0, step:
+         * null }`, and the attempt was scored all the same: a console with no action left still cleaned, for the Sanity mark
+         * its own browser wrote (roll-draw.mjs `paysFor("cleanup")` still names the chain's Sanity step for a draw ticket).
+         * Read in source, cut with the kit: a refusal follows the charge in both roads. A run of the whole road is not here:
+         * it needs a clean-up the GM would otherwise score (a found trace, an incident). Red at 37d96462: no refusal.
+         */
+        const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
+        must(src.length > 10000, "cleanup.mjs was not read");
+        const refusal = /nothing was carried out: no action was left to pay for it/;
+        // Cut with the kit (R156): the 900 characters after the charge, which must() the marker is there.
+        const after = (fn, marker) => refusal.test(bodyOf(fnSource(src, fn), marker, { length: 900 }));
+        equal(stableJson({ cleanup: after("resolveCleanup", "const charged = await chargeUnclaimed("), stageSix: after("resolveStageSix", "chargeUnclaimed(") }),
+            stableJson({ cleanup: true, stageSix: true }), "{the refusal after an unpaid charge in resolveCleanup, in resolveStageSix}");
+    }],
+    ["R4478 - a season reset takes the DA39 migration's rises with the season (scripts/season-wipe.mjs `wipeStudent`'s advancement part; the E101 line's review of 1.2.110, E64 reader F5, 13.11.2026): the step that restores the starting sheet also unsets `da39Rises`, so a migration still pending across a reset does not read last season's rises as covering this season's points", async () => {
+        /*
+         * The review's F5. `da39Rises` records the Health and Sanity rises a Level Up gave by the new rule, so the DA39
+         * migration (level-up.mjs `da39Row`) does not give them twice. The reset restored the starting sheet and left the
+         * flag: a world whose migration stayed pending (Cancel, again and again) across a reset under-counted the rises
+         * owed for the new season's points. Read in source, cut with the kit. Red at 7b9add03: the part does not name it.
+         */
+        const src = stripComments((await moduleSources()).get("season-wipe.mjs") ?? "");
+        must(src.length > 5000, "season-wipe.mjs was not read");
+        const part = bodyOf(fnSource(src, "wipeStudent"), "advancement: async () => {", { until: "actions: async () => {" });
+        equal(stableJson({ unsets: /unsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.da39Rises\s*\)/.test(part), afterRestore: part.indexOf("restoreStartingSheet(") >= 0 && part.indexOf("restoreStartingSheet(") < part.indexOf("FLAGS.da39Rises") }),
+            stableJson({ unsets: true, afterRestore: true }), "{the advancement part unsets da39Rises; after the sheet's restore}");
     }],
     ["R3958 - Tamper has no cap a time of day: it costs its price and nothing limits how often (E64, the owner's review of 12.11.2026, \"niech kosztuje po prostu akcje, bez jakis dziwnych rozwiazan\"; it replaces 4f3882f's two-a-time-of-day cap): `CLEANUP` has no `tamperPerTimeOfDay`, cleanup.mjs neither declares nor calls `tamperOverLimit`, gm-stores.mjs has no `tamperAttemptStore`, settings.mjs no `gmTamperAttempts`, no `DRPG.Tamper.limitReached` in either language, and `PRICE_CHAINS.tamper` keeps its two steps, 1 action and 1 Sanity (the Sanity is the killer's own Stage 6 alone since R3959)", async () => {
         /*

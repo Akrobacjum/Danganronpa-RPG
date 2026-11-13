@@ -17761,7 +17761,8 @@ const SCENARIOS = [
             const clock = getClock();
             await cubStore.patch(cub.id, { redeemDay: { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day } });
             read.b = say();
-            await cubStore.patch(cub.id, { redeemDay: null, askOpen: true });
+            // The ask's mark of this time of day since the 1.2.110 review (E72 reader #3): an old `true` shuts nothing now.
+            await cubStore.patch(cub.id, { redeemDay: null, askOpen: M.askMarkNow() });
             read.c = say();
             await cubStore.patch(cub.id, { askOpen: null });
             await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
@@ -17936,7 +17937,7 @@ const SCENARIOS = [
         }), "the panel's lines or the GMs' flags are not part B's ({the lines: [kind, name]; the bet in the copy; the flags after the first, second and third accepted Bribe of the pair, the payer this chapter's Blackened from the second})");
     }],
 
-    ["a Ghost Bet names a student for the window's Hope, one bet a Monocub, shut to a crime witness, paid into the purse only when a right verdict sentences that student, its cards naming nobody else (E72 C18)", async () => {
+    ["a Ghost Bet names a student for the window's Hope, one bet a Monocub, shut to a crime witness, paid into the purse only when a right verdict sentences that student (E72 C18; the cards' words are not read here, the 1.2.110 review's E72 #11)", async () => {
         /*
          * E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; defaults, owner may revise: free to place,
          * one bet a Monocub until the next verdict, the value fixed when it is placed. The row `bet` (config.mjs
@@ -18001,6 +18002,144 @@ const SCENARIOS = [
             + "closed; a bet on A: placed, on A, its value; a second; a witness's block and its bet refused; a right verdict on A: [winners, purse, a bet left]; a wrong one: the same})");
     }],
 
+    ["1.2.110 lows, the Monocub's row - an Ask for Hope lapses with its time of day, a refund into the purse stops at the limit, and a student revived from a Monocub is neither paid a bet nor given Hope on an old card (scripts/monocub.mjs `askStillOpen`, `refundCubHope`, `setMonocub`, `settleBets`, `answerHopeAsk`; the E101 line's review of 1.2.110, E72 reader #3, #4, #5, 13.11.2026)", async () => {
+        /*
+         * The review's lows. #3: `askOpen` was cleared only by a GM's answer on its card, so a card deleted or a chat flushed
+         * shut Ask for Hope for good. It is a mark of the time of day it was asked in now, shut only while that time of day
+         * lasts. #4: a refund into the purse had no cap (a Bribe filling it between a Tinker's price and its refund took the
+         * total past the maximum). #5: a revived student kept its bet, order and ask: `settleBets` paid it and an old card's
+         * Give made Hope for a living student. One Monocub of the cast, its row and sheet put back after. Red at 32f5093f:
+         * the ask still shut on yesterday's mark ("legacy" true stays shut too), the total 7 of 6, the bet paid, the Hope given.
+         */
+        const [cub, target] = cast(2);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax, resourceValue } = await import("./character.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const had = { hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            const blocked = () => M.CUB_BLOCKS.askOpen.refuses(cub) !== null;
+            // #3: an ask from an earlier time of day, and one with the old `true`, shut nothing; one of now does.
+            await S.cubStore.patch(cub.id, { askOpen: true });
+            read.legacy = blocked();
+            const now = typeof M.askMarkNow === "function" ? M.askMarkNow() : null;
+            await S.cubStore.patch(cub.id, { askOpen: now ? { ...now, day: (now.day ?? 1) - 1 } : true });
+            read.yesterday = blocked();
+            await S.cubStore.patch(cub.id, { askOpen: now ?? true });
+            read.now = blocked();
+            await S.cubStore.patch(cub.id, { askOpen: null });
+            // #4: the limit counts the purse; a refund of 1 into a purse when the total already stands at the maximum.
+            const max = resourceMax(cub, "hope");
+            await trustedWrite(cub, { "system.resources.hope.value": max - 1 }, { reason: "gmRuling" });
+            await S.cubStore.patch(cub.id, { purse: 1 });
+            await M.refundCubHope(cub, { purse: 1, sheet: 0 });
+            read.total = [resourceValue(cub, "hope") + M.purseOf(cub), max];
+            await S.cubStore.patch(cub.id, { purse: null });
+            // #5: a bet on the target, the student revived, a right verdict sentencing the target; an old card's Give.
+            await S.cubStore.patch(cub.id, { bet: { targetId: target.id, targetName: target.name, value: 2 }, askOpen: now ?? true });
+            await M.setMonocub(cub, false, { quiet: true });
+            await settle();
+            const row = S.cubStore.get(cub.id) ?? {};
+            read.revived = [row.bet ?? null, row.askOpen ?? null, row.order ?? null];
+            const hopeBefore = resourceValue(cub, "hope");
+            await S.cubStore.patch(cub.id, { bet: { targetId: target.id, targetName: target.name, value: 2 } });
+            read.paid = await M.settleBets({ record: { correct: true, executedIds: [target.id] } });
+            // An old card's Give for a revived student is answered as Not now (no Hope asked of any pool), not as a Give;
+            // read by its answer, since the GM's pool may hold no Despair to convert either way.
+            read.given = [await M.answerHopeAsk(cub, 1) === game.i18n.format("DRPG.Monocub.askDeclined", { name: game.user.name }),
+                resourceValue(cub, "hope") - hopeBefore];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            if (cub.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        const max = read.total?.[1];
+        equal(stableJson(read), stableJson({ legacy: false, yesterday: false, now: true, total: [max, max], revived: [null, null, null], paid: 0, given: [true, 0] }),
+            "{legacy: the old true shuts the ask; yesterday: a mark of an earlier day does; now: one of this time of day does; total: [the Hope after a refund into a full purse, the maximum]; revived: [the bet, the ask, the order left on a revived student's row]; paid: bets paid to the revived; given: [an old card's Give answered as Not now, the Hope it gave]}");
+    }],
+    ["1.2.110 lows, two Bounties at once - two posts on one student in step leave one Bounty and owe its Despair once (scripts/monocub.mjs `postBounty`; the E101 line's review of 1.2.110, E72 reader #6, 13.11.2026)", async () => {
+        /*
+         * The review's #6. `postBounty` checked `bountyStore.has`, then awaited `oweDespair`, then wrote, with no lock: two
+         * presses in step (or two GMs' windows on one browser) both passed the check and both owed Despair, one Bounty kept.
+         * Here two posts started together on this GM, a pool of 3. Read: the answers, the Bounties open, what the pool owes.
+         * The Bounties, the debt rows and the pool are put back. Red at ed235961: both posted, owed 2. Two GMs posting at once
+         * on two browsers are not this lock's (a GM's locks are per browser); not measured.
+         */
+        const [target] = cast(1);
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const S = await import("./gm-stores.mjs");
+        must(typeof M.postBounty === "function" && S.bountyStore, "no Bounty - this would measure nothing");
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const owedBefore = D.owedOf(game.user.id);
+        must(!S.bountyStore.has(target.id), "the fixture student has a Bounty already");
+        const read = {};
+        try {
+            await D.setDespair(game.user.id, 3);
+            await settle();
+            const answers = await Promise.all([M.postBounty(game.user.id, target), M.postBounty(game.user.id, target)]);
+            await settle();
+            read.posted = answers.filter(Boolean).length;
+            read.open = S.bountyStore.has(target.id);
+            read.owed = D.owedOf(game.user.id) - owedBefore;
+        } finally {
+            for (const id of Object.keys(S.bountyStore?.entries?.() ?? {})) await S.bountyStore.drop(id);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ posted: 1, open: true, owed: 1 }), "{posted: posts that answered a Bounty; open: one stands; owed: the Despair the pool owes for them}");
+    }],
+    ["1.2.110 lows, the crime witness's lift run - liftCubWitness moves an actor's old mark into the GMs' row and off the actor, keeps a row a GM has written since (fill-only), and a second run changes nothing (scripts/monocub.mjs `liftCubWitness`, migrate.mjs clause liftCubWitness; the E101 line's review of 1.2.110, E72 reader #9, 13.11.2026)", async () => {
+        /*
+         * The review's #9: nothing ran the lift; R178 lists its key and `since`, R3801 reads the source. Here, on the primary:
+         * two fixture students with the pre-1.2.110 flag `silencedChapter` (one a season's mark, one a bare chapter), the
+         * second's row already holding a mark a GM wrote since. Read: the rows after, the flags after, the answer of a
+         * second run. The flags and the rows are put back. Not red first: a test of what the code already does, the gap the
+         * review named.
+         */
+        needs(env.primaryGm(), "the lift is the primary GM's");
+        const [one, two] = cast(2);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const rowsWere = [one, two].map(a => foundry.utils.deepClone(S.cubStore.get(a.id) ?? null));
+        const flagsWere = [one, two].map(a => a.getFlag(MODULE_ID, FLAGS.silencedChapter));
+        const chapter = getClock().chapter, epoch = seasonEpoch();
+        const read = {};
+        try {
+            for (const a of [one, two]) if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+            await one.setFlag(MODULE_ID, FLAGS.silencedChapter, { chapter, epoch });
+            await two.setFlag(MODULE_ID, FLAGS.silencedChapter, 1);
+            await S.cubStore.patch(two.id, { witness: { chapter: 9, epoch } });
+            await settle();
+            must(one.getFlag(MODULE_ID, FLAGS.silencedChapter) && two.getFlag(MODULE_ID, FLAGS.silencedChapter) === 1, "the old marks could not be planted - this would measure nothing");
+            read.first = (await M.liftCubWitness())?.lifted ?? null;
+            await settle();
+            read.rows = [S.cubStore.get(one.id)?.witness ?? null, S.cubStore.get(two.id)?.witness ?? null];
+            read.flags = [one.getFlag(MODULE_ID, FLAGS.silencedChapter) ?? null, two.getFlag(MODULE_ID, FLAGS.silencedChapter) ?? null];
+            read.again = await M.liftCubWitness();
+        } finally {
+            for (const [i, a] of [one, two].entries()) {
+                if (a.getFlag(MODULE_ID, FLAGS.silencedChapter) !== undefined) await a.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+                if (flagsWere[i] !== undefined) await a.setFlag(MODULE_ID, FLAGS.silencedChapter, flagsWere[i]);
+                if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+                if (rowsWere[i]) await S.cubStore.patch(a.id, rowsWere[i]);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: 2, rows: [{ chapter, epoch }, { chapter: 9, epoch }], flags: [null, null], again: null }),
+            "{first: the characters lifted; rows: [the first's mark moved, the second's row kept as a GM wrote it]; flags: both off the actors; again: a second run's answer}");
+    }],
     ["a move to order costs only its action: the Monocub's next Confusion after it accepted a Bribe this time of day takes no Hope, the one after it does, and an order lapses at the turn (E72 C17)", async () => {
         /*
          * E72 C17, 12.11.2026; the owner's DC34 ("a move done to order costs only the action"); defaults, owner may revise:
@@ -45058,7 +45197,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const scene = where.scene;
         const known = game.i18n.localize("DRPG.Cleanup.authorsCopy");
         const back = game.i18n.localize("DRPG.Reroll.authorsCopyBack");
-        const had = { "system.resources.stress.value": who.system.resources.stress.value, "system.resources.hope.value": who.system.resources.hope.value };
+        const had = { "system.resources.stress.value": who.system.resources.stress.value, "system.resources.hope.value": who.system.resources.hope.value,
+            "system.resources.actions.value": who.system.resources.actions.value };
         const made = [];
         const hook = Hooks.on("createToken", doc => { made.push(doc); });
         const copiesOf = ids => who.items.filter(i => ids.includes(T.secretOf(i.uuid)?.remnantId ?? "")).length;
@@ -45076,6 +45216,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         // `bridge`: the player's packet judged as the primary judges "murder.cleanup" (its result off the GMs' record of the
         // roll), where the resolver's answer does not come back - so its success and its card's line read null.
         const road = async (key, context, packet, { again = false, bridge = false } = {}) => {
+            /* An action for each road (the 1.2.110 review, E64 reader F3, 13.11.2026, changed on purpose): the packet names the
+               Sanity step, which the action's road refuses, so the GM takes an action (`chargeUnclaimed`); with none left the
+               attempt is refused now instead of scored, and the fixture's own actions ran out after three roads. */
+            await trustedWrite(who, { "system.resources.actions.value": Math.max(1, who.system.resources.actions.value) }, { reason: "gmRuling" });
             F = await playerRollBookmark(player, who, "cleanup", { cleanup: key, cleanupKey: key, cleanupPrice: "stress", ...context },
                 bridge ? { record: { total: packet.total, isCritical: packet.isCritical, withHope: packet.withHope } } : {});
             must(F.verdict, `the GMs kept no row of the ${key} roll - this would measure nothing`);
@@ -45108,6 +45252,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             C = await cleanupFixture(who, "SUITE E70-T14 a trace covered");
             must(C.trace, "the fixture's trace was not placed - this would measure nothing");
             const items = who.items.size, mark = C.mark();
+            // An action for the cover as well (the road's charge; the review's F3, above).
+            await trustedWrite(who, { "system.resources.actions.value": Math.max(1, who.system.resources.actions.value) }, { reason: "gmRuling" });
             const covered = await C.scrub(30);
             await settle();
             read.cover = [covered?.removed ?? null, C.since(mark).filter(id => scene.tokens.has(id) && id !== C.trace.id).length, who.items.size - items];
