@@ -49,7 +49,31 @@
       "voicePeerMutes",
       "voiceTile"
     ],
-    "sites": [],
-    "patches": []
+    "sites": [
+      {
+        "test": "R3858",
+        "file": "scripts/tests-tier1.mjs",
+        "kind": "recount",
+        "find": "\"settings.mjs\": 3",
+        "regex": "type === \"character\"",
+        "why": "the census of `type === \"character\"` per file, comments left in, as the test counts it: two of settings.mjs's three stand in the window scaling W3 moves"
+      }
+    ],
+    "patches": [
+      {
+        "test": "R4802",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "        const settings = stripComments(new Map(sources).get(\"settings.mjs\") ?? \"\");\n",
+        "replace": "        const settings = stripComments(settingsText(new Map(sources)));\n",
+        "why": "R4802 reads scaleMemo and applyTheme out of settings.mjs by a Map built in place, a form the repoint rules do not rewrite; scaleMemo moves to window-scale.mjs, so it reads the family"
+      },
+      {
+        "test": "every setting that promises a redraw gets one",
+        "file": "scripts/tests-tier1.mjs",
+        "find": "await Promise.all([settingsBy(read), read(\"sync.mjs\")]);",
+        "replace": "await Promise.all([settingsFetch(), read(\"sync.mjs\")]);",
+        "why": "its reader is async, so settingsBy, which joins what a reader answers, got promises; settingsFetch fetches the family the same way"
+      }
+    ]
   }
 }

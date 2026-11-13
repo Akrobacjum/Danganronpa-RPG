@@ -239,6 +239,12 @@ settleVoice's and blockTurns's cuts grew (739 -> 953, 480 -> 31991 characters). 
 promoted declaration's line when only blanks precede it there (glass.mjs indents the cut two spaces); every top-level
 statement of the other cuts' sources starts at column 0, so their output is as before.
 
+### Not to land on E54's day
+
+- prep-54's C1 (0271bfb2: tools/comments-lint.mjs, comment-budget.json, `check comments`): the E56 line
+  (claude/e56-c0) carried it onto main a31e7a3b with a reworded header and a rewritten budget; E54 takes E56's
+  version and does not land C1 again (the coordinator, 13.11.2026).
+
 ### Not done here
 
 - The splits' results, as the brief says: only the scripts, the manifests and this file.
