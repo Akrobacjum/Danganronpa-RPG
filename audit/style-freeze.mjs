@@ -90,6 +90,22 @@ const withTheme = (u, theme) => (theme === "legacy" ? `${u}${u.includes("?") ? "
 const found = s => Object.fromEntries(Object.entries(s.surfaces).filter(([, v]) => v.found).map(([id, v]) => [id, v.props]));
 const snap = page => page.evaluate(async () => (await import("/scripts/style-snapshot.mjs")).styleSnapshot());
 
+/* A READING THAT HAS SETTLED (13.11.2026). Read on 421f2395, the glass harness's GM page at 1920x1080 came out once with
+   its window and type at 0.85 scale (17.85px) and once at full (21px), the page alone differing between two runs of an
+   unchanged tree: it scales after load on a timing the 300 ms wait does not cover. So a reading is taken until two in
+   a row, 250 ms apart, agree (at most SETTLE_TRIES), and a page that never settles is named, never recorded as read. */
+const SETTLE_TRIES = 12;
+async function settled(page) {
+    let before = found(await snap(page));
+    for (let i = 1; i < SETTLE_TRIES; i++) {
+        await page.waitForTimeout(250);
+        const now = found(await snap(page));
+        if (JSON.stringify(now) === JSON.stringify(before)) return { reading: now, tries: i + 1 };
+        before = now;
+    }
+    return { reading: before, tries: SETTLE_TRIES, unsettled: true };
+}
+
 async function load(page, base, u) {
     await page.goto(`${base}${u}`, { waitUntil: "load" });
     await page.waitForFunction(() => !globalThis.document.body?.hasAttribute("data-drpg-kit-pending"), null, { timeout: 15000 });
@@ -149,6 +165,7 @@ async function main() {
     const problems = [];
     const readings = {};
     let loads = 0;
+    const slow = [];
     try {
         const langs = ["en", "pl"];
         for (const [lang, dir] of [["en", EN_DIR], ["pl", PL_DIR]]) if (!fs.existsSync(path.join(dir, "manifest.json"))) throw new Error(`no ${lang} captures at ${dir} (probe 08's manifest.json): the freeze reads both languages`);
@@ -172,7 +189,11 @@ async function main() {
                     if (p.sizes && !p.sizes.includes(`${w}x${h}`)) continue;
                     await page.setViewportSize({ width: w, height: h });
                     await page.waitForTimeout(150);
-                    readings[`${p.id}|${theme}|${lang}|${w}x${h}`] = found(await snap(page));
+                    const key = `${p.id}|${theme}|${lang}|${w}x${h}`;
+                    const s = await settled(page);
+                    if (s.unsettled) { problems.push(`${key}: never settled in ${SETTLE_TRIES} readings 250 ms apart - not recorded`); continue; }
+                    if (s.tries > 2) slow.push(`${key} (${s.tries})`);
+                    readings[key] = s.reading;
                 }
             }
             if (dir) await page.unroute("**/audit/windows/**");
@@ -182,6 +203,7 @@ async function main() {
         server.kill();
     }
     const surfaces = Object.values(readings).reduce((n, s) => n + Object.keys(s).length, 0);
+    if (slow.length) console.log(`style-freeze: ${slow.length} reading(s) settled after more than two reads: ${slow.slice(0, 20).join(", ")}${slow.length > 20 ? ", ..." : ""}`);
     if (WRITE) {
         const packed = pack(readings);
         fs.writeFileSync(BASELINE, JSON.stringify({
