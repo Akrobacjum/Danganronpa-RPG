@@ -35,6 +35,7 @@ import {
 } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
+import { carryMarks, fillRollFacts } from "./roll-marks.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
 
 /** What a readied Tool takes off a threshold. 0 for bare hands. Exported for the GM's band of a Sabotage's trace (bridge-runs-records.mjs `traceBandOf`). */
@@ -203,7 +204,10 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // trait rolled straight off the sheet keeps Daggerheart's card, even
     // while this roll's window is open: the claim takes the message whose
     // roll carries its nonce (`ROLL_NONCE`, E08+E28 C11), not the first one.
-    const result = await supersedingRoll(nonce => actor.rollTrait(dhTrait, {
+    // The options' marks carried on their own event (roll-marks.mjs, E76b): Daggerheart 2.12's MoveContext keeps the
+    // event and none of the module's keys, and the build puts them back from it (roll-draw.mjs `drawnBuild`, the
+    // `daggerheart.preRollDuality` hook). Up to 2.10 the keys reach the build on the options as they always did.
+    const result = await supersedingRoll(nonce => actor.rollTrait(dhTrait, carryMarks({
         event: { shiftKey: false, altKey: false, ctrlKey: false },
         /*
          * ALWAYS OPEN THE WINDOW - except for the regression suite, which
@@ -255,7 +259,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
         ...(title ? { title, headerTitle: title } : {})
-    }), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context } });
+    })), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context } });
     if (!result) return null;
     // Which character the roll is about: told to the primary GM as the message
     // was created (the claim's `subject`, E06 fix r1-G2), because the Despair
@@ -263,6 +267,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // again here for a roll the claim did not see created; a repeat says nothing.
     reportRollSubject(result.message ?? result.raw?.message, actor);
 
+    // On Daggerheart 2.12 the outcome is the evaluated Roll, not `config.roll` (roll-marks.mjs `fillRollFacts`, E76b).
+    fillRollFacts(result);
     const roll = result.roll ?? result;
     const total = roll?.total ?? result?.total;
     if (typeof total !== "number") return null;

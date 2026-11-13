@@ -242,7 +242,17 @@ export const FLAGS = {
      * player's write of it put back by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
      * Who is a student is the table's to know, so it holds no secret.
      */
-    notInClass: "notInClass"
+    notInClass: "notInClass",
+    /**
+     * Character: a Spectator - a player who watches and is no student (E92 C1, 12.11.2026; the owner's E92 goal and its
+     * 04.11 amends). `studentActors` leaves it out, as it leaves an NPC, so no ballot, trial cast, assembly, Despair
+     * pool, incident, Level Up or tile counts it; its token is hidden from the other players, its microphone held, and
+     * it walks as a ghost (E92 C2-C4). A GM's flag: written only by the Students window's Role (gm-students.mjs
+     * `changeRole`, monokuma.mjs `setSpectator`), and a player's own write of it put back by the GMs' audit
+     * (sheet-audit.mjs `GM_FLAGS`). Who watches is no secret - every player may know a Spectator is at the table, as
+     * who is a student is the table's to know - so world-secrets.mjs has no rule for it.
+     */
+    spectator: "spectator"
 };
 
 /**
@@ -2039,6 +2049,13 @@ export const SABOTAGE_CONCEAL = {
     /** Failing does not stop you. It only means everyone watched you do it. */
     aloneNote: "Nobody else is in the room, so there is nothing to hide."
 };
+
+/* THE SCHOOL'S MOOD'S TWO BARS (E94 C4; the owner's word of 12.11.2026 on the E94 review page). The students' share of
+   the whole - the living students' Hope over that Hope plus the Monocubs' Hope, the Monokumas' Despair and the Overflow
+   count (sequence.mjs `moodBand`) - is calm from `calm`, uneasy from `uneasy`, close to spilling below. Worked out on a
+   GM's browser and published as the word alone; the numbers are the GMs'. 0.6 and 0.4 were the work line's default;
+   the owner confirmed them ("Tak", 12.11.2026; docs/dev/e94/STATUS.md). */
+export const MOOD_SHARES = Object.freeze({ calm: 0.6, uneasy: 0.4 });
 
 /**
  * Dynamic actions: the player describes something, the GM picks a threshold.
@@ -5037,6 +5054,33 @@ export const SFX_EVENTS = {
         hint: "Heard by the student who ran it. The bullet is locked until the next chapter, the longest-lasting consequence any failed roll in this game has.",
         category: "incident"
     },
+    /* E94 C2: the start-of-day board's chime (MK-R2 #4), played once as the board rises on each browser. */
+    dayStart: {
+        label: "Start of the day",
+        hint: "The start-of-day board rises. Heard by the whole table, not with the sequences off.",
+        category: "incident"
+    },
+    /* E94 C3: the end-of-day board's chime, played once as the board rises, before the start-of-day board. */
+    dayEnd: {
+        label: "End of the day",
+        hint: "The end-of-day board rises. Heard by the whole table, not with the sequences off.",
+        category: "incident"
+    },
+    /* E62 C2: one flash of the Investigation's entry (MK-R1 #11, MK-R3): played at each of its six onsets, its pitch
+       varied so the six do not sound alike; none under reduced motion or with the table's sequences off. */
+    paneFlash: {
+        label: "Pane flash",
+        hint: "The panes flash as the Investigation begins. Heard by the whole table.",
+        category: "incident",
+        vary: true
+    },
+    /* E61 C2: the Class Trial's entry sequence, at its title's frame (MK-R1 #9: one slot, the title's impact, nothing at
+       frame 1); played on each browser from the phase's own event by sequence.mjs, not from a card. */
+    trialStart: {
+        label: "The Class Trial starts",
+        hint: "The Class Trial's title lands. Heard by the whole table, also with the sequences off.",
+        category: "incident"
+    },
     debateOpen: {
         label: "Nonstop Debate opens",
         hint: "Heard by the whole table. It changes what everyone's Truth Bullet button does.",
@@ -5099,9 +5143,17 @@ export const SFX_EVENTS = {
         hint: "Heard by the whole table.",
         category: "incident"
     },
+    /* The vote's count's card plays it (vote.mjs `closeRound`), not the verdict's: the label said "The verdict" until
+       E61 C2, beside the cut-in's own slot below (the plan's Q-E61-7 default; the key stays, so a saved map keeps its file). */
     verdict: {
-        label: "The verdict",
-        hint: "Heard by the whole table. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        label: "The vote's result",
+        hint: "Heard by the whole table when the vote is counted. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        category: "incident"
+    },
+    /* E61 C2: the verdict's cut-in, the stamp's hit (MK-R1 #10: one slot, the stamp part of it), from the GM's verdict card. */
+    verdictCut: {
+        label: "Verdict cut-in",
+        hint: "The verdict's stamp lands. Heard by the whole table, also with the sequences off.",
         category: "incident"
     },
     execution: {
@@ -5206,6 +5258,7 @@ export const DRPG = {
     INDIRECT_MURDER,
     BROKEN_ITEMS,
     SABOTAGE_CONCEAL,
+    MOOD_SHARES,
     DYNAMIC_THRESHOLDS,
     REST,
     HOPE_CALLS,

@@ -24,7 +24,9 @@ export async function run({ gm, p1, check, phase, settle, repoUrl, IDS }) {
         await cfg.resourceUpdates.updateResources();
         await new Promise(r => setTimeout(r, 400));
         const after = game.actors.getName("Chie Mori").system.resources.hope.value;
-        return { before, after, delta: after - before, isCritical: cfg?.roll?.isCritical };
+        // Where the roll's outcome is (E76b): Daggerheart 2.12 writes it on the MoveContext's \`evaluated\`
+        // (dualityRoll.mjs addDualityResourceUpdates, 2.12.8), up to 2.10 on its \`roll\`.
+        return { before, after, delta: after - before, isCritical: cfg?.evaluated ? cfg.evaluated.isCritical : cfg?.roll?.isCritical };
     `, { timeout: 60000 });
     console.log("CRIT HOPE:", JSON.stringify(out));
     check("critical is a critical (hope==fear)", out.isCritical === true, JSON.stringify(out));

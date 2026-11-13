@@ -1099,6 +1099,8 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
     await announce({
         flags: { [MODULE_ID]: {
             sfx: { key: "bodyFound", gm: true },
+            // in the middle of every screen, then into the history (E62 C5; MK-R3's E62-3 frames 1 and 4)
+            popupCentre: true,
             popupKind: "objection",
             popupTitle: game.i18n.localize("DRPG.Chapter.bodyTitle")
         } },

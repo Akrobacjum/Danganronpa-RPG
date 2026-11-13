@@ -25,7 +25,7 @@
  * header's - with its own row's actor; the window adds no road.
  */
 
-import { studentActors, isMonokuma, isNotInClass, markFromSheet, setMonokuma, setNotInClass } from "./monokuma.mjs";
+import { studentActors, isMonokuma, isNotInClass, isSpectator, markFromSheet, setMonokuma, setNotInClass, setSpectator } from "./monokuma.mjs";
 import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
@@ -158,6 +158,20 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
     const otherRow = a => ({ id: a.id, ...shared(a), state: "", actions: "", freeMove: "", hope: "", give: "", silenced: "", do: "" });
 
     /*
+     * THE SHEET AND ITEMS BUTTONS IN A COLUMN OF THEIR OWN (E92 owner fix, 12.11.2026; the owner: "przyciski karty postaci
+     * i dania przedmiotu niech beda w osobnej kolumnie niz imie i nazwisko, zawsze na tej samej szerokosci"). They stood
+     * after the name in its cell, so each row's buttons began where its name ended. Now the name's cell holds the name
+     * alone and the next cell the two buttons, the sheet's then the items', in every row; a Monokuma, whose sheet has no
+     * Inventory, keeps the items' slot empty (a copy of the button no one sees, reads or reaches with Tab), so its sheet
+     * button stands where every other row's does. components.css gives the column one fixed width (R3862).
+     */
+    const sheetButton = a => iconButton({ icon: "fa-solid fa-id-card", label: game.i18n.format("DRPG.Panel.openSheet", { name: a.name }),
+        cls: "drpg-mini-button", attrs: { "data-drpg-sheet": a.id } });
+    const itemsButton = a => iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"), cls: "drpg-mini-button", attrs: { "data-drpg-items": a.id } });
+    const keptSlot = () => iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"), cls: "drpg-mini-button drpg-alive-slot",
+        attrs: { "data-drpg-items-slot": "", "aria-hidden": "true", tabindex: "-1" }, disabled: true });
+
+    /*
      * What every row carries: the name with its sheet and its Items, the Role, the Level Up. NO ITEMS ON A MONOKUMA'S ROW (E95 C7; the owner's 10.11): its sheet has no Inventory tab, so no road opens one.
      THE SHEET FROM THE ROW
      * (E95 C6; the owner's 10.11): an icon button beside the name opens that character's sheet (`openSheet`, the
@@ -168,9 +182,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
         const role = roleOf(a);
         const n = offers(a);
         return {
-            name: `${esc(a.name)} ${iconButton({ icon: "fa-solid fa-id-card", label: game.i18n.format("DRPG.Panel.openSheet", { name: a.name }),
-                cls: "drpg-mini-button", attrs: { "data-drpg-sheet": a.id } })}${role === "monokuma" ? "" : ` ${iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"),
-                cls: "drpg-mini-button", attrs: { "data-drpg-items": a.id } })}`}`,
+            name: esc(a.name),
+            open: `${sheetButton(a)}${role === "monokuma" ? keptSlot() : itemsButton(a)}`,
             role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
                 ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
             levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
@@ -180,13 +193,16 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
 
     const students = roster();
     const rest = others();
+    // The Spectators (E92 C1) are a group of their own, with the NPC's row: no State, nothing to do - no student.
     const groups = [["students", students, studentRow], ["monokumas", rest.filter(a => roleOf(a) === "monokuma"), otherRow],
+        ["spectators", rest.filter(a => roleOf(a) === "spectator"), otherRow],
         ["notInClass", rest.filter(a => roleOf(a) === "npc"), otherRow]].filter(([, list]) => list.length);
     // One group needs no heading: the rows say it already.
     const headed = groups.length > 1;
     const rows = groups.flatMap(([key, list, build]) => [...(headed ? [{ group: L(`DRPG.Panel.group.${key}`), count: list.length }] : []), ...list.map(build)]);
     const columns = [
         { key: "name", label: L("DRPG.Panel.character"), cls: "name" },
+        { key: "open", label: L("DRPG.Panel.openColumn"), cls: "open" },
         { key: "role", label: L("DRPG.Panel.roleColumn") },
         { key: "state", label: L("DRPG.Panel.stateColumn") },
         { key: "actions", label: L("DRPG.Actions.label") },
@@ -214,15 +230,22 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
  * Monokuma to Not in the class is the two in order (unmark, then mark out). Not in the class to Monokuma marks FIRST
  * and unmarks out after a yes: STAGE.md's order (unmark out, then mark) wrote the unmark before the ask, so a Cancel
  * left a student who had been an NPC. Answers whether the role moved; false when the ask was cancelled or a road refused.
- * `roads` is the suite's to hand (R2081, R2084): stand-ins for the three, each called as the module's own.
+ * `roads` is the suite's to hand (R2081, R2084, R3851): stand-ins for the four, each called as the module's own.
+ *
+ * THE SPECTATOR, A FOURTH ROLE (E92 C1, 12.11.2026; the owner's 04.11 amend: "the GM assigns it in the Students
+ * window"): monokuma.mjs `setSpectator(actor, true | false)`, a GM's road as the other two. The role it leaves is
+ * unmarked first (a Monokuma's by `setMonokuma(actor, false)`, an NPC's by `setNotInClass(actor, false)`), then the
+ * flag set; to Monokuma marks first and unmarks the Spectator after a yes, as from an NPC. A Monokuma flag wins over it
+ * (`roleOf`, as the sheet reads a character carrying both), and a Spectator over "Not in the class".
  */
-const ROLES = Object.freeze(["student", "monokuma", "npc"]);
-const ROLE_WORDS = Object.freeze({ student: "DRPG.Panel.role.student", monokuma: "DRPG.Monokuma.isMonokuma", npc: "DRPG.Class.notInClass" });
-const ROLE_ROADS = Object.freeze({ markFromSheet, setMonokuma, setNotInClass });
+const ROLES = Object.freeze(["student", "monokuma", "spectator", "npc"]);
+const ROLE_WORDS = Object.freeze({ student: "DRPG.Panel.role.student", monokuma: "DRPG.Monokuma.isMonokuma", spectator: "DRPG.Spectator.role",
+    npc: "DRPG.Class.notInClass" });
+const ROLE_ROADS = Object.freeze({ markFromSheet, setMonokuma, setNotInClass, setSpectator });
 
 /** The role a character holds by its flags, as the window's select names it. */
 function roleOf(actor) {
-    return isMonokuma(actor) ? "monokuma" : isNotInClass(actor) ? "npc" : "student";
+    return isMonokuma(actor) ? "monokuma" : isSpectator(actor) ? "spectator" : isNotInClass(actor) ? "npc" : "student";
 }
 
 /** Move `actor` to the role `to` through the roads above; see the note above. */
@@ -233,9 +256,15 @@ export async function changeRole(actor, to, roads = {}) {
     const road = { ...ROLE_ROADS, ...roads };
     if (to === "monokuma") {
         if (!(await road.markFromSheet(actor))) return false;
+        if (from === "spectator") return Boolean(await road.setSpectator(actor, false));
         return from === "npc" ? Boolean(await road.setNotInClass(actor, false)) : true;
     }
     if (from === "monokuma" && !(await road.setMonokuma(actor, false))) return false;
+    if (from === "spectator" && !(await road.setSpectator(actor, false))) return false;
+    if (to === "spectator") {
+        if (isNotInClass(actor) && !(await road.setNotInClass(actor, false))) return false;
+        return Boolean(await road.setSpectator(actor, true));
+    }
     // The sheet sets the two flags apart: a Monokuma marked out as well is out already, and is unmarked out on its way to student.
     if (to === "npc") return isNotInClass(actor) ? true : Boolean(await road.setNotInClass(actor, true));
     return isNotInClass(actor) ? Boolean(await road.setNotInClass(actor, false)) : true;

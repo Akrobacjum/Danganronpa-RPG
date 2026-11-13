@@ -65,11 +65,12 @@ import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, n
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
-import { isMonokuma, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, isSpectator, poolUserFor } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
-import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
+import { discoveryStore, fogCopy, fogSectionFor, spectatorFogSection } from "./gm-stores.mjs";
+import { spectatorViewer, watcherOf, flaggedSpectator } from "./spectator.mjs";
 import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
 import {
@@ -1141,7 +1142,10 @@ function sendStoreTo(user) {
     // While tier 2 holds the stores or stands in another world, the cells are a fixture's (R2-M1, M3).
     if (gmStoresQuiet()) return;
     try {
-        const section = fogSectionFor(user);
+        // A Spectator's account is sent the class's map folded into its own row, without the Mastermind's (E92 C4).
+        const watcher = watcherOf(user);
+        const section = watcher ? spectatorFogSection(discoveryStore.section(), watcher.id, { mastermindId: mastermindActor()?.id ?? null })
+            : fogSectionFor(user);
         game.socket.emit(SOCKET_EVENT, { action: FOG_ROWS, userId: user.id, section, stamps: { "": newestIn(section) } },
             { recipients: [user.id] });
     } catch (err) {
@@ -1326,7 +1330,44 @@ export function askForShares() {
     game.socket.emit(SOCKET_EVENT, { action: FOG_SHARE_ASK });
 }
 
+/**
+ * A ROLE CHANGED, A MAP SENT (E92 C4). The flag set: the primary sends the character's owners their map at once, the
+ * Spectator's fold (`sendStoreTo`). The flag taken off: `forgetSpectatorMap` has stamped the rooms of the fold the
+ * character never found as unfound first (monokuma.mjs `setSpectator`), so the student's copy loses them by the
+ * store's own rule; the send then carries its own row again.
+ */
+function retellOwnersOf(actor) {
+    if (!isPrimaryGm() || !actor) return;
+    for (const user of game.users.filter(u => u.active && !u.isGM && actor.testUserPermission?.(u, "OWNER"))) sendStoreTo(user);
+}
+
+/**
+ * Before a Spectator is a student again (E92 C4; the plan's Q-E92-5, default: the rows it had as a student kept): every
+ * room its copy holds from the class's fold that its own row does not hold is written unfound for it, stamped now - a
+ * real untick, which the copy merges over the fold's older stamps. GM only, as every write of the ledger; answers
+ * whether anything was written.
+ */
+export async function forgetSpectatorMap(actor) {
+    if (!game.user.isGM || !actor) return false;
+    const mastermindId = mastermindActor()?.id ?? null;
+    const cells = {};
+    for (const [sceneId, rows] of Object.entries(allDiscovered() ?? {})) {
+        const own = new Set(rows?.[actor.id] ?? []);
+        const row = {};
+        for (const [actorId, rooms] of Object.entries(rows ?? {})) {
+            if (actorId === actor.id || actorId === mastermindId) continue;
+            for (const room of rooms ?? []) if (!own.has(room)) row[room] = false;
+        }
+        if (Object.keys(row).length) cells[cellKey(sceneId, actor.id)] = row;
+    }
+    return writeCells(cells);
+}
+
 function registerLedgerRoad() {
+    Hooks.on("updateActor", (actor, changes) => {
+        const flags = changes?.flags?.[MODULE_ID];
+        if (flags && Object.keys(flags).some(key => key.includes(FLAGS.spectator))) retellOwnersOf(actor);
+    });
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (!payload?.action?.startsWith?.("fog.")) return;
         if (senderId === game.user.id) return;
@@ -1538,6 +1579,10 @@ async function recordDiscovery(scene, actor, room) {
        room as known for a GM, so their map is unchanged; what changes is that
        it stops being changed BY them. */
     if (isMonokuma(actor)) return false;
+
+    /* NOR A SPECTATOR (E92 C3; the owner's E92 goal (3): "its movement reveals no rooms"). It watches the map the class
+       has found (its copy, gm-stores.mjs `spectatorFogSection`); a room it walks into is found by nobody. */
+    if (isSpectator(actor)) return false;
 
     if (discoveredFor(scene.id, actor.id).includes(room)) return false;
 
@@ -1824,7 +1869,8 @@ function isMine(token, gm = game.user.isGM) {
     if (!actor) return false;
 
     if (gm) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
-    return Boolean(token.isOwner) && actor.type === "character";
+    // A Spectator stands in no room of the viewer's (E92 C4): its fog is the class's map (`fogSets`), its walk finds nothing.
+    return Boolean(token.isOwner) && actor.type === "character" && !flaggedSpectator(actor);
 }
 
 /* ==========================================================================
@@ -2708,6 +2754,8 @@ function fogSets(scene) {
 
     let current;
     if (game.user.isGM) current = ledgerRooms(scene);
+    // A Spectator watches every room the class has found, cleared as a GM's are, in an Eclipse too (E92 C4; Q-E92-6).
+    else if (spectatorViewer()) current = new Set(discovered);
     else if (isEclipse()) current = new Set();
     else current = mine;
 

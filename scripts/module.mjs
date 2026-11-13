@@ -99,9 +99,12 @@ import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
+import { registerSpectatorUi } from "./spectator-ui.mjs";
 import { registerVoiceTile, registerVoiceKeybinding } from "./voice-tile.mjs";
 import { registerTrialSpeakers } from "./trial-speakers.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
+import { registerSequences } from "./sequence.mjs";
+import { registerTransitions } from "./transitions.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerDhSettings } from "./dh-settings.mjs";
@@ -410,6 +413,8 @@ Hooks.once("ready", () => {
     // layout and the glass, which find it. Its first paint waits at the column's end
     // until the clock's own first render, which comes after this hook, moves it.
     safely("the room tile", () => { ensureRoomTile(); registerRoomTile(); });
+    // The Spectator's line under the clock and its hidden chat (E92 C5): on a Spectator's browser alone.
+    safely("the Spectator's line", registerSpectatorUi);
     // Foundry's rails out of its columns (E77 C5): a player's scene controls hidden with their Tokens
     // layer kept, a GM's sidebar and scene controls into two windows. Before the narrow layout and the
     // glass, which measure a rail only while it stands in Foundry's columns.
@@ -417,6 +422,10 @@ Hooks.once("ready", () => {
     // would otherwise cut the corner without it (the design's P9 lesson); gm-panel's own ready
     // hook runs after this one.
     safely("the GM panel's button", injectLauncher);
+    // The sequences (E61 C1): before Foundry's windows, so a sequence's Escape is heard before theirs.
+    safely("the sequences", registerSequences);
+    // The phase transitions (E62): after the sequences, whose Escape and switch they use.
+    safely("the phase transitions", () => registerTransitions().catch(err => error("Could not register the phase transitions", err)));
     safely("Foundry's windows", registerFoundryWindows);
     // The voice tile instead of the camera dock (E78 C3): before the narrow layout and the glass,
     // so that they find it once E78 C6 makes it one of their blocks; until then neither measures it.

@@ -484,6 +484,8 @@ export function renderHud() {
             : null;
         const previous = before?.textContent ?? null;
         const previousTime = before?.dataset.drpgTime ?? null;
+        // and the phase's label, for its own slide (E62, `slidePhase`)
+        const previousPhase = outgoing?.querySelector(".drpg-hud-phase")?.textContent ?? null;
 
         const hud = outgoing ?? buildHudShell();
         /* EVERYTHING BUT THE TRACK BAND (E23 C2a; request A1, D9 option 1). The band is the one part that is not
@@ -609,6 +611,7 @@ export function renderHud() {
         // the slot, the other measures what is in it.
         fitTimeSlot(hud);
         slideTimeOfDay(hud, previous, previousTime);
+        slidePhase(hud, previousPhase);
         // The Event panel redraws on the same triggers as the clock: it reads the
         // same settings and has no source of its own.
         renderEvents();
@@ -1018,6 +1021,28 @@ function slideTimeOfDay(hud, was, wasTime) {
 
     if (!out) return void ghost.remove();
     out.finished.then(() => ghost.remove(), () => ghost.remove());
+}
+
+/**
+ * THE PHASE'S LABEL ARRIVES AS THE TIME'S DOES (E62, 1.2.109; the plan's Q6 default, the owner to confirm). A new phase -
+ * Daily Life to Investigation, into the trial, an Eclipse's name - slides its label in from the right over the turn's
+ * length (`TURN()`), fading in, on the turn's easing. Its line stands in no clipping slot, so only the new label moves and
+ * the old one goes with the rebuild; a redraw during the slide winds the new animation on to where it had got, as
+ * `slideTimeOfDay` does. A page load (no old label), the same label, and a turn of 0 (reduced motion) slide nothing.
+ * Answers `{ from, to, elapsed }`, or null. `ms` and `now` are the suite's (R3728).
+ */
+let phaseSlide = null;
+export function slidePhase(hud, was, { ms = TURN(), now = performance.now() } = {}) {
+    const line = hud?.querySelector?.(".drpg-hud-phase");
+    const to = line?.textContent ?? null;
+    if (!line || !to || !(ms > 0)) return (phaseSlide = null);
+    let elapsed = 0;
+    if (phaseSlide && phaseSlide.to === to && now - phaseSlide.startedAt < ms) elapsed = now - phaseSlide.startedAt;
+    else if (!was || was === to) return (phaseSlide = null);
+    else phaseSlide = { from: was, to, startedAt: now };
+    const a = play(line, [{ transform: "translateX(24px)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], ms, ARRIVE());
+    if (a && elapsed > 0) { try { a.currentTime = elapsed; } catch { /* a slide that restarts is better than none */ } }
+    return { from: phaseSlide.from, to, elapsed };
 }
 
 /* The phase COLOUR is not here any more, and the reason is worth keeping.

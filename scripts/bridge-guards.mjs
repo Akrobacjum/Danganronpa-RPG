@@ -162,7 +162,7 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer",
+    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer", "spectator",
     // E72 C4: a Monocub's move on a student who has had its share (monocub.mjs `cubCapRefusal`).
     "capReached", "capDay"
 ]);
@@ -175,6 +175,9 @@ export const REASONS = Object.freeze([
 export const REASON_PATTERNS = Object.freeze([
     // First: a thrown error's own message follows the colon and could read like any reason below.
     ["failed", /^the handler failed: /],
+    // E92 Q-E92-7: a Spectator takes no student's action (`notSpectator`, `senderNotSpectator`).
+    ["spectator", /^that character is a Spectator$/],
+    ["spectator", /^the sender plays a Spectator$/],
     ["failed", /^the Call could not be armed$/],
     ["failed", /^the ruling card could not be posted$/],
     ["failed", /^the trace could not be placed$/],
@@ -1417,6 +1420,44 @@ export function gmOnly(why) {
 /** Only a player asks this: a GM who does is refused, quietly where the declaration is quiet. */
 export function playersOnly(why) {
     return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", [], why);
+}
+
+/*
+ * A SPECTATOR ACTS NOT (E92 Q-E92-7, 12.11.2026; the owner's "zgadzam sie, zlecaj"). A Spectator's character takes no
+ * student's action through the bridge: its sheet draws no action (sheet.mjs `sheetMode`), but its player's console can
+ * still ask the primary, and `owns` passes an owner. Every row a student's character asks through names one of these
+ * two, right after `knownSender` (tier 0's census holds every player row of the four tables to it, or to a reason it
+ * needs none):
+ *   - `notSpectator(field)`: the character the packet names in `field` (or that a function finds, as `ownsActorAt`'s
+ *     `locate`) is a Spectator as the GMs hold its flags (sheet-audit.mjs `flagsHeldNow`) - so a flag a console wrote
+ *     on its own student, which the audit puts back, does not stop that student, and a console's untick of its own
+ *     Spectator's flag does not free it;
+ *   - `senderNotSpectator`: the sender's account plays a Spectator and no student (voice.mjs `spectatorAccount`, on the
+ *     same held flags) - for the rows that act for the account, not for a character: a ballot, a readiness answer, a
+ *     card, a project shared.
+ * A GM is never refused here: a GM's road for a Spectator's character is a GM's. Which character is a Spectator is no
+ * secret (config.mjs's note on the flag), so the refusal may say so, before the owner question.
+ */
+async function heldSpectatorAt(actorId) {
+    const actor = typeof actorId === "string" && actorId ? game.actors.get(actorId) : null;
+    if (!actor) return false;
+    const [{ flagsHeldNow }, { isSpectator }] = await Promise.all([import("./sheet-audit.mjs"), import("./monokuma.mjs")]);
+    return isSpectator(flagsHeldNow(actor));
+}
+
+/** The character the packet names in `field`, or that `field(payload)` finds (maybe async), is no Spectator. */
+export function notSpectator(field, covers = []) {
+    const named = typeof field === "function" ? field : payload => payload?.[field];
+    const why = "that character is a Spectator";
+    return made(async (sender, payload, ctx) => sender?.isGM || !(await heldSpectatorAt(await named(payload))) ? null : why,
+        "notSpectator", typeof field === "function" ? covers : [field], why);
+}
+
+/** The sender's account plays no Spectator: a GM, or a player with a student of its own. */
+export async function senderNotSpectator(sender, payload, ctx) {
+    if (!sender || sender.isGM) return null;
+    const [{ flagsHeldNow }, { spectatorAccount }] = await Promise.all([import("./sheet-audit.mjs"), import("./voice.mjs")]);
+    return spectatorAccount(sender, { held: flagsHeldNow }) ? "the sender plays a Spectator" : null;
 }
 
 /** The sender may see the project the packet names in `field` (projects-secrecy.mjs `canSee`). */

@@ -1304,6 +1304,14 @@ body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
     cursor: not-allowed;
 }
 
+/* "TALK WITH THE SPECTATORS" WHILE IT IS ON (E92 round 3): a Spectator's switch on its tile (voice-tile.mjs
+   `paintSpectatorTalk`), filled in the rim's bone while pressed - the corner's look of a lit button - so the player sees
+   which room they talk in without its tooltip. Under the glass the hexagon's rim and ground take the accent (below). */
+.drpg-voice-spectator-talk[aria-pressed="true"] {
+    background: var(--drpg-bone);
+    color: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+
 /* OBJECTION! on the tile (E70 C11; the owner's B3): grey while held - outside a trial, with no debate, while an
    Objection runs - as the held microphone is, but not struck (nothing of the viewer's is switched off); still pressed,
    and a press says why (hud.mjs `objectionControl`). */
@@ -2105,6 +2113,12 @@ body.drpg-theme-stained-glass .drpg-voice-mic.is-gm-blocked::after { content: no
 
 body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
 
+/* "Talk with the Spectators" while it is on (E92 round 3): the hexagon's rim in the accent whole and its ground tinted. */
+body.drpg-theme-stained-glass .drpg-voice-spectator-talk[aria-pressed="true"]::before {
+    border-color: var(--drpg-glass-accent);
+    background: color-mix(in srgb, var(--drpg-glass-accent) 40%, var(--drpg-a8-glass-ground));
+}
+
 /* OBJECTION! held on the tile (E70 C11): the held microphone's grey rim, no strike. */
 body.drpg-theme-stained-glass .drpg-voice-objection[aria-disabled="true"] {
     color: var(--drpg-line-strong);
@@ -2345,12 +2359,13 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
 }
 
 /* A player's tile holds a third button, OBJECTION! (E70 C11): the clear space at the right grows by the button and the
-   6 px before it, 82 + 36. Not read in a browser at this commit (the glass harness's tile has two buttons); LIVE-E70-12. */
-body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-face {
+   6 px before it, 82 + 36. Not read in a browser at this commit (the glass harness's tile has two buttons); LIVE-E70-12.
+   A Spectator's tile holds a third as well, "Talk with the Spectators" (E92 round 3), and never OBJECTION!. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-face {
     padding-right: 118px;
 }
 
-body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-state {
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-state {
     right: 118px;
 }
 
@@ -3597,6 +3612,12 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
 .drpg-window-alive tbody tr[data-actor]:hover { background: var(--drpg-alive-row-hover-bg); }
 .drpg-window-alive td.drpg-data-col-silenced { text-align: center; }
 .drpg-window-alive td.drpg-data-col-name { white-space: nowrap; }
+/* E92 owner fix (12.11.2026; the owner: the sheet's and the items' buttons in a column of their own, "zawsze na tej samej
+   szerokosci"): one fixed width, the two buttons on one line, the kept slot of a Monokuma's row taking its place unseen. */
+.drpg-window-alive td.drpg-data-col-open { width: 5rem; min-width: 5rem; max-width: 5rem; white-space: nowrap; }
+.drpg-window-alive th.drpg-data-col-open { width: 5rem; min-width: 5rem; max-width: 5rem; overflow-wrap: anywhere; }
+.drpg-window-alive td.drpg-data-col-open > button + button { margin-left: 4px; }
+.drpg-window-alive td.drpg-data-col-open > [data-drpg-items-slot] { visibility: hidden; }
 /* A student who is not a Monocub, in the three Monocub columns that stand in every table since E49 A3 (gm-students.mjs
    `aliveTableHtml`): a "-" in the help line's ink, centred, so the column reads empty and not missing. */
 .drpg-window-alive td > .drpg-alive-none { display: block; text-align: center; color: var(--drpg-kit-help-ink); }
@@ -4111,6 +4132,15 @@ span.drpg-chat-kit-warn { padding: 0 0.3rem; }
     color: inherit;
     font: inherit;
 }
+
+/* E92 C5 (12.11.2026; the owner's E92 goal and its 04.11 amend "the Spectator does NOT read the chat"). On a Spectator's
+   browser (`body.drpg-spectator`, spectator-ui.mjs `paintSpectatorUi`) the chat log, its pop-up notifications and the box
+   a message is typed in are not drawn: a display only, every message still reaches the browser (Q-E92-4). The line
+   under the clock with its room picker went in round 3 (the owner's "Usuwamy liste"); the "Talk with the Spectators"
+   switch is a button of the voice tile (voice-tile.mjs `paintSpectatorTalk`). */
+body.drpg-spectator #chat-log,
+body.drpg-spectator #chat-notifications,
+body.drpg-spectator #chat-message { display: none; }
 
 /* ---- Daggerheart's character settings window (E49, 1.2.105; scripts/dh-settings.mjs; the owner's 11.11.2026: the
    wrench's window "nieruszane w obu motywach"). Daggerheart 2.6.5 draws it (templates/sheets-settings/

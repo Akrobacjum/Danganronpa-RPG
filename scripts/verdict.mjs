@@ -694,7 +694,10 @@ export async function postVerdictCard(record) {
     await announce(verdictCardContent({
         banner: "DRPG.Vote.verdictCardTitle",
         lines: [...lines, game.i18n.localize(record.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong")],
-        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, verdictAt: record?.at ?? null } }
+        /* `verdictCut` (E61 C5): what the cut-in on every browser draws (sequence.mjs `verdictBoard`) - the sentenced's
+           ids and whether the class got it right, both said by this card's own words; never the Blackened. */
+        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, verdictAt: record?.at ?? null,
+            verdictCut: { sentenced: executed.map(actor => actor.id), right: record?.correct === true } } }
     }));
 }
 

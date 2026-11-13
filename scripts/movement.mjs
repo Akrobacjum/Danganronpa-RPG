@@ -1601,8 +1601,10 @@ export function isCorpse(actor) {
  * @returns {true|string|{code: string, text: string}} true, or the reason it is refused.
  */
 export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known, joined = false, keyed = false, elevation = null } = {}) {
-    // Monokumas are not bound by any of this.
-    if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
+    // Monokumas are not bound by any of this - nor is a Spectator, a ghost (E92 C3), before the incident's and the trial's
+    // locks: it is in no incident and no trial, and it goes everywhere at no price. On the primary's judge the flag is
+    // the GMs' (`judgeArrival` hands the actor as they hold it), so a console's forged flag is judged as a student.
+    if (actor.getFlag(MODULE_ID, FLAGS.monokuma) || actor.getFlag(MODULE_ID, FLAGS.spectator)) return true;
 
     // You are in a murder. You do not walk out of it.
     //
@@ -2874,8 +2876,9 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // Monokumas walk where they like. The guide has them moving around the
     // map freely between interventions; they have no action economy to
     // spend and no walls to respect.
-    const { isMonokuma } = await import("./monokuma.mjs");
-    if (isMonokuma(actor)) {
+    // Nor does a Spectator (E92 C3): no fee, no crossing recorded, no trap told - a ghost.
+    const { isMonokuma, isSpectator } = await import("./monokuma.mjs");
+    if (isMonokuma(actor) || isSpectator(actor)) {
         lastRoom.set(tokenDoc.id, after);
         lastPosition.set(tokenDoc.id, landed);
         return true;
@@ -3505,7 +3508,7 @@ const levelKey = level => level?.id ?? level ?? null;
  * corpse in the next room (a free answer to "where is the body") and the
  * Monokuma who happened to be walking through it.
  *
- * Three exclusions, each for its own reason:
+ * Three exclusions, each for its own reason (and a Spectator since E92 C1, which watches and is nobody in the room):
  *
  *   Monokuma  the GM standing on the map, not a witness who could testify.
  *             Counting one made a murder impossible to open in any room a GM
@@ -3523,6 +3526,8 @@ function countsAsPresent(token) {
     const actor = doc?.actor;
     if (!actor || actor.type !== "character") return false;
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
+    // A Spectator watches and is nobody in the room (E92 C1): no witness, no target, nobody overheard, no company.
+    if (actor.getFlag(MODULE_ID, FLAGS.spectator)) return false;
     if (isDeadForGm(actor)) return false;
     return !doc.hidden;
 }

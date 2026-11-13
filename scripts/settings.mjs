@@ -180,6 +180,10 @@ export const SETTINGS = {
     uiScale: "uiScale",
     /** This browser's own "reduced motion", independent of what the system says. */
     reducedMotion: "reducedMotion",
+    /** The table's switch for the full-screen sequences (E61 C1, sequence.mjs): the trial's entry, the verdict's cut-in, and the later stages' boards. */
+    sequences: "sequences",
+    /** A GM's morning line for the next day, on that GM's browser until the day starts (E94 C1; clock.mjs `advanceTimeOfDay`). */
+    morningLineDraft: "morningLineDraft",
     /** This client's own high contrast, on top of whatever `prefers-contrast` says. */
     highContrast: "highContrast",
     /** The state's name running as an outline behind the clock. */
@@ -1051,7 +1055,7 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -1115,6 +1119,29 @@ export const DEFAULT_CLOCK = {
      * from "What you did" after it. The pauses are `pausedTotalMs` now.
      */
     timeOfDayStartedAt: null,
+    /**
+     * WHEN THIS DAY BEGAN, as `serverNow()` (E94 C3), or null until the day first moves: clock.mjs `setClock` stamps it
+     * on any change of `day`, and the end-of-day board reads the day's own rows from it (sequence.mjs `dayEndReads`,
+     * which reads null as not known). Named here with the two below (E94 fix ci-1, 12.11.2026; CI run 43287328954 on
+     * b30f9444, suites 2/8, 3/8, 4/8, 7/8, 8/8) because a field this object does not name is one no write of a whole
+     * clock can take away: `setClock` spreads its patch over the clock it read, and tier 2's restore hands it the clock
+     * `getClock` recorded - these defaults under what was stored - so a field absent from both stayed. Five tests that
+     * move the day left "restore left: world:danganronpa-rpg.clock.dayStartedAt (none) -> <stamp>" and
+     * "clock.mood (none) -> calm"; named here, the restore writes null back, which the world dump reads as none.
+     */
+    dayStartedAt: null,
+    /**
+     * THE SCHOOL'S MOOD, one of sequence.mjs `MOOD_BANDS`, or null (E94 C4): worked out on the advancing GM at the day's
+     * roll-over and written as the word alone (clock.mjs `advanceTimeOfDay`, sequence.mjs `dayStartPatch`; never its
+     * numbers - world-secrets.mjs, the clock's row).
+     */
+    mood: null,
+    /**
+     * THE GM'S MORNING LINE, or null (E94 C1): the draft (`morningLineDraft`, a client setting) folded in by the
+     * Night-to-Morning advance and shown on the start-of-day board; cleared by the next move of the clock
+     * (`dayStartPatch`).
+     */
+    morningLine: null,
     /**
      * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
      * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
@@ -1577,6 +1604,27 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* The table's switch for the sequences (E61 C1; SB-R1 of 05.11: "a world setting lets the GM switch the sequences off
+       for the whole table, on by default"). Read by sequence.mjs at each event, so a change holds from the next one. */
+    game.settings.register(MODULE_ID, SETTINGS.sequences, {
+        name: "DRPG.Settings.sequences.name",
+        hint: "DRPG.Settings.sequences.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: true
+    });
+
+    /* A GM's morning line for the next day (E94 C1; the plan's default: written in Edit campaign). Per browser and out of
+       the settings window: it stays on the GM's machine, in no world data, until the Night's advance folds it into the
+       clock's one write at the day's start (clock.mjs `advanceTimeOfDay`), and is emptied there. */
+    game.settings.register(MODULE_ID, SETTINGS.morningLineDraft, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     game.settings.register(MODULE_ID, SETTINGS.reducedMotion, {
