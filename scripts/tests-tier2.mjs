@@ -31042,6 +31042,107 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "Show on the map, its tokens then, its tokens with no room, kept off then, its tokens with the room back)");
     }],
 
+    ["a project's token wears the glyph its GM chose, follows a new one, and keeps the hammer with none or a GM's own picture", async () => {
+        /*
+         * The owner's choice B of 13.11.2026 (the coordinator's brief): a project's token on the map wears the project's
+         * chosen glyph (config.mjs PROJECT_GLYPHS, as the tray paints it), public and secret alike, in place of the
+         * neutral hammer every token wore since 22.09 (PROJECT_TOKEN.icon). The trade-off is accepted and written down
+         * (docs/dev/project-token-icon/STATUS.md; the GM handbook): the token document reaches every browser, so its
+         * texture says the project's kind - the glyph a world setting, projectMeta, already gives every browser.
+         * Run on the primary GM: a project made with the key glyph in a room of the scene on screen; its glyph changed
+         * to the lock (`updateProject`, whose change ends in the token's sync); cleared; a GM's own picture put on the
+         * token and the glyph changed again, which must leave the GM's picture; then a GM's own picture that is one of the
+         * module's glyph files (the lock, put by hand), which a further change must leave too (REVIEW-111 1, 13.11.2026:
+         * the sync moves only the picture the module last wrote, the hammer or the hazard sign); the tint and the opacity
+         * read beside the picture each time, which the change of picture must not move. The GM's own picture is one
+         * Foundry ships (icons/svg/mystery-man.svg), so a real server draws it and logs no missing file.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the project's token is placed on the scene on screen");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose change syncs the project's token - run the suite on the primary GM");
+        const scene = canvas.scene;
+        const room = scene.regions?.contents?.find(region => region.name)?.name ?? null;
+        must(room, "the scene on screen has no named region for a project to stand in - this would measure nothing");
+        const icon = key => `modules/${MODULE_ID}/icons/project-${key}.svg`;
+        const OWN = "icons/svg/mystery-man.svg";
+        const look = id => { const t = PM.projectTokenOf(id); return t ? [t.texture?.src ?? null, String(t.texture?.tint ?? ""), t.alpha] : null; };
+        let made = null, read = null;
+        try {
+            made = (await P.createProject({ name: "SUITE project token glyph", target: 4, room, glyph: "key" }))?.id ?? null;
+            must(PM.projectTokenOf(made), "the project's token was not placed - this would measure nothing");
+            const placed = look(made);
+            await P.updateProject(made, { glyph: "lock" });
+            await until(() => PM.projectTokenOf(made)?.texture?.src !== placed[0]).catch(() => {});
+            const changed = look(made);
+            await P.updateProject(made, { glyph: null });
+            await until(() => PM.projectTokenOf(made)?.texture?.src === PROJECT_TOKEN.icon).catch(() => {});
+            const cleared = look(made);
+            await PM.projectTokenOf(made).update({ "texture.src": OWN });
+            await P.updateProject(made, { glyph: "gear" });
+            await PM.syncProjectTokens();
+            await settle();
+            const own = look(made);
+            await PM.projectTokenOf(made).update({ "texture.src": icon("lock") });
+            await P.updateProject(made, { glyph: "box" });
+            await PM.syncProjectTokens();
+            await settle();
+            const ownGlyph = look(made);
+            read = { placed, changed, cleared, own, ownGlyph };
+        } finally {
+            if (made) await P.deleteProject(made).catch(() => {});
+        }
+        const working = PROJECT_TOKEN.workingTint;
+        equal(JSON.stringify(read), JSON.stringify({
+            placed: [icon("key"), working, PROJECT_TOKEN.alpha], changed: [icon("lock"), working, PROJECT_TOKEN.alpha],
+            cleared: [PROJECT_TOKEN.icon, working, PROJECT_TOKEN.alpha], own: [OWN, working, PROJECT_TOKEN.alpha],
+            ownGlyph: [icon("lock"), working, PROJECT_TOKEN.alpha] }),
+            "a project's token does not wear its glyph, does not follow a new one, does not go back to the hammer with none, or a GM's own "
+            + "picture on it was taken by the sync (read: [picture, tint, opacity] when placed, after the glyph changed, after it was cleared, "
+            + "with a GM's own picture after a further change, and with a GM's own glyph file after another)");
+    }],
+
+    ["a project token placed before glyphs, wearing the hammer or the hazard sign, takes its project's glyph at the next sync", async () => {
+        /*
+         * 13.11.2026, beside the test above: a token on a map from before the change wears the hammer (or, placed before
+         * 1.2.53, Foundry's hazard sign) whatever its project's glyph; the next sync of the scene (`syncProjectTokens`,
+         * every scene draw) moves it to its project's picture, its tint and opacity kept. Run on the primary GM: a project
+         * with the broom glyph, its token's picture set back to the hammer and then to the hazard sign, the sync run each
+         * time.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the project's token is placed on the scene on screen");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose sync puts the project's token right - run the suite on the primary GM");
+        const room = canvas.scene.regions?.contents?.find(region => region.name)?.name ?? null;
+        must(room, "the scene on screen has no named region for a project to stand in - this would measure nothing");
+        const broom = `modules/${MODULE_ID}/icons/project-broom.svg`;
+        const look = id => { const t = PM.projectTokenOf(id); return t ? [t.texture?.src ?? null, String(t.texture?.tint ?? ""), t.alpha] : null; };
+        let made = null;
+        const read = [];
+        try {
+            made = (await P.createProject({ name: "SUITE project token from before glyphs", target: 4, room, glyph: "broom" }))?.id ?? null;
+            must(PM.projectTokenOf(made), "the project's token was not placed - this would measure nothing");
+            for (const old of [PROJECT_TOKEN.icon, PROJECT_TOKEN.oldIcon]) {
+                await PM.projectTokenOf(made).update({ "texture.src": old });
+                const before = look(made)[0];
+                await PM.syncProjectTokens();
+                await settle();
+                read.push([before, ...look(made)]);
+            }
+        } finally {
+            if (made) await P.deleteProject(made).catch(() => {});
+        }
+        equal(JSON.stringify(read), JSON.stringify([[PROJECT_TOKEN.icon, broom, PROJECT_TOKEN.workingTint, PROJECT_TOKEN.alpha],
+            [PROJECT_TOKEN.oldIcon, broom, PROJECT_TOKEN.workingTint, PROJECT_TOKEN.alpha]]),
+            "a token wearing the hammer or the hazard sign did not take its project's glyph at the sync, or lost its tint or opacity "
+            + "(read: [the picture set, then picture, tint, opacity after the sync], for the hammer and the hazard sign)");
+    }],
+
     ["dragging a project's spare copy or a token of no project moves no project and writes no row", async () => {
         /*
          * E11 C8, 1.2.73; the plan's 3.2. `onProjectTokenMoved` moved the project of any token carrying

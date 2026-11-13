@@ -47348,6 +47348,39 @@ const INVARIANTS = [
             hidden: true, corner: true
         }), "{dice: each die's colour by picture or select, each theme's Hope and Despair token; windows: a framed core window's ground, title band, field and button under Legacy, button and edge under the glass, the FilePicker's picked row, no layout property in any of these rules; hidden: the hotbar's rule hides the combat tab, pane and window and the effects display; corner: a stand-in core confirm's button wears this theme's corner}");
     }],
+    ["R4700 - every project glyph has a token picture, drawn as the tray draws it, and a project with no glyph keeps the hammer", async () => {
+        /*
+         * The owner's choice B of 13.11.2026: a project's token wears its chosen glyph (projects-map.mjs
+         * `projectTokenIcon`). The pictures are tools/token-icons.mjs's, one icons/project-<key>.svg per key of
+         * config.mjs PROJECT_GLYPHS, from the sprite the tray paints for that key (`var(--drpg-pix-<key>)`, the
+         * first match in styles/pixel-icons.css - the :root drawing, as the Remnants' token pictures). Read here:
+         * each key's file is served and holds that sprite's path, white; a key with no file, a file of a stale
+         * drawing, or a picture for a project with no glyph other than the hammer is red. The planted reading first:
+         * a path that is not the sprite's must read as stale. Red first before the files were written (13.11.2026):
+         * 21 of 21 keys had no picture. Nothing is written.
+         */
+        const { PROJECT_GLYPHS, PROJECT_TOKEN } = await import("./config.mjs");
+        const { projectTokenIcon } = await import("./projects-map.mjs");
+        const sheet = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const spritePath = key => {
+            const hit = sheet.match(new RegExp(`--drpg-pix-${key}:\\s*url\\("data:image/svg\\+xml,([^"]+)"\\)`));
+            return hit ? (decodeURIComponent(hit[1]).match(/ d='([^']+)'/)?.[1] ?? null) : null;
+        };
+        const filePath = text => String(text ?? "").match(/<path fill="#ffffff" d="([^"]+)"/)?.[1] ?? null;
+        const stale = (key, text) => !spritePath(key) || filePath(text) !== spritePath(key);
+        must(spritePath("key"), "pixel-icons.css holds no sprite for the key glyph - this test reads nothing until it is pointed at the sheet again");
+        ok(stale("key", `<svg><path fill="#ffffff" d="M0 0h1v1H0z"/></svg>`), "a planted picture that is not the sprite's reads as current");
+        const wrong = [];
+        for (const key of Object.keys(PROJECT_GLYPHS)) {
+            const res = await fetch(`/modules/${MODULE_ID}/icons/project-${key}.svg`);
+            const text = res.ok ? await lfText(res) : null;
+            if (text === null) wrong.push(`${key}: no picture`);
+            else if (stale(key, text)) wrong.push(`${key}: not the tray's drawing (re-run tools/token-icons.mjs)`);
+        }
+        equal(JSON.stringify(wrong), "[]", `of ${Object.keys(PROJECT_GLYPHS).length} glyphs, these have no token picture or a stale one`);
+        equal(projectTokenIcon("R4700-no-such-project"), PROJECT_TOKEN.icon, "a project with no glyph wears something other than the hammer");
+    }],
+
     ["R3578 - the Projects tray shows no Foundry or Daggerheart picture, in either theme (E49 FT batch 3; the owner, 11.11.2026 night: the tray's stored picture still drawn under Monokuma Legacy - Foundry's or Daggerheart's removed, the module's own project icon kept): a row's `img` whose path is not in the module's own folder (core's hourglass webp, which is Daggerheart's countdown default and the module's stored default; any other core or system file; a world's own file; none) is hidden in both themes, and under Monokuma Legacy the row draws the module's own pixel drawing of its glyph in its place - `--drpg-project-glyph`, the hourglass where none is chosen, as the glass does; a picture in the module's folder stays and draws no glyph beside it; every glyph the tray can name is declared on :root, so it resolves under Legacy; painting the tray leaves each row's `src` and the stored projects as they were", async () => {
         /*
          * E49 FT batch 3, the owner's question 6 of 11.11.2026 night, decided: "Projects tray picture: Foundry/Daggerheart

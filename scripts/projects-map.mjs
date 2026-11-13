@@ -15,8 +15,14 @@
  * feature. A Token document reaches EVERY browser on the scene, whatever its
  * ownership - Foundry uses ownership for control, not for sight, and the
  * `hidden` flag says "GM only", which cannot express "these three players". So
- * the token carries a neutral name, a neutral image and one countdown id, and
- * nothing else. The id adds nothing a console does not already hold: the
+ * the token carries a neutral name, one countdown id and, since 13.11.2026, the
+ * picture of the project's chosen glyph (`projectTokenIcon`, below: the owner's
+ * choice, accepted as a trade-off - the glyph a world setting already gives every
+ * browser), and that picture's path again in a second flag, `projectIconWritten`
+ * (`PROJECT_ICON_FLAG`, below: the picture the module last wrote, so the sync can
+ * tell its own picture from a GM's), and nothing else. That flag holds no secret: its
+ * value is the token's own `texture.src`, which every browser on the scene already
+ * reads off the texture. The id adds nothing a console does not already hold: the
  * Countdowns setting it points into - the name, the progress and the ownership
  * map - is a world setting every browser holds, so a secret project is hidden
  * from the interface, not from the console (audit S09-05; the killer and the
@@ -30,7 +36,7 @@
  * have stood in its room, and stays visible afterwards, because knowledge does.
  */
 
-import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
+import { MODULE_ID, PROJECT_TOKEN, isProjectGlyph } from "./config.mjs";
 import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange }
     from "./projects.mjs";
 import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
@@ -64,8 +70,14 @@ function writeTokenRecord(countdownId, patch) {
 const ISO_MODULE = "isometric-perspective";
 const isoOn = () => Boolean(game.modules?.get(ISO_MODULE)?.active);
 
-/** The one flag a project token carries. Everything else is looked up. */
+/** The flag that ties a project token to its countdown. Everything else is looked up. */
 export const PROJECT_TOKEN_FLAG = "projectId";
+
+/* The picture the module last wrote on the token (REVIEW-111 1, 13.11.2026): the sync moves the token's picture only
+   while it is this one, the hammer or the hazard sign, so a GM's own picture stays even when it is one of the module's
+   glyph files. The value is the token's own `texture.src` as the module wrote it - no more than the texture already
+   tells every browser on the scene. */
+const PROJECT_ICON_FLAG = "projectIconWritten";
 
 /* The option every deletion of a project token by the module passes (E11 C8), so the
    `deleteToken` hook below tells them from a GM's own Delete: a project the module took
@@ -227,6 +239,38 @@ function tintFor(countdownId) {
     return isComplete(row) ? PROJECT_TOKEN.doneTint : PROJECT_TOKEN.workingTint;
 }
 
+/*
+ * THE PICTURE IS THE PROJECT'S GLYPH (the owner's choice B, 13.11.2026). Every project token wore the neutral hammer
+ * from 22.09 (PROJECT_TOKEN.icon), so the map said "a project" and never which; the owner chose the glyph a GM picks
+ * for the project (config.mjs PROJECT_GLYPHS, the drawing the tray paints for its row) for every project, public and
+ * secret, and accepted what that costs: a token document reaches every browser on its scene, so its texture tells
+ * any console the project's kind, secret ones included - the glyph that projectMeta, a world setting every browser
+ * holds, already gave it (docs/dev/project-token-icon/STATUS.md, the GM handbook's note on what lives only in the
+ * GMs' browsers). Who SEES the token is still `knowsProject` through visibility.mjs. The file is the glyph's, one per
+ * key, written by tools/token-icons.mjs from the same sprite the tray paints (icons/project-<key>.svg, white, tinted by
+ * the document as the hammer was). A project with no glyph - one made before glyphs, or in Daggerheart's own window -
+ * keeps the hammer.
+ */
+const GLYPH_ICON_PREFIX = `modules/${MODULE_ID}/icons/project-`;
+
+/** The picture a project's token wears: its glyph's file, or the hammer for a project with none. */
+export function projectTokenIcon(countdownId) {
+    const glyph = metaFor(countdownId).glyph;
+    return isProjectGlyph(glyph) ? `${GLYPH_ICON_PREFIX}${glyph}.svg` : PROJECT_TOKEN.icon;
+}
+
+/**
+ * Is the token's picture the module's to move: the one it last wrote there (`PROJECT_ICON_FLAG`), or the hammer or the
+ * hazard sign a token placed before glyphs wears? A glyph's file the module did not write - a GM's own choice of the
+ * lock for a project whose glyph is the key - is the GM's, and stays.
+ */
+function wearsModuleIcon(token) {
+    // A token placed by 1de23ada or 5f074c16 (never released) wears a glyph's file with no flag, and is read as the GM's.
+    const path = String(token?.texture?.src ?? "");
+    return path === PROJECT_TOKEN.icon || path === PROJECT_TOKEN.oldIcon
+        || (path.length > 0 && path === token?.getFlag?.(MODULE_ID, PROJECT_ICON_FLAG));
+}
+
 /** The live token document for a project, if its scene still has one. */
 export function projectTokenOf(countdownId) {
     const ref = tokenRefOf(countdownId);
@@ -279,7 +323,7 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
             width: PROJECT_TOKEN.size,
             height: PROJECT_TOKEN.size,
             texture: {
-                src: PROJECT_TOKEN.icon,
+                src: projectTokenIcon(countdownId),
                 tint: tintFor(countdownId)
             },
             alpha: PROJECT_TOKEN.alpha,
@@ -289,7 +333,7 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
                Same arrangement, and same reason, as an incident's own traces. */
             hidden: false,
             flags: {
-                [MODULE_ID]: { [PROJECT_TOKEN_FLAG]: countdownId },
+                [MODULE_ID]: { [PROJECT_TOKEN_FLAG]: countdownId, [PROJECT_ICON_FLAG]: projectTokenIcon(countdownId) },
                 ...(isoOn() ? { [ISO_MODULE]: { scale: PROJECT_TOKEN.isoScale } } : {})
             }
         }]);
@@ -444,8 +488,8 @@ export function warnProjectDuplicates(duplicates) {
 }
 
 /**
- * The tint follows the bar. Cheap enough to call on every project change, and
- * it writes only when the colour would actually differ. Answers whether it wrote.
+ * The tint follows the bar, and the picture the glyph. Cheap enough to call on every project change, and
+ * it writes only when the colour or the picture would actually differ. Answers whether it wrote.
  * The opacity follows `PROJECT_TOKEN.alpha` the same way (E44 C8b).
  */
 export async function refreshProjectToken(countdownId) {
@@ -459,9 +503,15 @@ export async function refreshProjectToken(countdownId) {
        every scene draw, for as long as it has existed (found 22.09). The Color prints
        as its hex, which is what `want` is. */
     if (String(token.texture?.tint ?? "") !== want) changes["texture.tint"] = want;
-    /* A token placed before 1.2.53 wears Foundry's hazard sign; only that exact default
-       moves, as the actor above does. */
-    if (token.texture?.src === PROJECT_TOKEN.oldIcon) changes["texture.src"] = PROJECT_TOKEN.icon;
+    /* THE PICTURE FOLLOWS THE GLYPH (13.11.2026): a token wearing the picture the module last wrote on it, the hammer,
+       or the hazard sign a token placed before 1.2.53 still wears, is moved to its project's (`projectTokenIcon`) on
+       the next sync, and so when a GM changes the glyph, whose change ends in this sync; the flag records what it wrote.
+       A picture a GM put on the token is the GM's, and stays, a glyph's own file among them (REVIEW-111 1). */
+    const icon = projectTokenIcon(countdownId);
+    if (token.texture?.src !== icon && wearsModuleIcon(token)) {
+        changes["texture.src"] = icon;
+        changes[`flags.${MODULE_ID}.${PROJECT_ICON_FLAG}`] = icon;
+    }
     /* A token placed before 1.2.99 stands at 0.7, which the owner turned to full opacity (E44 C8b, 04.11.2026;
        config.mjs PROJECT_TOKEN.alpha); the sync brings it up as it brings the tint - a GM's own alpha on it as well. */
     if (token.alpha !== PROJECT_TOKEN.alpha) changes.alpha = PROJECT_TOKEN.alpha;
