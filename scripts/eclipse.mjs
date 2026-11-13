@@ -1179,17 +1179,9 @@ export async function countCrossingInStep(actorId, { to = null, card = true, mad
  * Take one counted crossing back, GM side (E80 C2, 18.10.2026): a 'Go through' the primary counted
  * (`applyRecordedMove`, movement.mjs `settleCrossingOnGm`) and could not write, so the token never moved.
  * The owner is sent their copy again. That crossing's veiled card was never posted: it waits for the write
- * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back.
- */
-export async function unrecordMove(actorId) {
-    if (!game.user.isGM) return false;
-    await eclipseMoveStore.whenHydrated();
-    return serialWrite(crossingKey(actorId), () => uncountCrossingInStep(actorId));
-}
-
-/**
- * One counted crossing taken back inside a step of the character's `crossingKey`: `crossTunnel`'s (movement.mjs
- * `refundCrossingOnGm`, the road that calls it), or `unrecordMove`'s own step above, which nothing calls.
+ * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back. Runs inside a
+ * step of the character's `crossingKey`, `crossTunnel`'s (movement.mjs `refundCrossingOnGm`, its one road; the
+ * step of its own beside it, which nothing called, went in E56 C6).
  */
 export async function uncountCrossingInStep(actorId) {
     if (!game.user.isGM) return false;

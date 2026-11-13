@@ -32,7 +32,7 @@ import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
 import { ZONE_MODES, isZoneMode, zoneOf, unanimous, countsOf } from "./zone-machine.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
-import { isPrimaryGm, serialWrite, serverNow, error, log, esc } from "./utils.mjs";
+import { isPrimaryGm, serialWrite, serverNow, error, esc } from "./utils.mjs";
 
 /** The floor as stored, for the readers here that may not import trial-floor.mjs (it imports this file). */
 function storedFloor() {
@@ -391,7 +391,3 @@ export function zoneCardWords(words = {}) {
     return Object.fromEntries(Object.entries(words ?? {}).map(([k, v]) => [k, esc(String(v ?? ""))]));
 }
 
-/** Log a line about the zones (the primary's). */
-export function zoneLog(line) {
-    log(`Zones: ${line}`);
-}

@@ -1783,11 +1783,6 @@ export function spectatorFogSection(section, watcherId, { mastermindId = null } 
     return out;
 }
 
-/** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
-export function gmStoreLegacyChanged(name) {
-    return gmStoreByName(name)?.legacyChanged() ?? false;
-}
-
 /** Take what changed in a store's old key since the upgrade, by the rules on the handle's `reclaim`. */
 export async function gmStoreReclaim(name) {
     const store = gmStoreByName(name);

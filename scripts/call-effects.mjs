@@ -550,14 +550,6 @@ export function spentByGm(nonce) {
     return typeof nonce === "string" && (gmSpent.get(nonce) ?? -Infinity) >= Date.now() - GM_SPENT_MS;
 }
 
-/**
- * The single-slot name, kept so a caller written before CALL-02 still spends
- * every armed Call rather than none. Answers with the first one spent.
- */
-export async function consumeCall(actor) {
-    return (await consumeCalls(actor))[0] ?? null;
-}
-
 /** Does this character have permission for a given roll control right now? */
 export function grants(actor, what) {
     return pendingCalls(actor).some(entry => entry.grants === what);

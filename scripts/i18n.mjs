@@ -147,15 +147,3 @@ export async function seedDocumentLanguage() {
     return true;
 }
 
-/**
- * Reload after the setting changes. Everything on screen was built with the
- * previous language, and a live re-render of forty windows is a worse
- * experience than one reload - which is also what Foundry does for its own.
- */
-export async function confirmLanguageReload() {
-    try {
-        const SettingsConfig = foundry.applications?.settings?.SettingsConfig ?? globalThis.SettingsConfig;
-        if (SettingsConfig?.reloadConfirm) return SettingsConfig.reloadConfirm({ world: false });
-    } catch { /* fall through */ }
-    return foundry.utils.debouncedReload?.();
-}

@@ -115,11 +115,6 @@ function stateOf(userId) {
     return { written: written === true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : null };
 }
 
-/** When it was last written, or `null`. */
-export function noteUpdatedAt(userId) {
-    return stateOf(userId).updatedAt;
-}
-
 /** Has this player written anything at all? Drives the GM's roster column. */
 export function hasNote(userId) {
     return stateOf(userId).written;
