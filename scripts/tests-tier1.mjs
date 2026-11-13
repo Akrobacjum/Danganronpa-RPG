@@ -36772,6 +36772,42 @@ const INVARIANTS = [
         }), "[toggle (role, checked); chips (role, name; each pressed, disabled, count, value); the boxes; an unknown box throws; emptyOption (value, words); the mode bar after Debate is pressed (pressed, the key handed on; wired twice, it hands on once)]");
     }],
 
+    ["R4673 - a kit window's Close answers null, as a closed window does (the close-action survey, 13.11.2026; LIVE-E21-06): drpgWindow with an OK and a Close, drawn on this GM; Close pressed ends the wait with null and the window gone, OK pressed answers \"ok\" and the window gone", async () => {
+        /*
+         * docs/dev/gaps/SURVEY-close-action.md. A closing word whose action is "close" is taken by ApplicationV2's own
+         * close before DialogV2 sees the press (trial-floor-ui.mjs `openVoteDialog`'s note, 11.09; ui-kit.mjs
+         * `footerButtons`), so the wait answers null. That is the module's premise for v14, still open as LIVE-E21-06;
+         * the harness's DialogV2 models it since this test (audit/harness/lib/shim.mjs `_onSubmit`). Headless this test
+         * holds the shim to the premise; at a v14 table, run as GM, it reads what v14 answers, which is LIVE-E21-06's
+         * question - a FAIL there with `close.answer` "close" says the premise is wrong. OK is the control: a press that
+         * reaches DialogV2 answers its action. Red first on 986e3a89's shim: Close answered "close".
+         */
+        needs(env.dialogs(), "the window is drawn and its footer pressed");
+        const K = await import("./ui-kit.mjs");
+        const CLS = "drpg-window-r4673";
+        const root = () => document.querySelector(`.${CLS}`);
+        must(!root(), "an R4673 window is open - close it: this test opens its own");
+        const press = async action => {
+            let answer = null;
+            try {
+                answer = Promise.resolve().then(() => K.drpgWindow({
+                    title: "R4673", classes: ["drpg-panel", CLS], body: "<p>R4673</p>",
+                    footer: { primary: { action: "ok", label: "OK" }, close: "close" }, rejectClose: false
+                })).catch(err => `threw: ${err.message}`);
+                const button = () => root()?.querySelector(`footer button[data-action="${action}"]`);
+                must(await until(() => button(), 6000), `the window did not open with its ${action} button`);
+                button().click();
+                const got = await Promise.race([answer, wait(3000).then(() => "still open")]);
+                return { answer: got, gone: await until(() => !root(), 3000) };
+            } finally {
+                for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains(CLS))) await app.close();
+                if (answer) await Promise.race([answer, wait(3000)]);
+            }
+        };
+        const read = { close: await press("close"), ok: await press("ok") };
+        equal(stableJson(read), stableJson({ close: { answer: null, gone: true }, ok: { answer: "ok", gone: true } }),
+            "{Close pressed: what the wait answered, the window gone; OK pressed: the same}");
+    }],
     ["R1321 - BUTTON_ROLES (scripts/ui-kit.mjs; E44 C3a, E44-13): primary, gmRoute, close, cancel, secondary and destructive, each with its class, today's face class, its side, its place in it, whether it may be the default, its token and its word; destructive and secondary never the default; the close word the same words as DRPG.Panel.close in both lang files and the cancel word Cancel's own; every role's class styled in styles/components.css through its token, the token declared for both themes; the roles a question's answer may take (E21 C1b): drpgConfirm's yes primary, gmRoute or destructive, drpgPrompt's ok primary or gmRoute", async () => {
         /*
          * E44 C3a, 04.11.2026; the owner's footer contract (the pilot, 04.11: the closing word left, the primary
