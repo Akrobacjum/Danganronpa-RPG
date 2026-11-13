@@ -51,7 +51,7 @@ The owner's decision of 12.11.2026, every default accepted:
   under Legacy at 1366x768.
 - **transitions.mjs**: `transitionFor` gives the exit `{ kind: "trialExit", owner: "E61" }` (no direction for the
   curtain), with `newDay` when the same write opened a later day; `onClockHeard` starts the exit, and the day's boards
-  (`playBoards`) wait for its end (`whenTrialExitEnds`). With the switch off the exit plays nothing and the curtain turns
+  wait for its end (`whenTrialExitEnds`). With the switch off the exit plays nothing and the curtain turns
   from the centre, as before.
 - **The silence (the marker)**: `clock.trialCut`, written by `setClock` on every crossing of the trial's edge - true only
   when the write says `trialCut: true`, which Start the Class Trial, End the trial (the chapter's end through it) and

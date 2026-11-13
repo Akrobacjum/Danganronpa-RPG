@@ -91,19 +91,6 @@ export function transitionFor(before, after) {
 }
 
 let seen = null;
-
-/* A new day is a session (E94): the end-of-day board of the day that ended, then the start-of-day board of the new one,
-   over the curtain's turn, still under reduced motion (C2, C3). AFTER THE TRIAL'S EXIT (the owner's decision of
-   12.11.2026: a chapter's end that closes the trial and opens the next morning in one Finish plays the exit first, then
-   the boards): a board started while the exit plays would cut it, so the boards wait for its end
-   (sequence.mjs `whenTrialExitEnds`), at once when none was asked for. */
-function playBoards(before, clock, { on, keep }) {
-    if (!on) return;
-    whenTrialExitEnds().then(() => {
-        if (before) return playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) });
-        return playDayStart(clock, { on });
-    }).catch(() => null);
-}
 let flashTimers = [];
 let seed = 1;
 
@@ -132,16 +119,24 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
     const before = seen;
     seen = clock ? { ...clock } : seen;
     const t = transitionFor(before, clock);
+    /* A new day is a session (E94): the end-of-day board of the day that ended, then the start-of-day board of the new
+       one, over the curtain's turn, still under reduced motion (C2, C3). AFTER THE TRIAL'S EXIT (the owner's decision of
+       12.11.2026: a chapter's end that closes the trial and opens the next morning in one Finish plays the exit first,
+       then the boards): a board started while the exit plays would cut it, so the boards wait for its end
+       (sequence.mjs `whenTrialExitEnds`), at once when none was asked for. */
+    const boards = () => whenTrialExitEnds().then(() => (before
+        ? playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) })
+        : playDayStart(clock, { on }))).catch(() => null);
     /* THE TRIAL'S EXIT (the owner's decision of 12.11.2026): E61's sequence, started here because this is where the
        clock's move out of the trial is read against the clock before it; nothing for an exit Edit campaign wrote
        (sequence.mjs `edgeShown`) or with the switch off. A new day heard in the same run - a chapter's end with the next
-       morning - has its boards after it (`playBoards`). */
+       morning - has its boards after it. */
     if (t?.kind === "trialExit" && on) playTrialExit(clock, { on }).catch(() => null);
-    if (t?.kind === "trialExit" && t.newDay) playBoards(before, clock, { on, keep });
+    if (t?.kind === "trialExit" && t.newDay && on) boards();
     if (!t || t.owner) return t;
     clearFlashes();
     count("transition.heard");
-    if (t.kind === "newDay") playBoards(before, clock, { on, keep });
+    if (t.kind === "newDay" && on) boards();
     if (!on || still) return t;
     seed = (seed * 1103515245 + 12345) >>> 0;
     import("./glass.mjs").then(g => g.hintTurn?.({ how: t.how, seed, groups: t.groups, delays: t.delays, dur: t.dur })).catch(() => null);
