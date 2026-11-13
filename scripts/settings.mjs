@@ -485,6 +485,13 @@ export const SETTINGS = {
      * room `{ sceneId, room, authorId, strength, at, userId }`. Synced, not backed up; no player copy.
      */
     gmBarricades: "gmBarricades",
+    /**
+     * THE BEDROOM NOTES WAITING (privacy line 1, 13.11.2026; the owner's rule #1): a GM store (gm-stores.mjs
+     * `bedroomNoteStore`), a row per owner, scene and bedroom `{ ownerId, sceneId, room, picked, forced, breached, mended,
+     * unsealed }` - what happened to that bedroom's door or wall while its owner was elsewhere, told when they next walk in
+     * (doors-gm.mjs `tellBedroomNotes`). Synced, not backed up; no player copy.
+     */
+    gmBedroomNotes: "gmBedroomNotes",
     /** THE WATCHES KEPT (E74 C6, 12.11.2026): a GM store (gm-stores.mjs `watchStore`), a row per watcher. Synced, not backed up. */
     gmWatches: "gmWatches",
     /**
@@ -494,12 +501,6 @@ export const SETTINGS = {
      */
     gmLockpicks: "gmLockpicks",
     mineLockpicks: "mineLockpicks",
-    /**
-     * THE LOCK WARNINGS WAITING (the audit of 1.2.113, A113-C5-1; DA30): a GM store (gm-stores.mjs `lockNoticeStore`), a
-     * row per bedroom owner, scene and room `{ ownerId, sceneId, room, at }`, told at the owner's next entry. Synced, not
-     * backed up; no player copy.
-     */
-    gmLockNotices: "gmLockNotices",
     /**
      * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
      * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
@@ -2256,15 +2257,15 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
-    // The lock warnings waiting (A113-C5-1): no `onChange` - read by the primary when an owner walks in (doors-gm.mjs).
-    game.settings.register(MODULE_ID, SETTINGS.gmLockNotices, {
+    // The barricades standing (E74 C2): no `onChange` - the table reads the public flag (doors-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmBarricades, {
         scope: "client",
         config: false,
         type: Object,
         default: {}
     });
-    // The barricades standing (E74 C2): no `onChange` - the table reads the public flag (doors-gm.mjs).
-    game.settings.register(MODULE_ID, SETTINGS.gmBarricades, {
+    // The bedroom notes waiting (privacy line 1): no `onChange` - read by the primary on the owner's crossing (doors-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmBedroomNotes, {
         scope: "client",
         config: false,
         type: Object,

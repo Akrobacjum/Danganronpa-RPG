@@ -250,8 +250,8 @@ Hooks.once("init", () => {
     // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
     safely("the watches", registerWatches);
     safely("the pick's passes", registerLockpicks);
-    // The owner's notices on walking in - a stash gone through, a bedroom's lock picked - on the primary GM, from a settled
-    // crossing (and from a GM's move of the token, movement.mjs `noteGmPosition`; the audit of 1.2.113, A113-C4-3, A113-C5-1).
+    // The owner's notice on walking in of a stash gone through, on the primary GM, from a settled crossing (and from a GM's
+    // move of the token, movement.mjs `noteGmPosition`; the audit of 1.2.113, A113-C4-3).
     safely("the notices on walking in", registerArrivalNotices);
     safely("the timed effects", registerTimedEffects);
     // E97 C11: the case's question at a body, on the primary GM, once a chapter

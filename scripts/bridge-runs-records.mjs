@@ -503,7 +503,7 @@ export async function handleArm(payload, sender, ctx, prepared) {
     // Appended, not written over: Calls stack (CALL-02). Armed on that GM's word (E29 fix r2-H7, `by`).
     await appendArmedCall(actor, armedEntry(payload.call, call, kind), { by: sender });
     debug(`Armed ${payload.call.key} on ${actor.name} on behalf of ${sender.name}.`);
-    void tellBeneficiary(actor, kind, call.grants);
+    void tellBeneficiary(actor, kind, call.grants, game.actors.get(armBuyerId(payload)));
     return { reply: { ok: true, left: null } };
 }
 
@@ -521,7 +521,9 @@ function armedEntry(asked, call, kind) {
 
 /**
  * The beneficiary is not the buyer: tell them what they have been given, or they
- * will meet a locked roll dialog with no idea why it opened up.
+ * will meet a locked roll dialog with no idea why it opened up. A Hope Call names
+ * the student who spent it, `buyer` (the owner's rule #9, 13.11.2026: both stand in
+ * one room); Monokuma's stays unnamed.
  *
  * Started and not waited for, and never thrown: the Call is armed and paid for
  * by now, and the runner sends the buyer their answer as soon as the run
@@ -529,14 +531,15 @@ function armedEntry(asked, call, kind) {
  * answer down with it - the buyer waited out the clock and was told "not armed,
  * not charged" about a Call that was both (the E03 review).
  */
-async function tellBeneficiary(actor, kind, grants) {
+async function tellBeneficiary(actor, kind, grants, buyer = null) {
+    const named = kind !== "despair" && buyer && buyer.id !== actor.id ? buyer : null;
     try {
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.armedTitle")
         })}<p>${
             // The accusative (call-effects.mjs `grantWords`, E66 C3): "nałożył na twój następny rzut {what}", "rzut ma {what}".
-            game.i18n.format(kind === "despair" ? "DRPG.Calls.armedByMonokuma" : "DRPG.Calls.armedForYou", {
-                what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
+            game.i18n.format(kind === "despair" ? "DRPG.Calls.armedByMonokuma" : named ? "DRPG.Calls.armedForYouBy" : "DRPG.Calls.armedForYou", {
+                what: game.i18n.localize(`DRPG.Calls.grants.${grants}`), name: foundry.utils.escapeHTML(named?.name ?? "")
             })
         }</p>`);
     } catch (err) {
@@ -590,7 +593,7 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
         return { refused: "the Call could not be armed" };
     }
     debug(`Armed ${payload.call.key} on ${actor.name}, paid by ${buyer.name} on this side.`);
-    if (buyer.id !== actor.id) void tellBeneficiary(actor, "hope", call.grants);
+    if (buyer.id !== actor.id) void tellBeneficiary(actor, "hope", call.grants, buyer);
     return { reply: { ok: true, left: paid.left } };
 }
 

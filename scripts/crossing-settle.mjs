@@ -5,8 +5,8 @@
  * so movement.mjs and movement-audit.mjs keep their size). `crossingSettled` - the hook `drpgCrossingSettled` with
  * `{ actorId, from, to, via, eclipse, sceneId }` - fires on the primary GM once a character's token has stood in its new
  * room `SETTLE_MS` without being put back. Tail Someone's cards (E69 C4) and E74's Keep Watch listen to it; nothing else
- * may announce another character's move. Since the audit of 1.2.113 (A113-C4-3, A113-C5-1) the owner's notices of a stash
- * gone through and of a picked lock listen too (arrival-notices.mjs), which is why the event names the scene.
+ * may announce another character's move. Since the audit of 1.2.113 (A113-C4-3) the owner's notice of a stash gone
+ * through listens too (arrival-notices.mjs), which is why the event names the scene.
  *
  * WHICH CROSSINGS. Those the GMs record (movement.mjs `recordCrossingInStep`): a player's lawful crossing the judge read
  * (`noteCrossing`, which skips a GM's own move, a put-back, a scene that is no place - the trial hall - and a Monokuma),

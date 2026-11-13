@@ -1,14 +1,12 @@
 /**
  * Danganronpa RPG - what an owner is told on coming to stand in a room, on the primary GM.
  * ---------------------------------------------------------------------------
- * The audit of 1.2.113 (13.11.2026; A113-C4-3, A113-C5-1). Two notices wait for a character to walk into a room: that
- * somebody has been in their stash there (1.2.112, the owner's decision of 13.11.2026; stash-reach.mjs
- * `tellStashDisturbed`), and that somebody has been at the lock of their bedroom (DA30 as E74's plan has it: "at once if
- * inside, else at the next entry, also in an Eclipse, from crossingSettled"; doors-gm.mjs `tellLockPicked`).
+ * The audit of 1.2.113 (13.11.2026; A113-C4-3). A notice waits for a character to walk into a room: that somebody has
+ * been in their stash there (1.2.112, the owner's decision of 13.11.2026; stash-reach.mjs `tellStashDisturbed`).
  *
- * THE ROADS. The stash's notice was told only from the paid crossing's hook (traps.mjs `onCrossed`, raised at the end of
- * movement.mjs `chargeForCrossing`), which never fires with crossing rooms free, in an Eclipse, or for a GM's placement;
- * the pick's warning was sent at once, wherever the owner stood. Both are told now from:
+ * THE ROADS. It was told only from the paid crossing's hook (traps.mjs `onCrossed`, raised at the end of movement.mjs
+ * `chargeForCrossing`), which never fires with crossing rooms free, in an Eclipse, or for a GM's placement. It is told
+ * now from:
  *
  * - the settled crossing (crossing-settle.mjs `CROSSING_SETTLED`): every lawful crossing of a player the GMs record, an
  *   Eclipse's and a free one's included, once the token has stood in its room `SETTLE_MS` without being put back;
@@ -18,23 +16,25 @@
  *
  * The paid crossing's hook still tells the stash's notice at once; the settled crossing that follows it finds the notice
  * told, since `tellStashDisturbed` takes one owner at a time.
+ *
+ * NOT THE BEDROOM'S NOTE. doors-gm.mjs `noteBedroom` (b70b3b23: a door forced, a careless pick, a breach, a repair) is
+ * told from traps.mjs `onCrossed` alone, as the stash's was; joining it here would tell it on these roads too, which is a
+ * change of its behaviour the coordinator kept out of this round (13.11.2026).
  */
 
 import { isPrimaryGm, error } from "./utils.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 
 /**
- * `actor` has come to stand in `room` on `scene`: every notice waiting for them there is told. On the primary alone.
- * Answers `{ stash, lock }`, whether each was told.
+ * `actor` has come to stand in `room` on `scene`: the stash's notice waiting for them there is told. On the primary alone.
+ * Answers `{ stash }`, whether it was told.
  */
 export async function noticesOnArrival(actor, room, scene) {
-    // Any actor: only a character owns a stash or a bedroom, so another finds no row in either store.
-    if (!isPrimaryGm() || !actor || !room || !scene) return { stash: false, lock: false };
+    // Any actor: only a character owns a stash, so another finds no row in the store.
+    if (!isPrimaryGm() || !actor || !room || !scene) return { stash: false };
     const stash = await import("./stash-reach.mjs").then(m => m.tellStashDisturbed(actor, room, scene))
         .catch(err => { error("A stash's owner could not be told on entering", err); return false; });
-    const lock = await import("./doors-gm.mjs").then(m => m.tellLockPicked(actor, room, scene))
-        .catch(err => { error("A bedroom's owner could not be warned of a picked lock on entering", err); return false; });
-    return { stash, lock };
+    return { stash };
 }
 
 /** The listener, on every browser, acting on the primary GM alone. */

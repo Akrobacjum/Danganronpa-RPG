@@ -805,8 +805,9 @@ async function unforceRoom(scene, forced, breachId, stores, { reseal = true } = 
  *   - in a room beside either (`neighbouringRooms`, the map's doors), `breachHeard`: a crash, never a name, from the
  *     breached room beside them as Listen names a room ("Unexplored room 1" for one they have not been in);
  * each to its owners and the GMs with the sound `wallBreached` (the players' only, the string form). Then the room's
- * card, as for a forced door: to the bedroom's owner (and the GMs) when the room beyond is somebody's bedroom, with no
- * builder's name, else to the GMs; a lifted seal is said on it. Answers how many cards were written.
+ * card, as for a forced door: to the GMs, and to the bedroom's owner when the room beyond is somebody's bedroom, with no
+ * builder's name - on walking back into it, or at once in it, never twice where they saw it (doors-gm.mjs `noteBedroom`;
+ * privacy line 1, the owner's rule #1, 13.11.2026); a lifted seal is said on it. Answers how many cards were written.
  */
 export async function tellBreach(made) {
     const scene = game.scenes?.get(made?.sceneId ?? "");
@@ -844,8 +845,15 @@ export async function tellBreach(made) {
     const seal = made.forced.unsealed ? ` ${game.i18n.localize("DRPG.Passage.card.breachUnsealed")}` : "";
     const { roomFlag } = await import("./rooms.mjs");
     const owner = studentOf(roomFlag(scene, beyond, ROOM_OWNER_FLAG));
-    if (owner && owner.id !== builder?.id) await whisperToOwner(owner, `<p>${game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(beyond) })}${seal}</p>`);
-    else await whisperToGms(`<p>${game.i18n.format("DRPG.Passage.card.breachForced", { room: esc(beyond) })}${seal}</p>`);
+    /* THE BEDROOM'S OWNER ON WALKING BACK IN (privacy line 1, 13.11.2026; the owner's rule #1). Until then the owner was
+       whispered the bedroom's card at once, wherever they stood, with the GMs' copy. Now an owner standing in either room
+       was sent its card above and is told nothing more; one elsewhere is told on walking into the bedroom, or at once in
+       it (doors-gm.mjs `noteBedroom`). The GMs are told at once, as for a room that is nobody's. */
+    if (owner && owner.id !== builder?.id) {
+        const saw = [from, beyond].includes(where(owner)) ? new Set([owner.id]) : new Set();
+        await (await import("./doors-gm.mjs")).noteBedroom({ scene, room: beyond, kind: "breached", told: saw, by: builder, unsealed: made.forced.unsealed ?? null });
+    }
+    await whisperToGms(`<p>${game.i18n.format("DRPG.Passage.card.breachForced", { room: esc(beyond) })}${seal}</p>`);
     return told + 1;
 }
 

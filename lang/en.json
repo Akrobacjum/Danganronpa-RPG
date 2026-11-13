@@ -3436,7 +3436,7 @@
         "yourDoor": "Somebody forced the door of {room}. Its lock stays broken until it is repaired."
       },
       "pick": {
-        "prompt": "Pick a lock out of {room}: Hand {n} opens it for you alone, until you leave the room beyond; {clean} or more and the owner never knows. Shadow {cover} or more and nobody sees who it was.",
+        "prompt": "Pick a lock out of {room}: Hand {n} opens it for you alone, until you leave the room beyond; {clean} or more and the owner never knows. Shadow {cover} or more and nobody in the room beyond sees who it was; the people in your own room always do.",
         "coverTitle": "Pick the Lock - does anyone see?",
         "opened": "The lock gives. You may walk into {room} until you leave it again; it stays locked for everyone else.",
         "held": "The lock to {room} holds.",
@@ -3467,6 +3467,7 @@
       },
       "shut": {
         "knock": "Someone tries the door and cannot get in.",
+        "seenBy": "{name} barricades {room} from inside.",
         "done": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends."
       },
       "tail": {
@@ -3754,6 +3755,7 @@
       "armedTitle": "A Call was made for you",
       "waitsNextRoll": "Armed after this window opened: {what}. It is not part of this roll - it waits for your next one.",
       "armedForYou": "Another student spent Hope on you: your next roll has {what}. It applies by itself.",
+      "armedForYouBy": "{name} spends Hope on you: your next roll has {what}. It applies by itself.",
       "armedByMonokuma": "Monokuma has {what} on your next roll. It applies by itself.",
       "armedByNobody": "Your next roll carries {what}. It applies by itself.",
       "newRuleTitle": "New Killing Game Rule",
@@ -6475,9 +6477,9 @@
         "facilityUses": "Which room actions each character used, and in which time of day",
         "tails": "Who is tailing whom today, and how well",
         "barricades": "Which rooms are barricaded, by whom and how strongly",
+        "bedroomNotes": "What happened to each bedroom while its owner was away, told when they walk back in",
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "lockpicks": "Who may walk through a lock they picked, into which room",
-        "lockNotices": "Which bedroom owners are still to be warned that somebody was at their lock",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",

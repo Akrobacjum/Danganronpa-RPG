@@ -22958,7 +22958,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             asked: [killer, `<h3>${esc(game.i18n.format("DRPG.Items.useTitle", { item: items.odd.name }))}</h3>`],
             sent: [killer, game.i18n.localize("DRPG.Items.creativeSent")],
             ruled: [killer, used(items.odd)],
-            support: [victim, game.i18n.format("DRPG.Calls.armedForYou", { what: grant("advantage") })],
+            // Names the bystander who spent the Hope (the owner's rule #9, 13.11.2026; "Another student" until then), in the card's words alone.
+            support: [victim, game.i18n.format("DRPG.Calls.armedForYouBy", { name: esc(bystander.name), what: grant("advantage") })],
             obstacle: [killer, game.i18n.format("DRPG.Calls.armedByMonokuma", { what: grant("disadvantage") })],
             drink: [bystander, used(items.drink)],
             snap: [bystander, broke(items.snap)],
@@ -68972,7 +68973,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(J(read?.gone), J([3, "string", 3, 0, false]),
             "[the walls with the wall deleted, the close's refusal, the walls after it, the breach's rows, the Lab forced] - a close with its wall gone rebuilds or deletes something, or leaves the room beyond forced");
     }],
-    ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner gets the room's card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
+    ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner standing in it no second card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
         /*
          * E15 part 2 C4 (25.10.2026; A10's S16-17, step 15; the stage's E15-50 to E15-54, its write roads "a room's lock,
          * bedroom" and "a room's seal", and E14's Q1 of 18.10: "bez klucza tunelem i breach"). The harms: a breach that
@@ -69167,12 +69168,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[Botan's built passage open to him, to Hana; Botan through it into Kenta's Den, Botan into the Den by the door] - a built passage into a bedroom asks a key, or another's bedroom opens with none");
         equal(J(read?.cut), J([true, open, true]),
             "[crossed; the Lab forced on both pieces, its seal lifted, its lock lifted, Kenta walks in, the bedroom open to him here and anywhere, the Den still shut; the Despair as before] - the breach does not force the room beyond, or pays Despair back");
-        equal(J(read?.cards1), J([[[], ["thereNamed wallBreached"], ["heard wallBreached"]], [[], ["bedroom unsealed"], []]]),
-            "[the cards to Hana's, Botan's and Kenta's players: the builder's own none, Botan in the Lab named, Kenta in the Bath a crash; the room's card to its owner, with the lifted seal] - the wrong people told of a breach");
+        // Botan stands in his own Lab, the room beyond: he saw it done and gets that room's card alone - the bedroom's card
+        // with the lifted seal, which went to its owner wherever he stood until privacy line 1 (the owner's rule #1,
+        // 13.11.2026; doors-gm.mjs `noteBedroom`), is no second card (PV-DOORS-T3 holds the owner away).
+        equal(J(read?.cards1), J([[[], ["thereNamed wallBreached"], ["heard wallBreached"]], [[], [], []]]),
+            "[the cards to Hana's, Botan's and Kenta's players: the builder's own none, Botan in the Lab named, Kenta in the Bath a crash; no bedroom card to its owner, who stood in it] - the wrong people told of a breach");
         equal(J([read?.chained, read?.trial]), J(["chained", "trialLocked"]), "[a chained Kenta into the forced Lab, anyone into it in a Class Trial] - a breach frees a chained student or opens the courtroom");
         equal(J(read?.undone), J(shut), "[the Lab after the Reroll's undo in the same time of day] - the undo leaves the room forced, unlocked or unsealed");
-        equal(J(read?.cards2), J([[[], ["bedroom unsealed", "there wallBreached"], ["here wallBreached"]], false]),
-            "[the cards of a secret breach finished with Hana in the Yard: hers none, Botan in the Lab nameless with his room's card (the seal the undo put back, lifted again), Kenta in the Hall nameless; Hana's name in any card to them] - a builder who was not there is named");
+        equal(J(read?.cards2), J([[[], ["there wallBreached"], ["here wallBreached"]], false]),
+            "[the cards of a secret breach finished with Hana in the Yard: hers none, Botan in the Lab nameless and no second bedroom card (privacy line 1: he stood in it), Kenta in the Hall nameless; Hana's name in any card to them] - a builder who was not there is named");
         equal(J(read?.sealedAgain), J([true, "roomSealed"]), "[the Lab still forced, Kenta into it after a new seal] - a breach unseals a seal set after it");
         equal(J(read?.nextUndone), J({ ...shut, sealed: false, move: "doorLocked" }), "[the Lab after the undo in the next time of day] - a seal put back into a time of day it was not lifted in");
         equal(J(read?.reset), J([true, false, [null, null]]), "[the Lab forced again, after the reset, its pieces] - the reset leaves a room forced");
@@ -95726,6 +95730,365 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             reroll: [null, 1], rerollUsed: [[B, true], 1] }),
             "{open: [opened, the picker's room after, the pass, the picker's walk in, another's]; copy: [the room in the owner's copy, its scene, whether another player's copy holds it]; inside, left: [the pass, the picker's walk in] after the crossing in and out; unused, inUse: the pass after a new time of day; seal: [opened, the picker's walk, another's]; reroll, rerollUsed: [the pass, lines] after a Reroll of 10 before and after the entry} - the pick's pass");
     }],
+    ["PV-DOORS-T1 - the people in the character's own room always see who works its doors, and everyone behind a barricade hears a knock (scripts/doors-gm.mjs `shutDoor`, `forceDoor`, `pickLock`, `knockDoor`; the owner's rules #8 and #9, 13.11.2026): Shut the Door, a Force missed with Hope and a Pick whose Shadow cover passed each send the other student in the character's room a card naming the character, and nobody in the room beyond one; a Pick whose cover failed and a Force missed with Despair tell both rooms, as before; a walk refused at a barricade is heard by everyone in the barricaded room - its author and the student beside them - and never by the walker", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026. Judged as the primary judges the player's packets (`G.judge`), each roll a
+         * message of the character's with the GMs' record of it (`recordFor`). The harness's scene draws no doors, so the
+         * rooms' doors are Room Setup's word (`ROOM_FLAGS.neighbours`): the character's room A, where a second student `near`
+         * stands; the door's room B, where a third, `other`, stands; C beyond B; one apart. Each step reads what each of the
+         * two was sent, by the card's text. The knock is asked as the walker's veto asks it (`door.knock`), at B's barricade,
+         * which `other` puts up with `near` beside them in B. Put back: the records, the messages, the flags, the barricades,
+         * the pass, the Remnants, the tokens.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const P = await import("./lockpick-gm.mjs");
+        const { esc } = await import("./utils.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        const { player, actor } = await playerInRoom();
+        const scene = canvas.scene;
+        // Who reads a card is read off its packet (`wordsSent`): each of the three students has a player of their own.
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const others = game.actors.filter(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a) && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        const near = others[0], other = others.find(a => near && !readers(a).some(id => readers(near).includes(id)));
+        must(near && other, "no two living students of two other players with a token on the scene on screen - this would measure nothing");
+        const tokens = [actor, near, other].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 4, `the scene on screen has ${rooms.length} rooms - too few for A, B, C and one apart`);
+        const [A, B, C, far] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B], [far]: [] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { requestId: `PVD1${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+        };
+        const rollOf = async (key, total, withHope = true) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, withHope });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const lock = async on => { for (const piece of roomRegions(scene, B)) { if (on) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true); else await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.locked); } };
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const fmt = (key, data = {}) => esc(game.i18n.format(key, { name: actor.name, ...data }));
+        const TEXTS = {
+            shut: () => fmt("DRPG.Infiltrate.shut.seenBy", { room: A }),
+            tried: () => fmt("DRPG.Infiltrate.force.triedBy", { room: B }),
+            forced: () => fmt("DRPG.Infiltrate.force.forcedBy", { room: B }),
+            picking: () => fmt("DRPG.Infiltrate.pick.seenBy", { room: B }),
+            knock: () => esc(game.i18n.localize("DRPG.Infiltrate.shut.knock"))
+        };
+        // What `who`'s player was sent since the last read, each card named by its text; "?" a card none of them is.
+        let packets = [];
+        const marks = new Map();
+        const sent = who => {
+            const all = packets.filter(w => w.to.some(id => readers(who).includes(id)));
+            const fresh = all.slice(marks.get(who.id) ?? 0);
+            marks.set(who.id, all.length);
+            return fresh.map(w => Object.entries(TEXTS).find(([, text]) => w.html.includes(text()))?.[0] ?? "?");
+        };
+        const step = async run => { sent(near); sent(other); sent(actor); const answer = await run(); return [answer, sent(near), sent(other)]; };
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) keep(piece, M.ROOM_FLAGS.locked);
+            await tokens[0].update(M.positionIn(A, tokens[0]), PLACE);
+            await tokens[1].update(M.positionIn(A, tokens[1]), PLACE);
+            await tokens[2].update(M.positionIn(B, tokens[2]), PLACE);
+            await settle();
+            read.shut = await step(async () => ask({ action: "door.shut", rollId: await rollOf("shut", 14) }));
+            await D.endBarricade(D.barricadeKey(scene.id, A));
+            await lock(true);
+            read.forceHope = await step(async () => ask({ action: "door.force", room: B, rollId: await rollOf("force", 17, true) }));
+            read.forceDespair = await step(async () => ask({ action: "door.force", room: B, rollId: await rollOf("force", 17, false) }));
+            read.pickHidden = await step(async () => ask({ action: "door.pick", room: B, rollId: await rollOf("pick", 15), coverRollId: await rollOf("pickCover", 16) }));
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            read.pickSeen = await step(async () => ask({ action: "door.pick", room: B, rollId: await rollOf("pick", 14), coverRollId: await rollOf("pickCover", 10) }));
+            await lock(false);
+            // The knock: `near` joins `other` in B, `other` barricades it, the character in A tries B's door.
+            await tokens[1].update(M.positionIn(B, tokens[1]), PLACE);
+            await settle();
+            read.barricaded = Boolean((await D.shutDoor({ actor: other, total: 14 }))?.room);
+            const knock = await step(async () => {
+                const at = told.length;
+                await G.judge(BRIDGE_ACTIONS, { action: "door.knock", requestId: `PVD1${foundry.utils.randomID(8)}`, actorId: actor.id, room: B },
+                    game.user.id, { send: (to, reply) => told.push(reply) });
+                await settle();
+                return told.length - at;
+            });
+            read.knock = [...knock, sent(actor)];
+          });
+        } finally {
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            for (const room of [A, B]) await D.endBarricade(D.barricadeKey(scene.id, room));
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            await M.setRoomBroken(scene, B, false);
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, near.id, other.id].includes(m.speaker?.actor))) await m.delete();
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ shut: ["done", ["shut"], []], forceHope: ["done", ["tried"], []], forceDespair: ["done", ["tried"], ["tried"]],
+            pickHidden: ["done", ["picking"], []], pickSeen: ["done", ["picking"], ["picking"]], barricaded: true,
+            knock: [0, ["knock"], ["knock"], []] }),
+            "{step: [answer, the cards of the student beside the character, of the student in the room beyond]; barricaded: B's put up; knock: [packets answered, near's, the author's, the walker's]} - who sees a door worked, and who hears a knock");
+    }],
+    ["PV-DOORS-T2 - a Support's card names the student who spent the Hope, on the GM's road and on a player's, and Monokuma's and a Monocub's stay unnamed (scripts/call-effects.mjs `armCall`, bridge-runs-records.mjs `handleArm`, `tellBeneficiary`; the owner's rule #9, 13.11.2026): a Support a GM arms from a student and one a player buys through `call.arm` each send the beneficiary armedForYouBy with the buyer's name; an Obstacle from Monokuma sends armedByMonokuma and a Meddle armedByNobody, neither with the buyer's name", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026. Two players' characters: the beneficiary and the buyer, whose player asks
+         * `call.arm` as their browser does (`G.judge`), with 3 Hope written by a GM and put back. The armed Calls are put
+         * back by the beneficiary's flag as it was, and every card to the beneficiary is deleted.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const E = await import("./call-effects.mjs");
+        const { esc } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const pairs = game.users.filter(u => !u.isGM && u.active).flatMap(u => game.actors
+            .filter(a => a.type === "character" && a.testUserPermission(u, "OWNER") && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a))
+            .map(a => ({ user: u, actor: a })));
+        const buyerOf = pairs.find(p => pairs.some(q => q.user.id !== p.user.id && !p.actor.testUserPermission(q.user, "OWNER")));
+        must(buyerOf, "no two connected players each with a living student - this would measure nothing");
+        const targetOf = pairs.find(q => q.user.id !== buyerOf.user.id && !buyerOf.actor.testUserPermission(q.user, "OWNER"));
+        const target = targetOf.actor;
+        const buyer = buyerOf.actor;
+        const flagWas = foundry.utils.deepClone(target.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
+        const hopeWas = buyer.system.resources.hope.value;
+        const seenIds = new Set(game.messages.map(m => m.id));
+        // Who reads a card is read off its packet (`wordsSent`): the beneficiary's player.
+        const reader = targetOf.user.id;
+        let packets = [], seen = 0;
+        const cards = () => {
+            const all = packets.filter(w => w.to.includes(reader));
+            const fresh = all.slice(seen);
+            seen = all.length;
+            return fresh.map(w => w.html);
+        };
+        const grant = key => E.grantWords ? E.grantWords(key, "acc") : game.i18n.localize(`DRPG.Calls.grants.${key}`);
+        const reset = async () => {
+            if (flagWas === null) await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            else await target.setFlag(MODULE_ID, FLAGS.pendingCall, flagWas);
+            await settle();
+        };
+        const named = list => list.map(text => [text.includes(esc(buyer.name)),
+            ["armedForYouBy", "armedForYou", "armedByMonokuma", "armedByNobody"].find(key => {
+                const keyText = game.i18n.format(`DRPG.Calls.${key}`, { name: esc(buyer.name), what: "\u0000" }).split("\u0000")[0];
+                return keyText && text.includes(keyText);
+            }) ?? "?"]);
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            await reset();
+            cards();
+            await E.armCall(target, { key: "support", kind: "hope", grants: "advantage", from: buyer.id });
+            await settle();
+            read.gm = named(cards());
+            await reset();
+            await trustedWrite(buyer, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            const nonce = `PVD2${foundry.utils.randomID(6)}`, replies = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `PVD2${nonce}`, actorId: target.id,
+                call: { key: "support", kind: "hope", grants: "advantage", from: buyer.id, nonce } }, buyerOf.user.id, { send: (to, reply) => replies.push(reply) });
+            await settle();
+            await wait(50);
+            read.player = [replies.find(r => r?.action === "bridge.done" || r?.action === "bridge.refused")?.action ?? null, ...named(cards())];
+            await reset();
+            await E.armCall(target, { key: "obstacle", kind: "despair", grants: "disadvantage", from: "monokuma" });
+            await settle();
+            read.monokuma = named(cards());
+            await reset();
+            await E.armCall(target, { key: "meddle", grants: "advantage", from: buyer.id });
+            await settle();
+            read.meddle = named(cards());
+          });
+        } finally {
+            await reset();
+            await trustedWrite(buyer, { "system.resources.hope.value": hopeWas }, { reason: "gmRuling" });
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && m.speaker?.actor === target.id)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gm: [[true, "armedForYouBy"]], player: ["bridge.done", [true, "armedForYouBy"]],
+            monokuma: [[false, "armedByMonokuma"]], meddle: [[false, "armedByNobody"]] }),
+            "{road: [[the buyer's name on the card, the sentence]]} - who a Call's card names");
+    }],
+    ["PV-DOORS-T3 - a bedroom's owner hears of their door forced, its lock picked carelessly, a wall breached into it or its lock repaired when they next walk into that bedroom, once, in one card; never at once from elsewhere, and never twice where they saw it done (scripts/doors-gm.mjs `noteBedroom`, `tellBedroomNotes`, `forceDoor`, `pickLock`, `repairLockDone`; passages-gm.mjs `tellBreach`; gm-stores.mjs `bedroomNoteStore`; traps.mjs `onCrossed`; the owner's rule #1, 13.11.2026): with the owner in a room apart, a careless pick, a forced door, a breach and a repair send the owner nothing; their crossing into the bedroom sends one card with the four sentences in that order, a second crossing none; with the owner beside the picker they get the named card and nothing on entering; with the owner inside the bedroom, a careless pick under cover is told at once, unnamed, and a forced door only by its named card", async () => {
+        /*
+         * Privacy line 1 (doors), 13.11.2026, built on the stash notice's mechanism (1.2.112: a GMs' pending mark, delivered
+         * on the owner's crossing into the room on the primary). Judged as the primary judges the player's packets
+         * (`G.judge`), each roll a message of the character's with the GMs' record of it (`recordFor`); the breach's card
+         * asked as its completion asks it (`tellBreach`), the repair's as its completion (`repairLockDone`), the owner's
+         * crossing as the relay hands it to the primary (`drpgRoomCrossed`). Rooms: the character's A, the owner's bedroom
+         * B next to it (Room Setup's neighbours and owner, written and put back), C beyond B, and one apart where the owner
+         * first stands. What the owner's player was sent is read off the packets (`wordsSent`), each card by its sentences.
+         * Put back: the records, the messages, the flags, the pass, the broken lock, the notes, the Remnants, the tokens.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const P = await import("./lockpick-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { tellBreach } = await import("./passages-gm.mjs");
+        const { esc, isPrimaryGm } = await import("./utils.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears a crossing - this would measure nothing");
+        const { player, actor } = await playerInRoom();
+        const scene = canvas.scene;
+        const readers = who => game.users.filter(u => !u.isGM && who.testUserPermission(u, "OWNER")).map(u => u.id);
+        const owner = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !isDeadForGm(a) && readers(a).length && scene?.tokens?.some(t => t.actorId === a.id && !t.hidden));
+        must(owner, "no living student of another player with a token on the scene on screen - this would measure nothing");
+        const tokens = [actor, owner].map(a => scene.tokens.find(t => t.actorId === a.id));
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 4, `the scene on screen has ${rooms.length} rooms - too few for A, B, C and one apart`);
+        const [A, B, C, far] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B], [far]: [] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { requestId: `PVD3${foundry.utils.randomID(8)}`, actorId: actor.id, room: B, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+        };
+        const rollOf = async (key, total, withHope = true) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, withHope });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const pick = async (hand, cover) => {
+            const out = await ask({ action: "door.pick", rollId: await rollOf("pick", hand), coverRollId: await rollOf("pickCover", cover) });
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            return out;
+        };
+        const force = async total => ask({ action: "door.force", rollId: await rollOf("force", total) });
+        const stand = async (i, room) => { await tokens[i].update(M.positionIn(room, tokens[i]), PLACE); await settle(); };
+        const cross = async () => {
+            Hooks.callAll("drpgRoomCrossed", { actor: owner, from: null, to: B, tokenDoc: tokens[1] });
+            await settle();
+            await until(() => false, 400);
+            await settle();
+        };
+        const TEXTS = {
+            warned: () => esc(game.i18n.format("DRPG.Infiltrate.pick.warned", { room: B })),
+            yourDoor: () => esc(game.i18n.format("DRPG.Infiltrate.force.yourDoor", { room: B })),
+            breached: () => game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(B) }),
+            mended: () => esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room: B })),
+            picking: () => esc(game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room: B })),
+            forcedBy: () => esc(game.i18n.format("DRPG.Infiltrate.force.forcedBy", { name: actor.name, room: B }))
+        };
+        // Each card the owner's player was sent since the last read: the sentences it holds, in the order they stand in it.
+        let packets = [], seen = 0;
+        const cards = () => {
+            const all = packets.filter(w => w.to.some(id => readers(owner).includes(id)));
+            const fresh = all.slice(seen);
+            seen = all.length;
+            return fresh.map(w => Object.entries(TEXTS).map(([k, text]) => [k, w.html.indexOf(text())]).filter(([, at]) => at >= 0)
+                .sort((a, b) => a[1] - b[1]).map(([k]) => k));
+        };
+        const noteKeys = () => Object.keys(S.bedroomNoteStore?.entries?.() ?? {}).filter(k => k.startsWith(`${owner.id}:`));
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+          await wordsSent(async list => {
+            packets = list;
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) {
+                keep(piece, M.ROOM_FLAGS.locked); keep(piece, ROOM_OWNER_FLAG);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+                await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
+            }
+            await stand(0, A);
+            await stand(1, far);
+            cards();
+            // Away: a careless pick (an open below 18, covered), a forced door, a breach into it, the lock repaired.
+            const away = [await pick(15, 16), cards()];
+            away.push(await force(18), cards());
+            away.push(await tellBreach({ id: "PVD3breach", sceneId: scene.id, builderId: actor.id, forced: { room: B, from: A } }) >= 0, cards());
+            away.push(Boolean((await D.repairLockDone("PVD3project", { sceneId: scene.id, lockRoom: B }))?.mended), cards());
+            read.away = away;
+            await cross();
+            read.entered = cards();
+            await cross();
+            read.again = [cards(), noteKeys().length];
+            // Beside the picker: the named card (rule #8), and nothing waits.
+            await stand(1, A);
+            read.beside = [await pick(15, 16), cards()];
+            await stand(1, far);
+            await cross();
+            read.besideEntered = cards();
+            // Inside the bedroom: a covered careless pick told at once, unnamed; a forced door by its named card alone.
+            await stand(1, B);
+            read.inside = [await pick(15, 16), cards()];
+            read.inside.push(await force(18), cards());
+            await M.setRoomBroken(scene, B, false);
+            await cross();
+            read.insideEntered = [cards(), noteKeys().length];
+          });
+        } finally {
+            {
+                const { remnantData } = await import("./remnants.mjs");
+                for (const t of scene.tokens.filter(t => remnantData(t)?.action === "infiltrate")) await t.delete();
+            }
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            await M.setRoomBroken(scene, B, false);
+            for (const key of noteKeys()) await S.bedroomNoteStore.drop(key);
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            // Every card this test made: the doors', the breach's to the rooms and the GMs, the notes.
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ away: ["done", [], "done", [], true, [], true, []], entered: [["warned", "yourDoor", "breached", "mended"]],
+            again: [[], 0], beside: ["done", [["picking"]]], besideEntered: [], inside: ["done", [["warned"]], "done", [["forcedBy"]]], insideEntered: [[], 0] }),
+            "{away: [answer, the owner's cards] for a careless pick, a forced door, a breach, a repair, the owner in a room apart; entered: the cards on walking into the bedroom, each by its sentences in order; again: [a second crossing's, notes left]; beside: a pick with the owner in the picker's room; besideEntered; inside: a covered careless pick and a forced door with the owner in the bedroom; insideEntered: [cards, notes left]} - a bedroom's owner told on walking in");
+    }],
     ["A113-C4-3 - a stash's owner is told on every road that stands them in its room: a settled crossing (crossing rooms free, an Eclipse) and a GM's placement tell them as a paid crossing does, and once (traps.mjs `onCrossed`, arrival-notices.mjs, stash-reach.mjs `tellStashDisturbed`; 1.2.112's notice, the owner's decision of 13.11.2026)", async () => {
         /*
          * The audit of 1.2.113 (A113-C4-3): the notice fired only from `drpgRoomCrossed`, raised at the end of a paid
@@ -95898,102 +96261,6 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ away: [["pending", true, true]], told: [["told", true, true]], watched: [["watched", true, true]] }),
             "{away, told, watched: the GMs-only cards [kind, to the GMs alone, names the thief] after a reach while the owner was away, "
             + "after the owner's crossing in, after a reach before the owner's eyes} - the GMs cannot tell a pending notice from a watched reach");
-    }],
-    ["A113-C5-1 - a bedroom's owner is warned of a careless pick at their next entry into the room, at once when they stand in it, and once (doors-gm.mjs `pickLock`, `tellLockPicked`, gm-stores.mjs `lockNoticeStore`; DA30, docs/dev/e74/STATUS.md; the audit of 1.2.113, A113-C5-1)", async () => {
-        /*
-         * DA30 as the plan has it (E74 C4: "the owner's warning (at once if inside, else at the next entry, also in an
-         * Eclipse, from crossingSettled)"). The audit of 1.2.113 read the warning sent at once, wherever the owner stood.
-         * Rooms as E74-T11's: A the picker's, B its door's (a GM's lock, and the owner's bedroom), C beyond. The owner stood
-         * in C: a pick at 15 (careless); the owner's settled crossing into B, twice; the owner stood in B: a pick at 15, then
-         * one at 18 (clean). Read the warnings to the owner after each. Red at ceb9e9c8: the warning at the first pick.
-         */
-        const M = await import("./movement.mjs");
-        const D = await import("./doors-gm.mjs");
-        const { roomRegions } = await import("./rooms.mjs");
-        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
-        const { CROSSING_SETTLED } = await import("./crossing-settle.mjs");
-        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
-        const L = await import("./lockpick-gm.mjs");
-        const S = await import("./gm-stores.mjs");
-        const { actor } = await playerInRoom();
-        const owner = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.getFlag(MODULE_ID, FLAGS.monokuma)
-            && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
-        must(owner, "no second student with a token on the scene on screen - this would measure nothing");
-        const scene = canvas.scene;
-        const token = scene.tokens.find(t => t.actorId === actor.id);
-        const ownerToken = scene.tokens.find(t => t.actorId === owner.id);
-        const rooms = M.allRooms(scene);
-        must(rooms.length >= 3, `the scene on screen has ${rooms.length} rooms - too few for A, B and C`);
-        const [A, B, C] = rooms;
-        const doors = { [A]: [B], [B]: [A, C], [C]: [B] };
-        const PLACE = { teleport: true, movementAction: "displace", animate: false };
-        const was = [[token, { x: token.x, y: token.y }], [ownerToken, { x: ownerToken.x, y: ownerToken.y }]];
-        const flagsWere = [];
-        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
-        const text = game.i18n.format("DRPG.Infiltrate.pick.warned", { room: B });
-        const made = [];
-        const hook = Hooks.on("createChatMessage", m => made.push(m.id));
-        // The warning is whispered to the owner's players alone, so this GM keeps no words of it: read off the packet that carries them.
-        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
-        const carried = new Set();
-        socket.emit = function (event, packet, options, ...rest) {
-            if (String(packet?.html ?? "").includes(foundry.utils.escapeHTML(text))) carried.add(packet?.id ?? `${carried.size}`);
-            return send.call(this, event, packet, options, ...rest);
-        };
-        const warnings = () => carried.size;
-        const pick = total => D.pickLock({ actor, room: B, total, coverTotal: 16, tell: false });
-        const wait = async () => { await settle(); await until(() => false, 300); await settle(); };
-        const read = [];
-        try {
-            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
-                keep(piece, M.ROOM_FLAGS.neighbours);
-                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
-            }
-            for (const piece of roomRegions(scene, B)) {
-                keep(piece, M.ROOM_FLAGS.locked);
-                keep(piece, ROOM_OWNER_FLAG);
-                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
-                await piece.setFlag(MODULE_ID, ROOM_OWNER_FLAG, owner.id);
-            }
-            await token.update(M.positionIn(A, token), PLACE);
-            await ownerToken.update(M.positionIn(C, ownerToken), PLACE);
-            await wait();
-            const out = await pick(15);
-            await wait();
-            read.push(["away", out.opened, warnings()]);
-            Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: C, to: B, via: null, eclipse: null, sceneId: scene.id });
-            await wait();
-            read.push(["entered", warnings()]);
-            Hooks.callAll(CROSSING_SETTLED, { actorId: owner.id, from: C, to: B, via: null, eclipse: null, sceneId: scene.id });
-            await wait();
-            read.push(["again", warnings()]);
-            await ownerToken.update(M.positionIn(B, ownerToken), PLACE);
-            await wait();
-            await L.endPass(actor.id);
-            await pick(15);
-            await wait();
-            read.push(["inside", warnings()]);
-            await L.endPass(actor.id);
-            await pick(18);
-            await wait();
-            read.push(["clean", warnings()]);
-        } finally {
-            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit);
-            else delete socket.emit;
-            Hooks.off("createChatMessage", hook);
-            if (L.passOf(actor.id)) await L.endPass(actor.id);
-            for (const key of Object.keys(S.lockNoticeStore?.entries?.() ?? {})) if (key.startsWith(`${owner.id}:`)) await S.lockNoticeStore.drop(key);
-            for (const [piece, key, value] of flagsWere.reverse()) {
-                if (value === null) await piece.unsetFlag(MODULE_ID, key);
-                else await piece.setFlag(MODULE_ID, key, value);
-            }
-            for (const [t, at] of was) if (scene.tokens.has(t.id)) await t.update(at, PLACE);
-            for (const id of made) await game.messages.get(id)?.delete();
-            await settle();
-        }
-        equal(stableJson(read), stableJson([["away", true, 0], ["entered", 1], ["again", 1], ["inside", 2], ["clean", 2]]),
-            "a bedroom's owner was warned of a careless pick while away, not at their entry, twice, not at once while inside, or of a clean pick "
-            + "([the owner away: opened, warnings], [after the settled crossing into the room], [after a second], [the owner inside: after a pick at 15], [after one at 18])");
     }],
     ["A113-C5-4 - the school's mood counts a Monocub's purse as its Hope: Hope in the purse moves the Monocubs' side as the same Hope on the sheet does (sequence.mjs `moodInputs`, monocub.mjs `cubHopeTotal`; the owner's rule of 12.11.2026; the audit of 1.2.113, A113-C5-4)", async () => {
         /*

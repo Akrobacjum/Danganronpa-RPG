@@ -40,8 +40,11 @@ killed.
   "tak", "tak"): "that room" is the room the lock opens; a pass in use is kept until its holder leaves that room. A pass
   not used is lost at the time of day's end (the plan's own words).
 - ~~The owner's warning at the next entry, from `crossingSettled` (DA30): it is sent at once, wherever the owner is.~~ Built
-  after the audit of 1.2.113 (A113-C5-1): at once when the owner stands in the room, else kept in the GMs' store
-  `lockNoticeStore` and told at their next entry (a settled crossing or a GM's move of the token; arrival-notices.mjs).
+  in 1.2.113 (b70b3b23, the owner's rule #1 of 13.11.2026; the audit of 1.2.113, A113-C5-1): doors-gm.mjs `noteBedroom`,
+  at once when the owner stands in the bedroom, else held in the GMs' store `bedroomNoteStore` and told on their next
+  crossing in (traps.mjs `onCrossed`, the paid crossing's hook). Not yet from `crossingSettled`: with crossing fees off,
+  in an Eclipse or on a GM's placement the note waits for a paid crossing (the road the stash's notice gained in
+  arrival-notices.mjs, A113-C4-3).
 - A door forced, a lock picked whose pass was used, and a room action's effects are not taken back by a lower Reroll;
   each line says so. A pass not used is taken back.
 

@@ -3700,7 +3700,7 @@
         "yourDoor": "Ktoś wyważył drzwi: {room}. Zamek zostaje zepsuty, póki ktoś go nie naprawi."
       },
       "pick": {
-        "prompt": "Otwórz zamek z: {room}. Hand {n} go otwiera dla ciebie samego, dopóki nie wyjdziesz z pokoju za nim; {clean} lub więcej i właściciel się nie dowie. Shadow {cover} lub więcej i nikt nie widzi, kto to był.",
+        "prompt": "Otwórz zamek z: {room}. Hand {n} go otwiera dla ciebie samego, dopóki nie wyjdziesz z pokoju za nim; {clean} lub więcej i właściciel się nie dowie. Shadow {cover} lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był; osoby w twoim pokoju widzą to zawsze.",
         "coverTitle": "Pick the Lock - czy ktoś widzi?",
         "opened": "Zamek ustępuje. Możesz wejść do: {room}, dopóki z niego nie wyjdziesz; dla wszystkich innych zostaje zamknięty.",
         "held": "Zamek do: {room} trzyma.",
@@ -3731,6 +3731,7 @@
       },
       "shut": {
         "knock": "Ktoś próbuje wejść, ale drzwi nie ustępują.",
+        "seenBy": "{name} barykaduje od środka: {room}.",
         "done": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia."
       },
       "tail": {
@@ -4020,6 +4021,7 @@
       "armedTitle": "Ktoś użył Calla dla ciebie",
       "waitsNextRoll": "Nałożone po otwarciu tego okna: {what}. Nie wchodzi do tego rzutu - czeka na twój następny.",
       "armedForYou": "Inny uczeń wydał na ciebie Hope: twój następny rzut ma {what}. Działa samo.",
+      "armedForYouBy": "{name} wydaje na ciebie Hope: twój następny rzut ma {what}. Działa samo.",
       "armedByMonokuma": "Monokuma nałożył na twój następny rzut {what}. Działa samo.",
       "armedByNobody": "Twój następny rzut niesie {what}. Działa samo.",
       "newRuleTitle": "Nowa zasada killing game",
@@ -8263,9 +8265,9 @@
         "facilityUses": "Których akcji w pokojach użyła każda postać, i o jakiej porze dnia",
         "tails": "Kto dziś śledzi kogo, i jak dobrze",
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
+        "bedroomNotes": "Co działo się z każdą sypialnią pod nieobecność jej właściciela, powiedziane, gdy do niej wróci",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
-        "lockNotices": "Którzy właściciele sypialni mają się jeszcze dowiedzieć, że ktoś był przy ich zamku",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",

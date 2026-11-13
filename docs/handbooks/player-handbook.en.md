@@ -355,15 +355,15 @@ The tail ends with a card when you are neither in the room they left nor in the 
 
 ### Shut the Door - Body, 1 action
 
-Barricade the room you stand in, from inside. It works in a room with at most two doors that open, in your own bedroom but not in another's. While you stay inside, nobody walks in through a door: the door does not give. A secret passage, a breach or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends and when an Eclipse begins. The room shows that it is barricaded, never by whom. Somebody outside can force it (below).
+Barricade the room you stand in, from inside. It works in a room with at most two doors that open, in your own bedroom but not in another's. While you stay inside, nobody walks in through a door: the door does not give. A secret passage, a breach or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends and when an Eclipse begins. The room shows that it is barricaded, never by whom; the people standing in the room with you see you do it. Somebody who tries the door from outside is heard by everyone inside, without a name. Somebody outside can force it (below).
 
 ### Force the Door - Body, 1 action
 
-At a door from your room to the next: one Body roll against everything that holds it at once. A barricade gives to a roll above its strength; a lock (a GM's or a bedroom's) and a seal give to 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it, a forced seal is gone for the rest of its time of day. It is loud: the rooms next to either room hear "A banging from: {room}" without a name, and the people in the two rooms see who it was - on a success, and on a miss with Despair. A bedroom's owner is told their door was forced. Not during a Class Trial, not when you are Chained.
+At a door from your room to the next: one Body roll against everything that holds it at once. A barricade gives to a roll above its strength; a lock (a GM's or a bedroom's) and a seal give to 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it, a forced seal is gone for the rest of its time of day. It is loud: the rooms next to either room hear "A banging from: {room}" without a name, and the people in the room beyond see who it was - on a success, and on a miss with Despair. The people in your own room always see who it was, whatever the roll. A bedroom's owner who did not see it is told their door was forced when they next walk into that bedroom, or at once if they are in it. Not during a Class Trial, not when you are Chained.
 
 ### Pick the Lock - Shadow, then Hand, 1 action
 
-At a locked or sealed door from your room to the next (not a barricade): Hand 15 or more opens it for you alone: you may walk into that room, by that door or another, and stay until you leave it; the lock stays locked for everyone else. A way in you do not use in this time of day is lost. First a Shadow roll: 16 or more and nobody in the room beyond sees who it was. A bedroom's owner learns somebody was at their lock when you open it below 18 or miss with Despair - at once if they are in that room, otherwise the next time they come to stand in it; at 18 or more they never know.
+At a locked or sealed door from your room to the next (not a barricade): Hand 15 or more opens it for you alone: you may walk into that room, by that door or another, and stay until you leave it; the lock stays locked for everyone else. A way in you do not use in this time of day is lost. First a Shadow roll: 16 or more and nobody in the room beyond sees who it was; the people in your own room always see it, whatever the roll. A bedroom's owner learns somebody was at their lock when you open it below 18 or miss with Despair - when they next walk into that bedroom, or at once if they are in it, and not at all beyond the card that names you if they saw you; at 18 or more they never know.
 
 ### Keep Watch - Body, 1 action
 
@@ -442,7 +442,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 
 | Call | Cost | What it does |
 |---|---|---|
-| **Support** | 1 | Give another player advantage on one roll. You have to be in the same room. |
+| **Support** | 1 | Give another player advantage on one roll. You have to be in the same room, and they are told it was you. |
 | **Talent** | 1 | One of your experiences or your Ultimate genuinely applies to your next roll. In its window you pick which: the experience adds its level, the Ultimate gives advantage. Waits for the GM - you write what you intend, the Hope is charged only on a yes. |
 | **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. On a murder plan it also rolls to Hide the Traces, like working on it. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
@@ -543,6 +543,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 - An **open** stash is a drawer: anyone standing in the room can go through it for free and take one thing from it, once each time of day. Your bedroom's stash is open unless a hiding place has been built for it (a project the GM approves).
 - A **hidden** stash has to be found first, and only Analyze's *Find Stash* at 16+ finds it; that opens it to you for good, and from then on you go through it as you would an open one. If the GM removes a stash, whoever had found it forgets it.
 - Somebody helping themselves from a stash of yours is not announced when it happens. The next time you enter that room, you are told somebody has been in your stash - never who, nor when. You are told once however many times it happened, only when something was taken, and never for what was taken while you stood in the room.
+- Your bedroom's door forced, its lock picked carelessly, a wall broken through into it or its lock repaired while you were elsewhere: you are told when you next walk into your bedroom, in one card however many of these happened, never who. If you are in the bedroom when it happens you are told at once; if you saw it done, the card that named who did it is all you get.
 - The GM may give you a stash in another room. It does not come with a key to that room.
 - Your hands were full when something reached you - found, stolen, lifted out of a stash or taken off a body? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused, and so is something slipped into full pockets: it stays with whoever tried, and you are told nothing. From a stack, one piece moves at a time.
 
