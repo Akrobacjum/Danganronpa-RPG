@@ -847,7 +847,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Okno ustawień:** zębatka w prawym dolnym rogu otwiera Ustawienia DRPG, twoje własne ustawienia - nikt inny nie widzi ani nie słyszy różnicy; GM ma to samo okno (otwiera je też Configure Settings, DRPG Settings). Wybierz sekcję po lewej; linia pod ustawieniem mówi, co zmienia, a **Zapisz zmiany** je zapisuje - głośność i głos działają od razu, gdy się je przesuwa:
 - **Język** - English albo Polski dla okien, kart i arkusza modułu. Celowo osobno od języka Foundry. Działa po przeładowaniu. Nazwy własne zostają po angielsku w obu.
-- **Motyw** - Stained Glass (obecny wygląd) albo Monokuma Legacy (z przełącznikiem czcionki pikselowej). Pod Stained Glass nowa faza albo pora dnia obraca szkło: nowy kolor przychodzi od środka w około sekundę, a spoiny raz błyskają; tam, gdzie panele muszą się przesunąć, szyby jadą w całości na nowe miejsca, razem z teksturą. Przy **ograniczonych animacjach** szkło od razu przyjmuje nowy stan.
+- **Motyw** - Stained Glass (obecny wygląd) albo Monokuma Legacy (z przełącznikiem czcionki pikselowej). Pod Stained Glass nowa faza albo pora dnia obraca szkło: nowy kolor przychodzi od środka w około 1,2 sekundy, a spoiny raz błyskają; tam, gdzie panele muszą się przesunąć, szyby jadą w całości na nowe miejsca, razem z teksturą. Przy **ograniczonych animacjach** szkło od razu przyjmuje nowy stan.
 - **Skala interfejsu** (80% do 140%), a pod Stained Glass **puls szkła**, **nazwa stanu za zegarem** i **szkło rozmywa mapę** (pierwsze do wyłączenia, gdy ekran się przycina).
 - **Ograniczone animacje** i **wysoki kontrast**, pod oboma motywami; każde z nich idzie też za systemem operacyjnym, gdy ten o nie prosi.
 

@@ -44,6 +44,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | GM screen review | 136 | 142 | 20 (GM handbook sections 1, 2, 6.3 and 12, player handbook section 2: the renamed settings and buttons where they are quoted; the GM's copy of `Season.roomGuide` cut to the short guide, the rest of its rules kept on a new line 137; the quote of `Vault.descriptionNote`) | the owner's approval of every proposal of the GM screen review (12.11.2026): its "niejasna nazwa" renames and its "Teksty do skrócenia" lines, as T29; EN written to match the approved Polish; `DRPG.Project.scaleOption` new (the window's English "progress"), held by R2077 |
 | player screen review | 3 | 4 | 0 | the same approval, items #6 (module mechanics a player reads) and #9 (the Daily Life explainer's count) |
 | overexplains (T29), round 2 | 17 | 17 | 0 | T29 on the texts T4 still counts over their word budget and that no open line touches: 13 settings hints, the Background clash, the Despair Flow empty pool, the sentence that failed; `enforceAnonymity.hint` also given the two things anonymity.mjs shows that it left out (Ultimate, the count of Experiences) |
+| handbook numbers (E57 prep F2, F3) | 0 | 0 | 6 (GM 681, brochure 69, player 850; EN and PL) | the coordinator's ask of 13.11, from claude/e57-prep b7575629 docs/dev/e57/MEASURE-numbers.md: the trap card's "four to six actions" -> "four to five" (murder-ui.mjs `indirectCostText`, R1160 reads 4 to 5); the brochure's trap roll "Eye vs 20" -> "Eye or Head vs 20" (config.mjs `MURDER_OPENING.victim`, traits eye and head); the glass's turn "about a second" -> "about 1.2 seconds" (glass.mjs `turnPlan` dur 1200, as the GM handbook says). GM section 11 is frozen by e64 and e93 and the brochure's section by e72, but none of them edits these lines: merge-tree with each is clean |
 
 ## Text rules exercised ("to confirm in E71"), and the outcome
 
@@ -144,6 +145,7 @@ edited unless the row says so.
 | 12.11, run ac | 90ec7ae7 and the screen reviews, after run aa's and ab's fixes and the merge fixes | 1230 passed, 0 failed, 16 skipped, 0 red (389 s) |
 | 12.11, run ad | d640019e and T29 round 2 | 1230 passed, 0 failed, 16 skipped, 0 red (317 s); `npm run quick` green |
 | 12.11, run ae | a3ffef84 and the O8 refusals | 1230 passed, 0 failed, 16 skipped, 0 red (325 s); `npm run quick` green |
+| 13.11, run af | cbf3b657 and the E57 prep number fixes | 1230 passed, 0 failed, 16 skipped, 0 red (337 s); `npm run quick` green; a first run during a container restart ran no tests and is not counted |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
