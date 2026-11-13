@@ -275,8 +275,13 @@
     },
     "Settings": {
       "forceDiceLook": {
-        "name": "One dice look for the table",
-        "hint": "Every player and Assistant GM throws Dice So Nice dice in the look of one full Gamemaster, fixed the first time the game runs with it on, with no special effects but those a Gamemaster marks as global, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table beyond the effects they mark as global. Every Hope and Despair die takes the look that Gamemaster set in Daggerheart, whoever throws it (Daggerheart 2.9 and older). Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+        "name": "Dice look for the table",
+        "hint": "With one look, players and Assistant GMs throw in one full Gamemaster's Dice So Nice look, fixed the first time the game runs with it on. The Daggerheart look adds Daggerheart's Hope and Despair colors.",
+        "choices": {
+          "own": "Each player's own look",
+          "dsn": "One look for the table: Dice So Nice",
+          "daggerheart": "One look for the table: Daggerheart"
+        }
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
@@ -3871,8 +3876,8 @@
           "lowQuality": "{name} draws dice at low image quality.",
           "presetDiffers": "{duality} of the roll read carries another preset than this browser's Daggerheart setting: it was thrown on another browser.",
           "presetMissing": "{duality} of the roll read carries no Daggerheart preset, so it is drawn in its thrower's Dice So Nice look.",
-          "presetMissingLaid": "{duality} of the roll read carries no Daggerheart preset of its own; with One dice look for the table on, this browser draws it in the table's Hope and Despair look.",
-          "presetDiffersLaid": "{duality} of the roll read carries another preset than the table's Hope and Despair look; with One dice look for the table on, this browser draws it in the table's look over its own.",
+          "presetMissingLaid": "{duality} of the roll read carries no Daggerheart preset of its own; with one look for the table, this browser draws it in the table's Hope and Despair look.",
+          "presetDiffersLaid": "{duality} of the roll read carries another preset than the table's Hope and Despair look; with one look for the table, this browser draws it in the table's look over its own.",
           "missingSystem": "Dice So Nice on this browser has no dice system \"{name}\", so dice that use it are drawn as standard dice here.",
           "missingColorset": "Dice So Nice on this browser has no colorset \"{name}\", so dice that use it are drawn in a custom colour here.",
           "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
@@ -4540,7 +4545,7 @@
         "liveKitInFoundry": "LiveKit's voice stays inside the Foundry window for everyone.",
         "rtcDock": "Foundry's camera dock is folded while the voice tile is on, and no camera pops out.",
         "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog and global light: turning 'Rooms decide what players can see' off gives them back.",
-        "diceLook": "While 'One dice look for the table' is on, every player and Assistant GM throws Dice So Nice dice in one full Gamemaster's look. Give back does not change this, and nobody's own earlier look comes back: the module never kept it."
+        "diceLook": "With one look for the table in 'Dice look for the table', every player and Assistant GM throws Dice So Nice dice in one full Gamemaster's look. Give back does not change this, and nobody's own earlier look comes back: the module never kept it."
       },
       "givenBackState": "Given back: the module leaves these settings alone until you hold them again.",
       "filesStay": "Give back leaves the file permissions as they are now: if players should browse or upload files, grant it in Foundry's permissions.",

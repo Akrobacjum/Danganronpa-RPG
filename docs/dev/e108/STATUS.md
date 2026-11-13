@@ -113,7 +113,8 @@ value as the switches are (an Assistant's write is put back).
 
 ## Not tried, and open
 
-- What the throw looks like at a table, on each screen, in each value: LIVE-E108-01 (to be added to audit/AUDIT-1.2.42.md 9).
+- What the throw looks like at a table, on each screen, in each value: LIVE-E108-01 (audit/AUDIT-1.2.42.md 9.2, row 508).
+- The registry stamps R5460-R5466 with stage E93, not E108: tools/stages.json has no E108 (`registry.mjs --write --stage E108` refuses), and this stage may not edit stages.json. The coordinator's to add.
 - Q-E108-1 (owner): in the Daggerheart value, should the basic dice stay the GM's DSN look (built), or be each player's
   own?
 - Q-E108-2 (owner): close the `roleAppearance` gap in the Dice So Nice value (force the GM's role looks on users and

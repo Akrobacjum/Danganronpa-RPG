@@ -172,10 +172,11 @@ const SOURCE = "source:";
 /** The debounce and fuse key of an unlinked token's own overlay: `token:<sceneId>.<tokenId>`. */
 const TOKEN = "token:";
 /**
- * The world settings only a full Gamemaster sets (the owner's Q5, its default (a)); and since E60 C5d the table's Hope
- * and Despair dice, which the source's own browser writes (`keepDualityLook`) and the primary holds as it holds these.
+ * The world settings only a full Gamemaster sets (the owner's Q5, its default (a)); since E60 C5d the table's Hope
+ * and Despair dice, which the source's own browser writes (`keepDualityLook`) and the primary holds as it holds these;
+ * since E108 the look the switch forces (settings.mjs `diceLookChoice`), or an Assistant would choose the table's dice.
  */
-const SWITCHES = [SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceDualityLook];
+const SWITCHES = [SETTINGS.forceDiceLook, SETTINGS.diceLookKind, SETTINGS.diceLookSource, SETTINGS.diceDualityLook];
 /** Two values of a switch alike: an object (the Hope and Despair look) by its JSON, whatever its keys' order. */
 const sameSwitch = (a, b) => stableJson(a ?? null) === stableJson(b ?? null);
 
