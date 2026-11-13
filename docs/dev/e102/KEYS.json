@@ -1482,6 +1482,14 @@
    "sites": [
     "tables-editor:1679"
    ]
+  },
+  "resetMusicTooltip": {
+   "key": "DRPG.Tips.Setup.resetMusicTooltip",
+   "en": "Stops the chosen track and brings back the music it interrupted",
+   "pl": "Zatrzymuje wybrany utwór i przywraca muzykę, którą przerwał",
+   "sites": [
+    "sound-panel:177"
+   ]
   }
  }
 }

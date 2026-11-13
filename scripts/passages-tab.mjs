@@ -41,7 +41,7 @@
  */
 
 import { error } from "./utils.mjs";
-import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips, tipAttr, tipText } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
@@ -79,10 +79,10 @@ function nameOf(actorId, actors) {
  * the readers' selectors (`.drpg-passage-chip[data-drpg-actor]`, `[data-drpg-passage-act][data-drpg-actor]`,
  * `[data-drpg-passage-leave]` inside the chip) hold.
  */
-function chip(actorId, { actors, act, how = null, leave = null, cross }) {
+function chip(actorId, { actors, act, how = null, leave = null, cross, tip = "" }) {
     const name = nameOf(actorId, actors);
     const until = leave ? ` <b data-drpg-passage-leave>${esc(tf("DRPG.Passage.tab.leaving", { room: leave }))}</b>` : "";
-    const attrs = { "data-how": how, "data-drpg-passage-act": act, "data-drpg-actor": actorId, "aria-label": `${cross}: ${name}`, title: cross };
+    const attrs = { "data-how": how, "data-drpg-passage-act": act, "data-drpg-actor": actorId, "aria-label": `${cross}: ${name}`, ...(tip ? { "data-tooltip": tip } : { title: cross }) };
     return kitChip({ label: name, pressed: true, count: how ? t(HOW[how] ?? HOW.gm) : null, cls: "drpg-passage-chip", attrs })
         .replace(/<\/button>$/, `${until}<span class="drpg-passage-chip-mark" aria-hidden="true">x</span></button>`);
 }
@@ -97,7 +97,7 @@ function adder(menu, act, offer, label) {
     if (!offer.length) return "";
     return `<button type="button" class="drpg-mini-button drpg-passage-add" data-drpg-passage-act="menu" data-drpg-menu="${menu}"
         aria-label="${esc(label)}" title="${esc(label)}" aria-expanded="false">+</button><span class="drpg-passage-menu" data-drpg-menu-of="${menu}" hidden>${
-        offer.map(a => `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}" data-drpg-actor="${esc(a.id)}">${
+        offer.map(a => `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}" data-drpg-actor="${esc(a.id)}"${tipAttr("DRPG.Tips.Setup.aStudentSNameTooltip")}>${
             esc(a.name)}</button>`).join("")}</span>`;
 }
 
@@ -130,9 +130,9 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     const none = `<span class="drpg-passage-none">${esc(t("DRPG.Passage.tab.none"))}</span>`;
 
     const knowsCell = `${knows.length ? knows.map(([actorId, cell]) => chip(actorId, { actors, act: "revoke", how: cell?.how ?? "gm",
-        leave: typeof cell?.leave === "string" ? cell.leave : null, cross: t("DRPG.Passage.tab.revoke") })).join("") : none}${
+        leave: typeof cell?.leave === "string" ? cell.leave : null, cross: t("DRPG.Passage.tab.revoke"), tip: tipText("DRPG.Tips.Setup.aStudentWhoKnowsTooltip") })).join("") : none}${
         adder("grant", "grant", offer(knows.map(([actorId]) => actorId)), t("DRPG.Passage.tab.grant"))}`;
-    const startCell = `${start.length ? start.map(actorId => chip(actorId, { actors, act: "start-off", cross: t("DRPG.Passage.tab.startRemove") })).join("") : none}${
+    const startCell = `${start.length ? start.map(actorId => chip(actorId, { actors, act: "start-off", cross: t("DRPG.Passage.tab.startRemove"), tip: tipText("DRPG.Tips.Setup.aStudentKnownAtTooltip") })).join("") : none}${
         adder("start", "start-on", offer(start), t("DRPG.Passage.tab.startAdd"))}`;
 
     const state = ["secret", "closed", "broken"].includes(passage.state) ? passage.state : "secret";
@@ -186,7 +186,7 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
  */
 function button(act, key, { held = null } = {}) {
     const why = held ? ` disabled data-tooltip="${esc(t(held))}" aria-description="${esc(t(held))}"` : "";
-    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}>${esc(t(key))}</button>`;
+    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}${act === "delete" ? tipAttr("DRPG.Tips.Setup.aRowSActionTooltip") : ""}>${esc(t(key))}</button>`;
 }
 
 /**

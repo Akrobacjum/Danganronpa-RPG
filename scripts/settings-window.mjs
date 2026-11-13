@@ -62,7 +62,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { esc, error, wholeNumber } from "./utils.mjs";
-import { toggle, stepper, stepperId } from "./ui-kit.mjs";
+import { toggle, stepper, stepperId, tipAttr } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { themeOnlyKeys, scaleNote, systemWantsContrast } from "./look.mjs";
@@ -235,7 +235,7 @@ export function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), p
     const open = sections.find(s => s.key === picked)?.key ?? sections[0]?.key ?? null;
     const words = s => localize(`DRPG.SettingsWindow.sections.${s.key}`);
     const list = `<nav class="drpg-settings-sections" aria-label="${esc(localize("DRPG.SettingsWindow.sectionsLabel"))}">${sections.map(s =>
-        `<button type="button" class="drpg-settings-tab" data-drpg-section="${esc(s.key)}" aria-pressed="${s.key === open}">`
+        `<button type="button" class="drpg-settings-tab" data-drpg-section="${esc(s.key)}" aria-pressed="${s.key === open}"${tipAttr("DRPG.Tips.Setup.sectionTooltip")}>`
         + `<i class="fa-solid ${esc(s.icon)}" inert></i><span>${esc(words(s))}</span><b>${s.shown.length + s.extra.count}</b></button>`).join("")}</nav>`
         + (foot ? `<div class="drpg-settings-note drpg-settings-foot">${esc(foot)}</div>` : "");
     const panes = sections.map(s => `<div class="drpg-settings-pane" data-drpg-settings-pane="${esc(s.key)}"${s.key === open ? "" : " hidden"}>${

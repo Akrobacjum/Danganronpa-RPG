@@ -90,22 +90,6 @@
    "why": "none needed: Its prompt, placeholder and the row's hint already say what to type and that the GM rules on it."
   },
   {
-   "file": "scripts/anonymity.mjs",
-   "unit": "auditAnonymity",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C5: Every player can still open these sheets, but no longer owns them"
-  },
-  {
-   "file": "scripts/anonymity.mjs",
-   "unit": "buildBodyLoot",
-   "kind": "dom:input",
-   "key": null,
-   "count": 1,
-   "why": "E102 C5: Ticked items are taken together with one Hand roll"
-  },
-  {
    "file": "scripts/boundary.mjs",
    "unit": "noFirst",
    "kind": "footer",
@@ -1098,38 +1082,6 @@
    "why": "none needed: The label and the placeholder already say what to write."
   },
   {
-   "file": "scripts/level-up.mjs",
-   "unit": "askWhoPicks",
-   "kind": "radio",
-   "key": null,
-   "count": 1,
-   "why": "E102 C5: Who chooses this student's improvements: you, here, or the player on their sheet"
-  },
-  {
-   "file": "scripts/level-up.mjs",
-   "unit": "openAdvancement",
-   "kind": "footer",
-   "key": "DRPG.Advance.apply",
-   "count": 1,
-   "why": "E102 C5: Spends the Level Up and writes the chosen improvements onto the sheet"
-  },
-  {
-   "file": "scripts/level-up.mjs",
-   "unit": "askWhoPicks",
-   "kind": "footer",
-   "key": "DRPG.Advance.queueGive",
-   "count": 1,
-   "why": "E102 C5: Gives each Level Up as its row says. Yours open here, one after another."
-  },
-  {
-   "file": "scripts/level-up.mjs",
-   "unit": "askWhoPicks",
-   "kind": "footer",
-   "key": "DRPG.Advance.allPlayers",
-   "count": 1,
-   "why": "E102 C5: Hands every Level Up to its player, whatever the rows say"
-  },
-  {
    "file": "scripts/mastermind.mjs",
    "unit": "openMastermindDialog",
    "kind": "select",
@@ -1171,14 +1123,6 @@
   },
   {
    "file": "scripts/messenger-app.mjs",
-   "unit": "DrpgMessengerApp",
-   "kind": "kit:kitTabBar",
-   "key": "DRPG.Messenger.tabChat",
-   "count": 1,
-   "why": "E102 C5: The pre-session note the GMs read before every session"
-  },
-  {
-   "file": "scripts/messenger-app.mjs",
    "unit": "askItemEffect",
    "kind": "kit:stepper",
    "key": null,
@@ -1192,14 +1136,6 @@
    "key": "DRPG.Note.placeholder",
    "count": 1,
    "why": "none needed: The intro above the box says what goes in it and who reads it."
-  },
-  {
-   "file": "scripts/messenger-app.mjs",
-   "unit": "DrpgMessengerApp",
-   "kind": "dom:button",
-   "key": "DRPG.Note.useTemplate",
-   "count": 1,
-   "why": "E102 C5: Fills the box with the questions the GMs want answered"
   },
   {
    "file": "scripts/messenger-app.mjs",
@@ -1314,52 +1250,12 @@
    "why": "none needed: The intro says the Palm went perfectly and to choose what to take; the button does that."
   },
   {
-   "file": "scripts/passages-tab.mjs",
-   "unit": "adder",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C5: Adds this student to the column at once"
-  },
-  {
-   "file": "scripts/passages-tab.mjs",
-   "unit": "button",
-   "kind": "button",
-   "key": null,
-   "count": 1,
-   "why": "E102 C5: Deletes the passage, and every student who knew it forgets it"
-  },
-  {
-   "file": "scripts/passages-tab.mjs",
-   "unit": "rowHtml",
-   "kind": "kit:chip",
-   "key": "DRPG.Passage.tab.revoke",
-   "count": 1,
-   "why": "E102 C5: Takes the passage away from this student. Asks when, if they stand beside it."
-  },
-  {
-   "file": "scripts/passages-tab.mjs",
-   "unit": "rowHtml",
-   "kind": "kit:chip",
-   "key": "DRPG.Passage.tab.startRemove",
-   "count": 1,
-   "why": "E102 C5: Takes this student off the season-start list. What they know now stays."
-  },
-  {
    "file": "scripts/popup.mjs",
    "unit": "cornerButton",
    "kind": "dom:button",
    "key": null,
    "count": 1,
    "why": "none needed: It already carries a live tooltip: the notice history, with the unread count."
-  },
-  {
-   "file": "scripts/popup.mjs",
-   "unit": "showPopup",
-   "kind": "dom:button",
-   "key": "DRPG.Panel.close",
-   "count": 1,
-   "why": "E102 C5: Dismisses this notice; the notice history keeps it"
   },
   {
    "file": "scripts/projects-map.mjs",
@@ -1562,28 +1458,12 @@
    "why": "none needed: The tab's note says what it clears and that nothing changes until Apply."
   },
   {
-   "file": "scripts/room-setup.mjs",
-   "unit": "roomCells",
-   "kind": "kit:stepper",
-   "key": "DRPG.SearchTokens.spendOne",
-   "count": 1,
-   "why": "E102 C5: Changes this room's tokens at once, without Apply"
-  },
-  {
    "file": "scripts/room-tile.mjs",
    "unit": "paintRoomTile",
    "kind": "dom:button",
    "key": null,
    "count": 1,
    "why": "none needed: Already carries a tooltip that follows its state ('Read more' / read less, openProse)."
-  },
-  {
-   "file": "scripts/room-tile.mjs",
-   "unit": "paintTileRow",
-   "kind": "dom:button",
-   "key": "DRPG.Room.imageOpen",
-   "count": 1,
-   "why": "E102 C5: Opens the picture of this room"
   },
   {
    "file": "scripts/rules.mjs",
@@ -1616,14 +1496,6 @@
    "key": "DRPG.Assign.save",
    "count": 1,
    "why": "none needed: Saves the form, as the label says."
-  },
-  {
-   "file": "scripts/season-setup.mjs",
-   "unit": "openSeasonSetup",
-   "kind": "footer",
-   "key": "DRPG.Season.resetTitle",
-   "count": 1,
-   "why": "E102 C5: Opens the season reset, which asks before it clears anything"
   },
   {
    "file": "scripts/season-setup.mjs",
@@ -1675,14 +1547,6 @@
   },
   {
    "file": "scripts/settings-window.mjs",
-   "unit": "sectionColumns",
-   "kind": "button",
-   "key": "DRPG.SettingsWindow.sectionsLabel",
-   "count": 1,
-   "why": "E102 C5: The number counts the settings in this section"
-  },
-  {
-   "file": "scripts/settings-window.mjs",
    "unit": "controlHtml",
    "kind": "kit:toggle",
    "key": null,
@@ -1696,22 +1560,6 @@
    "key": null,
    "count": 1,
    "why": "none needed: Each row shows its label and hint."
-  },
-  {
-   "file": "scripts/sheet.mjs",
-   "unit": "knownPassageItem",
-   "kind": "button",
-   "key": "DRPG.Passage.list.shut",
-   "count": 1,
-   "why": "E102 C5: Takes you to the other end of the tunnel. It costs what a door costs."
-  },
-  {
-   "file": "scripts/sheet.mjs",
-   "unit": "knownPassageItem",
-   "kind": "button",
-   "key": "DRPG.Passage.list.cross",
-   "count": 1,
-   "why": "E102 C5: Lets somebody in your room use the passage too. It costs no action."
   },
   {
    "file": "scripts/sheet.mjs",
@@ -1763,30 +1611,6 @@
   },
   {
    "file": "scripts/sound-panel.mjs",
-   "unit": "musicMapTable",
-   "kind": "select",
-   "key": "DRPG.Music.playlist",
-   "count": 1,
-   "why": "E102 C5: The playlist that plays in this state. Saves at once."
-  },
-  {
-   "file": "scripts/sound-panel.mjs",
-   "unit": "soundPlayPane",
-   "kind": "button",
-   "key": "DRPG.Music.makeSituational",
-   "count": 1,
-   "why": "none needed: The label names the playlist it creates and the line above says why."
-  },
-  {
-   "file": "scripts/sound-panel.mjs",
-   "unit": "soundPlayPane",
-   "kind": "button",
-   "key": "DRPG.Music.play",
-   "count": 1,
-   "why": "E102 C5: Plays the chosen track on repeat for the whole table until Reset music"
-  },
-  {
-   "file": "scripts/sound-panel.mjs",
    "unit": "openSoundDialog",
    "kind": "kit:kitTabs",
    "key": "DRPG.Sound.tabPlay",
@@ -1800,22 +1624,6 @@
    "key": null,
    "count": 1,
    "why": "none needed: Its column heading says it, and a locked box carries its own reason."
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
-   "unit": "tableRowHtml",
-   "kind": "input",
-   "key": "DRPG.Items.name",
-   "count": 1,
-   "why": "E102 C5: Saved as soon as you leave the field"
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
-   "unit": "tableRowHtml",
-   "kind": "input",
-   "key": "DRPG.Items.description",
-   "count": 1,
-   "why": "E102 C5: Saved as soon as you leave the field"
   },
   {
    "file": "scripts/tables-editor.mjs",
@@ -1867,59 +1675,11 @@
   },
   {
    "file": "scripts/tables-editor.mjs",
-   "unit": "newItemPaneHtml",
-   "kind": "select",
-   "key": "DRPG.Items.category",
-   "count": 1,
-   "why": "E102 C5: With the tier, decides which table the item joins; the icon follows it"
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
    "unit": "poolPaneHtml",
    "kind": "button",
    "key": null,
    "count": 1,
    "why": "none needed: Its label says it, and it asks for the new name."
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
-   "unit": "poolPaneHtml",
-   "kind": "button",
-   "key": "DRPG.Tables.renameTable",
-   "count": 1,
-   "why": "E102 C5: Deletes the shown table and every item in it, after asking"
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
-   "unit": "openItemTables",
-   "kind": "kit:kitTabs",
-   "key": "DRPG.Tables.tabTierPools",
-   "count": 1,
-   "why": "E102 C5: The tables a Search draws from, one for each category and tier"
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
-   "unit": "openItemTables",
-   "kind": "footer",
-   "key": "DRPG.Tables.addItem",
-   "count": 1,
-   "why": "E102 C5: Adds it to its tier table and to every room table ticked"
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
-   "unit": "openItemTables",
-   "kind": "footer",
-   "key": "DRPG.Tables.createTable",
-   "count": 1,
-   "why": "E102 C5: Creates an empty table with the name typed on this tab"
-  },
-  {
-   "file": "scripts/tables-editor.mjs",
-   "unit": "openItemTables",
-   "kind": "footer",
-   "key": "DRPG.Tables.installAction",
-   "count": 1,
-   "why": "E102 C5: Builds the default tables; asks before rebuilding yours"
   },
   {
    "file": "scripts/trait-ruling.mjs",

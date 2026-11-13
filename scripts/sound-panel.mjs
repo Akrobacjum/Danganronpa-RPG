@@ -27,7 +27,7 @@
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
-import { emptyOption, box, dataTable } from "./ui-kit.mjs";
+import { emptyOption, box, dataTable, tipAttr } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
@@ -98,7 +98,7 @@ function musicMapTable(playlists) {
         return {
             when: esc(label),
             plays: `<select name="state:${state.key}"
-                aria-label="${esc(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}">${options}</select>
+                aria-label="${esc(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}"${tipAttr("DRPG.Tips.Setup.playlistForAStateTooltip")}>${options}</select>
                 <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="${esc(state.key)}" aria-live="polite"></span>`
         };
     });
@@ -172,9 +172,9 @@ function soundPlayPane() {
                             game.i18n.format("DRPG.Music.makeSituational", { name: SITUATIONAL_PLAYLIST })}</button>` })}
                 <div class="drpg-music-now-actions">
                     <button type="button" class="drpg-mini-button" data-drpg-play${
-                        playable ? "" : " disabled"}>${
+                        playable ? "" : " disabled"}${tipAttr("DRPG.Tips.Setup.playTooltip")}>${
                         game.i18n.localize("DRPG.Music.play")}</button>
-                    <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
+                    <button type="button" class="drpg-mini-button" data-drpg-reset-music${tipAttr("DRPG.Tips.Setup.resetMusicTooltip")}>${
                         game.i18n.localize("DRPG.Music.reset")}</button>
                 </div>
             </fieldset>`;

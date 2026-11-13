@@ -21,7 +21,7 @@
 import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn, wholeNumber, localeFormat, markLanguage } from "./utils.mjs";
-import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId } from "./ui-kit.mjs";
+import { DrpgApp, drpgWindow, kitTabBar, wireKitTabs, stepper, stepperId, tipText } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -268,7 +268,7 @@ export class DrpgMessengerApp extends DrpgApp() {
         const made = document.createElement("template");
         made.innerHTML = kitTabBar([
             { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat") },
-            { key: "note", label: game.i18n.localize("DRPG.Note.tab") }
+            { key: "note", label: game.i18n.localize("DRPG.Note.tab"), tooltip: tipText("DRPG.Tips.Setup.chatNoteTabsTooltip") }
         ], { active: this.tab });
         const bar = made.content.firstElementChild;
         if (context.note.trim()) {
@@ -319,6 +319,7 @@ export class DrpgMessengerApp extends DrpgApp() {
             const fill = document.createElement("button");
             fill.type = "button";
             fill.className = "drpg-messenger-note-template";
+            fill.dataset.tooltip = tipText("DRPG.Tips.Setup.useTheTemplateTooltip");
             fill.textContent = game.i18n.localize("DRPG.Note.useTemplate");
             fill.addEventListener("click", () => { area.value = noteTemplate(); area.focus(); });
             row.append(fill);

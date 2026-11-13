@@ -69,7 +69,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
-import { DrpgApp, tile as kitTile } from "./ui-kit.mjs";
+import { DrpgApp, tile as kitTile, tipText } from "./ui-kit.mjs";
 import { error, markFired, plural } from "./utils.mjs";
 import { MODULE_ID, ROOM_IMAGE_LIMITS } from "./config.mjs";
 import { phaseLabel } from "./clock.mjs";
@@ -329,6 +329,7 @@ function paintTileRow(view, image) {
         const thumb = document.createElement("button");
         thumb.type = "button";
         thumb.className = "drpg-room-tile-thumb";
+        thumb.dataset.tooltip = tipText("DRPG.Tips.Setup.roomPictureThumbnailTooltip");
         thumb.setAttribute("aria-label", game.i18n.format("DRPG.Room.imageOpen", { room: view.room }));
         const img = document.createElement("img");
         img.alt = "";

@@ -75,7 +75,7 @@ import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
-import { drpgConfirm } from "./ui-kit.mjs";
+import { drpgConfirm, tipAttr } from "./ui-kit.mjs";
 import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
@@ -2933,8 +2933,8 @@ export function knownPassageItem(row) {
         : `<span class="drpg-passage-note" data-drpg-passage-note="walk">${t("DRPG.Passage.list.walk")}</span>`;
     li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
         foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
-        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross"${tipAttr("DRPG.Tips.Setup.goThroughTooltip")}>${t("DRPG.Passage.list.cross")}</button>` : "")
+        + `<button type="button" class="drpg-mini-button drpg-passage-show"${tipAttr("DRPG.Tips.Setup.showThePassageTooltip")}>${t("DRPG.Passage.show.button")}</button>`;
     return li;
 }
 

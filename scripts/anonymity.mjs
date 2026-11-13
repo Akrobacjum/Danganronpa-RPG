@@ -54,6 +54,7 @@ import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
@@ -310,6 +311,7 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
         const pick = document.createElement("input");
         pick.type = "checkbox";
         pick.className = "drpg-loot-pick";
+        pick.dataset.tooltip = tipText("DRPG.Tips.Setup.onALootedItemTooltip");
         pick.value = item.id;
         pick.setAttribute("aria-label", item.name);
         row.prepend(pick);
@@ -818,7 +820,7 @@ export async function auditAnonymity({ toChat = true, actors = game.actors, enfo
         )));
         // A button only where somebody can press it: a whispered copy is a chat card nothing wires.
         if (!toChat) {
-            sections.push(`<p><button type="button" data-drpg-anon-fix>${escape(game.i18n.localize("DRPG.Anonymity.audit.fix"))}</button></p>`);
+            sections.push(`<p><button type="button" data-drpg-anon-fix${tipAttr("DRPG.Tips.Setup.setThemToObserverTooltip")}>${escape(game.i18n.localize("DRPG.Anonymity.audit.fix"))}</button></p>`);
         }
     }
 
