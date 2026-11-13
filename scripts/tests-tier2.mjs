@@ -63347,7 +63347,9 @@ const SCENARIOS = [
                 D.wait = answer(field => { pick(field, "school", hall.id); pick(field, "trial", hall.id); });
                 const refused = await SS.openSeasonSetup();
                 await settle();
-                const clash = [refused, warned.includes(game.i18n.localize("DRPG.TrialScene.sameScene")), writes, R.schoolScene() === school];
+                // Since the r112 review's S2 (13.11.2026) a clash drops the scenes part alone and the rest of the window is
+                // written: Season setup answers its Save with `scenes: null`, where it answered null for the whole (E101-T11).
+                const clash = [refused?.scenes === null, warned.includes(game.i18n.localize("DRPG.TrialScene.sameScene")), writes, R.schoolScene() === school];
                 writes = 0;
                 D.wait = answer(() => {});
                 await SS.openSeasonSetup();
@@ -63379,7 +63381,7 @@ const SCENARIOS = [
         equal(JSON.stringify(read), JSON.stringify(["bedrooms", [warnings, true, true, true, true],
             [true, true, stableJson([ZONE]), 1], [false, false], ["prop"],
             [["environment.globalLight.enabled", "fog.exploration", "tokenVision"], [], true],
-            [null, true, 0, true], [0, false],
+            [true, true, 0, true], [0, false],
             /* E101 (13.11.2026, changed on purpose): the Scenes row reads not done - this hall has no Zone A and Zone B, and
                since E73 C1 the report the row reads warns of that (`zonesNone`, the last of the warnings below). Measured
                at eb9431dc, e93 merged and before E101's items 3-5: the same false, the test red there. */
@@ -79098,6 +79100,150 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ held: [true, true], free: false, school: true }),
             "{held: [Save off with one scene for both, its label the reason]; free: Save off once the hall is put back; school: the scene picked is the school after Save}");
+    }],
+    ["E101-T10 - one Season setup Save that links a new trial hall and sets the phase to Class Trial enters the trial in the new hall (scripts/season-setup.mjs `openSeasonSetup`, trial-scene.mjs `applyScenesTab`, `enterTrialScene`; the r112 review's S1, 13.11.2026): the trial question names the new hall, the new hall is the one activated and given the way back, the old one is left alone, and the link names the new hall", async () => {
+        /*
+         * The r112 review's S1 (REVIEW-112, 13.11.2026). E101 item 5 put the scenes part and Edit campaign's phase in one
+         * Save; the campaign was written first, so the trial the phase opened entered the hall still linked, and only then
+         * was the new one linked - the table in the old hall, the link naming the new one, End the trial working on a hall
+         * nobody stood in (the state E13 fix r1-F2 was written against). Here, as the GM, from Daily Life: two scenes of
+         * the suite's own, the old one linked as the hall; Season setup drawn, the hall select moved to the new one and
+         * the phase to Class Trial, Save pressed; the trial's question answered yes (DialogV2.wait answered for that
+         * title alone, every other window drawn). The record is set so no second-trial question or Key charge comes
+         * (as the test of the roads into the trial does). Read: which hall the question named, which hall holds the way
+         * back and which is active, the link. Put back: the phase, the clock, the record, the roles, the active scene,
+         * both scenes. Red at 25d6573a: the old hall named, flagged and active.
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const R = await import("./rooms.mjs");
+        const SS = await import("./season-setup.mjs");
+        const TS = await import("./trial-scene.mjs");
+        const V = await import("./vote.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const trialTitle = game.i18n.localize("DRPG.Clock.trialFromEditTitle");
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, "sceneRoles") ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const activeBefore = game.scenes.active ?? null;
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        must(!clockBefore.eclipse, "an Eclipse holds the trial shut");
+        let oldHall = null, newHall = null, answer = null;
+        const asked = [];
+        const read = {};
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter,
+                verdictApplied: false, keysCharged: true });
+            oldHall = await Scene.create({ name: "SUITE E101-T10 the old hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            newHall = await Scene.create({ name: "SUITE E101-T10 the new hall", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await game.settings.set(MODULE_ID, "sceneRoles", { ...rolesBefore, trial: oldHall.id });
+            R.forgetSceneRoles();
+            must(R.trialScene()?.id === oldHall.id, "the old hall could not be linked - this would measure nothing");
+            D.wait = async function (cfg) {
+                if ((cfg?.window?.title ?? "") === trialTitle) {
+                    const text = typeof cfg?.content === "string" ? cfg.content : String(cfg?.content?.outerHTML ?? cfg?.content?.textContent ?? "");
+                    asked.push(text.includes(newHall.name) ? "new" : text.includes(oldHall.name) ? "old" : "none");
+                    return "ok";
+                }
+                return drawWait.call(this, cfg);
+            };
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="scenes:trial"]'), 6000), "Season setup has no scenes part - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const pick = (name, value) => { const s = el.querySelector(`[name="${name}"]`); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); return s.value === value; };
+            must(pick("scenes:trial", newHall.id) && pick("phase", "classTrial"), "the hall or the phase could not be picked - this would measure nothing");
+            el.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(6000)]);
+            await settle();
+            R.forgetSceneRoles();
+            read.phase = getClock().phase;
+            read.asked = asked;
+            read.wayBack = [Boolean(oldHall.getFlag(MODULE_ID, TS.TRIAL_RETURN_FLAG)), Boolean(newHall.getFlag(MODULE_ID, TS.TRIAL_RETURN_FLAG))];
+            read.active = game.scenes.active?.id === newHall.id ? "new" : game.scenes.active?.id === oldHall.id ? "old" : "other";
+            read.linked = R.trialScene()?.id === newHall.id;
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== clockBefore.phase) await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await game.settings.set(MODULE_ID, "sceneRoles", rolesBefore);
+            R.forgetSceneRoles();
+            if (activeBefore && !activeBefore.active) await activeBefore.activate();
+            await oldHall?.delete();
+            await newHall?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ phase: "classTrial", asked: ["new"], wayBack: [false, true], active: "new", linked: true }),
+            "{phase after Save; asked: the hall the trial question named; wayBack: [the old hall given the way back, the new one]; active: the hall the table stands in; linked: the new hall is the trial's} - the trial entered in the hall the Save links");
+    }],
+    ["E101-T11 - a Season setup Save whose scenes part is held still writes the rest of the window (scripts/season-setup.mjs `openSeasonSetup`; the r112 review's S2, 13.11.2026): one scene picked for both roles and Save pressed anyway, the campaign's name typed in the same window is written, the scene roles are not, and the GM is told why", async () => {
+        /*
+         * The r112 review's S2 (REVIEW-112, 13.11.2026). Season setup holds its Save while the scenes part cannot be
+         * written, but a Save that arrives anyway (the hold is drawn only on the scene selects' change, so a trial
+         * started meanwhile is not seen) returned before any write: the campaign's name, chapter, day, time of day, the
+         * refill and the safeword typed in the same window were dropped with the window already closed. Here, as the GM:
+         * a scene of the suite's own picked for both roles, the hold taken off by hand (as a Save that arrives anyway),
+         * a new campaign name typed, Save pressed. Read: the name written, the roles as they were, the warning told.
+         * Put back: the clock, the roles, the scene. Red at 25d6573a: the name not written.
+         */
+        needs(env.dialogs(), "Season setup is drawn and pressed");
+        must(game.user.isGM, "Season setup is a GM's");
+        const R = await import("./rooms.mjs");
+        const SS = await import("./season-setup.mjs");
+        const NAME = "SUITE E101-T11 a campaign";
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, "sceneRoles") ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const ownWarn = ui.notifications.warn;
+        const told = [];
+        const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
+        must(!of("drpg-window-season").length, "Season setup stands open already");
+        let scene = null, answer = null;
+        const read = {};
+        try {
+            ui.notifications.warn = function (message, ...rest) { told.push(message); return ownWarn.call(this, message, ...rest); };
+            scene = await Scene.create({ name: "SUITE E101-T11 both", width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            answer = Promise.resolve().then(() => SS.openSeasonSetup()).catch(err => `threw: ${err.message}`);
+            must(await until(() => of("drpg-window-season")[0]?.element?.querySelector('[name="scenes:trial"]'), 6000), "Season setup has no scenes part - this would measure nothing");
+            const el = of("drpg-window-season")[0].element;
+            const pick = (name, value) => { const s = el.querySelector(`[name="${name}"]`); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); return s.value === value; };
+            must(pick("scenes:school", scene.id) && pick("scenes:trial", scene.id), "the scene could not be picked - this would measure nothing");
+            const name = el.querySelector('[name="campaignName"]');
+            must(name, "Season setup has no campaign name - this would measure nothing");
+            name.value = NAME;
+            name.dispatchEvent(new Event("change", { bubbles: true }));
+            const save = el.querySelector('footer.form-footer button[data-action="save"]');
+            must(save?.disabled === true, "Save was not held with one scene for both - this would measure nothing");
+            save.disabled = false;
+            save.click();
+            await until(() => !of("drpg-window-season").length, 6000);
+            if (answer) await Promise.race([answer, wait(6000)]);
+            await settle();
+            R.forgetSceneRoles();
+            read.name = getClock().campaignName === NAME;
+            read.roles = stableJson(game.settings.get(MODULE_ID, "sceneRoles") ?? {}) === stableJson(rolesBefore);
+            read.told = told.includes(game.i18n.localize("DRPG.TrialScene.sameScene"));
+        } finally {
+            ui.notifications.warn = ownWarn;
+            for (const app of of("drpg-window-season")) await app.close().catch(() => {});
+            if (answer) await Promise.race([answer, wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, "sceneRoles", rolesBefore);
+            R.forgetSceneRoles();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ name: true, roles: true, told: true }),
+            "{name: the campaign name typed is written; roles: the scene roles unchanged; told: the GM warned of the one scene for both} - a held scenes part drops itself alone");
     }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*

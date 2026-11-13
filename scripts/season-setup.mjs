@@ -1202,18 +1202,27 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     if (!result || result === "close") return null;
     if (resetAsked) return (await import("./season-wipe.mjs")).resetSeason();
 
-    /* THE SCENES' TWO BACKSTOPS, BEFORE ANYTHING IS WRITTEN (E101 item 5; Room setup's Apply ran them until then): one scene
-       for both roles, and the trial hall linked, relinked or unlinked while a Class Trial runs (E13 fix r1-F2). Save is
-       held with the reason while either stands; a Save that arrives anyway writes nothing. */
-    if (result.scenes && scenesTab.scenesClash(result.scenes)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.sameScene"));
-        return null;
+    /* THE SCENES' TWO BACKSTOPS (E101 item 5; Room setup's Apply ran them until then): one scene for both roles, and the
+       trial hall linked, relinked or unlinked while a Class Trial runs (E13 fix r1-F2). Save is held with the reason while
+       either stands. A Save that arrives anyway (the hold is drawn on the scene selects' change, so a trial started from
+       another window meanwhile is not seen) drops the scenes part alone, with the reason told, and writes the rest of the
+       window (the r112 review's S2, 13.11.2026: until then it returned before any write, and the campaign's name, chapter,
+       day, time of day, refill and safeword typed in the same window were lost with the window closed; E101-T11). */
+    const sceneBlock = !result.scenes ? null
+        : scenesTab.scenesClash(result.scenes) ? "DRPG.TrialScene.sameScene" : scenesTab.hallLockReason(result.scenes);
+    if (sceneBlock) {
+        ui.notifications.warn(game.i18n.localize(sceneBlock));
+        result.scenes = null;
     }
-    const hallLock = result.scenes ? scenesTab.hallLockReason(result.scenes) : null;
-    if (hallLock) {
-        ui.notifications.warn(game.i18n.localize(hallLock));
-        return null;
-    }
+
+    /* THE SCENES BEFORE THE CLOCK (the r112 review's S1, 13.11.2026). The lock above is read against the phase as the clock
+       has it, so a Save that moves the phase into the Class Trial may relink the hall in the same press; the campaign's
+       write then enters the trial (`setClock` -> `enterTrialScene`, which reads the hall linked) and asks its question
+       naming that hall. Written after it, the table stood in the old hall while the link named the new one, and End the
+       trial worked on a hall nobody stood in - the state r1-F2 was written against. Written first, the trial enters the
+       hall this Save links, and its question names it (E101-T10). trial-scene.mjs `applyScenesTab` writes only what
+       changed. */
+    if (result.scenes) await scenesTab.applyScenesTab(result.scenes);
 
     /* EDIT CAMPAIGN'S APPLY, AS IT IS (E49 A1e; the owner: "keep its data writes exactly as they are"): gm-campaign.mjs
        `applyCampaignForm`, the function Edit campaign's Apply runs - its questions (a chapter moved, the trial entered),
@@ -1229,9 +1238,6 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
         await setSetting(SETTINGS.safeword, result.safeword);
         log(`Safeword set to "${safeword()}".`);
     }
-
-    // The scenes, as Room setup's Apply wrote them (trial-scene.mjs `applyScenesTab`: it writes only what changed).
-    if (result.scenes) await scenesTab.applyScenesTab(result.scenes);
 
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
