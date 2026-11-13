@@ -712,7 +712,8 @@ export const STATE_RULES = [
 export const STAT_GLYPHS = { eye: "stat-eye", head: "stat-head", body: "stat-body", leg: "stat-leg", hand: "stat-hand", shadow: "stat-shadow" };
 
 /** Every rule the glass section writes: [id, selector, glyph, how] - how "box" (the FA box, the slot set), "image" (an
- *  element that is a mask box already: only its image), "before" (a text button given a glyph before its label). */
+ *  element that is a mask box already: only its image), "first" (a text button given a glyph before its label: the
+ *  button a row, the glyph its ::after put first). */
 export function glassRules() {
     const out = [];
     for (const [id, glyph] of Object.entries(ELEMENTS)) {
@@ -728,8 +729,13 @@ export function glassRules() {
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */
     /* E49 A2 moved End the chapter into Edit campaign as a text button (gm-campaign.mjs, `data-drpg-end-chapter`): no
-       <i> to mask, so the glyph stands before its label, the one way to key it with no markup change (Q5). */
-    out.push(["button.end-chapter", "[data-drpg-end-chapter]::before", "end-chapter", "before"]);
+       <i> to mask, so the glyph stands before its label, the one way to key it with no markup change (Q5).
+       ON ITS ::after, NOT ITS ::before (12.11.2026; the owner's report at a real table on 1.2.109: in Season setup and
+       Edit campaign the flag covered the "E"). A module window's button under the glass has its ::before taken by the
+       brush (stained-glass.css, "the brush": absolute, inset, behind the label; 0,5,3 against this rule's 0,2,2), so the
+       flag drawn there became a 22 px box over the first letter. The button is a row now and the flag its ::after,
+       put first (`order: -1`); the ::before is the brush's. R4403. */
+    out.push(["button.end-chapter", "[data-drpg-end-chapter]", "end-chapter", "first"]);
     return out;
 }
 
@@ -793,13 +799,13 @@ export function glassCssOf(glyphs) {
     for (const [, sel, glyph, how] of rules) {
         if (how === "box") css.push(`${GLASS} ${sel} { --drpg-glyph: var(--drpg-pix-${glyph}); }`);
         else if (how === "image") css.push(`${GLASS} ${sel} { -webkit-mask-image: var(--drpg-pix-${glyph}); mask-image: var(--drpg-pix-${glyph}); }`);
-        else css.push(`${GLASS} ${sel} {
+        else css.push(`${GLASS} ${sel} { display: inline-flex; align-items: center; gap: 0.35em; }
+${GLASS} ${sel}::after {
     content: "";
-    display: inline-block;
+    order: -1;
+    flex: none;
     width: 22px;
     height: 22px;
-    margin-inline-end: 0.35em;
-    vertical-align: -0.3em;
     background-color: currentColor;
     -webkit-mask-image: var(--drpg-pix-${glyph});
     mask-image: var(--drpg-pix-${glyph});
