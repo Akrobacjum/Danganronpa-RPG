@@ -90,6 +90,19 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- Before the push of item 5 batch 1 and the R3712 fix (13.11.2026): the 27 tests holding batch 1's sites by name, 31
+  passed, 0 failed (80 s); `node tools/check.mjs` 19/19; lint 346 files, 0 problems; tiers 0-1 whole 1420 ran, 1405
+  passed, 0 failed, 16 skipped, 0 red (433 s). No scenario reads tests-tier1.mjs or tests-tier2.mjs by name (`git grep`).
+- **R3712 and the primary's beat** (a reading, and a test-only fix): with batch 1 applied, tiers 0-1 whole failed on
+  R3712 (E62, from main) in two runs out of two; it had passed in the merge gate. The write it saw was
+  `gmClockBeat`, the primary GM's beat, a `setInterval` of 60 s armed at ready (hud.mjs). R3712 counts every setting
+  write in its window of about 2 s, so it fails whenever a multiple of 60 s after ready falls inside it, and that
+  depends on how long the tests before it take. Measured: at b7455b97 in a worktree, whole, passed; the same tree with
+  batch 1's twelve lines as comments alone (nothing executable), whole, failed; R3712 alone with batch 1, passed 3 of
+  3. The fix leaves out the beat's key, read from the store (`clockBeatStore.spec.key`; R171 forbids the raw key
+  outside the engine), and nothing else: a planted `onClockHeard` that writes the beat and `sequences` fails R3712
+  naming the `sequences` writes alone. Every batch changes the file's length again, so without this the test would
+  flip back and forth on later batches and on other lines' changes.
 - Baseline tiers 0-1 at 421f2395 (E39's): 1320 ran, 1305 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of C5, at 3f72611c: tiers 0-1 whole 1321 ran, 1306 passed, 0 failed, 16 skipped, 0 red (414 s);
   88-flow-length (reads tests-flows.mjs) and 18-trial, each `run-all.mjs scenarios --only NN`, green.
@@ -133,7 +146,10 @@ The plan's items 2-6, in its order, with what each would take:
   a deceased before and after discovery, the Final Trial, a second trial (D17), a reset during a suicide incident, and
   season-wipe on a world copy; most are 63-class-trial's, 61's and 65's (63: a late player, a reload, the verdict's
   window with "Nobody", a second trial, the Level Ups), and the rest is open.
-- **The regex tests** (item 4): counted, not converted. The plan's Q-E40-3 default: re-counted when the work starts.
+- **The regex tests** (item 4): **counted, not started.** The coordinator's word, 13.11.2026: the count below puts the
+  work at 25-50 hours (each of up to 140 tests read, and each one converted broken once before and after), which the
+  coordinator is putting to the owner; it does not start on this line until the owner answers. The plan's Q-E40-3
+  default: re-counted when the work starts.
   The count, 13.11.2026 at 4f1ceb1d, by a script over scripts/tests-tier0.mjs that splits it at each entry's start
   (`^    \["`) and reads each body for three things: it reads source (`bodyOf(`, `fnSource(`, `lineAround(`, `src(`), it
   imports a module (`await import(`), it uses a regex (`.test(`, `.match(`, `matchAll(`). Of 404 entries: 189 read
@@ -142,9 +158,18 @@ The plan's items 2-6, in its order, with what each would take:
   140 hold behaviour is a reading test by test, not done; names such as R18 ("using an item mid-incident costs a turn"),
   R25, R26, R29 and R30 read as behaviour, and most of those touch writes, so their call is a tier-2 test with a fixture,
   not a pure call in tier 0. Each is to be broken once before and after its replacement (the plan's risk).
-- **settle() -> until()** (item 5): counted, not converted: scripts/tests-tier2.mjs holds `settle(` on 2512 lines and
-  `until(` on 541 (`grep -c`, 13.11.2026), against the plan's 2470 and 527 at ff11458; which of them read across a
-  client, a hook or a chat card is a reading call by call, not done.
+- **settle() -> until()** (item 5): **under way**, the coordinator's word of 13.11.2026: the chat-card sites, about
+  25 reviewed per batch, each batch gated (check, lint, the tests it touches by name, tiers 0-1 whole) and committed
+  alone. The count, 13.11.2026: scripts/tests-tier2.mjs holds `await settle(` on 2509 lines; 185 of them are followed
+  within three lines by a read of the chat (a card, its words, a whisper), 194 by a read of a hook or a notice. The
+  estimate was about 5 h for the 185 and about 10 h for both groups. The pattern: the settle stays as the floor (it is
+  the window in which a card that must not come would arrive) and an `await until(() => <the card the test reads>)`
+  follows it, only where the test's assertion expects that card present. A site that expects no card, a clean-up, or a
+  read inside a hook's own window keeps the settle alone. So no test gets shorter, and none can pass sooner on a card
+  that has not arrived yet.
+  - Batch 1: 12 sites (11 tests and the reshape helper `F.reshape`, which 15 tests call).
+  - Left: the rest of the chat-card group (found again after each batch by a script over the file, not by stale line
+    numbers), and the 194 hook and notice sites, not started.
 - **The 12-rule mutation run** (item 6): run, 12 of 12 FAIL (the table above). Into the release gate: not done, its
   wiring is not this line's to touch.
 

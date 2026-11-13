@@ -3085,6 +3085,7 @@ async function reshapeCopiesFixture(who, holders, note, place = {}) {
             const had = new Set(game.messages.map(m => m.id));
             const tried = await F.scrub(30, { mode: "transform", change: C9_STORY });
             await settle();
+            await until(() => game.messages.some(m => !had.has(m.id)));
             const said = await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000)));
             const card = said.find(html => html.includes('data-drpg-call="approveReshape"') && html.includes(`data-trace="${F.trace.id}"`)) ?? null;
             const applied = await approveHeld(who, F.trace.id);
@@ -4419,6 +4420,7 @@ const SCENARIOS = [
             const stage = M.murderState()?.stage ?? null;
             await M.endMurder({ reason: "closed", followUp: false });
             await settle();
+            await until(() => messages.length > 0);
             let cards = 0;
             for (const message of messages) if (String(await wordsOf(message, 300)).includes(title)) cards++;
             equal(stableJson([stage, cards, isDeadForGm(victim), again, closes]), stableJson(["resolution", 1, true, 0, 1]),
@@ -4467,6 +4469,7 @@ const SCENARIOS = [
             const had = new Set(game.messages.contents.map(m => m.id));
             await M.resolveCrisisAction({ actorId: killer.id, key: "strike", total: 99, isCritical: true, withHope: true, choice: "stress" });
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(card)));
             message = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(card)) ?? null;
         });
         await M.endMurder({ reason: "closed", followUp: false });
@@ -4509,6 +4512,7 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 1, isCritical: false, withHope: false });
         await settle();
+        await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(note)));
         const told = game.messages.contents.filter(m => !had.has(m.id)).some(m => String(contentOf(m) ?? "").includes(note));
         await M.endMurder({ reason: "closed", followUp: false });
         equal(stableJson([killer.system.resources.stress.value, marks(victim), told]), stableJson([1, victimBefore, true]),
@@ -4702,6 +4706,7 @@ const SCENARIOS = [
             const whole = [INV.isBroken(doc(one)), INV.wearOf(doc(one))];
             answered.push(await breakOnDespair(actor, one, fear));
             await settle();
+            await until(() => game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Items.singleUseSpent", { item: foundry.utils.escapeHTML(zero[0].name) }))));
             const words = game.i18n.format("DRPG.Items.singleUseSpent", { item: foundry.utils.escapeHTML(zero[0].name) });
             const told = game.messages.contents.filter(m => !had.has(m.id)).some(m => String(contentOf(m) ?? "").includes(words));
             equal(stableJson([answered, zero.map(item => [INV.isBroken(doc(item)), isEquipped(doc(item))]), whole, INV.isBroken(doc(one)), told]),
@@ -4795,6 +4800,7 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 10, fear: 3 };
             const taken = await M.takeCrisisAction(killer, "finishingBlow");
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(killer.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(killer.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(taken?.roll?.withHope && isDeadForGm(victim) && row?.facts?.crisis === "finishingBlow" && message,
@@ -5285,6 +5291,7 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 10, fear: 3 };
             await M.takeCrisisAction(killer, "finishingBlow");
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(killer.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(killer.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(!isDeadForGm(victim) && row?.facts?.crisis === "finishingBlow" && row?.trait && message,
@@ -7150,6 +7157,7 @@ const SCENARIOS = [
             };
             await performAction(actor, "project", { free: true });
             await settle();
+            await until(() => game.messages.some(m => !seen.has(m.id) && contentOf(m).includes(line)));
             const traces = left().map(t => remnantData(t)).map(d => [d.type, d.visibility, d.tiedToCrime === true]);
             const carded = game.messages.some(m => !seen.has(m.id) && contentOf(m).includes(line));
             equal(stableJson([thrown, traces, carded]), stableJson([["finesse", "closed"], [["prep", "obvious", true]], true]),
@@ -15553,6 +15561,7 @@ const SCENARIOS = [
             const from = whispers.length;
             await ask(searched[1]);
             await settle();
+            await until(() => whispers.slice(from).map(id => game.messages.get(id)).some(m => m && cardFlag(m, "sfx") === "stolen"));
             const stolen = whispers.slice(from).map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
             equal(stableJson([unnamed, missed, [told.length, stashed(), actor.items.some(i => i.name === NAME), stolen]]),
                 stableJson([["rollUnknown", true], ["rollMissed", true], [2, false, true, 1]]),
@@ -16765,6 +16774,7 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 5, fear: 4 };
             try { await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(actor.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(row?.actionKey === "dynamic" && row?.by === game.user.id && message && !traces().length,
@@ -20879,6 +20889,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const had = new Set(game.messages.map(m => m.id));
             await F.scrub(30, { mode: "transform", change });
             await settle();
+            await until(() => game.messages.some(m => !had.has(m.id)));
             const said = await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000)));
             const card = said.find(html => html.includes('data-drpg-call="approveReshape"') && html.includes(`data-trace="${F.trace.id}"`)) ?? "";
             must(card, "no reshape card was raised for the fixture's trace - this would measure nothing");
@@ -76512,6 +76523,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             globalThis.__forceRoll = { hope: 3, fear: 2 };
             try { await performAction(actor, "project", { free: true }); } finally { forceBack(); }
             await settle();
+            await until(() => game.messages.get(rerollBookmarkStore.get(actor.id)?.messageId ?? ""));
             const row = rerollBookmarkStore.get(actor.id);
             const message = game.messages.get(row?.messageId ?? "");
             must(row?.actionKey === "project" && row?.by === game.user.id && message,
