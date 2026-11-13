@@ -1894,7 +1894,7 @@ const INVARIANTS = [
             for (const lang of ["en", "pl"]) {
                 const response = await fetch(handbookPath(id, lang));
                 ok(response.ok, `${id}.${lang} is not served`);
-                const root = headingsOf(await response.text());
+                const root = headingsOf(await lfText(response));
                 markSections(root);
                 const sections = root.querySelectorAll("h2").length;
                 ok(sections > 0, `${id}.${lang}: no "## " heading was read`);

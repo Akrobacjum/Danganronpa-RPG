@@ -173,6 +173,59 @@ function endQuotes(markdown) {
     return out.join("\n");
 }
 
+/*
+ * THE SECTIONS' ANCHORS (E57 C4a, 13.11.2026; D35: a "?" opens the handbook on its section, by a section number
+ * shared by EN and PL). Not ids - the headings take none, for the reason under NO IDS AT ALL below - but an attribute
+ * Foundry looks nothing up by, `data-drpg-section`, by tools/handbook-facts.mjs's rule for a section, so an anchor and
+ * a facts file's `s<section>` name the same place: a "## " heading's leading number ("## 9. Rooms" is "9"), or that
+ * heading's place among the "## " headings where it has none (the brochure's seven are "1" to "7"); a "### " heading
+ * only when it is numbered ("### 9.1 Rooms and Room Setup" is "9.1"), the player handbook's unnumbered ones none. A
+ * number met again keeps its first heading. The Polish books are written line for line beside the English ones, so
+ * the two give one list (R4720 reads the six files).
+ */
+const SECTION_ATTR = "data-drpg-section";
+
+/** Anchor the sections of a rendered book (or any root holding its headings); answers how many it anchored. */
+export function markSections(root) {
+    const seen = new Set();
+    let place = 0;
+    for (const heading of root.querySelectorAll("h2, h3")) {
+        const title = heading.textContent.trim();
+        let section = null;
+        if (heading.tagName === "H2") {
+            place += 1;
+            section = /^(\d+)\./.exec(title)?.[1] ?? String(place);
+        } else {
+            section = /^(\d+\.\d+)(?!\d)/.exec(title)?.[1] ?? null;
+        }
+        if (!section || seen.has(section)) continue;
+        seen.add(section);
+        heading.setAttribute(SECTION_ATTR, section);
+    }
+    return seen.size;
+}
+
+/** The heading of `section` in a book's text, or null. */
+export function sectionHeading(text, section) {
+    if (section === null || section === undefined || section === "") return null;
+    const wanted = String(section);
+    return [...(text?.querySelectorAll?.(`[${SECTION_ATTR}]`) ?? [])].find(h => h.getAttribute(SECTION_ATTR) === wanted) ?? null;
+}
+
+/* One reckoning for the contents list and a section asked by name: the heading 8 px under the text's top, from the
+   two boxes (fillContents' comment says why not `scrollIntoView`). */
+function scrollToHeading(text, heading) {
+    const top = text.scrollTop + heading.getBoundingClientRect().top - text.getBoundingClientRect().top;
+    text.scrollTop = top - 8;
+}
+
+/** Scroll a book's text to `section`; answers its heading, or null (and the text not moved) where it has none. */
+export function goToSection(text, section) {
+    const heading = sectionHeading(text, section);
+    if (heading) scrollToHeading(text, heading);
+    return heading;
+}
+
 function toHtml(markdown) {
     const Converter = globalThis.showdown?.Converter;
     if (!Converter) return `<pre>${foundry.utils.escapeHTML(markdown)}</pre>`;
@@ -195,6 +248,7 @@ function toHtml(markdown) {
     const template = document.createElement("template");
     template.innerHTML = html;
     for (const element of template.content.querySelectorAll("[id]")) element.removeAttribute("id");
+    markSections(template.content);
     calloutsIn(template.content);
     // Wide tables scroll inside their own box rather than widening the text.
     for (const table of template.content.querySelectorAll("table")) {
@@ -233,15 +287,22 @@ class HandbookApp extends DrpgApp() {
     };
 
     constructor(options = {}) {
+        const { section = null, ...rest } = options;
         // Never taller or wider than the screen it opens on.
         super(foundry.utils.mergeObject({
             position: {
                 width: Math.min(900, window.innerWidth - 40),
                 height: Math.min(760, window.innerHeight - 60)
             }
-        }, options));
-        this.book = openingBook(options.book ?? storedBook());
+        }, rest));
+        this.book = openingBook(rest.book ?? storedBook());
         this.ticket = 0;
+        /* The section the window was last asked for, where it landed (null: nowhere, the text at its top), the book
+           whose text stands in it, and the promise of the last `show` (E57 C4a; R4722 reads all four). */
+        this.sectionAsked = section;
+        this.landed = null;
+        this.loaded = null;
+        this.shown = null;
     }
 
     get title() {
@@ -277,13 +338,26 @@ class HandbookApp extends DrpgApp() {
 
     _onRender(context, options) {
         super._onRender(context, options);
-        wireKitTabs(this.element, { onSwitch: id => this.show(id, { remember: true }) });
-        this.show(this.book);
+        wireKitTabs(this.element, { onSwitch: id => { this.shown = this.show(id, { remember: true }); } });
+        this.shown = this.show(this.book, { section: this.sectionAsked });
     }
 
-    /** Put one book in the window. A click on another tab mid-fetch wins; a press is remembered (`remember`). */
-    async show(id, { remember = false } = {}) {
+    /**
+     * Put one book in the window, at `section` when one is asked (E57 C4a). A click on another tab mid-fetch wins; a
+     * press is remembered (`remember`). A section asked of the book already in the window moves its text and fetches
+     * nothing. Answers the heading it landed on, or null.
+     */
+    async show(id, { remember = false, section = null } = {}) {
+        if (section !== null) this.sectionAsked = String(section);
+        if (id === this.book && id === this.loaded && section !== null) {
+            const text = this.element.querySelector(".drpg-handbook-text");
+            const heading = goToSection(text, section);
+            this.landed = heading ? String(section) : null;
+            return heading;
+        }
         this.book = id;
+        this.loaded = null;
+        this.landed = null;
         if (remember) rememberBook(id);
         for (const button of this.element.querySelectorAll('nav.drpg-tabs > button[role="tab"][data-drpg-tab-key]')) {
             button.setAttribute("aria-selected", String(button.dataset.drpgTabKey === id));
@@ -300,12 +374,17 @@ class HandbookApp extends DrpgApp() {
         } catch (err) {
             error("Could not load a handbook", err);
             if (ticket === this.ticket) text.textContent = game.i18n.localize("DRPG.Handbooks.failed");
-            return;
+            return null;
         }
-        if (ticket !== this.ticket || !text.isConnected) return;
+        if (ticket !== this.ticket || !text.isConnected) return null;
         text.innerHTML = html;
         text.scrollTop = 0;
         fillContents(toc, text);
+        this.loaded = id;
+        if (section === null) return null;
+        const heading = goToSection(text, section);
+        this.landed = heading ? String(section) : null;
+        return heading;
     }
 }
 
@@ -340,8 +419,7 @@ export function fillContents(toc, text) {
         const go = event => {
             event.preventDefault();
             event.stopPropagation();
-            const top = text.scrollTop + heading.getBoundingClientRect().top - text.getBoundingClientRect().top;
-            text.scrollTop = top - 8;
+            scrollToHeading(text, heading);
         };
         link.addEventListener("click", go);
         link.addEventListener("keydown", event => {
@@ -352,14 +430,19 @@ export function fillContents(toc, text) {
     toc.hidden = !toc.childElementCount;
 }
 
-export async function openHandbooks(book = null) {
+/**
+ * Open the handbooks, on `book` (remembered, as a tab's press is) and at `section` (E57 C4a: a section id as
+ * `markSections` gives it, "9" or "9.1", the same in both languages). An open window is handed both; its `shown` is
+ * the promise of where it lands. A section the book lacks leaves the text at its top.
+ */
+export async function openHandbooks(book = null, { section = null } = {}) {
     const open = alreadyOpen(WINDOW_CLASS);
     if (open) {
-        if (book) open.show(book, { remember: true });
+        if (book || section !== null) open.shown = open.show(book ?? open.book, { remember: Boolean(book), section });
         return open;
     }
     if (book) rememberBook(book);
-    return new HandbookApp(book ? { book } : {}).render({ force: true });
+    return new HandbookApp({ ...(book ? { book } : {}), ...(section !== null ? { section: String(section) } : {}) }).render({ force: true });
 }
 
 /* ==========================================================================

@@ -94,6 +94,15 @@ then the commit that makes it green.
 
 About 13-19 R in all, as the planning line counted; C4 is split in two (C4a can be built any time, by F7).
 
+**C4a, built 13.11.2026** (the coordinator's word: no open line edits handbooks.mjs), R4720-R4722 and an addition
+to R111: handbooks.mjs `markSections` (the `data-drpg-section` anchors, by handbook-facts.mjs's section rule),
+`sectionHeading`, `goToSection` (the contents list's own scroll, now one function), and `openHandbooks(book,
+{ section })` with the window's `sectionAsked`, `landed` and `shown`. What it leaves to C4b: the "section N"
+references made jumps (and a reference naming no section listed), and any caller - nothing opens a section yet.
+Measured headless: the anchor rule on the six files, the landing's arithmetic on stood-in boxes, the window's
+wiring; a real window landing on a real section is R111's part, which needs a layout (skipped headless, as R111
+already was).
+
 ## 5. Questions, each with a default
 
 Q-E57-1 to Q-E57-5 are the planning line's (its E57.md section 6) and stand as written there. New:
