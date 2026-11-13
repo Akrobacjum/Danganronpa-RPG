@@ -1584,7 +1584,9 @@ export function createGmStoreEngine(env) {
     }
     function defineCopy(spec) {
         if (!copies.has(spec.name)) copies.set(spec.name, { spec: Object.freeze({ fallback: null, ...spec }), cache: new Map(), writing: false, seenCuts: new Map() });
-        return { name: spec.name, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), stamps: () => mineStamps(spec.name),
+        /* `spec` as a store's handle has it (E43, 13.11.2026): live.mjs hears a copy as a store, by `spec.key` (`watch.stores`;
+           projects-map.mjs's project card, R5204). */
+        return { name: spec.name, spec: copies.get(spec.name).spec, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), stamps: () => mineStamps(spec.name),
             receive: (v, s) => receiveCopy(spec.name, v, s), claim: () => claimCopy(spec.name), forget: () => forgetCopy(spec.name) };
     }
 

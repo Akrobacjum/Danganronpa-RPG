@@ -17,19 +17,36 @@ readings and its quick gate):
 | C4 | the fuzz: every request of the four tables in six shapes, every other module packet in three, from a player's console (audit/harness/lib/fuzz.mjs, scenario 30's last part) | scenario 30 |
 | C5 | the hostile-client matrix: every request naming another player's character or asking a GM's road, delivery proven on the GM first (scenario 33) | scenario 33 |
 | C6 | the README chapter "What a player with a console always sees"; known-leaks as it stands | docs |
+| C7 | Open 96: a project's card hears the discovery record and a settled move; a GM-store copy's handle carries its `spec` | R5204 (tier 1) |
 
 ## Done
 
 | Commit | Sha | State |
 | --- | --- | --- |
-| C1-C3 | 092c18e1 | committed; tiers 0-1 whole green at it |
-| C4+C5 | (next) | the fuzz (scenario 30) and the matrix (scenario 33 H); both scenarios green alone; mutants M1-M5 killed (FINDINGS) |
-| C6 | (with C4+C5) | docs/dev/e43/README-CHAPTER.md: the chapter, drafted for the root README.md, which this line may not edit |
+| C1-C3 | 092c18e1 | pushed; tiers 0-1 whole green at it |
+| C4-C6 | 736e55eb | pushed; the fuzz (scenario 30) and the matrix (scenario 33 H); mutants M1-M5 killed (FINDINGS); docs/dev/e43/README-CHAPTER.md drafted for the root README.md, which this line may not edit |
 
-## In progress
+Before the first push (13.11): every ci scenario at 736e55eb, 38 of 38 green (84-viewports is local-gate only, left
+out); 34 in one `run-all.mjs scenarios` run, the last four (89, 91, 92, 93) alone after a container restart cut it.
 
-The whole ci scenario set (39, 84 left out as local-gate only) before the first push: C1-C3 touch gm-store.mjs and
-gm-stores.mjs, which 25 scenarios read.
+| C7 | (this commit) | Open 96; R5204 red at 736e55eb `[false,false,true,true,"string","undefined"]`, green after; tiers 0-1 whole, scenarios 65, 61, 62 and two GM-store tier-2 tests green |
+
+## State: final for this round (13.11.2026)
+
+E43 is done as far as this line can take it: C1-C7 pushed. No commit in progress. Next stage: none named.
+
+## Not built, each with its reason
+
+- **The LIVE rows** (LIVE-E43-01, the fuzz on a v14 sandbox; LIVE-E43-02, a bystander's Countdowns on v14; and E43-F8,
+  a player's open project card turning on a walk-in at a table): not yet items of audit/AUDIT-1.2.42.md 9.2; default,
+  written there by the coordinator at the release that carries E43, owner to confirm.
+- **The whole-season canary** (the plan: 72-canary walks a whole season). Scenario 72 already scans every surface a
+  player's browser holds (the wire, documents, settings, localStorage, sessionStorage, the page, notifications,
+  dialogs, the console) through one chapter, and 67/68 plant the closing volunteers and the Logic Dive sets. A second
+  chapter and the season's end are a large extension of scenario 72, which the coordinator's rules do not list among
+  this line's scenarios (30, 33, 83). Proposal: a stage that owns scenario 72 walks it on through the next chapter;
+  default, carried to E58 (final verification), owner to confirm.
+- **Open 103**: waits for E93 (FINDINGS E43-F9).
 
 ## Proposals for the coordinator (with defaults)
 
@@ -72,10 +89,32 @@ gm-stores.mjs, which 25 scenarios read.
 | 13.11 | scenario 30 with the fuzz | 279 passed, 0 failed, 1 expected red (foundry-secret-door-type); 454.6 s and 467.1 s |
 | 13.11 | scenario 33 with the matrix | 76/76, 147.2 s |
 | 13.11 | fuzz mutants M1-M4, matrix mutant M5 | all killed |
+| 13.11 | every ci scenario at 736e55eb (38; 84 is local-gate only) | 38/38 green |
+| 13.11 | C7: R5204 red, then green; tiers 0-1 whole | 1325 ran: 1310 passed, 0 failed, 16 skipped, 0 red (441.9 s) |
+| 13.11 | C7: scenarios 65, 61, 62 | 57/59 (2 expected red, as before), 113/113, 51/51 |
+| 13.11 | C7: tier 2 "the old stores are claimed per world ...", "a player's rows merge, never replace ..." | 2/2 |
 
 ## Shots page
 
-None yet: C1-C3 change no screen (console text only).
+None. Nothing this stage changed is drawn by the module's windows: C1-C2 change console text (English, as the
+diagnostics' console stays), C3-C6 tests and docs, and C7 makes an open project card redraw on a player's walk-in,
+which the harness cannot open on a player (no shot can show it headless; FINDINGS E43-F8 names it a live check). The
+voice plan's new shape, as R5201 prints it:
+
+```
+Kitchen  (1)
+   R5201AKITCHEN000 - R5201PA000000000 · w
+(Spectators' room)  (1)
+   R5201ASPEC000000 - R5201PS000000000 · a Spectator, talking with the Spectators
+(sent nowhere)  (2)
+   R5201ASPARE00000 - R5201PA000000000 · nowhere   ← ignored, R5201PA000000000 is sent with R5201AKITCHEN000
+   R5201AOFF0000000 - R5201POFF0000000 · not connected
+
+ACCOUNTS WITH NO CHARACTER  (1)
+   R5201LONE0000000 → (main room) · no character - the main room
+```
+
+(Reconstructed from voicePlan's code and R5201's fixture, not copied from a run's output.)
 
 ## Tokens so far
 

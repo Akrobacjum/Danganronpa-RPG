@@ -51471,6 +51471,29 @@ const INVARIANTS = [
             "[the group of a character placed in the Kitchen; of a Spectator talking; of a character whose owner is offline; of a spare its account's ranking passed over; of an account with no character; the Spectator's lines]");
     }],
 
+    ["R5204 - a project's card opened while its project was unknown turns into the project's when this browser learns of it (E44's Open 96, carried to E43): projects-map.mjs `showProjectCard`'s live region hears the discovery record - the GMs' store, the player's copy of it, each a client setting by its handle's own key - and a move settled on this browser, beside projectMeta, the Countdowns and a card's words stored", async () => {
+        /*
+         * E43, 13.11.2026. `knowsProject` answers a public project from where this browser's characters have stood
+         * (`hasStoodIn`: the tokens now, the fog's record, its own union), and the card's region watched projectMeta, the
+         * Countdowns and `drpgSecretStored` alone: "a discovery is not heard", so a card opened while the project was
+         * unknown stayed the card that names nothing until it was opened again. Read here in the source: the keepLive the
+         * card starts names both stores by their handles (`watch.stores`, which live.mjs hears as clientSettingChanged on
+         * `spec.key`) and `drpgRouteSettled` (movement.mjs, this browser's move settled); and the two handles have a key.
+         * What a player's browser draws when it walks in is not measured headless here: the harness's player opens no
+         * sheet window (a live check, FINDINGS E43-F8). Red at 736e55eb: [false,false,true,true,"string","undefined"] -
+         * neither store nor the hook in the watch, and the copy's handle carried no `spec` for live.mjs to hear it by.
+         */
+        const S = await import("./gm-stores.mjs");
+        const source = stripComments((await moduleSources()).get("projects-map.mjs") ?? "");
+        const body = fnSource(source, "showProjectCard");
+        const watch = bodyOf(body, "watch:", { until: "\n" });
+        equal(stableJson([/stores:\s*\[\s*discoveryStore,\s*fogCopy\s*\]/.test(watch), /hooks:\s*\[[^\]]*"drpgSecretStored"[^\]]*"drpgRouteSettled"/.test(watch),
+            /settings:\s*\["projectMeta"\]/.test(watch), /settingKeys:\s*\[COUNTDOWNS_KEY\]/.test(watch),
+            typeof S.discoveryStore?.spec?.key, typeof S.fogCopy?.spec?.key]),
+            stableJson([true, true, true, true, "string", "string"]),
+            "[the card watches both discovery stores; the two hooks; projectMeta; the Countdowns; the store's key; the copy's key]");
+    }],
+
     ["R5202 - the voice plan's conflicts are only the accounts the ranking settled by actor id between two places (E43; the plan's item 4: no false \"contested\"): voice.mjs `contestedOf` names an account with two students in two rooms, and not one whose living student outranks a dead one, nor one whose spare stands on no room - the warning's own advice - nor a dead victim's account while the victim keeps its room by A9's rule; voiceTargets reads it", async () => {
         /*
          * E43, 13.11.2026. `voiceTargets` called an account contested when its connected characters' targets differed
