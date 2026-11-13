@@ -359,7 +359,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* ------------------------ L11. a Level Up ------------------------ */
 
-    /* The GM offers Botan a Standard Level Up; p2 takes +1 Health from his sheet (bridge-asks.mjs `requestAdvancement`),
+    /* The GM offers Botan a Standard Level Up; p2 takes a point in Body from his sheet, +1 Health with it since E64 C6 (bridge-asks.mjs `requestAdvancement`),
        which the GM applies (level-up.mjs `applyAdvancement`). */
     phase("L11: a Level Up p2 takes and the GM applies", { flow: "sheet-audit" });
     const l11Was = await sheetOf(botan);
@@ -368,7 +368,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     await settle(600);
     mark = await readings();
     const l11 = await p2.eval(`const B = await import("${SCRIPT("gm-bridge")}");
-        const res = await B.requestAdvancement({ actorId: "${botan}", picks: [{ option: "hp" }], kind: "standard" });
+        const res = await B.requestAdvancement({ actorId: "${botan}", picks: [{ option: "trait", trait: "strength" }], kind: "standard" });
         return { ok: Boolean(res?.ok), reason: res?.reason ?? null };`, { timeout: 60000 });
     const r11 = await mark.since();
     const l11Now = await sheetOf(botan);

@@ -170,6 +170,13 @@ export const FLAGS = {
      * player's write of it is put back (sheet-audit.mjs `GM_FLAGS`).
      */
     levelUpExperiences: "levelUpExperiences",
+    /**
+     * Character: the Health and Sanity maxima DA39's rule has given this character, `{ hitPoints, stress }` (E64; the
+     * owner's DRPG-D1 of 12.11.2026). Added to by `applyAdvancement` with each statistic point's rise and by the DA39
+     * migration (level-up.mjs `applyDa39Migration`) with the rises it owes; read by `da39Row`, so a maximum the rule
+     * gave is never taken for an old +1 Health or +1 Sanity pick. A GM's flag (sheet-audit.mjs `GM_FLAGS`).
+     */
+    da39Rises: "da39Rises",
     /** Character: has this character already taken their free Move this time of day? */
     freeMoveUsed: "freeMoveUsed",
     /**
@@ -1663,9 +1670,14 @@ export const ACTIONS = {
      * where the costs and room requirements can be shown side by side - and
      * keeping them together is half of what holds the grid at two rows of five.
      */
+    /*
+     * FACILITIES, THE TILE THAT WAS REST (E93 C4, 12.11.2026; the owner's audit entry E93 (1)). Its key stays `rest`: the
+     * window, the briefing and every reader of the key are the same, and the room's actions join the two rests in the
+     * window (action-rest.mjs, action-facilities.mjs). `cost` is the Short Rest's, the cheapest thing in the window.
+     */
     rest: {
         kind: "universal",
-        label: "Rest",
+        label: "Facilities",
         icon: "fa-bed",
         traits: [],
         cost: 1,
@@ -1682,13 +1694,21 @@ export const ACTIONS = {
             + "of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much "
             + "and grants less Hope."
     },
+    /*
+     * INFILTRATE, THE TILE THAT WAS LISTEN (E69 C1, 12.11.2026; DA27: the key `listen` stays, no migration; DA28 and DA48: one
+     * list of rows without groups, seven once E74 adds its four). The rows are `INFILTRATE`'s, in its order (`variants`); the
+     * thresholds, critical and failure below stay Listen's, as the Listen row reads them. The description is the owner's
+     * approved text of batch B01a and speaks of Listen; the label and the hint name the tile.
+     */
     listen: {
         kind: "universal",
-        label: "Listen",
+        label: "Infiltrate",
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        hint: "Work out who is in a neighbouring room. No GM needed.",
+        variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
+            + "Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -1754,8 +1774,12 @@ export const ACTIONS = {
          * The unseen axis does not move. Whether anybody watched you is a
          * different question from whether your fingers found it, and it was
          * balanced well.
+         *
+         * 12 SINCE E64, AS A SEARCH'S TIER 1 (S02-75; the owner's DRPG-D1 of 12.11.2026, "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). At 10 a steal took 77.8 / 83.3 / 87.5% at 0 / +1 / +2, surer
+         * than a Search's Tier 1 (65.3 / 72.2 / 77.8%); now the two are one. The Plant and the cover are unchanged.
          */
-        threshold: 10,
+        threshold: 12,
         /** Whether they noticed. Its own axis, rolled separately. */
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
         /** Leaving something is easier than taking it - both axes (D10a). */
@@ -1801,8 +1825,7 @@ export const ACTIONS = {
         // list is the traces the player has found (`cleanableTracesForPlayer`), not the ones
         // they left, and its critical can reshape one instead of wiping it.
         hint: "Erase a Remnant you have found here, unless it is Reinforced; on a critical, you can reshape it "
-            + "instead. You can also plant a false Remnant that points at somebody else. It costs an action, or Sanity "
-            + "once you have no action left.",
+            + "instead. You can also plant a false Remnant that points at somebody else. It costs an action.",
         // No thresholds here on purpose: the erase branch reads its number off
         // how visible the trace is (`CLEANUP.dc`) and the frame-up reads its
         // flat `threshold` off `CLEANUP.actions.misleadingTrail`. One number
@@ -1869,6 +1892,13 @@ export const ACTIONS = {
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
         ],
         critical: { result: "Success. The target needs a hidden-difficulty repair project.", remnant: "obvious" },
+        /*
+         * THE SIMPLE REPAIR IS 2 PROGRESS (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). A hit below the complex band made a Trivial repair, 3: one
+         * Sabotage forced 3.11 Work actions per attempt (saboteur and repairer at 0, misses counted; STATUS). With 2 it is
+         * 2.68. The complex band (Complex, 6) and the critical (Desperate, 8) are unchanged. One number to flip back.
+         */
+        simpleRepair: 2,
         failure: "Nothing happens.",
         failureRemnant: "hidden",
         leavesRemnant: { type: "prep", faint: true }
@@ -2099,6 +2129,128 @@ export const REST = {
 };
 
 /* ==========================================================================
+ * INFILTRATE  (E69: the rows of the tile that was Listen)
+ * ========================================================================== */
+
+/**
+ * THE INFILTRATE TILE'S ROWS (E69 C1, 12.11.2026; the owner's audit entry E69, DA8, DA19-DA21, DA26-DA28, DA32, DA33). One
+ * table, in the window's order; E74 adds Shut the Door, Force the Door, Pick the Lock and Keep Watch. Names and hints are
+ * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
+ *
+ *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
+ *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (`traits`: the player proposes one on
+ *           E68's card and a GM picks, trait-ruling.mjs `definitionOf`'s generic `tail`, as R213 holds every list of
+ *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
+ *           `perDay` null: no daily limit, one active tail per tailer (DA26). What a tail does is tail-gm.mjs's.
+ *   dash    Dash: Leg, free crossings by band (`bands`: the highest reached; `critical`), granted through actions.mjs
+ *           `grantFreeMoves`. The plan names "0-3 by band" and no numbers: a miss 0, 12+ 1, 18+ 2, a critical 3 - a
+ *           default taken (docs/dev/e69/SPEC.md).
+ */
+export const INFILTRATE = Object.freeze({
+    listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
+    tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
+        unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
+    dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
+        bands: Object.freeze([Object.freeze({ min: 12, moves: 1 }), Object.freeze({ min: 18, moves: 2 })]),
+        critical: Object.freeze({ moves: 3 }) }),
+    // Shut the Door (E74 C2; DA25 = 1): Body, its total the barricade's strength; a room with at most `maxExits` open doors.
+    shut: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, maxExits: 2 }),
+    // Force the Door (E74 C3; DA9, DA31 = 2, DA43 = 1, DA52): Body against what holds the door - a barricade by its strength,
+    // a lock (a GM's or a bedroom's) and a seal at `lockDc`, all at once; the banging is heard in the rooms next to either.
+    force: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, lockDc: 18, noise: "adjacent" }),
+    // Pick the Lock (E74 C4; DA9, DA30, DA31 = 2): Hand at `dc` opens a lock or a seal, `clean` and up leaves no warning;
+    // the `cover`, Shadow, says whether the two rooms see who it was.
+    pick: Object.freeze({ traits: Object.freeze(["hand"]), cost: 1, dc: 15, clean: 18,
+        cover: Object.freeze({ trait: "shadow", threshold: 16 }) }),
+    // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (the owner's "Zgoda",
+    // 12.11.2026). A watch of `hindranceAt` or more, or a critical, puts one hindrance die on the killer's opening roll
+    // against the watcher (DA44 option A, the owner 12.11.2026: named in the killer's window, its cause not).
+    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 })
+});
+
+/* ==========================================================================
+ * FACILITIES  (E93: the room's actions beside the two rests)
+ * ========================================================================== */
+
+/**
+ * WHAT A ROOM'S ACTIONS ARE MADE OF (E93 C1, 12.11.2026; the owner's audit entry E93 (2)-(5), 05.11 and 08.11). Two
+ * sources: a GM's action, set per room in Room Setup's Facilities tab and rolled (`gm`), and a completed project's,
+ * set by a GM on the project and not rolled (`project`). Every name a player sees is in lang/*.json under
+ * `DRPG.Facility`; nothing here is prose (config-prose.mjs reads this file's strings).
+ *
+ * `flag` is the region flag that holds a room's GM actions on every piece of the room, as the rest flags are held
+ * (rest.mjs `REST_FLAGS`). `maxActions` a room's, `maxEffects` an action's, `maxLabel` and `maxText` the lengths kept
+ * (facilities.mjs `cleanAction` cuts the rest): each a design number, not a measurement. `dc` is the range a GM's
+ * action's difficulty may take, `defaultDc` the field's first value (Daggerheart's ordinary 12-18 band).
+ *
+ * `effects` is the closed list built in E93's first round (docs/dev/e93/SPEC.md, "Effects"): each `{ amount }` the
+ * largest `n` a GM may give, or `{ text }` for a line the GM writes. `scopes` who an effect falls on - the user
+ * (`self`), everyone in the room at the moment of use (`present`, Q-E93-5's default) or everyone there but the user
+ * (`others`: "Hope for another present"). `once` effects act on the room or the table, not on a character, so their
+ * scope is ignored.
+ *
+ * `lifetimes` a completed project's action's: for good (`forever`), or for `n` times of day or days after the time of day
+ * it was completed in (`timesOfDay`, `days`), ending at a chapter's or a season's end. `gmCost` a GM's action's price in
+ * actions, `projectCost` a project's when its switch says it costs one (the owner's 08.11: the switch is the project
+ * action's only, default yes, Q-E93-1). `trace` the band a GM's action's use leaves (Q-E93-6's default).
+ */
+export const FACILITIES = Object.freeze({
+    flag: "facilityActions",
+    maxActions: 8,
+    maxEffects: 4,
+    maxLabel: 60,
+    maxText: 400,
+    dc: Object.freeze({ min: 5, max: 30 }),
+    defaultDc: 12,
+    gmCost: 1,
+    projectCost: 1,
+    effects: Object.freeze({
+        health: Object.freeze({ amount: 6 }),
+        sanity: Object.freeze({ amount: 6 }),
+        hope: Object.freeze({ amount: 3 }),
+        freeMove: Object.freeze({ amount: 2 }),
+        searchToken: Object.freeze({ amount: 3, once: true }),
+        overflowDown: Object.freeze({ amount: 10, once: true }),
+        text: Object.freeze({ text: true }),
+        /* THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026: "Dodajemy teraz"; timed-effects.mjs). Each kept by
+           the GMs as a row with its end (`until`, one of `TIMED_UNTIL`; `untils` the ones the GM may pick here, the first
+           the default). `trait`: the GM picks a statistic in the editor. */
+        traitBonus: Object.freeze({ amount: 3, trait: true, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // `label`: the GM names it in the editor (the line's text box); an Experience of that name and value X.
+        experience: Object.freeze({ amount: 3, label: true, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // One die of advantage on the character's next roll: a Call the GM arms (key "facility"), which ends with that roll as
+        // every armed Call does, so it keeps no row of its own in the timed store.
+        advantage: Object.freeze({ amount: 1 }),
+        // The character's next roll with Fear gives its Monokuma no Despair: used up by the first point it stops, and waits
+        // no longer than its end (despair-award.mjs `awardRollDespair`, timed-effects.mjs `takeDespairShield`).
+        despairShield: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // X more crossings for this character in the next Eclipse (or the one running), ended by that Eclipse's end
+        // (eclipse.mjs `eclipseAllowanceFor`, movement.mjs's two judges of an Eclipse crossing).
+        eclipseCrossing: Object.freeze({ amount: 2, untils: Object.freeze(["eclipse"]) }),
+        // X points of durability back on the character's most worn thing that is not broken (inventory.mjs `mendWear`): at
+        // once, keeps no row. A broken thing stays a Repair project's work (the stage's default, docs/dev/e93/STATUS.md).
+        durability: Object.freeze({ amount: 3 }),
+        // Wounded or Breakdown ended (`state`, a key of `STATES`): one mark off its full track, at once, when the character
+        // is in it (states.mjs `stateHeld`); the GM picks which by the kind. One mark ends it, so the amount is 1.
+        endWounded: Object.freeze({ amount: 1, state: "wounded" }),
+        endBreakdown: Object.freeze({ amount: 1, state: "breakdown" }),
+        // X progress to the oldest unfinished project in the room the user can see (the first on the board, the order they
+        // were made in; projects.mjs `projectsAvailableIn`), an indirect murder passed by. A project's, so `once`.
+        projectProgress: Object.freeze({ amount: 3, once: true }),
+        // The character's next Ultimate Call gives a second die of advantage: when that Call is armed (call-effects.mjs
+        // `appendArmedCall`), the GM arms one more Call of advantage beside it (key "facility") and the row is used up
+        // (timed-effects.mjs `boostUltimate`). Waits no longer than its end.
+        ultimateBoost: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) })
+    }),
+    /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
+    timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),
+    scopes: Object.freeze(["self", "present", "others"]),
+    lifetimes: Object.freeze(["forever", "timesOfDay", "days"]),
+    maxLifetime: 30,
+    trace: Object.freeze({ type: "neutral", visibility: "subtle", faint: true })
+});
+
+/* ==========================================================================
  * HOPE CALLS  (player spends Hope)
  * ========================================================================== */
 
@@ -2120,9 +2272,22 @@ export const HOPE_CALLS = {
         effect: "Give another student in your room advantage on their next roll; a student who already has an unused "
             + "Support cannot get another, and you keep your Hope."
     },
+    /*
+     * TALENT: EXPERIENCE AND ULTIMATE AS ONE TILE (E72, 12.11.2026; the owner's pick, relayed by the coordinator: Bribe
+     * stays among the Hope Calls, which stay ten). The tile is this row; what it buys is one of the two rows below,
+     * chosen in its confirmation with the note to the GM (calls.mjs `confirmCall`'s `choices`), each with its own guards - the GM's yes, the Hope paid on it, one at
+     * a time, the trial's rules - and its own key, so a Call armed before the update resolves as it did.
+     */
+    talent: {
+        label: "Talent", icon: "fa-star", cost: 1, target: "none", choices: ["experience", "ultimate"], ask: "DRPG.Calls.talentAsk",
+        effect: "Say how an experience or your Ultimate fits your next roll. A GM approves, and you pay only then. The roll adds "
+            + "the experience or gets advantage."
+    },
     experience: {
         // Waits for the GM - see the note on Ultimate above. This is the Call
         // the "genuinely applies" gate was written for in the first place.
+        // Chosen in Talent's tile since E72 (12.11.2026): no tile of its own.
+        inside: "talent",
         needsGm: true,
         label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
         effect: "Write how one of your experiences applies to your next roll; a GM approves or refuses, and you pay "
@@ -2159,6 +2324,8 @@ export const HOPE_CALLS = {
          * (bridge-guards.mjs `guardArmGmYes`). Until then only the asking browser
          * waited for the ruling, and a console armed both with none asked.
          */
+        // Chosen in Talent's tile since E72 (12.11.2026): no tile of its own.
+        inside: "talent",
         needsGm: true,
         label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",
         effect: "Write how your Ultimate applies to your next roll; a GM approves or refuses, and you pay the Hope "
@@ -2316,6 +2483,16 @@ export const HOPE_CALLS = {
         effect: "For your next roll, a random one of the two dice is set to 12 and the other is thrown. A 12 on the "
             + "thrown die makes a critical; otherwise the roll is with Hope if the Hope die was set, with Despair if "
             + "not."
+    },
+    /*
+     * BRIBE (E72 C15, 12.11.2026; the owner's DC25, DC26, DC39; the inventory's row 74). Not a grant: an offer to a
+     * Monocub, paid into its purse only on its yes (monocub.mjs `offerBribeOnGm`, `answerBribeOnGm`; calls.mjs
+     * `spendHopeCall` hands it there before anything is paid). Secret between the two: no public card. The price is a
+     * default, owner may revise.
+     */
+    bribe: {
+        label: "Bribe", icon: "fa-money-bills", cost: 1, target: "monocub", bribe: true,
+        effect: "Offer a Monocub {cost} Hope for a favour. You pay only if they accept; nobody else knows."
     }
 };
 
@@ -2426,6 +2603,27 @@ export const OVERFLOW = {
         /** No free Move. The action-priced crossings still work. */
         fog: { kind: "state", on: true, reader: "hasFreeMove" },
 
+        /*
+         * THE FIVE OF THE ROOM ACTIONS (E93 C6, 12.11.2026; the owner's audit entry E93 (6): Sabotage and Spoilage
+         * rejected). Each a state read where a room action or a rest is judged - on the user's browser, which greys
+         * the row, and on the primary GM, which refuses it (facilities-gm.mjs `handleFacilityUse`, sheet-audit.mjs
+         * `restCovers`). IN THE HAT BY DEFAULT (the owner's DRPG-D1 answer, 12.11.2026: "Wlaczone w losowaniu"), which
+         * was a default the other way until then: with five more in the draw, each older darkening comes up less often, as
+         * the handbooks say. A GM unticks any of them in Despair Flow.
+         */
+        /** Lockdown: every room action off for the time of day (the rests stay). */
+        lockdown: { kind: "state", on: true, reader: "facility.use" },
+        /** Insomnia: no Short rest this time of day. The Long rest stays. */
+        insomnia: { kind: "state", on: true, reader: "restVariants" },
+        /** Toll: every room action costs `by` more actions; a project's action that costs none costs `by` (08.11). */
+        /*  `adds`: a size that raises a price rather than taking a number down, so no floor is under it (tier 1's
+            "never below its floors" asks a floor of every state that subtracts). */
+        toll: { kind: "state", on: true, by: 1, adds: true, reader: "facilityCost" },
+        /** Jitters: a GM's room action is rolled with a die of disadvantage. */
+        jitters: { kind: "state", on: true, reader: "situation" },
+        /** Power cut: the completed projects' actions off for the time of day; the GM's actions stay. */
+        powercut: { kind: "state", on: true, reader: "facility.use" },
+
         /* ---- events: done once, at the moment of firing ------------------ */
 
         /**
@@ -2519,6 +2717,8 @@ export const DESPAIR_CALLS = {
         // Hope, and the Monokuma is buying a Monocub's single Meddle.
         label: "Fuel a Monocub", icon: "fa-hand-holding-heart", cost: 1, target: "monocub",
         grantsHope: 1,
+        // The tile's two Calls (the owner, 12.11.2026: the GM's Calls keep their number of tiles): this one, or a Bounty.
+        choices: ["fuelTheCub", "bounty"],
         effect: "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
     },
     /*
@@ -2664,6 +2864,20 @@ export const DESPAIR_CALLS = {
          */
         label: "New Rule", icon: "fa-gavel", cost: 9, target: "none", announces: true,
         effect: "Introduce one new killing game rule of your choice."
+    },
+    /*
+     * BOUNTY (E72 C16, 12.11.2026; the owner's DC27 = 2, DC40; the inventory's row 75). The one Call that is not public:
+     * for the Monocubs and the GMs. Its price is owed from the pool through the debt buffer, paid at the next time of
+     * day; `reward` is the Hope into the purse of the first Monocub whose Confusion hinders the student (monocub.mjs
+     * `postBounty`, `claimBounty`; calls.mjs `spendDespairCallFor` hands it there). Defaults, owner may revise: the claim
+     * and the lapse at the next time of day.
+     */
+    bounty: {
+        label: "Bounty", icon: "fa-sack-dollar", cost: 1, reward: 1, target: "player", bounty: true,
+        // No tile of its own (the owner, 12.11.2026): chosen in Fuel a Monocub's tile (calls.mjs `despairCallsFor`).
+        inside: "fuelTheCub",
+        effect: "A secret Bounty: one Hope for the first Monocub whose Confusion hinders the named student. Only the Monocubs "
+            + "and the GMs know; the Despair goes at the next time of day."
     }
 };
 
@@ -2830,7 +3044,9 @@ export const PROJECT_SCALE = {
 export const PROJECT_TOKEN = {
     /** Grid squares, square. */
     size: 2,
-    /** Neutral, and it has to be: this document reaches every browser.
+    /** The picture of a project with no glyph (projects-map.mjs `projectTokenIcon`). Every project token wore it until
+        13.11.2026, neutral because the document reaches every browser; since then a project's token wears its chosen
+        glyph (PROJECT_GLYPHS below, icons/project-<key>.svg), the owner's choice B, its cost accepted and written down.
         THE HAMMER, NOT FOUNDRY'S HAZARD SIGN (22.09, Dawid, on 1.2.52: "zamiast trojkata
         ostrzegawczego powinien byc mlotek widoczny po otworzeniu ekranu tokena projektu").
         It is the project card's own glyph, as the module's white token icon the project
@@ -3110,7 +3326,15 @@ export const STATES = {
         id: "drpgWounded",
         label: "Wounded",
         resource: "hitPoints",
-        img: `modules/${MODULE_ID}/icons/state-wounded.svg`
+        img: `modules/${MODULE_ID}/icons/state-wounded.svg`,
+        /**
+         * WHERE WOUNDED TAKES ITS ACTION (E64 C1c, 12.11.2026; audit S03-49): in Daily Life and in the Investigation,
+         * not in the Class Trial (actions.mjs `actionBudget`). The guide's "Losing all Health during Daily Life costs
+         * the character -1 action per time of day"; C1c read it as Daily Life alone, and the owner's review of
+         * 12.11.2026 put the Investigation back ("wolalbym by wounded dzialalo tez w investigation"). Until 1.2.105 the
+         * action was taken in every phase. The state itself, its badge and its icon stay in every phase.
+         */
+        actionsLostIn: ["dailyLife", "investigation"]
     }
 };
 
@@ -3134,8 +3358,6 @@ export const DEAD_ICON = {
  * ========================================================================== */
 
 export const LEVEL_UP_OPTIONS = {
-    hp: { label: "Increase Health by +1" },
-    stress: { label: "Increase Sanity by +1" },
     trait: { label: "Increase one statistic by +1" },
     experienceUp: { label: "Increase one experience by +1" },
     experienceNew: { label: "Add a new experience worth +{worth}" }
@@ -3145,6 +3367,20 @@ export const LEVEL_UP = {
     standard: { picks: 1 },
     reinforced: { picks: 3 }
 };
+
+/**
+ * WHAT A STATISTIC'S POINT RAISES WITH IT (E64 C6, 12.11.2026; the owner's DA39 of 05.10, audit S18-27; approved
+ * 12.11 with the migration of past picks). The options lost "+1 Health" and "+1 Sanity": a point in Head raises the Sanity maximum
+ * by 1, a point in Body or in Leg the Health maximum by 1, in the same write (level-up.mjs `applyAdvancement`). Keyed
+ * by Daggerheart's statistic (`TRAITS.*.dh`): Head is `knowledge`, Body `strength`, Leg `agility`. A world whose
+ * students took +1 Health or +1 Sanity before is brought under this rule once, on the GM's word (level-up.mjs
+ * `offerDa39Migration`; the owner's DRPG-D1 of 12.11.2026, Q-E64-4): the old picks back, a statistic point for each.
+ */
+export const LEVEL_UP_TRAIT_RESOURCES = Object.freeze({
+    knowledge: Object.freeze({ stress: 1 }),
+    strength: Object.freeze({ hitPoints: 1 }),
+    agility: Object.freeze({ hitPoints: 1 })
+});
 
 /* ==========================================================================
  * MONOCUB
@@ -3210,12 +3446,22 @@ export const MONOCUB = {
             target: "roomStudent",
             /** Help or Hinder: the picker's two buttons, the first the default. */
             choices: ["help", "hinder"],
-            /** Shut in an Eclipse and a Class Trial (CUB_LOCKS; CALL-16, T-1) - on the picker and before paying only. */
+            /** Shut in an Eclipse and a Class Trial (CUB_LOCKS; CALL-16, T-1) - on the picker, and on the GM before the price (E72 C1). */
             locks: ["eclipse", "classTrial"],
+            /**
+             * How often a student may be its target (E72 C4; audit S18-59, the owner's DC32 = 2): once per time of day
+             * and twice per game day, counted per target student over every Monocub, a failed move counted; asked on
+             * the GM before the price (monocub.mjs `cubCapRefusal`). null for a row with no target student.
+             */
+            caps: { perTimeOfDay: 1, perDay: 2 },
+            /** A move done to order costs only its action (E72 C17; DC34): monocub.mjs `priceOf`. */
+            executionCost: { cost: 1, hopeCost: 0 },
             /** "Stat: -": the flat 2d12 the GM throws (CUB_ROLLS). */
             roll: "flat2d12",
             /** Scored on the GM's own throw by `scoreMeddle` (CUB_RESOLVERS). */
             resolve: "meddle",
+            /** What the GM whispers when it refuses one (E72 C5: a row without it says `DRPG.Monocub.moveRefused`). */
+            refusedSay: "DRPG.Monocub.meddleRefused",
             // The lower tier grants a flat +1/-1, the upper tier grants full
             // advantage/disadvantage. Both are armed on the target's very next
             // roll through the same Call machinery Support/Obstacle already use -
@@ -3224,8 +3470,11 @@ export const MONOCUB = {
             // `help`/`hinder` are the Monocub's receipt; `helpTarget`/`hinderTarget`
             // are what the student it happened to reads (DESP-06) - anonymous, in
             // their own second person, never "the player".
+            // FIRST TIER 11 (E64 C5a, 12.11.2026; the owner's DC5 of 05.10; default taken, owner to confirm): it was
+            // 12. With a double as a critical, a hit of either kind comes up 104 of the 144 throws of 2d12 (72.2%),
+            // where it was 94 (65.3%).
                 thresholds: [
-                { min: 12, grants: "bonus",
+                { min: 11, grants: "bonus",
                   help: "You grant the player +1 on their next roll.",
                   hinder: "You inflict −1 on the player's next roll.",
                   helpTarget: "Something steadies your hand: +1 on your next roll.",
@@ -3242,6 +3491,91 @@ export const MONOCUB = {
                 hinderTarget: "A moment's confusion: the action is wasted."
             },
             failure: "The attempt fails."
+        },
+        /**
+         * REDEEM (E72 C5, 12.11.2026; audit S18-60, the owner's DC22): +1 Hope from nothing, once a game day, shut at the
+         * Hope's maximum and in a darkened hour (`blocks`, monocub.mjs `CUB_BLOCKS`). No action since cca805ca, no Hope, no dice; aimed
+         * at the Monocub itself. Its price is a default taken (STATUS, owner to confirm).
+         */
+        redeem: {
+            label: "Redeem",
+            icon: "fa-ticket",
+            // Free (the owner on DRPG-D1, 12.11.2026: "Redeem tez za darmo"); once a game day, shut at full Hope and darkened.
+            cost: 0,
+            hopeCost: 0,
+            target: "self",
+            choices: ["redeem"],
+            locks: ["eclipse", "classTrial"],
+            blocks: ["oncePerDay", "hopeFull", "darkened"],
+            roll: "none",
+            resolve: "redeem",
+            caps: null,
+            thresholds: []
+        },
+        /**
+         * ASK FOR HOPE (E72 C5; audit S18-60): a card in the Monocub's thread for the GMs, Give 1, Give 2 or Not now,
+         * settled by one GM (bridge-asks.mjs `claimCard`) and paid from that GM's Despair (despair.mjs
+         * `convertDespairToHope`). Free; one ask open at a time (`blocks`). No dice.
+         */
+        askHope: {
+            label: "Ask for Hope",
+            icon: "fa-hands-praying",
+            cost: 0,
+            hopeCost: 0,
+            target: "self",
+            choices: ["ask"],
+            locks: ["eclipse", "classTrial"],
+            blocks: ["askOpen", "hopeFull"],
+            roll: "none",
+            resolve: "askHope",
+            caps: null,
+            thresholds: []
+        },
+        /**
+         * TINKER (E72 C13, 12.11.2026; the owner's DC23, DC24, DC35; the inventory's row 73): Confusion aimed at a
+         * project. A public, unfinished, unfrozen project in the Monocub's room that a living student worked on this
+         * time of day (monocub.mjs `CUB_TARGETS.project`); 1 action and 1 Hope, taken on the GM after the conditions; a
+         * flat 2d12, 12 or more moves it one step forward or back (`scoreTinker`), a double gives the Hope back. A
+         * project it would finish holds one short (default, owner may revise): no completion card, no trap armed. Its
+         * tier says its words through `DRPG.Monocub.*Step` (monocub.mjs TIER_WORDS), so the row holds no sentence.
+         */
+        tinker: {
+            label: "Tinker",
+            icon: "fa-screwdriver-wrench",
+            cost: 1,
+            hopeCost: 1,
+            target: "project",
+            choices: ["help", "hinder"],
+            locks: ["eclipse", "classTrial"],
+            roll: "flat2d12",
+            resolve: "tinker",
+            refusedSay: "DRPG.Monocub.tinkerRefused",
+            intro: "DRPG.Monocub.tinkerIntro",
+            caps: null,
+            executionCost: { cost: 1, hopeCost: 0 },
+            thresholds: [{ min: 12, grants: "step" }]
+        },
+        /**
+         * GHOST BET (E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; the inventory's row 72): a
+         * Monocub names the student it thinks the verdict will sentence, for the Hope of the window it bets in
+         * (monocub.mjs `betWindowNow`: 4 before this chapter's body is announced, 3 after, 2 in the Class Trial before
+         * the vote, 1 while it is open), paid into its purse only when a right verdict sentences that student
+         * (`settleBets`, the verdict's step "bets"). Defaults, owner may revise: free, one bet until the next verdict.
+         */
+        bet: {
+            label: "Ghost Bet",
+            icon: "fa-dice",
+            cost: 0,
+            hopeCost: 0,
+            target: "student",
+            choices: ["bet"],
+            locks: ["betWindow"],
+            blocks: ["betPlaced", "ownCase", "crimeWitness"],
+            roll: "none",
+            resolve: "bet",
+            intro: "DRPG.Monocub.betIntro",
+            caps: null,
+            thresholds: []
         }
     }
 };
@@ -3347,8 +3681,13 @@ export const MURDER_OPENING = {
         label: "Opening roll - victim",
         threshold: 20,
         traits: ["eye", "head"],
-        /** Night works against the victim. */
-        nightDisadvantage: true,
+        /*
+         * NO NIGHT DISADVANTAGE ANY MORE (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). With it the victim noticed a trap at Night 10.0 / 11.3 / 13.4% of
+         * the time at 0 / +1 / +2 (STATUS); without it as by day, 16.7 / 20.8 / 25.0%. The readers (murder-rules.mjs,
+         * roll-draw.mjs) still ask the flag: one value to flip back.
+         */
+        nightDisadvantage: false,
         hope: "Something is wrong with this room, and you have no idea why. Spend your "
             + "Free Move, if you still have it, and you live.",
         despair: "You work out what has been set up here, and you can tell the others. "
@@ -3400,6 +3739,17 @@ export const INCIDENT = {
  * victim takes something of the killer's and makes evidence of it" is a
  * sentence a human has to finish.
  */
+/**
+ * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
+ * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
+ * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
+ * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
+ * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
+ * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
+ * whose threshold falls to free as the victim runs out of Health.
+ */
+export const DEFENSE = Object.freeze({ cap: 1 });
+
 export const CRISIS_ACTIONS = {
     /**
      * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
@@ -3526,6 +3876,7 @@ export const CRISIS_ACTIONS = {
      */
     selfDefence: {
         side: "victim", label: "Self-Defense", icon: "fa-shield-halved",
+        defense: { side: "killer", trait: "body" },
         threshold: 18, traits: ["hand", "leg", "body"],
         hint: "A hit with Hope unlocks Survive and Role Reversal; with Despair, only Role Reversal, unless the "
             + "incident denies it. A critical unlocks both, stops your Health and Sanity loss, and lets you take one "
@@ -3582,6 +3933,7 @@ export const CRISIS_ACTIONS = {
     },
     survive: {
         side: "victim", label: "Survive", icon: "fa-person-running",
+        defense: { side: "killer", trait: "leg" },
         threshold: 18, traits: ["leg"], kind: "resolution",
         // Closed until Self-defence lands - see `selfDefence.unlocks`.
         lockedUntil: "selfDefence",
@@ -3600,6 +3952,7 @@ export const CRISIS_ACTIONS = {
     },
     roleReversal: {
         side: "victim", label: "Role Reversal", icon: "fa-arrows-rotate",
+        defense: { side: "killer", trait: "body" },
         threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
         lockedUntil: "selfDefence",
         hint: "Turn the tables. On a hit, you become the killer and your attacker loses Health and Sanity instead; "
@@ -3640,6 +3993,7 @@ export const CRISIS_ACTIONS = {
     /* ---- the killer ---------------------------------------------------- */
     strike: {
         side: "killer", label: "Strike", icon: "fa-hand-fist",
+        defense: { side: "victim", trait: "body" },
         threshold: 15, traits: ["hand", "leg", "body"],
         hint: "A hit takes {hp} Health and {stress} Sanity off the victim and leaves a Remnant, Hidden with Hope and "
             + "Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you "
@@ -3663,6 +4017,7 @@ export const CRISIS_ACTIONS = {
     },
     pin: {
         side: "killer", label: "Pin Them Down", icon: "fa-down-long",
+        defense: { side: "victim", trait: "body" },
         threshold: 12, traits: ["body"],
         hint: "Put the victim's Leave a Clue and Survive at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
@@ -3674,6 +4029,7 @@ export const CRISIS_ACTIONS = {
     },
     keepDistance: {
         side: "killer", label: "Keep Your Distance", icon: "fa-arrows-left-right",
+        defense: { side: "victim", trait: "leg" },
         threshold: 12, traits: ["leg"],
         hint: "Put the victim's Secure a Trace and Role Reversal at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
@@ -3685,6 +4041,7 @@ export const CRISIS_ACTIONS = {
     },
     weaponAttack: {
         side: "killer", label: "Attack with a Weapon", icon: "fa-khanda",
+        defense: { side: "victim", trait: "body" },
         threshold: 15, traits: ["body", "hand", "leg"],
         hint: "A hit takes Health off the victim, more with a higher-tier weapon and on a critical. Without a readied "
             + "weapon you roll at disadvantage, and if you carry none, a hit gives you an improvised one. The weapon's "
@@ -3767,6 +4124,7 @@ export const CRISIS_ACTIONS = {
      */
     sharedEscape: {
         side: "third", label: "Escape Together", icon: "fa-door-open",
+        defense: { side: "killer", trait: "leg" },
         threshold: 15, traits: ["leg"], kind: "resolution",
         hint: "Get the victim out with you. A hit ends the incident, and with Hope or on a critical it also restores "
             + "their Health and Sanity; a critical gives you and the victim immunity for this chapter and the next.",
@@ -4065,6 +4423,13 @@ export const CLEANUP = {
     dc: { hidden: 9, subtle: 12, evident: 15, obvious: 18 },
 
     /**
+     * THE FLOOR AFTER EVERY RELIEF (E64 C1b, 12.11.2026; the owner's DA12 of 05.10, audit S18-06; default taken,
+     * owner to confirm). The tool's tier, the fresh scene and a reshape's 3 come off the number above; what is left
+     * is never below this (cleanup.mjs `atLeastFloor`, on the GM where the attempt is scored). Before: 0.
+     */
+    minDc: 8,
+
+    /**
      * THE SCENE IS STILL WARM (Z5): −3 while nobody has found the body.
      *
      * The season run measured Stage 6 erasing about ONE trace in six chapters.
@@ -4081,8 +4446,13 @@ export const CLEANUP = {
      * killer: `discoverBody` writes `SETTINGS.bodyFound`, and that IS the moment
      * the room stops being theirs. The phase in `until` below carries the rest
      * of it, for the stretch after the GM has started Stage 7.
+     *
+     * ONLY WITH A KILLING TO BE FRESH (E64 C1a, 12.11.2026; audit S05-60; default taken, owner to confirm).
+     * `onlyWith`: the discount holds while an incident runs or a body of this chapter lies unfound
+     * (cleanup.mjs `freshSceneBonus`). Before, it held on every day with no body found - a Tamper on a
+     * quiet afternoon read 6/9/12/15 instead of 9/12/15/18.
      */
-    freshScene: { bonus: 3, until: ["investigation", "classTrial"] },
+    freshScene: { bonus: 3, until: ["investigation", "classTrial"], onlyWith: ["incident", "unfoundBody"] },
 
     /**
      * Covering your tracks is a Shadow job.
@@ -4356,10 +4726,13 @@ export const CLEANUP = {
          * carrying a body is exactly the physical problem it looks like.
          *
          * `rooms` is the guide's reach - an adjacent room on Hope, a connected
-         * one on Despair, two rooms away on a critical; the game offers the
-         * connected rooms (cleanup.mjs `bodyDestinations`), and E64 makes the
-         * critical's two rooms work (the amend of 26.09). All three leave an
-         * Evident Resolution Remnant - you cannot drag a body quietly.
+         * one on Despair, two rooms away on a critical. The picker offers the
+         * connected rooms and, under their own heading, the rooms two away
+         * (cleanup.mjs `bodyReach`); a critical carries the body to a far room,
+         * any other hit to the room between (`bodyLanding`; E64 C4, 12.11.2026,
+         * the amend of 26.09; default taken, owner to confirm). Until 1.2.105 the
+         * critical's 2 was read by nothing. All three leave an Evident
+         * Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
             label: "Move the Body", icon: "fa-person-falling",
@@ -5125,6 +5498,8 @@ export const DRPG = {
     MOOD_SHARES,
     DYNAMIC_THRESHOLDS,
     REST,
+    FACILITIES,
+    INFILTRATE,
     HOPE_CALLS,
     DESPAIR_CALLS,
     MOTIVE,
@@ -5140,6 +5515,8 @@ export const DRPG = {
     DEAD_ICON,
     LEVEL_UP_OPTIONS,
     LEVEL_UP,
+    LEVEL_UP_TRAIT_RESOURCES,
+    DEFENSE,
     MONOCUB,
     MURDER_OPENING,
     INCIDENT,

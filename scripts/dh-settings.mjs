@@ -9,7 +9,7 @@
  * Stress, Scars, Proficiency, Max Evasion Increase) and Experiences (experiences.hbs: each one's name, value and
  * description, New and the bin). It submits on every change (`form.submitOnChange`). The owner, 11.11.2026: "sa tam
  * statystyki nieuzywane przez modul i ogolnie sa nieruszane w obu motywach" - statistics the module does not use, and
- * neither theme touched it. Read at the tag 2.6.5 (module.json's verified version), S/stages/E49/dh-src.
+ * neither theme touched it. Read at the tag 2.6.5 (module.json's verified version until 1.2.111), S/stages/E49/dh-src.
  *
  * WHAT THE MODULE USES OF IT (read in scripts/ on 11.11.2026 at 54493dbf, `grep` for each path; the tests' copy is
  * `SETTINGS_FIELDS` below, R3550):
@@ -123,6 +123,7 @@ export function dressCharacterSettings(element) {
     const cell = health ? wrapperOf(health) : null;
     cell?.removeAttribute("data-tooltip-text");
     wordCharacterSettings(element);
+    nameFormGroups(element);
     markStatistics(element);
     return hidden;
 }
@@ -171,6 +172,24 @@ function wordCharacterSettings(element) {
 }
 
 /*
+ * EACH FIELD NAMED BY ITS LABEL'S WORDS (13.11.2026, R3920). Foundry's `formGroup` draws `label + .form-fields > input`
+ * and ties the two by `for` only where the field has an id; Daggerheart's template gives it none, so a screen reader read
+ * Max Health, Max Sanity and the three hidden fields with no name - and once the window wears `drpg-panel`, a11y.mjs's
+ * sweep reported each (tier 2's "every control in the module's own chrome has a name", whenever R3551 drew the window
+ * first). The hidden three are named too: the sweep reads every field in the window, shown or not. After the wording, so
+ * the name is the module's word where WINDOW_WORDS has one. A field with a name of its own keeps it.
+ */
+function nameFormGroups(element) {
+    for (const group of element.querySelectorAll(".form-group")) {
+        const words = group.querySelector(":scope > label")?.textContent?.replace(/\s+/g, " ").trim();
+        if (!words) continue;
+        for (const input of group.querySelectorAll("input, select, textarea")) {
+            if (!input.labels?.length && !input.getAttribute("aria-label")?.trim()) input.setAttribute("aria-label", words);
+        }
+    }
+}
+
+/*
  * EACH STATISTIC'S GLYPH BEFORE ITS NAME (E49, the owner's ask of 11.11.2026 night; stat-glyphs.mjs). Details draws a
  * `.trait-container` per trait - its name in a span, its field after - and the glyph goes first in that span, so it stands
  * on the name's line and the name's text is left as Daggerheart drew it. The statistic is read off the field's name
@@ -179,7 +198,13 @@ function wordCharacterSettings(element) {
 function markStatistics(element) {
     for (const input of element.querySelectorAll('.tab.details .trait-container input[name^="system.traits."]')) {
         const key = statOfTrait(/^system\.traits\.([a-z]+)\.value$/.exec(input.name)?.[1]);
-        markStatName(input.closest(".trait-container")?.querySelector(":scope > span"), key);
+        const nameEl = input.closest(".trait-container")?.querySelector(":scope > span");
+        markStatName(nameEl, key);
+        /* NAMED BY ITS NAME (13.11.2026, R3920). The span stands beside the field, not as its label, so the field had no
+           name a screen reader reads - a11y.mjs's sweep reported `system.traits.instinct.value` once the window is dressed
+           as the module's. The name's words as drawn (the glyph is aria-hidden and has none). */
+        const words = nameEl?.textContent?.replace(/\s+/g, " ").trim();
+        if (words) input.setAttribute("aria-label", words);
     }
 }
 

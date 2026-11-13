@@ -2465,8 +2465,9 @@ export async function handTiesOn(from, to) {
  *
  * Counted BEFORE the confirmation, not after: these tokens do not come back,
  * and "delete 14 things?" is a question a GM can answer while "deleted 14
- * things" is only a report. Lives here rather than in the GM panel because the
- * button that calls it now sits on the Remnant table.
+ * things" is only a report. No button calls it since E64-inv: End the chapter
+ * clears the Faint Remnants (chapter.mjs `chapterEndForm`, `faint`), and the
+ * Investigation bar's own button, its twin, is gone.
  */
 export async function confirmClearFaint({ tokens = null } = {}) {
     const doomed = (tokens ?? Array.from(game.scenes).flatMap(scene => remnantsOn(scene))).filter(clearable).length;

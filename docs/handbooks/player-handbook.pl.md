@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.109, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.111, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -49,7 +49,7 @@ Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty pr
 | Stan | Kiedy | Efekt |
 |---|---|---|
 | **Breakdown** | Sanity się skończyło | utrudnienie na każdym rzucie, dopóki nie wróci trochę Sanity |
-| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia, dopóki ktoś cię nie poskłada |
+| **Wounded** | Health się skończyło | o jedną akcję mniej na porę dnia w Daily Life i w Investigation, dopóki ktoś cię nie poskłada; w Class Trialu żadnej |
 
 > [!NOTE]
 > Oba włączają się same w chwili, gdy zapas się skończy; Vulnerable i Death Move z Daggerheart są wyłączone. Nic w tym module nie zabija cię za zejście do zera Health. Śmierć to coś, co robi ci człowiek, i jest ogłaszana.
@@ -118,6 +118,7 @@ Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabra
 Kilka chwil wypełnia na kilka sekund każdy ekran (od 1.2.109). Esc pomija jedną; przy ograniczonym ruchu widzisz nieruchomą klatkę; GM może je wyłączyć.
 
 - **Wejście do Class Trial.** Ekran zamyka się na **CLASS TRIAL** i otwiera na rozprawę.
+- **Koniec Class Trial.** Ekran zamyka się na **KONIEC ROZPRAWY** i otwiera na szkołę.
 - **Werdykt.** Portret skazanego, głosy i pieczątka: **WINNY**, gdy klasa trafiła, **NIEWINNY**, gdy nie.
 - **Obroty zegara.** Kurtyna obraca się, gdy zmienia się pora dnia. Investigation zaczyna się błyskami szyb; ogłoszenie ciała sprawia, że kurtyna migocze.
 - **Koniec dnia.** Co zrobiłeś tego dnia, co widziała szkoła i **nastrój szkoły**: Spokój, Niepokój albo Na krawędzi. Zostaje w twojej historii powiadomień.
@@ -191,7 +192,7 @@ Każdy pokój ma pewną liczbę **Search Tokenów** na porę dnia (domyślnie **
 
 ## 4. Akcje
 
-Masz **2 akcje** na porę dnia (1, gdy jesteś Wounded). Siatka akcji na arkuszu ma dziesięć kafelków.
+Masz **2 akcje** na porę dnia (1, gdy jesteś Wounded, w Daily Life i w Investigation). Siatka akcji na arkuszu ma dziesięć kafelków.
 
 Opis każdej akcji pokazuje jej koszt, statystyki, którymi rzuca, pokój, w którym jesteś, liczby, z którymi zmierzy się rzut (wyliczone dla ciebie, tu i teraz), i wszystko, co będzie kosztować Sanity. Każda akcja otwiera jedno okno o tym samym układzie: opis po lewej, wybory po prawej, a pod wyborami, gdy rzut wymienia kilka statystyk, statystyka, którą proponujesz, i linia, w której mówisz, jak to robisz; przyciski są na dole. Pod opisem akcji przycisk **Szczegóły** rozwija i zwija linie opisu - koszt, statystyki, pokój, liczby (w Observe pod nagłówkiem *Progi*) - mniejszym tekstem; okno ma ten sam rozmiar w obu stanach, a następne okno akcji otwiera się tak, jak je zostawiłeś. Ostrzeżenie Tamper, że ktoś patrzy, zostaje nad nim, zawsze widoczne.
 
@@ -233,7 +234,7 @@ Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe;
 
 ### Observe - Eye, 1 akcja
 
-Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa. Jeden ślad masz najwyżej w jednej kopii: na ślad, który już masz albo którego znalezisko z innego twojego Observe GM jeszcze opisuje, twój wzrok nie pada, a druga kopia śladu nigdy nie powstaje.
+Szukasz dowodów. Sukces kopiuje Remnant do twojego ekwipunku jako **Neutral Truth Bullet** i zostawia oryginał na miejscu dla innych. Porażka kosztuje **1 Sanity**. Krytyk dodatkowo rozpoznaje rodzaj śladu i daje solidną podpowiedź od GMa, zapisaną tylko na twojej kopii - kto znajdzie ślad po tobie, jej nie przeczyta. Jeden ślad masz najwyżej w jednej kopii: na ślad, który już masz albo którego znalezisko z innego twojego Observe GM jeszcze opisuje, twój wzrok nie pada, a druga kopia śladu nigdy nie powstaje.
 
 Wybierasz, jak patrzysz:
 
@@ -275,7 +276,7 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 | Desperacki | 8 |
 
 - Projekt mieszka w pokoju. Pracować nad nim może tylko ten, kto tam stoi.
-- **Zaproponowanie projektu** nie kosztuje akcji i wysyła kartę do GMa. Nic nie istnieje, dopóki GM nie zatwierdzi, a wcześniej może zmienić skalę, pokój albo brzmienie. **Szerokie okna projektów**, w sekcji tego modułu w ustawieniach Foundry, otwiera Zaproponuj projekt szerzej na twoim ekranie (tylko w twojej przeglądarce; domyślnie wyłączone).
+- **Zaproponowanie projektu** nie kosztuje akcji i wysyła kartę do GMa. Nic nie istnieje, dopóki GM nie zatwierdzi, a wcześniej może zmienić skalę, pokój albo brzmienie. **Szerokie okna projektów**, w sekcji tego modułu w ustawieniach Foundry, otwiera Zaproponuj projekt szerzej na twoim ekranie (tylko w twojej przeglądarce; domyślnie włączone).
 - **Opis** (od 1.2.99). Propozycja musi go mieć, najwyżej 1000 znaków: czym jest projekt, twoimi słowami. Gdy wybierzesz projekt ustalonego rodzaju (niżej), w polu staje nazwa tego rodzaju i możesz ją zmienić. GM czyta opis na karcie i może go zmienić przed zatwierdzeniem; potem zmieniają go już tylko GMowie. Każdy, kto zna projekt, czyta opis na karcie jego tokenu.
 - Projekt wymaga jednej statystyki, nadanej przy tworzeniu, i każdy rzut na nim bierze właśnie ją - twój i sabotażysty. Projekt zrobiony bez niej - stary - przed pierwszym rzutem prosi cię o propozycję jednej; GM zatwierdza ją albo zmienia na karcie i zostaje statystyką projektu.
 - **Narzędzie w ręku** daje przewagę i zdejmuje swój Tier z każdego progu rzutu.
@@ -284,12 +285,12 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
   - **Breach the Wall** (Body, Complex 6): wyłom w tej ścianie, który wszyscy widzą i przez który każdy przejdzie. Dopóki ściana nie zostanie naprawiona, zamek i drzwi sypialni pokoju za nią nikogo nie zatrzymują, a pieczęć na nim jest zerwana do końca tej pory dnia; skucie dalej cię trzyma, a sala rozpraw zostaje zamknięta. Ci w obu pokojach dowiadują się o tym, a twoje imię poznają tylko wtedy, gdy stoisz przy dziurze; pokoje obok słyszą łomot.
   - **Seal the passage** (Hand, Complex 6): zasypuje przejście, które znasz i które ma bok w twoim pokoju, dla wszystkich, którzy je znają. GM może je otworzyć ponownie.
   - **Close the breach** (Body, Complex 6): ściana znów jest cała.
-  - **Repair an item** (Hand; Trivial 3 dla Tier 0 lub 1, Complex 6 dla Tier 2 lub 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały.
+  - **Repair an item** (Hand; Trivial 3 dla Tier 0 lub 1, Complex 6 dla Tier 2 lub 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały. Jeśli tier przedmiotu wzrośnie przed końcem naprawy, naprawa może musieć być większa: GM dostaje o tym wiadomość.
 
   GM zatwierdza go jak każdą propozycję i sprawdza jeszcze raz, gdy jest ukończony: jeśli ściana, przejście albo przedmiot nie są już tym, czym były, nic się nie dzieje, a GM dowiaduje się dlaczego. Reroll rzutu, który ukończył Secret Passage, wyłom albo zasypanie, cofa je.
 - Niektóre projekty są tajne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.
 - Projekt przypisany do pokoju stoi też na mapie, jako token z młotkiem, który nigdy nie mówi, który to projekt. Jawny pojawia się, gdy twoja postać już stała w jego pokoju albo stoi w nim teraz, a proponującemu od chwili, gdy GM go zatwierdzi (mówi ci o tym prywatna karta; o projekcie zatwierdzonym przed 1.2.88 - przy najbliższym wczytaniu u GMa); reszta stołu widzi go dopiero, gdy ich własna postać tam była. Tajny tylko dla wtajemniczonych. Kliknij go dwukrotnie, by zobaczyć jego kartę.
-- **Sabotage** (ten sam kafelek, statystyka projektu): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa, 18+ złożona, krytyk - naprawa o ukrytej trudności. Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
+- **Sabotage** (ten sam kafelek, statystyka projektu): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa (2 postępu), 18+ złożona (6), krytyk - naprawa o ukrytej trudności (8). Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
 
 > [!WARNING]
 > Sabotage **zawsze zostawia ślad**, nawet przy porażce, a rzut z Despair pokazuje cię pokojowi.
@@ -325,6 +326,8 @@ Cokolwiek, byle opisane szczegółowo. Możesz zaproponować statystykę, opisuj
 
 Okno wycenia oba wobec tego, co masz, i wymienia pokoje, które na każdy pozwalają.
 
+Kafelek nazywa się **Facilities**: jego okno ma oba odpoczynki, a po nich to, co daje pokój, w którym stoisz. Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i kosztuje akcję; gdy ktoś jej użyje o tej porze dnia - także nieudanym rzutem - jest wyszarzona dla wszystkich aż do następnej. Akcja ukończonego projektu nie wymaga rzutu, kosztuje akcję, chyba że GM ustawił, że nic nie kosztuje, zostawia słaby ślad Subtle jak akcja samego pokoju, i masz ją raz na każdą porę dnia; jej wiersz mówi, który projekt ją daje i jak długo działa. Despair overflow może na porę dnia wyłączyć akcje w pokojach (Lockdown, Power cut), podrożyć je (Toll) albo utrudnić (Jitters), albo zabrać Short Rest (Insomnia).
+
 ### Listen - Shadow, 1 akcja
 
 Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GMowie.
@@ -338,13 +341,52 @@ Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzu
 
 Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 1*, *Nieodkryty pokój 2* i tak dalej, na liście wyboru i w odpowiedzi: Listen mówi ci, kto jest za drzwiami, nie jaki pokój za nimi leży.
 
+Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock i Keep Watch. W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+
+### Tail Someone - Shadow, potem Leg albo Shadow, 1 akcja
+
+Idziesz za uczniem, który stoi w twoim pokoju. Proponujesz statystykę drugiego rzutu, Leg albo Shadow, a MG wybiera ją na karcie; nic nie płacisz, póki MG nie odpowie. Potem dwa rzuty: Shadow 15 lub więcej i cel cię nie zauważa - poniżej od razu dostaje twoje imię, a śledzenie trwa mimo to.
+
+Póki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i postoi tam około dwóch sekund, dostajesz kartę: *{name} przechodzi do: {room}*. Przy krytyku w drugim rzucie karta mówi też, kto tam jest, poza Eclipse. Karty przychodzą też w każdym Eclipse, same pokoje.
+
+Śledzenie kończy się kartą, gdy nie jesteś ani w pokoju, który cel opuścił, ani w tym, do którego doszedł (zgubiony trop), gdy kończy się dzień, gdy znaleziono ciało albo gdy cel użyje Dash z wynikiem wyższym niż twój drugi rzut (krytyczne śledzenie przerywa tylko krytyczny Dash). Kończy się bez karty, gdy któreś z was zginie albo zacznie się incydent. Jedno śledzenie naraz: nowe zastępuje stare. Śledzenia nie da się zacząć w Eclipse, w śledztwie ani na Class Trial.
+
+### Shut the Door - Body, 1 akcja
+
+Zabarykaduj od środka pokój, w którym stoisz. Działa w pokoju, z którego otwiera się najwyżej dwoje drzwi, we własnej sypialni, ale nie w cudzej. Póki zostajesz w środku, nikt nie wejdzie drzwiami: drzwi nie ustępują. Tajne przejście, wyłom albo tunel wciąż przepuszczają. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, nigdy przez kogo. Ktoś z zewnątrz może je wyważyć (niżej).
+
+### Force the Door - Body, 1 akcja
+
+Przy drzwiach z twojego pokoju do sąsiedniego: jeden rzut na Body przeciw wszystkiemu, co je trzyma, naraz. Barykada ustępuje rzutowi powyżej swojej siły; zamek (MG albo sypialni) i pieczęć ustępują wynikowi 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, póki ktoś go nie naprawi, a wyważona pieczęć znika do końca swojej pory dnia. To głośne: pokoje obok jednego i drugiego pokoju słyszą "Łomot z: {room}" bez imienia, a osoby w obu pokojach widzą, kto to był - przy sukcesie i przy pudle z Despair. Właściciel sypialni dostaje wiadomość, że drzwi wyważono. Nie w trakcie Class Trial, nie gdy jesteś Chained.
+
+### Pick the Lock - Shadow, potem Hand, 1 akcja
+
+Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej otwiera je tylko dla ciebie: możesz wejść do tego pokoju, tymi drzwiami albo innymi, i zostać w nim, dopóki z niego nie wyjdziesz; dla reszty zamek zostaje zamknięty. Wejście, z którego nie skorzystasz w tej porze dnia, przepada. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair; przy 18 lub więcej - nigdy.
+
+### Keep Watch - Body, 1 akcja
+
+Przed Eclipse (nie w trakcie i nie przed nocnym Eclipse): rzut na Body 12 lub więcej i czuwasz przez nadchodzący Eclipse w pokoju, w którym stoisz, gdy się zacznie. Dowiadujesz się wtedy, kto w nim jest, z imienia; przez cały Eclipse - kto wchodzi i kto wychodzi, z imienia, nigdy skąd ani dokąd; a na koniec ile osób weszło i wyszło. Przez cały Eclipse zostajesz na posterunku. Porażka z Despair zdejmuje 1 Sanity. Czuwanie z wynikiem 18 lub więcej albo krytycznym utrudnia zaskoczenie cię: kto otwiera na tobie morderstwo, rzuca na otwarcie z jedną kością utrudnienia, a jego okno nie mówi dlaczego. Kto zgodził się, by jego postać była ofiarą morderstwa, nie używa Keep Watch, by tego uniknąć.
+
+### Dash - Leg, 1 akcja
+
+Bieg: rzut na Leg daje darmowe przejścia do końca pory dnia, wydawane jak Free Move.
+
+| Rzut | Darmowe przejścia |
+|---|---|
+| poniżej 12 | żadne |
+| 12+ | 1 |
+| 18+ | 2 |
+| krytyk | 3 |
+
+Kośćmi rzuca przeglądarka GM-a i to ona daje przejścia; bez GM-a przy stole nic nie jest płacone i nic się nie dzieje.
+
 ### Palm - Hand, 1 akcja
 
 Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie do środka. Dwa niezależne rzuty: **Hand** decyduje, czy się udało, **Shadow** - czy zauważyli.
 
 | | Weź coś | Zostaw coś | Frisk (ukradkiem) |
 |---|---|---|---|
-| Udaje się (Hand) | 10+ | 8+ | 10+ |
+| Udaje się (Hand) | 12+ | 8+ | 10+ |
 | Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
 Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Limity noszenia wciąż obowiązują, a jedna akcja przenosi jedną sztukę ze stosu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie - dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, mając pełne ręce, trafia do twojej skrytki, a gdy jej nie masz, zostaje u nich. Palm nigdy nie sięga do wnętrza skrytki. Palm odrzucony, zanim kości zostaną odczytane - cel wyszedł, zaczął się Class Trial - oddaje ci akcję; zostawienie czegoś w pełnych kieszeniach było próbą i akcja przepada.
@@ -353,7 +395,7 @@ Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradzi
 
 ### Tamper - Shadow, 1 akcja
 
-Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**.
+Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję** i nigdy Sanity: gdy nie masz już akcji, nie ma Tamper, dopóki akcje nie wrócą. Liczba prób w porze dnia nie ma limitu: każda po prostu kosztuje swoją cenę.
 
 **Erase a Trace.** Wymaż jeden ślad w tym pokoju, o którym wiesz: taki, którego kopię masz jako Truth Bullet, albo ślad walki, w której bierzesz udział. Im łatwiej go zobaczyć, tym trudniej usunąć:
 
@@ -364,7 +406,7 @@ Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji,
 | Evident | 15 |
 | Obvious | 18 |
 
-Każdy o 3 niżej, dopóki nie znaleziono ciała. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu.
+Każdy o 3 niżej, gdy zabójstwo jest świeże: trwa incydent albo ciało z tego rozdziału leży tam, gdzie nikt go jeszcze nie znalazł - dopóki ciało nie zostanie znalezione albo nie ruszy Investigation. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu. Po wszystkich ulgach - narzędziu, świeżej scenie, 3 za przerobienie - żadna próba nie wymaga mniej niż **8**.
 
 | Wynik | Co się dzieje |
 |---|---|
@@ -399,15 +441,15 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | Call | Koszt | Co robi |
 |---|---|---|
 | **Support** | 1 | Daj innemu graczowi przewagę na jeden rzut. Musicie być w tym samym pokoju. |
-| **Experience** | 1 | Dodaj poziom doświadczenia do rzutu, do którego to doświadczenie naprawdę się stosuje. Czeka na GMa - piszesz, co zamierzasz, a Hope pobierane jest tylko przy zgodzie. |
-| **Ultimate** | 1 | Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje. Czeka na GMa tak samo. |
+| **Talent** | 1 | Jedno z twoich doświadczeń albo twój Ultimate naprawdę stosuje się do następnego rzutu. W jego oknie wybierasz, które: doświadczenie dodaje swój poziom, Ultimate daje przewagę. Czeka na GMa - piszesz, co zamierzasz, a Hope pobierane jest tylko przy zgodzie. |
 | **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. Przy planie morderstwa rzuca też na Hide the Traces, jak praca nad nim. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
 | **Reroll** | 3 | Zrób Reroll ostatniej akcji. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Na akcji kryzysowej, która kogoś zabiła, nie da się zrobić Rerolla: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. Rzut po Rerollu liczy to, co GM policzył za pierwszym razem. Reroll Find Passage albo Find Stash szuka jeszcze raz nowymi kośćmi (w pokoju, w którym padł rzut, i tylko wtedy, gdy wciąż tam stoisz - inaczej Reroll wraca w całości): w górę znajduje raz; w dół skrytka, którą otworzył, zostaje otwarta, a przejście, które znalazł tylko ten rzut, przepada. |
 | **Resolve** | 2 | Na jeden rzut sam wybierz dowolną statystykę: nikt nie jest pytany, także gdy akcja wymienia kilka. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
-| **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. |
+| **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. Jeśli kość nie zadziała - ustawienie kości przy stole, które ją pomija - Call wraca do ciebie na następny rzut, a szept to mówi. |
+| **Bribe** | 1 | Zaproponuj Monocubowi 1 Hope za przysługę, którą ustalicie między sobą. Płacisz tylko wtedy, gdy Monocub przyjmie, do jego sakiewki; propozycja bez odpowiedzi wygasa w następnej porze dnia. Nikt inny się nie dowie. |
 
 Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane (odczytane z kodu, niezmierzone dla Calla). Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
@@ -439,6 +481,7 @@ Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje
 | Public Announcement | 6 | Wszyscy wezwani do jednego pokoju na początek następnej pory dnia. Macie czas do tej pory; gdzie będziecie, gdy się zacznie, zależy od was. |
 | Motive | 6 | Żądanie, termin w porach dnia i cena zignorowania go - ogłoszone wszystkim słowo w słowo. Odliczanie wisi na panelu zdarzeń. |
 | New Rule | 9 | Jedna nowa zasada killing game wybrana przez Monokumę. Zasady lądują na zakładce Zasady każdego arkusza. |
+| Bounty | 1 | Tajne, tylko dla Monocubów i GM-ów; GM wybiera je w kafelku Fuel a Monocub: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Despair schodzi w następnej porze dnia. |
 
 ### Overflow
 
@@ -493,7 +536,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 ### Sypialnie, klucze, skrytki
 
-- Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany. Drzwi otwiera tylko klucz w twoim ręku: ten w skrytce nie otwiera niczego. Gdy GM daje sypialnię komuś innemu, klucze jej starego właściciela przepadają; kopia, którą dostał ktoś inny, zostaje i otwiera drzwi nowego właściciela. W Investigation sypialnia kogoś, o czyjej śmierci wiadomo, stoi otworem.
+- Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany. Drzwi otwiera tylko klucz w twoim ręku: ten w skrytce nie otwiera niczego. Gdy GM daje sypialnię komuś innemu, klucze jej starego właściciela przepadają, a razem z nimi każda kopia, którą dostał ktoś inny; dostajesz wiadomość, jeśli tracisz swoją. W Investigation sypialnia kogoś, o czyjej śmierci wiadomo, stoi otworem.
 - Twoja sypialnia ma **skrytkę**. Skrytka mieści **3** rzeczy, a żeby coś włożyć albo wyjąć, musisz stać w pokoju. Truth Bulletów nie da się schować.
 - **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć z niej jedną rzecz, raz na porę dnia. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
 - **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z jednym stopniem utrudnienia więcej (karta powie ci o tym po rzucie), albo Analyze *Find Stash* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
@@ -599,7 +642,7 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 
 Ofiara nie widzi niczego, gdy zabójca rzuca - żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął, i kto na nią rusza: Direct Murder to zabójstwo twarzą w twarz. Porażka nie zostawia jej niczego.
 
-**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
+**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**, nocą tak samo jak za dnia; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
 | Rzut ofiary | Co się dzieje |
 |---|---|
@@ -626,7 +669,7 @@ Incydent toczy się na tury. **Zaczynasz ty**. Sam z pułapką masz przewagę na
 | **Self-Defense** | Hand / Leg / Body, 18 | Walczysz. Jedna próba. Hope otwiera Survive i Role Reversal, Despair tylko Role Reversal, krytyk zatrzymuje drenaż i pozwala wziąć jedno z nich w tej turze bez rzutu. Przedmiot nadający się na broń daje przewagę. Porażka z Despair kosztuje 1 dodatkowo. Jeśli otworzyłoby tylko Role Reversal, którego nie możesz wziąć, nie zostaje zużyte i możesz spróbować znowu. |
 | **Survive** | Leg, 18 | Wycofujesz się. Incydent się kończy i drenaż ustaje. Despair dodaje podpowiedź, kto to był; krytyk daje też nietykalność na ten i następny rozdział. Porażka kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. |
 | **Role Reversal** | Hand / Leg / Body, 15 | Przechylasz szalę i zostajesz zabójcą. Hope albo krytyk przywraca też całe Health i Sanity; krytyk zabija ich od razu. Porażka z Despair kosztuje 1 dodatkowo. Wymaga najpierw Self-Defense. Niedostępne wobec pułapki ani wtedy, gdy ktoś już dołączył do zabójcy. |
-| **Use an Item** | Hand, 15 | Wciśnij *użyj* przy przedmiocie. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej. Porażka z Despair kosztuje 1 dodatkowo. |
+| **Use an Item** | Hand, 15 | Wciśnij *użyj* przy przedmiocie. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej. Porażka z Despair kosztuje 1 dodatkowo. Przedmiot Tier 0 czeka na decyzję GMa i nie jest zużyty, dopóki GM nie zdecyduje. |
 
 Survive i Role Reversal to akcje rozstrzygnięcia: kosztują **1 Sanity** zamiast akcji, a gdy Sanity się skończy - **1 Health**. Nic, co zrobi zabójca, nie zdejmie z mapy Reinforced śladów.
 
@@ -648,6 +691,8 @@ Twoja strona tego samego stołu, za kafelkiem **Akcje kryzysowe**:
 
 Finishing Blow to też akcja rozstrzygnięcia: 1 Sanity, a gdy Sanity się skończy - 1 Health.
 
+Akcja wymierzona w drugą stronę jest o 1 trudniejsza, gdy ta strona jest silna: Strike, Attack with a Weapon i Pin Them Down wymagają o 1 więcej, gdy Body ofiary to +1 lub więcej, Keep Your Distance - gdy Leg ofiary; Self-Defense i Role Reversal - gdy Body zabójcy, Survive i Escape Together - gdy Leg zabójcy. Kafelek to mówi ("Pobij 16 (+1 za Body ofiary)"). Rzuty otwarcia nigdy się tak nie zmieniają.
+
 Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju, w którym stoisz - nie tylko twoje - i możesz wydać **1 Sanity** na próbę:
 
 | Opcja | Rzut i co robi |
@@ -655,7 +700,7 @@ Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju
 | **Erase a Trace** | tabela Tamper, rozdział 4 |
 | **Reshape a Trace** | o trzy niżej niż usuwanie - nazwij go inaczej i opisz jako coś niewinnego; GM zatwierdza twoje słowa, zanim trafią na ślad; przerobiony zawsze kończy jako Tamper Remnant, a krytyk go wycisza i oddaje Sanity |
 | **Misleading Trail** | 15 |
-| **Move the Body** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię; sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
+| **Move the Body** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię, albo pokój dwa dalej, do którego dociera tylko krytyk (każdy inny sukces zostawia ciało w pokoju pomiędzy); sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
 
 Udany fałszywy trop albo przeniesione ciało od razu kładzie na twój arkusz Truth Bullet śladu, który zostawiło, jakbyś go znalazł (*Znasz ten ślad: jest na twojej karcie.*); porażka, usunięty i przerobiony ślad nie dają żadnego, a Reroll tego rzutu zabiera Truth Bullet.
 
@@ -684,7 +729,7 @@ Jeśli incydent zostawi ciało, możesz potem **zwrócić się przeciw zabójcy*
 
 ### Następny poranek
 
-Ktoś znajduje ciało. W chwili, gdy <ins>w pokoju z nim stanie dwoje uczniów</ins>, a przynajmniej jedno z nich nie należy do zabójców, ciało zostaje odkryte - nigdy podczas Eclipse. Sami zabójcy, wciąż sprzątając, mogą stać nad nim i go nie znaleźć. GM może też ogłosić je ręcznie. Wszyscy są wzywani na miejsce, a ekran każdego przesuwa się tam na token jego własnej postaci. Ciało jest ogłaszane raz: późniejsze przejście obok niego, werdykt ani koniec rozprawy nie ogłaszają go ponownie. Zmarli nie są świadkami; Monocub jest. Gdy ciało czeka na swoje Investigation, nic się nie zatrzymuje - nadal możesz działać - poza Eclipse, który nie zacznie się, dopóki GM nie otworzy Investigation. Śmierć z własnej ręki to zabójstwo jak każde inne - klasa ma tylko scenę.
+Ktoś znajduje ciało. W chwili, gdy <ins>w pokoju z nim stanie dwoje uczniów</ins>, a przynajmniej jedno z nich nie należy do zabójców, ciało zostaje odkryte - nigdy podczas Eclipse. Sami zabójcy, wciąż sprzątając, mogą stać nad nim i go nie znaleźć. GM może też ogłosić je ręcznie. Wszyscy są wzywani na miejsce, a ekran każdego przesuwa się tam na token jego własnej postaci. Ciało jest ogłaszane raz: późniejsze przejście obok niego, werdykt ani koniec rozprawy nie ogłaszają go ponownie. Zmarli nie są świadkami, Monocub też nie. Gdy ciało czeka na swoje Investigation, nic się nie zatrzymuje - nadal możesz działać - poza Eclipse, który nie zacznie się, dopóki GM nie otworzy Investigation. Śmierć z własnej ręki to zabójstwo jak każde inne - klasa ma tylko scenę.
 
 Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie dowiaduje, a nic na ciele o niej nie mówi. Ci, którzy byli w incydencie, wiedzą. Jeśli natkniesz się na ciało sam, bez nikogo innego w pokoju, dowiadujesz się prywatnie, co znalazłeś, i tylko twój ekran pokazuje je jako ciało - nikt inny się nie dowiaduje, a jeden świadek to nie odkrycie. Możesz wtedy przeszukać jego kieszenie, tak jak ci, którzy byli w incydencie; to, co weźmiesz, przechodzi między dwoma arkuszami, a to przeglądarka każdego gracza może odczytać. Truth Bullet tej rzeczy, mówiący, czyje to było ciało, dostajesz, gdy śmierć zostanie ujawniona.
 
@@ -725,7 +770,7 @@ Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**, z pytaniem, j
 
 Nie wybierasz, komu zaprzeczasz: Objection trafia w tego, kto mówi teraz, tak jak słyszy go pokój głosowy GMa (liczy się mniej więcej sekunda mowy), a gdy nikt nie mówi - w ostatniego gracza, który mówił w tej rozprawie; nigdy w GMa, Monocuba, ucznia, którego śmierć ogłoszono, ani w ciebie czy innego twojego ucznia. Przycisk podaje tę osobę, zanim go naciśniesz; jeśli nikt jeszcze nie mówił, mówi to i nic nie jest pobierane. Potem wybierasz Truth Bullet: **30 sekund**, odliczanych w oknie. Dopóki nie trafi na stół, karta Objection mówi, że czeka; 60 sekund zaczyna się, gdy trafi. Zamknij okno albo pozwól minąć czasowi, a Objection zostaje wycofane, jego karta to mówi, a to, co zapłaciłeś, nie wraca. GM może przekierować trwające Objection na kogoś innego. GM może też użyć przycisku **Oddalenie** wobec najnowszego Objection - naciśniętego przez pomyłkę albo niezwiązanego z tym, co mówi mówca: jego karta dostaje pieczątkę **Objection oddalone przez GM-a**, to, co zapłaciłeś, zostaje zapłacone, a rozprawa wraca tam, gdzie była, z czasem, jaki wtedy miała. Pasek GMa może też pominąć turę, odjąć albo dodać pół minuty, zakończyć tryb albo wrócić do debaty, a każdą z tych rzeczy widać na ekranie (karta albo *GM: +30 s* na karcie Class Trialu). Gdy przeglądarka GMa nie ma pokoju głosowego, po naciśnięciu sam wybierasz, komu zaprzeczasz, cokolwiek dzieje się z twoim własnym pokojem głosowym. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Kto mówi w danym trybie, pilnuje stół; moduł wycisza tylko zmarłych. O tym, czy Objection przejmuje głos, rozstrzyga strona GMa, a gdy przejmuje, dowiadujesz się, ile kosztowało. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
 
-GM może też otworzyć trzy tryby, w których mówi jedna osoba naraz. W **Testimony** i **Panic Round** każdy uczestnik mówi po kolei: w twojej turze okno mówi *Twoja tura - n s*, z **Gotowe** i **Pasuję**, a ekrany podają, kto mówi i kto następny; jeśli w swojej turze nie jesteś połączony, tura przepada. Gdy mówi ktoś inny, słuchasz: w Testimony możesz wnieść Objection w mówcę i tylko w niego (runda idzie potem dalej od następnego mówcy); Panic Round nie dopuszcza Objection. W **Closing Argument** jesteś pytany, czy podsumujesz sprawę (**Podsumuję**, 30 sekund na odpowiedź); GM zatwierdza jednego ze zgłoszonych albo wybiera kogoś, a mówca ma 300 sekund. Każdy inny może wnieść w mówcę Objection; po wymianie GM decyduje, kto mówi dalej - mówca, z czasem, który mu został, albo ktoś, kto wniósł Objection, z nowymi 300 sekundami. Closing jest raz na rozprawę i kończy się przed głosowaniem. W tych trzech trybach dowody przedstawia tylko mówca (*Teraz dowody może przedstawiać tylko name.*).
+GM może też otworzyć trzy tryby, w których mówi jedna osoba naraz. W **Testimony** i **Panic Round** każdy uczestnik mówi po kolei: w twojej turze okno mówi *Twoja tura - n s*, z **Gotowe** i **Pasuję**, a ekrany podają, kto mówi i kto następny; jeśli w swojej turze nie jesteś połączony, tura przepada. Gdy mówi ktoś inny, słuchasz: w Testimony możesz wnieść Objection w mówcę i tylko w niego (runda idzie potem dalej od następnego mówcy); Panic Round nie dopuszcza Objection. W **Closing Argument** jesteś pytany, czy podsumujesz sprawę (**Podsumuję**, 30 sekund na odpowiedź); GM zatwierdza jednego ze zgłoszonych albo wybiera kogoś, a mówca ma 300 sekund. Każdy inny może wnieść w mówcę Objection; po wymianie GM decyduje, kto mówi dalej - mówca, z czasem, który mu został, albo ktoś, kto wniósł Objection, z nowymi 300 sekundami. Closing jest raz na rozprawę i kończy się przed głosowaniem. W tych trzech trybach dowody przedstawia tylko mówca (*Teraz dowody może przedstawiać tylko name.*). Gdy ktoś zgłosi Objection wobec mówcy Closing Argument, do końca tej wymiany dowody przedstawiają tylko jej dwie osoby (*Teraz dowody mogą przedstawiać tylko name i name.*).
 
 ### Głosowanie
 
@@ -749,13 +794,11 @@ GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a p
 
 | Opcja |
 |---|
-| Zwiększ Health o +1 |
-| Zwiększ Sanity o +1 |
-| Zwiększ jedną statystykę o +1 |
+| Zwiększ jedną statystykę o +1 - punkt w Head podnosi też twoje maksimum Sanity o 1, punkt w Body albo Leg twoje maksimum Health o 1 |
 | Zwiększ jedno doświadczenie o +1 |
 | Dodaj nowe doświadczenie warte +2 |
 
-Przy Reinforced Level Up to samo można wziąć więcej niż raz.
+Przy Reinforced Level Up to samo można wziąć więcej niż raz. Jeśli przed tą zasadą wziąłeś +1 Health albo +1 Sanity, GM może wyrównać twoją kartę: te wybory zostają cofnięte, a ty dostajesz tyle samo punktów statystyki do rozdania, razem z tym, co one dają.
 
 ### Strefy sali
 
@@ -770,7 +813,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 ## 13. Śmierć i to, co po niej
 
 - Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz arkusz i głos przy stole - w Class Trial słuchasz (rozdział 12).
-- Twój głos po śmierci w incydencie: dopóki ten incydent trwa, zostajesz w pokoju swojej śmierci. Gdy się skończy, gdy ktoś znajdzie twoje ciało albo gdy wejdzie tam żywy uczeń spoza incydentu, przechodzisz: do kanału zmarłych, dopóki nikomu nie powiedziano o twojej śmierci - żywi cię tam nie słyszą, a ty nie słyszysz ich, tylko innych zmarłych - a do pokoju głównego, gdy twoja śmierć jest znana. Poza incydentem dzieje się to od razu. Jako Monocub mówisz jak Monocub.
+- Twój głos po śmierci w incydencie: dopóki ten incydent trwa, zostajesz w pokoju swojej śmierci. Gdy się skończy, gdy ktoś znajdzie twoje ciało albo gdy wejdzie tam żywy uczeń spoza incydentu, przechodzisz do kanału zmarłych tylko dla siebie, czy twoja śmierć jest znana, czy nie: żywi cię tam nie słyszą, a ty nie słyszysz nikogo, także innych zmarłych; mikrofon zostaje twój. Na Class Trial wracasz do pokoju głównego razem ze wszystkimi i słuchasz. Poza incydentem dzieje się to od razu. Jako Monocub mówisz jak Monocub.
 - Twoje **Truth Bullets giną razem z tobą**, noszone i schowane jednakowo, chyba że GM je zachowa - gdy twoja śmierć wyjdzie na jaw. Wszystko inne zostaje przy ciele do znalezienia, tak jak było: zmarli niczego nie używają, nie biorą do ręki, nie wyrzucają, nie chowają ani nie wyjmują, a rzeczy Monocuba też należą do jego ciała.
 - Przeszukanie ciała: otwórz jego arkusz, gdy stoisz w jego pokoju, żywy, poza Class Trial i Eclipse, i naciśnij **Weź** przy rzeczy. Dopóki ciała nikt nie znalazł, mogą to zrobić tylko ci, którzy wiedzą o śmierci. Weź, którego nie możesz użyć, jest wyszarzone, z powodem obok. Weź, które niczego nie zabrało - strona GM-a odmówiła (wyszedłeś z pokoju, ktoś inny wziął to pierwszy), żaden GM nie odpowiedział albo nie grasz żadną postacią - mówi tylko dlaczego i znów jest do naciśnięcia, a gdy dalej nie da się go użyć, jest wyszarzone z powodem; to, które coś zabrało, zostaje wciśnięte.
 - Jeśli zginiesz w incydencie, nikt inny się nie dowie, dopóki ktoś nie znajdzie twojego ciała albo GM tego nie ujawni: twój arkusz pokazuje cię jako martwego, z "Nikt jeszcze nie znalazł twojego ciała.", a twoje Truth Bullets zostają na nim do tego czasu. Do tego czasu stół może brać cię za żywego - ale w Class Trial twój mikrofon jest wyłączony jak każdego zmarłego ucznia i nie dostajesz karty do głosowania, więc stół dowiaduje się, że ktoś zginął. Level Up za trafny werdykt nadal dostajesz i ty.
@@ -779,16 +822,28 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 ### Gra Monocubem
 
-Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako **Monocub**. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move** i **Confusion**.
+Gdy twoja śmierć stanie się jawna dla stołu, GMowie mogą cię zaprosić do dalszej gry jako **Monocub**. Okno pokazuje ci **Zasadę Monocuba** - *Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz.* - i co grozi za jej złamanie: za pierwszym razem rozmowa z GM-em, za drugim odebranie roli Monocuba, za trzecim opuszczenie gry. **Przyjmuję Zasadę** robi z ciebie Monocuba; **Nie teraz** zamyka zaproszenie, a GMowie się o tym dowiadują. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move**, **Confusion**, **Redeem**, **Ask for Hope**, **Tinker** i **Ghost Bet**.
 
-- Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
-- **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
+- Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Twoje rzuty widzą wszyscy, którzy stoją w twoim pokoju.
+- **Poruszasz się swobodnie.** Przejście do połączonego pokoju nie kosztuje cię akcji ani Free Move, także podczas Eclipse; pokój, w którym trwa morderstwo, cię nie wpuszcza, słowami Pieczęci.
+- **Widzisz każdy pokój, który znalazła klasa**, nie wiedząc, kto który znalazł; tego, co znalazł Mastermind, wśród nich nie ma.
+- **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope bierze się z tego, że Monokuma zamienia w niego Despair (Fuel a Monocub), albo z ruchów niżej. To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty. Nic nie płacisz, dopóki strona GMa nie wykona ruchu; ruch, którego odmówi, nic cię nie kosztuje (*Confusion ich nie dosięga. Nie tracisz akcji ani Hope.*).
+- **Jeden uczeń, dwa ruchy dziennie.** Uczeń może być celem jednego ruchu Monocuba na porę dnia i dwóch na dzień gry, licząc wszystkie Monocuby przy stole; ruch nieudany też się liczy.
+- **Redeem** nic nie kosztuje i daje ci +1 Hope, raz na dzień gry; nie przy pełnym Hope i nie wtedy, gdy zaciemnienie blokuje Hope. Gdy jest do użycia, panel zdarzeń mówi *Redeem czeka*.
+- **Ask for Hope** nic nie kosztuje: GMowie dostają kartę i dają ci 1 albo 2 Hope albo odpowiadają *Nie teraz*. Jedna prośba naraz i nie przy pełnym Hope.
+- **Tinker** kosztuje **1 akcję i 1 Hope**: Confusion wymierzone w projekt. Jawny, nieukończony projekt w twoim pokoju, nad którym w tej porze dnia pracował żywy uczeń; 12 lub więcej przesuwa go o krok do przodu (Pomóż) albo do tyłu (Przeszkódź), nigdy aż do ukończenia, a krytyk oddaje ci Hope. Pokój widzi, że rzucasz i w którą stronę, nigdy przy czym.
+- **Twoja sakiewka.** Hope, które płaci ci Bribe, Bounty albo Ghost Bet, trafia do sakiewki trzymanej dla ciebie przez GM-ów. Liczy się razem z Hope z arkusza do limitu, cena jest płacona najpierw z niej, a twój panel ją pokazuje.
+- **Bribe** to propozycja żywego ucznia: 1 Hope za przysługę, którą ustalicie między sobą. Przyjmujesz ją albo odrzucasz w oknie lub na swoim panelu; Hope trafia do sakiewki tylko wtedy, gdy przyjmiesz, a propozycja bez odpowiedzi wygasa w następnej porze dnia. Nikt inny się nie dowie. Przyjęty Bribe sprawia też, że twoje następne Confusion albo Tinker w tej porze dnia jest ruchem na zlecenie, który kosztuje tylko akcję.
+- **Bounty** to tajemnica GM-ów: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi i trafi. Twój panel pokazuje otwarte; wygasają w następnej porze dnia.
+- **Ghost Bet** nic nie kosztuje: wskaż ucznia, którego według ciebie skaże werdykt. Trafny werdykt na tę osobę płaci do twojej sakiewki 4 Hope, jeśli postawisz przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie przed głosowaniem, 1 w trakcie głosowania; po jego zamknięciu nie stawiasz. Jeden zakład do werdyktu, żaden, dopóki trwa twoja własna sprawa, ani jako świadek zbrodni. Karta nie nazywa nikogo poza twoim własnym wyborem.
+- Kafel, którego teraz nie da się użyć, jest przygaszony i mówi dlaczego (*Redeem wykorzystany dziś. Wraca jutro.*, *Masz pełne Hope.*, *Twoje Ask for Hope wciąż czeka na GM-a.*).
+- Po błędnym werdykcie Monocub ze sprawy tej śmierci i każdy świadek zbrodni tego rozdziału dostaje kartę: do następnej rozprawy nie używaj swoich ruchów na korzyść ani na szkodę sprawcy, jego projektów, Bribe ani Ghost Bet. Karta nikogo nie nazywa.
 - Gdy zginiesz, twoje ciało zostaje tam, gdzie leży twój token, gdy twoja śmierć stanie się jawna, jako kafel z obrazkiem twojej postaci, znacznikiem śmierci na nim i twoim imieniem pod nim („Ciało: {name}”), i to, co miało przy sobie, przeszukuje się tam; jako Monocub odchodzisz od niego. Każde ciało znika, gdy kończy się Class Trial; potem to, co miałeś przy sobie, przeszukuje się obok twojego tokenu.
-- Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
+- Monocub, który stoi w pokoju morderstwa - gdy do niego dochodzi albo gdy wejdzie tam w jego trakcie - zostaje **świadkiem zbrodni**: zobowiązany do milczenia o niej do końca rozdziału. Confusion wciąż działa.
 
 | Rzut Confusion | Pomóż | Przeszkódź |
 |---|---|---|
-| 12+ | +1 | -1 |
+| 11+ | +1 | -1 |
 | 16+ | przewaga | utrudnienie |
 | krytyk | oddaje mu akcję | marnuje mu akcję |
 

@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.109";
+    --drpg-css-version: "1.2.111";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -2758,8 +2758,10 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
    of falling back to a different typeface mid-word. */
 @font-face {
     font-family: "DRPG Pixel";
-    /* ?v=2: Oacute redrawn (F5.5 iter. 2) - the query defeats the font cache. */
-    src: url("../fonts/pixel.woff2?v=2") format("woff2");
+    /* ?v=2: Oacute redrawn (F5.5 iter. 2); ?v=3: its acute lifted one font
+       pixel off the letter (trial exit, 13.11) - the query defeats the font
+       cache. */
+    src: url("../fonts/pixel.woff2?v=3") format("woff2");
     font-display: swap;
     font-weight: normal;
     font-style: normal;
@@ -2770,9 +2772,11 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 
 @font-face {
     font-family: "DRPG Pixel";
-    /* ?v=3: PL lowercase (iter. 1) + uppercase (iter. 2) redrawn - the query
-       defeats the font cache. */
-    src: url("../fonts/pixel-ext.woff2?v=3") format("woff2");
+    /* ?v=3: PL lowercase (iter. 1) + uppercase (iter. 2) redrawn; ?v=4: the
+       marks of the capitals with an acute or a dot lifted one font pixel
+       off the letter (trial exit, 13.11) - the query defeats the font
+       cache. */
+    src: url("../fonts/pixel-ext.woff2?v=4") format("woff2");
     font-display: swap;
     font-weight: normal;
     font-style: normal;
@@ -3818,6 +3822,12 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    gap of one in a wall, or which way a one-way tunnel goes. In the dim ink of 'the way is shut', not in italics, since
    it is an instruction and not a state. Chosen, not measured: the harness lays nothing out. */
 .drpg-passage-note { font-size: 0.9em; color: var(--drpg-dim); }
+/* The Mastermind's own room above the list (E91 C4, C5; D038; sheet.mjs `lairBlock`): its name, whether the door is
+   locked in the dim ink of 'the way is shut', and Lock or Unlock; a passage at that door gets a Seal beside its Show.
+   Drawn on the Mastermind's player's browser alone. Chosen, not measured: the harness lays nothing out. */
+.drpg-lair-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; }
+.drpg-lair-state { font-size: 0.9em; color: var(--drpg-dim); }
+.drpg-lair-lock, .drpg-passage-seal { white-space: nowrap; }
 /* Which way a tunnel goes, under its Shape in the GMs' Passages tab (H81-02; passages-tab.mjs `wayPicker`): the column's
    width at most, so a long room name does not widen the table (R606's sum). Chosen; in a Chromium mock-up with this
    stylesheet alone (20.10.2026, the stage's shots) its words wrap inside the 110 px column, five lines for "Only from Gym
@@ -4337,6 +4347,18 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     margin-top: 6px;
     font-style: italic;
     color: var(--drpg-crimson);
+}
+
+/* Part B under the tiles (E72 C14, C19): the purse, a Bribe waiting, a Bounty, the Monocub's own Ghost Bet - words in
+   the sheet's bone, at the module's small size, as the silenced note beside them sets its own. */
+.drpg-monocub-purse,
+.drpg-monocub-offer,
+.drpg-monocub-bounty,
+.drpg-monocub-bet {
+    margin-top: 6px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.35;
+    color: var(--drpg-bone);
 }
 
 /* THE DEAD'S AND AN NPC'S SHEET (E24 C3a, 08.11.2026; E24-18, E24-20). sheet.mjs `markSheetState` puts the
@@ -5154,6 +5176,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
 .drpg-variant-columns > .drpg-variant-ask { flex: 1.1 1 18rem; min-width: 0; padding-right: 6px; }
 .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: none; }
+/* A Call window shows every row's line (12.11.2026; the owner's standing rule "nie chowajmy w oknach akcji wyboru statystyki
+   ani opisu akcji NIGDY", relayed by the coordinator): there it is the row's description and price, which the rule above
+   would fold away under an unpicked row (call-pickers.mjs `callWindow`'s action layout, R3818). R3822 reads the cascade. */
+:is(.drpg-hope-dialog, .drpg-despair-dialog) .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: block; }
 .drpg-variant-columns :is(.drpg-variant-ask, .drpg-variant-ask > form, .drpg-variant-brief > .drpg-briefing-block) > :first-child {
     margin-top: 0;
 }
@@ -7979,8 +8005,8 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
    nothing. E13 C7 (12.10.2026; S12-18) gave it back to the GM by an element
    class (`drpg-gm-hotbar`); the owner had it gone again the same day (DZ5,
    "niepotrzebne", on a tablet), so it is hidden for everybody in every theme
-   as in 1.2.73. The five macros the repository carries (macros/) and a GM's
-   own run from the Macro Directory. The combat tracker (its sidebar tab, the tab's pane and its popped-out window) and
+   as in 1.2.73. A GM's macros run from the Macro Directory (the five the
+   repository carried in macros/ left it in 1.2.111). The combat tracker (its sidebar tab, the tab's pane and its popped-out window) and
    Daggerheart's effects display share the rule since E49 FT batch 3 (E105 FT-36; the owner, 11.11.2026, "Tak": hidden
    for everybody, as the hotbar). A display rule only: no Combat or effect is touched, and a condition stays visible
    where the game reads it - the token's status icons and the sheet. Read before hiding (scripts/, 11.11): nothing
@@ -9231,9 +9257,11 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     mask-image: var(--drpg-pix-listen);
 }
 
+/* The hammer, not the plain T (gaps-108, R3987; the owner's yes on the review page, 12.11.2026): legacy:hammer, the
+   glass drawing in both themes. The Remnant card's project glyph keeps `--drpg-pix-project`. */
 .drpg-action-button[data-drpg-action="project"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-pix-project);
-    mask-image: var(--drpg-pix-project);
+    -webkit-mask-image: var(--drpg-pix-hammer);
+    mask-image: var(--drpg-pix-hammer);
 }
 
 .drpg-action-button[data-drpg-action="sabotage"] .drpg-action-icon {
@@ -9535,7 +9563,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     content: none !important;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9549,11 +9578,21 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     image-rendering: pixelated;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon::before {
     content: none !important;
 }
 
-.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon {
+/* E72 (12.11.2026): Talent, Experience and Ultimate as one tile, wears Ultimate's star; the frame is the rule above. */
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-ultimate);
+    mask-image: var(--drpg-pix-ultimate);
+}
+
+/* E72 C15: the Hope Call Bribe shares Contribution's frame; its own mask is the rule after Contribution's. */
+.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9567,8 +9606,22 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     image-rendering: pixelated;
 }
 
-.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon::before {
     content: none !important;
+}
+
+/* The Bribe's drawing: two banknotes (the inventory's row 74), on :root since its legacy row (E72 C15). */
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-bribe);
+    mask-image: var(--drpg-pix-bribe);
+}
+
+/* The Bounty's drawing: a wanted poster with a coin (the inventory's row 75), on :root since its legacy row (E72 C16). */
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-bounty);
+    mask-image: var(--drpg-pix-bounty);
 }
 
 .drpg-call-button[data-drpg-call="reroll"] .drpg-action-icon {
@@ -9995,6 +10048,11 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
 .drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-horn); }
 .drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-gavel); }
 .drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-heartcrack); }
+/* E72 C9: a Monocub's Redeem, waiting - the ticket its tile wears. */
+.drpg-event[data-kind="redeemHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-redeem); }
+/* Part B's two cards for a Monocub's own player (E72 C19): the Bribe's tile glyph and the Ghost Bet's, both on :root. */
+.drpg-event[data-kind="bribeHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-bribe); }
+.drpg-event[data-kind="betHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-ghost-bet); }
 
 /* --- the Event panel, in both themes --------------------------------------
    `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
@@ -10167,6 +10225,10 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 .drpg-event[data-kind="assembly"] { --acc: var(--drpg-gold-antique); }
 .drpg-event[data-kind="trial"] { --acc: var(--drpg-crimson); }
 .drpg-event[data-kind="overflow"] { --acc: var(--drpg-crimson); }
+/* Redeem gives back Hope, and Hope's colour means Hope alone (E48 K1). */
+.drpg-event[data-kind="redeemHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="bribeHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="betHope"] { --acc: var(--drpg-gold); }
 
 /* ==========================================================================
    STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS
@@ -12169,6 +12231,15 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
 /* `margin-top` was the old "below the pips" spacing and fights the stack. */
 .drpg-pending-stack .drpg-pending-call {
     margin-top: 0;
+}
+
+/* A room action's timed effect (E93; the owner's asks of 12.11.2026: where the Hope Calls are, a name of one or two words,
+   white). The sheet's white chip with black ink (its header controls' pair, section 4 below), so it reads apart from the
+   Hope Calls' gold and the Despair Calls' red on both themes' grounds. */
+.drpg-pending-timed {
+    color: var(--drpg-ink);
+    border: 1px solid var(--drpg-ink);
+    background: var(--drpg-bone);
 }
 
 /* ==========================================================================
@@ -15438,7 +15509,8 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-summary-dialog, .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
-#chat-popout {
+#chat-popout,
+#drpg-sequence .drpg-seq-day {
     border: 1px solid var(--drpg-window-edge);
     box-shadow: 0 8px 28px rgba(var(--drpg-shadow-rgb), 0.55);
 }
@@ -16346,8 +16418,8 @@ i.drpg-pix-foot {
 }
 
 #drpg-gm-launcher i::before {
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h5v1H2z'/%3E%3C/svg%3E");
 }
 
 .application .window-header .header-control[data-action="close"]::before {
@@ -17047,9 +17119,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-flask);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-equip i {
-    -webkit-mask-image: var(--drpg-pix-fist);
-    mask-image: var(--drpg-pix-fist);
+    -webkit-mask-image: var(--drpg-pix-hold-ready);
+    mask-image: var(--drpg-pix-hold-ready);
 }
 
 .drpg-row-discard i {
@@ -17077,9 +17150,10 @@ body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::
     mask-image: var(--drpg-pix-share);
 }
 
+/* gaps-108, R3988: the owner's pick of round 2 (12.11.2026), one drawing in both themes. */
 .drpg-row-handover i.fa-hand-holding {
-    -webkit-mask-image: var(--drpg-pix-give);
-    mask-image: var(--drpg-pix-give);
+    -webkit-mask-image: var(--drpg-pix-hand-over);
+    mask-image: var(--drpg-pix-hand-over);
 }
 
 .drpg-row-present i {
@@ -17880,13 +17954,17 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
  * One block, A8's whole layout (action-menus.mjs `detailsHtml`, `detailsStack`, `syncDetails`). The left column is a
  * flex column stretched to the row's height; the box under the toggle stays in the flow shut as open - shut it is only
  * `visibility: hidden` (and `inert`, from the script) - so it holds its place: its content's height, more if the right
- * column leaves more, never past the cap (`--drpg-details-cap`), past which it scrolls in itself. A row's lines and
+ * column leaves more. It had a cap (`--drpg-details-cap`, 15rem), past which it scrolled in itself, until fit-110
+ * (13.11.2026): the fit pass read that box as "a second scroller" in 9 readings - Observe under Legacy at every size,
+ * where its Details ran 269 px into the 240 px box at 1366x768, and Observe, Search and Analyze at 390x844 (382 px)
+ * - and a description scrolling in a box of its own is the nearest thing to hiding it (the owner's rule: an action
+ * window never hides its stat choice or its description). Now no cap: the box is its content's height and the window's
+ * body is its one scroller. A row's lines and
  * the crisis menu's whole hints are layers of one grid cell, the unpicked ones `visibility: hidden` (`drpg-unpicked`):
  * the box and the column are as tall as their tallest row. Never `display: none` or `hidden` for any of them (R3383).
  * Measured in Chromium on probe 08's captures (style-sweep `--details`, 1366x768 and three more sizes, both themes):
  * S/stages/E49/STATUS.md A8; the mockup's numbers, S/stages/E49/A8-details.md 5.
  * ========================================================================== */
-.drpg-action-window { --drpg-details-cap: 15rem; }
 .drpg-action-window .drpg-variant-columns { align-items: stretch; }
 .drpg-action-window .drpg-variant-brief { display: flex; flex-direction: column; }
 .drpg-action-window .drpg-variant-brief > * { flex: 0 0 auto; }
@@ -17921,13 +17999,7 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
     transition: transform 120ms;
 }
 .drpg-action-details-toggle[aria-expanded="true"] > .drpg-action-details-mark { transform: rotate(45deg); }
-.drpg-action-details-box {
-    flex: 1 1 auto;
-    max-height: var(--drpg-details-cap, 15rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-right: 4px;
-}
+.drpg-action-details-box { flex: 1 1 auto; }
 .drpg-action-details-toggle[aria-expanded="false"] + .drpg-action-details-box { visibility: hidden; }
 /* The layers of one place (a row's lines; the crisis menu's whole hints under the lead). */
 .drpg-details-stack,
@@ -18127,15 +18199,17 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
 }
 body[data-drpg-sequence] #drpg-popups { z-index: 99990; }
 body[data-drpg-sequence] .drpg-foundry-window { visibility: hidden; }
-/* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8) */
-body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art) {
+/* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8); and the
+   blocks of the interface with them - the clock, Despair, the event panel, the status, the tray and the corner's
+   launchers (the entry's hand-over, 12.11.2026: the seam report's probe read the HUD 20 darker in the host's first frame
+   and back in its last). The rule is the still frame's; in motion sequence.mjs `coverBlocks` fades each out as the
+   curtain closes and back in as it opens, by its own animation: a transition here lost the cascade to the theme's own
+   `transition` on the same blocks (stained-glass.css turns their rotation), and the HUD went in one frame. */
+body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art, #drpg-hud, #drpg-despair, #drpg-events, #drpg-player-status, #countdowns, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]) {
     opacity: 0;
-    transition: opacity var(--drpg-t-beat) var(--drpg-ease-leave);
 }
-#drpg-sequence .drpg-seq-glass,
-#drpg-sequence .drpg-seq-pulse { position: absolute; inset: 0; }
+#drpg-sequence .drpg-seq-glass { position: absolute; inset: 0; }
 #drpg-sequence .drpg-seq-piece { position: absolute; }
-#drpg-sequence .drpg-seq-pulse { background: color-mix(in srgb, var(--drpg-seq-light) 10%, transparent); opacity: 0; }
 #drpg-sequence .drpg-seq-lid { position: absolute; left: 0; width: 100%; height: 50%; background: var(--drpg-seq-dark); }
 #drpg-sequence .drpg-seq-lid.is-top { top: 0; border-bottom: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
 #drpg-sequence .drpg-seq-lid.is-bottom { top: 50%; border-top: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
@@ -18159,13 +18233,32 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     letter-spacing: 0.05em;
     white-space: nowrap;
 }
+/* the trial's exit's title, TRIAL ADJOURNED / KONIEC ROZPRAWY, at four fifths: at the full size it ran 160 px out of its
+   band under Legacy's wide face at 1366x768 (the glass harness, 12.11.2026) */
+#drpg-sequence .drpg-seq-title.is-long .drpg-seq-title-band { font-size: clamp(11px, calc(var(--drpg-seq-title-size) * 0.8 * var(--drpg-seq-u)), 999px); }
 #drpg-sequence .drpg-seq-title-sub {
     margin-top: calc(18 * var(--drpg-seq-u));
     font: calc(28 * var(--drpg-seq-u)) var(--drpg-seq-font);
+    /* the 11 px floor (13.11.2026): at a phone's 393x852 the line stood at 6.9 px, under one of the pixel face's pixels,
+       and Ó read as O again (glass-sweep.mjs `--accents`) */
+    font-size: clamp(11px, calc(28 * var(--drpg-seq-u)), 999px);
+    /* there the line wraps to two, and at the pixel face's own 1 the second line's marks touched the first */
+    line-height: 1.4;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--drpg-seq-light);
     text-shadow: 0 calc(2 * var(--drpg-seq-u)) 0 var(--drpg-seq-dark), 0 0 calc(10 * var(--drpg-seq-u)) var(--drpg-seq-dark);
+    /* on its own dark shard (13.11.2026; the owner's review of the exit's shots): under Stained Glass the closed
+       curtain's panes are glass, and an open window's words and a lead line read through them across the line - its
+       surround read 2.1 to 4.2 against the line's colour at 1366x768, 1st percentile; under Legacy, at a phone's width,
+       the lids' red seam ran along its first line (3.6). glass-sweep.mjs `--title-contrast`. On Legacy's lid the shard
+       is the lid's own colour, so it shows only where it covers the seam. The entry and the exit share the line. */
+    display: inline-block;
+    /* the 5 px floor: at a phone's width 6 units were 1.5 px, and the cut's slant took Ó's acute off POWRÓT
+       (glass-sweep.mjs `--accents`, as drawn) */
+    padding: max(5px, calc(6 * var(--drpg-seq-u))) calc(26 * var(--drpg-seq-u));
+    background: color-mix(in srgb, var(--drpg-seq-dark) 90%, transparent);
+    clip-path: polygon(1% 0, 100% 10%, 99% 100%, 0 90%);
 }
 /* E61-B, the verdict's cut-in: frame 5 is the board as it stands (sequence.mjs `verdictBoardElement`) */
 #drpg-sequence .drpg-seq-verdict { position: absolute; inset: 0; }
@@ -18291,7 +18384,13 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
 
 /* THE START-OF-DAY BOARD (E94 C2; sequence.mjs `dayStartElement`; MK-R2 #4): a panel in the middle of the screen over the
    curtain's turn, the cast in a row of portraits, the dead greyed in their place with their name and "we remember",
-   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself. */
+   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself.
+   ITS FRAME IS A WINDOW'S (12.11.2026; the owner's report at a real table on 1.2.109: the frame was pink). The edge was
+   three units of `--drpg-seq-band`, the trial's band colour - Despair's pink under the glass, red here - on a panel
+   that is no part of the trial. It takes the module's ordinary window frame now: its selector stands in the list of
+   the module's windows above (the one-pixel `--drpg-window-edge` and the drop shadow), and in stained-glass.css's
+   rule of the windows' glass (6. LIQUID GLASS ON THE WINDOWS) - the same declarations, no copy of them;
+   `--drpg-seq-band` stays the trial's band and the "spilling" mood word's. R4402 reads both themes. */
 #drpg-sequence.drpg-sequence-dayStart { pointer-events: none; }
 #drpg-sequence .drpg-seq-day {
     position: absolute;
@@ -18303,7 +18402,6 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
     gap: calc(14 * var(--drpg-seq-u));
     padding: calc(28 * var(--drpg-seq-u)) calc(36 * var(--drpg-seq-u));
     background: color-mix(in srgb, var(--drpg-seq-dark) 94%, transparent);
-    border: calc(3 * var(--drpg-seq-u)) solid var(--drpg-seq-band);
     color: var(--drpg-seq-light);
     text-align: center;
 }

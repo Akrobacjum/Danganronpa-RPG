@@ -1352,20 +1352,36 @@ export async function issueAutopsyDialog() {
             }</label>`;
     }).join("");
 
+    /* WHAT THE CASE PLANNED (13.11.2026): the next planned Autopsy not sent yet - of the chapter's count, with a name or
+       words written (case-schema.mjs `autopsyId`, investigation.mjs `autopsyCount`) - fills the window in, for a body
+       found before it was planned or a GM sending it by hand; sent from here, it is marked sent, so its body sends it
+       no second time. Nothing here refuses a GM another Autopsy (the owner, 13.11.2026). */
+    const { caseRows, caseNodeOf, caseMetaOf, setCaseMeta, autopsyId } = await import("./case-schema.mjs");
+    const { autopsyCount } = await import("./investigation.mjs");
+    const { getClock } = await import("./clock.mjs");
+    const chapter = getClock().chapter;
+    const planRows = caseRows(chapter);
+    const sentMarks = caseMetaOf(planRows.meta).autopsySent;
+    let plannedId = null;
+    for (let n = 1; n <= autopsyCount(chapter) && !plannedId; n++) {
+        const row = caseNodeOf(planRows.rows[autopsyId(n)]);
+        if (row?.kind === "autopsy" && (row.label || row.text) && !sentMarks[autopsyId(n)]) plannedId = autopsyId(n);
+    }
+    const fill = plannedId ? caseNodeOf(planRows.rows[plannedId]) : { label: "", text: "", note: "" };
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.TruthBullet.autopsyTitle"),
         classes: ["drpg-panel", "drpg-window-autopsy"],
         body: `<form>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.autopsyHint")}</p>
             <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="name" autofocus
+                <input type="text" name="name" autofocus value="${foundry.utils.escapeHTML(fill.label ?? "")}"
                        placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyNamePlaceholder")}" /></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
                 <textarea name="playerText" rows="3"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyTextPlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.autopsyTextPlaceholder")}">${foundry.utils.escapeHTML(fill.text ?? "")}</textarea></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
                 <textarea name="gmNote" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}">${foundry.utils.escapeHTML(fill.note ?? "")}</textarea></label>
             <fieldset><legend>${game.i18n.localize("DRPG.TruthBullet.autopsyWho")}</legend>${rows}</fieldset>
         </form>`,
         footer: {
@@ -1398,6 +1414,7 @@ export async function issueAutopsyDialog() {
         { name, playerText: result.playerText, gmNote: result.gmNote }
     );
 
+    if (issued && plannedId) await setCaseMeta(chapter, { autopsySent: { ...caseMetaOf(caseRows(chapter).meta).autopsySent, [plannedId]: Date.now() } });
     ui.notifications.info(plural("DRPG.TruthBullet.autopsyIssued", { n: issued }));
     return issued > 0;
 }

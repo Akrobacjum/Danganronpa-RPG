@@ -622,6 +622,22 @@ function setDrawn(node, drawn) {
     else node.defaultValue = drawn;
 }
 
+/**
+ * A field's present value taken as the one it was drawn from, or a held drawn value put back (planner autosave,
+ * 12.11.2026): a node's fields written when its editor closes are no longer the GM's change, so the Save after them
+ * hands nothing on; a write that failed puts back what they were drawn from, so they stay the GM's change. Answers
+ * the drawn value it replaced.
+ */
+export function keepDrawn(node, drawn = heldIn(node)) {
+    const was = drawnOf(node);
+    if (node.tagName === "SELECT" && node.dataset?.drpgDrawn === undefined) {
+        const value = node.value;
+        for (const o of node.options) o.defaultSelected = o.value === drawn;
+        node.value = value;
+    } else setDrawn(node, drawn);
+    return was;
+}
+
 /** A field's value as the person reads it: a box ticked or not, an option's label. */
 function shownAs(node, value) {
     if (node.type === "checkbox" || node.type === "radio") {

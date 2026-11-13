@@ -27,7 +27,7 @@
 
 import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { pickableCategories } from "./inventory.mjs";
-import { neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
+import { neighbouringRooms, ROOM_FLAGS, roomBroken, setRoomBroken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -35,18 +35,19 @@ import { SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, announce, plural, workingScene,
+    dialogContent, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
+import { roomActions } from "./facilities.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
     listOver, isTrialScene, homeScene, sceneHoldsRooms
 } from "./rooms.mjs";
 import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
-    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom
+    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom, writeRoomLock
 } from "./vault-store.mjs";
 
 /* ==========================================================================
@@ -101,7 +102,12 @@ function recountTokenCells(root, scene) {
  * coordinates, so Apply reads the same form it always did and never learns
  * which way the table was laid out.
  */
-function fogMatrixRows(rooms, students, known) {
+function fogMatrixRows(rooms, students, known, mastermindId = null) {
+    /* THE MASTERMIND'S COLUMN (E91 C4; the owner's deferred item D067): the ledger keeps no row of their walks (fog.mjs
+       `recordDiscovery`) and every reader that asks for them counts every room as known (`myDiscoveredRooms`), so their
+       boxes are drawn ticked and disabled, the reason as the tooltip - drawn empty, a GM's tick wrote cells nobody reads.
+       A disabled box is never changed, so `readRoomSetupForm` sends nothing for it. */
+    const why = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.fogMastermind"));
     // A row a room for the kit's `dataTable` (E46-C2a): the room's cell under `name`, a student's under their id.
     return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
@@ -110,8 +116,8 @@ function fogMatrixRows(rooms, students, known) {
         return Object.fromEntries([["name", `<strong>${escRoom}</strong>`], ...students.map(actor => [actor.id,
             `<input type="checkbox"
                 aria-label="${escRoom} - ${foundry.utils.escapeHTML(actor.name)}"
-                name="fog:${escRoom}:${actor.id}" ${
-                known.get(actor.id)?.has(room) ? "checked" : ""} />`])]);
+                name="fog:${escRoom}:${actor.id}" ${actor.id === mastermindId ? `checked disabled data-tooltip="${why}"`
+                : known.get(actor.id)?.has(room) ? "checked" : ""} />`])]);
     });
 }
 
@@ -275,7 +281,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const COLUMN = {
             owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
             startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn",
-            neighbours: "DRPG.Vault.neighboursColumn",
+            neighbours: "DRPG.Vault.neighboursColumn", broken: "DRPG.Vault.brokenColumn",
             nosearch: "DRPG.SearchTokens.sealedColumn", table: "DRPG.Vault.table",
             short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
             desc: "DRPG.Vault.descriptionColumn"
@@ -316,10 +322,19 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             },
             concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
+            /* THE ROOM'S ACTIONS (E93 C2): how many, and the button that opens their editor (facility-editor.mjs
+               `editRoomActions`), which writes at once on its Save, as the search token buttons write at once; Apply reads
+               nothing of this cell. Drawn off where no piece of the name may be a room (nothing could hold them). */
+            facilities: `<span class="drpg-facility-cell"><span data-drpg-facility-count="${escRoom}">${roomActions(scene, room).length}</span>
+                ${iconButton({ icon: "fa-solid fa-pen-to-square", label: `${game.i18n.localize("DRPG.Facility.editor.edit")}: ${room}`,
+                    disabled: !possible, attrs: { "data-drpg-facility-edit": room } })}</span>`,
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
             locked: check("locked", flagOver(pieces, ROOM_FLAGS.locked)),
             startlocked: check("startlocked", pieces.some(startLocked),
                 game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
+            // Broken (E74 C5): a lock Force the Door or a breach forced (movement.mjs `roomBroken`); unticked and applied,
+            // the lock holds again - the GM's repair by hand.
+            broken: check("broken", roomBroken(scene, room), game.i18n.localize("DRPG.Vault.brokenHint")),
             nosearch: check("nosearch", flagOver(pieces, SEARCH_FLAGS.sealed)),
             // Advice only: it changes no rule, just which regions the ratio
             // line above the table counts. See `sharedRooms`.
@@ -378,7 +393,9 @@ export const ROOM_SETUP_TABS = Object.freeze([
     ["doors", "DRPG.Vault.tabDoors"],
     ["passages", "DRPG.Vault.tabPassages"],
     ["search", "DRPG.Vault.tabSearching"],
-    ["rest", "DRPG.Vault.tabRest"],
+    // The Rest tab is the Facilities tab since E93 C2 (the owner's audit entry E93 (1)): the two rest flags and the room's
+    // actions. Its key stays `rest`, as the tile's does.
+    ["rest", "DRPG.Vault.tabFacilities"],
     ["stashes", "DRPG.Vault.tabStashes"],
     ["description", "DRPG.Vault.tabDescription"],
     ["fog", "DRPG.Vault.tabFog"],
@@ -411,17 +428,18 @@ export function roomSetupTab(tab, holdsRooms) {
  * widths, the room's first ("room", the 220 px E12 C15 chose).
  */
 const ROOM_SETUP_COLUMN = {
-    owner: "select", isroom: "check", locked: "check", startlocked: "check", notshared: "check",
+    owner: "select", isroom: "check", locked: "check", startlocked: "check", broken: "check", notshared: "check",
     neighbours: "text", nosearch: "check", tokens: "step", table: "select", place: "place",
-    short: "check", long: "check", description: "prose", image: "picture"
+    short: "check", long: "check", facilities: "step", description: "prose", image: "picture"
 };
 
 /* Each column's heading, by the cell's key in `roomCells`. */
 const ROOM_SETUP_HEAD = {
     owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
-    startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn", neighbours: "DRPG.Vault.neighboursColumn",
-    nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
+    startlocked: "DRPG.Vault.lockedAtStartColumn", broken: "DRPG.Vault.brokenColumn", notshared: "DRPG.Vault.notSharedColumn",
+    neighbours: "DRPG.Vault.neighboursColumn", nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
     place: "DRPG.Vault.placeColumn", short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
+    facilities: "DRPG.Facility.roomColumn",
     description: "DRPG.Vault.descriptionColumn", image: "DRPG.Vault.imageColumn"
 };
 
@@ -446,7 +464,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
             ${/* information, not a warning (D11; audit S06-59, E22 C6b): the count advises and changes no rule */ ""}
             ${box("info", `<p class="notes" data-drpg-ratio></p>`)}
-            ${tableFor(["isroom", "locked", "startlocked", "notshared", "neighbours"])}
+            ${tableFor(["isroom", "locked", "startlocked", "broken", "notshared", "neighbours"])}
             <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
         `,
@@ -464,7 +482,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
         rest: `
             <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
-            ${tableFor(["short", "long"])}
+            ${tableFor(["short", "long", "facilities"])}
+            <p class="notes">${game.i18n.localize("DRPG.Facility.editor.tabNote")}</p>
         `,
 
         stashes: `
@@ -518,6 +537,7 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         longRest: Boolean(pick(`long:${room}`)?.checked),
         locked: Boolean(pick(`locked:${room}`)?.checked),
         lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
+        broken: Boolean(pick(`broken:${room}`)?.checked),
         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
         notShared: Boolean(pick(`notshared:${room}`)?.checked),
         isRoom: roomBox(pick(`isroom:${room}`)),
@@ -691,6 +711,20 @@ function wirePlaceSwitches(root) {
 // recounted at (`data-drpg-shown`) and added to the count read now, as `now + by` was: a spend a player made while the
 // GM clicked is kept, not overwritten. A number typed is a step of its difference, the same rule. Refill writes the
 // cap. `SearchTokens` is the window's own, handed in, so R2010 counts the writes on a stand-in.
+/** The Facilities tab's edit buttons (E93 C2): each opens its room's editor, and the count in its cell follows the Save. */
+export function wireFacilityButtons(root, scene) {
+    for (const button of root.querySelectorAll("button[data-drpg-facility-edit]")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const room = button.dataset.drpgFacilityEdit;
+            const { editRoomActions } = await import("./facility-editor.mjs");
+            await editRoomActions(scene, room);
+            const count = root.querySelector(`[data-drpg-facility-count="${CSS.escape(room)}"]`);
+            if (count) count.textContent = String(roomActions(scene, room).length);
+        });
+    }
+}
+
 export function wireTokenButtons(root, scene, recount, { tokens = SearchTokens } = {}) {
     for (const input of root.querySelectorAll("input[data-drpg-token]")) {
         input.dataset.drpgShown ??= input.value;
@@ -775,6 +809,8 @@ function wireFogButtons(root) {
             ev.preventDefault();
             const value = button.dataset.drpgFogAll === "discover";
             for (const box of root.querySelectorAll('input[type="checkbox"][name^="fog:"]')) {
+                // The Mastermind's column is shut (E91 C4, `fogMatrixRows`): every room stays known to them.
+                if (box.disabled) continue;
                 box.checked = value;
             }
         });
@@ -966,6 +1002,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         };
         const wasLocked = Boolean(flagOver(pieces, ROOM_FLAGS.locked));
         const wasLockedAtStart = pieces.some(startLocked);
+        const wasBroken = roomBroken(scene, row.room);
         const wasSealed = Boolean(flagOver(pieces, SEARCH_FLAGS.sealed));
         const wasNotShared = Boolean(flagOver(pieces, VAULT_FLAGS.notShared));
         // Settled when every piece that can be a room already says what the row says (E12 C1);
@@ -987,6 +1024,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             && before.hinders.every(h => row.hinders.includes(h))
             && wasLocked === row.locked
             && wasLockedAtStart === row.lockedAtStart
+            && wasBroken === row.broken
             && wasSealed === row.noSearch
             && wasNotShared === row.notShared
             && roomSettled
@@ -997,6 +1035,12 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             ownerMoved.push({ room: row.room, owner: row.owner });
         }
         if (same) continue;
+        // Broken (E74 C5): written on the room's pieces by its one writer, before the rest of the row.
+        if (wasBroken !== row.broken) {
+            await setRoomBroken(scene, row.room, row.broken);
+            // Mended by hand: a Repair the Lock under way on it goes, with a note to the GMs (E74 C5).
+            if (!row.broken) await (await import("./doors-gm.mjs")).dropLockRepairs(scene, row.room);
+        }
 
         // "Stash hidden" is the Stashes tab's business (ITEM-02): the column
         // this tab used to carry wrote the LEGACY flag, which the Stashes list
@@ -1058,21 +1102,9 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         // only one of them survives a mid-season change to the lock itself.
         await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.lockedAtStart}`]: row.lockedAtStart });
 
-        if (wasLocked !== row.locked) {
-            await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: row.locked });
-            // Only unlocking is announced. A GM locking a door mid-session is
-            // often the point the players finding out is meant to come from
-            // walking into it and reading "Drzwi są zamknięte." themselves -
-            // the same reasoning `toggleFinalTrialFlag` in mastermind.mjs
-            // applies to starting versus ending. Unlocking has no such
-            // in-fiction moment of its own, so it says so out loud.
-            if (wasLocked && !row.locked) {
-                await announce({
-                    content: `<p>${game.i18n.format("DRPG.Vault.unlockedAnnounce",
-                        { room: foundry.utils.escapeHTML(row.room) })}</p>`
-                });
-            }
-        }
+        // The one writer of a room's lock, and its card when it opens (vault-store.mjs `writeRoomLock`; E91 C4, D038):
+        // the Mastermind's own lair is locked through it too, so it is this lock.
+        if (wasLocked !== row.locked) await writeRoomLock(scene, row.room, row.locked);
 
         changed.add(row.room);
     }
@@ -1226,7 +1258,8 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const maxTokens = SearchTokens.max;
 
     const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
-    const fogRows = fogMatrixRows(rooms, students, known);
+    const { mastermindActor } = await import("./mastermind.mjs");
+    const fogRows = fogMatrixRows(rooms, students, known, mastermindActor()?.id ?? null);
     const stashRows = stashMatrixRows(rooms, students, scene);
     const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
 
@@ -1277,6 +1310,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             wireStashCells(root);
             wirePlaceSwitches(root);
             wireTokenButtons(root, scene, recount);
+            wireFacilityButtons(root, scene);
 
             // The picture column (E77 C1): the file picker on each thumbnail, its field named `img:<room>`
             // as the description's is `desc:<room>`, and the button that empties the cell it stands in.

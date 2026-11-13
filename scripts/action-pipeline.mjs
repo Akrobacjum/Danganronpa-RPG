@@ -127,6 +127,8 @@ function suiteRolling() {
  * @param {number} [options.situational]  This roll's own advantage (+) or disadvantage
  *   (-) in dice, which a supporting roll's shield does not hide (call-effects.mjs
  *   `armOwnSituational`): the Night's die on a murder's opening roll, its one caller.
+ * @param {number} [options.hindrance]  Hindrance dice given to this roll by name, its cause not said (call-effects.mjs
+ *   `armOwnHindrance`): a watch's die on the killer's opening roll (E74, DA44), its one caller.
  *
  * Exported because the murder engine rolls through it too: a crisis action and
  * an opening roll are ordinary trait rolls that must commit resources, honour
@@ -136,7 +138,7 @@ function suiteRolling() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0, titled = false } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0, hindrance = 0, titled = false } = {}) {
     // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
     // or a ladder written as text ("12 / 18"); a window with no title of its
     // own takes the action's label so the number has something to hang on.
@@ -156,6 +158,7 @@ export async function rollTrait(actor, drpgTrait,
     const supporting = !remember;
     if (supporting) calls.shieldCalls();
     if (situational) calls.armOwnSituational(situational);
+    if (hindrance) calls.armOwnHindrance(hindrance);
     try {
         /* THE NUMBER RIDES ON THE ROLL TO ITS CARD (E51 C1; the owner's amendment of 14.10: "modul w zaden sposob nie
            informuje ani gracza, ani gma o thresholdach akcji"). The window said "beat N" and the card said the total
@@ -167,6 +170,7 @@ export async function rollTrait(actor, drpgTrait,
         return outcome;
     } finally {
         if (situational) calls.clearOwnSituational();
+        if (hindrance) calls.clearOwnHindrance();
         if (supporting) calls.unshieldCalls();
     }
 }
@@ -288,6 +292,13 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // threw, it counts only where the die held (forced-roll.mjs `loadedDieHeld`; E16 part 2 C5, audit S02-44): a d12
     // drawn by another dice method shows an honest face, and the roll was told "freeCritUsed" all the same.
     const loaded = drawn ? drawn.loaded === true : free && loadedDieHeld(result);
+    // One that did not hold gives its Call back (E64, D052; call-effects.mjs `giveBackLoadedDie`): here only where this
+    // browser threw the dice, which with a Loaded Die armed is a GM's - a player's roll is drawn, and the GM that drew it
+    // gave it back there (roll-draw.mjs `throwDrawn`).
+    if (free && !drawn && !loaded) {
+        const { giveBackLoadedDie } = await import("./call-effects.mjs");
+        await giveBackLoadedDie(actor, armed);
+    }
 
     const outcome = {
         total,

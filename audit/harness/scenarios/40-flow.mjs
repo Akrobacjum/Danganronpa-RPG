@@ -1171,7 +1171,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     check("p1: a Sabotage with Fear whose readied tool breaks on the roll leaves its trace at the band its repair was made at",
         Boolean(toolSetup.project && toolSetup.tool) && toolSetup.readied === toolSetup.tool && !toolSab.err && toolSab.success === true
             && toolRead.record?.actionKey === "sabotage" && toolRead.record?.total === 11 && toolRead.record?.withFear === true
-            && toolRead.broken === true && toolRead.frozen === true && toolRead.repair === 3
+            // A hit below the complex band makes a repair of 2 since E64 (S02-75; config.mjs `ACTIONS.sabotage.simpleRepair`), 3 before.
+            && toolRead.broken === true && toolRead.frozen === true && toolRead.repair === 2
             && toolRead.traces.length === 1 && toolRead.traces[0] === "subtle",
         JSON.stringify({ toolSetup, toolDice, toolSab, toolRead }), { flow: "projects" });
 

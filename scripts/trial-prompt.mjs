@@ -26,7 +26,7 @@
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { error, ownerOf } from "./utils.mjs";
+import { error, playerOwns } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { isRoundMode, MODES, closingOf } from "./floor-machine.mjs";
@@ -53,7 +53,7 @@ async function myParticipant(floor) {
         const { trialParticipants } = await import("./vote.mjs");
         return trialParticipants().find(p => p.user?.id === game.user.id)?.actor?.id ?? null;
     }
-    return (floor?.round?.order ?? []).find(id => ownerOf(game.actors.get(id))?.id === game.user.id) ?? null;
+    return (floor?.round?.order ?? []).find(id => playerOwns(game.actors.get(id))) ?? null;
 }
 
 /** The step a floor's turn is: the round's start and its step, the Closing's speaker's, or null outside a turn. */
@@ -137,7 +137,7 @@ async function promptClaim(floor) {
 async function promptTurn(floor) {
     const key = turnKey(floor);
     const actor = game.actors.get(floor?.holderId ?? "");
-    if (!key || !actor || game.user.isGM || ownerOf(actor)?.id !== game.user.id) return;
+    if (!key || !actor || game.user.isGM || !playerOwns(actor)) return;
     if (promptedFor === key || alreadyOpen(WINDOW_CLASS)) return;
     promptedFor = key;
     const { trialFloor } = await import("./trial-floor.mjs");
