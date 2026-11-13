@@ -122,10 +122,13 @@ export async function tokenIconFiles(repo = DEFAULT_REPO) {
 /**
  * The check: one line per file that is missing or differs from what `tokenIconFiles` makes (CRLF read as LF), and per
  * icons/project-*.svg the tool would not write (a glyph removed from PROJECT_GLYPHS leaves its file behind).
+ * `files` stands in for what the tool would write - the check's control hands it an empty set.
  */
-export async function iconProblems(repo = DEFAULT_REPO) {
-    const files = await tokenIconFiles(repo);
+export async function iconProblems(repo = DEFAULT_REPO, { files = null } = {}) {
+    files ??= await tokenIconFiles(repo);
     const problems = [];
+    // An empty set compares nothing and would pass (REVIEW-111 1): said, so the check cannot read nothing and be green.
+    if (!files.size) problems.push("no token picture to compare - the generator read no source");
     for (const [rel, want] of files) {
         let have = null;
         try { have = (await readFile(join(repo, rel), "utf8")).replace(/\r\n?/g, "\n"); } catch { /* missing */ }

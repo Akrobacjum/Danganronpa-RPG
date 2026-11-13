@@ -1186,8 +1186,13 @@ async function css() {
 async function icons() {
     const { iconProblems } = await import(url.pathToFileURL(path.join(REPO, "tools", "token-icons.mjs")).href);
     const { problems, count } = await iconProblems(REPO);
-    console.log(`icons: ${count} file(s) the token-icons tool owns; ${problems.length} problem(s)`);
-    return problems;
+    /* The control (the review of 13.11.2026, REVIEW-111 1): a generator that reads no source - SOURCES emptied, or
+       PROJECT_GLYPHS read as empty - would compare nothing and answer no problem. Handed an empty set, the check must
+       say so; if it does not, the part is red here, whatever the files are. */
+    const control = await iconProblems(REPO, { files: new Map() });
+    const blind = !control.problems.some(p => /no token picture to compare/.test(p));
+    console.log(`icons: ${count} file(s) the token-icons tool owns; ${problems.length} problem(s); the empty set ${blind ? "NOT reported" : "reported"}`);
+    return [...problems, ...(blind ? ["the check answers no problem for an empty set of pictures - it would read nothing and pass"] : [])];
 }
 
 /* -------------------------------- contrast -------------------------------- */
