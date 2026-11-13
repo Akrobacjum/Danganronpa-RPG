@@ -349,7 +349,7 @@ export async function clearSeasonKeyPlan() {
  * before the "clock" step sends the chapter back to 1, because after that every chapter is "other than the clock's".
  * Its failure is logged and the group stays kept.
  */
-export async function keepSeasonKeyPlan() {
+async function keepSeasonKeyPlan() {
     const keptChapter = getClock().chapter;
     try {
         const dropped = await keepOnlyKeyPlanChapter(keptChapter);
@@ -1700,7 +1700,7 @@ function tableBody(markup) {
  * whole name in `title` (`lines: 2`; under Legacy's pixel face a one-word head such as "Reinforced" is as wide as the
  * column) - but the last two, short words, the Breakdown's tooltip the sentence. Exported for R2067.
  */
-export function caseStudentColumns() {
+function caseStudentColumns() {
     const L = key => game.i18n.localize(key);
     return [
         { key: "student", label: L("DRPG.Investigation.student"), cls: "case-student", lines: 2 },
@@ -2006,7 +2006,7 @@ export function caseKeyRows({ plan, status, placed, limit }) {
 }
 
 /** The Key Remnants planner's columns, in the hand table's order (D31). Exported for R2067 and R2068. */
-export function caseKeyColumns() {
+function caseKeyColumns() {
     const L = key => game.i18n.localize(key);
     return [
         { key: "scale", label: L("DRPG.Investigation.difficulty"), cls: "case-scale", lines: 2 },
@@ -2296,7 +2296,7 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
  * since C9 (the owner's E: "Map by default"; Q-E: the parity test green, R3653, and the owner shown both views, round
  * 1 of 12.11.2026). Not a secret: world-secrets.mjs forbids one User flag only (`preSessionNote.text`).
  */
-export const INVESTIGATION_VIEWS = Object.freeze(["map", "table"]);
+const INVESTIGATION_VIEWS = Object.freeze(["map", "table"]);
 export function investigationView(user = game.user) {
     const v = user?.getFlag?.(MODULE_ID, "investigationView");
     return INVESTIGATION_VIEWS.includes(v) ? v : "map";

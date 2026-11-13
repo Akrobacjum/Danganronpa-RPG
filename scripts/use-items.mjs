@@ -112,7 +112,7 @@ export function stowedInGroup(actor, group) {
  *
  * @returns {{ok: boolean, stowed: number, max: number|null}}
  */
-export function mayStow(actor, item) {
+function mayStow(actor, item) {
     const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
     const group = ITEM_CATEGORIES[category]?.limitGroup ?? null;
     const max = group ? LIMIT_GROUPS[group]?.maxStowed ?? null : null;

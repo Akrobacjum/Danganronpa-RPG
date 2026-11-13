@@ -204,7 +204,7 @@ export const PROJECT_KNOWN = "projectKnown";
 let toldHere = null;
 
 /** The meta key of a GM's private card that carries a secret project's description to its players (`tellDescription`). */
-export const PROJECT_WORDS = "projectWords";
+const PROJECT_WORDS = "projectWords";
 
 /* The newest description each secret project's cards on this browser carry (`toldDescription`); emptied with `toldHere`. */
 let wordsHere = null;
@@ -214,7 +214,7 @@ let wordsHere = null;
  * that carry it (`PROJECT_WORDS`, posted by `tellDescription`), whose words and meta reach their readers alone
  * (secret.mjs); null when no card here does. A card a GM did not write counts for nothing.
  */
-export function toldDescription(countdownId) {
+function toldDescription(countdownId) {
     if (!wordsHere) {
         wordsHere = new Map();
         for (const message of game.messages ?? []) {
@@ -277,7 +277,7 @@ export async function tellDescription(countdownId) {
  * GMs' rows (gm-stores.mjs `projectSightCopy`), a client setting no chat action touches, asked again at every load
  * (`askForSight`); the player's browser says what changed on a notification (`noticeSight`), in the words the cards had.
  */
-export async function tellSight(countdownId) {
+async function tellSight(countdownId) {
     if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
     const name = secretsOf(countdownId).secretName;
     // No name here yet (the GMs' row not arrived, E101 R1): nothing is known to tell.
@@ -313,7 +313,7 @@ const SIGHT_ASK = "projects.sightAsk";
  * whose name this browser does not hold yet. Every stamp is this answer's: an answer is the user's whole set, sent by the
  * primary alone, so the newest is the truth (`offersCombine`).
  */
-export function sightFor(userId, { also = [], held = [] } = {}) {
+function sightFor(userId, { also = [], held = [] } = {}) {
     const user = game.users.get(userId);
     const sight = {}, stamps = {};
     if (!game.user?.isGM || !user || user.isGM) return { sight, stamps };
@@ -337,7 +337,7 @@ export function sightFor(userId, { also = [], held = [] } = {}) {
  * answer made before them would name none of the projects and empty the player's copy. Nothing while the suite holds the
  * stores. Answers whether it sent.
  */
-export async function sendSightTo(userId, { also = [], held = [] } = {}) {
+async function sendSightTo(userId, { also = [], held = [] } = {}) {
     const user = game.users.get(userId);
     if (!isPrimaryGm() || !user?.active || user.isGM || gmStoresQuiet()) return false;
     if (await projectSecretStore.whenHydrated() === "timedOut") return false;
@@ -361,7 +361,7 @@ export async function retellSights() {
 }
 
 /** Player: take a GM's answer where it is newer (`projectSightCopy`), for this world's projects only; then say what changed. */
-export async function receiveSight(sight, stamps) {
+async function receiveSight(sight, stamps) {
     const before = projectSightCopy.read() ?? {};
     const mine = {}, own = {};
     for (const [id, s] of Object.entries(stamps ?? {})) {
@@ -424,7 +424,7 @@ function onSightSocket(payload, senderId) {
  * readers alone (secret.mjs) and no other student's browser holds them. An action taken off is told as none, to those
  * told one before. Who was told what is the GMs' (`facilityTold`, in their row). Answers how many players were told.
  */
-export async function tellFacility(countdownId) {
+async function tellFacility(countdownId) {
     if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
     const { PROJECT_FACILITY_CARD, cleanFacility } = await import("./facilities.mjs");
     const raw = secretsOf(countdownId).facility ?? null;
@@ -465,7 +465,7 @@ function projectsToldHere() {
  * card was posted: none for a secret project, one with no room (known to everybody who sees it), or a character no
  * player owns.
  */
-export async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name = shownName(countdownId), room = roomOf(countdownId) } = {}) {
+async function tellProposer(countdownId, { by = secretsOf(countdownId).by, name = shownName(countdownId), room = roomOf(countdownId) } = {}) {
     if (!game.user?.isGM || !countdownId || !room || isSecret(countdownId)) return false;
     const actor = game.actors.get(by ?? "");
     if (!actor || !ownerIdsOfId(actor.id).some(id => !game.users.get(id)?.isGM)) return false;
@@ -2518,7 +2518,7 @@ export async function clearAllProjects() {
 }
 
 /** The season reset's projects group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): `clearAllProjects`. */
-export async function clearSeasonProjects() {
+async function clearSeasonProjects() {
     await clearAllProjects();
 }
 
@@ -2584,7 +2584,7 @@ export async function sealOldRepairs() {
 }
 
 /** Human-readable scale label for a progress target. */
-export function scaleFor(target) {
+function scaleFor(target) {
     const entry = Object.values(PROJECT_SCALE).find(s => s.progress === target);
     return entry?.label ?? null;
 }

@@ -873,7 +873,7 @@ export async function auditAnonymity({ toChat = true, actors = game.actors, enfo
  * S11-19). A GM's own write, as `lowerOwnership`'s is; lowering is never refused (`onPreUpdateActor`).
  * Answers how many it set. `actors` is every character unless handed in (R1506).
  */
-export async function fixExposed(actors = game.actors) {
+async function fixExposed(actors = game.actors) {
     if (!game.user?.isGM) return 0;
     let set = 0;
     for (const actor of actors ?? []) {

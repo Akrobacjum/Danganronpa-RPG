@@ -148,7 +148,7 @@ export function restSpent(actor, kind, clock = null) {
  * reads as spent - the S07-23 refusal, once, for a character who has not rested since the update (sheet-audit.mjs
  * `restCovers` judges new writes by `restStamp` alone). Pure.
  */
-export function legacyRestStamp(kind, clock) {
+function legacyRestStamp(kind, clock) {
     return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 

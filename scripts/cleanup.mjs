@@ -3283,7 +3283,7 @@ async function spendStress(actor) {
  * attempt keeps it. GM-side: the grant is in the GMs' cast (murder.mjs `freeCleanup`, held
  * null in every player's copy).
  */
-export async function consumeFreeCleanup(actor) {
+async function consumeFreeCleanup(actor) {
     if (!game.user.isGM || !actor) return false;
     try {
         return await spendFreeCleanup(actor.id);

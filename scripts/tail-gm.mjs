@@ -35,12 +35,12 @@ import { CROSSING_SETTLED } from "./crossing-settle.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 
 /** The day a tail is counted in: the chapter's and the clock's day, as one mark. */
-export function tailDay(clock = getClock()) {
+function tailDay(clock = getClock()) {
     return `${clock?.chapter ?? 0}:${clock?.day ?? 1}`;
 }
 
 /** Every tail under way, `[tailerId, row]`. */
-export function tailsUnderWay() {
+function tailsUnderWay() {
     return Object.entries(tailStore.entries() ?? {}).filter(([, row]) => row?.targetId);
 }
 
@@ -71,7 +71,7 @@ export async function startTail({ tailer, target, total = 0, isCritical = false,
 }
 
 /** End the tail of `tailerId`: with a card of `why` ("lost", "day", "body", "dash") to the tailer's owners, or silently. */
-export async function endTail(tailerId, why = null) {
+async function endTail(tailerId, why = null) {
     const row = tailStore.get(tailerId);
     if (!row) return false;
     await tailStore.drop(tailerId);
@@ -151,7 +151,7 @@ export async function tailsAfterDash(actor, total = 0, isCritical = false) {
 }
 
 /** End every tail under way with the card `why` (a body announced, a new day), or silently. Answers how many ended. */
-export async function endAllTails(why = null, { onlyBefore = null } = {}) {
+async function endAllTails(why = null, { onlyBefore = null } = {}) {
     let n = 0;
     for (const [tailerId, row] of tailsUnderWay()) {
         if (onlyBefore && row.day === onlyBefore) continue;

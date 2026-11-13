@@ -1096,7 +1096,7 @@ export function startLocked(region) {
  * room (rooms.mjs) locked or open as it starts (`startLocked`); a region that is no room keeps whatever it carries. The
  * primary GM's alone.
  */
-export async function clearSeasonDoors() {
+async function clearSeasonDoors() {
     if (!isPrimaryGm()) throw new Error("the season's doors are set on the primary GM's browser alone");
     for (const scene of game.scenes) {
         for (const region of roomPieces(scene)) {

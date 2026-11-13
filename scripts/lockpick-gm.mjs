@@ -105,7 +105,7 @@ export function passesFor(userId) {
 }
 
 /** Primary GM: send one user their passes. Addressed, and only while they are here; nothing while the suite holds the stores. */
-export function sendPassesTo(userId) {
+function sendPassesTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     const { passes, stamps } = passesFor(userId);
@@ -128,7 +128,7 @@ export async function retellPasses() {
 }
 
 /** Owner: take the primary's answer where it is newer (`lockpickCopy`), for this user's own characters only. */
-export async function receivePasses(passes, stamps) {
+async function receivePasses(passes, stamps) {
     const mine = {}, own = {};
     for (const [actorId, s] of Object.entries(stamps ?? {})) {
         if (!game.actors.get(actorId)?.isOwner) continue;

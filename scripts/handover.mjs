@@ -478,7 +478,7 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
  * time of day - and what it adds is an end: a roll thrown and never taken counts for no Take of a later time of day,
  * where without it a console could throw one in a quiet hour and hold it for days. Pure, but for the clock's default.
  */
-export function lootMark(clock = getClock()) {
+function lootMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
 }
 

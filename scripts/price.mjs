@@ -40,7 +40,7 @@ import { overflowBlocksHope } from "./overflow.mjs";
 import { plural, whisperToOwner, debug } from "./utils.mjs";
 
 /** The chain for one priced thing, or null when it has none. */
-export function chainFor(key) {
+function chainFor(key) {
     return PRICE_CHAINS[key] ?? null;
 }
 

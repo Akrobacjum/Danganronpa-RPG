@@ -473,7 +473,7 @@ async function sweepOnce({ live = allProjects().map(p => p.id), scenes = game.sc
  * player may not be in on.
  * @returns {string|null} what was told
  */
-export function warnProjectDuplicates(duplicates) {
+function warnProjectDuplicates(duplicates) {
     if (!game.user.isGM || !duplicates?.length) return null;
     const names = new Map(allProjects().map(p => [p.id, p.name]));
     const where = new Map();

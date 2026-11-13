@@ -85,7 +85,7 @@ export function autopsiesDue({ count = 1, rows = {}, sent = {}, bodies = 0 } = {
 }
 /** The kinds a trial mode stands on, and a planned minigame's fields on them (13.11.2026, `caseNodeOf`). */
 const SCHEMA_KINDS = Object.freeze(["deduction", "counter", "solution"]);
-export const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
+const ZONE_FIELDS = Object.freeze(["zoneQuestion", "zoneA", "zoneB", "zoneThesis", "diveSet"]);
 /* A PLANNED REMNANT'S TYPE (the owner, 13.11.2026: "opcje w planerze dodawania zaplanowanych remnantow innego typu niz
    incident i keys"): an "incident" row plans a Remnant of one of these, Incident by default (every row before this).
    Not a Key Remnant (the Key plan's slots plan those), a Final Truth Remnant (the Final Truth form places it) or an

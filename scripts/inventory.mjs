@@ -721,7 +721,7 @@ export function carriedFor(actor, role) {
  * it, in English or in Polish (`OLD_TIER_THREE`), is given today's for its kind (`USABLE_KIND_EFFECTS`, else
  * `TIER_EFFECTS`), by a GM's ruling. Any other text - a GM's, a table's - is left. Answers how many were rewritten.
  */
-export const OLD_TIER_THREE = Object.freeze([
+const OLD_TIER_THREE = Object.freeze([
     "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.",
     "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
 ]);

@@ -782,7 +782,7 @@ export function renderPlan(args, { rendered = true } = {}) {
 }
 
 /** The mark the sheet's own `render` carries, read by the contract (patches.mjs `sheet-render-guard`). */
-export const RENDER_PLAN = Symbol.for("drpgRenderPlan");
+const RENDER_PLAN = Symbol.for("drpgRenderPlan");
 
 /** Every open character sheet for this actor. */
 function sheetsFor(actor) {
@@ -3175,7 +3175,7 @@ function plainBiography(html) {
  * followed by a close is one write, not two. Compared against the FLATTENED current value (`plainBiography`): a
  * formatted backstory merely opened, focused and left is not rewritten.
  */
-export function saveBiography(app) {
+function saveBiography(app) {
     const held = app?._drpgBiography;
     if (!held) return null;
     const actor = app.document ?? null;
@@ -5487,7 +5487,7 @@ function tamperKey(actor) {
 }
 
 /** Drop every cached answer. Anything that could have changed a trace. */
-export function forgetTamper() {
+function forgetTamper() {
     tamperAnswers.clear();
 }
 

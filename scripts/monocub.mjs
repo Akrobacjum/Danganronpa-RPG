@@ -254,7 +254,7 @@ export function cubsFor(userId) {
 }
 
 /** GM: send one user their rows. Addressed, and only while they are here; nothing while the suite holds the stores. */
-export function sendCubsTo(userId) {
+function sendCubsTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     const { cubs, stamps } = cubsFor(userId);
@@ -288,7 +288,7 @@ function witnessShape(mark) {
 }
 
 /** Owner: take a GM's answer where it is newer (`cubCopy`), for this user's own characters only. */
-export async function receiveCubs(cubs, stamps) {
+async function receiveCubs(cubs, stamps) {
     const mine = {}, own = {};
     for (const [actorId, stamp] of Object.entries(stamps ?? {})) {
         if (!game.actors.get(actorId)?.isOwner) continue;
@@ -659,7 +659,7 @@ export async function liftCubWitness() {
  * ========================================================================== */
 
 /** The row of `MONOCUB.abilities` under `key`, or null for a key that is no ability (a packet's `key` is a claim). */
-export function abilityRow(key) {
+function abilityRow(key) {
     return typeof key === "string" && Object.hasOwn(MONOCUB.abilities, key) ? MONOCUB.abilities[key] : null;
 }
 

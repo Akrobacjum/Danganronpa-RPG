@@ -437,7 +437,7 @@ export class SearchTokens {
  * quiet - in a step of SEARCH_KEY (E17 fix e1-G3; the review's E17P1-R3): written outside it, a reset landing while
  * the primary's spend step ran could be written over by that step's copy of the old counts.
  */
-export async function clearSeasonSearchTokens() {
+async function clearSeasonSearchTokens() {
     await SearchTokens.reset({ notify: false });
 }
 
@@ -767,7 +767,7 @@ async function runTakePlant(payload, sender, ctx) {
  * thing in their hands. These five are what the Search reads (action-rolls.mjs, the plant's
  * draw); `handedOut` keeps the row whole, for a return to put back.
  */
-export function plantForFinder(plant) {
+function plantForFinder(plant) {
     if (!plant) return null;
     const { name, img, description, roles, drpgItemId } = plant;
     return { name, img, description, roles, drpgItemId };

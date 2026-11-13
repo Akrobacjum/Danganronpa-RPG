@@ -35,7 +35,7 @@ const ACTION_TIMED = "timed.effects";
 const ACTION_TIMED_ASK = "timed.effectsAsk";
 
 /** The day a row belongs to: the season, the chapter and the clock's day. Pure. */
-export function dayMark(clock = getClock()) {
+function dayMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.day ?? 1].join(".");
 }
 
@@ -195,7 +195,7 @@ export async function endTimedEffect(id) {
 }
 
 /** Whether `row` is past its end at `clock`. Pure. */
-export function pastItsEnd(row, clock = getClock()) {
+function pastItsEnd(row, clock = getClock()) {
     if (row?.until === "timeOfDay") return row.mark !== facilityMark(clock);
     if (row?.until === "day") return row.day !== dayMark(clock);
     return false;
@@ -253,7 +253,7 @@ export function timedEffectsFor(userId) {
 }
 
 /** Primary GM: send one user their rows. Addressed, and only while they are here; nothing while the suite holds the stores. */
-export function sendTimedEffectsTo(userId) {
+function sendTimedEffectsTo(userId) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
     const { effects, stamps } = timedEffectsFor(userId);
@@ -279,7 +279,7 @@ export async function retellTimedEffects() {
 }
 
 /** Owner: take the primary's answer where it is newer (`timedEffectCopy`), for this user's own characters only. */
-export async function receiveTimedEffects(effects, stamps) {
+async function receiveTimedEffects(effects, stamps) {
     const mine = {}, own = {};
     for (const [actorId, s] of Object.entries(stamps ?? {})) {
         if (!game.actors.get(actorId)?.isOwner) continue;

@@ -42,7 +42,7 @@ export function nodeState(node, finders = null) {
 }
 
 /** The token id of a ledger key `sceneId.tokenId` (the bullets' answer keys name the token, investigation.mjs). */
-export function tokenIdOf(key) {
+function tokenIdOf(key) {
     const s = String(key ?? "");
     const dot = s.indexOf(".");
     return dot < 0 ? s : s.slice(dot + 1);
@@ -203,7 +203,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
 const row = (label, value) => `<div class="drpg-case-info-row"><span class="drpg-case-info-label">${esc(label)}</span><span class="drpg-case-info-value">${esc(value)}</span></div>`;
 
 /** A problem of `checkCase` as the GM reads it: its words, naming the node and what it names. */
-export function problemText(p, graph) {
+function problemText(p, graph) {
     const nameOfId = id => {
         const n = (graph?.nodes ?? []).find(x => x.id === id);
         return n ? nameOf(n) : String(id ?? "");
@@ -215,7 +215,7 @@ export function problemText(p, graph) {
  * WHAT A NODE SAYS WHEN IT IS OPEN (the side panel's reading until the E97 fix, now on the node itself): its state, room,
  * who left it and who holds a copy, its trial mode and reach, "only the culprit", and each problem naming it. Text only.
  */
-export function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [], rows = true } = {}) {
+function nodeInfoHtml({ graph, node, finders = null, authors = null, reach = null, problems = [], rows = true } = {}) {
     if (!node) return "";
     const r = reachOf(node, reach?.[node.id]);
     const ev = node.evidence ? reach?.[node.id] : null;
@@ -265,7 +265,7 @@ function nodeEditHtml({ graph, node, p, open, finders, authors, reach, problems,
  * words and `summary` (the chapter's own fields: who has what, the Key limit's override, the Final Truth Remnant form).
  * Not a node's, so on no node: the one block of the Map that is not, and it stands above the graph, not beside it.
  */
-export function caseOverviewHtml({ graph, finders = null, problems = [], open = false, summary = "" } = {}) {
+function caseOverviewHtml({ graph, finders = null, problems = [], open = false, summary = "" } = {}) {
     const all = graph?.nodes ?? [];
     const evidence = all.filter(n => n.evidence);
     const counts = [

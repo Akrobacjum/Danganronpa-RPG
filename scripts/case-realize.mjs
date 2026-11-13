@@ -214,7 +214,7 @@ export function registerCaseAsk() {
 }
 
 /** Whether `chapter` has something a realization would do and was not asked about (pure over the world's reads). */
-export function shouldAskAtBody(chapter) {
+function shouldAskAtBody(chapter) {
     const { rows, meta } = caseRows(chapter);
     const m = caseMetaOf(meta);
     if (m.askedAt !== null || m.run !== null) return false;
@@ -252,7 +252,7 @@ export async function askAtBody(chapter) {
  * (`sending`). Answers how many students got one, over all sent.
  */
 const sending = new Set();
-export async function sendPlannedAutopsy(chapter) {
+async function sendPlannedAutopsy(chapter) {
     if (!game.user?.isGM || game.user.id !== primaryGmId() || !Number.isInteger(chapter) || sending.has(chapter)) return 0;
     const { rows, meta } = caseRows(chapter);
     const due = autopsiesDue({ count: autopsyCount(chapter), rows, sent: caseMetaOf(meta).autopsySent,

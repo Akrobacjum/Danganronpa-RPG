@@ -212,7 +212,7 @@ export async function dropSecret(uuid) {
  * The season reset's bullets group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every Truth Bullet on
  * every actor, its answer key dropped behind it (`dropSecret`) before the item is deleted. The primary GM's alone.
  */
-export async function clearSeasonBullets() {
+async function clearSeasonBullets() {
     if (!isPrimaryGm()) throw new Error("the season's Truth Bullets are cleared on the primary GM's browser alone");
     for (const actor of game.actors) {
         const bullets = actor.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet"));
@@ -222,7 +222,7 @@ export async function clearSeasonBullets() {
 }
 
 /** What the reset window counts of the Truth Bullets, on every actor (season-setup.mjs `resetTally` until E42 C3). */
-export function tallySeasonBullets() {
+function tallySeasonBullets() {
     const n = game.actors.reduce((sum, a) => sum + a.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).length, 0);
     return [plural("DRPG.Season.resetBullets", { n })];
 }
@@ -1848,7 +1848,7 @@ export function sendBulletRefsTo(userId) {
 }
 
 /** GM: each of these users sent their bullets' keys. Answers how many were sent. */
-export function tellBulletRefs(userIds) {
+function tellBulletRefs(userIds) {
     let sent = 0;
     for (const userId of new Set(userIds ?? [])) if (sendBulletRefsTo(userId)) sent++;
     return sent;
