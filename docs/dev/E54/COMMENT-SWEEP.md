@@ -55,7 +55,10 @@ Main itself, 421f2395, the same day: 1305 passed, 0 failed, the same 16 skips (S
 
 All five in sequence on one tree, as E54's day would run them (sheet, windows, key-remnants, cleanup-reshape, chapter;
 split, repoint, sweep each): all fifteen passes apply, no row refused, each split commit 8/8 green on moved-only.
-Their tiers 0-1 after this fix: being run (13.11.2026), not yet measured; before it R356 failed alone, the reason above.
+The first run of that tree failed R356 alone: the key-remnants cut had already written R356's list of files through
+a helper for investigation.mjs, and the chapter cut's repoint did not see chapter.mjs in that form; repoint now adds a
+branch to such a list (the single-cut trees come out byte for byte as before). Run again: quick green; tiers 0-1 1305
+passed, 0 failed, 16 skipped (the baseline's), 0 red; docs/dev/R-REGISTRY.md 36 lines changed, the 31 and 5 rows above.
 
 On the lines, `--dry`: on each of the 36 lines committed to since 12.11, merged into main, each cut split and repointed
 on a fresh copy, then the sweep dry: 0 rows refused on every line and cut where the split applies - 178 runs; the
