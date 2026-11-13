@@ -18977,6 +18977,47 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ on: true, offListed: false, offCounted: true }),
             `{on: listed while on the page; offListed: still listed as on screen after removal; offCounted: counted among the closed} - the reports: ${JSON.stringify({ on, off })}`);
     }],
+    ["R4930 - game.drpg.a11y() lists every disclosure on the module's surfaces, an action window's Details among them, with its name and its state (gaps-111, 1.2.105's Known gaps: \"`game.drpg.a11y()` does not list Details yet\"): a11y.mjs `a11yReport` says each `aria-expanded` control standing in the page - Details open and shut - and holds each to its region: there, named, and out of reach while shut", async () => {
+        /*
+         * gaps-111, 13.11.2026. The report listed only the controls with no name; a disclosure - a button that opens a
+         * region (`aria-expanded`, `aria-controls`) - was named, so it never appeared, and whether its region could be
+         * read by a screen reader was asked by nothing. Here: two action windows of the test's own (`.drpg-panel`), each
+         * with Details as action-menus.mjs `detailsHtml` draws it, one shut and one open, and a third toggle whose region
+         * is not on the page; swept, read, removed. Red at 346798b7: no line for any of them.
+         */
+        const A = await import("./a11y.mjs");
+        const { detailsHtml } = await import("./action-menus.mjs");
+        const host = document.createElement("section");
+        host.className = "drpg-panel";
+        host.id = `r4930-${Date.now().toString(36)}`;
+        host.innerHTML = `${detailsHtml("<p>Thresholds</p>")}${detailsHtml("<p>Thresholds</p>")}`
+            + `<button type="button" class="r4930-orphan" aria-expanded="false" aria-controls="r4930-nowhere">More</button>`;
+        const [shut, open] = host.querySelectorAll(".drpg-action-details-toggle");
+        const boxOf = toggle => host.querySelector(`#${toggle.getAttribute("aria-controls")}`);
+        shut.setAttribute("aria-expanded", "false");
+        boxOf(shut).setAttribute("inert", "");
+        open.setAttribute("aria-expanded", "true");
+        boxOf(open).removeAttribute("inert");
+        const name = game.i18n.localize("DRPG.Kit.details");
+        let report = "";
+        try {
+            document.body.append(host);
+            A.nameControls(host);
+            report = A.a11yReport();
+        } finally { host.remove(); }
+        const line = toggle => report.split("\n").find(l => l.includes(`#${toggle.id}`))?.trim() ?? null;
+        const read = {
+            shut: line(shut), open: line(open),
+            orphan: report.split("\n").find(l => l.includes("r4930-nowhere"))?.trim() ?? null,
+            gone: A.a11yReport().includes(host.id)
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            shut: `"${name}" #${shut.id}: shut, its region #${shut.getAttribute("aria-controls")} named and out of reach, in ${host.id}`,
+            open: `"${name}" #${open.id}: open, its region #${open.getAttribute("aria-controls")} named, in ${host.id}`,
+            orphan: `"More" (button.r4930-orphan): shut, its region #r4930-nowhere NOT on the page, in ${host.id}`,
+            gone: false
+        }), "{each disclosure's line in a11yReport, shut, open, and one whose region is missing; any line once the window is gone}");
+    }],
     ["R3982 - a chat card's glyph wears a colour of the module's in both themes (gaps, 12.11.2026; the E93 line's reading: an info card's ear and bed dark on the dark card under Stained Glass): read through the suite's cascade on a card of each tone (chat-card.mjs `chatCard`'s markup, Listen's ear on the info one), the glyph's `color` is declared by components.css - the kit's ink (`--drpg-kit-ink`) on an info card, the tone's edge on a warning and a secret one - and is never left to what the page around the card inherits", async () => {
         /*
          * Gaps, 12.11.2026. MEASURED in Chromium on the style harness with a stand-in of Foundry's sidebar (ground
