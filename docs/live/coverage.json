@@ -88,20 +88,20 @@
    "draft": true
   },
   "U3": {
-   "title": "Facilities: akcje pokoju i efekty czasowe (E93)",
+   "title": "Planer sprawy: autozapis, plany Remnantów, Autopsy i minigry",
    "weight": "ważne",
-   "time": "15 min",
+   "time": "20 min",
    "draft": true
   },
   "U4": {
-   "title": "Infiltrate: przejście, Tail i Dash (E69)",
+   "title": "Pływające pole tekstowe",
    "weight": "ważne",
    "time": "10 min",
    "draft": true
   },
   "U5": {
-   "title": "Drzwi i Keep Watch (E74)",
-   "weight": "ważne",
+   "title": "Radia, pola wyboru i luki z notatek 1.2.105 i 1.2.109",
+   "weight": "miłe",
    "time": "10 min",
    "draft": true
   },
@@ -109,6 +109,18 @@
    "title": "Ikona na tokenie projektu",
    "weight": "miłe",
    "time": "5 min",
+   "draft": true
+  },
+  "U7": {
+   "title": "Tajny projekt nie wycieka przez Countdowns (S17-31)",
+   "weight": "krytyczne",
+   "time": "10 min",
+   "draft": true
+  },
+  "U8": {
+   "title": "Paczka modułu bez makr",
+   "weight": "miłe",
+   "time": "3 min",
    "draft": true
   },
   "V1": {
@@ -121,6 +133,24 @@
    "title": "Ekrany GM-a po przeglądzie (E101)",
    "weight": "ważne",
    "time": "20 min",
+   "draft": true
+  },
+  "W1": {
+   "title": "Facilities: akcje pokoju i efekty czasowe (E93)",
+   "weight": "ważne",
+   "time": "15 min",
+   "draft": true
+  },
+  "W2": {
+   "title": "Infiltrate: przejście, Tail i Dash (E69)",
+   "weight": "ważne",
+   "time": "10 min",
+   "draft": true
+  },
+  "W3": {
+   "title": "Drzwi i Keep Watch (E74)",
+   "weight": "ważne",
+   "time": "10 min",
    "draft": true
   },
   "A1": {
@@ -4569,7 +4599,7 @@
   "LIVE-E69-04": {
    "status": "after-release",
    "checks": [
-    "U4"
+    "W2"
    ],
    "branch": "claude/e93",
    "stage": "E69",
@@ -4578,7 +4608,7 @@
   "LIVE-E93-01": {
    "status": "after-release",
    "checks": [
-    "U3"
+    "W1"
    ],
    "branch": "claude/e93",
    "stage": "E93",
@@ -4587,7 +4617,7 @@
   "LIVE-E93-02": {
    "status": "after-release",
    "checks": [
-    "U3"
+    "W1"
    ],
    "branch": "claude/e93",
    "stage": "E93",
@@ -4596,7 +4626,7 @@
   "LIVE-E93-03": {
    "status": "after-release",
    "checks": [
-    "U3"
+    "W1"
    ],
    "branch": "claude/e93",
    "stage": "E93",

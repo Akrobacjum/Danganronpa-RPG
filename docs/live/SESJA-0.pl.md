@@ -364,7 +364,7 @@ Opis w AUDIT 9.2: poz. 369.
 
 Dopisane 13.11.2026 w nocy, z gałęzi, nie z wydanych wersji. **Każdy check tu jest szkicem do czasu, gdy jego wydanie
 wyjdzie**: po wydaniu porównaj z notatkami wydania (`.github/release-notes/v1.2.1xx.md`, sekcje *Known gaps* i *Checked*)
-i usuń z nagłówka znacznik `[szkic]`. Kod `T` to 1.2.110, `U` to 1.2.111, `V` to 1.2.112. Wszystkie te gałęzie mówią to
+i usuń z nagłówka znacznik `[szkic]`. Kod `T` to 1.2.110, `U` to 1.2.111, `V` to 1.2.112, `W` to 1.2.113. Wszystkie te gałęzie mówią to
 samo o sobie: nic nie było uruchomione na prawdziwym Foundry, zrzuty są z harnessu.
 
 Część 1.2.110 jest już w bloku N (N2 rzuty na Daggerheart 2.12.8, N3 koniec rozdziału, N8 zasady E64, N9 Monocub E72,
@@ -392,18 +392,17 @@ Clear Faint; konsola rozprawy: dziennik dowodów).
 
 ### Wydanie 1.2.111 (szkic)
 
-Źródło: lista koordynatora z 13.11.2026 i gałęzie odczytane o 00:35 UTC. Kod jest tylko dla czterech pozycji:
-`claude/e93` (E93 Facilities, E69 Infiltrate, E74 drzwi i Keep Watch; ostatnio złączona z main przy 1.2.108, więc
-przed wydaniem dostanie jeszcze 1.2.109) i `claude/project-token-icon`. **Bez kodu na żadnej wypchniętej gałęzi** (nie
-pisz dla nich sprawdzeń, dopóki kod nie powstanie; U1 i U2 to tylko szkic kroków): animacja wyjścia z Class Trial i
-poprawka mrugnięcia przy wejściu, *Edytuj kampanię* bez animacji, autozapis planera, Autopsy, planowane miejsca,
-minigry, pływające pola tekstowe, S17-31 (nazwa tajnego projektu w `daggerheart.Countdowns`, którą ma każda
-przeglądarka; poprawka przypisana do E43, na żadnej gałęzi jej nie ma). Wygląd radia (tryb mikrofonu jako przyciski)
-jest na `claude/e101` i jest sprawdzany w V2, krok 8.
+Źródło: lista koordynatora z 13.11.2026 i gałęzie odczytane 13.11 przed południem: `claude/e97-98` (c598d3cb, planer),
+`claude/float-text` (a63fe324), `claude/gaps-radio` (30e65075), `claude/project-token-icon` (fa9afa49), `claude/e59-c5a`
+(68bc5f3e), `claude/e59-c5b` (bez zmian widocznych przy stole) i commity S17-31 na `claude/e93` (522cd601, 1f5f4ecb,
+9f052871). Przegląd tych gałęzi: `docs/dev/e93/REVIEW-111.md` na `claude/e93`. **U1 i U2 nie mają jeszcze kodu na żadnej
+wypchniętej gałęzi** (`claude/trial-exit` jeszcze nie istnieje na origin): to tylko szkic kroków. Facilities, Infiltrate
+i drzwi (E93, E69, E74) wychodzą w 1.2.113 (notatki `v1.2.113.md` na `claude/e93`), więc są niżej, w W1-W3.
 
 #### U1 Wyjście z Class Trial i wejście bez mrugnięcia [ważne] [szkic] · 5 min · GM i gracz
 
-Kodu jeszcze nie ma (na main wyjście to zwykły obrót od środka: `transitions.mjs:76`). Kroki do potwierdzenia po wydaniu.
+Kodu jeszcze nie ma na origin (na main wyjście to zwykły obrót od środka: `transitions.mjs:76`). Kroki do potwierdzenia,
+gdy `claude/trial-exit` zostanie wypchnięta.
 
 **Co zrobić:**
 1. GM kończy Class Trial (**Zakończ Class Trial**); GM i gracz patrzą na wyjście, w obu motywach. Gracz w tym czasie
@@ -416,8 +415,8 @@ Kodu jeszcze nie ma (na main wyjście to zwykły obrót od środka: `transitions
 
 #### U2 Edytuj kampanię nie gra animacji [ważne] [szkic] · 5 min · GM i gracz, na duplikacie
 
-Kodu jeszcze nie ma; zasada zapisana w `docs/dev/e62/STORYBOARD-C3.md` na `claude/e62-c3` ("Edit campaign never plays
-animations"). Na 1.2.109 plansze grają także z *Edytuj kampanię* (N6).
+Kodu jeszcze nie ma na origin; zasada zapisana w `docs/dev/e62/STORYBOARD-C3.md` na `claude/e62-c3` ("Edit campaign never
+plays animations"). Na 1.2.109 plansze grają także z *Edytuj kampanię* (N6).
 
 **Co zrobić:**
 1. GM w *Edytuj kampanię* zmienia porę dnia, potem dzień, potem fazę na Class Trial i z powrotem.
@@ -426,52 +425,65 @@ animations"). Na 1.2.109 plansze grają także z *Edytuj kampanię* (N6).
 **Zgłoś:** co zagrało i u kogo.
 **Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
-#### U3 Facilities: akcje pokoju i efekty czasowe (E93) [ważne] [szkic] · 15 min · GM i gracz
+#### U3 Planer sprawy: autozapis, plany Remnantów, Autopsy i minigry [ważne] [szkic] · 20 min · GM, gracz do kroku 5, na duplikacie
+
+Źródło: `claude/e97-98` (`docs/dev/e99/STATUS.md` i commity od 91ec4059 do c598d3cb). Część E99 (podsumowanie sprawy
+jako krok po werdykcie, Werdykt i Zakończ rozdział tylko jako następny krok) też jest na tej gałęzi.
 
 **Co zrobić:**
-1. GM: Ustawienia pokoi > Facilities > Edytuj akcje - akcja pokoju z rzutem. Gracz używa jej z kafla **Facilities**
-   (dawne Rest). Rzut losuje główny GM.
-2. Zapisz, po jakim czasie na innych ekranach wiersz tej akcji jest wyszarzony z powodem "Ktoś już tego użył"; drugi
-   gracz, który zapłacił w tej samej chwili, dostaje odmowę i zwrot akcji; w pokoju zostaje słaby ślad (Subtle).
-3. Ukończony projekt z akcją "Pory dnia: 1": rano akcja jest w oknie Facilities i w linii okna Projects, po przesunięciu
-   zegara na południe znika; "Na stałe" zostaje do końca rozdziału.
-4. Efekt czasowy (np. +2 do cechy): na arkuszu gracza biały znaczek obok Hope Calls, podpowiedź mówi, kiedy się kończy;
-   kończy się z porą dnia. Pod Stained Glass znaczek ze świeczką.
-5. Okno Facilities i oba edytory przy 1366x768 i wąskim ekranie, w obu motywach i językach: nic ucięte, bez przewijania
-   w bok.
-6. Overflow: pięć nowych stanów (Lockdown, Insomnia, Toll, Jitters, Power cut); przy Insomnii Short Rest jest szary.
+1. Pulpit Investigation > Mapa: kliknij węzeł Truth Bullet albo Key Remnant. Pola edycji stoją w miejscu węzła (bez
+   części tylko do odczytu nad nimi), obok Przesuń w górę / w dół jest **Zamknij**.
+2. Zmień nazwę Remnantu w węźle i zamknij węzeł (Zamknij, Escape albo klik w puste miejsce) bez **Zapisz**. Otwórz
+   pulpit od nowa: nazwa została. Zmień jeszcze raz i zamknij całe okno z otwartym węzłem: też została.
+3. Zaplanuj Remnant innego typu (Prep, Neutral, Faint albo Tamper): pole Typ, typ na twarzy węzła; **Umieść na mapie**
+   otwiera Nowy Remnant z tym typem. Planowany Key Remnant bez miejsca: wybierz pokój obok Place; podgląd realizacji
+   i Place zaczynają w tym pokoju.
+4. Węzeł Autopsy w kolumnie dowodów (nazwa, treść, notatka GM-a). Ogłoś znalezienie ciała: każdy żywy uczeń dostaje
+   Autopsy bez klikania GM-a, raz na rozdział; próba (rehearsal) nie wysyła nic.
+5. W Class Trial: węzeł w trybie strefy (Straw Poll, Scrum Debate, Logic Dive) trzyma treść gry; przycisk startu na
+   węźle otwiera okno stref sali wypełnione, GM nadal naciska Start. W trybach węzła nie ma OBJECTION ani Rebuttal.
+6. Po werdykcie konsola rozprawy proponuje **Pokaż podsumowanie**, potem przycisk mówi "Podsumowanie wysłane"; Start
+   Final Trial nie jest rysowany w trakcie zwykłej rozprawy.
+7. Mapa przy 1366x768 w obu motywach: kolumny dalej od siebie (80 px), nic nie ucięte.
 
-**Co powinno być:** jak w krokach.
-**Zgłoś:** czas z kroku 2; zrzuty okna Facilities i znaczka efektu.
-**Rozstrzyga:** [LIVE-E93-01 (po wydaniu E93), LIVE-E93-02 (po wydaniu E93), LIVE-E93-03 (po wydaniu E93)]
+**Co powinno być:** jak w krokach; żaden zapis nie wymaga **Zapisz**.
+**Zgłoś:** czy coś nie zostało zapisane i po jakim zamknięciu; czy Autopsy doszło do wszystkich; zrzut Mapy.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
-#### U4 Infiltrate: przejście, Tail i Dash (E69) [ważne] [szkic] · 10 min · GM i gracz
+#### U4 Pływające pole tekstowe [ważne] [szkic] · 10 min · GM i gracz
 
-**Co zrobić:**
-1. Na konsoli głównego GM-a: `Hooks.on("drpgCrossingSettled", e => console.log(e))`.
-2. Gracz przechodzi do sąsiedniego pokoju i stoi: po około 2 s jedno zdarzenie z pokojami. GM cofa token gracza przed
-   upływem 2 s: brak zdarzenia. Przeciągnięcie przez dwa pokoje naraz: jedno zdarzenie od pierwszego do ostatniego.
-3. Kafel **Infiltrate** (dawne Listen): siedem wierszy (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick
-   the Lock, Keep Watch).
-4. Tail Someone na postaci GM-a: karty przychodzą, gdy cel przechodzi; w Eclipse Tail się nie zaczyna.
-5. Dash: darmowe przejścia; śledzący dostaje "… ucieka Dashem. Zgubiono trop."
-
-**Co powinno być:** jak w krokach.
-**Zgłoś:** linie z konsoli z kroku 2 i zmierzone opóźnienie serwera.
-**Rozstrzyga:** [LIVE-E69-04 (po wydaniu E69)]
-
-#### U5 Drzwi i Keep Watch (E74) [ważne] [szkic] · 10 min · GM i gracz
+Źródło: `claude/float-text` (`docs/dev/FLOAT-TEXT/STATUS.md`). Każde edytowalne pole wielowierszowe w oknach modułu i na
+arkuszu (37 w 21 plikach) unosi się nad oknem na czas edycji. Arkusza nie było w pomiarach gałęzi.
 
 **Co zrobić:**
-1. Gracz robi Shut the Door. Ruch tokenu GM-a nie jest blokowany. Następne przejście gracza przez zabarykadowane drzwi:
-   co się dzieje i co mówi karta "Ktoś próbuje wejść".
-2. Force the Door na zamkniętych drzwiach, potem Ustawienia pokoi > Drzwi: zaznaczona kolumna Zepsute.
-3. Pick the Lock (Hand, próg 15): otwierający dostaje przejście; nikt nie jest przesuwany.
-4. Keep Watch zgłoszony przed Eclipse: karty na początku Eclipse, przy każdym przejściu i podsumowanie na końcu.
-5. GM robi Reroll jednej z tych akcji: wynik rozgrywa się od nowa.
+1. Gracz pisze długi tekst w komunikatorze, GM w opisie projektu i w Opisie w Room setup: pole rośnie z tekstem (do 60 %
+   ekranu, dalej przewija się w środku), reszta okna się nie przesuwa; po wyjściu z pola wraca do swojej wysokości.
+2. W czasie pisania przeciągnij okno za nagłówek: pole idzie z oknem i nie traci kursora.
+3. Escape w polu: pole przestaje się unosić, kursor zostaje w polu, okno się nie zamyka. Drugi Escape zamyka okno jak
+   zwykle. Na Mapie planera Escape w treści węzła zamyka węzeł, nie pulpit.
+4. Gracz pisze, a GM uruchamia sekwencję (np. ogłoszenie ciała): pole wraca na miejsce, nie stoi nad kurtyną.
+5. Arkusz postaci: biografia i karta Remnantu GM-a.
+6. Powiadomienie Foundry w czasie pisania: czy pole je zasłania (to decyzja właściciela, nie błąd).
+
+**Co powinno być:** jak w krokach 1-5; krok 6 tylko zapisz.
+**Zgłoś:** zrzut pola przy długim tekście w obu motywach; co stało się w krokach 2 i 5.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+#### U5 Radia, pola wyboru i luki z notatek 1.2.105 i 1.2.109 [miłe] [szkic] · 10 min · GM i gracz
+
+Źródło: `claude/gaps-radio` (commity 596c3a5b do 30e65075).
+
+**Co zrobić:**
+1. Pod Stained Glass i Legacy: okno stref sali (Tryb), edytor Logic Dive, Palm > Frisk, głosowanie, reset sezonu. Każde
+   radio jest okrągłe, kropka w środku; pola wyboru i radia stoją na linii swojego tekstu.
+2. Zmień motyw przy otwartej mapie pokoju: obrys pokoju rysuje się po cichu (bez nazwy pokoju i bez animacji wejścia).
+3. Ogłoś ciało w pierwszych sekundach wejścia do Investigation: tylko jedna seria błysków na ekranie.
+4. Zakończ rozdział, który jest ostatnim w sezonie: ostrzeżenie kieruje do "Zresetuj sezon" w oknie "Ustawienia sezonu"
+   (panel GM-a, Między sesjami), po polsku i po angielsku.
+5. Room setup > Przejścia po polsku: nagłówek kolumny to całe słowo "Źródło".
 
 **Co powinno być:** jak w krokach.
-**Zgłoś:** treść kart; zrzut kolumny Zepsute.
+**Zgłoś:** zrzut radia i pola wyboru w obu motywach; czy w kroku 3 były dwie serie.
 **Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
 #### U6 Ikona na tokenie projektu [miłe] [szkic] · 5 min · GM i gracz
@@ -490,6 +502,39 @@ animations"). Na 1.2.109 plansze grają także z *Edytuj kampanię* (N6).
 
 **Co powinno być:** jak w krokach; ikona czytelna przy zwykłym przybliżeniu.
 **Zgłoś:** zrzut tokenów; czy różnica z kroku 4 jest do przyjęcia.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+#### U7 Tajny projekt nie wycieka przez Countdowns (S17-31) [krytyczne] [szkic] · 10 min · GM i dwóch graczy
+
+Źródło: commity S17-31 na `claude/e93` i `docs/dev/gaps/STATUS-S17-31.md` tam. Przed poprawką nazwa tajnego projektu i
+mapa, który gracz o nim wie, były w ustawieniu Daggerheart `Countdowns`, które ma każda przeglądarka.
+
+**Co zrobić:**
+1. GM tworzy tajny projekt i dopuszcza do niego tylko gracza A.
+2. Gracz B na konsoli: `game.settings.get("daggerheart", "Countdowns")` i rozwija wiersz tego projektu. Nazwa to "???",
+   a mapa uprawnień daje wszystkim graczom ten sam poziom (nie da się z niej odczytać gracza A).
+3. Zasobnik projektów: gracz A widzi wiersz z prawdziwą nazwą, gracz B nie widzi wiersza. GM widzi prawdziwą nazwę w
+   oknach modułu; we własnym oknie odliczań Daggerheart widzi "???" (tak ma być).
+4. GM odsłania projekt: nazwa wraca do `Countdowns`. GM wyłącza gracza A z tajemnicy: A traci wiersz.
+
+**Co powinno być:** jak w krokach. Uwaga dla GM-a: nazwę tajnego projektu zmieniaj w menedżerze projektów, nie w oknie
+odliczań Daggerheart (tam zapisałaby się z powrotem do ustawienia).
+**Zgłoś:** linie z konsoli gracza B z kroku 2 (bez prawdziwej nazwy w zgłoszeniu, jeśli by się pokazała - wtedy tylko
+"widać nazwę").
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
+
+#### U8 Paczka modułu bez makr [miłe] [szkic] · 3 min · GM
+
+Źródło: `claude/e59-c5a` (macros/ i sprite poza `module.zip`; panel GM-a już nie odsyła do makr).
+
+**Co zrobić:**
+1. Zainstaluj 1.2.111 z `module.zip` na czystym Foundry: moduł startuje bez błędów w konsoli, w katalogu modułu nie ma
+   `macros/`.
+2. Panel GM-a: nic nie każe szukać makr w instalacji (REVIEW-111 L4c: notatki 1.2.75 i jedna reguła CSS nadal o nich
+   mówiły; zapisz, gdzie jeszcze je widać).
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** błędy z konsoli przy starcie, jeśli są.
 **Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
 ### Wydanie 1.2.112 (szkic)
@@ -549,6 +594,60 @@ zapisz, gdzie, ale to nie porażka tego wydania.
 **Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
 ---
+
+### Wydanie 1.2.113 (szkic)
+
+Źródło: `claude/e93`, jego `.github/release-notes/v1.2.113.md` ("12.11.2026, through the coordinator: E93, E69 and E74
+ship as one release, 1.2.113") i `docs/dev/e93/STATUS.md`. W szkicu z 13.11 o 00:35 te trzy checki stały pod 1.2.111
+(jako U3-U5); notatki gałęzi mówią 1.2.113. Gałąź ma już 1.2.109 (a1479e95).
+
+#### W1 Facilities: akcje pokoju i efekty czasowe (E93) [ważne] [szkic] · 15 min · GM i gracz
+
+**Co zrobić:**
+1. GM: Ustawienia pokoi > Facilities > Edytuj akcje - akcja pokoju z rzutem. Gracz używa jej z kafla **Facilities**
+   (dawne Rest). Rzut losuje główny GM.
+2. Zapisz, po jakim czasie na innych ekranach wiersz tej akcji jest wyszarzony z powodem "Ktoś już tego użył"; drugi
+   gracz, który zapłacił w tej samej chwili, dostaje odmowę i zwrot akcji; w pokoju zostaje słaby ślad (Subtle).
+3. Ukończony projekt z akcją "Pory dnia: 1": rano akcja jest w oknie Facilities i w linii okna Projects, po przesunięciu
+   zegara na południe znika; "Na stałe" zostaje do końca rozdziału.
+4. Efekt czasowy (np. +2 do cechy): na arkuszu gracza biały znaczek obok Hope Calls, podpowiedź mówi, kiedy się kończy;
+   kończy się z porą dnia. Pod Stained Glass znaczek ze świeczką.
+5. Okno Facilities i oba edytory przy 1366x768 i wąskim ekranie, w obu motywach i językach: nic ucięte, bez przewijania
+   w bok.
+6. Overflow: pięć nowych stanów (Lockdown, Insomnia, Toll, Jitters, Power cut); przy Insomnii Short Rest jest szary.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** czas z kroku 2; zrzuty okna Facilities i znaczka efektu.
+**Rozstrzyga:** [LIVE-E93-01 (po wydaniu E93), LIVE-E93-02 (po wydaniu E93), LIVE-E93-03 (po wydaniu E93)]
+
+#### W2 Infiltrate: przejście, Tail i Dash (E69) [ważne] [szkic] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Na konsoli głównego GM-a: `Hooks.on("drpgCrossingSettled", e => console.log(e))`.
+2. Gracz przechodzi do sąsiedniego pokoju i stoi: po około 2 s jedno zdarzenie z pokojami. GM cofa token gracza przed
+   upływem 2 s: brak zdarzenia. Przeciągnięcie przez dwa pokoje naraz: jedno zdarzenie od pierwszego do ostatniego.
+3. Kafel **Infiltrate** (dawne Listen): siedem wierszy (Listen, Tail Someone, Dash, Shut the Door, Force the Door, Pick
+   the Lock, Keep Watch).
+4. Tail Someone na postaci GM-a: karty przychodzą, gdy cel przechodzi; w Eclipse Tail się nie zaczyna.
+5. Dash: darmowe przejścia; śledzący dostaje "… ucieka Dashem. Zgubiono trop."
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** linie z konsoli z kroku 2 i zmierzone opóźnienie serwera.
+**Rozstrzyga:** [LIVE-E69-04 (po wydaniu E69)]
+
+#### W3 Drzwi i Keep Watch (E74) [ważne] [szkic] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Gracz robi Shut the Door. Ruch tokenu GM-a nie jest blokowany. Następne przejście gracza przez zabarykadowane drzwi:
+   co się dzieje i co mówi karta "Ktoś próbuje wejść".
+2. Force the Door na zamkniętych drzwiach, potem Ustawienia pokoi > Drzwi: zaznaczona kolumna Zepsute.
+3. Pick the Lock (Hand, próg 15): otwierający dostaje przejście; nikt nie jest przesuwany.
+4. Keep Watch zgłoszony przed Eclipse: karty na początku Eclipse, przy każdym przejściu i podsumowanie na końcu.
+5. GM robi Reroll jednej z tych akcji: wynik rozgrywa się od nowa.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** treść kart; zrzut kolumny Zepsute.
+**Rozstrzyga:** [brak wiersza LIVE - szkic; audyt dopisze wiersze przy wydaniu]
 
 ## Blok A - przed sesją (GM sam)
 
@@ -1870,7 +1969,7 @@ przypisany do sprawdzenia, przy którym warto go zrobić, gdy wydanie wyjdzie.
 | Id | Gałąź | Etap | Sprawdzenie |
 | --- | --- | --- | --- |
 | LIVE-E64-01 | `claude/e64` | E64 | N8 |
-| LIVE-E69-04 | `claude/e93` | E69 | U4 |
-| LIVE-E93-01 | `claude/e93` | E93 | U3 |
-| LIVE-E93-02 | `claude/e93` | E93 | U3 |
-| LIVE-E93-03 | `claude/e93` | E93 | U3 |
+| LIVE-E69-04 | `claude/e93` | E69 | W2 |
+| LIVE-E93-01 | `claude/e93` | E93 | W1 |
+| LIVE-E93-02 | `claude/e93` | E93 | W1 |
+| LIVE-E93-03 | `claude/e93` | E93 | W1 |

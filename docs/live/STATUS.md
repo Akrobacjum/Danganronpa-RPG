@@ -2,6 +2,24 @@
 
 Updated 12.11.2026 (second push: the owner's answers). Built on `main` at 235c3210 (1.2.107). Nothing outside `docs/live/` was changed.
 
+## 1.2.111 draft refreshed, 1.2.113 split off (13.11.2026, day)
+
+- **1.2.111 (U1-U8)**, read on the branches the coordinator listed: U3 the case planner (`claude/e97-98` c598d3cb:
+  autosave on a node's close, planned Remnants of other types, a planned room for a Key slot, a planned Autopsy sent at
+  the body's discovery, planned minigames, E99's summary step), U4 floating text fields (`claude/float-text` a63fe324,
+  with REVIEW-111's F1-F3 fixed there), U5 radios, checkboxes and four Known gaps (`claude/gaps-radio` 30e65075), U6 the
+  project token icon (unchanged), U7 S17-31 (the commits on `claude/e93`, a player's console reads `Countdowns`), U8
+  module.zip without macros (`claude/e59-c5a`). `claude/e59-c5b` changes nothing a table sees, so no check. U1 and U2
+  (trial exit, entry blink, Edit campaign silence) still have no code on origin: `claude/trial-exit` was not pushed when
+  this was written; their steps stay as they were.
+- **1.2.113 (W1-W3)**: Facilities, Infiltrate and the doors (E93, E69, E74) were U3-U5; `claude/e93`'s own notes
+  (`.github/release-notes/v1.2.113.md`) say they ship together as 1.2.113, so they moved to a section of their own with
+  the same steps. LIVE-E69-04 points at W2, LIVE-E93-01..03 at W1.
+- Pack: 70 checks, 14 of them drafts; check-coverage green. Codes: T 1.2.110, U 1.2.111, V 1.2.112, W 1.2.113.
+- Not settled here: whether S17-31 ships in 1.2.111 while it sits on `claude/e93` with the 1.2.113 stages (its STATUS
+  says 1.2.111, "the owner joined the planned 1.2.111 and 1.2.112 into one"); if 1.2.111 and 1.2.112 are one release,
+  V1-V2 belong under U. Left as the coordinator's call.
+
 ## Settled in code, and drafts of the next releases (13.11.2026, night)
 
 - **The three items block N had from the coordinator's words only**, read in code on main (1.2.109):
@@ -19,7 +37,7 @@ Updated 12.11.2026 (second push: the owner's answers). Built on `main` at 235c32
   campaign without animations, the planner's autosave, Autopsy, planned locations, minigames, floating text fields and
   S17-31 were on no pushed branch at 00:35 UTC; U1 and U2 are steps to confirm when the code exists, the rest have no
   check yet. LIVE-E69-04 and LIVE-E93-01..03 now point at U4 and U3. The radio look (`claude/e101`) is V2 step 8.
-- **Drafts** (`[szkic]` in the heading, codes T = 1.2.110, U = 1.2.111, V = 1.2.112), a section per release after block
+- **Drafts** (`[szkic]` in the heading, codes T = 1.2.110, U = 1.2.111, V = 1.2.112; W = 1.2.113 since the day's update), a section per release after block
   N, each to be checked against its release notes when it ships. A draft may settle no LIVE id yet; check-coverage.mjs
   now allows that for `[szkic]` headings only and prints how many there are.
 
