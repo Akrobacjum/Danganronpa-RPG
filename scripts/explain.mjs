@@ -29,7 +29,7 @@ import { error, esc, plural, proseOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { onSweep } from "./a11y.mjs";
 import { overflowCrossings } from "./overflow.mjs";
-import { baseActions, actionsMax } from "./actions.mjs";
+import { baseActions, actionsMax, actionBudget } from "./actions.mjs";
 import { viewerNeedsAssigning, isMonokuma } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
@@ -135,13 +135,21 @@ export function eclipseExplanation(crossings = overflowCrossings(ECLIPSE_MOVES) 
  */
 export function actionsExplained({ actor = null } = {}) {
     const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });
-    // The character's own count (E100 item 7), and Wounded's that count less what a wound takes.
-    const whole = actionsOf(actor), hurt = Math.max(0, whole - (baseActions() - baseActions({ wounded: true })));
+    /* The character's own count (E100 item 7). Wounded's two numbers are the budget's own road (actions.mjs `actionBudget`:
+       the wound, a Monocub's exemption, a darkened hour), with a GM's change to the maximum kept on both sides. Until the
+       r112 review's P1 (13.11.2026) the wound was taken off the count itself, which a wounded student's maximum already
+       has (`resetActionsFor` writes the wounded budget): "0 instead of 1" where the rule gives 1 instead of 2 (R4106). */
+    const whole = actionsOf(actor);
+    const own = Boolean(actor) && Number.isFinite(Number(actor?.system?.resources?.actions?.max))
+        && !(typeof actor.getFlag === "function" && isMonokuma(actor));
+    const extra = own ? whole - actionBudget(actor).total : 0;
+    const fit = own ? actionBudget(actor, { wounded: false }).total + extra : baseActions();
+    const hurt = Math.max(0, own ? actionBudget(actor, { wounded: true }).total + extra : baseActions({ wounded: true }));
     return [
         t("DRPG.Explain.status.actionsWhat", {
             actions: unit("action", whole), short: unit("actionAcc", REST.short.actionCost), long: unit("actionAcc", REST.long.actionCost)
         }),
-        t("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", hurt), actions: unit("actionGen", whole) })
+        t("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", hurt), actions: unit("actionGen", fit) })
     ];
 }
 

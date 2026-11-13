@@ -49458,7 +49458,13 @@ const INVARIANTS = [
          */
         const E = await import("./explain.mjs"), A = await import("./actions.mjs"), { plural } = await import("./utils.mjs");
         const base = A.baseActions(), lost = base - A.baseActions({ wounded: true });
-        const actor = { system: { resources: { actions: { value: base + 1, max: base + 1 } } } };
+        // Health left on both (Daggerheart counts marks up): a stand-in with no Health would read as wounded.
+        const actor = { system: { resources: { actions: { value: base + 1, max: base + 1 }, hitPoints: { value: 0, max: 6 } } } };
+        /* The r112 review's P1 (13.11.2026): a wounded student's maximum is written as the wounded budget
+           (actions.mjs `resetActionsFor`), and the sentence took the wound off it again - "0 instead of 1" where the
+           rule gives 1 instead of 2. Red at 9ddd2ef5. */
+        const hurtActor = { system: { resources: { actions: { value: base - lost, max: base - lost }, hitPoints: { value: 6, max: 6 } } } };
+        const hurt = E.actionsExplained({ actor: hurtActor });
         const unit = (key, n) => plural(`DRPG.Unit.${key}`, { n });
         const has = (text, words) => String(text).includes(foundry.utils.escapeHTML(words));
         const daily = { phase: "dailyLife", eclipse: false };
@@ -49469,11 +49475,13 @@ const INVARIANTS = [
             phase: [has(E.phaseExplanation(daily, { actor }), unit("actionAcc", base + 1)), has(E.phaseExplanation(daily), unit("actionAcc", base))],
             what: [own[0].includes(unit("action", base + 1)), rule[0].includes(unit("action", base))],
             wounded: [own[1].includes(unit("actionAcc", Math.max(0, base + 1 - lost))), own[1].includes(unit("actionGen", base + 1))],
+            // The whole sentence: "1 action" stands in its second half too, so a part read alone would pass on a wrong first.
+            hurt: hurt[1] === game.i18n.format("DRPG.Explain.status.actionsWounded", { wounded: unit("actionAcc", base - lost), actions: unit("actionGen", base) }),
             windows: [/phaseExplanation\(clock, \{ actor: subjectActor\(\) \}\)/.test(fnSource(src, "openStateExplainer")),
                 /actionsExplained\(\{ actor \}\)/.test(fnSource(src, "openStatusExplainer"))]
         };
-        equal(stableJson(read), stableJson({ phase: [true, true], what: [true, true], wounded: [true, true], windows: [true, true] }),
-            "{Daily Life's paragraph [with the character: its own count; with none: the rule's]; the strip's budget sentence [own, rule]; Wounded's [own less a wound, own]; the windows hand the character in [the clock's, the strip's]}");
+        equal(stableJson(read), stableJson({ phase: [true, true], what: [true, true], wounded: [true, true], hurt: true, windows: [true, true] }),
+            "{Daily Life's paragraph [with the character: its own count; with none: the rule's]; the strip's budget sentence [own, rule]; Wounded's [own less a wound, own]; Wounded's for a wounded student [the rule's wounded budget, the whole one]; the windows hand the character in [the clock's, the strip's]}");
     }],
 
     ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {
