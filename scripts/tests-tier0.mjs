@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check, SHEET_FAMILY, sheetText, sheetFetch, sheetBy, UTILS_FAMILY, utilsText, utilsFetch, settingsText, settingsBy, investigationText, investigationBy
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2513,7 +2513,7 @@ const REGRESSIONS = [
          * F1: a trace the filter hides has no inputs, and Save wrote its blanks over it.
          * F6: Save pushed the Key plan's old name back over a rename on the Traces tab.
          */
-        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(new Map(await otherSources())));
         ok(/traces\.filter\([^)]*\)\s*=>\s*q\(`name\./.test(inv),
             "the dashboard's Save reads a row the filter is hiding as blanks again");
         // Cut at `keyRowShows` since E09 C16, which took `stripDraft` out with Save's placing.
@@ -2695,7 +2695,7 @@ const REGRESSIONS = [
          * the item's flag, `shareBullet` named no `foundIn`, and `findersByRemnant` walked
          * `studentActors`.
          */
-        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(new Map(await otherSources())));
         const status = bodyOf(inv, "export function keyPlanStatus", { until: "export async function keyFeeOf" });
         ok(status.length > 400, "keyPlanStatus is gone or has moved past the fee");
         ok(/offPlan/.test(status) && /foundAny/.test(status),
@@ -3487,7 +3487,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
-        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(sources));
 
         const open = bodyOf(chapter, "export async function openBodyDiscoveryDialog", { until: "function allBullets" });
         ok(open.length > 200, "openBodyDiscoveryDialog is gone or has moved past allBullets");
@@ -3540,7 +3540,7 @@ const REGRESSIONS = [
         ok(insync > 0 && insync < cb,
             "nothing puts the picture back in step with the hidden field after a rebuild");
 
-        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(sources));
         const helper = bodyOf(inv, "export function wireKeyLimitOverride", { until: "export async function openInvestigationDashboard" });
         ok(helper.length > 200,
             "wireKeyLimitOverride is gone or has moved past openInvestigationDashboard");
@@ -5043,7 +5043,7 @@ const REGRESSIONS = [
          * would quietly make every hand-placed trace unsweepable and uncleanable.
          */
         const sources = new Map(await otherSources());
-        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(sources));
         const body = bodyOf(inv, "export async function openNewTrace", { until: "export" });
         ok(body.length > 400, "openNewTrace has moved or been hollowed out");
 
@@ -5201,7 +5201,7 @@ const REGRESSIONS = [
          * the roads that write it, and the two that decide it is already read.
          */
         const sources = new Map(await otherSources());
-        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(sources));
         ok(/name="keyanalysis:\$\{i\}"/.test(inv), "the Key planner has no box for a clue's reading");
         // E09 C3: the form hands on a changed field by name, and a placed row's push reads `words`.
         ok(/\["analysis", `keyanalysis:\$\{i\}`\]/.test(inv), "the planner draws the box and never reads it back");
@@ -6928,7 +6928,7 @@ const REGRESSIONS = [
             // The Eclipse's crossings out of the world's eclipseMoves (E05 C4).
             ["eclipse.mjs", "liftEclipseMoves", ["weak", "fillOnly"], true],
             // The Key Remnant plan out of the world's keyRemnantPlan (E05 C5).
-            ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true],
+            ["key-remnants.mjs", "liftKeyPlan", ["weak", "fillOnly"], true],
             // The pre-session notes out of their users' flags (E05 C6).
             ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
             // The incident's method (E05 C8) and its fight (E32 C3) out of the world half of murderState:
@@ -8847,9 +8847,9 @@ const REGRESSIONS = [
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
             ["ITEM handover.mjs#mintCopy", "judged (E70 C10, Share's core moved out of shareBullet, which names no field now): the copy is built from bulletAsHeld (E29), the answer key's fields from secretOf, one copy per trace by copiedRemnants; Share's road (shareBullet after verify) and Present's (presentOnPrimary), on a GM"],
-            ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
-            ["ITEM investigation.mjs#missingKeyRows", "a display (E70 C9): the console's Missing Key Remnants on a GM, from keyPlanStatus and findersByRemnant (the living holders, as the fee's) and the GMs' Key plan; writes nothing - the Reveal judges each row again on the primary (trial-modes.mjs revealRefusal in revealInStep)"],
-            ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
+            ["ITEM key-remnants.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
+            ["ITEM key-remnants.mjs#missingKeyRows", "a display (E70 C9): the console's Missing Key Remnants on a GM, from keyPlanStatus and findersByRemnant (the living holders, as the fee's) and the GMs' Key plan; writes nothing - the Reveal judges each row again on the primary (trial-modes.mjs revealRefusal in revealInStep)"],
+            ["ITEM key-remnants.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
             ["ITEM investigation.mjs#caseReach", "out of scope: the Map's reach, a GM's display (E97 C7); since 13.11.2026 the planned Autopsy node's holders by the answer key (secretOf), writes nothing"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
             ["ITEM investigation.mjs#studentsListHtml", "out of scope: 'Who has what' by name (E97 C7, E98 C4), a GM's display of the same students and items; writes nothing"],
@@ -12680,7 +12680,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const src = file => stripComments(sources.get(file) ?? "");
-        const [chapter, remnants, investigation, rules, mastermind] = ["chapter.mjs", "remnants.mjs", "investigation.mjs", "rules.mjs", "mastermind.mjs"].map(src);
+        const [chapter, remnants, investigation, rules, mastermind] = ["chapter.mjs", "remnants.mjs", "investigation.mjs", "rules.mjs", "mastermind.mjs"].map(file => "investigation.mjs" === file ? investigationBy(src) : src(file));
         ok(chapter.length > 1000 && remnants.length > 1000 && investigation.length > 1000 && rules.length > 1000 && mastermind.length > 1000,
             "a source file did not load - the reads below would measure nothing");
         const readers = [
@@ -13319,7 +13319,7 @@ const REGRESSIONS = [
         const css = await moduleStyles();
         const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
         const bodies = re => rules.filter(([selector]) => re.test(selector)).map(([, body]) => body);
-        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        const inv = stripComments(investigationText(new Map(await otherSources())));
         equal(JSON.stringify([
             bodies(/drpg-window-case table\.drpg-data-table \.drpg-data-col-case-count$/).some(b => /\bwidth\s*:/.test(b) && /text-align\s*:\s*center/.test(b)),
             bodies(/drpg-window-case .*::placeholder$/).some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b)),
@@ -13691,13 +13691,13 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const src = file => stripComments(sources.get(file) ?? "");
-        const [investigation, panel, bullets, monocub] = ["investigation.mjs", "gm-panel.mjs", "truth-bullets.mjs", "monocub.mjs"].map(src);
+        const [investigation, panel, bullets, monocub] = ["investigation.mjs", "gm-panel.mjs", "truth-bullets.mjs", "monocub.mjs"].map(file => "investigation.mjs" === file ? investigationBy(src) : src(file));
         ok(investigation.length > 1000 && panel.length > 1000 && bullets.length > 1000 && monocub.length > 1000,
             "a source file did not load - the reads below would measure nothing");
         const readers = [
-            ["investigation.mjs keysToPlace", fnSource(investigation, "keysToPlace"), /=== Number\(chapter\) && sameSeason\(r\.data\)\)\.length/],
+            ["key-remnants.mjs keysToPlace", fnSource(investigation, "keysToPlace"), /=== Number\(chapter\) && sameSeason\(r\.data\)\)\.length/],
             ["investigation.mjs keyPlanStatus's off-plan count", fnSource(investigation, "keyPlanStatus"), /\(r\.data\?\.chapter \?\? chapter\) === chapter && sameSeason\(r\.data\)/],
-            ["investigation.mjs keyFeeOf", fnSource(investigation, "keyFeeOf"), /trace \? \(sameSeason\(trace\) \? trace\.chapter \?\? now : null\)/],
+            ["key-remnants.mjs keyFeeOf", fnSource(investigation, "keyFeeOf"), /trace \? \(sameSeason\(trace\) \? trace\.chapter \?\? now : null\)/],
             // moved to investigation.mjs on 13.11.2026 (the planned Autopsy reads it too)
             ["investigation.mjs autopsyIssued", fnSource(investigation, "autopsyIssued"), /Number\(secret\.chapter\) === Number\(chapter\) && sameSeason\(secret\)/],
             ["monocub.mjs isCrimeSilenced", fnSource(monocub, "isCrimeSilenced"), /record\.chapter === getClock\(\)\.chapter && sameSeason\(record\)/]
@@ -20676,7 +20676,7 @@ const REGRESSIONS = [
             incident: "incident-store.mjs", seals: "call-world.mjs", assembly: "call-world.mjs", projects: "projects.mjs",
             mastermind: "mastermind.mjs", passages: "passages-gm.mjs", deaths: "chapter.mjs", bodyFound: "chapter.mjs",
             remnants: "remnants.mjs", bullets: "truth-bullets.mjs", trialFloor: "trial.mjs", trialProgress: "trial-progress.mjs",
-            discovered: "fog.mjs", searchTokens: "search-tokens.mjs", keyPlan: "investigation.mjs", eclipseMoves: "eclipse.mjs",
+            discovered: "fog.mjs", searchTokens: "search-tokens.mjs", keyPlan: "key-remnants.mjs", eclipseMoves: "eclipse.mjs",
             motive: "rules.mjs", rules: "rules.mjs", actions: "actions.mjs", despair: "despair.mjs", overflow: "overflow.mjs",
             doors: "vault-store.mjs", preNotes: "pre-session-note.mjs",
             // D36 = 2 (E42 C4): the students' division between the Monokumas.
@@ -20729,7 +20729,7 @@ const REGRESSIONS = [
             ["fog.mjs", "registerSeasonState({ group: \"keyPlan\", clear: clearSeasonKeyPlan });\n"]
         ]);
         const plantedProblems = problemsOf(registrations(new Map([...plantedFiles].map(([f, t]) => [f, blankComments(t)]))));
-        ok(["motive: 2 entries", "rules: no entry", "trialFloor: no entry", "keyPlan: registered in fog.mjs, not investigation.mjs"]
+        ok(["motive: 2 entries", "rules: no entry", "trialFloor: no entry", "keyPlan: registered in fog.mjs, not key-remnants.mjs"]
             .every(line => plantedProblems.includes(line)) && !plantedProblems.some(line => line.startsWith("bodyFound: registered")),
             `the reader of the registrations does not see the planted ones as they are: ${plantedProblems.slice(0, 8).join("; ")}`);
 
@@ -22812,7 +22812,7 @@ const REGRESSIONS = [
             ["chapter.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
             ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup.mjs", "proposeReshape", "E49", 1, 0, 0],
             ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
-            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["key-remnants.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
             ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
             ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
             ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
@@ -22883,8 +22883,8 @@ const REGRESSIONS = [
             "enforced.mjs": {"line": 2}, "facilities-gm.mjs": {"card": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
             "gm-items.mjs": {"action": 1, "heading": 2},
             "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
-            "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},
-            "level-up.mjs": {"heading": 1, "line": 4}, "mastermind.mjs": {"message": 1},
+            "inventory.mjs": {"card": 2, "line": 3}, 
+            "key-remnants.mjs": {"card": 1, "line": 2}, "level-up.mjs": {"heading": 1, "line": 4}, "mastermind.mjs": {"message": 1},
             "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
             /* Merged with E72 and E91 (12.11.2026): the Monocubs' veiled lines and its built cards (E72 C2-C17), the Final
                Trial's bets line (verdict.mjs), and the unlock card moved from room-setup.mjs to vault-store.mjs `writeRoomLock`
