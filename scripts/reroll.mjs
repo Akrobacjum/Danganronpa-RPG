@@ -906,6 +906,42 @@ export function recoverRerollJournal({ gone = null } = {}) {
     return recovering;
 }
 
+/**
+ * THE NAME OF AN ACTION THE GMs' REROLL BOOKMARK KEEPS (audit A113-C3-3, 13.11.2026), for the lines about a roll: this
+ * file's `recoverOne`, and calls.mjs `rollAfterReload` and `callAbout` (by `import()`). They printed
+ * `ACTIONS[key]?.label ?? key`, and of the keys `replayAction` replays a dozen are no tile: the Infiltrate tile's rows, a
+ * room action, Palm's Take, a Frisk's two rolls, a Dynamic action (R5904 found it; the audit's list did not name it), a
+ * crisis action, a clean-up and a Take from the body read as their code words. Each has its name where the module
+ * already says it; a key nobody names is still itself. R5904 reads the keys off `replayAction`. Here, not in
+ * infiltrate-reroll.mjs, which is fetched at idle after ready (open-cost.mjs; R4200 was red when calls.mjs imported it).
+ */
+const ROLL_ACTION_NAMES = Object.freeze({
+    dash: () => game.i18n.localize("DRPG.Infiltrate.row.dash.label"),
+    tail: () => game.i18n.localize("DRPG.Infiltrate.row.tail.label"),
+    shut: () => game.i18n.localize("DRPG.Infiltrate.row.shut.label"),
+    force: () => game.i18n.localize("DRPG.Infiltrate.row.force.label"),
+    pick: () => game.i18n.localize("DRPG.Infiltrate.row.pick.label"),
+    keepWatch: () => game.i18n.localize("DRPG.Infiltrate.row.keepWatch.label"),
+    facility: () => ACTIONS.rest?.label,
+    steal: () => ACTIONS.palm?.label,
+    rummage: () => ACTIONS.palm?.rummage?.label,
+    frisk: () => ACTIONS.palm?.frisk?.label,
+    dynamic: () => game.i18n.localize("DRPG.Action.dynamicLabel"),
+    crisis: () => game.i18n.localize("DRPG.Roll.crisis"),
+    cleanup: () => game.i18n.localize("DRPG.Remnant.action.resolution"),
+    loot: () => game.i18n.localize("DRPG.Bridge.what.body.loot")
+});
+
+export function rollActionName(key) {
+    if (!key) return null;
+    return ACTIONS[key]?.label ?? ROLL_ACTION_NAMES[key]?.() ?? null;
+}
+
+/** `rollActionName`, or the key itself where nothing names it (the GMs' lines, which name the action whatever it is). */
+export function rollActionLabel(key) {
+    return rollActionName(key) ?? key ?? null;
+}
+
 async function recoverOne(actorId, row) {
     const actor = game.actors.get(actorId) ?? null;
     const message = game.messages.get(row.messageId ?? "") ?? null;
@@ -933,7 +969,7 @@ async function recoverOne(actorId, row) {
         return "givenBack";
     }
     // `replaying`, or a phase this build does not know: told, not guessed.
-    const action = esc(ACTIONS[row.action]?.label ?? row.action ?? "-");
+    const action = esc(rollActionLabel(row.action) ?? "-");
     await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Reroll.title"))}</h3><p>${game.i18n.format("DRPG.Reroll.interruptedGm", {
         name, action, first: esc(String(row.first ?? "?")), total: esc(String(row.total ?? "?"))
     })}</p>`);

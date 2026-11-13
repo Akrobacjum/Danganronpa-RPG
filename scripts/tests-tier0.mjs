@@ -13072,7 +13072,8 @@ const REGRESSIONS = [
         ok(/class="drpg-evidence-card"[^]*class="drpg-objection-banner"/.test(fnSource(ui, "trialEventCard")),
             "the trial's cards are not the vote's markup (drpg-evidence-card and its banner)");
         ok(fnSource(ui, "startClassTrial").includes("drpg-briefing-facts drpg-trial-facts"), "the Start window's steps lost their own class (S06-29)");
-        const trialCard = fnSource(events, "trialCard");
+        // The floor's half of the card is `trialFloorCard` since the owner's report of 13.11.2026 (R5900): read both.
+        const trialCard = fnSource(events, "trialCard") + fnSource(events, "trialFloorCard");
         ok(trialCard.length > 400 && !/trialEveryone|trialFloorOpen/.test(trialCard)
             && ["trialDebateMeta", "trialDiscussionMeta", "trialObjectionFloor"].every(k => trialCard.includes(`DRPG.Events.${k}"`)),
             "the Event card says Everyone again, or lacks an instruction or the Objection's floor (S06-24)");
@@ -19616,7 +19617,10 @@ const REGRESSIONS = [
                 "Overflow.gmHint", "Overflow.gmHintActive", "Overflow.gmHintActiveFull", "Overflow.gmHintQueued",
                 "Passage.pick.step", "Sound.groupAssigned", "Vote.accusesLine", "Vote.barLine", "Vote.namedByTable",
                 // E24 C1b: the incident card's reserves, "3 of 4 Health" / "3 z 4 Health" (the sheet's "Left: 3 / 4").
-                "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou"
+                "Events.reserveOf", "Events.reserveVictim", "Events.reserveYou",
+                // The owner's report of 13.11.2026 (R5900): a zone mode's line on the Event card, "Question 2 of 3" /
+                // "Pytanie 2 z 3", "Turn 1 of 4" / "Tura 1 z 4" - the seconds are the card's clock.
+                "Events.trialZone.dive.vote", "Events.trialZone.dive.pause", "Events.trialZone.scrum.speak"
             ].map(key => [key, "R"]),
             ...[
                 "Vault.roomRatio"
@@ -19637,7 +19641,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 71, S: 37, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 71, S: 37, R: 29, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -24864,6 +24868,216 @@ const REGRESSIONS = [
         equal(JSON.stringify([owners, lists, names.filter(n => keys.has(n) || literal.has(n)), literal.has("roles"), names.length > 30]),
             JSON.stringify([["answerKey", "cast", "projectMeta"], [[...P.PROJECT_SECRET_FIELDS], [...S.CAST_FIELDS], [...W.WORLD_SECRET_RULES.everySetting.fields]], [], true, true]),
             "[the registry's owners; each owner's list beside the file's own; the names that are also a setting key, a FLAGS name or a literal flag; the read finds tables-editor.mjs's literal flag; the registry holds the lists]");
+    }],
+
+    ["R5900 - every mode of the trial's floor is named on the HUD and the Event panel: each member of floor-machine.mjs MODES and \"discussion\" has DRPG.Hud.trial.<mode> in lang/en.json and lang/pl.json, and for a floor of each mode (a zone mode in each of its phases) hud.mjs `trialSlotFace` and events.mjs `trialFloorCard` answer no line that is a key, and a zone mode's card does not read the Discussion's line (the owner's report of 13.11.2026)", async () => {
+        /*
+         * The owner's screenshot at a table on 1.2.112 (13.11.2026): the trial's card read "DRPG.Hud.trial.scrum" over a
+         * 0:30 clock and "Talk it through - the GM opens the debate". E73 (1.2.108) put the zone modes - straw, dive,
+         * scrum - into floor-machine.mjs `MODES` and added no `DRPG.Hud.trial` key for them, and the card's line under the
+         * mode fell through to the Discussion's. Red at ceb9e9c8: the three keys are missing in both files, and neither
+         * face is exported (the HUD's and the card's floor part were read inside `trialSlot` and `trialCard`, which read
+         * the clock and the floor from the world, so a test that writes nothing could not hand them a zone floor).
+         */
+        const FM = await import("./floor-machine.mjs");
+        const HUD = await import("./hud.mjs");
+        const EV = await import("./events.mjs");
+        const modes = ["discussion", ...Object.values(FM.MODES)];
+        must(modes.length >= 10 && modes.includes("scrum"), `MODES read ${modes.length} modes - this test would measure too little`);
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const missing = [];
+        for (const code of ["en", "pl"]) for (const mode of modes) {
+            const text = lang[code].get(`DRPG.Hud.trial.${mode}`);
+            if (typeof text !== "string" || !text.trim()) missing.push(`${code} ${mode}`);
+        }
+        equal(JSON.stringify(missing), "[]", "[the DRPG.Hud.trial keys missing, language and mode]");
+
+        // A floor of each mode, and each zone mode in each of its phases (zone-machine.mjs: straw vote; dive vote, pause;
+        // scrum setup, speak). Nobody's id is an actor, so a name reads "-".
+        const zone = (phase, extra = {}) => ({ phase, question: "Q?", answers: { a: "A", b: "B" }, picks: {}, stands: {}, step: 1,
+            counts: phase === "pause" ? { a: 1, b: 2 } : null, set: { id: "s", index: 0, total: 3 }, turn: 1, turns: 4, side: "a", ...extra });
+        const floors = [null, ...Object.values(FM.MODES).filter(m => !["straw", "dive", "scrum"].includes(m)).map(mode => ({ mode, holderId: null, seconds: 60, startedAt: 1 })),
+            { mode: "straw", seconds: 45, startedAt: 1, holderId: null, zone: zone("vote") },
+            { mode: "dive", seconds: 60, startedAt: 1, holderId: null, zone: zone("vote") },
+            { mode: "dive", seconds: 5, startedAt: 1, holderId: null, zone: zone("pause") },
+            { mode: "scrum", seconds: 45, startedAt: 1, holderId: null, zone: zone("setup") },
+            { mode: "scrum", seconds: 30, startedAt: 1, holderId: "nobody", zone: zone("speak") }];
+        must(typeof HUD.trialSlotFace === "function" && typeof EV.trialFloorCard === "function",
+            "hud.mjs `trialSlotFace` or events.mjs `trialFloorCard` is not exported");
+        const discussion = game.i18n.localize("DRPG.Events.trialDiscussionMeta");
+        const raw = [];
+        for (const floor of floors) {
+            const name = floor ? `${floor.mode}${floor.zone ? `/${floor.zone.phase}` : ""}` : "discussion";
+            const slot = HUD.trialSlotFace(floor);
+            const card = EV.trialFloorCard(floor);
+            for (const [where, text] of [["slot.label", slot?.label], ["slot.speaker", slot?.speaker], ["slot.versus", slot?.versus],
+                ["card.title", card?.title], ["card.sub", card?.sub], ["card.meta", card?.meta]]) {
+                if (text === null && !["slot.label", "card.title", "card.meta"].includes(where)) continue;
+                if (typeof text !== "string" || !text.trim() || /^DRPG\./.test(text)) raw.push(`${name} ${where}: ${JSON.stringify(text ?? null)}`);
+            }
+            if (floor?.zone && card?.meta === discussion) raw.push(`${name} card.meta: the Discussion's line`);
+            if (slot && slot.label === `DRPG.Hud.trial.${slot.key}`) raw.push(`${name} slot.label equals its key`);
+            // A Scrum Debate's turn has one speaker (zone-machine.mjs `scrumTurn` puts it in `holderId`): the row says so.
+            if (name === "scrum/speak" && slot?.speaker === game.i18n.localize("DRPG.Hud.trialEveryone")) raw.push(`${name} slot.speaker: everyone`);
+        }
+        equal(JSON.stringify(raw), "[]", "[each floor's line that is a key, empty, or the Discussion's under a zone mode]");
+    }],
+
+    ["R5901 - a name read from a closed set has a key for every member, in lang/en.json and lang/pl.json: each set below is read off its source - an exported constant, or the actions the module's dropRemnant and placeRemnant calls write - and every member's key is in both files (the owner's report of 13.11.2026, its class)", async () => {
+        /*
+         * The class of R5900's bug: `localize(`DRPG.X.${member}`)` over a set that grows somewhere else. Swept by hand on
+         * 13.11.2026 across every template-literal key of scripts/ (about 150): one more gap, `DRPG.Remnant.action`, whose
+         * `facility` (facilities-gm.mjs, E93) and `infiltrate` (doors-gm.mjs, E69) a GM read as the bare words on the
+         * Remnant's name, its ring card, the ledger and the dashboard (remnants.mjs `actionLabel` falls back to the code
+         * word). Red at ceb9e9c8 on those two, in both files. The sets held here are the ones whose source is an exported
+         * constant mapping one to one onto keys; the rest of the sweep (literals at their call sites, small local lists,
+         * the sets already held by their own test) is listed in the fix's report, not here.
+         */
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(res.ok, `${code}.json: HTTP ${res.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(res)));
+        }
+        const C = await import("./config.mjs");
+        const FM = await import("./floor-machine.mjs");
+        const ZM = await import("./zone-machine.mjs");
+        const BG = await import("./bridge-guards.mjs");
+        const TF = await import("./trial-floor.mjs");
+        const SQ = await import("./sequence.mjs");
+        const NH = await import("./notice-history.mjs");
+        const CS = await import("./case-schema.mjs");
+        const CL = await import("./case-layout.mjs");
+        const CU = await import("./case-summary.mjs");
+        const PG = await import("./passages-gm.mjs");
+
+        /* THE REMNANTS' ACTIONS: each call of dropRemnant or placeRemnant in scripts/, cut at its own closing parenthesis,
+           and every `action: "<word>"` inside it, with the default `placeRemnant` and `dropRemnant` take ("manual"). A call
+           that hands an action on in a variable (the API, a player's request, a Reroll's drop, a restore) adds nothing:
+           what it carries came from one of these. */
+        // Each call cut by the kit's `callArgs` on its blanked text (literals blank, so their brackets do not count), and its
+        // arguments read in the code with the literals kept.
+        const remnantActions = new Set(["manual"]);
+        let calls = 0;
+        for (const [file, text] of await otherSources()) {
+            if (file.startsWith("tests")) continue;
+            const code = blankComments(text), blank = blankLiterals(code);
+            for (const m of blank.matchAll(/\b(?:dropRemnant|placeRemnant)\s*\(/g)) {
+                if (/function\s+$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                calls++;
+                for (const arg of callArgs(blank, m.index + m[0].length - 1).args) {
+                    for (const a of code.slice(arg.start, arg.end).matchAll(/\baction:\s*"(\w+)"/g)) remnantActions.add(a[1]);
+                }
+            }
+        }
+        must(calls >= 15 && ["search", "loot", "incident", "discard"].every(a => remnantActions.has(a)),
+            `the Remnants' calls read ${calls} calls and ${[...remnantActions].join(", ")} - this test would measure too little`);
+
+        const SETS = [
+            ["floor-machine.mjs MODES", Object.values(FM.MODES), m => [`DRPG.Floor.mode.${m}`, `DRPG.Hud.trial.${m}`]],
+            ["zone-machine.mjs ZONE_MODES", Object.values(ZM.ZONE_MODES), m => [`DRPG.Zones.${m}.opened`, `DRPG.Zones.${m}.openedBare`, `DRPG.Zones.picker.hint.${m}`]],
+            ["config.mjs OVERFLOW.effects", Object.keys(C.OVERFLOW.effects ?? {}), k => [`DRPG.Overflow.name.${k}`, `DRPG.Overflow.what.${k}`]],
+            ["config.mjs FACILITIES.effects", Object.keys(C.FACILITIES.effects ?? {}), k => [`DRPG.Facility.effect.${k}`]],
+            ["config.mjs FACILITIES.scopes", [...(C.FACILITIES.scopes ?? [])], k => [`DRPG.Facility.scope.${k}`]],
+            ["config.mjs FACILITIES.timedUntil", [...(C.FACILITIES.timedUntil ?? [])], k => [`DRPG.Facility.until.${k}`]],
+            ["config.mjs TRAP_TRIGGERS", Object.keys(C.TRAP_TRIGGERS ?? {}), k => [`DRPG.Trap.trigger.${k}`,
+                ...(C.TRAP_TRIGGERS[k]?.watch === "action" ? [`DRPG.Trap.why.${k}`] : [])]],
+            ["bridge-guards.mjs REASONS", [...BG.REASONS], r => [`DRPG.Bridge.why.${r}`]],
+            ["trial-floor.mjs TRIAL_NEXT_STEPS", [...new Set(TF.TRIAL_NEXT_STEPS.map(([, step]) => step))], s => [`DRPG.Floor.next.${s}`]],
+            ["sequence.mjs MOOD_BANDS", [...SQ.MOOD_BANDS], m => [`DRPG.Sequence.mood.${m}`]],
+            ["notice-history.mjs NOTICE_KINDS", [...NH.NOTICE_KINDS], k => [`DRPG.Popup.kind.${k}`]],
+            ["case-schema.mjs CASE_PROBLEMS", [...CS.CASE_PROBLEMS], c => [`DRPG.CaseMap.problem.${c}`]],
+            ["case-layout.mjs LAYOUT_SORTS", [...CL.LAYOUT_SORTS], k => [`DRPG.CaseMap.sort.${k}`]],
+            ["case-summary.mjs SUMMARY_ROLES", [...CU.SUMMARY_ROLES], r => [`DRPG.CaseSummary.role.${r}`]],
+            ["passages-gm.mjs PASSAGE_PRESETS", Object.keys(PG.PASSAGE_PRESETS), k => [`DRPG.Project.preset.${k}`]],
+            ["the Remnants' actions", [...remnantActions], a => [`DRPG.Remnant.action.${a}`]]
+        ];
+        const thin = SETS.filter(([, members]) => members.length < 2).map(([name, members]) => `${name}: ${members.length}`);
+        equal(JSON.stringify(thin), "[]", "[a set read with fewer than two members - its source moved or was renamed]");
+        const missing = [];
+        for (const [name, members, keysOf] of SETS) for (const member of members) for (const key of keysOf(member)) for (const code of ["en", "pl"]) {
+            // A plural family is held by its `.other` (overflow.mjs `overflowWhat` reads Darkness, Shift, Panic and Toll so).
+            const text = lang[code].get(key) ?? lang[code].get(`${key}.other`);
+            if (typeof text !== "string" || !text.trim()) missing.push(`${name} ${member}: ${code} ${key}`);
+        }
+        equal(JSON.stringify(missing), "[]", "[each set's member whose key is missing, by language]");
+    }],
+
+    ["R5902 - every state of a Case Map node has its word: each state case-map.mjs `nodeState` answers but \"schema\" is put by `nodeInfoHtml` on the side panel's State row, in the language's text of DRPG.CaseMap.state.<state>, which lang/en.json and lang/pl.json both hold (audit A113-C3-1, 13.11.2026)", async () => {
+        /*
+         * 6964661f (13.11.2026) taught `nodeState` a fifth answer, "sent" (a planned Autopsy sent, a Truth Bullet given),
+         * and added DRPG.CaseMap.state.sent to both files; the table that maps a state to its key (`STATE_KEYS`) was not
+         * told, so the node's spoken text lost its state and the side panel its State row. The states are read off the
+         * function's own `return "..."`, so a sixth comes here by itself. Red at ceb9e9c8: "sent" has no row.
+         */
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/case-map.mjs`);
+        must(res.ok, `case-map.mjs: HTTP ${res.status}`);
+        const answers = [...new Set([...stripComments(fnSource(await lfText(res), "nodeState")).matchAll(/\breturn\b[^;]*/g)]
+            .flatMap(m => [...m[0].matchAll(/"(\w+)"/g)].map(x => x[1])))].filter(state => state !== "schema");
+        must(answers.length >= 4 && answers.includes("planned"), `nodeState read ${answers.join(", ")} - this test would measure too little`);
+        const lang = {};
+        for (const code of ["en", "pl"]) {
+            const r = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            must(r.ok, `${code}.json: HTTP ${r.status}`);
+            lang[code] = flatLang(JSON.parse(await lfText(r)));
+        }
+        const CM = await import("./case-map.mjs");
+        // One node per state, made to answer it: the finders' map names a holder of "R5902T"'s token.
+        const finders = new Map([["R5902T", new Set(["Someone"])]]);
+        const NODES = {
+            sent: { id: "n1", kind: "autopsy", evidence: true, planned: true, sent: true },
+            planned: { id: "n2", kind: "slot", evidence: true, planned: true },
+            held: { id: "n3", kind: "remnant", evidence: true, trace: "S.R5902T" },
+            onMap: { id: "n4", kind: "remnant", evidence: true, trace: "S.R5902U" }
+        };
+        const graph = { nodes: Object.values(NODES), edges: [] };
+        const wrong = [];
+        for (const state of answers) {
+            for (const code of ["en", "pl"]) if (typeof lang[code].get(`DRPG.CaseMap.state.${state}`) !== "string") wrong.push(`${state}: no ${code} key`);
+            const node = NODES[state];
+            if (!node) { wrong.push(`${state}: this test has no node for it`); continue; }
+            if (CM.nodeState(node, finders) !== state) { wrong.push(`${state}: the node answers ${CM.nodeState(node, finders)}`); continue; }
+            const word = game.i18n.localize(`DRPG.CaseMap.state.${state}`);
+            const box = document.createElement("div");
+            box.innerHTML = CM.nodeInfoHtml({ graph, node, finders });
+            const stateRow = game.i18n.localize("DRPG.CaseMap.panelState");
+            if (!box.textContent.includes(stateRow) || !box.textContent.includes(word)) wrong.push(`${state}: no State row with "${word}"`);
+        }
+        equal(JSON.stringify(wrong), "[]", "[each state with no key, no node or no State row with its word]");
+    }],
+
+    ["R5904 - an action the GMs' Reroll bookmark keeps is named in the GM's lines: every key reroll.mjs `replayAction` replays has a name from reroll.mjs `rollActionLabel` that is no key and no code word, and calls.mjs `rollAfterReload` and reroll.mjs `recoverOne` read it there, and calls.mjs `callAbout` its `rollActionName` (audit A113-C3-3, 13.11.2026)", async () => {
+        /*
+         * calls.mjs's GM row of the last roll and the interrupted Reroll's whisper to the GMs printed
+         * `ACTIONS[key]?.label ?? key`: the Infiltrate tile's dash, tail, shut, force, pick and keepWatch, a room action's
+         * facility, Palm's steal, a Frisk's rummage and frisk, a crisis action, a clean-up and a Take from the body are
+         * no keys of ACTIONS, and read as the code word (trait-ruling.mjs had fixed tail alone). The keys are read off
+         * `replayAction`'s own `case "..."` lines. Red at ceb9e9c8: `rollActionLabel` does not exist, and both lines read
+         * ACTIONS alone.
+         */
+        const text = async file => {
+            const r = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
+            must(r.ok, `${file}: HTTP ${r.status}`);
+            return stripComments(await lfText(r));
+        };
+        const reroll = await text("reroll.mjs"), calls = await text("calls.mjs");
+        const keys = [...new Set([...fnSource(reroll, "replayAction").matchAll(/\bcase\s+"(\w+)"/g)].map(m => m[1]))];
+        must(keys.length >= 15 && keys.includes("keepWatch") && keys.includes("loot"), `replayAction read ${keys.join(", ")} - this test would measure too little`);
+        const IR = await import("./reroll.mjs");
+        must(typeof IR.rollActionLabel === "function", "reroll.mjs `rollActionLabel` is not exported");
+        const raw = keys.map(key => [key, IR.rollActionLabel(key)])
+            .filter(([key, name]) => typeof name !== "string" || !name.trim() || name === key || /^DRPG\./.test(name)).map(([key, name]) => `${key}: ${JSON.stringify(name)}`);
+        equal(JSON.stringify(raw), "[]", "[each replayed key whose name is a key, empty or the code word]");
+        // And the player's Reroll window (calls.mjs `callAbout`), which named a tile's roll and none of these.
+        const readers = [["calls.mjs rollAfterReload", fnSource(calls, "rollAfterReload"), "rollActionLabel("],
+            ["reroll.mjs recoverOne", fnSource(reroll, "recoverOne"), "rollActionLabel("], ["calls.mjs callAbout", fnSource(calls, "callAbout"), "rollActionName("]]
+            .filter(([, body, call]) => !body.includes(call) || /ACTIONS\[(?:row|last)\.action(?:Key)?\]\?\.label/.test(body)).map(([where]) => where);
+        equal(JSON.stringify(readers), "[]", "[the GM's lines that do not name the action through rollActionLabel]");
     }],
 
 ];

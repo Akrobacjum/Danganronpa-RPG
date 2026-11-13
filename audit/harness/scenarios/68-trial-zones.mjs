@@ -18,6 +18,10 @@
  *   C (Scrum Debate): the camps as they stand (Zone A Aiko, Botan; Zone B Chie), Skip the setup: Zone B first, Chie
  *     the speaker; p3's thesis from its own page ("trial.keyword") on p1's chat; p3 moves Chie into Zone A - Zone B empty
  *     - and the GM's heartbeat ends the Scrum with Zone A's answer as a Finding, on every player.
+ *   G (a second GM's Skip; audit A113-C3-2, 13.11.2026): a Straw Poll on the seed's GM, `gm3` connects - a GM after it
+ *     in the primary's order, never the primary while it is here - and presses the bar's Skip (`advanceFloorNow`, the
+ *     bridge's "floor.now"): the primary counts the poll at once, and gm3 is not told the floor moved on. Red at
+ *     ceb9e9c8: the row's sanitizer named five modes, the primary read the poll's mode as null and refused "movedOn".
  * The canary's player scan runs after every phase (`canary.scan`).
  *
  * What it cannot see (LIVE-E73-01..04): v14 regions with holes and Levels, a move on a real server's latency, the
@@ -25,10 +29,14 @@
  * driven here, named for the next round: a latecomer joining mid-question, the export and import of a case with a set.
  */
 export const layers = ["ci"];
+export const accounts = [
+    // After the seed's GM in the primary's order (utils.mjs `primaryGmId`), as scenario 63's gm3: never the primary here (G).
+    { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true }
+];
 
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUrl, IDS }) {
+export async function run({ gm, gm3, p1, p2, p3, check, phase, settle, canary, repoUrl, IDS, connect, disconnect }) {
     const counts = {};
     let current = null;
     const begin = (letter, name) => { phase(`${letter}: ${name}`, { flow: "class-trial" }); current = letter; counts[letter] = 0; };
@@ -204,6 +212,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     verdict("Chie crosses into Zone A: Zone B empty, the heartbeat ends the Scrum with Zone A's answer, on every player",
         over.floor === null && over.findings.at(-1) === "Inside" && seenEmpty.every(Boolean), J({ over, seenEmpty }));
     await canary.scan({ phase: "C" });
+
+    /* ------------------------------ G. a second GM's Skip ------------------------------ */
+    begin("G", "a GM that is not the primary skips a Straw Poll's clock, and the primary counts it");
+    await backOnStands();
+    await gm.eval(`await game.drpg.startStrawPoll({ question: "S68 skipped by gm3", a: "Inside", b: "Outside" }); return true;`, { timeout: 30000 });
+    await connect("gm3");
+    await settle(1500);
+    const skip = await gm3.eval(`${F} const U = await import("${repoUrl}/scripts/utils.mjs");
+        const end = Date.now() + 5000; while (!F.trialFloor() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const seen = F.trialFloor()?.mode ?? null;
+        const warned = []; const warn = ui.notifications.warn; ui.notifications.warn = (msg, ...rest) => { warned.push(String(msg)); return warn.call(ui.notifications, msg, ...rest); };
+        try { await F.advanceFloorNow(); } finally { ui.notifications.warn = warn; }
+        return { primary: U.isPrimaryGm(), seen, warned, movedOn: game.i18n.localize("DRPG.Floor.nowMovedOn") };`, { timeout: 30000 });
+    const counted = await gm.eval(`${F} const end = Date.now() + 6000; while (F.trialFloor() && Date.now() < end) await new Promise(r => setTimeout(r, 200));
+        return { floor: F.trialFloor()?.mode ?? null };`, { timeout: 30000 });
+    verdict("gm3, not the primary, presses Skip in a Straw Poll: the primary counts it at once and gm3 is not told the floor moved on",
+        skip.primary === false && skip.seen === "straw" && !skip.warned.includes(skip.movedOn) && counted.floor === null, J({ skip, counted }));
+    await disconnect("gm3");
+    await settle(500);
+    await canary.scan({ phase: "G" });
 
     /* ------------------------------ restore ------------------------------ */
     await gm.eval(`${F} if (F.trialFloor()) await F.endFloor();

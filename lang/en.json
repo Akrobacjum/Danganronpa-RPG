@@ -691,7 +691,10 @@
         "rebuttal": "Rebuttal",
         "testimony": "Testimony",
         "panic": "Panic Round",
-        "closing": "Closing Argument"
+        "closing": "Closing Argument",
+        "straw": "Straw Poll",
+        "dive": "Logic Dive",
+        "scrum": "Scrum Debate"
       },
       "trialTooltip": "The Class Trial. The debate runs from the GM's console, not here.",
       "trialClockTooltip": "How long this part of the debate has left.",
@@ -1817,6 +1820,19 @@
       "afterVerdict": "The verdict is in",
       "trialNext": "Next: {name}",
       "trialLastTurn": "The last turn",
+      "trialZone": {
+        "straw": {
+          "vote": "Stand in Zone A or Zone B"
+        },
+        "dive": {
+          "vote": "Question {n} of {total} - stand in your answer's zone",
+          "pause": "Question {n} of {total} is counted"
+        },
+        "scrum": {
+          "setup": "The camps form in Zone A and Zone B",
+          "speak": "Turn {turn} of {turns}, for Zone {zone}"
+        }
+      },
       "waitingFor": "Incident - waiting for {name}",
       "reserveYou": "You have {hp} of {hpMax} Health and {sanity} of {sanityMax} Sanity left.",
       "reserveOf": "{name} has {hp} of {hpMax} Health left.",
@@ -3383,7 +3399,9 @@
         "resolution": "Clean-up",
         "discard": "Thrown away",
         "manual": "Placed by the GM",
-        "loot": "Taken from a body"
+        "loot": "Taken from a body",
+        "facility": "Facilities",
+        "infiltrate": "Infiltrate"
       },
       "cardTitle": "A Remnant",
       "cardWhat": "Remnant",

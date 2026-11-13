@@ -21,6 +21,7 @@
  */
 
 import { STARTING, PROJECT_SCALE, TIMING, TIMES_OF_DAY } from "./config.mjs";
+import { MODES } from "./floor-machine.mjs";
 import { isPrimaryGm } from "./utils.mjs";
 import {
     guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret, guardShareGuest, guardTieTraceHolder,
@@ -1220,7 +1221,10 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM moves the trial's floor on")],
         // E70 C7: a round's turn skipped by a GM that is not the primary rides the same Now.
         // E70 C8: and the Closing's timed phases (the volunteers' window's draw, a speaker skipped).
-        sanitize: pick({ mode: as.oneOf("objection", "rebuttal", "testimony", "panic", "closing"), startedAt: as.num }),
+        // E73: and a zone mode's phase. Read off floor-machine.mjs MODES since audit A113-C3-2 (13.11.2026): the list
+        // named five modes, E73's three were null on the primary and a second GM's Skip in them was refused "movedOn".
+        // Every mode but the debate, which has no next mode and is never sent (trial-floor.mjs `advanceFloorNow`). R5903.
+        sanitize: pick({ mode: as.oneOf(...Object.values(MODES).filter(mode => mode !== MODES.debate)), startedAt: as.num }),
         run: handleFloorNow,
         answer: "reply",
         claims: {

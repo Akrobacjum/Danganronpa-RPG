@@ -52,7 +52,7 @@ import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
-import { isPrimaryGm, debug, warn, error, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
+import { isPrimaryGm, debug, warn, error, gmReport, serialWrite, forcedDeletion, whisperToGms, esc, trialModeLabel } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
@@ -1369,7 +1369,7 @@ function cubLine(actor, trial) {
     if (voice === "speak") return { reason: "cubSpeak", held: false };
     if (!trial?.floor) return { reason: "cubVote", held: false };
     const mode = trial.floor.mode === "discussion" ? "debate" : trial.floor.mode;
-    return { reason: "cubListen", held: false, data: { mode: game.i18n.localize(`DRPG.Hud.trial.${mode}`) } };
+    return { reason: "cubListen", held: false, data: { mode: trialModeLabel(mode) } };
 }
 
 /**

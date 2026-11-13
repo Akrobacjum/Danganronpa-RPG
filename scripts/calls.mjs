@@ -14,7 +14,7 @@
  * public: when Monokuma acts, the room should know.
  */
 
-import { MODULE_ID, ACTIONS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -571,7 +571,8 @@ async function callAbout(call, actor) {
     if (typeof last?.total !== "number") return rollAfterReload(actor);
     const duality = game.i18n.localize(last.isCritical ? "DRPG.Action.duality.critical"
         : last.withFear ? "DRPG.Action.duality.despair" : "DRPG.Action.duality.hope");
-    const action = ACTIONS[last.actionKey]?.label ?? null;
+    const { rollActionName } = await import("./reroll.mjs");
+    const action = rollActionName(last.actionKey);
     return action
         ? game.i18n.format("DRPG.Reroll.lastRoll", { action, total: last.total, duality })
         : game.i18n.format("DRPG.Reroll.lastRollPlain", { total: last.total, duality });
@@ -601,8 +602,9 @@ export async function rollAfterReload(actor, { gm = Boolean(game.user?.isGM) } =
         const row = rerollBookmarkStore.get(actor.id);
         const roll = game.messages?.get(row?.messageId ?? "")?.rolls?.[0] ?? null;
         if (!duality(roll)) return game.i18n.localize("DRPG.Reroll.nothingToReroll");
+        const { rollActionLabel } = await import("./reroll.mjs");
         return game.i18n.format("DRPG.Reroll.lastRollGmRow", { name: actor.name,
-            action: ACTIONS[row.actionKey]?.label ?? row.actionKey ?? "?", total: roll.total, duality: named(roll) });
+            action: rollActionLabel(row.actionKey) ?? "?", total: roll.total, duality: named(roll) });
     }
     // The character as its card's speaker, or as the roll's source (Daggerheart's `source.actor`, the actor's uuid).
     const of = m => m.speaker?.actor === actor.id || String(m.rolls?.[0]?.options?.source?.actor ?? "").endsWith(actor.id);
