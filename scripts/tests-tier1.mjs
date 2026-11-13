@@ -52114,6 +52114,39 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ first: "investigation", second: "hour", hint: "top", lit: 1, escTaken: true, writes: [] }),
             "[the first heard; the second heard; the direction handed last; flickers lit; Escape taken while the second is held; the world written]");
     }],
+    ["R4901 - the kit's write watch leaves out the primary's beat and nothing else (scripts/tests-kit.mjs `watchWrites`, 13.11.2026): the beat's key heard is not noted and does not mark the test as having written, so a world probe asked after it stands; a key one letter longer, another module's key of the same name and another key of this module are each noted", async () => {
+        /*
+         * 13.11.2026, at 104cf8aa: a tier-1 run read 1403 passed, 1 failed - R3712's `writes` held
+         * `setting danganronpa-rpg.gmClockBeat (during "R3712")`, the primary's 60 s beat (hud-elapsed.mjs `beatClock`)
+         * landing inside its window. The kit's watch leaves that one key out since (the comment above `watchWrites`
+         * holds the measurements); R3700, R3712 and R3727 read the watch. The hooks are heard here as Foundry calls
+         * `clientSettingChanged` for a client setting - the road the beat takes - with keys no listener of the module
+         * acts on, so nothing is written. The `world.*` probe after the beat is the runner's half: had the beat marked
+         * this test as having written (`current.wrote`), asking it would FAIL this test as asked-after-a-write.
+         * Two mutants of the kit on a scratch copy (13.11.2026), each red: the filter taken out - the probe failed the
+         * test, "world.livingStudents was asked after this test wrote to the world (setting danganronpa-rpg.gmClockBeat)",
+         * before `beat` was compared; and a filter on `includes("gmClockBeat")` - `others` read the planted key alone.
+         */
+        const { watchWrites } = await import("./tests-kit.mjs");
+        const { clockBeatStore } = await import("./gm-stores.mjs");
+        // the key as the store's own row names it, not SETTINGS: R171 reads a store's key outside the engine as raw access
+        const name = clockBeatStore.spec?.key;
+        must(typeof name === "string" && name.length > 0, `the beat's store names no key (${stableJson(name)}) - this test would hear none`);
+        const beat = `${MODULE_ID}.${name}`;
+        const others = [`${beat}s`, `other-module.${name}`, `${MODULE_ID}.r4901Planted`];
+        const w = watchWrites(() => "R4901");
+        const read = {};
+        try {
+            Hooks.callAll("clientSettingChanged", beat, {}, {});
+            read.beat = w.seen.length;
+            needs(world.atLeast("livingStudents", 1), "asked after the beat was heard: had it marked this test as having written, this probe would fail it");
+            read.probeStood = true;
+            for (const key of others) Hooks.callAll("clientSettingChanged", key, {}, {});
+        } finally { w.stop(); }
+        read.others = w.seen;
+        equal(stableJson(read), stableJson({ beat: 0, probeStood: true, others: others.map(key => `setting ${key} (during "R4901")`) }),
+            "[lines noted for the beat; the world probe asked after it stood; the other keys, each noted]");
+    }],
     ["R3728 - the HUD's phase label slides in when the phase changes, as the time label does (scripts/hud.mjs `slidePhase`, `renderHud`; E62 C1's HUD part, the plan's Q6 default): a new phase's label arrives over the turn's length from the side with the turn's easing; a redraw during it winds the new animation on to where it had got; a page load, the same phase, or a turn of 0 (reduced motion) slides nothing; renderHud reads the old label before it rebuilds and hands it on", async () => {
         /*
          * E62 (1.2.109), 12.11.2026. Red at 6b98f6c: hud.mjs has no slidePhase. The phase line stands in no clipping slot

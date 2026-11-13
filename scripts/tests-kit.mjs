@@ -13,7 +13,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { studentActors, isMonokuma } from "./monokuma.mjs";
-import { narrowScreen } from "./settings.mjs";
+import { narrowScreen, SETTINGS } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import { isPrimaryGm } from "./utils.mjs";
 import {
@@ -2458,6 +2458,25 @@ function watchLog() {
  * that has written (`current.wrote`), for the world-after-write rule: a world.*
  * probe asked after that FAILs. A write another client made does not - it is the
  * table's, or an answer to the test, not the test acting.
+ *
+ * THE PRIMARY'S BEAT IS NOT NOTED (13.11.2026). One key is left out, and only by its
+ * whole name: `gmClockBeat`, the GMs' store the primary GM writes itself every 60 s
+ * on a wall-clock interval while the world runs (hud.mjs's `ready`, hud-elapsed.mjs
+ * `beatClock`, `CLOCK_BEAT_MS`; gm-stores.mjs `clockBeatStore`), whatever the suite
+ * does. Measured: a tier-1 run at 104cf8aa on 13.11.2026 read 1403 passed, 1 failed -
+ * R3712's `writes` held `setting danganronpa-rpg.gmClockBeat (during "R3712")`, a
+ * tick that landed inside its window; R3700 and R3727 read the watch the same way.
+ * A `beatClock()` planted in R3712's window on a scratch copy read the same line
+ * before this filter and none after, the beat having moved the store's `at` both
+ * times; a write of `actionDetailsOpen` planted beside it was still recorded. The
+ * world dump leaves the key out for the same reason (DUMP_RULES, its gmClockBeat row)
+ * and 01-runtests lets its leaves tick (`BEAT_LEAF`). Left out before `note`, so it
+ * is neither in `seen` nor the running test's `current.wrote`: a tick no longer makes
+ * a `world.*` asked after it fail as asked-after-a-write (R4901 reads both). What
+ * this gives up: a test that writes the beat itself (tier 2's E17-T9 calls
+ * `beatClock`) is not seen writing it here; that test reads the store. The key is
+ * compared in R171's one allowed shape, `${MODULE_ID}.${SETTINGS.x}` beside `!==`: a
+ * name compared, no store read or written (tests-lint.mjs `storeKeyAccess`).
  */
 function watchWrites(running) {
     const seen = [];
@@ -2466,13 +2485,14 @@ function watchWrites(running) {
         seen.push(`${what} (during "${running() ?? "between tests"}")`);
         if (current && !current.wrote && mine(userId)) current.wrote = what;
     };
+    const setting = (key, userId) => { if (key !== `${MODULE_ID}.${SETTINGS.gmClockBeat}`) note(`setting ${key}`, userId); };
     const names = new Set([...(game.collections?.keys?.() ?? []), "Token", "Item", "ActiveEffect", "Region", "TableResult",
         "PlaylistSound", "JournalEntryPage"]);
     names.delete("Setting");
     const listeners = [
-        ["updateSetting", (doc, _c, _o, userId) => note(`setting ${doc?.key}`, userId)],
-        ["createSetting", (doc, _o, userId) => note(`setting ${doc?.key}`, userId)],
-        ["clientSettingChanged", key => note(`setting ${key}`, null)]
+        ["updateSetting", (doc, _c, _o, userId) => setting(doc?.key, userId)],
+        ["createSetting", (doc, _o, userId) => setting(doc?.key, userId)],
+        ["clientSettingChanged", key => setting(key, null)]
     ];
     for (const name of names) {
         const what = doc => `${name} ${doc?.name ? `"${doc.name}" ` : ""}(${doc?.id ?? "?"})${doc?.parent ? ` on ${doc.parent.name ?? doc.parent.id}` : ""}`;
