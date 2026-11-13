@@ -57,6 +57,15 @@
         "replace": "\"cleanup.mjs\": {\"action\": 3, \"built\": 1, \"card\": 3, \"heading\": 2, \"line\": 6, \"message\": 1}, \"cleanup-reshape.mjs\": {\"action\": 2, \"card\": 1, \"line\": 1}",
         "why": "the card-producing sites per file, as R3510's own classifier counts them on the split tree (13.11.2026); the script holds them to the old row's sums"
       }
+    ],
+    "patches": [
+      {
+        "test": "R4672",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "            \"cleanup.mjs\": [1, \"a reshaped trace's text (a kit window)\"],\n",
+        "replace": "            \"cleanup-reshape.mjs\": [1, \"a reshaped trace's text (a kit window)\"],\n",
+        "why": "R4672 (on main since 1.2.111) counts the textareas each file draws; the reshaped trace's text is drawn by the reshape road, which the cut moves into cleanup-reshape.mjs (cleanup.mjs draws none after it)"
+      }
     ]
   }
 }
