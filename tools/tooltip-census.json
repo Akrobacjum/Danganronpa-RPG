@@ -1133,14 +1133,6 @@
    "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "button",
-   "key": "DRPG.CaseRealize.noRoom",
-   "count": 1,
-   "why": "E102 C6: Opens New Remnant filled in from this node and tied to the murder"
-  },
-  {
-   "file": "scripts/investigation.mjs",
-   "unit": "schemaEditor",
-   "kind": "button",
    "key": "DRPG.CaseMap.placeOnMap",
    "count": 1,
    "why": "E102 C6: Deletes this node from the case. Asks first."
@@ -1243,14 +1235,6 @@
   },
   {
    "file": "scripts/investigation.mjs",
-   "unit": "caseKeyCells",
-   "kind": "select",
-   "key": "DRPG.Investigation.plannedRoom",
-   "count": 1,
-   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
-  },
-  {
-   "file": "scripts/investigation.mjs",
    "unit": "schemaEditor",
    "kind": "select",
    "key": "DRPG.CaseMap.autopsyAt",
@@ -1326,6 +1310,198 @@
    "unit": "offerFinalOnClose",
    "kind": "footer",
    "key": "DRPG.CaseRealize.notNow",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "checkbox",
+   "key": null,
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "input",
+   "key": "DRPG.TruthBullet.namePlaceholder",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.TruthBullet.realType",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.TruthBullet.shown",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.TruthBullet.visibility",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "textarea",
+   "key": "DRPG.TruthBullet.playerTextPlaceholder",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "textarea",
+   "key": "DRPG.TruthBullet.analyzedTextPlaceholder",
+   "count": 3,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "textarea",
+   "key": "DRPG.TruthBullet.gmNotePlaceholder",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.Items.recipient",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "button",
+   "key": "DRPG.Items.tellPlayer",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "button",
+   "key": "DRPG.TruthBullet.give",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.Investigation.room",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.Investigation.visibility",
+   "count": 2,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.Remnant.authorLabel",
+   "count": 2,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "input",
+   "key": "DRPG.Remnant.finalSubject",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "textarea",
+   "key": "DRPG.Investigation.notePlaceholder",
+   "count": 2,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "textarea",
+   "key": "DRPG.Investigation.finalNotePlaceholder",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "button",
+   "key": null,
+   "count": 2,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "button",
+   "key": "DRPG.CaseMap.placeOnMap",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "select",
+   "key": "DRPG.Investigation.newTraceTied",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "checkbox",
+   "key": "DRPG.Investigation.newTraceReinforced",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "input",
+   "key": "DRPG.Investigation.traceName",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "schemaEditor",
+   "kind": "textarea",
+   "key": "DRPG.Investigation.keyNotePlaceholder",
+   "count": 1,
+   "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
+  },
+  {
+   "file": "scripts/investigation.mjs",
+   "unit": "placePlannedFinal",
+   "kind": "select",
+   "key": "DRPG.Investigation.room",
    "count": 1,
    "why": "E102 C12: drawn by code merged into the 1.2.112 tree after E102's census was taken; E102 gives it a tooltip or a reason before it ships"
   },

@@ -6659,11 +6659,14 @@
       "addDeduction": "Add deduction",
       "addCounter": "Add counter",
       "addSolution": "Add solution",
+      "addPlan": "Add a plan",
+      "plan": {"incident": "Planned Remnant", "final": "Planned Final Truth", "bullet": "Planned Truth Bullet"},
       "sortLabel": "Order in a column",
       "moveUp": "Move up",
       "moveDown": "Move down",
       "notSaved": "Not saved. Your text is still in the fields.",
       "field": {
+        "img": "Picture",
         "label": "Name",
         "text": "Note for the GMs",
         "mode": "Trial mode",
@@ -6681,7 +6684,9 @@
         "deduction": "New deduction",
         "counter": "New counter",
         "solution": "Solution",
-        "incident": "New Remnant"
+        "incident": "New Remnant",
+        "final": "Final Truth Remnant",
+        "bullet": "New Truth Bullet"
       },
       "reachYes": "{held}/{of}: the students can reach it",
       "reachNo": "{held}/{of}: not yet",
@@ -6704,9 +6709,14 @@
         "solutionUnreached": "Nothing on the map leads to {node}.",
         "badMode": "{node} asks for a trial mode the trial does not have, “{ref}”.",
         "culpritOnly": "Only the culprit holds {ref}, an input of {node}, so it does not count.",
-        "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares."
+        "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares.",
+        "incomplete": "{node} is missing its {ref}."
       },
-      "addIncident": "Add planned Remnant",
+      "needs": {"room": "room", "name": "name", "recipient": "recipient"},
+      "pickRoom": "- pick a room -",
+      "noRecipient": "- nobody yet -",
+      "bulletGiven": "Given.",
+      "finalAskRoomTitle": "Where does the Final Truth Remnant go?",
       "placeOnMap": "Place on the map",
       "showOnMap": "Show",
       "waitingNone": "Every Remnant the case plans is on the map.",

@@ -3233,6 +3233,9 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-p
    would grow it in place first, under the float, and move the row (audit/float-sweep.mjs read 31-99 elements moved). */
 .application.drpg-window-case td.drpg-data-col-case-key-status > * + * { margin-top: 0.25rem; }
 .application.drpg-window-case button.drpg-key-place { width: auto; }
+/* E104: a Key slot's planned room, visibility, author and picture, each with its word over it in the slot's status cell
+   (investigation.mjs `keyPlanExtras`), on the Table and in the slot's node on the Map */
+.application.drpg-window-case .drpg-key-plan-field { display: flex; flex-direction: column; align-items: flex-start; text-align: start; gap: 2px; margin-top: 4px; }
 /* A hint is not an answer: dim, and slanted, so an empty box never reads as filled in. */
 .application.drpg-window-case :is(input, textarea)::placeholder {
     color: var(--drpg-dim);

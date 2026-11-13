@@ -237,7 +237,7 @@ function hubGivePane(ctx) {
             .replace("data-drpg-give-from", `data-drpg-give-from${state.what === "key" ? " hidden" : ""}`)
         + pane("item:existing", items.existing) + pane("item:create", items.create)
         + pane("bullet:existing", bulletExistingPane(bullets.traces, who, bullets.traceContextLine))
-        + pane("bullet:create", bulletCreatePane({ nameField: "bulletName" }))
+        + pane("bullet:create", bulletCreatePane(null, { nameField: "bulletName" }))
         + pane("key", keyPane)
         + `<div data-drpg-give-tell${state.what === "key" ? " hidden" : ""}>${formGrid([{ full: `<label class="drpg-checkbox">
                 <input type="checkbox" name="tell" checked />
@@ -724,12 +724,12 @@ function kindNote(field) {
 }
 
 /* The rows under a window's tabs, true of both (the recipient, the tell switch, the note), on the kit's formGrid. */
-function recipientRows(recipients, noteKey, prefix) {
+function recipientRows(recipients, noteKey, prefix, { tell = true } = {}) {
     return formGrid([
         { label: game.i18n.localize("DRPG.Items.recipient"), id: `${prefix}-recipient`,
           field: `<select name="recipient" id="${prefix}-recipient">${recipients}</select>` },
         { full: `<label class="drpg-checkbox">
-                <input type="checkbox" name="tell" checked />
+                <input type="checkbox" name="tell"${tell ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>` },
         { full: `<p class="notes">${game.i18n.localize(noteKey)}</p>` }]);
 }
@@ -1188,11 +1188,12 @@ function bulletTraceOptions(traces, who, traceContextLine) {
 }
 
 /** The "shown as" select: let the rules decide, Neutral, or the real type. */
-function bulletShownSelect(name) {
+function bulletShownSelect(name, selected = "auto") {
+    const option = (value, key) => `<option value="${value}"${value === selected ? " selected" : ""}>${game.i18n.localize(key)}</option>`;
     return `<select name="${name}" id="drpg-bullet-${name}"${tipAttr("DRPG.Tips.Gm.whatThePlayerIsTooltip")}>
-                <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
-                <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
-                <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
+                ${option("auto", "DRPG.TruthBullet.shownAuto")}
+                ${option("neutral", "DRPG.TruthBullet.shownNeutral")}
+                ${option("real", "DRPG.TruthBullet.shownReal")}
             </select>`;
 }
 
@@ -1215,27 +1216,29 @@ function bulletExistingPane(traces, initial, traceContextLine) {
 
 /** The "write new" tab: every field a fresh Truth Bullet needs. `nameField`: "bulletName" in the hub, whose item form
  * holds a `name` too (E101 F2). */
-function bulletCreatePane({ nameField = "name" } = {}) {
+/* `fill` (E104): a planned Truth Bullet's values (case-schema.mjs kind "bullet"), each field drawn holding its plan */
+function bulletCreatePane(fill = null, { nameField = "name" } = {}) {
+    const f = fill ?? {};
     const row = (key, id, field) => ({ label: game.i18n.localize(key), id, field });
-    const text = (name, key) => `<textarea name="${name}" id="drpg-bullet-${name}" rows="2"
-                    placeholder="${game.i18n.localize(key)}"></textarea>`;
-    const check = (name, key) => ({ full: `<label class="drpg-checkbox">
-                <input type="checkbox" name="${name}" />
+    const text = (name, key, value = "") => `<textarea name="${name}" id="drpg-bullet-${name}" rows="2"
+                    placeholder="${game.i18n.localize(key)}">${esc(value ?? "")}</textarea>`;
+    const check = (name, key, on = false) => ({ full: `<label class="drpg-checkbox">
+                <input type="checkbox" name="${name}"${on ? " checked" : ""} />
                 ${game.i18n.localize(key)}</label>` });
     return formGrid([
-        row("DRPG.TruthBullet.name", "drpg-bullet-name", `<input type="text" name="${nameField}" id="drpg-bullet-name"
+        row("DRPG.TruthBullet.name", "drpg-bullet-name", `<input type="text" name="${nameField}" id="drpg-bullet-name" value="${esc(f.label ?? "")}"
                        placeholder="${game.i18n.localize("DRPG.TruthBullet.namePlaceholder")}" />`),
-        row("DRPG.TruthBullet.realType", "drpg-bullet-realType", `<select name="realType" id="drpg-bullet-realType"${tipAttr("DRPG.Tips.Gm.whatItReallyIsTooltip")}>${typeOptions("neutral")}</select>`),
-        row("DRPG.TruthBullet.shown", "drpg-bullet-shown", bulletShownSelect("shown")),
-        row("DRPG.TruthBullet.visibility", "drpg-bullet-visibility", `<select name="visibility" id="drpg-bullet-visibility"${tipAttr("DRPG.Tips.Gm.howHardTheOriginalTooltip")}>${visibilityOptions("evident")}</select>`),
-        check("faint", "DRPG.TruthBullet.faintField"),
-        check("tied", "DRPG.TruthBullet.tiedField"),
-        row("DRPG.TruthBullet.playerText", "drpg-bullet-playerText", text("playerText", "DRPG.TruthBullet.playerTextPlaceholder")),
+        row("DRPG.TruthBullet.realType", "drpg-bullet-realType", `<select name="realType" id="drpg-bullet-realType"${tipAttr("DRPG.Tips.Gm.whatItReallyIsTooltip")}>${typeOptions(f.realType ?? "neutral")}</select>`),
+        row("DRPG.TruthBullet.shown", "drpg-bullet-shown", bulletShownSelect("shown", f.shown ?? "auto")),
+        row("DRPG.TruthBullet.visibility", "drpg-bullet-visibility", `<select name="visibility" id="drpg-bullet-visibility"${tipAttr("DRPG.Tips.Gm.howHardTheOriginalTooltip")}>${visibilityOptions(f.vis ?? "evident")}</select>`),
+        check("faint", "DRPG.TruthBullet.faintField", f.faint === true),
+        check("tied", "DRPG.TruthBullet.tiedField", f.tied === true),
+        row("DRPG.TruthBullet.playerText", "drpg-bullet-playerText", text("playerText", "DRPG.TruthBullet.playerTextPlaceholder", f.text)),
         /* A bullet invented here has no trace to inherit a reading from, so this is the only place one can be written
            for it. The Autopsy dialog further down deliberately has no twin of this box: an autopsy identifies itself,
            so no Analyze will ever be thrown at it - see SELF_EVIDENT in truth-bullets.mjs. */
-        row("DRPG.TruthBullet.analyzedText", "drpg-bullet-analyzedText", text("analyzedText", "DRPG.TruthBullet.analyzedTextPlaceholder")),
-        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder"))]);
+        row("DRPG.TruthBullet.analyzedText", "drpg-bullet-analyzedText", text("analyzedText", "DRPG.TruthBullet.analyzedTextPlaceholder", f.analysis)),
+        row("DRPG.TruthBullet.gmNote", "drpg-bullet-gmNote", text("gmNote", "DRPG.TruthBullet.gmNotePlaceholder", f.note))]);
 }
 
 /** The name follows the picked trace; the trace list follows the recipient. */
@@ -1447,7 +1450,7 @@ export async function giveBullet(who, payload) {
         payload?.remnantId && copiedRemnants(who).has(payload.remnantId) ? GIVEN_ALREADY : createTruthBullet(who, payload));
 }
 
-export async function giveTruthBulletDialog(actor, { scenes: only = null } = {}) {
+export async function giveTruthBulletDialog(actor, { scenes: only = null, fill = null } = {}) {
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -1470,8 +1473,9 @@ export async function giveTruthBulletDialog(actor, { scenes: only = null } = {})
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
               html: existingPane },
             { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),
-              html: bulletCreatePane() }
-        ], { active: traces.length ? "existing" : "create" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet")}</form>`,
+              html: bulletCreatePane(fill) }
+            /* a planned Truth Bullet (E104) opens on Write new, filled in, its recipient and Tell as planned */
+        ], { active: fill || !traces.length ? "create" : "existing" })}${recipientRows(recipients, "DRPG.TruthBullet.secretNote", "drpg-bullet", { tell: fill?.tell ?? true })}</form>`,
         render: (event, dialog) => wireBulletForm(dialog, traces, traceContextLine),
         footer: {
             primary: { action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), callback: (e, b, d) => readBulletForm(d),

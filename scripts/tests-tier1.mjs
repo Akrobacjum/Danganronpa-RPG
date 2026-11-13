@@ -9128,6 +9128,157 @@ const INVARIANTS = [
             badMode: 0
         }), "{the modes a node may name, in order; a node stored with objection, rebuttal, testimony, dive reads; the consistency check's badMode problems for a node stored with objection}");
     }],
+    ["R5334 - the Map adds a plan from one select, so its tools stay one row (E104): three buttons for a deduction, a counter and the solution, and a select of the plans - a Remnant, a Final Truth, a Truth Bullet - whose pick adds that plan and goes back to its first line", async () => {
+        /*
+         * E104. case-map.mjs `caseToolsHtml`, `wireCaseMap`. As three more buttons the tools went to two lines and took
+         * the graph's viewport from 297 to 226 px under the glass at 1366x768 (audit/case-map-sweep.mjs; STATUS). Red at
+         * 383c5da1: six buttons and no select.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 4, rows: { "d-a": { kind: "deduction", label: "R5334" } } });
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const said = [];
+        let read = null;
+        try {
+            host.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading: { node: null, fold: false }, tools: M.caseToolsHtml({ sort: "kind", sorts: ["kind"] }) });
+            M.wireCaseMap(host, { onPick: () => {}, onClose: () => {}, onMove: () => {}, onDrop: () => {}, onCheck: () => {}, onAdd: k => said.push(k), onSort: () => {} });
+            const select = host.querySelector("[data-drpg-case-add-plan]");
+            const buttons = [...host.querySelectorAll(".drpg-case-tools [data-drpg-case-add]")].map(b => b.dataset.drpgCaseAdd);
+            const options = select ? [...select.options].map(o => o.value) : null;
+            if (select) {
+                select.value = "final";
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            read = { buttons, options, said, after: select?.value ?? null, named: select?.getAttribute("aria-label") ?? null };
+        } finally {
+            host.remove();
+        }
+        equal(stableJson(read), stableJson({ buttons: ["deduction", "counter", "solution"], options: ["", "incident", "final", "bullet"], said: ["final"],
+            after: "", named: game.i18n.localize("DRPG.CaseMap.addPlan") }),
+            "{the tools' add buttons; the plans' select's options; what a pick of Final Truth added; the select after; its name}");
+    }],
+    ["R5333 - a planned Truth Bullet made by hand is a case row of its own (E104; the owner, 13.11.2026: \"kazdemu zaplanowanemu remnantowi/bulletowi\"): kind bullet, holding the Give Truth Bullet window's Write new fields with its defaults (Neutral, shown as auto, Evident, not Faint, not tied, the player told), its recipient and when it was given; on the Map evidence of its real type, planned until given and sent after, needing a name and a recipient where it has none", async () => {
+        /*
+         * E104 C4. case-schema.mjs CASE_KINDS, `caseNodeOf` (`bulletFields`), `graphOf`'s planned Truth Bullet; case-map.mjs
+         * `kindLabel`, `nodeState`. The editor and Give are tier 2's "planned Truth Bullet holds every field ...". Red at
+         * f9f86848: no kind "bullet".
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const { TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        const pick = n => n ? { recipient: n.recipient, tell: n.tell, realType: n.realType, shown: n.shown, vis: n.vis, faint: n.faint, tied: n.tied,
+            analysis: n.analysis, note: n.note, given: n.given } : null;
+        const full = { kind: "bullet", label: "R5333", recipient: "A1", tell: false, realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true,
+            text: "words", analysis: "lab", note: "gm", given: 5 };
+        const graph = S.graphOf({ chapter: 1, rows: { "bullet-a": { ...full, given: null }, "bullet-b": { kind: "bullet" }, "bullet-c": full } });
+        const node = id => graph.nodes.find(n => n.id === id) ?? null;
+        equal(stableJson({
+            kind: S.CASE_KINDS.includes("bullet"),
+            full: pick(S.caseNodeOf(full)),
+            bare: pick(S.caseNodeOf({ kind: "bullet" })),
+            odd: pick(S.caseNodeOf({ kind: "bullet", realType: "nonsense", shown: "maybe", vis: "loud", faint: "yes", given: "now" })),
+            other: pick(S.caseNodeOf({ kind: "deduction", recipient: "A1" })),
+            a: node("bullet-a") ? { evidence: node("bullet-a").evidence, tied: node("bullet-a").tied, face: M.kindLabel(node("bullet-a")), state: M.nodeState(node("bullet-a")), needs: node("bullet-a").needs } : null,
+            b: node("bullet-b")?.needs ?? null,
+            c: node("bullet-c") ? M.nodeState(node("bullet-c")) : null
+        }), stableJson({
+            kind: true,
+            full: { recipient: "A1", tell: false, realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true, analysis: "lab", note: "gm", given: 5 },
+            bare: { recipient: "", tell: true, realType: "neutral", shown: "auto", vis: "evident", faint: false, tied: false, analysis: "", note: "", given: null },
+            odd: { recipient: "", tell: true, realType: "neutral", shown: "auto", vis: "evident", faint: false, tied: false, analysis: "", note: "", given: null },
+            other: { recipient: null, tell: null, realType: null, shown: null, vis: null, faint: null, tied: null, analysis: null, note: null, given: null },
+            a: { evidence: true, tied: true, face: TRUTH_BULLET_TYPES.incident.label, state: "planned", needs: [] },
+            b: ["name", "recipient"],
+            c: "sent"
+        }), "{bullet among the kinds; a full row read; a bare one; bad values; a deduction; a planned node: evidence, tied, face, state, needs; a bare plan's needs; a given one's state}");
+    }],
+    ["R5332 - a planned Final Truth is a case row of its own (E104; the owner, 13.11.2026: \"kazdy rodzaj i kazdy szczegol\"): kind final, its id named for it, holding the Final Truth form's fields (room's scene, visibility, who left it, analysis, note, picture; tied and reinforced by its kind, so neither is planned); on the Map a planned node with the Final Truth's face, needing a room where it has none, and once placed its Remnant's node, marked with the plan", async () => {
+        /*
+         * E104 C3. case-schema.mjs CASE_KINDS, `newCaseNodeId`, `caseNodeOf` (`incidentFields`), `graphOf`'s planned
+         * Final Truth; case-map.mjs `kindLabel`. The editor and Place are tier 2's "planned Final Truth holds every field
+         * ...". Red at 06d6393d: no kind "final" in the schema.
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        const row = { kind: "final", label: "R5332", room: "Hall", scene: "S1", vis: "hidden", author: "A1", analysis: "lab", note: "gm", img: "x.webp", tie: "untied", reinforced: true };
+        const read = S.caseNodeOf(row);
+        const planned = S.graphOf({ chapter: 1, rows: { "final-a": row, "final-b": { kind: "final" } } });
+        const placed = S.graphOf({ chapter: 1, rows: { "final-a": { ...row, trace: "S1.T9" } }, traces: [{ key: "S1.T9", type: "final", name: "the truth" }] });
+        const node = (g, id) => g.nodes.find(n => n.id === id) ?? null;
+        const a = node(planned, "final-a");
+        equal(stableJson({
+            kind: S.CASE_KINDS.includes("final"),
+            id: S.newCaseNodeId("final", () => "x").startsWith("final-"),
+            read: read ? { scene: read.scene, vis: read.vis, author: read.author, analysis: read.analysis, note: read.note, img: read.img, tie: read.tie, reinforced: read.reinforced, type: read.type } : null,
+            planned: a ? { kind: a.kind, planned: a.planned, evidence: a.evidence, tied: a.tied, room: a.room, vis: a.vis, needs: a.needs, face: M.kindLabel(a) } : null,
+            bare: node(planned, "final-b")?.needs ?? null,
+            placed: [node(placed, "final-a"), node(placed, "S1.T9")?.finalPlan ?? null]
+        }), stableJson({
+            kind: true, id: true,
+            read: { scene: "S1", vis: "hidden", author: "A1", analysis: "lab", note: "gm", img: "x.webp", tie: null, reinforced: null, type: null },
+            planned: { kind: "final", planned: true, evidence: true, tied: true, room: "Hall", vis: "hidden", needs: [], face: REMNANT_TYPES.final.label },
+            bare: ["room"],
+            placed: [null, "final-a"]
+        }), "{final among the kinds; its id; a row read; its planned node; a roomless one's needs; once placed: no planned node, its Remnant's node marked}");
+    }],
+    ["R5331 - a Key slot not yet placed carries what it plans besides its room - its room's scene, its visibility, who left it, its picture - onto the Map's node, and one with no room needs a room (E104; the owner, 13.11.2026: \"lokalizacje, trudnosc i wszystkie parametry\")", async () => {
+        /*
+         * E104 C2. case-schema.mjs `graphOf`'s planned Key slot node and its `needs`, `checkCase`'s "incomplete". The
+         * Table's fields, Place and the realization are tier 2's "planned Key slot holds every field ...". Red at
+         * 01cdf687: the slot's node carried its room alone and needed nothing.
+         */
+        const S = await import("./case-schema.mjs");
+        const graph = S.graphOf({ chapter: 1, slots: [{ slot: 0, room: "Hall", scene: "S1", vis: "subtle", author: "A1", img: "x.webp" }, { slot: 1 }] });
+        const node = id => graph.nodes.find(n => n.id === id) ?? null;
+        const pick = n => n ? { room: n.room, scene: n.scene, vis: n.vis, author: n.author, img: n.img, needs: n.needs ?? null } : null;
+        equal(stableJson({
+            planned: pick(node("key:0")),
+            bare: pick(node("key:1")),
+            problems: S.checkCase(graph).filter(p => p.code === "incomplete").map(p => [p.node, p.ref])
+        }), stableJson({
+            planned: { room: "Hall", scene: "S1", vis: "subtle", author: "A1", img: "x.webp", needs: [] },
+            bare: { room: null, scene: null, vis: null, author: "", img: "", needs: ["room"] },
+            problems: [["key:1", "room"]]
+        }), "{a planned slot's node; a slot with nothing planned; the incomplete problems}");
+    }],
+    ["R5330 - a planned Remnant holds every field New Remnant asks (E104; the owner, 13.11.2026: \"niech pozwala przypisac od razu lokalizacje, trudnosc i wszystkie parametry kazdemu zaplanowanemu remnantowi\"): its room's scene, who left it, its band, the tie (tied where an Incident's is unwritten, open for the other types), reinforced, the analysis, the GM's note and the picture; none on another kind; the Map's planned node carries them, and one with no room needs a room, which the consistency check says in words", async () => {
+        /*
+         * E104 C1. case-schema.mjs `caseNodeOf` (`incidentFields`), `graphOf`'s planned Remnant node and its `needs`,
+         * `checkCase`'s "incomplete"; case-map.mjs `problemText`. The editor and Place are tier 2's "planned Remnant
+         * holds every field ...". Red at 246635d8: none of the fields, no `needs`.
+         */
+        const S = await import("./case-schema.mjs");
+        const M = await import("./case-map.mjs");
+        const pick = n => n ? { scene: n.scene, author: n.author, vis: n.vis, tie: n.tie, reinforced: n.reinforced, analysis: n.analysis, note: n.note, img: n.img } : null;
+        const full = { kind: "incident", label: "R5330", type: "prep", room: "Hall", scene: "S1", author: "A1", vis: "subtle", tie: "untied",
+            reinforced: true, analysis: "lab words", note: "gm words", img: "x.webp" };
+        const graph = S.graphOf({ chapter: 1, rows: { "incident-a": full, "incident-b": { kind: "incident", label: "no room" } } });
+        const node = id => graph.nodes.find(n => n.id === id) ?? null;
+        const problems = S.checkCase(graph).filter(p => p.code === "incomplete");
+        equal(stableJson({
+            full: pick(S.caseNodeOf(full)),
+            bare: pick(S.caseNodeOf({ kind: "incident" })),
+            prep: S.caseNodeOf({ kind: "incident", type: "prep" })?.tie ?? null,
+            odd: pick(S.caseNodeOf({ kind: "incident", vis: "loud", tie: "maybe", reinforced: "yes" })),
+            other: pick(S.caseNodeOf({ kind: "deduction", vis: "subtle", author: "A1" })),
+            graph: [pick(node("incident-a")), node("incident-a")?.needs ?? null, node("incident-b")?.needs ?? null, node("incident-a")?.tied ?? null],
+            problems: problems.map(p => [p.node, p.ref]),
+            words: problems.length ? M.problemText(problems[0], graph) : null
+        }), stableJson({
+            full: { scene: "S1", author: "A1", vis: "subtle", tie: "untied", reinforced: true, analysis: "lab words", note: "gm words", img: "x.webp" },
+            bare: { scene: null, author: "", vis: "evident", tie: "tied", reinforced: false, analysis: "", note: "", img: "" },
+            prep: "",
+            odd: { scene: null, author: "", vis: "evident", tie: "tied", reinforced: false, analysis: "", note: "", img: "" },
+            other: { scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, note: null, img: null },
+            graph: [{ scene: "S1", author: "A1", vis: "subtle", tie: "untied", reinforced: true, analysis: "lab words", note: "gm words", img: "x.webp" }, [], ["room"], false],
+            problems: [["incident-b", "room"]],
+            words: game.i18n.format("DRPG.CaseMap.problem.incomplete", { node: "no room", ref: game.i18n.localize("DRPG.CaseMap.needs.room") })
+        }), "{a full row read; a bare one; a Prep's tie unwritten; bad values; a deduction; the graph's node fields, its needs, a roomless one's needs, its tie; the incomplete problems; their words}");
+    }],
     ["R4900 - several planned Autopsies a chapter (the owner, 13.11.2026: \"zaplanowane autopsy moga byc wiecej niz 1 ... preset pokazujacy ile powinno tego byc, ale by mogl zrobic ostatecznie ile chce\"): the n-th under autopsy-<n>, the first under autopsy; the preset one a body, the bodies found and the open incident's victim, one where there is none, at most 9; the bodies in the order found, each once; due: of the count, with words, not sent, its body found - its atBody, else its own number; atBody and the meta row's count and sent marks as the store reads them; the Map draws the count's Autopsies and one past it only where it went out", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~09:20. case-schema.mjs `autopsyId`, `autopsyNumber`,
@@ -50004,7 +50155,7 @@ const INVARIANTS = [
             keys: { kit: true, cols: ["scale", "name", "text", "analysis", "note", "status"],
                 heads: ["DRPG.Investigation.difficulty", "DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.keyNoteLabel", "DRPG.Investigation.keyStatus"].map(L) },
             // keyroom (13.11.2026): a slot's planned room, beside Place while it is not on the map
-            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "keyroom:0", "place:0"]
+            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "keyroom:0", "keyvis:0", "keyauthor:0", "keypicture:0", "place:0"]
         }), "{who: WHO HAS WHAT on the drawn dashboard [a dataTable, its columns' keys, its heads' words, each head a number head, the Breakdown head's tooltip]; traces, keys: "
             + "the Traces tab's and the planner's tables [a dataTable, columns, heads]; traceNames, keyNames: their fields' names (a trace's row key as K)}");
     }],

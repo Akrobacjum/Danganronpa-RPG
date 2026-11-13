@@ -29113,7 +29113,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         needs(env.dialogs(), "the dashboard is pressed on its drawn window");
         const scene = canvas.scene;
         const asked = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-final-ask"));
-        const finals = () => game.scenes.contents.flatMap(sc => remnants.remnantsOn(sc).filter(t => remnants.remnantData(t)?.type === "final").map(t => t.id));
+        const finals = () => game.scenes.contents.flatMap(sc => sc.tokens.filter(t => remnants.remnantData(t)?.type === "final").map(t => t.id));
         const finalsBefore = new Set(finals());
         let token = null, win = null;
         const seen = {};
@@ -29156,7 +29156,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         } finally {
             asked()?.close().catch(() => {});
             if (win) await win.close().catch(() => {});
-            for (const sc of game.scenes.contents) for (const t of remnants.remnantsOn(sc)) {
+            for (const sc of game.scenes.contents) for (const t of sc.tokens.contents) {
                 if (remnants.remnantData(t)?.type !== "final" || finalsBefore.has(t.id)) continue;
                 await remnants.dropRemnantSecret(t).catch(() => {});
                 await t.delete().catch(() => {});
@@ -29350,6 +29350,335 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(seen), stableJson({ stored: planned, preview: planned, place: planned, placed: planned, gone: rooms[0], goneTold: true, node: planned }),
             "{the slot's room as stored; the preview's and Place's room select; the room the Key Remnant was placed in; Place's select for a room gone, and a line naming it; a planned Remnant node's room select}");
+    }],
+
+    ["planned Remnant holds every field: the Map's editor of a planned Remnant shows New Remnant's fields in New Remnant's order, keeps each at the node's close, and its Place opens New Remnant with every one filled in; a plan with no room is said on the Map and New Remnant asks for the room (E104; the owner, 13.11.2026: \"Upewnijmy sie ze gm moze zaplanowac kazdy rodzaj i kazdy szczegol\")", async () => {
+        /*
+         * E104 C1. investigation.mjs `schemaEditor` (a planned Remnant's rows), the node's close (`saveOpenNode`),
+         * `placeIncident` -> `openNewTrace`. A fixture planned Remnant in the chapter running: its node opened, its fields
+         * read in order, every one set (the first room offered, Prep, the first student, Subtle, not tied, reinforced, the
+         * words, analysis, note and a picture), the node closed; the row read back. Then its Place: New Remnant's fields
+         * read and the window closed with nothing placed. A second plan with no room: the Map's overview names it, and
+         * its Place starts New Remnant on "pick a room". Red at 246635d8: the editor held a name, words, type and room.
+         */
+        const S = await import("./case-schema.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const I = await import("./investigation.mjs");
+        const chapter = I.keyPlan().chapter;
+        const id = "incident-suitee104a", bare = "incident-suitee104b", base = `case:${chapter}:${id}`;
+        const newTrace = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-newtrace"));
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to name as who left it - this would measure nothing");
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "incident", label: "SUITE e104 plan" });
+            await S.setCaseNode(chapter, bare, { kind: "incident", label: "SUITE e104 no room" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await until(() => win.field(`${base}:analysis`), 3000).catch(() => {});
+            const edit = root?.querySelector(".drpg-case-edit:not([hidden])");
+            must(edit && win.field(`${base}:analysis`), "the planned Remnant's node did not open with its fields");
+            seen.order = [...edit.querySelectorAll("[name]")].map(el => el.getAttribute("name").split(":").pop());
+            const room = win.field(`${base}:room`);
+            const option = [...room.options].find(o => o.value);
+            must(option, "no room is offered - this would measure nothing");
+            room.value = option.value;
+            const set = (f, v) => { win.field(`${base}:${f}`).value = v; };
+            set("type", "prep"); set("author", student.id); set("vis", "subtle"); set("tie", "untied");
+            win.field(`${base}:reinforced`).checked = true;
+            set("label", "SUITE e104 named"); set("text", "SUITE e104 words"); set("analysis", "SUITE e104 lab"); set("note", "SUITE e104 note");
+            set("img", "icons/svg/book.svg");
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[id])?.analysis === "SUITE e104 lab", 4000).catch(() => {});
+            const row = S.caseNodeOf(S.caseRows(chapter).rows[id]);
+            seen.stored = row ? { room: row.room, scene: row.scene, type: row.type, author: row.author, vis: row.vis, tie: row.tie, reinforced: row.reinforced,
+                label: row.label, text: row.text, analysis: row.analysis, note: row.note, img: row.img } : null;
+            seen.expectedRoom = { room: option.value, scene: option.dataset.scene || null };
+            seen.overview = root.textContent.includes(game.i18n.format("DRPG.CaseMap.problem.incomplete", { node: "SUITE e104 no room", ref: game.i18n.localize("DRPG.CaseMap.needs.room") }));
+            await win.close();
+            win = null;
+            const placeWindow = async rowId => {
+                const opened = I.placeIncident(chapter, rowId).catch(() => null);
+                await until(() => newTrace()?.element, 4000).catch(() => {});
+                const el = newTrace()?.element ?? null;
+                const f = el?.querySelector("form");
+                const read = f ? { room: f.room.value, type: f.type.value, author: f.author?.value ?? null, vis: f.vis.value, tied: f.tied.value,
+                    reinforced: f.reinforced.checked, name: f.tname.value, text: f.ttext.value, analysis: f.tanalysis.value, note: f.note.value } : null;
+                await newTrace()?.close();
+                await Promise.race([opened, wait(3000)]);
+                return read;
+            };
+            seen.placed = await placeWindow(id);
+            seen.bareRoom = (await placeWindow(bare))?.room ?? null;
+        } finally {
+            newTrace()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const rowId of [id, bare]) await S.dropCaseNode(chapter, rowId).catch(() => {});
+            await gmStoresIdle();
+        }
+        const { room, scene } = seen.expectedRoom ?? {};
+        delete seen.expectedRoom;
+        equal(stableJson(seen), stableJson({
+            order: ["room", "type", "author", "vis", "tie", "reinforced", "label", "text", "analysis", "note", "img"],
+            stored: { room, scene, type: "prep", author: student.id, vis: "subtle", tie: "untied", reinforced: true, label: "SUITE e104 named",
+                text: "SUITE e104 words", analysis: "SUITE e104 lab", note: "SUITE e104 note", img: "icons/svg/book.svg" },
+            overview: true,
+            placed: { room, type: "prep", author: student.id, vis: "subtle", tied: "untied", reinforced: true, name: "SUITE e104 named",
+                text: "SUITE e104 words", analysis: "SUITE e104 lab", note: "SUITE e104 note" },
+            bareRoom: ""
+        }), "{the editor's fields in order; the row after the close; the roomless plan named on the Map; New Remnant's fields from Place; New Remnant's room for the roomless plan}");
+    }],
+
+    ["planned Key slot holds every field: a Key slot not yet placed plans its room on its scene, its visibility, who left it and its picture on the Table, kept when the window closes; Place's window starts on the planned visibility; the realization places it with every one (E104; the owner, 13.11.2026: \"lokalizacje, trudnosc i wszystkie parametry\")", async () => {
+        /*
+         * E104 C2. investigation.mjs `caseKeyCells` (`keyPlanExtras`), `readCaseFields`' Key rows with the room's scene,
+         * `saveKeyPlan`, `placeKeyRow`, case-realize.mjs `runRealization`. The first slot of the chapter running not yet
+         * placed: on the Table its planned room set to the first offered (with its scene), Subtle, the first student,
+         * a picture and a name; the window closed by its X (every close writes the Table, a8c5ee1); the slot read back.
+         * Place's window read and closed. Then a realization of that slot: the Remnant's visibility, who left it, its
+         * room and picture read. The Remnant, the slot's row and the case's marks are put back. Red at 01cdf687: the slot
+         * had no visibility, author or picture to plan, and the realization placed every Key "evident".
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const R = await import("./case-realize.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const plan = I.keyPlan();
+        const chapter = plan.chapter;
+        const slot = plan.entries.findIndex(e => !e.tokenId);
+        must(slot >= 0, "every Key slot of the chapter is placed - nothing to plan");
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to name as who left it - this would measure nothing");
+        const key = `${chapter}:${slot}`;
+        const before = foundry.utils.deepClone(keyPlanStore.get(key) ?? null);
+        const metaBefore = S.caseMetaOf(S.caseRows(chapter).meta);
+        const placeWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-keyplace"));
+        const seen = {};
+        let win = null, token = null, expected = null;
+        try {
+            win = await drawnCaseWindow({ view: "table" });
+            const room = win.field(`keyroom:${slot}`);
+            must(room && win.field(`keyvis:${slot}`) && win.field(`keyauthor:${slot}`) && win.field(`keypicture:${slot}`),
+                "the Table draws no visibility, author or picture for an unplaced Key slot");
+            const option = [...room.options].find(o => o.value);
+            must(option, "no room is offered - this would measure nothing");
+            expected = { room: option.value, scene: option.dataset.scene || null };
+            // each planned field with its word over it (the review page's shots): the room's, the visibility's, the author's, the picture's
+            seen.words = [`keyroom:${slot}`, `keyvis:${slot}`, `keyauthor:${slot}`, `keypicture:${slot}`]
+                .map(n => win.field(n)?.closest(".drpg-key-plan-field")?.querySelector(":scope > span")?.textContent.trim() ?? null);
+            room.value = option.value;
+            win.field(`keyvis:${slot}`).value = "subtle";
+            win.field(`keyauthor:${slot}`).value = student.id;
+            win.field(`keypicture:${slot}`).value = "icons/svg/book.svg";
+            win.field(`keyname:${slot}`).value = "SUITE e104 key";
+            await win.app.close();
+            await Promise.race([win.answer, wait(5000)]);
+            win = null;
+            await until(() => I.keyPlan().entries[slot]?.vis === "subtle", 4000).catch(() => {});
+            const entry = I.keyPlan().entries[slot];
+            seen.stored = { room: entry.room, scene: entry.scene, vis: entry.vis, author: entry.author, img: entry.img, name: entry.name };
+            const opened = I.placeKeyRow(null, slot).catch(() => null);
+            await until(() => placeWindow()?.element, 4000).catch(() => {});
+            const f = placeWindow()?.element?.querySelector("form");
+            seen.place = f ? { room: f.room.value, vis: f.vis.value } : null;
+            await placeWindow()?.close();
+            await Promise.race([opened, wait(3000)]);
+            await R.runRealization(chapter, [{ slot, room: expected.room, sceneId: expected.scene }]);
+            const placed = I.keyPlan().entries[slot];
+            token = placed?.tokenId ? game.scenes.get(placed.sceneId)?.tokens?.get(placed.tokenId) ?? null : null;
+            const data = token ? remnants.remnantData(token) : null;
+            seen.realized = data ? { vis: data.visibility, author: data.sourceActor ?? null, room: data.room, img: data.public?.img ?? null, scene: token.parent?.id ?? null } : null;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            placeWindow()?.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await keyPlanStore.drop(key).catch(() => {});
+            if (before) await keyPlanStore.patch(key, before).catch(() => {});
+            await S.setCaseMeta(chapter, { run: metaBefore.run, made: metaBefore.made }).catch(() => {});
+            await gmStoresIdle();
+        }
+        const L = key => game.i18n.localize(key);
+        equal(stableJson(seen), stableJson({
+            words: [L("DRPG.Investigation.plannedRoom"), L("DRPG.Investigation.visibility"), L("DRPG.Remnant.authorLabel"), L("DRPG.CaseMap.field.img")],
+            stored: { ...expected, vis: "subtle", author: student.id, img: "icons/svg/book.svg", name: "SUITE e104 key" },
+            place: { room: expected?.room ?? null, vis: "subtle" },
+            realized: { vis: "subtle", author: student.id, room: expected?.room ?? null, img: "icons/svg/book.svg", scene: expected?.scene ?? null }
+        }), "{the words over the slot's planned room, visibility, author and picture; the slot read back after the window's close; Place's window: room and visibility; the realized Remnant: visibility, who left it, room, picture, scene}");
+    }],
+
+    ["planned Final Truth holds every field: the Map's editor of a planned Final Truth shows the Final Truth form's fields in its order, keeps them at the node's close, and its Place puts the Final Truth Remnant on the map with every one; with no room planned it asks for the room and places nothing unanswered (E104; the owner, 13.11.2026: \"kazdy rodzaj i kazdy szczegol\")", async () => {
+        /*
+         * E104 C3. investigation.mjs `schemaEditor`'s planned Final Truth, `placeIncident` -> `placePlannedFinal` ->
+         * mastermind.mjs `placeFinalRemnant`. A fixture plan in the chapter running: its fields read in order and set (the
+         * first room offered, Hidden, the first student, name, words, analysis, note, a picture), its node closed, the row
+         * read back; then placed from the plan: the Remnant's type, visibility, author, room, scene, public words and
+         * picture, and the plan's row pointing at it. A second plan with no room: Place asks (its window), Cancel places
+         * nothing. The Remnant and the rows are taken away after. Red at 06d6393d: no planned Final Truth.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const chapter = I.keyPlan().chapter;
+        const id = "final-suitee104a", bare = "final-suitee104b", base = `case:${chapter}:${id}`;
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to name as who left it - this would measure nothing");
+        const ask = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-final-room"));
+        const finals = () => game.scenes.contents.flatMap(sc => sc.tokens.filter(t => remnants.remnantData(t)?.type === "final"));
+        const finalsBefore = new Set(finals().map(t => t.id));
+        const seen = {};
+        let win = null, expected = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "final", label: "SUITE e104 truth" });
+            await S.setCaseNode(chapter, bare, { kind: "final", label: "SUITE e104 truth, no room" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await until(() => win.field(`${base}:analysis`), 3000).catch(() => {});
+            const edit = root?.querySelector(".drpg-case-edit:not([hidden])");
+            must(edit && win.field(`${base}:analysis`), "the planned Final Truth's node did not open with its fields");
+            seen.order = [...edit.querySelectorAll("[name]")].map(el => el.getAttribute("name").split(":").pop());
+            const room = win.field(`${base}:room`);
+            const option = [...room.options].find(o => o.value);
+            must(option, "no room is offered - this would measure nothing");
+            expected = { room: option.value, scene: option.dataset.scene || null };
+            room.value = option.value;
+            const set = (f, v) => { win.field(`${base}:${f}`).value = v; };
+            set("vis", "hidden"); set("author", student.id); set("label", "SUITE e104 the truth"); set("text", "SUITE e104 truth words");
+            set("analysis", "SUITE e104 truth lab"); set("note", "SUITE e104 truth note"); set("img", "icons/svg/book.svg");
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[id])?.analysis === "SUITE e104 truth lab", 4000).catch(() => {});
+            const row = S.caseNodeOf(S.caseRows(chapter).rows[id]);
+            seen.stored = row ? { room: row.room, scene: row.scene, vis: row.vis, author: row.author, label: row.label, text: row.text,
+                analysis: row.analysis, note: row.note, img: row.img } : null;
+            await win.close();
+            win = null;
+            const token = await I.placeIncident(chapter, id);
+            const data = token ? remnants.remnantData(token) : null;
+            seen.placed = data ? { type: data.type, vis: data.visibility, author: data.sourceActor ?? null, room: data.room, scene: token.parent?.id ?? null,
+                name: data.public?.name ?? null, text: data.public?.playerText ?? null, analysis: data.public?.analyzedText ?? null, img: data.public?.img ?? null,
+                note: data.note ?? null } : null;
+            seen.linked = S.caseNodeOf(S.caseRows(chapter).rows[id])?.trace === (token ? `${token.parent?.id}.${token.id}` : "none");
+            const asking = I.placeIncident(chapter, bare).catch(() => null);
+            await until(() => ask()?.element, 4000).catch(() => {});
+            seen.asked = Boolean(ask());
+            ask()?.element?.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await Promise.race([asking, wait(4000)]);
+            seen.newFinals = finals().filter(t => !finalsBefore.has(t.id)).length;
+        } finally {
+            ask()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const t of finals()) {
+                if (finalsBefore.has(t.id)) continue;
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                await t.delete().catch(() => {});
+            }
+            for (const rowId of [id, bare]) await S.dropCaseNode(chapter, rowId).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            order: ["room", "vis", "author", "label", "text", "analysis", "note", "img"],
+            stored: { ...expected, vis: "hidden", author: student.id, label: "SUITE e104 the truth", text: "SUITE e104 truth words",
+                analysis: "SUITE e104 truth lab", note: "SUITE e104 truth note", img: "icons/svg/book.svg" },
+            placed: { type: "final", vis: "hidden", author: student.id, room: expected?.room ?? null, scene: expected?.scene ?? null, name: "SUITE e104 the truth",
+                text: "SUITE e104 truth words", analysis: "SUITE e104 truth lab", img: "icons/svg/book.svg", note: "SUITE e104 truth note" },
+            linked: true, asked: true, newFinals: 1
+        }), "{the editor's fields in order; the row after the close; the placed Final Truth's fields; the plan pointing at it; the roomless plan's question; Final Truths placed in all}");
+    }],
+
+    ["planned Truth Bullet holds every field: the Map's editor of a planned Truth Bullet shows the Give Truth Bullet window's Write new fields and its recipient rows in their order, keeps them at the node's close, and its Give opens that window on Write new with every one filled in; given, the student holds it as planned and the plan reads given (E104; the owner, 13.11.2026: \"kazdemu zaplanowanemu remnantowi/bulletowi\")", async () => {
+        /*
+         * E104 C4. investigation.mjs `schemaEditor`'s planned Truth Bullet, `placeIncident` -> `givePlannedBullet` ->
+         * gm-items.mjs `giveTruthBulletDialog` (`fill`). A fixture plan in the chapter running: its fields read in order
+         * and set (name, Incident, shown as real, Subtle, Faint, tied, the words, analysis and note, the first student, not
+         * told), the node closed, the row read back; then Give: the window's Write new tab and recipient rows read, Give
+         * pressed; the student's new Truth Bullet read (name, its answer key's real type, visibility, Faint, tied, words,
+         * analysis, note) and the plan's `given`. The bullet and the row are taken away. Red at f9f86848: no planned
+         * Truth Bullet.
+         */
+        const S = await import("./case-schema.mjs");
+        const I = await import("./investigation.mjs");
+        const TB = await import("./truth-bullets.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        needs(env.dialogs(), "the windows are pressed on their drawn windows");
+        const chapter = I.keyPlan().chapter;
+        const id = "bullet-suitee104a", base = `case:${chapter}:${id}`;
+        const student = studentActors()[0] ?? null;
+        must(student, "no student to give it to - this would measure nothing");
+        const giveWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-bullet"));
+        const before = new Set(TB.bulletsOf(student).map(i => i.uuid));
+        const fresh = () => TB.bulletsOf(student).filter(i => !before.has(i.uuid));
+        const seen = {};
+        let win = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "bullet", label: "SUITE e104 bullet" });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            const root = win.app?.element;
+            root?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await until(() => win.field(`${base}:recipient`), 3000).catch(() => {});
+            const edit = root?.querySelector(".drpg-case-edit:not([hidden])");
+            must(edit && win.field(`${base}:recipient`), "the planned Truth Bullet's node did not open with its fields");
+            seen.order = [...edit.querySelectorAll("[name]")].map(el => el.getAttribute("name").split(":").pop());
+            const set = (f, v) => { win.field(`${base}:${f}`).value = v; };
+            set("label", "SUITE e104 the bullet"); set("realType", "incident"); set("shown", "real"); set("vis", "subtle");
+            win.field(`${base}:faint`).checked = true; win.field(`${base}:tied`).checked = true;
+            set("text", "SUITE e104 bullet words"); set("analysis", "SUITE e104 bullet lab"); set("note", "SUITE e104 bullet note");
+            set("recipient", student.id); win.field(`${base}:tell`).checked = false;
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => S.caseNodeOf(S.caseRows(chapter).rows[id])?.recipient === student.id, 4000).catch(() => {});
+            const row = S.caseNodeOf(S.caseRows(chapter).rows[id]);
+            seen.stored = row ? { label: row.label, realType: row.realType, shown: row.shown, vis: row.vis, faint: row.faint, tied: row.tied, text: row.text,
+                analysis: row.analysis, note: row.note, recipient: row.recipient, tell: row.tell } : null;
+            await win.close();
+            win = null;
+            const giving = I.placeIncident(chapter, id).catch(() => null);
+            await until(() => giveWindow()?.element, 4000).catch(() => {});
+            const el = giveWindow()?.element;
+            const f = el?.querySelector("form");
+            seen.window = f ? { tab: el.querySelector('nav.drpg-tabs > button[role="tab"][aria-selected="true"]')?.dataset.drpgTabKey ?? null,
+                name: f.elements.name.value, realType: f.elements.realType.value, shown: f.elements.shown.value, vis: f.elements.visibility.value,
+                faint: f.elements.faint.checked, tied: f.elements.tied.checked, text: f.elements.playerText.value, analysis: f.elements.analyzedText.value,
+                note: f.elements.gmNote.value, recipient: f.elements.recipient.value, tell: f.elements.tell.checked } : null;
+            el?.querySelector('footer.form-footer button[data-action="ok"]')?.click();
+            await Promise.race([giving, wait(5000)]);
+            await gmStoresIdle();
+            const item = fresh()[0] ?? null;
+            const secret = item ? TB.secretOf(item.uuid) : null;
+            const data = item ? TB.truthBulletData?.(item) ?? null : null;
+            seen.given = item ? { name: item.name, real: secret?.realType ?? null, vis: secret?.visibility ?? data?.visibility ?? null, note: secret?.gmNote ?? null } : null;
+            seen.marked = Number.isFinite(S.caseNodeOf(S.caseRows(chapter).rows[id])?.given);
+        } finally {
+            giveWindow()?.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            for (const item of fresh()) {
+                await TB.dropSecret(item.uuid).catch(() => {});
+                await item.delete().catch(() => {});
+            }
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({
+            order: ["label", "realType", "shown", "vis", "faint", "tied", "text", "analysis", "note", "recipient", "tell"],
+            stored: { label: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true, text: "SUITE e104 bullet words",
+                analysis: "SUITE e104 bullet lab", note: "SUITE e104 bullet note", recipient: student.id, tell: false },
+            window: { tab: "create", name: "SUITE e104 the bullet", realType: "incident", shown: "real", vis: "subtle", faint: true, tied: true,
+                text: "SUITE e104 bullet words", analysis: "SUITE e104 bullet lab", note: "SUITE e104 bullet note", recipient: student.id, tell: false },
+            given: { name: "SUITE e104 the bullet", real: "incident", vis: "subtle", note: "SUITE e104 bullet note" },
+            marked: true
+        }), "{the editor's fields in order; the row after the close; the Give window's tab and fields; the given Truth Bullet: name, real type, visibility, GM note; the plan marked given}");
     }],
 
     ["planned Autopsies: each of a chapter's planned Autopsies goes to every living student when its own body is found, in order, with no GM click, once; a rehearsal sends nothing (the owner, 13.11.2026: \"gracze dostaja od razu po odkryciu ciala. Bez kliku GMa\"; \"zaplanowane autopsy moga byc wiecej niz 1\")", async () => {

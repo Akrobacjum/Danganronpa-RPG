@@ -23654,10 +23654,10 @@ const REGRESSIONS = [
             modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES).filter(m => m !== "objection" && m !== "rebuttal"))
         }), JSON.stringify({
             keys: ["2:deduction-a", "2:meta", false, false, true],
-            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null, type: null, note: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
-            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null, type: null, note: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
+            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null, type: null, note: null, scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, img: null, recipient: null, tell: null, realType: null, shown: null, faint: null, tied: null, given: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
+            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null, type: null, note: null, scene: null, author: null, vis: null, tie: null, reinforced: null, analysis: null, img: null, recipient: null, tell: null, realType: null, shown: null, faint: null, tied: null, given: null, atBody: null, zoneQuestion: "", zoneA: "", zoneB: "", zoneThesis: "", diveSet: "" },
             meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {}, autopsies: null, autopsySent: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {}, autopsies: null, autopsySent: {} }],
-            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident", "autopsy"],
+            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident", "autopsy", "final", "bullet"],
             nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
                 ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
             edges: [{ from: "S1.T1", to: "deduction-a", kind: "input" }, { from: "S1.T2", to: "deduction-a", kind: "input" },
@@ -24123,7 +24123,7 @@ const REGRESSIONS = [
             drawn: {
                 aside: 0, open: [false, true, true, true, true, 0], bWarn: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "R3661 b", ref: "" })],
                 others: [["S.T1", true], ["d-b", true]], face: ["button", "true"],
-                overview: [true, 2, true], tools: [true, 4, [true, true, true]],
+                overview: [true, 2, true], tools: [true, 3, [true, true, true]],
                 names: ["case:4:d-a:label", "case:4:d-b:label", "keyOverride", "name.S__T1"], nameless: []
             },
             said: [["pick", "d-b"], ["move", "d-a", -1], ["drop", "d-a"], ["close", "d-a"], ["close", "d-a"], ["check"], ["add", "counter"]],
