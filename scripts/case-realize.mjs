@@ -27,6 +27,7 @@ import { caseRows, caseMetaOf, setCaseMeta } from "./case-schema.mjs";
 import { keyPlan, keyPlanStatus, caseKeyCount, placeInSlot, setKeyPlan, findersByAnyRemnant, keyRevealRecord } from "./investigation.mjs";
 import { remnantById, dropRemnantSecret } from "./remnants.mjs";
 import { BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
+import { placeScenes, roomNames } from "./rooms.mjs";
 
 const L = key => game.i18n.localize(key);
 const F = (key, data) => game.i18n.format(key, data);
@@ -51,10 +52,10 @@ export function madeOf(chapter) {
 }
 
 /** The preview's body: a table of the lines, a room picker on each line a run would create. */
-function previewHtml(lines) {
+function previewHtml(lines, plan = null) {
     /* Named by its column and its slot (E97 fix, 12.11.2026): a select in a table cell has no label of its own, and
        tier 2's "every control ... has a name to be read out" read it nameless once the preview had been opened. */
-    const room = slot => `<select name="room:${slot}" aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions()}</select>`;
+    const room = slot => `<select name="room:${slot}" aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: plan?.entries?.[slot]?.room || null })}</select>`;
     const rows = lines.map(l => `<tr data-drpg-line="${l.action}"><td>${esc(L(`DRPG.CaseRealize.action.${l.action}`))}</td>`
         + `<td>${esc(F("DRPG.CaseMap.slotNumber", { n: l.slot + 1 }))}</td><td>${esc(l.name || L("DRPG.CaseMap.noName"))}</td>`
         + `<td>${l.action === "create" ? room(l.slot) : ""}</td></tr>`).join("");
@@ -72,10 +73,17 @@ export async function openRealization({ chapter = keyPlan().chapter } = {}) {
     if (!game.user?.isGM) return null;
     const plan = keyPlan();
     const lines = realizationLines({ plan, status: keyPlanStatus(), limit: caseKeyCount(plan.chapter) });
+    /* A slot's planned room (13.11.2026) is its line's first choice; one no place scene has any more is said in one line,
+       and its line starts on "leave it", as before. */
+    const known = new Set(placeScenes().flatMap(scene => roomNames(scene)));
+    for (const l of lines) {
+        const room = l.action === "create" ? plan.entries[l.slot]?.room : "";
+        if (room && !known.has(room)) ui.notifications.warn(F("DRPG.Investigation.plannedRoomGone", { room }));
+    }
     const picks = await drpgWindow({
         title: F("DRPG.CaseRealize.title", { chapter }),
         classes: ["drpg-panel", "drpg-window-case-realize"],
-        body: previewHtml(lines),
+        body: previewHtml(lines, plan),
         footer: {
             close: { role: "close", action: "close" },
             secondary: [{ action: "run", label: L("DRPG.CaseRealize.run"), class: "drpg-state-change",

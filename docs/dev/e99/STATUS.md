@@ -505,3 +505,21 @@ Defaults, as built (the owner may revise):
 - Red first: tier 2 "planned Remnants of every type: ..." (a planned Prep placed as a Prep Remnant with the plan's
   name, words and room; red at 6ea98d9: the window opened as an Incident Remnant) and R4453 (tier 1, red at 6ea98d9).
   R3373 reads the node's new `type` field.
+
+## A planned location for a Remnant not yet placed (13.11.2026; the owner through the coordinator: "opcje zaplanowania lokacji niepostawionego bulleta")
+
+- A Key plan slot takes a room (`room`, the GMs' Key plan store): a room picker beside its **Place**, in the Table's Key
+  tab and on the slot's node on the Map, drawn while the slot is not on the map (a placed slot shows none: its Remnant
+  has its real room). The realization's preview and the Table's Place start on it, and Place puts the Key Remnant in it.
+  A planned room the scene no longer has is said in one line ("The planned room "X" is not on this scene. Pick a room." /
+  "Zaplanowanego pokoju „X" nie ma na tej scenie. Wybierz pokój."), and the window starts as before (its first room; the
+  preview's "leave it"). The map's slot node reads the room (`graphOf`).
+- A planned Remnant (E97 C12's planned node) already had a room; its Place on the map says the same line for a room
+  gone.
+- Two fixes found on the way, both in this commit: the Map drew no fields for a planned Remnant (it is evidence, and
+  only non-evidence nodes got the schema's editor), so its room, its Type (the commit before this one) and its Place on
+  the map were reached only from the GM panel's list; and utils.mjs `placeRoomOptions` marked no room selected when
+  given a room and no scene, so a planned Remnant's room read "- leave it -".
+- Red first: tier 2 "planned location: ..." (stored, the preview's and Place's first room, placed there, a room gone
+  starting on the first room with its line, a planned Remnant's room shown), red at 9267b1d.
+- GM handbook (EN, PL): the realization's paragraph.

@@ -62,7 +62,8 @@ const SCALE_LABELS = KEY_REMNANTS.scaleLabels;
  * ========================================================================== */
 
 /** A plan row's fields, in the order a row is written. */
-const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId"];
+// `room` (13.11.2026): where a slot not on the map is to go, the realization's and Place's first choice
+const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId", "room"];
 const planKey = (chapter, slot) => `${chapter}:${slot}`;
 /** A chapter's case row (E09 C6, `recordCaseKeys`): beside its slots, and not one of them. */
 const caseKey = chapter => `${chapter}:case`;
@@ -157,7 +158,7 @@ export function keyPlan() {
             return {
                 scale: row.scale ?? KEY_REMNANTS.scale[slot] ?? "standard",
                 name: row.name ?? "", text: row.text ?? "", analysis: row.analysis ?? "", note: row.note ?? "",
-                tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null
+                tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null, room: row.room ?? ""
             };
         })
     };
@@ -808,7 +809,7 @@ async function saveKeyPlan(plan, rows) {
         if (!Object.keys(take).length) continue;
         const [tokenId, sceneId] = ("token" in take ? take.token : now.token)?.split("|") ?? [];
         const entry = { scale: row.scale };
-        for (const field of ["name", "text", "analysis", "note"]) if (field in take) entry[field] = take[field];
+        for (const field of ["name", "text", "analysis", "note", "room"]) if (field in take) entry[field] = take[field];
         if ("token" in take) Object.assign(entry, { tokenId: tokenId || null, sceneId: sceneId || null });
         /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
            Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
@@ -875,7 +876,8 @@ function keyRowShows(entry, placed) {
         text: (pub ? pub.playerText : entry.text) ?? "",
         analysis: (pub ? pub.analyzedText : entry.analysis) ?? "",
         note: entry.note ?? "",
-        token: here ? `${here.token.id}|${here.scene.id}` : ""
+        token: here ? `${here.token.id}|${here.scene.id}` : "",
+        room: entry.room ?? ""
     };
 }
 
@@ -1440,13 +1442,18 @@ export async function placeKeyRow(root, slot) {
         return null;
     }
     const drawn = keyPlan().entries[slot] ?? {};
+    /* THE PLANNED ROOM FIRST (13.11.2026): the row's picker as the GM left it, else the plan's; one the scene no longer
+       has is said in one line, and the window starts on its first room, as before. */
+    const typedRoom = root?.querySelector(`[name="${CSS.escape(`keyroom:${slot}`)}"]`)?.value ?? "";
+    const planned = typedRoom || drawn.room || "";
+    if (planned && !rooms.includes(planned)) ui.notifications.warn(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room: planned }));
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.placeTitle"),
         classes: ["drpg-panel", "drpg-window-keyplace"],
         body: `<form>
             <p class="notes">${esc(SCALE_LABELS[drawn.scale] ?? drawn.scale ?? "")}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
-                <select name="room">${rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select></label>
+                <select name="room">${rooms.map(r => `<option value="${esc(r)}"${r === planned ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
                     esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("")}</select></label>
@@ -2087,6 +2094,8 @@ function caseKeyCells({ plan, status, placed, limit }) {
                     ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
                     ${picker}
                 </select>
+                ${here ? "" : `<select name="keyroom:${i}"${aria("DRPG.Investigation.plannedRoom")}><option value="">${
+                    esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room })}</select>`}
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
                     overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}`
@@ -2416,7 +2425,9 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
             editRow(L("DRPG.Investigation.foundBy"), c.found), `<div class="drpg-case-edit-actions">${c.delete}</div>`
         ].join(""));
     }
-    for (const node of graph.nodes) if (!node.evidence) add(node.id, schemaEditor(graph, node));
+    /* A PLANNED REMNANT'S FIELDS TOO (13.11.2026): it is evidence on the map, so until then it drew none, and its room,
+       its type and its Place on the map were reached only from the GM panel's list (E97 C12's editor, never drawn). */
+    for (const node of graph.nodes) if (!node.evidence || (node.planned && node.kind === "incident")) add(node.id, schemaEditor(graph, node));
     const slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]));
     caseKeyCells({ plan, status, placed, limit }).forEach((c, i) => {
         const id = slotNode.get(i);
@@ -2633,7 +2644,7 @@ function readDashboardForm(d) {
             slot: i, scale: entry.scale,
             fields: changed([
                 ["name", `keyname:${i}`], ["text", `keytext:${i}`], ["analysis", `keyanalysis:${i}`],
-                ["note", `note:${i}`], ["token", `token:${i}`]
+                ["note", `note:${i}`], ["token", `token:${i}`], ["room", `keyroom:${i}`]
             ])
         }))
     };
@@ -2789,6 +2800,9 @@ export async function placeIncident(chapter, id) {
     if (row?.kind !== "incident") return null;
     // the plan's type (13.11.2026); an Incident Remnant is tied to the murder, any other as the GM says in the window
     const type = row.type ?? "incident";
+    // its planned room, said in one line when the scene no longer has it (New Remnant then starts on its first room)
+    const { allRooms } = await import("./movement.mjs");
+    if (row.room && !allRooms(workingScene()).includes(row.room)) ui.notifications.warn(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room: row.room }));
     const token = await openNewTrace({ room: row.room, type, name: row.label, text: row.text, tied: type === "incident" ? "tied" : "" });
     if (token) await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     return token;

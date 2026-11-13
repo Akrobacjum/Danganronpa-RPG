@@ -2324,6 +2324,8 @@
       "trackerScore": "{total} against {n}"
     },
     "Investigation": {
+      "plannedRoomGone": "The planned room “{room}” is not on this scene. Pick a room.",
+      "plannedRoom": "Planned room",
       "noRemnant": "- no Remnant -",
       "room": "Room",
       "visibility": "Visibility",

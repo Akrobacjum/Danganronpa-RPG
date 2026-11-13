@@ -134,7 +134,7 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
     for (const s of slots ?? []) {
         if (!Number.isInteger(s?.slot) || placed.has(s.slot)) continue;
         nodes.push({ id: `${SLOT}${s.slot}`, kind: "key", evidence: true, planned: true, slot: s.slot, trace: null, type: "key",
-            label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null,
+            label: s.name || s.text || "", tied: true, faint: false, room: s.room || s.createIn || null, chapter, foundAt: null, scale: s.scale ?? null,
             text: s.name && typeof s.text === "string" ? s.text : "" });
     }
     const traceKeys = new Set(nodes.filter(n => n.trace).map(n => n.trace));

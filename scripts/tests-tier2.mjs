@@ -27264,6 +27264,83 @@ const SCENARIOS = [
         }), "{New Remnant as opened from the plan: type, room, name; the Remnant placed: type, name, words; the node pointed at it}");
     }],
 
+    ["planned location: a Key slot's planned room is where the realization's preview and the Table's Place start, and Place puts it there; a room gone starts on the first and says so; a planned Remnant's fields show its room (the owner, 13.11.2026: \"opcje zaplanowania lokacji niepostawionego bulleta\")", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:10. A Key plan slot not on the map takes a room (`room`, the GMs'
+         * Key plan store); the realization's preview (case-realize.mjs) and the Table's Place (`placeKeyRow`) start on it,
+         * and Place puts the Key Remnant in it. A planned room the scene no longer has: the window starts on its first room,
+         * as before, and one line says so. A planned Remnant node's room select shows the room its row holds (utils.mjs
+         * `placeRoomOptions` marked none without a scene id). Red at 9267b1d.
+         */
+        const R = await import("./case-realize.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./case-schema.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        needs(env.dialogs(), "the windows are read and pressed as drawn");
+        needs(world.atLeast("sceneOnScreen"), "a scene with rooms");
+        const { workingScene } = await import("./utils.mjs");
+        const rooms = allRooms(workingScene());
+        must(rooms.length >= 2, "the working scene has fewer than two rooms");
+        const planned = rooms[1];
+        const plan = I.keyPlan();
+        const line = R.realizationLines({ plan, status: I.keyPlanStatus(), limit: I.caseKeyCount(plan.chapter) }).find(l => l.action === "create");
+        must(line, "the chapter's plan has no slot a run would create");
+        const slot = line.slot;
+        const setRoom = async room => { const entries = []; entries[slot] = { room }; await I.setKeyPlan({ chapter: plan.chapter, entries }); await gmStoresIdle(); };
+        const windowOf = cls => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes(cls));
+        const told = [];
+        const notes = ["info", "warn"].map(kind => [kind, ui.notifications[kind]]);
+        for (const [kind, fn] of notes) ui.notifications[kind] = (text, ...rest) => { told.push(String(text)); return fn.call(ui.notifications, text, ...rest); };
+        const nodeId = "incident-suiteplan5";
+        let token = null, win = null;
+        const seen = {};
+        try {
+            await setRoom(planned);
+            seen.stored = I.keyPlan().entries[slot]?.room ?? null;
+            const preview = R.openRealization({ chapter: plan.chapter }).catch(() => null);
+            await until(() => windowOf("drpg-window-case-realize")?.element, 6000).catch(() => {});
+            seen.preview = windowOf("drpg-window-case-realize")?.element?.querySelector(`select[name="room:${slot}"]`)?.value ?? null;
+            await windowOf("drpg-window-case-realize")?.close().catch(() => {});
+            await Promise.race([preview, wait(3000)]);
+            const placing = I.placeKeyRow(null, slot);
+            await until(() => windowOf("drpg-window-keyplace")?.element, 6000).catch(() => {});
+            seen.place = windowOf("drpg-window-keyplace")?.element?.querySelector('select[name="room"]')?.value ?? null;
+            windowOf("drpg-window-keyplace")?.element?.querySelector('footer button[data-action="ok"]')?.click();
+            token = await Promise.race([placing, wait(8000).then(() => null)]);
+            await gmStoresIdle();
+            seen.placed = token ? remnants.remnantData(token)?.room ?? null : null;
+            await setRoom("SUITE a room no scene has");
+            told.length = 0;
+            const again = I.placeKeyRow(null, slot);
+            await until(() => windowOf("drpg-window-keyplace")?.element, 6000).catch(() => {});
+            seen.gone = windowOf("drpg-window-keyplace")?.element?.querySelector('select[name="room"]')?.value ?? null;
+            seen.goneTold = told.some(t => t.includes("SUITE a room no scene has"));
+            await windowOf("drpg-window-keyplace")?.close().catch(() => {});
+            await Promise.race([again, wait(3000)]);
+            await S.setCaseNode(plan.chapter, nodeId, { kind: "incident", label: "SUITE planned room", room: planned });
+            await gmStoresIdle();
+            win = await drawnCaseWindow({ view: "map" });
+            win.app?.element?.querySelector(`[data-drpg-node="${nodeId}"]`)?.click();
+            await until(() => win.field(`case:${plan.chapter}:${nodeId}:room`), 3000).catch(() => {});
+            seen.node = win.field(`case:${plan.chapter}:${nodeId}:room`)?.value ?? null;
+        } finally {
+            for (const [kind, fn] of notes) ui.notifications[kind] = fn;
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            const entries = [];
+            entries[slot] = { room: "", tokenId: null, sceneId: null };
+            await I.setKeyPlan({ chapter: plan.chapter, entries }).catch(() => {});
+            await S.dropCaseNode(plan.chapter, nodeId).catch(() => {});
+            await gmStoresIdle();
+        }
+        equal(stableJson(seen), stableJson({ stored: planned, preview: planned, place: planned, placed: planned, gone: rooms[0], goneTold: true, node: planned }),
+            "{the slot's room as stored; the preview's and Place's room select; the room the Key Remnant was placed in; Place's select for a room gone, and a line naming it; a planned Remnant node's room select}");
+    }],
+
     ["E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot", async () => {
         /*
          * E97 C10, 12.11.2026; the goal's "the realization has a preview and does nothing until the GM clicks Run" and

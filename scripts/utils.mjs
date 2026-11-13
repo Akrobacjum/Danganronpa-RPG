@@ -551,8 +551,11 @@ export function workingScene() {
  */
 export function placeRoomOptions({ room = null, sceneId = null } = {}) {
     const places = placeScenes().map(scene => ({ scene, rooms: roomNames(scene) })).filter(p => p.rooms.length);
+    /* A room given with no scene (a planned Remnant's, a Key slot's: the plan keeps a room's name) is marked on the first
+       scene that has it (13.11.2026; until then nothing was marked, and a planned Remnant's room read "- leave it -"). */
+    const at = sceneId ?? places.find(p => p.rooms.includes(room))?.scene.id ?? null;
     const option = (scene, r) => `<option value="${esc(r)}" data-scene="${esc(scene.id)}"${
-        r === room && scene.id === sceneId ? " selected" : ""}>${esc(r)}</option>`;
+        r === room && scene.id === at ? " selected" : ""}>${esc(r)}</option>`;
     if (places.length === 1) return places[0].rooms.map(r => option(places[0].scene, r)).join("");
     return places.map(({ scene, rooms }) => `<optgroup label="${esc(scene.name ?? scene.id)}">${
         rooms.map(r => option(scene, r)).join("")}</optgroup>`).join("");

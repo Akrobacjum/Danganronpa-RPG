@@ -2483,6 +2483,8 @@
       "trackerScore": "{total} wobec {n}"
     },
     "Investigation": {
+      "plannedRoomGone": "Zaplanowanego pokoju „{room}” nie ma na tej scenie. Wybierz pokój.",
+      "plannedRoom": "Zaplanowany pokój",
       "noRemnant": "- bez Remnantu -",
       "room": "Pokój",
       "visibility": "Widoczność",
