@@ -351,10 +351,18 @@ function rewrite(rel, text) {
         const left = [...body.matchAll(new RegExp(`"${F}"`, "g"))];
         if (!left.length) continue;
         // only a list of files: every element a file's name or a spread (`["a.mjs", ...FAMILY, "<file>"]`), on one line
+        // and a list the test reads - iterated (`for (... of [`), named (`const FILES = [`), or handed to a reader
+        // (`.every(`, `.map(` ...) - not an expected reading (R1259's `chapterEnd: [["chapter.mjs"], true]`), and not one
+        // destructured by position (`const [a, b] = [...].map(read)`, which more elements would shift)
         const listAround = x => {
             const open = body.lastIndexOf("[", x.index), close = body.indexOf("]", x.index);
             if (open < 0 || close < 0 || /\n/.test(body.slice(open, close))) return false;
-            return /^\[\s*(?:(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*,\s*)*(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*\]$/.test(body.slice(open, close + 1));
+            if (!/^\[\s*(?:(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*,\s*)*(?:"[\w-]+\.mjs"|\.\.\.[\w$.()]+)\s*\]$/.test(body.slice(open, close + 1))) return false;
+            const before = body.slice(Math.max(0, open - 200), open), after = body.slice(close + 1, close + 200);
+            if (/\b(?:const|let|var)\s*\[[^\]]*\]\s*=\s*$/.test(before)) return false;
+            if (new RegExp(`^\\.map\\(file => "${F}" === file`).test(after)) return false;
+            return /\bof\s*$/.test(before) || /\b(?:const|let|var)\s+[\w$]+\s*=\s*$/.test(before)
+                || /^\s*\.(?:every|some|filter|forEach|includes|flatMap|map)\(/.test(after);
         };
         // the occurrences in a list of files; another (a planted fixture's `["<file>", "<its code>"]`) stays as it is
         const inLists = left.filter(listAround);
