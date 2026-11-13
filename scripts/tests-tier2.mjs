@@ -18939,6 +18939,465 @@ equal(read.added, 3, "three additions to a purse at once lost one");
 
     // E40 item 4, slice A: its tier-0 tests rewritten as behaviour go directly below this line, and nowhere else in this
     // file (docs/dev/e40/ITEM4.md); a test added at another slice's line would make the four branches conflict.
+    ["the action budget comes back as the Eclipse opens, and its end with the clock moved hands out no second one (E40 item 4: R25's rule, driven; was R25)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R25 (tier 0, removed in E40) read eclipse.mjs as text: `resetAllActions(` in
+         * `startEclipse`'s body, no `resetActions: true` anywhere in the file, and ACTIONS.directMurder's cost of 1. It
+         * missed a second refill asked any other way - `endEclipse` calling `resetAllActions()` after the advance, or
+         * clock.mjs `advanceTimeOfDay` refilling by default - since neither spells `resetActions: true` in eclipse.mjs.
+         * Driven here on this GM with one student: the budget spent to 0, an Eclipse opened (read: refilled to the
+         * maximum), one action spent in the dark as a declaration spends it, the Eclipse ended with the clock moved on
+         * (read: that one action still gone, so the declaration came off the budget the opening handed out). The clock,
+         * the student's actions and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { actionsLeft, actionsMax, setActions } = await import("./actions.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const actionsWas = { value: actionsLeft(student), max: student.system?.resources?.actions?.max ?? null };
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        let read = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await setActions(student, 0);
+            must(actionsLeft(student) === 0, "the student's budget could not be spent to 0 - this would measure nothing");
+            const opened = await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            const given = actionsLeft(student);
+            await setActions(student, given - 1);
+            const timeOfDay = getClock().timeOfDay;
+            await E.endEclipse({ advance: true });
+            await settle();
+            read = [opened, given > 0 && given === actionsMax(student), actionsLeft(student) === given - 1, isEclipse(),
+                getClock().timeOfDay !== timeOfDay, ACTIONS.directMurder?.cost ?? null];
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await student.update({ "system.resources.actions.value": actionsWas.value,
+                ...(actionsWas.max === null ? {} : { "system.resources.actions.max": actionsWas.max }) });
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([true, true, true, false, true, 1]),
+            "the Eclipse did not refill the budget as it opened, or its end with the clock moved refilled it again, or a Direct Murder spends no action "
+            + "(startEclipse's answer, refilled to the maximum, the dark's action still spent after the end, an Eclipse still running, the clock moved, Direct Murder's cost)");
+    }],
+
+    ["the Eclipse lifts the seals and the restrictions bought for the time of day it ends (E40 item 4: R35's first rule, driven; was R35's first half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R35's first half (tier 0, trimmed in E40 to its second) read eclipse.mjs
+         * `startEclipse` for the text `clearSeals()`; it held a call that clears nothing (`if (false) await clearSeals()`,
+         * or call-world.mjs `clearSeals` emptied) as kept. Driven here: a room sealed and the student silenced and chained
+         * (call-world.mjs `sealRoom`, `restrict`), an Eclipse opened; read the seal and both restrictions before and
+         * after. The clock, the seals, the restrictions and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const W = await import("./call-world.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const room = "SUITE E40 item 4 R35 a sealed room";
+        const was = foundry.utils.deepClone(getClock());
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const held = () => [W.isSealed(room), W.isCallSilenced(student), W.isChained(student)];
+        let read = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await W.sealRoom(room);
+            await W.restrict(student, { silenced: true, chained: true });
+            const before = held();
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            read = [before, held()];
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([[true, true, true], [false, false, false]]),
+            "the Eclipse opened with a seal or a restriction of the time of day it ends still on ([sealed, silenced, chained] before the Eclipse; the same after it opened)");
+    }],
+
+    ["the murder window in an Eclipse is refused before it draws anything, and says why (E40 item 4: R59's first rule, driven; was R59's Eclipse half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R59 (tier 0, trimmed in E40 to the rest of its reads) read murder-ui.mjs
+         * `openMurderDialog` for `isEclipse(` before `drpgWindow(`; it held a guard that asks the Eclipse and lets the
+         * window through (`if (isEclipse() && false)`) as kept. Driven here: an Eclipse opened, the window asked for as the
+         * trap card's "fire the trap" asks (`openMurderDialog`); read its answer, whether a murder window was drawn within
+         * half a second, the warning, and the incident still none. The clock and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!M.murderState(), "an incident is running - the window would open its tracker, and this would measure nothing");
+        const words = game.i18n.localize("DRPG.Eclipse.murderWindowLocked");
+        const drawn = () => [...foundry.applications.instances.values()].some(a => a.rendered && a.options?.classes?.includes("drpg-window-murder"));
+        must(!drawn(), "a murder window was already on screen - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const warn = ui.notifications.warn, warned = [];
+        let read = null, answer;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            answer = Promise.resolve().then(() => M.openMurderDialog({})).catch(err => `threw: ${err?.message ?? err}`);
+            await until(drawn, 500).catch(() => null);
+            const shown = drawn();
+            const settled = await Promise.race([answer, wait(500).then(() => "unsettled")]);
+            read = [settled ?? null, shown, warned.filter(w => w === words).length, M.murderState() ?? null];
+        } finally {
+            ui.notifications.warn = warn;
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.options?.classes?.includes("drpg-window-murder"))) await app.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([null, false, 1, null]),
+            "the murder window in an Eclipse was drawn, or did not answer null at once, or did not say the Eclipse locks it once (its answer, a window drawn, the warnings, the incident)");
+    }],
+
+    ["Edit campaign's Apply in an Eclipse warns that the Eclipse still runs only when the time moved (E40 item 4: R69's rule, driven; was R69)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R69 (tier 0, removed in E40) read gm-campaign.mjs `applyCampaignForm` as text:
+         * no `result.timeOfDay !== undefined`, a `before.timeOfDay`, the clock read before the write and the warning after
+         * it, and no `before.session` or `before.phase`. It held a turned condition (`before.eclipse && !moved`) as kept.
+         * Driven here: an Eclipse opened, then Apply with the clock as it stands and a new campaign name, with the session
+         * one on, and with the time of day one on; read the warnings `DRPG.Clock.eclipseStillOn` after each. The clock and
+         * the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { applyCampaignForm } = await import("./gm-campaign.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const words = game.i18n.localize("DRPG.Clock.eclipseStillOn");
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const form = (patch = {}) => {
+            const c = getClock();
+            return { campaignName: c.campaignName, chapter: Number(c.chapter), day: Number(c.day ?? 1), phase: c.phase, session: Number(c.session),
+                timeOfDay: c.timeOfDay, reset: false, ...patch };
+        };
+        const warn = ui.notifications.warn, warned = [];
+        const count = async patch => {
+            const from = warned.length;
+            await applyCampaignForm(form(patch));
+            await settle();
+            return warned.slice(from).filter(w => w === words).length;
+        };
+        let read = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife", timeOfDay: TIMES_OF_DAY[0] });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const renamed = await count({ campaignName: `${getClock().campaignName ?? ""} SUITE E40 R69` });
+            const session = await count({ session: Number(getClock().session ?? 1) + 1 });
+            const moved = await count({ timeOfDay: TIMES_OF_DAY[1] });
+            read = [renamed, session, moved, getClock().timeOfDay, isEclipse()];
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J([0, 0, 1, TIMES_OF_DAY[1], true]),
+            "Edit campaign's Apply in an Eclipse warned that the clock moved when it had not, or did not warn when it had "
+            + "(warnings after a rename, after the session moved, after the time of day moved; the time of day written; an Eclipse still running)");
+    }],
+
+    ["what shuts the whole Calls menu is answered by one reader, on the rules of each side (E40 item 4: R82's first rule, driven; was R82's reader half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R82 (tier 0, trimmed in E40 to the sheet's order) read calls.mjs `callBarred` for
+         * `isEclipse()`, `overflowBlocksCalls()`, a `classTrial` within 200 characters of `if (despair)` and the dead test;
+         * it held a turned phase test (`!== "classTrial"`) as kept. Driven here on one student, a Hope Call's reading and a
+         * Despair Call's (`{ despair: true }`) in daily life, under the overflow's Silence, in a Class Trial (the clock
+         * written raw, so no trial is entered), with the student dead on a published death, and in an Eclipse. The clock,
+         * the overflow and the student's life are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { callBarred } = await import("./calls.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const [student] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const say = key => game.i18n.localize(key);
+        const both = async () => [await callBarred(student), await callBarred(student, { despair: true })];
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const read = {};
+        let lift = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            read.daily = await both();
+            lift = await e93Darkening("silence");
+            read.silence = await both();
+            await lift();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial" });
+            await settle();
+            read.trial = await both();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await settle();
+            read.dead = await whileDead(student, both);
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            read.eclipse = await both();
+        } finally {
+            if (lift) await lift();
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({
+            daily: [null, null], silence: [say("DRPG.Overflow.silenced"), null], trial: [null, say("DRPG.Trial.callsLocked")],
+            dead: [game.i18n.format("DRPG.Chapter.deadCannotAct", { name: student.name }), null],
+            eclipse: [say("DRPG.Eclipse.actionsLocked"), say("DRPG.Eclipse.actionsLocked")]
+        }), "callBarred did not answer each side by its rules ([a Hope Call's reading, a Despair Call's] in daily life, under the overflow's Silence, "
+            + "in a Class Trial, with the student dead, in an Eclipse)");
+    }],
+
+    ["a Monocub is refused every action but Move, at the door and above the Eclipse (E40 item 4: R86's first rule, driven; was R86's list half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R86 (tier 0, trimmed in E40 to the gate's order against the betrayal, the fight
+         * and the dead test) read config.mjs for `dispatchable: ["move"]` and action-rolls.mjs `performAction` for
+         * `MONOCUB.dispatchable.includes(actionKey)`; it held a gate that asks it of nobody (`cubCheck(null)`) as kept.
+         * Driven here on one student marked a Monocub by its flag (monocub.mjs `isMonocub` reads it) and pressed with each
+         * ACTIONS key but Move (`performAction`), then Search again in an Eclipse; read each answer and the warnings. Move
+         * itself is not pressed: its briefing is a window. The flag, the clock and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        const J = stableJson;
+        const E = await import("./eclipse.mjs");
+        const { ACTIONS, MONOCUB } = await import("./config.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const [cub] = cast(1);
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        must(!isMonocub(cub), `${cub.name} is a Monocub already - this would measure nothing`);
+        const words = game.i18n.localize("DRPG.Monocub.onlyTwoActions");
+        const keys = Object.keys(ACTIONS).filter(key => key !== "move");
+        must(keys.length >= 8, `only ${keys.length} ACTIONS keys besides Move - this would measure nothing`);
+        const was = foundry.utils.deepClone(getClock());
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const flagWas = cub.getFlag(MODULE_ID, FLAGS.monocub);
+        const warn = ui.notifications.warn, warned = [];
+        const press = async key => {
+            const from = warned.length;
+            const answer = await Promise.race([performAction(cub, key), wait(3000).then(() => "unsettled")]);
+            return [answer ?? null, warned.slice(from).filter(w => w === words).length];
+        };
+        const read = {};
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            must(isMonocub(cub), "the flag did not make the student a Monocub - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            read.list = MONOCUB.dispatchable;
+            const answers = [];
+            for (const key of keys) answers.push(await press(key));
+            read.refused = keys.filter((key, i) => J(answers[i]) !== J([null, 1]));
+            ui.notifications.warn = warn;
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            read.eclipse = await press("search");
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (flagWas === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub); else await cub.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            await setClock(was);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            await settle();
+        }
+        equal(J(read), J({ list: ["move"], refused: [], eclipse: [null, 1] }),
+            "a Monocub was let past the door with an action but Move, or the Eclipse answered it first ({list: what a Monocub may dispatch; refused: the ACTIONS "
+            + "keys not refused at once with the Monocub's sentence; eclipse: Search in an Eclipse - its answer and the Monocub's sentence})");
+    }],
+
+    ["one Despair Call bought from the sheet posts one card, after its effect, with its price on it (E40 item 4: R81's first rule, driven; was R81's card half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R81 (tier 0, trimmed in E40 to the refund's place) read despair.mjs
+         * `spendDespairCall` and calls.mjs `spendDespairCallFor` as text: the `announce` flag, its `if (!post) return
+         * true;`, the `{ announce: false }` at the sheet's call, the price's key on the road and `applyCall(` before
+         * `announce({`. It held a card built and never posted, or a price sentence that never reaches the card, as kept.
+         * Driven here as the fuelTheCub tests buy one: a Monokuma's pool given the price, Fuel a Monocub bought for a
+         * student marked a Monocub by its flag (`spendDespairCallFor`); read what it answered, the pool, the target's Hope
+         * (the effect), and the new chat cards that name the Call: one, carrying the price sentence. The pool, the Hope,
+         * the flag and the cards are put back.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool pays the Call");
+        const J = stableJson;
+        const D = await import("./despair.mjs");
+        const MK = await import("./monokuma.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)?.id === game.user.id) ?? MK.monokumaActors().find(a => MK.poolUserFor(a)) ?? null;
+        const pool = kuma ? MK.poolUserFor(kuma) : null;
+        must(kuma && pool, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!isEclipse() && getClock().phase !== "classTrial", "an Eclipse or a Class Trial shuts the Despair Calls - this would measure nothing");
+        const call = DESPAIR_CALLS.fuelTheCub;
+        must(call?.cost > 0, "Fuel a Monocub has no price - this would measure nothing");
+        const [who] = cast(1);
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(who._source, HOPE);
+        const flagWas = who.getFlag(MODULE_ID, FLAGS.monocub);
+        const despairWas = D.getDespair(pool.id);
+        const owedWas = foundry.utils.deepClone(Object.fromEntries(Object.entries(despairOwedStore.entries())
+            .filter(([k]) => k === pool.id || k.startsWith(`${pool.id}:`))));
+        const label = foundry.utils.escapeHTML(call.label);
+        const price = game.i18n.format("DRPG.Despair.spent", { name: foundry.utils.escapeHTML(D.poolLabel(pool) ?? pool.name ?? "?"), cost: call.cost });
+        const had = new Set(game.messages.map(m => m.id));
+        let read = null;
+        try {
+            const owed = Object.keys(owedWas);
+            if (owed.length) await despairOwedStore.dropMany(owed);
+            await who.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(who, { [HOPE]: 0 }, { reason: "gmRuling" });
+            await D.setDespair(pool.id, call.cost);
+            await settle();
+            const bought = await spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: who } });
+            await settle();
+            const cards = game.messages.filter(m => !had.has(m.id)).map(m => String(contentOf(m) ?? "")).filter(text => text.includes(label));
+            read = [Boolean(bought), D.getDespair(pool.id), resourceValue(who, "hope") > 0, cards.length, cards.filter(text => text.includes(price)).length];
+        } finally {
+            for (const m of game.messages.filter(m => !had.has(m.id))) await m.delete();
+            await D.setDespair(pool.id, despairWas);
+            const nowOwed = Object.keys(despairOwedStore.entries()).filter(k => k === pool.id || k.startsWith(`${pool.id}:`));
+            if (nowOwed.length) await despairOwedStore.dropMany(nowOwed);
+            for (const [k, v] of Object.entries(owedWas)) await despairOwedStore.patch(k, v);
+            await trustedWrite(who, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            if (flagWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub); else await who.setFlag(MODULE_ID, FLAGS.monocub, flagWas);
+            await settle();
+        }
+        equal(J(read), J([true, 0, true, 1, 1]),
+            "one Despair Call from the sheet did not post exactly one card naming it, with its price, after an effect that landed "
+            + "(bought, the pool after, the target's Hope given, the cards naming the Call, those carrying the price)");
+    }],
+
+    ["four doors a console used are shut on the side that writes: a Despair Call bought or paid there, a seal said there, a handover in the dark (E40 item 4: R144's driven rules; was R144's first half)", async () => {
+        /*
+         * E40 item 4, slice A, 13.11.2026. R144 (tier 0, trimmed in E40 to what is not driven here) read `if
+         * (!game.user.isGM)` in the first 700 characters of calls.mjs `spendDespairCallFor` and in despair.mjs
+         * `spendDespairCall`, `return Boolean(await writeWorld(` in call-world.mjs `sealRoom`, and `if (isEclipse()) return`
+         * in inventory.mjs `transferRefusal`. It held a gate whose condition reads nobody (`if (!game.user.isGM && false)`)
+         * as kept. Driven here with this browser reading as a player for each road's synchronous start (`asConsole`):
+         * Fuel a Monocub bought, the same Call paid straight from the pool, a room sealed - read each answer, the pool and
+         * the seal; then a handover between two students stood alone in one room, asked of the one gate out of an Eclipse and in one. The pool, the
+         * seals, the clock and the body's discovery are put back.
+         */
+        needs(env.primaryGm());
+        needs(world.atLeast("monokumas", 1), "a Monokuma whose pool a console would spend");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two of the handover are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const J = stableJson;
+        const D = await import("./despair.mjs");
+        const MK = await import("./monokuma.mjs");
+        const E = await import("./eclipse.mjs");
+        const { spendDespairCallFor } = await import("./calls.mjs");
+        const { sealRoom, isSealed } = await import("./call-world.mjs");
+        const { transferRefusal } = await import("./inventory.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        const kuma = MK.monokumaActors().find(a => MK.poolUserFor(a)) ?? null;
+        const pool = kuma ? MK.poolUserFor(kuma) : null;
+        must(kuma && pool, "no Monokuma actor draws on a pool - this would measure nothing");
+        must(!murderState(), "an incident is running - no Eclipse starts in one, and this would measure nothing");
+        const [from, to] = cast(2);
+        const call = DESPAIR_CALLS.fuelTheCub;
+        const room = "SUITE E40 item 4 R144 a room a console sealed";
+        must(!isSealed(room), "the suite's room is sealed already - this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const sealedWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const bodyWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const despairWas = D.getDespair(pool.id);
+        const had = new Set(game.messages.map(m => m.id));
+        const read = {};
+        let stood = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: "dailyLife" });
+            if (bodyDiscovery()) await game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
+            await D.setDespair(pool.id, call.cost + 2);
+            await settle();
+            const held = D.getDespair(pool.id);
+            const bought = await asConsole(() => spendDespairCallFor(kuma, "fuelTheCub", { choice: { target: to } }));
+            const paid = await asConsole(() => D.spendDespairCall(pool.id, "fuelTheCub", { announce: false }));
+            const sealed = await asConsole(() => sealRoom(room));
+            await settle();
+            read.console = [bought ?? null, paid, sealed, D.getDespair(pool.id) === held, isSealed(room)];
+            stood = await aloneTogether(from, to, { asked: true });
+            read.daylight = await transferRefusal(from, to, { mode: "give" });
+            await E.startEclipse();
+            await settle();
+            must(isEclipse(), "the Eclipse did not start - this would measure nothing");
+            read.dark = await transferRefusal(from, to, { mode: "give" });
+        } finally {
+            if (isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (stood) await stood.back();
+            await setClock(was);
+            await D.setDespair(pool.id, despairWas);
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealedWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, bodyWas);
+            for (const m of game.messages.filter(m => !had.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(J([read.console, read.daylight, typeof read.dark === "string" && read.dark.length > 0]), J([[null, false, false, true, false], null, true]),
+            "a console's road wrote on its own side, or the gate let a handover through in the dark ([Fuel a Monocub bought, the Call paid from the pool, "
+            + "the room sealed, the pool unmoved, the room unsealed] as a player; the gate's answer in daylight; a refusal in the Eclipse)");
+    }],
 
     ["a Monocub marked a crime witness this chapter lands Confusion like any other", async () => {
         /*

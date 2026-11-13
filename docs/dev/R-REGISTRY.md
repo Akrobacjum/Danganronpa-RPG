@@ -32,7 +32,7 @@ Next free: R5101. Reserved and unused: none.
 | R22 | 0 | <=1.2.50 | every name this module calls is a name it has |
 | R23 | 0 | <=1.2.50 | a document hook that checks for a GM checks for THE GM |
 | R24 | 0 | <=1.2.50 | an action that swings a weapon knows which weapon it swung |
-| R25 | 0 | <=1.2.50 | the action budget comes back when the Eclipse opens, and only there |
+| R25 | 0 | <=1.2.50 | the action budget comes back when the Eclipse opens, and only there (removed in E40) |
 | R26 | 0 | <=1.2.50 | a critical's Hope is paid once, by one payer |
 | R27 | 0 | <=1.2.50 | the state colour's sweep has no specificity to win with |
 | R28 | 0 | <=1.2.50 | "Move the clock on" runs the Eclipse |
@@ -76,7 +76,7 @@ Next free: R5101. Reserved and unused: none.
 | R66 | 0 | <=1.2.50 | the Players window writes what it was told, and offers the Despair that is left |
 | R67 | 0 | <=1.2.50 | a repair moves the flags and says nothing |
 | R68 | 0 | <=1.2.50 | Edit campaign offers the chapter the clock is actually on |
-| R69 | 0 | <=1.2.50 | the Eclipse warning fires on a clock that moved |
+| R69 | 0 | <=1.2.50 | the Eclipse warning fires on a clock that moved (removed in E40) |
 | R70 | 0 | <=1.2.50 | Enter in a field that names a button presses that button |
 | R71 | 0 | <=1.2.50 | the cue pane is built on every redraw, not baked when the window opened |
 | R72 | 0 | <=1.2.50 | a tier pool a GM makes is filed like the installer's own |

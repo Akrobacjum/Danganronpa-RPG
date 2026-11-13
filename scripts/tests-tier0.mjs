@@ -1229,6 +1229,11 @@ const REGRESSIONS = [
     }],
 
     ["R6 - no bridge request can be made by the one person it is addressed to", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is a census: every bridge request in the
+           bridge's files asks through the one wait and emits nothing of its own, and each call site in every other module
+           file of a request without `local` stands under a GM check. The one wait's own refusal with no GM, before it
+           sends, is driven by tier 1 R165 (`createWaiter` on a stand-in clock: noGm, nothing sent); what this holds over
+           every file no single call shows. */
         /*
          * TWO WAYS TO LOSE AN ACTION, and the bridge has to be closed against
          * both.
@@ -1511,6 +1516,10 @@ const REGRESSIONS = [
     }],
 
     ["R11 - no bridge request can wait forever", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is a census: no bridge request, nor the trap relay
+           (traps.mjs `registerTraps`) nor the search tokens, makes a promise of its own outside the one wait. The one
+           wait's two clocks settling a request as not answered are driven by tier 1 R165 (`createWaiter` on a stand-in
+           clock: noAnswer for the "got it" and for the answer); what this holds over every file no single call shows. */
         /*
          * THE PAIR TO R6, AND THE HALF A GM'S OWN CLIENT CANNOT MEASURE.
          *
@@ -1775,6 +1784,10 @@ const REGRESSIONS = [
     }],
 
     ["R18 - using an item mid-incident costs a turn like everything else", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its first half is a census of every `useItem(` call in every
+           module file outside use-items.mjs, each under an `inCrisis` check; its second reads sheet.mjs `inCrisis`, which
+           is not exported - driving it would need an export of inCrisis, a change of production code this item does not
+           make. */
         /*
          * IT SHIPPED THE OTHER WAY (E9, G-21). Every act inside an incident pays
          * a turn, a roll and a threshold. Using an item was reachable straight
@@ -2246,48 +2259,11 @@ const REGRESSIONS = [
             `an action marked ${missed.join(", ")} swings a weapon the roll never captured`);
     }],
 
-    ["R25 - the action budget comes back when the Eclipse opens, and only there", async () => {
-        /*
-         * Z2 (E18b, wave 5). The refill used to sit in `endEclipse`, which is
-         * the moment the NEXT time of day begins - so a Direct Murder, declared
-         * in the dark and costing an action, was paid for out of the budget of
-         * the day that had just finished. Moving it to the opening means the
-         * declaration comes off the new allowance and the killer walks into the
-         * time of day one action lighter.
-         *
-         * TWO HALVES, AND THE SECOND IS THE DANGEROUS ONE. Adding the refill to
-         * `startEclipse` without taking it out of `endEclipse` hands the table
-         * two budgets for one boundary, refunds the murder for free, and looks
-         * on screen exactly like the change working. That is the failure this
-         * test is for; the first half would have been noticed at the table
-         * within a minute, and the second would not have been noticed at all.
-         *
-         * Read from the source, because both halves are single flags on calls
-         * that need the world's clock moved to observe - and because a refill
-         * running twice leaves no trace afterwards except a full bar, which is
-         * also what a refill running once leaves.
-         */
-        const sources = new Map(await otherSources());
-        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
-        ok(eclipse.length > 1000, "eclipse.mjs did not load");
-
-        const opening = bodyOf(eclipse, "export async function startEclipse", { until: "export async function endEclipse" });
-        ok(/resetAllActions\s*\(/.test(opening),
-            "the Eclipse no longer refills the action budget as it opens");
-
-        // Anywhere in the file, not just in `endEclipse`: the point is that no
-        // path through an Eclipse asks the clock for a second one.
-        ok(!/resetActions\s*:\s*true/.test(eclipse),
-            "something in the Eclipse still asks the clock for a refill as well");
-
-        // The other half of Z2: the declaration has to cost something, or it
-        // comes off no budget at all and the move above bought nothing.
-        equal(ACTIONS.directMurder?.cost, 1,
-            "a Direct Murder no longer spends an action, so it takes nothing from the "
-            + "budget the Eclipse just handed out");
-    }],
-
     ["R26 - a critical's Hope is paid once, by one payer", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is which files may pay a critical's Hope: the
+           funnel's wrap in critical.mjs pays it, despair-award.mjs's chat hook does not top it up, and reroll.mjs still
+           owes the second point. A call shows a Hope total, not which of two payers made it, and this slice did not drive a
+           critical through Daggerheart's duality resource step in the harness; the census of payers is what is measured. */
         /*
          * A CRITICAL PAID THREE HOPE FOR A GUIDE THAT SAYS TWO, because two
          * mechanisms were implementing the same rule at once.
@@ -2571,17 +2547,20 @@ const REGRESSIONS = [
     }],
 
     ["R35 - the Eclipse ends what was bought for the time of day, and the refill box only refills", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to its second half. That Edit campaign never runs the whole
+           time-of-day boundary (`setTimeOfDay`) is a call nothing in the window's family may make, a census of its
+           files' source; no single Apply shows a boundary it did not run. The first half - the Eclipse lifts the seals
+           as it opens - is driven since E40 in tier 2 "the Eclipse lifts the seals and the restrictions bought for the
+           time of day it ends (E40 item 4: R35's first rule, driven; was R35's first half)". */
         /*
          * CALL-09: seals, chains and Silence outlived the Eclipse that ends their time of
          * day. GMP-02: "Also refill actions and search tokens" ran the whole boundary -
          * the motive, the seals, the overflow and a public card.
          */
         const sources = new Map(await otherSources());
-        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
-        const start = bodyOf(eclipse, "export async function startEclipse", { until: "\nexport " });
-        ok(/clearSeals\(\)/.test(start), "the Eclipse opens with the seals and restrictions still on");
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(sources));
+        ok(panel.length > 1000, "the panel's family was not read - this test measured nothing");
         ok(!/setTimeOfDay\(/.test(panel), "Edit campaign runs the whole time-of-day boundary again");
     }],
 
@@ -2716,6 +2695,11 @@ const REGRESSIONS = [
     }],
 
     ["R38 - the Loaded Die rides the roll it was bought for", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. The Loaded Die is read in forced-roll.mjs `onConfigured` and
+           roll-dialog.mjs `grantsFor`, neither exported, and the marker rides Daggerheart's roll config through
+           action-pipeline.mjs `throwDice`; driving it would need an export of onConfigured and grantsFor (or a roll window
+           built around a bought Loaded Die, not built in this slice). Kept as the shape it reads: no client-wide arming,
+           the marker asked per roll and spent once. */
         /*
          * CALL-03 and its review (17.09). The 12 was armed for the whole client, so a
          * statistic rolled off the sheet while the action's window was open took it and
@@ -3058,6 +3042,10 @@ const REGRESSIONS = [
     }],
 
     ["R48 - a tile shows the price it is about to charge", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. sheet.mjs `costOf`, `costLabelFor`, `tamperBlock`,
+           `repaintInPlace` and `refreshPricedTiles` are not exported; driving the tile's quote would need an export of
+           them (only `actionButton` is exported, and what it reads of the price is these). Kept as it reads: the tile
+           reads the quote through the charge's own table and skip list, and repaints with it. */
         /*
          * T-1, and the defect it closes is one this module has met before: on the
          * E23 round the Tamper tile's glow announced the killer's discount while
@@ -3607,6 +3595,12 @@ const REGRESSIONS = [
     }],
 
     ["R59 - the murder window asks the Eclipse before it asks the GM anything", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed. That the Eclipse is asked before the window draws is driven since
+           E40 in tier 2 "the murder window in an Eclipse is refused before it draws anything, and says why (E40 item 4:
+           R59's first rule, driven; was R59's Eclipse half)". What stays is the window's shape where no call shows it:
+           the running-incident shortcut asked before the Eclipse (no incident runs in an Eclipse, so the order has no
+           outcome), the trap box's killer, the armed set's `isComplete`, the tail's order after `openMurder` and the
+           window's own class - a reading of the source. */
         /*
          * F10 and F11, 19.09. `openMurder` has always refused during placement and
          * says it is "the backstop for anyone who gets here anyway" - but the trap
@@ -3627,11 +3621,7 @@ const REGRESSIONS = [
         const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "\n}\n" });
         ok(dialog.length > 500, "openMurderDialog is gone from murder-ui.mjs, or its read ends too soon to be the window");
 
-        ok(dialog.includes("isEclipse("),
-            "the murder window opens during an Eclipse and only refuses at Confirm");
         // E21 C3a: the window is the kit's `drpgWindow(` (ui-kit.mjs), DialogV2.wait's until then.
-        ok(dialog.indexOf("drpgWindow(") > 0 && dialog.indexOf("isEclipse(") < dialog.indexOf("drpgWindow("),
-            "the Eclipse is asked after the GM has already filled the form in");
         ok(dialog.indexOf("murderState()") < dialog.indexOf("isEclipse("),
             "the Eclipse guard now hides the tracker of an incident that is already running");
 
@@ -4065,34 +4055,6 @@ const REGRESSIONS = [
             "the Season setup window draws a chapter field of its own again, which this cap does not reach");
     }],
 
-    ["R69 - the Eclipse warning fires on a clock that moved", async () => {
-        /*
-         * GMP-04, 20.09. The gate was `result.timeOfDay !== undefined`, and
-         * `timeOfDay` is a select this form always submits - so it was true on every
-         * Apply. A GM renaming the campaign during an Eclipse was told the clock had
-         * moved. That sentence is the module's only sign of an Eclipse silently
-         * refusing every murder, and a warning that cries on every Apply is one
-         * nobody reads.
-         */
-        // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
-        const panel = stripComments(panelText(await otherSources()));
-        // E49 A1e: Apply's writes left the window for `applyCampaignForm`, which Edit campaign and Season setup both run.
-        const win = bodyOf(panel, "export async function applyCampaignForm");
-        ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
-            "the Eclipse warning is gated on a field the form always fills");
-        ok(/before\.timeOfDay/.test(win),
-            "the warning does not compare the time of day it wrote with the one it replaced");
-        const read = win.indexOf("const before = getClock()");
-        const write = win.indexOf("await setClock(");
-        const warn = win.indexOf("eclipseStillOn");
-        ok(read > 0 && write > read && warn > write,
-            "the clock is read for the comparison after it was written, or the warning moved "
-            + "in front of the write");
-        ok(!/before\.session/.test(win) && !/before\.phase/.test(win),
-            "the session counter or the phase joined the comparison - they are bookkeeping, "
-            + "not time");
-    }],
-
     ["R70 - Enter in a field that names a button presses that button", async () => {
         /*
          * MM-02, 20.09. The Mastermind window's give-Hope row sits inside the
@@ -4296,6 +4258,10 @@ const REGRESSIONS = [
     }],
 
     ["R75 - revoking a Despair pool is asked first, and the form survives it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. gm-team-dialog.mjs `confirmRemovePool`, `readTeamDraft` and
+           `paintTeamDraft` are not exported, and the order of the question's buttons and the draft carried across a
+           reopen are the window's own; driving them would need an export of confirmRemovePool and readTeamDraft, or a
+           drawn Despair Flow window with a second pool (not built in this slice). */
         /*
          * TEAM-01, 20.09. Remove pool destroyed the pool's Despair and its name with
          * nothing asked, from a four-button footer one place along from Save. And Add,
@@ -4348,17 +4314,38 @@ const REGRESSIONS = [
          * from here: a test that reads the runner it is running inside proves nothing
          * about the run that is happening.
          */
-        const murder = stripComments(new Map(await otherSources()).get("murder-ui.mjs") ?? "");
-        const body = bodyOf(murder, "function incidentTrackerHtml(", { until: "function incidentSignature(" });
-        ok(body.length > 400, "the tracker's body builder has moved or gone");
-        ok(/const lost = \[/.test(body), "nothing notices that the cast cannot be found");
-        ok(/trackerCastGone/.test(body), "the missing cast is not reported to the GM");
-        // `lastIndexOf`: the first `drpg-incident-live` in this builder is the
-        // "this incident is over" branch above, which has no cast to report.
-        ok(body.indexOf("const lost") < body.lastIndexOf("drpg-incident-live"),
-            "the warning is worked out after the markup it belongs in");
-        ok(/now\.selfInflicted \?[\s\S]{0,120}side\.killer/.test(body),
-            "a self-inflicted death is reported as missing a killer, which it never had");
+        /* E40 item 4 (13.11.2026), rewritten in place: this read murder-ui.mjs `incidentTrackerHtml` as text (`const lost =
+           [`, the key, its place before the live region's last marker, `now.selfInflicted ?` near `side.killer`). It is
+           exported and pure on the incident it is handed, so it is called here on made-up incidents, writing nothing: a
+           killer the world does not have, a victim it does not have, both, a death by the victim's own hand whose killer
+           id names nobody, an id not arrived yet, and a cast that is all there. */
+        needs(world.atLeast("livingStudents", 2));
+        const M = await import("./murder-ui.mjs");
+        const CL = await import("./cleanup.mjs");
+        const [a, b] = studentActors();
+        const ghost = "SUITEnobody0E40";
+        must(!game.actors.get(ghost), "the made-up id names an actor of this world - this would measure nothing");
+        const side = key => game.i18n.localize(`DRPG.Murder.side.${key}`);
+        const said = who => game.i18n.format("DRPG.Murder.trackerCastGone", { who });
+        const CANDS = { killer: said(side("killer")), victim: said(side("victim")), both: said(`${side("killer")}, ${side("victim")}`) };
+        const opening = said("\u0000").split("\u0000")[0];
+        must(opening.length > 10, "the warning's words before the names are too short to count - this would measure nothing");
+        const read = patch => {
+            const root = document.createElement("div");
+            root.innerHTML = M.incidentTrackerHtml({ stage: "incident", killerId: a.id, victimId: b.id, turn: 1, turnSide: "victim", keyRemnants: 0,
+                recent: [], ...patch }, CL);
+            const live = root.querySelector(".drpg-incident-live");
+            return [Boolean(live) && root.children.length === 1, Object.keys(CANDS).filter(k => (live?.textContent ?? "").includes(CANDS[k])),
+                root.textContent.split(opening).length - 1];
+        };
+        equal(JSON.stringify({
+            killer: read({ killerId: ghost }), victim: read({ victimId: ghost }), both: read({ killerId: ghost, victimId: ghost }),
+            self: read({ killerId: ghost, selfInflicted: true }), arriving: read({ killerId: "", victimId: "" }), all: read({})
+        }), JSON.stringify({
+            killer: [true, ["killer"], 1], victim: [true, ["victim"], 1], both: [true, ["both"], 1],
+            self: [true, [], 0], arriving: [true, [], 0], all: [true, [], 0]
+        }), "the tracker did not name exactly the side of the cast the world lacks, inside its live region ([one live region, the warnings it holds, "
+            + "the warnings in the whole markup] for a killer gone, a victim gone, both, a death by their own hand, ids not arrived, a cast all there)");
     }],
 
     ["R77 - every student stands on a frame, and yours is bone", async () => {
@@ -4542,6 +4529,11 @@ const REGRESSIONS = [
     }],
 
     ["R80 - an empty request is refused before the window starts closing", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. calls.mjs `wireNoteGate` is not exported, and what it
+           holds - three stops on a capture listener, ahead of ApplicationV2's delegated click and DialogV2's submit - is
+           an order of listeners in the window's event path, which this slice did not drive; driving it would need an
+           export of wireNoteGate and a drawn Call window. The boundary's second ask in `confirmCall` is read with
+           it. */
         /*
          * CALL-12, 20.09. The empty note box was refused by returning `null` from the
          * button's callback, which is not a refusal:
@@ -4577,6 +4569,12 @@ const REGRESSIONS = [
     }],
 
     ["R81 - one purchase posts one card, after the effect", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to the three orders. One card, with its price, for a purchase
+           whose effect landed is driven since E40 in tier 2 "one Despair Call bought from the sheet posts one card, after
+           its effect, with its price on it (E40 item 4: R81's first rule, driven; was R81's card half)". What stays is
+           where the pool is charged, the effect run and the refund taken against the card: the card after an effect
+           that failed is not driven (no Despair Call's effect was made to fail in this slice), and a card before an
+           effect that lands reads the same afterwards - so the source is what is measured. */
         /*
          * CALL-13, 20.09. `spendDespairCall` charged the pool and posted a public card
          * one line later, BEFORE `applyCall` had run - and the road through
@@ -4595,19 +4593,11 @@ const REGRESSIONS = [
         const despair = stripComments(sources.get("despair.mjs") ?? "");
         const spend = bodyOf(despair, "export async function spendDespairCall", { until: "export function renderDespairBar" });
         ok(spend.length > 300, "spendDespairCall has moved or gone");
-        ok(/\{ announce: post = true \} = \{\}/.test(spend),
-            "the card cannot be turned off, so the road that posts its own posts two");
-        ok(/if \(!post\) return true;/.test(spend),
-            "the flag is read somewhere other than in front of the card");
         ok(spend.indexOf("adjustDespair(userId, -call.cost)") < spend.indexOf("if (!post)"),
             "the pool is charged after the card, so a failed card would keep the Despair");
 
         const calls = stripComments(sources.get("calls.mjs") ?? "");
         const road = bodyOf(calls, "export async function spendDespairCallFor", { until: "export async function confirmCall" });
-        ok(/spendDespairCall\(user\.id, key, \{ announce: false \}\)/.test(road),
-            "the sheet's road still lets the purchase announce itself");
-        ok(/DRPG\.Despair\.spent/.test(road),
-            "the price is not on the card that survives, so nobody is told what it cost");
         ok(road.indexOf("applyCall(") < road.indexOf("announce({"),
             "the card is posted before the effect has run");
         ok(road.indexOf("DRPG.Calls.refunded") < road.indexOf("announce({"),
@@ -4615,6 +4605,11 @@ const REGRESSIONS = [
     }],
 
     ["R82 - what shuts the whole Calls menu is asked at the door", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to the sheet's half. What `callBarred` answers is driven since E40
+           in tier 2 "what shuts the whole Calls menu is answered by one reader, on the rules of each side (E40 item 4:
+           R82's first rule, driven; was R82's reader half)". That the sheet asks it before the target picker and the
+           price is an order inside sheet.mjs `runCall`, which is not exported, and its windows are a player's; driving
+           it would need an export of runCall, so the source is what is measured. */
         /*
          * CALL-17, 20.09. An Eclipse, the overflow's Silence, a Class Trial for a
          * Monokuma and a dead student were all asked INSIDE the two spenders, which
@@ -4628,16 +4623,6 @@ const REGRESSIONS = [
          * BEFORE the picker, which is the half that was missing.
          */
         const sources = new Map(await otherSources());
-        const calls = stripComments(sources.get("calls.mjs") ?? "");
-        const barred = bodyOf(calls, "export async function callBarred", { until: "async function hopeCallBarred" });
-        ok(barred.length > 200, "there is no one reader for what shuts a Call");
-        ok(/isEclipse\(\)/.test(barred) && /overflowBlocksCalls\(\)/.test(barred),
-            "the shared reader does not know about the Eclipse or the overflow's Silence");
-        ok(/if \(despair\)[\s\S]{0,200}classTrial/.test(barred),
-            "the Class Trial rule is not the despair side's alone - that asymmetry is T-1's "
-            + "decision");
-        ok(/(?:isDeceased|isDeadForGm)\(actor\)/.test(barred), "the dead can still spend");
-
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         // To the next top-level function, not a fixed number of characters: the
         // confirmation is a hundred lines down and a 3000-character window stopped
@@ -4743,6 +4728,10 @@ const REGRESSIONS = [
     }],
 
     ["R85 - a Call still applies when the roll window is unlocked", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. roll-dialog.mjs `forceConfig` is not exported and
+           `onRenderApplication` works on Daggerheart's roll window (its chips and cost rows); which chips the unlocked
+           road locks is a shape of that window this slice did not draw. Driving it would need an export of forceConfig
+           and Daggerheart's roll window built with a bought Call. */
         /*
          * CALL-11, 20.09. With `lockRollDialog` off, `onRenderApplication` imposed
          * Breakdown and returned: so an advantage a Monokuma or a player had PAID for
@@ -4780,6 +4769,12 @@ const REGRESSIONS = [
     }],
 
     ["R86 - a Monocub may cross a room, and that is the list", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed to the gate's order. The list and the refusal of every ACTIONS
+           key but Move, above the Eclipse, are driven since E40 in tier 2 "a Monocub is refused every action but Move,
+           at the door and above the Eclipse (E40 item 4: R86's first rule, driven; was R86's list half)". What stays is
+           where the gate stands against the betrayal, the in-fight shortcut and the dead test. Against the dead test the
+           order has no outcome (that test lets a Monocub through); against the other two it would take a Monocub inside
+           an incident, a fixture this slice did not build - so the source is what is measured. */
         /*
          * ACT-13, 20.09. The dead gate lets a Monocub through - correctly, a Monocub
          * acts - and that was the whole of it: past that line every tile in the module
@@ -4792,17 +4787,11 @@ const REGRESSIONS = [
          * open to a Monocub. The order here is the fix.
          */
         const sources = new Map(await otherSources());
-        const cfg = stripComments(sources.get("config.mjs") ?? "");
-        ok(/dispatchable: \["move"\]/.test(cfg),
-            "the list of what a Monocub may dispatch is gone, or it has grown");
-
         // E41 C4 (1.2.97): the action family's text (the kit's `actionText`), where action-rolls.mjs's alone was read. Since
         // E41 fix FG5 (the end review's C-nit 3) `performAction` alone, where every read below stands: the cut on to
         // `performBetrayal` (action-murder.mjs) ran across the family's files.
         const rolls = stripComments(actionText(sources));
         const perform = fnSource(rolls, "performAction");
-        ok(/MONOCUB\.dispatchable\.includes\(actionKey\)/.test(perform),
-            "nothing refuses a Monocub the rest of the grid");
         const gate = perform.indexOf("MONOCUB.dispatchable");
         ok(gate > 0 && gate < perform.indexOf("betrayalTarget(actor)"),
             "the Monocub gate sits below the betrayal, which is reached before the Eclipse "
@@ -4814,8 +4803,6 @@ const REGRESSIONS = [
             + "asked it");
         ok(perform.indexOf("MONOCUB.dispatchable") < perform.search(/(?:isDeceased|isDeadForGm)\(actor\) && !isMonocub/),
             "the gate is below the dead test, which is where it could not do its job");
-        ok(!/dispatchable\.includes\("meddle"\)/.test(rolls),
-            "Confusion was added to a list of ACTIONS keys, and it is not one");
     }],
 
     ["R87 - a trace of unstated origin is not a free Analyze", async () => {
@@ -5257,6 +5244,9 @@ const REGRESSIONS = [
     }],
 
     ["R101 - the Despair Flow window comes back after a refusal, with its pools", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. gm-team-dialog.mjs `readTeamDraft` and `paintTeamDraft` are
+           not exported, and the add and revoke branches reopen a drawn Despair Flow window; driving them would need an
+           export of readTeamDraft and paintTeamDraft, or that window drawn with a refused add (not built in this slice). */
         /*
          * Review of stage D. A refused add or revoke came back to `openGmTeamDialog`
          * with nothing awaited, the old copy still on screen, and `alreadyOpen`
@@ -5430,6 +5420,10 @@ const REGRESSIONS = [
     }],
 
     ["R97 - an assistant GM's Despair goes to the primary, and cannot loop", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its road is an assistant GM's browser sending its Despair
+           to the primary; tier 2 runs on the primary alone (the assistant is scenario 17's client), so no call here takes
+           that road, and the loop it guards against - `adjustDespair` reaching `requestDespairAdjust` or a name not
+           exported - is a call nothing may make. */
         /*
          * DESP-12, 1.2.47: the pools are one world object written whole from a local
          * cache, so an assistant GM's adjustment is meant to go to the primary. The
@@ -5729,6 +5723,13 @@ const REGRESSIONS = [
     }],
 
     ["R144 - five doors a console used, each shut on the side that writes", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): trimmed. A Despair Call bought or paid on a player's client, a seal said
+           there, and the one gate's refusal of a handover in an Eclipse are driven since E40 in tier 2 "four doors a
+           console used are shut on the side that writes: a Despair Call bought or paid there, a seal said there, a
+           handover in the dark (E40 item 4: R144's driven rules; was R144's first half)". What stays, none of it driven
+           in this slice: `free` refused to a player in `performAction`, a pool that did not move (`adjustDespair`
+           answering null), handover.mjs `verify` asking the gate (not exported), and a stashed key's place in `giveItem` -
+           a reading of the source. */
         /*
          * E03, 24.09.2026; audit S02-42, S09-11, S08-33. A free action for anybody
          * (`free`), a Despair Call bought on a player's client where the pool cannot
@@ -5739,23 +5740,15 @@ const REGRESSIONS = [
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
         ok(/options\.free && !game\.user\.isGM/.test(bodyOf(rolls, "export async function performAction(", { length: 700 })),
             "performAction still takes `free` from anybody");
-        const calls = stripComments(sources.get("calls.mjs") ?? "");
-        ok(/if \(!game\.user\.isGM\)/.test(bodyOf(calls, "export async function spendDespairCallFor(", { length: 700 })),
-            "spendDespairCallFor runs on a player's client");
         const despair = stripComments(sources.get("despair.mjs") ?? "");
         const spend = bodyOf(despair, "export async function spendDespairCall(", { until: "\n}\n" });
-        ok(/if \(!game\.user\.isGM\)/.test(spend), "spendDespairCall runs on a player's client");
         ok(/const paid = await adjustDespair\(/.test(spend) && /paid === null/.test(spend),
             "a Despair Call goes on when its pool did not move");
-        const world = stripComments(sources.get("call-world.mjs") ?? "");
-        ok(/return Boolean\(await writeWorld\(/.test(fnSource(world, "sealRoom")),
-            "sealRoom says it sealed whether or not it wrote");
         const handover = stripComments(sources.get("handover.mjs") ?? "");
-        // Since E14 part 1 C1 the Eclipse is the one gate's (inventory.mjs `transferRefusal`), which `verify` asks.
-        const inventory = stripComments(sources.get("inventory.mjs") ?? "");
-        ok(/transferRefusal\(from, to, \{ mode: "give" \}\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" }))
-            && /if \(isEclipse\(\)\) return /.test(bodyOf(inventory, "export async function transferRefusal(", { until: "\n}\n" })),
-            "a handover is not refused during an Eclipse on the GM's side");
+        // Since E14 part 1 C1 the Eclipse is the one gate's (inventory.mjs `transferRefusal`), which `verify` asks; the gate's
+        // refusal in an Eclipse is driven since E40 in tier 2 (named in the text guard above).
+        ok(/transferRefusal\(from, to, \{ mode: "give" \}\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })),
+            "a handover is not asked of the one gate on the GM's side");
         const give = bodyOf(handover, "export async function giveItem(", { until: "\n}\n" });
         ok(give.indexOf("isStashed(held)") >= 0 && give.indexOf("isStashed(held)") < give.indexOf("BEDROOM_KEY_FLAG"),
             "a key lying in a stash can still be handed over");
@@ -7258,6 +7251,10 @@ const REGRESSIONS = [
     }],
 
     ["R194 - whether an incident is a trap is asked of one rule, the cast's and the world half's where the cast has none", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source (the pilot's reading, ITEM4.md). Its subject is one rule
+           every reader must ask: castOwners, incidentWitness, openingCard and incidentSeats each ask settings.mjs
+           `incidentIndirect` and none reads a cast's `indirect` itself. The rule's own cases are driven by the tier-2 test
+           named in the comment below; that each reader asks it is a census. */
         /*
          * E05 fix r1-G1, 27.09.2026; the correctness review's M2. Three places ask whether the
          * running incident is a trap - `castOwners` (incident-store.mjs: who is sent the cast), the
@@ -7433,6 +7430,10 @@ const REGRESSIONS = [
     }],
 
     ["R205 - every write of an incident in murder.mjs runs in its queue, and nothing in the queue queues again", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is a census of the incident's files: every
+           write of either half lies inside an `incidentWrite(` call or a leaf's body, nothing inside the queue queues
+           again, and each transition passes `expect`. A race between two writers is what it prevents, and no single
+           call shows a write that happened to be outside the queue. */
         /*
          * E32 C4, 28.09.2026; audit S04-26. Two writers of one incident read it, awaited and
          * wrote what they had read: the victim ran out twice (the grid's DM14), two closes of
@@ -8297,6 +8298,11 @@ const REGRESSIONS = [
     }],
 
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its first half is a census of every module file for
+           `DICE_ROLL_MODES` and `core.rollMode`; its second is the shape of private-rolls.mjs `writeWhisper`, `writeMode`
+           and `whisperRoll` - each write in its own try, the list before the mode - which matters only on a Foundry where
+           the mode's constant throws, which this slice did not stand in for. Driving that would need an export of
+           writeWhisper and writeMode and a constant made to throw. */
         /*
          * E33 C11 (audit S02-68; the plan's V7). Until 1.2.69 private-rolls.mjs wrote a roll's
          * whisper list and `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one
@@ -15610,6 +15616,10 @@ const REGRESSIONS = [
     }],
 
     ["R800 - the roll window's render hook writes nothing under the roll's config: what a Call or the lock forces is written before Daggerheart's context (E16)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is a crawl: every function of
+           roll-dialog.mjs the render hook names, and the ones they name, but `forceConfig`, holds no write under a roll's
+           config; and the wrapper of `_prepareContext` forces the config before Daggerheart's method. What a hook does not
+           write is a census over the functions it reaches, not an outcome one window shows. */
         /*
          * E16 p1 C1, 18.10.2026; audit S02-04. Daggerheart's roll window computes its Roll button, its costs and
          * its formula in `_prepareContext` (d20RollDialog.mjs, 2.10.5 and 2.6.5, read), before the render hook
@@ -16021,6 +16031,10 @@ const REGRESSIONS = [
             "[`gmPassageGaps` takes `gm` from `game.user?.isGM`, asks it first; `flashOutline` cuts doorwayEdges' edges by it; doorwayEdges names the cut; the frame's trace leaves the cut out; fog.mjs's clientSettingChanged listeners; the one in registerFog behind a GM's gate, on the GMs' passage rows, redrawing soon; that redraw a quarter second after the last change]");
     }],
     ["R948 - a drawn roll's dice start at the GM's message on the roller's own screen, sending and writing nothing (H82-06): roll-draw.mjs `awaitStart`, `startWaitOf` and `startOnMessage` emit, write and ask nothing; `startWaitOf` stands aside on a GM's browser and asks the drawn flag, the readable rule and the primary the roll was asked of; `drawAndPlay` names that primary at the ask and ends the wait in its finally; `playBack` throws only where nothing started; `registerRollDraw` adds the one listener", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is what a drawn roll's early start does not do
+           - emit, write or ask - across roll-draw.mjs's `awaitStart`, `startWaitOf` and `startOnMessage`, and the order of
+           the wait's names; nothing sent is a census over the functions, not an outcome one call shows. R947 runs the
+           gate on stand-ins. */
         /*
          * H82 C5 (23.10.2026; H82-06). The roller's dice start as the GM's message of its roll arrives, not at the GM's
          * answer (scenario 33 A17: 80 ms each way, the dice within one hop of the message and before the answer). D2 holds
@@ -16059,6 +16073,10 @@ const REGRESSIONS = [
     }],
 
     ["R949 - the GM's own screen throws a drawn roll's dice at its throw, once, sending and writing nothing (H82-07): roll-draw.mjs `throwOnThisScreen` emits, writes and asks nothing and throws as the roller's, not synchronised, not awaited; `throwDrawn` calls it after the roll is evaluated and before its message is written, hands the message's claim `shown` and says a failed write in the Debug log; private-rolls.mjs `relayDrawnDice` still sends dice.show and throws on this screen only where nothing was shown, which the claim carries to it", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is what the GM's own throw does not do - emit,
+           write or ask - and where it stands in roll-draw.mjs `throwDrawn` (after the evaluation, before the write) and
+           how its claim reaches private-rolls.mjs `relayDrawnDice`; the failed write is driven by the tier-2 test named in
+           the comment below. Nothing sent and one throw are a census over the road's functions. */
         /*
          * H82 C6 (24.10.2026; H82-07). The primary GM's screen starts a drawn roll's dice as it throws them, not at its
          * message's echo (scenario 33 A17, 80 ms each way: 164.1 ms after the request reached the GM before, 1.7 after;
@@ -18119,6 +18137,9 @@ const REGRESSIONS = [
     }],
 
     ["R1101 - every action roll with a threshold in the rules hands it to the roll window: each `rollTrait(` in the action files whose action key has a number in config passes `dc`, the crisis, the opening and an item used in an incident among them; Observe and an Analyze's identification are kept with their reasons (E51 C1; E51-11, the owner's amendment of 14.10)", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Its subject is a census: every `rollTrait(` call in the
+           action files whose action key has a number in config passes `dc`, Observe and an Analyze's identification kept
+           without one. No single call shows every call site. */
         /*
          * E51 C1, 30.10.2026; the owner, 14.10: "modul w zaden sposob nie informuje ani gracza, ani gma o thresholdach
          * akcji". `rollTrait`'s `dc` is what puts "beat N" on the roll window and, since C1, "needed N" on its card.
@@ -20082,6 +20103,10 @@ const REGRESSIONS = [
             + "that spell a cast of their own; stale: ANOTHER's rows the source no longer has}");
     }],
     ["R1194 - one road for the Eclipse (E37 C2, E37-10; D44b, S10-54): the HUD's chevron and the GM panel's \"Do it\" both call boundary.mjs `toggleEclipse`, neither starts or ends an Eclipse itself, and `toggleEclipse` is where the start's refusals, E17's question and the placement table are asked", async () => {
+        /* TEXT GUARD (E40 item 4, 13.11.2026): kept as a reading of the source. Both roads are driven by tier 2 E37-T2 (named in the
+           comment below); what this holds is that neither the HUD's chevron nor the GM panel's "Do it" starts or ends an
+           Eclipse itself, and that `toggleEclipse` asks each of the start's refusals - calls neither road may make, read
+           off hud.mjs `buildTimeRow`, gm-panel.mjs `EXTRA_ACTIONS` and boundary.mjs. */
         /*
          * E37 C2, 01.11.2026; E37-10, audit S10-54, decision D44b ("Obie drogi (szewron i panel) tą samą funkcją
          * toggleEclipse, z pytaniem tylko wtedy, gdy ktoś nie rozstawił postaci"). The chevron ended an Eclipse at once
