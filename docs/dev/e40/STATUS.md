@@ -90,6 +90,9 @@ None in the module's code by a failing test. Two readings:
 
 ## Test results
 
+- After the merges of slice B and origin/main (a2b233d2, 1.2.112), at 604715e6: `npm run quick` green (lint 357 files
+  0 problems, check 20 parts, verify-gate 37/37); item 4's 29 tier-2 tests by name 0 failed; tiers 0-1 whole 1518 ran,
+  1503 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of the hook group's sweep (13.11.2026): the overflow test by name, 0 failed; `node tools/check.mjs`
   19/19; lint 0 problems; tiers 0-1 whole 1419 ran, 1404 passed, 0 failed, 16 skipped, 0 red.
 - Before the push of item 4's plan and pilot (13.11.2026): the new tier-2 test and R99 by name, 0 failed; the mutants
@@ -165,21 +168,24 @@ The plan's items 2-6, in its order, with what each would take:
   a deceased before and after discovery, the Final Trial, a second trial (D17), a reset during a suicide incident, and
   season-wipe on a world copy; most are 63-class-trial's, 61's and 65's (63: a late player, a reload, the verdict's
   window with "Nobody", a second trial, the Level Ups), and the rest is open.
-- **The regex tests** (item 4): **started, 13.11.2026.** The owner's word through the coordinator ("robimy teraz",
-  for 1.2.113), which replaced the "counted, not started" this file said before. `docs/dev/e40/ITEM4.md` holds the 111
-  tests, four slices (A-D) with their R ranges and their lines in tests-tier2.mjs, the rewrite rule and the gate; the
-  coordinator runs the slices on four parallel lines. The pilot, on this line: R55 driven in tier 2 and deleted from
-  tier 0 (its mutant m3, the check kept in text but never true, passed R55 and fails the new test), R99 kept and marked
-  as a text guard. Item 5 stopped after the chat-card group (the coordinator's word); its 194 hook sites wait.
+- **The regex tests** (item 4): **done, 13.11.2026, for 1.2.113.** The owner's word through the coordinator ("robimy
+  teraz"). `docs/dev/e40/ITEM4.md` holds the list, the slices and the rule; the four slices ran on parallel lines and were
+  merged here (A c6ba81e1, C 698c7dd9, D 119384e0, B 3d0a9856), each with its own file `docs/dev/e40/ITEM4-<slice>.md`
+  (picks, mutant tables, gates). Of the 111, by the slices' own tables: (a) driven in place 8; (b) driven in tier 2,
+  whole or with a remainder kept as a text guard, 29 (A 8, B 13, C 5 with the pilot's R55, D 3); (c) kept and marked as
+  text guards 74 (A 19, B 14, C 21, D 20 with the pilot's R99). Deleted from tier 0 (registry rows "removed in E40"):
+  R25, R55, R69, R87, R95; every other driven test was trimmed, its remainder marked. The tier-2 tests item 4 added, 29 by
+  name, 0 failed after the merge of main. Exports that would turn a (c) into a call are listed in the slice files, for
+  the owner (rule 2: none made). Slice A saw R3727 (E62's clock-timing test, like R3712) fail once in a whole tiers 0-1
+  run and pass alone and in the next whole run; not seen on this line.
   The count, 13.11.2026 at 4f1ceb1d, by a script over scripts/tests-tier0.mjs that splits it at each entry's start
   (`^    \["`) and reads each body for three things: it reads source (`bodyOf(`, `fnSource(`, `lineAround(`, `src(`), it
   imports a module (`await import(`), it uses a regex (`.test(`, `.match(`, `matchAll(`). Of 404 entries: 189 read
   source; 149 read source and import nothing; 140 of those also hold a regex - the pool the plan's "about 50 tier 0 tests
   with a regex on behaviour" is in (the rest are text guards, which stay, and censuses of the code's shape). Which of the
-  140 hold behaviour is a reading test by test, not done; names such as R18 ("using an item mid-incident costs a turn"),
-  R25, R26, R29 and R30 read as behaviour, and most of those touch writes, so their call is a tier-2 test with a fixture,
-  not a pure call in tier 0. Each is to be broken once before and after its replacement (the plan's risk).
-- **settle() -> until()** (item 5): **under way**, the coordinator's word of 13.11.2026: the chat-card sites, about
+  140 hold behaviour was read test by test in the slices (above); this count was the starting list, kept as it was.
+- **settle() -> until()** (item 5): **done on this line, 13.11.2026** (the coordinator's word: stop after the hook group's
+  sweep), begun on the coordinator's word of 13.11.2026: the chat-card sites, about
   25 reviewed per batch, each batch gated (check, lint, the tests it touches by name, tiers 0-1 whole) and committed
   alone. The count, 13.11.2026: scripts/tests-tier2.mjs holds `await settle(` on 2509 lines; 185 of them are followed
   within three lines by a read of the chat (a card, its words, a whisper), 194 by a read of a hook or a notice. The
