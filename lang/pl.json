@@ -1804,6 +1804,7 @@
       "pickerLabel": "Zacznij tryb"
     },
     "Events": {
+      "regionName": "Panel Event",
       "redeemTitle": "Redeem czeka",
       "redeemMeta": "+1 Hope za darmo, raz dziennie.",
       "bribeWaitTitle": "Bribe czeka",
