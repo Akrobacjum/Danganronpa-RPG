@@ -3097,7 +3097,7 @@ const INVARIANTS = [
             "the theme turned to Monokuma Legacy while the fonts load: [curtains, observers held, the loop's frame] once they have");
         equal(G.glassLifecycle().curtains > 0, mounted, "put back: a curtain up exactly when one was up before the test");
     }],
-    ["R1421 - on a short desk the clock's pane and the notice tile's meet and do not cross (glass.mjs `deskShapes`, E23 fix G2; E23-31, Open 30 and 90): the blocks Chromium measured at 1366x560 cut with no two panes overlapping, every block on its own pane and no edge gap, the notice tile's pane where it was", async () => {
+    ["R1421 - on a short desk the clock's pane and the notice tile's meet and do not cross (glass-geometry.mjs `deskShapes`, E23 fix G2; E23-31, Open 30 and 90): the blocks Chromium measured at 1366x560 cut with no two panes overlapping, every block on its own pane and no edge gap, the notice tile's pane where it was", async () => {
         /*
          * E23 fix G2, 08.11.2026 (the end review: goal M3, screens m3; STATUS E23 Open 30 and 90). C2a's taller clock
          * (7b4f286c, the track band kept as a line) brought the clock's box down to 236 at 1366x560, a short desk where the
@@ -3203,7 +3203,7 @@ const INVARIANTS = [
             G.dressWindow(other);
         }
     }],
-    ["R1382 - the corner's buttons stay tilted (glass.mjs `blockTurns`, E23 C1d; E23-10, the owner's 14.10): a launcher of the corner's union takes its turn by a rule on its id, so a button re-created between two passes over the same cut - as messenger-app.mjs `renderLauncher` makes a new one on every message - wears the turn the first pass wrote; the rule holds under Stained Glass only; the GM's red button draws no light strip at its sides (its border colour transparent, no Bone in its shadow or ground); and the sweep's turn line reads the launchers' tilt", async () => {
+    ["R1382 - the corner's buttons stay tilted (glass-blocks.mjs `blockTurns`, E23 C1d; E23-10, the owner's 14.10): a launcher of the corner's union takes its turn by a rule on its id, so a button re-created between two passes over the same cut - as messenger-app.mjs `renderLauncher` makes a new one on every message - wears the turn the first pass wrote; the rule holds under Stained Glass only; the GM's red button draws no light strip at its sides (its border colour transparent, no Bone in its shadow or ground); and the sweep's turn line reads the launchers' tilt", async () => {
         /*
          * E23 C1d, 08.11.2026 (the owner, 14.10: "the buttons in the bottom-right corner sometimes refresh and straighten
          * for no reason, and then tilt again"; "Monokuma's button has a white strip"). READ IN CHROMIUM FIRST, on the
@@ -42968,7 +42968,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([true, true, 2, true, 1, ["0,0", true], 0]),
             "[a group a batch, each [old look, new look added on, old 1 -> 0, new 0 -> 1, on one delay]; the moving panes' new places rising under the moves, each from 0; the rising layers' ends (one); the curtain's held opacity, until that end; layers left after the cancel]");
     }],
-    ["R3121 - the voice tile beside Foundry's tab rail keeps its buttons on its own pane, and its pane is the tray column's tail (glass.mjs `buildColumn`, E96 C3; the owner on 1.2.101's top right, H102): for a GM at 2000x1072, 1920x1080 and 1366x768 with the right column pinned off the wall, every corner of the microphone and the speaker on the voice pane, the voice pane meeting the pane over it (the tray's, or since E96 C4 the one between them) along the seam, and the tile settled where E96 C4 settles it", async () => {
+    ["R3121 - the voice tile beside Foundry's tab rail keeps its buttons on its own pane, and its pane is the tray column's tail (glass-geometry.mjs `buildColumn`, E96 C3; the owner on 1.2.101's top right, H102): for a GM at 2000x1072, 1920x1080 and 1366x768 with the right column pinned off the wall, every corner of the microphone and the speaker on the voice pane, the voice pane meeting the pane over it (the tray's, or since E96 C4 the one between them) along the seam, and the tile settled where E96 C4 settles it", async () => {
         /*
          * E96 C3, 09.11.2026. With Foundry's tab rail at the wall (`pinRightColumn` stands the right column 186 px off it
          * for a GM at 2000x1072), the voice tile is settled 6 px from that pin (`voiceWall`), and the column turns 8
@@ -43023,7 +43023,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([["2000x1072", 0, true, true], ["1920x1080", 0, true, true], ["1366x768", 0, true, true]]),
             "per size [the buttons' corners off the voice pane, the voice pane meets the pane over it along a seam at least the tile's width, the tile settled at the box E96 C4 settles]");
     }],
-    ["R3122 - the voice tile as before 1.2.100, lower (glass.mjs `settleVoice`, `buildColumn`, `cutStrips`, E96 C4; the owner on C3's picture, H102): for a GM at 2000x1072, 1920x1080 and 1366x768, without Foundry's tab rail at the wall and with it, the tile's turned box is centred on the screen's height (or stands as high as the tray's five rows let it, where the centre is higher than that), its size as before, its top right corner at the wall or at the rail's band, both buttons' corners on its pane with the microphone in the pane's top right corner, no point of the screen bare from the tile's middle to the wall between the tray's pane and the tile's pane's foot, and the cut's self-check clean", async () => {
+    ["R3122 - the voice tile as before 1.2.100, lower (glass-blocks.mjs `settleVoice`, glass-geometry.mjs `buildColumn`, `cutStrips`, E96 C4; the owner on C3's picture, H102): for a GM at 2000x1072, 1920x1080 and 1366x768, without Foundry's tab rail at the wall and with it, the tile's turned box is centred on the screen's height (or stands as high as the tray's five rows let it, where the centre is higher than that), its size as before, its top right corner at the wall or at the rail's band, both buttons' corners on its pane with the microphone in the pane's top right corner, no point of the screen bare from the tile's middle to the wall between the tray's pane and the tile's pane's foot, and the cut's self-check clean", async () => {
         /*
          * E96 C4, 09.11.2026. The owner on C3's picture (the glass harness, `?windows=off`): "Sam panel jest lepszy, ale
          * jest za wysoko. Dodatkowo, miedzy nim a po prawej jest dziura w kurtynie, ktorej nie powinno byc. Raz jeszcze
@@ -51593,7 +51593,7 @@ const INVARIANTS = [
     ["R3719 - at 1920x1080 the entry's new panes keep 1366x768's proportions (scripts/glass-close.mjs `fillHole`; E61 C3 round 5, the owner's note on round 4, 12.11.2026: \"w fhd kafelki animacji są trochę małe i zbyt wąskie\"): on a GM's cut at 1920x1080 the new panes' median area, as a share of the screen and a mean over eight seeds, is within a tenth of what it is on the GM's cut at 1366x768, and their median aspect (narrowest width over longest span) is no narrower than at 1366x768; at 1366x768 the fill is the one the owner accepted (round 4's median area and count for the same seed)", async () => {
         /*
          * E61 C3 round 5, 12.11.2026. Red at 1db3f62: `fillHole` aimed each new pane at the standing panes' median area
-         * in pixels, and the standing cut is built of fixed pixel sizes (glass.mjs `cutSectors`: a step of 230-290 px),
+         * in pixels, and the standing cut is built of fixed pixel sizes (glass-geometry.mjs `cutSectors`: a step of 230-290 px),
          * so its median is about the same at every size (23,805 px² at 1366x768, 24,635 at 1920x1080): the new panes
          * took 1.33 % of the screen at 1920x1080 against 2.19 % at 1366x768.
          */
