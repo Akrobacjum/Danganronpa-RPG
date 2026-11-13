@@ -1,5 +1,9 @@
 <script>
 (function () {
+  /* A DESIGN RECORD, NOT THE MODULE'S SOURCE (E59 C5a, 13.11.2026; Q-E59-7). Until then tools/port-glass.py copied
+     this renderer's geometry, paint and pulse into scripts/glass.mjs, keeping the module's lifecycle. The module's
+     curtain has moved on since: run on 421f2395 (1.2.109) the script rewrote glass.mjs with 229 lines added and 1530
+     deleted. It was removed; the page shows the recipe as it was drawn, and glass.mjs is edited as the module's own. */
   /* ---- the glass ------------------------------------------------------------
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */

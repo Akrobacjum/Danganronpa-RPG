@@ -24,9 +24,9 @@
  */
 
 import {
-    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES,
+    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES, TRIAL,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
-import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
+import { SETTINGS, isEclipse, sameSeason, bodiesFoundIn } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
@@ -35,17 +35,18 @@ import {
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
+import { itemsHeldNow } from "./sheet-audit.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
 import { WIDE, columnsHtml } from "./ui-columns.mjs";
-import { caseGraph, caseRows, caseNodeOf, caseModes, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
+import { caseGraph, caseRows, caseNodeOf, caseModes, PLANNED_TYPES, AUTOPSY_NODE, AUTOPSY_MAX, autopsyNumber, autopsyPresetOf, bodiesInOrder, caseMetaOf, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
-import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
-import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore } from "./gm-stores.mjs";
+import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
+import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore, diveSetStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { roomRegions } from "./rooms.mjs";
@@ -62,7 +63,8 @@ const SCALE_LABELS = KEY_REMNANTS.scaleLabels;
  * ========================================================================== */
 
 /** A plan row's fields, in the order a row is written. */
-const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId"];
+// `room` (13.11.2026): where a slot not on the map is to go, the realization's and Place's first choice
+const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId", "room"];
 const planKey = (chapter, slot) => `${chapter}:${slot}`;
 /** A chapter's case row (E09 C6, `recordCaseKeys`): beside its slots, and not one of them. */
 const caseKey = chapter => `${chapter}:case`;
@@ -157,7 +159,7 @@ export function keyPlan() {
             return {
                 scale: row.scale ?? KEY_REMNANTS.scale[slot] ?? "standard",
                 name: row.name ?? "", text: row.text ?? "", analysis: row.analysis ?? "", note: row.note ?? "",
-                tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null
+                tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null, room: row.room ?? ""
             };
         })
     };
@@ -808,7 +810,7 @@ async function saveKeyPlan(plan, rows) {
         if (!Object.keys(take).length) continue;
         const [tokenId, sceneId] = ("token" in take ? take.token : now.token)?.split("|") ?? [];
         const entry = { scale: row.scale };
-        for (const field of ["name", "text", "analysis", "note"]) if (field in take) entry[field] = take[field];
+        for (const field of ["name", "text", "analysis", "note", "room"]) if (field in take) entry[field] = take[field];
         if ("token" in take) Object.assign(entry, { tokenId: tokenId || null, sceneId: sceneId || null });
         /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
            Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
@@ -875,7 +877,8 @@ function keyRowShows(entry, placed) {
         text: (pub ? pub.playerText : entry.text) ?? "",
         analysis: (pub ? pub.analyzedText : entry.analysis) ?? "",
         note: entry.note ?? "",
-        token: here ? `${here.token.id}|${here.scene.id}` : ""
+        token: here ? `${here.token.id}|${here.scene.id}` : "",
+        room: entry.room ?? ""
     };
 }
 
@@ -1449,13 +1452,18 @@ export async function placeKeyRow(root, slot) {
         return null;
     }
     const drawn = keyPlan().entries[slot] ?? {};
+    /* THE PLANNED ROOM FIRST (13.11.2026): the row's picker as the GM left it, else the plan's; one the scene no longer
+       has is said in one line, and the window starts on its first room, as before. */
+    const typedRoom = root?.querySelector(`[name="${CSS.escape(`keyroom:${slot}`)}"]`)?.value ?? "";
+    const planned = typedRoom || drawn.room || "";
+    if (planned && !rooms.includes(planned)) ui.notifications.warn(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room: planned }));
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.placeTitle"),
         classes: ["drpg-panel", "drpg-window-keyplace"],
         body: `<form>
             <p class="notes">${esc(SCALE_LABELS[drawn.scale] ?? drawn.scale ?? "")}</p>
             <label>${game.i18n.localize("DRPG.Investigation.room")}
-                <select name="room">${rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select></label>
+                <select name="room">${rooms.map(r => `<option value="${esc(r)}"${r === planned ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
                     esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("")}</select></label>
@@ -2114,6 +2122,8 @@ function caseKeyCells({ plan, status, placed, limit }) {
                     ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
                     ${picker}
                 </select>
+                ${here ? "" : `<select name="keyroom:${i}"${aria("DRPG.Investigation.plannedRoom")}><option value="">${
+                    esc(game.i18n.localize("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions({ room: shows.room })}</select>`}
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
                     overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}`
@@ -2350,7 +2360,14 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
     const placed = placedKeyRemnants();
     const limit = caseKeyCount(plan.chapter);
     const slots = plan.entries.map((e, slot) => ({ ...e, slot }));
-    const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null });
+    // the planned Autopsy's node, empty until written, as the slots are: the chapter now running's (13.11.2026)
+    /* 13.11.2026: as many as the chapter plans (`autopsyCount`); a chapter not running draws those its GM wrote, up to
+       its count, and the ones that went out (case-schema.mjs `graphOf`) */
+    const written = Object.keys(caseRows(chapter).rows).map(autopsyNumber).filter(n => n !== null);
+    const autopsies = chapter === plan.chapter ? autopsyCount(chapter)
+        : Math.min(caseMetaOf(caseRows(chapter).meta).autopsies ?? AUTOPSY_MAX, Math.max(0, ...written));
+    const graph = caseGraph(chapter, { chapters, slots: chapter === plan.chapter ? slots : null, autopsy: autopsies });
+    for (const n of graph.nodes) if (n.kind === "autopsy") n.of = autopsies;
     const layout = layoutCase(graph, { sort: graph.meta?.sort, manual: graph.meta?.manual });
     const finders = findersByAnyRemnant();
     const authors = new Map();
@@ -2367,6 +2384,42 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
 }
 
 /**
+ * Whether a student holds an Autopsy Truth Bullet of `chapter` (moved from gm-panel.mjs on 13.11.2026: the planned
+ * Autopsy reads it too, case-realize.mjs `sendPlannedAutopsy`, and gm-panel.mjs imports this file), by the GMs' answer keys (`secretOf`: the
+ * real type and the chapter `createTruthBullet` wrote with it) over the items as the GMs hold them
+ * (`itemsHeldNow`, the key fee's reading in `keyFeeOf`). GM-side; a player's console cannot write an answer key.
+ * Of this season (E11 fix r2-H2; round 1's res R6, round 2's goal S06-42): a reset that keeps the Truth
+ * Bullets starts again at chapter 1, and last season's chapter-1 autopsy read as issued, so the new
+ * chapter's line never asked for one. An autopsy's answer key names its season since (truth-bullets.mjs
+ * `createTruthBullet`, a copy its original's); one issued before 1.2.73 names none and is read by its chapter alone, as before (`sameSeason`; tier 2
+ * "this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence").
+ */
+export function autopsyIssued(chapter) {
+    return studentActors().some(actor => itemsHeldNow(actor).some(item => {
+        if (!isTruthBullet(item)) return false;
+        const secret = secretOf(actor.items.get(item.id)?.uuid);
+        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter) && sameSeason(secret);
+    }));
+}
+
+/**
+ * HOW MANY AUTOPSIES THE CHAPTER PLANS (the owner, 13.11.2026: "gm mial preset pokazujacy ile powinno tego byc, ale by
+ * mogl zrobic ostatecznie ile chce"): the count the GM wrote on the first planned Autopsy (the meta row's `autopsies`),
+ * else the preset (`autopsyPreset`). On a GM; read off the GMs' case store.
+ */
+export function autopsyCount(chapter) {
+    return caseMetaOf(caseRows(chapter).meta).autopsies ?? autopsyPreset(chapter);
+}
+
+/** The preset (case-schema.mjs `autopsyPresetOf`): one a body - this season's bodies found in the chapter, and the open
+ *  incident's victim where the incident is the chapter's - and one where the chapter has none yet. */
+export function autopsyPreset(chapter) {
+    const live = murderState();
+    const own = live?.victimId && (live.chapter === undefined || live.chapter === null || Number(live.chapter) === Number(chapter));
+    return autopsyPresetOf({ found: bodiesInOrder(bodiesFoundIn(chapter)), victimId: own ? live.victimId : null });
+}
+
+/**
  * WHAT THE STUDENTS CAN REACH, LIVE (E97 C7; the owner's A and B of 09.11): each evidence node's holders - the students
  * holding a Truth Bullet whose answer key names its Remnant (the dead included here; `reachability` keeps the living) -
  * and the chapter's culprits, from the Blackened register and the incident's killers. A culprit's copy never counts: the
@@ -2379,7 +2432,11 @@ function caseReach(graph) {
     const holders = new Map();
     for (const actor of studentActors()) {
         for (const item of bulletsOf(actor)) {
-            const id = byToken.get(secretOf(item.uuid).remnantId);
+            const secret = secretOf(item.uuid);
+            /* an Autopsy's node is held by whoever holds this chapter's Autopsy of its name (13.11.2026; several a chapter
+               since the owner's 13.11), and one of no planned name by the first */
+            const id = secret.realType === "autopsy" && Number(secret.chapter) === Number(graph.chapter) && sameSeason(secret)
+                ? autopsyHolderNode(graph, item.name) : byToken.get(secret.remnantId);
             if (!id) continue;
             if (!holders.has(id)) holders.set(id, new Set());
             holders.get(id).add(actor.id);
@@ -2388,6 +2445,14 @@ function caseReach(graph) {
     const culprits = caseCulprits(graph.chapter);
     for (const set of holders.values()) for (const c of culprits.slice(1)) set.delete(c);
     return reachability(graph, holders, { culpritId: culprits[0] ?? null, living: livingStudentsForGm().map(a => a.id) });
+}
+
+/** The planned Autopsy's node a held Autopsy of `name` stands for: the one planned under that name (its default name where
+ *  none is written), else the chapter's first; null where the graph draws none. */
+function autopsyHolderNode(graph, name) {
+    const nodes = graph.nodes.filter(n => n.kind === "autopsy").sort((a, b) => a.n - b.n);
+    const named = nodes.find(n => (n.label || TRUTH_BULLET_TYPES.autopsy.label) === name);
+    return (named ?? nodes[0])?.id ?? null;
 }
 
 /** The chapter's culprits the reach leaves out (the Blackened, then the incident's killers), and the first of them (E99 C4). */
@@ -2443,7 +2508,9 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
             editRow(L("DRPG.Investigation.foundBy"), c.found), `<div class="drpg-case-edit-actions">${c.delete}</div>`
         ].join(""));
     }
-    for (const node of graph.nodes) if (!node.evidence) add(node.id, schemaEditor(graph, node));
+    /* A PLANNED REMNANT'S FIELDS TOO (13.11.2026): it is evidence on the map, so until then it drew none, and its room,
+       its type and its Place on the map were reached only from the GM panel's list (E97 C12's editor, never drawn). */
+    for (const node of graph.nodes) if (!node.evidence || (node.planned && ["incident", "autopsy"].includes(node.kind))) add(node.id, schemaEditor(graph, node));
     const slotNode = new Map(graph.nodes.filter(n => Number.isInteger(n.slot)).map(n => [n.slot, n.id]));
     caseKeyCells({ plan, status, placed, limit }).forEach((c, i) => {
         const id = slotNode.get(i);
@@ -2467,6 +2534,7 @@ function mapEditors({ graph, traces, finders, plan, status, placed, limit }) {
  */
 function schemaEditor(graph, node) {
     const L = key => game.i18n.localize(key);
+    const F = (key, data) => game.i18n.format(key, data);
     const base = `case:${graph.chapter}:${node.id}`;
     const name = field => `${base}:${field}`;
     const others = graph.nodes.filter(n => n.id !== node.id);
@@ -2479,12 +2547,45 @@ function schemaEditor(graph, node) {
     const rows = [
         editRow(L("DRPG.CaseMap.field.label"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" />`),
         editRow(L("DRPG.CaseMap.field.text"), `<textarea name="${esc(name("text"))}" rows="3">${esc(node.text)}</textarea>`),
-        editRow(L("DRPG.CaseMap.field.mode"), `<select name="${esc(name("mode"))}">${modes.join("")}</select>`)
+        editRow(L("DRPG.CaseMap.field.mode"), `<select name="${esc(name("mode"))}">${modes.join("")}</select>`),
+        ...zoneRows(node, name)
     ];
+    if (node.kind === "autopsy") {
+        /* THE PLANNED AUTOPSY (13.11.2026): the GM panel's Autopsy window's three fields, and whether it went out. It goes to
+           every living student when the body is found (case-realize.mjs `sendPlannedAutopsy`); sent, its fields stay, read
+           as what was planned. */
+        const at = node.atBody ?? node.n ?? 1;
+        const said = node.sent ? L("DRPG.CaseMap.autopsySent") : F("DRPG.CaseMap.autopsyWhen", { n: at });
+        /* SEVERAL A CHAPTER (the owner, 13.11.2026): which body sends this one (its own number by default), and on the
+           first, how many the chapter plans - the preset named beside it (investigation.mjs `autopsyCount`, `autopsyPreset`) */
+        const bodies = Array.from({ length: AUTOPSY_MAX }, (_, i) => i + 1).map(k => `<option value="${k}"${k === at ? " selected" : ""}>${
+            esc(F("DRPG.CaseMap.autopsyBody", { n: k }))}</option>`).join("");
+        const count = node.n === 1 ? (() => {
+            const chapter = Number(graph.chapter);
+            const now = autopsyCount(chapter);
+            const options = Array.from({ length: AUTOPSY_MAX }, (_, i) => i + 1).map(k => `<option value="${k}"${k === now ? " selected" : ""}>${k}</option>`).join("");
+            return editRow(L("DRPG.CaseMap.autopsyCount"), `<select name="${esc(name("autopsies"))}">${options}</select>`)
+                + `<p class="notes">${esc(F("DRPG.CaseMap.autopsyPreset", { n: autopsyPreset(chapter) }))}</p>`;
+        })() : "";
+        return [
+            `<p class="drpg-case-info-note">${esc(said)}</p>`,
+            count,
+            editRow(L("DRPG.CaseMap.autopsyAt"), `<select name="${esc(name("atBody"))}">${bodies}</select>`),
+            editRow(L("DRPG.TruthBullet.name"), `<input type="text" name="${esc(name("label"))}" value="${esc(node.label)}" placeholder="${
+                esc(L("DRPG.TruthBullet.autopsyNamePlaceholder"))}" />`),
+            editRow(L("DRPG.TruthBullet.playerText"), `<textarea name="${esc(name("text"))}" rows="3" placeholder="${
+                esc(L("DRPG.TruthBullet.autopsyTextPlaceholder"))}">${esc(node.text)}</textarea>`),
+            editRow(L("DRPG.TruthBullet.gmNote"), `<textarea name="${esc(name("note"))}" rows="2">${esc(node.note ?? "")}</textarea>`)
+        ].join("");
+    }
     if (node.kind === "incident") {
         // E97 C12: a planned Incident Remnant: its room, and the road onto the map (New Remnant, filled in from here)
         const rooms = placeRoomOptions({ room: node.room });
-        rows.splice(2, 1, editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}"><option value="">${
+        // 13.11.2026: its Remnant type (case-schema.mjs PLANNED_TYPES), Incident by default
+        const types = PLANNED_TYPES.map(t => `<option value="${esc(t)}"${t === (node.type ?? "incident") ? " selected" : ""}>${
+            esc(REMNANT_TYPES[t]?.label ?? t)}</option>`).join("");
+        rows.splice(2, 1, editRow(L("DRPG.Investigation.traceType"), `<select name="${esc(name("type"))}">${types}</select>`),
+            editRow(L("DRPG.Investigation.room"), `<select name="${esc(name("room"))}"><option value="">${
             esc(L("DRPG.CaseRealize.noRoom"))}</option>${rooms}</select>`));
         rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-place="${esc(`${graph.chapter}:${node.id}`)}">${
             esc(L("DRPG.CaseMap.placeOnMap"))}</button><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
@@ -2501,6 +2602,30 @@ function schemaEditor(graph, node) {
     }
     rows.push(`<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="${esc(node.id)}">${esc(L("DRPG.CaseMap.removeNode"))}</button></div>`);
     return rows.join("");
+}
+
+/**
+ * A NODE'S PLANNED MINIGAME (13.11.2026; case-schema.mjs ZONE_FIELDS): the zones' window's own fields, under the mode's
+ * select - a Straw Poll's and a Scrum Debate's question and two answers (a Scrum's thesis too), a Logic Dive's saved set
+ * and the sets' editor. Each row names the modes it is for and is drawn hidden for the others; a change of the select
+ * shows the mode's (`wireMap`). Saved as every field of the node, on its close.
+ */
+function zoneRows(node, name) {
+    const L = key => game.i18n.localize(key);
+    const z = TRIAL.modes.zones;
+    const row = (modes, label, field) => `<div data-drpg-zone-for="${modes.join(" ")}"${modes.includes(node.mode) ? "" : " hidden"}>${editRow(label, field)}</div>`;
+    const text = (field, max) => `<input type="text" name="${esc(name(field))}" value="${esc(node[field] ?? "")}" maxlength="${max}" />`;
+    const sets = Object.entries(diveSetStore.entries() ?? {}).filter(([, s]) => Array.isArray(s?.questions))
+        .map(([id, s]) => `<option value="${esc(id)}"${id === node.diveSet ? " selected" : ""}>${esc(s.name ?? id)} (${s.questions.length})</option>`).join("");
+    const gone = node.diveSet && !diveSetStore.get(node.diveSet) ? `<option value="${esc(node.diveSet)}" selected>${esc(L("DRPG.CaseMap.diveSetGone"))}</option>` : "";
+    return [
+        row(["straw", "scrum"], L("DRPG.Zones.picker.question"), text("zoneQuestion", z.questionLength)),
+        row(["straw", "scrum"], L("DRPG.Zones.picker.a"), text("zoneA", z.answerLength)),
+        row(["straw", "scrum"], L("DRPG.Zones.picker.b"), text("zoneB", z.answerLength)),
+        row(["scrum"], L("DRPG.Zones.picker.thesis"), text("zoneThesis", z.scrum.thesisLength)),
+        row(["dive"], L("DRPG.Zones.picker.set"), `<select name="${esc(name("diveSet"))}"><option value="">${esc(L("DRPG.CaseMap.noDiveSet"))}</option>${gone}${sets}</select>`
+            + ` <button type="button" data-drpg-dive-sets>${esc(L("DRPG.Zones.picker.editSets"))}</button>`)
+    ];
 }
 
 /** Two field values the same: both blank, or equal as JSON (the Key plan's `same`, investigation.mjs `setKeyPlan`). */
@@ -2554,11 +2679,25 @@ function readSchemaForm(form) {
 async function applySchemaSave(schema = []) {
     const refused = [];
     for (const { chapter, id, fields } of schema) {
-        const now = caseNodeOf(caseRows(chapter).rows[id]);
+        // a planned Autopsy's node is drawn before it is written (13.11.2026): its first write makes its row
+        const n = autopsyNumber(id);
+        const now = caseNodeOf(caseRows(chapter).rows[id]) ?? (n !== null ? caseNodeOf({ kind: "autopsy" }) : null);
         if (!now) continue;
         const write = {};
         for (const [field, { value, drawn }] of Object.entries(fields)) {
             const key = field === "gmText" ? "text" : field;
+            /* the chapter's count of planned Autopsies, on its first one's fields: the meta row's, where it still reads as
+               the window drew it (the preset counts as drawn where none is written) */
+            if (key === "autopsies" && n !== null) {
+                if (String(autopsyCount(chapter)) !== String(drawn)) { refused.push({ field, value, row: now.label || id }); continue; }
+                await setCaseMeta(chapter, { autopsies: Number(value) });
+                continue;
+            }
+            if (key === "atBody" && n !== null) {
+                if (String(now.atBody ?? n) !== String(drawn)) { refused.push({ field, value, row: now.label || id }); continue; }
+                write.atBody = Number(value);
+                continue;
+            }
             if (key === "inputs" || key === "refutes") {
                 const keep = now[key].filter(x => !drawn.includes(x));
                 write[key] = [...new Set([...keep, ...value])];
@@ -2568,7 +2707,7 @@ async function applySchemaSave(schema = []) {
             if (!sameValue(held ?? "", drawn ?? "")) { refused.push({ field, value, row: now.label || id }); continue; }
             write[key] = key === "mode" ? (value || null) : value;
         }
-        if (Object.keys(write).length) await setCaseNode(chapter, id, write);
+        if (Object.keys(write).length) await setCaseNode(chapter, id, caseRows(chapter).rows[id] ? write : { kind: now.kind, ...write });
     }
     return refused;
 }
@@ -2600,9 +2739,34 @@ function readDashboardForm(d) {
      * been rebuilt since the window opened, so the rows on
      * screen are the ones to walk, not the ones it opened with.
      */
+    const form = d.element.querySelector("form");
+    const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+    return {
+        // The Final Key Remnant fields ride the same Save the
+        // whole dashboard uses - same reasoning their old home
+        // gave for riding Apply: planting the endgame clue must
+        // not need a second button to remember.
+        finalRoom: q("finalRoom")?.value ?? "",
+        finalSceneId: q("finalRoom")?.selectedOptions?.[0]?.dataset.scene ?? "",
+        finalVis: q("finalVis")?.value || "evident",
+        finalAuthor: q("finalAuthor")?.value ?? "",
+        finalName: q("finalName")?.value.trim() ?? "",
+        finalText: q("finalText")?.value.trim() ?? "",
+        finalAnalysis: q("finalAnalysis")?.value.trim() ?? "",
+        finalNote: q("finalNote")?.value.trim() ?? "",
+        ...readCaseFields(form)
+    };
+}
+
+/**
+ * The case's fields inside `form`, the window's form or one open node's editor: the traces' rows, the case schema's
+ * fields and the Key slots' rows, each field only where the GM changed it. No Final Key Remnant field: a node's save
+ * (`saveOpenNode`) reads its editor here, so a field of the Table that a node does not hold is never read as empty and
+ * written by a node's close (perf-open's review for 1.2.111, section 2; 13.11.2026).
+ */
+function readCaseFields(form) {
     const traces = allTraces();
     const plan = keyPlan();
-    const form = d.element.querySelector("form");
     const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
     /* ONLY WHAT THE GM CHANGED, AND WHAT IT WAS DRAWN FROM (E09 C3, S05-26). Every field read
        back as it stood, and Save wrote whatever differed from the world at that moment - so a
@@ -2624,18 +2788,6 @@ function readDashboardForm(d) {
         return fields;
     };
     return {
-        // The Final Key Remnant fields ride the same Save the
-        // whole dashboard uses - same reasoning their old home
-        // gave for riding Apply: planting the endgame clue must
-        // not need a second button to remember.
-        finalRoom: q("finalRoom")?.value ?? "",
-        finalSceneId: q("finalRoom")?.selectedOptions?.[0]?.dataset.scene ?? "",
-        finalVis: q("finalVis")?.value || "evident",
-        finalAuthor: q("finalAuthor")?.value ?? "",
-        finalName: q("finalName")?.value.trim() ?? "",
-        finalText: q("finalText")?.value.trim() ?? "",
-        finalAnalysis: q("finalAnalysis")?.value.trim() ?? "",
-        finalNote: q("finalNote")?.value.trim() ?? "",
         // ONLY THE ROWS THAT ARE ON SCREEN. The table renders what the
         // filter shows (by default: this chapter), so a trace the filter
         // hides has no fields in the form - and `?? ""` / `?? false` on
@@ -2656,7 +2808,7 @@ function readDashboardForm(d) {
             slot: i, scale: entry.scale,
             fields: changed([
                 ["name", `keyname:${i}`], ["text", `keytext:${i}`], ["analysis", `keyanalysis:${i}`],
-                ["note", `note:${i}`], ["token", `token:${i}`]
+                ["note", `note:${i}`], ["token", `token:${i}`], ["room", `keyroom:${i}`]
             ])
         }))
     };
@@ -2729,6 +2881,48 @@ function wireCase(dialog) {
     }
 }
 
+/*
+ * A NODE SAVES WHEN ITS EDITING CLOSES (the owner, 12.11.2026: "Moduly przy edycji nie powinny czekac na save, tylko
+ * zapisywac sie po zamknieciu edycji"). The open node's fields are read as Save reads the form, scoped to that node's
+ * fieldset, and written then: on its Close or Escape, on a pick of another node, on a switch to the Table, and when
+ * the window closes (by its X, Escape or a footer button other than Save, whose own write covers every field). One
+ * write per close, none per keystroke; the writes run one after another. A field that is written takes its value as
+ * drawn, so the Save after it hands nothing on twice; a field the world moved under is refused and told as Save tells
+ * it. A write that throws keeps the typed text in its fields, still the GM's change, and says so in one line.
+ */
+let nodeWrites = Promise.resolve();
+
+/** The open node's changed fields in `root`, written. Answers what `applyDashboardSave` answered, or null. */
+function saveOpenNode(root) {
+    return saveFieldsIn(root?.querySelector?.(".drpg-case-edit:not([hidden])"));
+}
+
+/* AND EVERY CHANGED FIELD OF THE WINDOW AT ITS CLOSE (the owner, 13.11.2026: "Nie, ma zapisywac" - closing never loses
+   what was typed; the coordinator asked whether the Table's changes were lost without a word, and they were: a close by
+   the X, Escape or Close, or by a footer button that reopens the window, wrote the open node alone). The drawn form's
+   changed fields, the Table's rows, the Key slots' and every node's, as Save writes them (`readCaseFields`): only where
+   the GM changed them and the world still holds what was drawn, a refusal told. The Final Truth Remnant is not placed
+   here: placing it puts a token on the map, so a close with its room picked asks first (`offerFinalOnClose`). */
+function saveDrawnForm(root) {
+    return saveFieldsIn(root?.querySelector?.("form"));
+}
+
+/** The changed fields inside `scope` (a node's editor or the window's form), written one write after another. */
+function saveFieldsIn(scope) {
+    const fields = scope ? [...scope.querySelectorAll("[name]")].filter(isDirty) : [];
+    if (!fields.length) return nodeWrites;
+    const result = readCaseFields(scope);
+    const drawn = fields.map(field => [field, keepDrawn(field)]);
+    const write = () => applyDashboardSave(result, { traces: allTraces(), plan: keyPlan(), quiet: true }).catch(err => {
+        for (const [field, was] of drawn) keepDrawn(field, was);
+        error("A case node's fields could not be saved", err);
+        ui.notifications.error(game.i18n.localize("DRPG.CaseMap.notSaved"));
+        return null;
+    });
+    nodeWrites = nodeWrites.then(write, write);
+    return nodeWrites;
+}
+
 /** The Map's nodes, fold, overview and camera (E97 C5; on the nodes since the E97 fix): an open node, a fold, the
  *  overview and the camera are the window's own state, the first three redrawn; the focus goes back to the node the GM
  *  was on, which a redraw replaced. */
@@ -2736,10 +2930,31 @@ function wireMap(dialog, reading, refresh) {
     const root = dialog.element;
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
     const fail = what => err => error(`The case map could not ${what}`, err);
+    /* A node's mode select shows that mode's planned-minigame rows (`zoneRows`), and its button opens the Logic Dive sets
+       (13.11.2026). Once per window: a redraw keeps the root. */
+    if (root && !root.dataset.drpgZoneRows) {
+        root.dataset.drpgZoneRows = "1";
+        root.addEventListener("change", event => {
+            const select = event.target?.closest?.('.drpg-case-edit select[name$=":mode"]');
+            if (!select) return;
+            for (const row of select.closest(".drpg-case-edit").querySelectorAll("[data-drpg-zone-for]")) row.hidden = !row.dataset.drpgZoneFor.split(" ").includes(select.value);
+        });
+        root.addEventListener("click", event => {
+            if (!event.target?.closest?.("[data-drpg-dive-sets]")) return;
+            import("./trial-zones-ui.mjs").then(Z => Z.openDiveSets()).catch(err => error("The Logic Dive sets did not open", err));
+        });
+    }
     wireCaseMap(root, {
-        onPick: id => { reading.node = reading.node === id ? null : id; reading.focus = id; refresh(); },
-        // Escape on the open node, or a click on the graph's empty space: its fields shut, the focus on its face
-        onClose: id => { if (reading.node !== id) return; reading.node = null; reading.focus = id; refresh(); },
+        // A pick closes the node open before it, and its fields are written first (the owner, 12.11.2026)
+        onPick: id => {
+            saveOpenNode(root).then(() => { reading.node = reading.node === id ? null : id; reading.focus = id; refresh(); });
+        },
+        // Close, Escape on the open node, or a click on the graph's empty space: its fields written, then shut, the
+        // focus on its face
+        onClose: id => {
+            if (reading.node !== id) return;
+            saveOpenNode(root).then(() => { reading.node = null; reading.focus = id; refresh(); });
+        },
         onFold: () => { reading.fold = !reading.fold; refresh(); },
         onOverview: open => { reading.overview = open; },
         camera: { get: () => reading.camera, set: cam => { reading.camera = cam; } },
@@ -2775,7 +2990,12 @@ export async function placeIncident(chapter, id) {
     if (!game.user?.isGM) return null;
     const row = caseNodeOf(caseRows(chapter).rows[id]);
     if (row?.kind !== "incident") return null;
-    const token = await openNewTrace({ room: row.room, type: "incident", name: row.label, text: row.text, tied: "tied" });
+    // the plan's type (13.11.2026); an Incident Remnant is tied to the murder, any other as the GM says in the window
+    const type = row.type ?? "incident";
+    // its planned room, said in one line when the scene no longer has it (New Remnant then starts on its first room)
+    const { allRooms } = await import("./movement.mjs");
+    if (row.room && !allRooms(workingScene()).includes(row.room)) ui.notifications.warn(game.i18n.format("DRPG.Investigation.plannedRoomGone", { room: row.room }));
+    const token = await openNewTrace({ room: row.room, type, name: row.label, text: row.text, tied: type === "incident" ? "tied" : "" });
     if (token) await setCaseNode(chapter, id, { trace: `${token.parent?.id}.${token.id}` });
     return token;
 }
@@ -2905,6 +3125,29 @@ export async function runDashboardButton(action) {
 // the window they pressed Save on. Same order its old home kept.
 // On the scene of the option picked (E12 fix r1-G2): the placement used to look the room's
 // name up on the school first, so a GM who picked the Annex's Kitchen got the school's.
+/**
+ * A FINAL TRUTH REMNANT LEFT WITH ITS ROOM PICKED (13.11.2026). Save places it; a close that was not Save writes the
+ * window's text (`saveDrawnForm`) but does not place a token on the map unasked: where the form's Final Truth Remnant
+ * has a room, the GM is asked, "Place it" the default, and it is placed as Save places it. Answers whether it was.
+ */
+async function offerFinalOnClose(root) {
+    if (!root?.querySelector?.("form")) return false;
+    const final = readDashboardForm({ element: root });
+    if (!final.finalRoom) return false;
+    const L = key => game.i18n.localize(key);
+    const answer = await drpgWindow({
+        title: L("DRPG.Investigation.finalAskTitle"),
+        classes: ["drpg-panel", "drpg-window-final-ask"],
+        body: `<p>${esc(L("DRPG.Investigation.finalAskBody"))}</p>`,
+        footer: { primary: { action: "place", label: L("DRPG.Investigation.finalAskPlace") },
+            close: { role: "close", action: "later", label: L("DRPG.CaseRealize.notNow") }, default: "place" },
+        rejectClose: false
+    });
+    if (answer !== "place") return false;
+    await placeFinalFromDashboard(final);
+    return true;
+}
+
 async function placeFinalFromDashboard(action) {
     const { placeFinalRemnant } = await import("./mastermind.mjs");
     const placedFinal = await placeFinalRemnant({
@@ -2983,6 +3226,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         overview: false, camera: null };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
+    /** The window's element as drawn: the open node's fields are read off it after the window closed. */
+    let drawnRoot = null;
 
     const buildCase = () => caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter });
 
@@ -2995,8 +3240,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         + `<div class="drpg-case-controls" data-drpg-slot="controls">${said
             ? `<p class="drpg-case-result notes" role="status" title="${esc(said)}">${esc(said)}</p>` : ""}</div></div>${buildCase()}`;
 
-    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the windows it opens and the body secondary; Cancel, since
-       Save is still to answer (E21 rule 3), its answer "close" as before. No destructive button since E64-inv. */
+    /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the windows it opens and the body secondary; Close, which
+       keeps what was typed in an open node (below). No destructive button since E64-inv. */
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
@@ -3010,6 +3255,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
            own User and the region redrawn in the other view, the frame, header and footer untouched (C2). */
         onMode: key => {
             if (!INVESTIGATION_VIEWS.includes(key) || key === reading.view) return;
+            // Leaving the Map closes its open node: written first (the owner, 12.11.2026)
+            if (reading.view === "map") saveOpenNode(drawnRoot);
             reading.view = key;
             Promise.resolve(game.user.setFlag?.(MODULE_ID, "investigationView", key))
                 .catch(err => error("Could not remember the Investigation view on this user", err));
@@ -3040,11 +3287,19 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
                chapter both (chapter.mjs `chapterEndForm`: `faint`, `sweep`), so they are End the chapter's alone; the
                Class Trial's evidence log is the trial console's (trial-floor-ui.mjs `logButton`); Undo realization went
                into the realization's preview, behind its own question. R3967 holds the bar to these actions. */
-            close: { role: "cancel", action: "close" },
+            /* CLOSE, NOT CANCEL (the owner, 13.11.2026: "Nie, ma zapisywac" - the footer's closing word keeps what was
+               typed). A word that saves is not a Cancel (docs/glossary.json `cancel-word` withdraws a question,
+               `close-word` closes a window with nothing left to answer), so it is the kit's Close. Its action is
+               "close", ApplicationV2's own: at a table the press never reaches DialogV2 and the wait answers null, the
+               X's answer (ui-kit.mjs, "A CLOSING WORD WHOSE ACTION IS "close""; LIVE-E21-06), and the harness answers
+               "close"; both write the open node below. From the planner's review until then it was a Cancel that
+               discarded (4bab7361, da352a81). */
+            close: { role: "close", action: "close" },
             // Two rows at every width, in both views (E97 C2; the owner's Q-C): the kit's grid footer.
             rows: 2
         },
         render: (event, dialog) => {
+            drawnRoot = dialog.element;
             wireCase(dialog);
             wireCaseFilters(dialog, reading, () => live?.refresh?.());
             wireMap(dialog, reading, () => live?.refresh?.());
@@ -3119,6 +3374,17 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         rejectClose: false
     });
 
+    /* CLOSED WITH A NODE OPEN, NOT BY SAVE (the owner, 12.11.2026): its fields written now, off the element as it was
+       closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save
+       hands on every changed field, the node's among them, so it writes nothing here. EVERY CLOSE WRITES IT (the owner,
+       13.11.2026: "Nie, ma zapisywac"): the X, Escape and the footer's Close (null at a table, "close" headless) and
+       the footer's other buttons, which reopen the window. And the Table's changed fields with it (`saveDrawnForm`,
+       13.11.2026): until then they waited for Save, and every other close dropped them without a word. From the
+       planner's review until the owner's answer a Cancel discarded both (4bab7361, da352a81). */
+    if (!action || typeof action === "string") {
+        await saveDrawnForm(drawnRoot);
+        await offerFinalOnClose(drawnRoot);
+    }
     if (!action || action === "close") return null;
 
     const ran = await runDashboardButton(action);
@@ -3167,7 +3433,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
  *
  * @returns {Promise<{tracesChanged: number, refused: number}>}
  */
-export async function applyDashboardSave(result, { traces, plan }) {
+export async function applyDashboardSave(result, { traces, plan, quiet = false }) {
     let tracesChanged = 0;
     const refused = [];
     for (const row of result.traces) {
@@ -3216,7 +3482,8 @@ export async function applyDashboardSave(result, { traces, plan }) {
 
     const parts = [];
     if (tracesChanged) parts.push(plural("DRPG.Investigation.tracesSaved", { n: tracesChanged }));
-    if (parts.length) ui.notifications.info(parts.join(" "));
+    // A node's write when its editing closes is said only when it refused something (the owner, 12.11.2026)
+    if (parts.length && !quiet) ui.notifications.info(parts.join(" "));
 
     /* SAID, AND IT STAYS UP. The window closes after a Save (E24 C6; it reopened on the ledger from
        E09 C13 until then), and the GM's own value of a refused field is in no window - this message

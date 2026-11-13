@@ -23,7 +23,7 @@ import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason }
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
-import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
+import { keyPlanStatus, keysToPlace, autopsyIssued } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore, caseSchemaStore } from "./gm-stores.mjs";
 import { incidentAsksHtml } from "./case-map.mjs";
@@ -98,8 +98,9 @@ export function registerGmChrome() {
  * (`drpg-gm-hotbar`) in every theme too; the owner asked for both gone again (DZ5, 12.10.2026:
  * "niepotrzebne", on a tablet under Stained Glass), so the base sheet now hides them from
  * everybody in every theme - the hotbar as in 1.2.73, and the navigation under Legacy as Stained
- * Glass already did for the GM. Scenes switch from the Scenes tab; the five macros the repository
- * carries (macros/) and a GM's own run from the Macro Directory.
+ * Glass already did for the GM. Scenes switch from the Scenes tab; a GM's macros run from the Macro
+ * Directory. The five the repository kept in macros/ left module.zip with E59 C5a and the repository
+ * itself in 1.2.111 (the owner, 13.11.2026): nothing read them, and game.drpg is what a macro calls.
  * Since E77 C5 the rail and the sidebar stand in the GM's two Foundry windows (foundry-windows.mjs). Re-read then
  * (13.10.2026): neither selector names a column of Foundry's, nor does any rule danganronpa.css keys on these
  * two classes, and `markGmChrome` searches the whole document - so both are found and styled in the windows too.
@@ -295,9 +296,9 @@ const PANEL_SECTIONS = [
             // campaign"). A chapter that ends without a verdict - stretched because nobody died, closed on a
             // confession, a one-chapter season - still has its door: the part apart at the bottom of Edit campaign
             // (gm-campaign.mjs `openClockDialog`; and of Season setup's Edit campaign block since E49 A1e), in a
-            // warning frame, asking first. After a verdict the Next line
-            // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and so does the trial console's footer, at that
-            // step only since E99 round 7 (the owner, 12.11.2026).
+            // warning frame, asking first. After a verdict the Next line offers it (`nextStep`'s chapterEnd,
+            // EXTRA_ACTIONS) once the case summary is sent - in an ordinary trial its `caseSummary` step comes first since
+            // E99 round 7 - and so does the trial console's footer, at that step only (the owner, 12.11.2026).
             // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
             // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).
             // RESET THE SEASON IS NO TILE SINCE E49 A1d (the owner, 11.11.2026: "Chcialbym wrzucic season reset w set
@@ -1071,23 +1072,6 @@ function bodyWaiting(clock) {
     return id ? game.actors.get(id) ?? null : null;
 }
 
-/**
- * Whether a student holds an Autopsy Truth Bullet of `chapter`, by the GMs' answer keys (`secretOf`: the
- * real type and the chapter `createTruthBullet` wrote with it) over the items as the GMs hold them
- * (`itemsHeldNow`, the key fee's reading in `keyFeeOf`). GM-side; a player's console cannot write an answer key.
- * Of this season (E11 fix r2-H2; round 1's res R6, round 2's goal S06-42): a reset that keeps the Truth
- * Bullets starts again at chapter 1, and last season's chapter-1 autopsy read as issued, so the new
- * chapter's line never asked for one. An autopsy's answer key names its season since (truth-bullets.mjs
- * `createTruthBullet`, a copy its original's); one issued before 1.2.73 names none and is read by its chapter alone, as before (`sameSeason`; tier 2
- * "this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence").
- */
-function autopsyIssued(chapter) {
-    return studentActors().some(actor => itemsHeldNow(actor).some(item => {
-        if (!isTruthBullet(item)) return false;
-        const secret = secretOf(actor.items.get(item.id)?.uuid);
-        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter) && sameSeason(secret);
-    }));
-}
 
 /** Current standing: where the clock is and what everyone has left. */
 function buildPanelContent() {

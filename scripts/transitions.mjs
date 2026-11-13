@@ -6,7 +6,8 @@
  * always from the centre: evening to night batch by batch from the top down (E62-1), night to morning from the bottom up
  * (E62-2), into the Eclipse from the centre outward (E62-4), into the Investigation random groups of panes, each lit
  * with a flash and its own sound, at uneven gaps (E62-3, MK-R3). The entry into the Class Trial is E61's sequence
- * (sequence.mjs) and plays nothing here. What every transition holds:
+ * (sequence.mjs) and plays nothing here; the exit out of it is E61's too, started here (`playTrialExit`), with the
+ * day's boards after it when the same Finish opens the next morning. What every transition holds:
  *
  *   FROM THE CLOCK'S ONE EVENT. The hooks the clock's row of the sync bus fires on every browser (`drpgTimeOfDayChanged`,
  *     `drpgPhaseChanged`, `drpgEclipseChanged`), read against the clock this page last saw. Nothing waits for it: the
@@ -30,7 +31,7 @@
 import { getClock } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
-import { sequencesOn, holdEscape, playDayStart, playDayEnd } from "./sequence.mjs";
+import { sequencesOn, holdEscape, playDayStart, playDayEnd, playTrialExit, whenTrialExitEnds } from "./sequence.mjs";
 
 const HOURS = ["morning", "noon", "afternoon", "evening", "night"];
 
@@ -60,7 +61,9 @@ const hourIndex = h => HOURS.indexOf(h);
 
 /**
  * What the curtain plays for the clock moving from `before` to `after` (E62 C1), pure: `{ kind, how, groups?, delays?,
- * dur?, flashes? }`, `{ kind: "trialEntry", owner: "E61" }` for E61's own edge, or null for no change of any of the
+ * dur?, flashes? }`, `{ kind: "trialEntry" | "trialExit", owner: "E61" }` for E61's own edges - the exit naming
+ * `newDay` when the same write opened a later day (a chapter's end whose next morning is heard in one run) -, or null
+ * for no change of any of the
  * three. The Eclipse wins over the hour and the phase in one write (its start moves the hour with it); the phase over
  * the hour. An hour forward runs from the top (E62-1's gesture, the plan's Q5 default), an hour back - the GM's rewind -
  * and a new day from the bottom (E62-2).
@@ -78,7 +81,9 @@ export function transitionFor(before, after) {
     if (before.phase !== after.phase) {
         if (after.phase === "classTrial") return { kind: "trialEntry", owner: "E61" };
         if (after.phase === "investigation") return { kind: "investigation", how: "random", groups: INVESTIGATION_ONSETS.length, delays: [...INVESTIGATION_ONSETS], dur: 2800, flashes: [...INVESTIGATION_ONSETS] };
-        if (before.phase === "classTrial") return { kind: "trialExit", how: "centre" };
+        /* THE EXIT IS E61'S (the owner's decision of 12.11.2026): no direction for the curtain here - the sequence closes
+           and opens it, and with the table's switch off the curtain turns from the centre as it always did. */
+        if (before.phase === "classTrial") return { kind: "trialExit", owner: "E61", ...((Number(after.day) || 0) > (Number(before.day) || 0) ? { newDay: true } : {}) };
         return { kind: "phase", how: "centre" };
     }
     if (before.timeOfDay !== after.timeOfDay || day(before) !== day(after)) {
@@ -132,13 +137,26 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
     const before = seen;
     seen = clock ? { ...clock } : seen;
     const t = transitionFor(before, clock);
+    /* A new day is a session (E94): the end-of-day board of the day that ended, then the start-of-day board of the new
+       one, over the curtain's turn, still under reduced motion (C2, C3). AFTER THE TRIAL'S EXIT (the owner's decision of
+       12.11.2026: a chapter's end that closes the trial and opens the next morning in one Finish plays the exit first,
+       then the boards): a board started while the exit plays would cut it, so the boards wait for its end
+       (sequence.mjs `whenTrialExitEnds`), at once when none was asked for. */
+    const boards = () => whenTrialExitEnds().then(() => (before
+        ? playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) })
+        : playDayStart(clock, { on }))).catch(() => null);
+    /* THE TRIAL'S EXIT (the owner's decision of 12.11.2026): E61's sequence, started here because this is where the
+       clock's move out of the trial is read against the clock before it; nothing for an exit Edit campaign wrote
+       (sequence.mjs `edgeShown`) or with the switch off. A new day heard in the same run - a chapter's end with the next
+       morning - has its boards after it. */
+    if (t?.kind === "trialExit" && on) playTrialExit(clock, { on }).catch(() => null);
+    if (t?.kind === "trialExit" && boardsFor(t, clock) && on) boards();
     if (!t || t.owner) return t;
     clearFlashes();
     count("transition.heard");
-    // a new day is a session (E94): the end-of-day board of the day that ended, then the start-of-day board of the new
-    // one, over the curtain's turn, still under reduced motion (C2, C3)
-    if (boardsFor(t, clock) && on && before) playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) }).catch(() => null);
-    else if (boardsFor(t, clock) && on) playDayStart(clock, { on }).catch(() => null);
+    // a new day is a session (E94) - Next from Night, or an Eclipse's end that names one - its boards only on the stamp of
+    // a real roll-over (`boardsFor`), after the trial's exit where one plays (`boards`)
+    if (boardsFor(t, clock) && on) boards();
     if (!on || still) return t;
     seed = (seed * 1103515245 + 12345) >>> 0;
     import("./glass.mjs").then(g => g.hintTurn?.({ how: t.how, seed, groups: t.groups, delays: t.delays, dur: t.dur })).catch(() => null);

@@ -190,7 +190,7 @@ export async function startClassTrial() {
     // editor, `setPhase` and a debate opened outside a trial open one the same
     // way this does. A null is `setClock` refusing a trial in an Eclipse begun while this button's
     // windows stood open (E10 fix r2-G5): it told the GM, and no trial is announced.
-    if (await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow() }) === null) return null;
+    if (await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow(), trialCut: true }) === null) return null;
 
     // The refill is announced rather than done quietly: a rule the table cannot
     // see is a rule the table does not use, and "you have your actions again" is
@@ -668,7 +668,7 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
     try {
         // The floor closes with the phase - `reconcilePhase` in clock.mjs - which
         // is what makes ending a trial from the clock editor end it properly too.
-        await setClock({ phase: "dailyLife", timeOfDayStartedAt: serverNow() });
+        await setClock({ phase: "dailyLife", timeOfDayStartedAt: serverNow(), trialCut: true });
     } catch (err) {
         /* A WRITE THAT THREW ENDED NOTHING (E10 C12, 1.2.71; audit S06-36). This said "the floor is
            shut either way" and went on to announce the trial over and answer true - but the floor
@@ -1533,9 +1533,9 @@ const TRIAL_ACTIONS = {
     startClosing: () => startClosing(),
     endClosing: () => endMode(),
     // E73: the zone modes' window, opened on `mode` when the case's schema names one (Scrum Debate after a split); their end.
-    zones: async (mode = null) => {
+    zones: async (mode = null, extra = {}) => {
         const { trialProgress } = await import("./vote.mjs");
-        return openZonePicker({ mode: mode ?? (trialProgress().strawPoll?.split ? FLOOR_MODES.scrum : FLOOR_MODES.straw) });
+        return openZonePicker({ mode: mode ?? (trialProgress().strawPoll?.split ? FLOOR_MODES.scrum : FLOOR_MODES.straw), plan: extra?.plan ?? null });
     },
     endZone: () => endMode(),
     closeDebate: () => closeDebate(),
@@ -1819,12 +1819,13 @@ export async function manageClassTrial() {
  * A trial mode started from the case's schema (E99 C5): only a start trial-floor.mjs MODE_STARTS names, on a GM, through
  * the console's own action; answers its result, or null. The console is not reopened: the schema's window stays.
  */
-export async function startTrialMode(action, mode = null) {
+export async function startTrialMode(action, mode = null, extra = {}) {
     if (!game.user?.isGM) return null;
     const { MODE_STARTS } = await import("./trial-floor.mjs");
     if (!Object.values(MODE_STARTS).some(row => row.action === action) || !TRIAL_ACTIONS[action]) return null;
     // The zone modes share one start (E73): the node's own mode opens the window on it.
-    return TRIAL_ACTIONS[action](MODE_STARTS[mode]?.action === action ? mode : undefined);
+    // `extra.plan`: a node's planned minigame, the zones' window filled in with it (case-trial.mjs `startFromNode`, 13.11.2026)
+    return TRIAL_ACTIONS[action](MODE_STARTS[mode]?.action === action ? mode : undefined, extra);
 }
 
 /**

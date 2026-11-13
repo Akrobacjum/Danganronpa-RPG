@@ -65,12 +65,13 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
         projectMeta: Object.freeze({
-            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold"]),
-            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2); whether a public project's proposer was told, a fact about who proposed it (H84 fix G3)",
+            fields: Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy", "proposerTold",
+                "secretName", "viewers"]),
+            since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3); who sabotaged a project, a user id (S1-m1, E05's fix round), and the request it came under (E18 C7); where a Secret Passage will open and who found its project by Observe (E15 part 2 C2); whether a public project's proposer was told, a fact about who proposed it (H84 fix G3); a secret project's name and the players in on it, out of Daggerheart's Countdowns as well (S17-31)",
             /* E44 fix FG6 (05.11.2026): what a row may not hold while the project is secret - its `secret` true -, the GMs'
                then (projects-secrecy.mjs PROJECT_SECRET_WHILE_SECRET); a public project's description stands in its row. */
-            whileSecret: Object.freeze({ fields: Object.freeze(["description"]), since: "E44 fix FG6",
-                why: "a secret project's description, in its builder's or a GM's words - an indirect murder's plan among them (the end review's S-M1)" })
+            whileSecret: Object.freeze({ fields: Object.freeze(["description", "facility"]), since: "E44 fix FG6; E93 C1",
+                why: "a secret project's description, in its builder's or a GM's words - an indirect murder's plan among them (the end review's S-M1); and the room action its completion gives, a GM's words of what it makes (E93 C1)" })
         }),
         // The key before 1.2.64 (settings.mjs `legacyPendingMurders`); the declarations are a GM store.
         pendingMurders: Object.freeze({

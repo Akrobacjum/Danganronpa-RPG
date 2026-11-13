@@ -630,6 +630,9 @@ export const CAMERA_READERS = Object.freeze({
     "investigation.mjs#openNewTrace": "window",
     "investigation.mjs#openKeyRemnantHere": "window",
     "investigation.mjs#placeKeyRow": "window",
+    /* A planned Remnant's room against the working scene's, to say in one line that it is gone (13.11.2026), as New Remnant
+       then reads the same scene. */
+    "investigation.mjs#placeIncident": "window",
     "season-setup.mjs#steps": "window",
     "room-setup.mjs#openRoomSetupDialog": "window",
 

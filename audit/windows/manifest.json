@@ -1462,25 +1462,27 @@
       "client": "gm",
       "opener": "look.mjs m.openLookDialog()",
       "captured": true,
-      "title": "Settings",
+      "title": "DRPG Settings",
       "classes": [
         "application",
         "dialog",
-        "drpg-panel",
-        "drpg-projects",
-        "drpg-sound",
-        "drpg-sound-player",
-        "drpg-window-look",
+        "drpg-window-settings",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-panel",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 560,
+      "width": 1008,
       "buttons": [
         {
-          "action": "close",
-          "label": "Close",
+          "action": "save",
+          "label": "Save changes",
           "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
         }
       ],
       "file": "look-gm.html"
@@ -1782,25 +1784,27 @@
       "client": "p1",
       "opener": "look.mjs m.openLookDialog()",
       "captured": true,
-      "title": "Settings",
+      "title": "DRPG Settings",
       "classes": [
         "application",
         "dialog",
-        "drpg-panel",
-        "drpg-projects",
-        "drpg-sound",
-        "drpg-sound-player",
-        "drpg-window-look",
+        "drpg-window-settings",
         "drpg-ui",
-        "drpg-kit-fit"
+        "drpg-panel",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 560,
+      "width": 1008,
       "buttons": [
         {
-          "action": "close",
-          "label": "Close",
+          "action": "save",
+          "label": "Save changes",
           "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
         }
       ],
       "file": "look-player.html"

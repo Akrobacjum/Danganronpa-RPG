@@ -31,7 +31,7 @@ import { SETTINGS } from "./settings.mjs";
 import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
+    leaveIconOnly, localiseRawKeys, hideUndiscovered, nameSecretRows, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl,
     labelTrayControls, markTrayMore
 } from "./projects-tray.mjs";
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
@@ -87,6 +87,8 @@ function onRenderCountdowns(app, element) {
 
         localiseRawKeys(root);
         hideUndiscovered(root);
+        // A secret project's name written back on its row for whoever may know it (S17-31: the countdown carries none).
+        nameSecretRows(root);
         // after the rows the player has not found are gone: they count as none (E79 C12, U1)
         showTrayToPlayer(root);
         paintProgress(root);
@@ -337,7 +339,11 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
                         aria-label="${rowName("DRPG.Project.showOnMap", p)}"
                         data-tooltip="${t("DRPG.Project.showOnMap")}">
                     <i class="fa-solid fa-map-location-dot" inert></i>
-                </button>` : ""}`,
+                </button>` : ""}${/* E93 C2: the project's room action (facility-editor.mjs `editProjectFacility`) - what its completion
+                gives in its room, for how long, and whether it costs an action - written in the project's step on the editor's
+                Save. In the Edit cell beside the pen, not a column of its own: the manager's columns are the owner's card M16. */
+                iconButton({ icon: "fa-solid fa-mug-hot", label: `${t("DRPG.Facility.editor.projectButton")}: ${p.name}`,
+                    attrs: { "data-drpg-project-facility": p.id } })}`,
             delete: iconButton({ icon: "fa-solid fa-trash-can", label: `${t("DRPG.Project.delete")}: ${p.name}`, cls: "drpg-role-destructive",
                 attrs: { "data-drpg-delete": p.id } })
         };
@@ -503,6 +509,16 @@ function wireProjectManager(dialog, projects, rooms) {
         },
         watch: { settingKeys: ["daggerheart.Countdowns"] }
     });
+
+    for (const btn of dialog.element.querySelectorAll("[data-drpg-project-facility]")) {
+        btn.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const project = projects.find(p => p.id === btn.dataset.drpgProjectFacility);
+            if (!project) return;
+            const { editProjectFacility } = await import("./facility-editor.mjs");
+            await editProjectFacility(project);
+        });
+    }
 
     for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
         btn.addEventListener("click", async ev => {
@@ -1348,7 +1364,7 @@ async function repickApproval(held) {
 }
 
 /** The owner's three presets of 15.10 (E15 part 2 C5), whose card names its target by id. */
-const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem"]);
+const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem", "repairLock"]);
 
 /**
  * The approval of Seal the passage, Close the breach or Repair an item, read on the GM's browser (E15 part 2 C5; the
@@ -1358,7 +1374,7 @@ const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem"]
  * judges the completion asks again on the primary (passages-gm.mjs `sealRefusal`, `closeBreachRefusal`; inventory.mjs
  * `repairRefusal`).
  */
-async function presetApproval(start) {
+export async function presetApproval(start) {
     const preset = start?.preset, id = typeof start?.to === "string" ? start.to : "", builderId = start?.by ?? null;
     /* THE ROOM AND THE SCENE WHERE THE GMS READ THE BUILDER (fix e1-G3; finding SEC-3), not the card's: a Seal the passage
        or a Close the breach names a passage or a breach with a side in that room on that scene (`presetSideRefusal`, which
@@ -1375,6 +1391,13 @@ async function presetApproval(start) {
             state: game.i18n.localize(isBroken(held) ? "DRPG.Project.repairBroken" : wearOf(held) ? "DRPG.Project.repairWorn" : "DRPG.Project.repairWhole") }) : "-";
         return { preset, label, target: { preset, room, itemId: id }, refused: repairRefusal(builder, item, { held }),
             scale: (await import("./passages-gm.mjs")).presetScale(preset, { tier: held ? tierOf(held) : 0 }) };
+    }
+    // Repair the Lock (E74 C5): the lock's room the card names, a door of the builder's room as the GMs read it, broken, no
+    // other project on it (doors-gm.mjs `repairLockRefusal`).
+    if (preset === "repairLock") {
+        const { repairLockRefusal } = await import("./doors-gm.mjs");
+        return { preset, label: id || "-", target: { preset, room, sceneId: place?.scene?.id ?? null, lockRoom: id },
+            refused: await repairLockRefusal({ scene: place?.scene ?? null, room: id, from: room }) };
     }
     const P = await import("./passages-gm.mjs");
     if (preset === "sealPassage") {

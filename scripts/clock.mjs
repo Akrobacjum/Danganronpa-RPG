@@ -76,7 +76,7 @@ export async function setPhase(key, { confirmNewTrial = false } = {}) {
             return null;
         }
     }
-    return setClock({ phase: key });
+    return setClock({ phase: key, trialCut: true });
 }
 
 /**
@@ -105,6 +105,24 @@ export function clockSummary(clock = getClock(), { time = true } = {}) {
     return clock.eclipse
         ? game.i18n.format("DRPG.Clock.summaryEclipse", { summary })
         : summary;
+}
+
+/**
+ * WHETHER THE TABLE SEES THE TRIAL'S EDGE PLAYED (the owner's rule of 12.11.2026: "edytuj kampanie nie ma odpalac
+ * animacji - tylko zegar/gora gm panel"). `clock.trialCut` says whether the last move into or out of the Class Trial was
+ * made by a road the table plays: Start the Class Trial, End the trial (the chapter's end among its callers) and
+ * `setPhase` pass `trialCut: true`; every other write that crosses the edge - Edit campaign and Season setup's Save
+ * (gm-campaign.mjs `applyCampaignForm`), the season's reset, a console's `setClock`, the suite putting a clock back -
+ * leaves it false, and the trial's entry and exit play nothing (sequence.mjs `edgeShown`); the curtain still takes the
+ * new colour by its ordinary turn. Written on every crossing, so it always speaks of the last one, and a later write
+ * that is no crossing - the next morning in the chapter's end - leaves it alone. A positive mark only the playing roads
+ * write, in the spirit of the day boards' own mark. Pure: what `setClock` writes, `undefined` for "unchanged" (a clock
+ * put back whole, with its own `writtenAt`, keeps its own mark or none: `setClock`).
+ */
+export function trialCutOf(before = {}, patch = {}) {
+    const edge = patch.phase !== undefined && patch.phase !== before.phase
+        && (patch.phase === "classTrial" || before.phase === "classTrial");
+    return edge ? patch.trialCut === true : undefined;
 }
 
 /**
@@ -179,6 +197,16 @@ export async function setClock(patch = {}) {
         if (trialEdge && before.phase === "classTrial" && patch.trialEndedAt === undefined) {
             next.trialEndedAt = serverNow();
         }
+        /* whether the table plays this crossing (`trialCutOf`): a patch's own word is no crossing's. A CLOCK PUT BACK -
+           a patch naming its own `writtenAt`, which no road writes but a whole clock read earlier (the suite's
+           `setClock(clockBefore)` after every test that crosses the edge) - carries its own mark or none: kept from the
+           clock it replaced, the mark of a test's End the trial stayed in the world after it (tier 2's restore read
+           `clock.trialCut (none) -> false`, 12.11.2026). */
+        const cut = trialCutOf(before, patch);
+        if (Object.hasOwn(patch, "writtenAt")) { if (Object.hasOwn(patch, "trialCut")) next.trialCut = patch.trialCut; else delete next.trialCut; }
+        else if (cut !== undefined) next.trialCut = cut;
+        else if ("trialCut" in before) next.trialCut = before.trialCut;
+        else delete next.trialCut;
         /* NO TRIAL OPENS IN AN ECLIPSE, BY ANY DOOR (E10 fix r2-G5, 1.2.71; goal S06-18). C12 refused it at
            Start the Class Trial and the vote's open; Edit campaign, `setPhase`, a debate opened outside a
            trial (`startFloor` -> `setPhase`) and this function itself still opened one, with Analyze and the

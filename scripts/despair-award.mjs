@@ -101,7 +101,7 @@ async function onChatMessage(message) {
          * `hopeFear.players` (E08+E28 C4b). See `settleCritHope` in reroll.mjs.
          */
 
-        if (outcome.withFear) await awardRollDespair(actor, 1);
+        if (outcome.withFear) await awardRollDespair(actor, 1, { message });
     } catch (err) {
         error("Could not award Despair from a roll", err);
     }
@@ -118,8 +118,14 @@ async function onChatMessage(message) {
  * off, and a point given back at a full pool came off the pool rather than the overflow it had
  * spilled to. Both now run these lines (`onChatMessage` above, reroll.mjs `settleDespair`).
  */
-export async function awardRollDespair(actor, delta) {
+export async function awardRollDespair(actor, delta, { message = null } = {}) {
     if (!game.user?.isGM || !actor || !delta) return null;
+    // A fresh roll's point a room action's protection from Despair stops (the owner's answer to Q-E93-3, 12.11.2026):
+    // used up by this point, the roll marked so its Reroll moves none either (timed-effects.mjs `takeDespairShield`).
+    if (delta > 0 && message && !isMonokuma(actor) && game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) {
+        const { takeDespairShield } = await import("./timed-effects.mjs");
+        if (await takeDespairShield(actor, message)) return { shielded: true };
+    }
 
     // Monokumas roll too - a trait check to walk somewhere, a forced roll a
     // player triggered against them - but they are not students. Hope and

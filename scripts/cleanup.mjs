@@ -1872,6 +1872,13 @@ export async function resolveCleanup({
         const charged = await chargeUnclaimed(actor, { viaAction });
         receipt.stressMoved += charged.stress;
         paidStep = charged.step;
+        /* NOTHING TO CHARGE IS NO ATTEMPT (the 1.2.110 review, E64 reader F3, 13.11.2026). On the action's road the charge
+           takes an action; with none left it took nothing, and the attempt was scored all the same - a Tamper for the
+           Sanity mark a console's own browser wrote, the price E64 took away. Refused before anything is scored. */
+        if (viaAction && !paidStep) {
+            await forgetAttempt(actorId);
+            return { refused: "nothing was carried out: no action was left to pay for it" };
+        }
     }
     if (free) receipt.stressMoved -= await waivePrice(actor, paidStep, by);
     // What the report says was paid: the step the client claimed, with the
@@ -2470,6 +2477,8 @@ export async function resolveStageSix({
     let paidStep = validPrice(price, { viaAction });
     const free = await consumeFreeCleanup(actor);
     if (!paidStep && !free) paidStep = (await chargeUnclaimed(actor, { viaAction })).step;
+    // Nothing to charge on the action's road is no attempt (the 1.2.110 review, E64 reader F3; `resolveCleanup`'s note).
+    if (viaAction && !paidStep && !free) return { refused: "nothing was carried out: no action was left to pay for it" };
     if (free) await waivePrice(actor, paidStep, by);
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));

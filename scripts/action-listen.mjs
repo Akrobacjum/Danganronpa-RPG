@@ -14,13 +14,15 @@
  * family it reads the shared layer alone.
  */
 
-import { spendAction } from "./actions.mjs";
-import { roomOfActor, locateActor } from "./movement.mjs";
+import { ACTIONS, INFILTRATE } from "./config.mjs";
+import { spendAction, actionsLeft } from "./actions.mjs";
+import { roomOfActor, locateActor, neighbouringRooms } from "./movement.mjs";
 import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { actionWindow } from "./action-menus.mjs";
+import { actionWindow, chooseVariant } from "./action-menus.mjs";
+import { watchShutWhy } from "./action-watch.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -40,6 +42,34 @@ export function listenLabels(neighbours, known) {
         : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
 }
 
+/** Each row's icon in the Infiltrate window. */
+const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-road-barrier", force: "fa-hand-fist", pick: "fa-key", keepWatch: "fa-eye" });
+/** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
+const BUILT = new Set(["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"]);
+
+/**
+ * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
+ * (config.mjs `INFILTRATE`'s order), each with its price and why it is shut: Listen in a room with no neighbour (until
+ * C1 that was a warning after the tile was pressed), a row not built yet. Read by `performListen` and by tier 1's R3756.
+ */
+export function infiltrateRows(actor) {
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = neighbouringRooms(scene, roomOfActor(actor));
+    return (ACTIONS.listen.variants ?? ["listen"]).map(key => {
+        const row = INFILTRATE[key] ?? {};
+        const why = !BUILT.has(key) ? game.i18n.localize("DRPG.Infiltrate.notBuilt")
+            : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours")
+                : key === "keepWatch" ? watchShutWhy() : null;
+        return {
+            value: key, icon: ROW_ICONS[key] ?? "fa-circle",
+            label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
+            hint: `${plural("DRPG.Action.willCost", { n: row.cost ?? 1, left: actionsLeft(actor) })} · ${
+                game.i18n.localize(`DRPG.Infiltrate.row.${key}.hint`)}`,
+            disabled: Boolean(why), why: why ?? ""
+        };
+    });
+}
+
 /**
  * Listen - fully automatic, no GM.
  *
@@ -53,6 +83,17 @@ export function listenLabels(neighbours, known) {
  * line deliberately.
  */
 export async function performListen(actor, def, options) {
+    // The Infiltrate window first (E69 C1): its rows, the first usable one picked; Listen goes on to its room below.
+    const variant = options.variant ?? (await chooseVariant({
+        actor, title: def.label, intro: briefingBlock(actor, "listen", def), options: infiltrateRows(actor), showShut: true
+    }))?.value ?? null;
+    if (variant === "dash") return performDash(actor, options);
+    if (variant === "tail") return (await import("./action-tail.mjs")).performTail(actor, options);
+    if (variant === "shut") return (await import("./action-doors.mjs")).performShut(actor, options);
+    if (variant === "force") return (await import("./action-doors.mjs")).performForce(actor, options);
+    if (variant === "pick") return (await import("./action-doors.mjs")).performPick(actor, options);
+    if (variant === "keepWatch") return (await import("./action-watch.mjs")).performWatch(actor, options);
+    if (variant !== "listen") return null;
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
@@ -156,4 +197,36 @@ export async function performListen(actor, def, options) {
 
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "listen", roll, outcome });
     return outcome;
+}
+
+/**
+ * DASH (E69 C5, 12.11.2026; config.mjs `INFILTRATE.dash`). One action paid here, a Leg roll the primary GM draws (its
+ * statistic the GM's config's, `actionKey` "dash"), then `dash.settle`: the GM reads the total off its own record of the
+ * roll and grants the free crossings its band earns (bridge-runs-acts.mjs `handleDash`). With no GM connected nothing is
+ * paid. The card says how many came.
+ */
+export async function performDash(actor, options = {}) {
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) {
+        sayNotDone("dash.settle", "noGm", { nothingSpent: true });
+        return null;
+    }
+    const cost = options.free ? 0 : INFILTRATE.dash.cost;
+    if (!canAfford(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
+    const roll = await rollTrait(actor, INFILTRATE.dash.traits[0], {
+        actionKey: "dash", title: game.i18n.localize("DRPG.Infiltrate.row.dash.label"),
+        dc: INFILTRATE.dash.bands.map(b => b.min).join(" / ")
+    });
+    if (!roll) return abort(actor, paid);
+    const { requestDash } = await import("./bridge-asks.mjs");
+    const { rollInHand } = await import("./action-pipeline.mjs");
+    const res = await requestDash({ actorId: actor.id, total: roll.total, isCritical: Boolean(roll.isCritical),
+        rollId: rollInHand(actor)?.messageId ?? null });
+    if (!res.ok) return null;
+    const moves = Number(res.value?.moves) || 0;
+    // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${plural("DRPG.Infiltrate.dashResult", { n: moves })}</p>` });
+    return { roll, moves };
 }

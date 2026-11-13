@@ -112,6 +112,22 @@ export const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 export const ACTION_OBSERVE_PICK = "observe.pick";
 export const ACTION_CLEANUP_TRACES = "cleanup.traces";
 export const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
+/** player -> primary GM: a room action of the Facilities tile used (E93 C3; facilities-gm.mjs `handleFacilityUse`). */
+export const ACTION_FACILITY_USE = "facility.use";
+/** player -> primary GM: a Dash's Leg roll settled into free crossings (E69 C5; bridge-runs-acts.mjs `handleDash`). */
+export const ACTION_DASH = "dash.settle";
+/** player -> primary GM: a tail begun, its two rolls on the GMs' record (E69 C3; tail-gm.mjs `startTail`). */
+export const ACTION_TAIL_START = "tail.start";
+/** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
+export const ACTION_DOOR_SHUT = "door.shut";
+/** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */
+export const ACTION_DOOR_FORCE = "door.force";
+/** player -> primary GM: a lock picked, its Hand roll and Shadow cover on the GMs' record (E74 C4; doors-gm.mjs `pickLock`). */
+export const ACTION_DOOR_PICK = "door.pick";
+/** player -> primary GM: a watch declared before an Eclipse, its Body roll on the GMs' record (E74 C6; watch-gm.mjs). */
+export const ACTION_WATCH_DECLARE = "watch.declare";
+/** player -> primary GM: a walk in refused at a barricade, told to its author as somebody at the door (E74; doors-gm.mjs `knockDoor`). */
+export const ACTION_DOOR_KNOCK = "door.knock";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw

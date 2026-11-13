@@ -63,7 +63,7 @@ export const RESET_GROUPS = [
        S06-49; the plan's 3.3, "if the system's schema confirms"): it cleared `system.notes` and
        `system.biography.notes`, and a Daggerheart character has neither - its `biography` holds
        `background`, `connections` and `characteristics` and nothing else, read in character.mjs:80-88
-       of Daggerheart's tag 2.6.5 (c2984980, the version module.json verifies) and the same in 2.10.5 -
+       of Daggerheart's tag 2.6.5 (c2984980, the version module.json verified until 1.2.111) and the same in 2.10.5 -
        so the tick wiped nothing and its count read 0 at every table. A table that unticked it loses
        that remembered exception: `rememberedExceptions` drops a key it no longer knows, and the window
        says so only beside another remembered one (`resetForgotten` under `resetRemembered`; read in

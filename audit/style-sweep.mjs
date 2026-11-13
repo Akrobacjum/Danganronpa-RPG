@@ -94,6 +94,13 @@ const THEMES = ["glass", "legacy"];
 /* --fit (E21 C1c): the plan's four sizes for every page, and a phone's for every window a player opens and the sheet. */
 const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
+/* THE GM'S TABLES FROM THE SMALLEST DESK UP (fit-110, 13.11.2026; the owner's [17], "1280x720, the smallest desk supported",
+   which E49 A5 sized Room setup's Passages for - components.css, the Passages tab's columns - and the coordinator's
+   default of that day, put to the owner as such). These pages are read at FIT_SIZES from 1280 wide up, not at 1024x768:
+   there the Passages table's eight columns (1162 px) stood in a 929 px body, and the Students window's eleven (1104 px
+   under the glass, 1039 under Legacy) the same - 20 readings red, every one at 1024x768. A player's window and every
+   other page keep 1024x768 and the phone. */
+const DESK_FROM_1280 = new Set(["rooms-passages--rows", "students"]);
 /* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"); every action
    window probe 08 captures since E68 C12 (one layout for every action, the owner's Q1 and Q4 of round M). */
 const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic",
@@ -249,7 +256,10 @@ function misfits(win, state, still) {
     if (state.labelsOff?.length) out.push(`label off its field: ${state.labelsOff.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
     const demo = DEMO_SCROLLERS[win?.window] ?? [];
-    const own = OWN_SCROLLER[win?.window];
+    /* By the window, not its capture: probe 08 writes a window's other tabs and states as `<id>--<tab>` (`investigation--key`,
+       `investigation--final`), the same window, whose view is its one scroller too (fit-110, 13.11.2026: 44 readings of
+       those two read "a second scroller: div.drpg-case-live.drpg-case-view", the view the window is built on). */
+    const own = OWN_SCROLLER[win?.window] ?? OWN_SCROLLER[String(win?.window ?? "").replace(/--.*$/, "")];
     const others = state.scrollers.filter(s => (own ? s !== own : s !== "kit-body") && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
@@ -373,6 +383,7 @@ async function fitPass(browser) {
             const page = await browser.newPage({ viewport: { width: w, height: h } });
             for (const p of list) {
                 if (phone && !p.phone) continue;
+                if (w < 1280 && DESK_FROM_1280.has(p.id)) continue;
                 await load(page, withTheme(p.url, theme));
                 const at = `${p.id} ${w}x${h} ${theme}`;
                 if (p.a8) {
@@ -407,6 +418,8 @@ async function fitPass(browser) {
     }
     for (const p of problems) console.log(`style-sweep: ${p}`);
     console.log(`style-sweep: --fit outside the kit (E21's list, ${outside.size}): ${[...outside].sort().join(", ") || "none"}`);
+    const fromDesk = list.filter(p => DESK_FROM_1280.has(p.id)).map(p => p.id);
+    if (fromDesk.length) console.log(`style-sweep: --fit read from 1280 wide up only (the owner's [17]), not at 1024x768: ${fromDesk.join(", ")}`);
     console.log(`style-sweep: --fit ${rows.length} reading(s) of ${list.length} page(s); ${fits} fit, ${failed} failed, ${rows.filter(r => r.words[0] === "outside").length} outside; ${problems.length ? "RED" : "green"}`);
     return problems.length ? 1 : 0;
 }

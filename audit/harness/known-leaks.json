@@ -3,21 +3,6 @@
   "schema": 1,
   "leaks": [
     {
-      "id": "S17-31",
-      "findings": ["S17-31"],
-      "class": "killer-identity",
-      "severity": "high",
-      "what": "A secret project's name and its ownership map (for an indirect murder, the killer's player) are in Daggerheart's world setting Countdowns, which every browser holds.",
-      "closes": "E43",
-      "match": [
-        {"seed": "project.name", "surface": "setting", "where": "daggerheart.Countdowns", "path": "countdowns.*.name"}
-      ],
-      "detectedBy": [
-        {"scenario": "72-canary", "seed": "project.name", "phase": "rest"}
-      ],
-      "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the project.name marker on p1 and p2 at daggerheart.Countdowns countdowns.*.name, wire and rest; on no other surface. The ownership map read in projects.mjs createProject and ownershipMap on 25.09.2026, not measured by a run"
-    },
-    {
       "id": "S17-64",
       "findings": ["S17-64"],
       "class": "answer-key",

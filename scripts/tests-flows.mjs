@@ -78,6 +78,38 @@ export const FLOWS = Object.freeze([
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // Covered at 1.2.111 (the release that shipped E93, E69 and E74, 13.11.2026), by 1.2.110's rule: door-pick, door-knock,
+    // door-shut, tail, dash and facility are driven end to end by 33-bridge-paths (E74-C, E74-B, E74-A, E69-B, E69-A,
+    // E93-A) and forged by 30-security. keep-watch and door-force have no legal control in 33 (Aiko's room has no
+    // neighbour to force; no watch is kept there), so they stay partial, moved to E39, the movement rules end to end.
+    // E74 C6 (12.11.2026): 30 forges the packet; the tier-2 test E74-T4 keeps a watch through an Eclipse.
+    { id: "keep-watch", what: "Keep Watch: the Body roll drawn on the GM, the watch kept by the GM and its cards through the Eclipse",
+        entry: { bridge: ["watch.declare"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+    // E74 C4 (12.11.2026): 30 forges the packet; the tier-2 test E74-T3 picks a lock and a seal.
+    // E74 (DA9 as the plan has it, 12.11.2026): an open is a pass, kept by the GMs and copied to its owner (lockpick-gm.mjs's
+    // socket), until the picker leaves the room; scenario 33 E74-C walks the picker in on it from the player's page.
+    { id: "door-pick", what: "Pick the Lock: the Hand and its cover drawn on the GM, a pass for the picker alone on an open, its owner's copy",
+        entry: { bridge: ["door.pick"], sockets: ["lockpick-gm.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E74 C3 (12.11.2026): 30 forges the packet; the tier-2 test E74-T2 forces a barricade, a lock and a seal.
+    { id: "door-force", what: "Force the Door: the Body roll drawn on the GM against everything that holds the door, read on the GM",
+        entry: { bridge: ["door.force"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+    // E74 (12.11.2026): 33 walks into a barricaded room from p1's page (E74-B); 30 forges the packet.
+    { id: "door-knock", what: "Someone at a barricaded door: the walker's veto asks the GM to tell the barricade's author",
+        entry: { bridge: ["door.knock"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E74 C2 (12.11.2026): 33 shuts a door from p1's page (E74-A); 30 forges the packet.
+    { id: "door-shut", what: "Shut the Door: the Body roll drawn on the GM, the barricade kept by the GM and its public flag set",
+        entry: { bridge: ["door.shut"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E69 C3 (12.11.2026): 33 tails from p1's page (E69-B); 30 forges the packet.
+    { id: "tail", what: "Tail Someone: the Shadow and the effect drawn on the GM, the tail kept and its cards sent by the GM",
+        entry: { bridge: ["tail.start"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E69 C5 (12.11.2026): 33 dashes from p1's page (E69-A); 30 forges the packet.
+    { id: "dash", what: "A Dash: the Leg roll drawn on the GM, the free crossings its band earns granted by the GM",
+        entry: { bridge: ["dash.settle"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
+    // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
+    // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
+    // socket), which the owner's sheet reads.
+    { id: "facility", what: "A room action of the Facilities tile: a GM's rolled and drawn on the GM, a completed project's paid by the GM, each limited there; its timed effects copied to their owner",
+        entry: { bridge: ["facility.use"], sockets: ["timed-effects.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.111" },
     // E10 C0 (09.10.2026): 63 drives the trial from Start to a correct verdict's Level Up - a late joiner, a GM's reload
     // in the vote, the verdict's window - as it is at 1e9871c; each of its checks names the E10 commit that changes it.
     // E10 C1 (1.2.71): every step of the vote runs on the primary GM, asked through `vote.run`.
@@ -276,8 +308,9 @@ export const FLOWS = Object.freeze([
     // with this flow and now named.
     // E36 C1 (25.10.2026): another GM's change of a project, made by the primary (`project.change`): 33's A7, 30's forgery.
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
-        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage", "project.change"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms"], status: "partial", stage: "E39" },
+        // E101's review of S17-31, R2 (13.11.2026): a player's ask for their sight of the secret projects (projects.mjs's socket); 72 reads it.
+        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage", "project.change"], sockets: ["projects.mjs"] },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms", "72-canary"], status: "partial", stage: "E39" },
     // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
     // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of
     // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.

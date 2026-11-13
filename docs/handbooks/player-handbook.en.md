@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.110, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.111, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -118,6 +118,7 @@ A darkened time of day (see the overflow, chapter 6) can pull the crossings down
 A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off.
 
 - **The Class Trial's entry.** The screen closes on **CLASS TRIAL** and opens onto the trial.
+- **The Class Trial's end.** The screen closes on **TRIAL ADJOURNED** and opens onto the school.
 - **The verdict.** The sentenced student's portrait, the votes, and the stamp: **GUILTY** if the class got it right, **NOT GUILTY** if not.
 - **The clock's turns.** The curtain turns when the time of day changes. The Investigation opens with flashing panes; a body's announcement makes it flicker.
 - **The end of the day.** What you did that day, what the school saw, and **the school's mood**: Calm, Uneasy or Close to spilling. It stays in your notice history.
@@ -325,6 +326,8 @@ Anything at all, provided you describe it in detail. You may propose the statist
 
 The dialog prices both against what you have and names the rooms that allow each.
 
+The tile is called **Facilities**: its window holds the two rests and, after them, what the room you stand in offers. A room action the GM set is rolled on the statistic and difficulty its row names and costs an action; once anyone has used it this time of day - a failed roll too - it is greyed for everyone until the next. A completed project's action needs no roll, costs an action unless the GM set it to cost none, leaves a faint Subtle trace as a room's own action does, and is yours once each time of day; its row says which project gives it and how long it lasts. The Despair overflow can shut room actions for a time of day (Lockdown, Power cut), make them dearer (Toll) or harder (Jitters), or take the Short Rest away (Insomnia).
+
 ### Listen - Shadow, 1 action
 
 Work out who is in a neighbouring room. No GM needed. You pick the room before you roll, and the answer arrives as a card only you and the GMs can read.
@@ -337,6 +340,45 @@ Work out who is in a neighbouring room. No GM needed. You pick the room before y
 | critical | who is in every neighbouring room, by name |
 
 A neighbouring room you have never been in is listed as *Unexplored room 1*, *Unexplored room 2* and so on, in the picker and in the answer: Listen tells you who is behind a door, not what the room behind it is.
+
+The tile is called **Infiltrate**: its window lists its actions one under another - Listen first, then Tail Someone, Dash, Shut the Door, Force the Door, Pick the Lock and Keep Watch. In a room with no neighbouring room Listen is greyed with the reason.
+
+### Tail Someone - Shadow, then Leg or Shadow, 1 action
+
+Follow a student standing in your room. You propose the statistic of the second roll, Leg or Shadow, and a GM picks it on a card; nothing is paid until the GM answers. Then two rolls: Shadow 15 or more and they do not notice you - below it they are told your name at once, and the tail goes on all the same.
+
+While the tail lasts, each time they cross into another room and stay about two seconds, you get a card: *{name} moves to {room}*. On a critical second roll the card also says who is there, outside an Eclipse. Cards come in every Eclipse too, rooms only.
+
+The tail ends with a card when you are neither in the room they left nor in the one they reached (you lost track), when the day ends, when a body is found, or when they Dash higher than your second roll (a critical tail falls only to a critical Dash). It ends without a card when either of you dies or an incident begins. One tail at a time: a new one replaces it. A tail cannot be begun in an Eclipse, an investigation or a Class Trial.
+
+### Shut the Door - Body, 1 action
+
+Barricade the room you stand in, from inside. It works in a room with at most two doors that open, in your own bedroom but not in another's. While you stay inside, nobody walks in through a door: the door does not give. A secret passage, a breach or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends and when an Eclipse begins. The room shows that it is barricaded, never by whom. Somebody outside can force it (below).
+
+### Force the Door - Body, 1 action
+
+At a door from your room to the next: one Body roll against everything that holds it at once. A barricade gives to a roll above its strength; a lock (a GM's or a bedroom's) and a seal give to 18 or more; a critical opens all. A forced lock stays broken until somebody repairs it, a forced seal is gone for the rest of its time of day. It is loud: the rooms next to either room hear "A banging from: {room}" without a name, and the people in the two rooms see who it was - on a success, and on a miss with Despair. A bedroom's owner is told their door was forced. Not during a Class Trial, not when you are Chained.
+
+### Pick the Lock - Shadow, then Hand, 1 action
+
+At a locked or sealed door from your room to the next (not a barricade): Hand 15 or more opens it for you alone: you may walk into that room, by that door or another, and stay until you leave it; the lock stays locked for everyone else. A way in you do not use in this time of day is lost. First a Shadow roll: 16 or more and nobody in the room beyond sees who it was. A bedroom's owner learns somebody was at their lock when you open it below 18 or miss with Despair; at 18 or more they never know.
+
+### Keep Watch - Body, 1 action
+
+Before an Eclipse (not during one, and not before the Night Eclipse): a Body roll of 12 or more and you keep watch through the coming Eclipse over the room you stand in when it starts. You are told who is in it then, by name; through the Eclipse, who comes in and who leaves, by name, never from where or to where; and at its end how many came and went. You stay at your post through the Eclipse. A failure with Despair takes 1 Sanity. A watch of 18 or more, or a critical, makes you harder to catch: whoever opens a murder on you rolls their opening with one hindrance die, and their window does not say why. A player who agreed that their character be a murder's victim does not use Keep Watch to avoid it.
+
+### Dash - Leg, 1 action
+
+Run: a Leg roll gives free crossings until the time of day ends, spent like a Free Move.
+
+| Roll | Free crossings |
+|---|---|
+| under 12 | none |
+| 12+ | 1 |
+| 18+ | 2 |
+| critical | 3 |
+
+The GM's browser throws the dice and grants the crossings; with no GM connected nothing is paid and nothing happens.
 
 ### Palm - Hand, 1 action
 

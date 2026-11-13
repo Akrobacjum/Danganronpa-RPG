@@ -1670,9 +1670,14 @@ export const ACTIONS = {
      * where the costs and room requirements can be shown side by side - and
      * keeping them together is half of what holds the grid at two rows of five.
      */
+    /*
+     * FACILITIES, THE TILE THAT WAS REST (E93 C4, 12.11.2026; the owner's audit entry E93 (1)). Its key stays `rest`: the
+     * window, the briefing and every reader of the key are the same, and the room's actions join the two rests in the
+     * window (action-rest.mjs, action-facilities.mjs). `cost` is the Short Rest's, the cheapest thing in the window.
+     */
     rest: {
         kind: "universal",
-        label: "Rest",
+        label: "Facilities",
         icon: "fa-bed",
         traits: [],
         cost: 1,
@@ -1689,13 +1694,21 @@ export const ACTIONS = {
             + "of them, restores Health or Sanity in full, and grants more Hope; a Short Rest restores half as much "
             + "and grants less Hope."
     },
+    /*
+     * INFILTRATE, THE TILE THAT WAS LISTEN (E69 C1, 12.11.2026; DA27: the key `listen` stays, no migration; DA28 and DA48: one
+     * list of rows without groups, seven once E74 adds its four). The rows are `INFILTRATE`'s, in its order (`variants`); the
+     * thresholds, critical and failure below stay Listen's, as the Listen row reads them. The description is the owner's
+     * approved text of batch B01a and speaks of Listen; the label and the hint name the tile.
+     */
     listen: {
         kind: "universal",
-        label: "Listen",
+        label: "Infiltrate",
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        hint: "Work out who is in a neighbouring room. No GM needed.",
+        variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
+        hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
+            + "Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
             + "there, a better one names them, and a critical names everyone in every neighboring room. A miss tells "
             + "you nothing; with no neighboring room, you keep your action.",
@@ -2116,6 +2129,128 @@ export const REST = {
 };
 
 /* ==========================================================================
+ * INFILTRATE  (E69: the rows of the tile that was Listen)
+ * ========================================================================== */
+
+/**
+ * THE INFILTRATE TILE'S ROWS (E69 C1, 12.11.2026; the owner's audit entry E69, DA8, DA19-DA21, DA26-DA28, DA32, DA33). One
+ * table, in the window's order; E74 adds Shut the Door, Force the Door, Pick the Lock and Keep Watch. Names and hints are
+ * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
+ *
+ *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
+ *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (`traits`: the player proposes one on
+ *           E68's card and a GM picks, trait-ruling.mjs `definitionOf`'s generic `tail`, as R213 holds every list of
+ *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
+ *           `perDay` null: no daily limit, one active tail per tailer (DA26). What a tail does is tail-gm.mjs's.
+ *   dash    Dash: Leg, free crossings by band (`bands`: the highest reached; `critical`), granted through actions.mjs
+ *           `grantFreeMoves`. The plan names "0-3 by band" and no numbers: a miss 0, 12+ 1, 18+ 2, a critical 3 - a
+ *           default taken (docs/dev/e69/SPEC.md).
+ */
+export const INFILTRATE = Object.freeze({
+    listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
+    tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
+        unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
+    dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
+        bands: Object.freeze([Object.freeze({ min: 12, moves: 1 }), Object.freeze({ min: 18, moves: 2 })]),
+        critical: Object.freeze({ moves: 3 }) }),
+    // Shut the Door (E74 C2; DA25 = 1): Body, its total the barricade's strength; a room with at most `maxExits` open doors.
+    shut: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, maxExits: 2 }),
+    // Force the Door (E74 C3; DA9, DA31 = 2, DA43 = 1, DA52): Body against what holds the door - a barricade by its strength,
+    // a lock (a GM's or a bedroom's) and a seal at `lockDc`, all at once; the banging is heard in the rooms next to either.
+    force: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, lockDc: 18, noise: "adjacent" }),
+    // Pick the Lock (E74 C4; DA9, DA30, DA31 = 2): Hand at `dc` opens a lock or a seal, `clean` and up leaves no warning;
+    // the `cover`, Shadow, says whether the two rooms see who it was.
+    pick: Object.freeze({ traits: Object.freeze(["hand"]), cost: 1, dc: 15, clean: 18,
+        cover: Object.freeze({ trait: "shadow", threshold: 16 }) }),
+    // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (the owner's "Zgoda",
+    // 12.11.2026). A watch of `hindranceAt` or more, or a critical, puts one hindrance die on the killer's opening roll
+    // against the watcher (DA44 option A, the owner 12.11.2026: named in the killer's window, its cause not).
+    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 })
+});
+
+/* ==========================================================================
+ * FACILITIES  (E93: the room's actions beside the two rests)
+ * ========================================================================== */
+
+/**
+ * WHAT A ROOM'S ACTIONS ARE MADE OF (E93 C1, 12.11.2026; the owner's audit entry E93 (2)-(5), 05.11 and 08.11). Two
+ * sources: a GM's action, set per room in Room Setup's Facilities tab and rolled (`gm`), and a completed project's,
+ * set by a GM on the project and not rolled (`project`). Every name a player sees is in lang/*.json under
+ * `DRPG.Facility`; nothing here is prose (config-prose.mjs reads this file's strings).
+ *
+ * `flag` is the region flag that holds a room's GM actions on every piece of the room, as the rest flags are held
+ * (rest.mjs `REST_FLAGS`). `maxActions` a room's, `maxEffects` an action's, `maxLabel` and `maxText` the lengths kept
+ * (facilities.mjs `cleanAction` cuts the rest): each a design number, not a measurement. `dc` is the range a GM's
+ * action's difficulty may take, `defaultDc` the field's first value (Daggerheart's ordinary 12-18 band).
+ *
+ * `effects` is the closed list built in E93's first round (docs/dev/e93/SPEC.md, "Effects"): each `{ amount }` the
+ * largest `n` a GM may give, or `{ text }` for a line the GM writes. `scopes` who an effect falls on - the user
+ * (`self`), everyone in the room at the moment of use (`present`, Q-E93-5's default) or everyone there but the user
+ * (`others`: "Hope for another present"). `once` effects act on the room or the table, not on a character, so their
+ * scope is ignored.
+ *
+ * `lifetimes` a completed project's action's: for good (`forever`), or for `n` times of day or days after the time of day
+ * it was completed in (`timesOfDay`, `days`), ending at a chapter's or a season's end. `gmCost` a GM's action's price in
+ * actions, `projectCost` a project's when its switch says it costs one (the owner's 08.11: the switch is the project
+ * action's only, default yes, Q-E93-1). `trace` the band a GM's action's use leaves (Q-E93-6's default).
+ */
+export const FACILITIES = Object.freeze({
+    flag: "facilityActions",
+    maxActions: 8,
+    maxEffects: 4,
+    maxLabel: 60,
+    maxText: 400,
+    dc: Object.freeze({ min: 5, max: 30 }),
+    defaultDc: 12,
+    gmCost: 1,
+    projectCost: 1,
+    effects: Object.freeze({
+        health: Object.freeze({ amount: 6 }),
+        sanity: Object.freeze({ amount: 6 }),
+        hope: Object.freeze({ amount: 3 }),
+        freeMove: Object.freeze({ amount: 2 }),
+        searchToken: Object.freeze({ amount: 3, once: true }),
+        overflowDown: Object.freeze({ amount: 10, once: true }),
+        text: Object.freeze({ text: true }),
+        /* THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026: "Dodajemy teraz"; timed-effects.mjs). Each kept by
+           the GMs as a row with its end (`until`, one of `TIMED_UNTIL`; `untils` the ones the GM may pick here, the first
+           the default). `trait`: the GM picks a statistic in the editor. */
+        traitBonus: Object.freeze({ amount: 3, trait: true, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // `label`: the GM names it in the editor (the line's text box); an Experience of that name and value X.
+        experience: Object.freeze({ amount: 3, label: true, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // One die of advantage on the character's next roll: a Call the GM arms (key "facility"), which ends with that roll as
+        // every armed Call does, so it keeps no row of its own in the timed store.
+        advantage: Object.freeze({ amount: 1 }),
+        // The character's next roll with Fear gives its Monokuma no Despair: used up by the first point it stops, and waits
+        // no longer than its end (despair-award.mjs `awardRollDespair`, timed-effects.mjs `takeDespairShield`).
+        despairShield: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // X more crossings for this character in the next Eclipse (or the one running), ended by that Eclipse's end
+        // (eclipse.mjs `eclipseAllowanceFor`, movement.mjs's two judges of an Eclipse crossing).
+        eclipseCrossing: Object.freeze({ amount: 2, untils: Object.freeze(["eclipse"]) }),
+        // X points of durability back on the character's most worn thing that is not broken (inventory.mjs `mendWear`): at
+        // once, keeps no row. A broken thing stays a Repair project's work (the stage's default, docs/dev/e93/STATUS.md).
+        durability: Object.freeze({ amount: 3 }),
+        // Wounded or Breakdown ended (`state`, a key of `STATES`): one mark off its full track, at once, when the character
+        // is in it (states.mjs `stateHeld`); the GM picks which by the kind. One mark ends it, so the amount is 1.
+        endWounded: Object.freeze({ amount: 1, state: "wounded" }),
+        endBreakdown: Object.freeze({ amount: 1, state: "breakdown" }),
+        // X progress to the oldest unfinished project in the room the user can see (the first on the board, the order they
+        // were made in; projects.mjs `projectsAvailableIn`), an indirect murder passed by. A project's, so `once`.
+        projectProgress: Object.freeze({ amount: 3, once: true }),
+        // The character's next Ultimate Call gives a second die of advantage: when that Call is armed (call-effects.mjs
+        // `appendArmedCall`), the GM arms one more Call of advantage beside it (key "facility") and the row is used up
+        // (timed-effects.mjs `boostUltimate`). Waits no longer than its end.
+        ultimateBoost: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) })
+    }),
+    /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
+    timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),
+    scopes: Object.freeze(["self", "present", "others"]),
+    lifetimes: Object.freeze(["forever", "timesOfDay", "days"]),
+    maxLifetime: 30,
+    trace: Object.freeze({ type: "neutral", visibility: "subtle", faint: true })
+});
+
+/* ==========================================================================
  * HOPE CALLS  (player spends Hope)
  * ========================================================================== */
 
@@ -2467,6 +2602,27 @@ export const OVERFLOW = {
         silence: { kind: "state", on: true, reader: "spendHopeCall" },
         /** No free Move. The action-priced crossings still work. */
         fog: { kind: "state", on: true, reader: "hasFreeMove" },
+
+        /*
+         * THE FIVE OF THE ROOM ACTIONS (E93 C6, 12.11.2026; the owner's audit entry E93 (6): Sabotage and Spoilage
+         * rejected). Each a state read where a room action or a rest is judged - on the user's browser, which greys
+         * the row, and on the primary GM, which refuses it (facilities-gm.mjs `handleFacilityUse`, sheet-audit.mjs
+         * `restCovers`). IN THE HAT BY DEFAULT (the owner's DRPG-D1 answer, 12.11.2026: "Wlaczone w losowaniu"), which
+         * was a default the other way until then: with five more in the draw, each older darkening comes up less often, as
+         * the handbooks say. A GM unticks any of them in Despair Flow.
+         */
+        /** Lockdown: every room action off for the time of day (the rests stay). */
+        lockdown: { kind: "state", on: true, reader: "facility.use" },
+        /** Insomnia: no Short rest this time of day. The Long rest stays. */
+        insomnia: { kind: "state", on: true, reader: "restVariants" },
+        /** Toll: every room action costs `by` more actions; a project's action that costs none costs `by` (08.11). */
+        /*  `adds`: a size that raises a price rather than taking a number down, so no floor is under it (tier 1's
+            "never below its floors" asks a floor of every state that subtracts). */
+        toll: { kind: "state", on: true, by: 1, adds: true, reader: "facilityCost" },
+        /** Jitters: a GM's room action is rolled with a die of disadvantage. */
+        jitters: { kind: "state", on: true, reader: "situation" },
+        /** Power cut: the completed projects' actions off for the time of day; the GM's actions stay. */
+        powercut: { kind: "state", on: true, reader: "facility.use" },
 
         /* ---- events: done once, at the moment of firing ------------------ */
 
@@ -2888,7 +3044,9 @@ export const PROJECT_SCALE = {
 export const PROJECT_TOKEN = {
     /** Grid squares, square. */
     size: 2,
-    /** Neutral, and it has to be: this document reaches every browser.
+    /** The picture of a project with no glyph (projects-map.mjs `projectTokenIcon`). Every project token wore it until
+        13.11.2026, neutral because the document reaches every browser; since then a project's token wears its chosen
+        glyph (PROJECT_GLYPHS below, icons/project-<key>.svg), the owner's choice B, its cost accepted and written down.
         THE HAMMER, NOT FOUNDRY'S HAZARD SIGN (22.09, Dawid, on 1.2.52: "zamiast trojkata
         ostrzegawczego powinien byc mlotek widoczny po otworzeniu ekranu tokena projektu").
         It is the project card's own glyph, as the module's white token icon the project
@@ -3336,7 +3494,7 @@ export const MONOCUB = {
         },
         /**
          * REDEEM (E72 C5, 12.11.2026; audit S18-60, the owner's DC22): +1 Hope from nothing, once a game day, shut at the
-         * Hope's maximum and in a darkened hour (`blocks`, monocub.mjs `CUB_BLOCKS`). One action, no Hope, no dice; aimed
+         * Hope's maximum and in a darkened hour (`blocks`, monocub.mjs `CUB_BLOCKS`). No action since cca805ca, no Hope, no dice; aimed
          * at the Monocub itself. Its price is a default taken (STATUS, owner to confirm).
          */
         redeem: {
@@ -5340,6 +5498,8 @@ export const DRPG = {
     MOOD_SHARES,
     DYNAMIC_THRESHOLDS,
     REST,
+    FACILITIES,
+    INFILTRATE,
     HOPE_CALLS,
     DESPAIR_CALLS,
     MOTIVE,
