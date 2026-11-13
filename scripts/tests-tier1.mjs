@@ -52935,12 +52935,9 @@ const INVARIANTS = [
         const src = stripComments((await moduleSources()).get("cleanup.mjs") ?? "");
         must(src.length > 10000, "cleanup.mjs was not read");
         const refusal = /nothing was carried out: no action was left to pay for it/;
-        const after = (fn, marker) => {
-            const body = fnSource(src, fn);
-            const at = body.search(marker);
-            return at >= 0 && refusal.test(body.slice(at, at + 900));
-        };
-        equal(stableJson({ cleanup: after("resolveCleanup", /const charged = await chargeUnclaimed\(/), stageSix: after("resolveStageSix", /chargeUnclaimed\(/) }),
+        // Cut with the kit (R156): the 900 characters after the charge, which must() the marker is there.
+        const after = (fn, marker) => refusal.test(bodyOf(fnSource(src, fn), marker, { length: 900 }));
+        equal(stableJson({ cleanup: after("resolveCleanup", "const charged = await chargeUnclaimed("), stageSix: after("resolveStageSix", "chargeUnclaimed(") }),
             stableJson({ cleanup: true, stageSix: true }), "{the refusal after an unpaid charge in resolveCleanup, in resolveStageSix}");
     }],
     ["R4478 - a season reset takes the DA39 migration's rises with the season (scripts/season-wipe.mjs `wipeStudent`'s advancement part; the E101 line's review of 1.2.110, E64 reader F5, 13.11.2026): the step that restores the starting sheet also unsets `da39Rises`, so a migration still pending across a reset does not read last season's rises as covering this season's points", async () => {
