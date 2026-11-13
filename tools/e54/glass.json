@@ -119,6 +119,35 @@
       "scripts/patches.mjs"
     ],
     "sites": [],
-    "patches": []
+    "patches": [
+      {
+        "test": "R509",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "        const scriptsOf = (glass, tile) => new Map([[\"glass.mjs\", glass], [\"room-tile.mjs\", tile]]);\n",
+        "replace": "        const scriptsOf = (glass, tile) => new Map([[\"glass.mjs\", glass], [\"glass-geometry.mjs\", \"// the cut: no part of the room tile's box\\n\"], [\"glass-blocks.mjs\", \"// no part of the room tile's box\\n\"], [\"room-tile.mjs\", tile]]);\n",
+        "why": "R509 plants its faults in a stand-in set of sources, and since the cut it reads the glass through glassText, which refuses a family file missing from the set or empty; the cut files hold no part of the room tile box (roomPlacement stays in glass.mjs), so each stands in as one comment line"
+      },
+      {
+        "test": "R4805",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "        const span = stripStrings(stripComments(bodyOf(raw, \"/* ---- the glass ----\", { until: \"/* ---- painting ----\" })));\n",
+        "replace": "        // Since the E54 cut the span is glass-geometry.mjs and glass-blocks.mjs whole; railBox and resolveAcc stayed in glass.mjs.\n        const span = stripStrings(stripComments(glassText(new Map(await otherSources()), [\"glass-geometry.mjs\", \"glass-blocks.mjs\"])));\n",
+        "why": "the cut moved the span the test read between two section headers of glass.mjs into two files of their own; the test now reads those files whole, which is what the cut was for"
+      },
+      {
+        "test": "R4805",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "        const LISTED = {\n            resolveAcc: \"the accent's colour, read off the page for the paint (paintGlass), not for the cut\",\n            railBox: \"the rails' measure: the callers take it (stackPage, deskPage) and hand the cut its bands\",\n        };\n",
+        "replace": "        const LISTED = {};   // resolveAcc and railBox read the page: since the E54 cut they stand in glass.mjs, which this does not read\n",
+        "why": "the two listed readers of the page stayed in glass.mjs, so the files read hold no listed name and would read as stale"
+      },
+      {
+        "test": "R4805",
+        "file": "scripts/tests-tier0.mjs",
+        "find": "        const decls = [...span.matchAll(/^ {0,2}(?:export )?(?:function ([\\w$]+)|(?:const|let) ([\\w$]+)\\b)/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));\n",
+        "replace": "        // `export   const x`: the cut promoted a declaration indented two spaces by putting `export ` before its line (split.mjs)\n        const decls = [...span.matchAll(/^ {0,2}(?:export +)?(?:function ([\\w$]+)|(?:const|let) ([\\w$]+)\\b)/gm)].map(m => ({ at: m.index, name: m[1] ?? m[2] }));\n",
+        "why": "split.mjs writes a promoted indented declaration as `export ` + its old line, which the declaration reader did not take"
+      }
+    ]
   }
 }
