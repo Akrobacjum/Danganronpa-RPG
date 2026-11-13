@@ -31,7 +31,7 @@
  * v14 calls that field.
  *
  * THE TILE IS DATA, NOT A PICTURE (the owner's report of 13.11.2026 at a table on 1.2.112: "Killing a character makes 3
- * tokens appear: the body, the Spectator and... a third, inactive token"; scenario 97 measured it on every road: the
+ * tokens appear: the body, the Spectator and... a third, inactive token"; scenario 77 measured it on every road: the
  * corpse's own token, the Spectator's token, and this tile drawn with the token's picture, its dead sign and caption).
  * The coordinator's default for the owner: a death shows the body and the Spectator and nothing else. So the tile is laid
  * at alpha 0 (`bodyTileSpec`) and draws nothing of its own (`drawBodyMark`), and its caption "{name}'s body" is drawn over

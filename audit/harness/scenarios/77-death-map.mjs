@@ -1,5 +1,5 @@
 /**
- * 97-death-map: what a death lays on the map, road by road (the owner's report of 13.11.2026 at a table on 1.2.112:
+ * 77-death-map: what a death lays on the map, road by road (the owner's report of 13.11.2026 at a table on 1.2.112:
  * "Killing a character makes 3 tokens appear: the body, the Spectator and... a third, inactive token").
  *
  * Measured at 1.2.112 (ceb9e9c8) with this scenario's own listing: every road below adds one Spectator token (its actor
@@ -92,7 +92,7 @@ export async function run({ gm, gm2, p1, check, phase, settle, connect, disconne
         const p1Room = await p1.eval(ROOM_P1);
         const caption = await p1.eval(CAPTION);
         const fresh = added(before, after);
-        console.log(`[97] ${road}: new on the map\n    ${listed(fresh).join("\n    ") || "(nothing)"}`);
+        console.log(`[77] ${road}: new on the map\n    ${listed(fresh).join("\n    ") || "(nothing)"}`);
         const shown = (read?.corpse?.length === 1 && !read.corpse[0].hidden ? 1 : 0) + (read?.spectators?.length ?? 0)
             + (read?.tiles ?? []).filter(t => t.drawn).length;
         check(`${road}: the map shows two things of Chie's death - her own token, the corpse, shown, and one Spectator token - and no other new token`,
@@ -187,7 +187,7 @@ export async function run({ gm, gm2, p1, check, phase, settle, connect, disconne
         await settle(3000);
         const race = await gm.eval(READ);
         const raceNew = added(before, await gm.eval(LIST));
-        console.log(`[97] gm2: both GMs make her Spectator at once (${JSON.stringify(made)}): new on the map\n    ${listed(raceNew).join("\n    ") || "(nothing)"}`);
+        console.log(`[77] gm2: both GMs make her Spectator at once (${JSON.stringify(made)}): new on the map\n    ${listed(raceNew).join("\n    ") || "(nothing)"}`);
         check("gm2: both GMs making her Spectator at once leave one watcher and one Spectator token",
             race?.watchers === 1 && race.spectators?.length === 1 && raceNew.length === 1, JSON.stringify({ made, race, raceNew: listed(raceNew) }));
     } finally {

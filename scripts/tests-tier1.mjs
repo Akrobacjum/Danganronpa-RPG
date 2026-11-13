@@ -52680,7 +52680,7 @@ const INVARIANTS = [
         /*
          * E95 C3, 10.11.2026; QUESTIONS Q4; DC6's label "Ciało: {imię}". Until 13.11.2026 the caption and the dead sign were
          * drawn on the body tile, which beside the corpse's token and the Spectator's made a third thing on the map (the
-         * owner's report; scenario 97). The caption is the corpse's token's now, which wears Foundry's dead overlay
+         * owner's report; scenario 77). The caption is the corpse's token's now, which wears Foundry's dead overlay
          * already, so no sign. Read on a token placeable of the test's own (a PIXI container with a document of plain
          * fields and an actor whose `deceased` flag the test sets; Foundry's `drawToken` and `refreshToken` are not in the
          * harness): the caption's words, size, keyline and place over the token, the same caption after a second draw, a
@@ -56994,7 +56994,7 @@ const INVARIANTS = [
     ["R5870 - a body's tile is laid at alpha 0 (body-tile.mjs `bodyTileSpec`; the owner's report of 13.11.2026, \"Killing a character makes 3 tokens appear\"): the tile is the data the body's readers ask and is drawn to nobody, `hidden` still the token's, and the update that takes it to its corpse leaves its alpha alone", async () => {
         /*
          * 13.11.2026, at a table on 1.2.112: a death drew three things where the student fell - the corpse's own token, the
-         * Spectator's token and the body tile with the token's picture, its dead sign and its caption (scenario 97
+         * Spectator's token and the body tile with the token's picture, its dead sign and its caption (scenario 77
          * measured it on every road). The coordinator's default: the body and the Spectator, nothing else. Alpha 0 and not
          * `hidden`, which is the loot gate's (a hidden tile refuses the loot) and the token's own (`followedTile` copies
          * it); body-tile.mjs's header, THE TILE IS DATA. Read: the spec's alpha from a token shown and from one hidden,
@@ -57016,7 +57016,7 @@ const INVARIANTS = [
 
     ["R5871 - a body tile draws nothing (body-tile.mjs `drawBodyMark`; the owner's report of 13.11.2026): Foundry's draw and refresh of a flagged tile answer no mark, and a mark drawn there before (a browser that loaded 1.2.112) is taken off", async () => {
         /*
-         * The third thing on the map was the tile with its dead sign and caption (scenario 97). The caption is the
+         * The third thing on the map was the tile with its dead sign and caption (scenario 77). The caption is the
          * corpse's token's (R3144); the tile's draw hook only takes off what an older build drew. On a stand-in tile
          * placeable as R3144 read before 13.11.2026, with a mark of the old name planted as its child. Red at ceb9e9c8: the
          * mark drawn, the planted one replaced by it.
@@ -57086,7 +57086,7 @@ const INVARIANTS = [
         /*
          * The coordinator's default for the owner (13.11.2026): one sound per moment per browser. At a death in play the
          * victim's player hears the Spectator's fade, and the GMs' death card - whispered to the incident's audience, the
-         * victim's player among them - carried `death` to them as well (scenario 98 measured deathFade + death on p3).
+         * victim's player among them - carried `death` to them as well (scenario 78 measured deathFade + death on p3).
          * The card's flag now names the faded users (`not`), and this browser's reading of it answers no sound for them.
          * Read on stand-in messages a GM wrote: the flag naming this user, naming another, naming none. Red at 9ad2174e:
          * `not` read nowhere, so the first answered the sound.
@@ -57104,12 +57104,12 @@ const INVARIANTS = [
         /*
          * One execution played the GMs `death` (the death card) + `execution` + `trialClose`, and the executed player
          * `deathFade` + `execution` + `trialClose`, while a kept convict's execution played `execution` + `trialClose`
-         * alone (scenario 98 at 9ad2174e). trial-progress.mjs's own header (E70 C4, amend 0's sound rule) says the death's
+         * alone (scenario 78 at 9ad2174e). trial-progress.mjs's own header (E70 C4, amend 0's sound rule) says the death's
          * sound moved to the execution's card, not that a second was added. Read off the served sources with comments
          * taken out: the living convict's `killCharacter` call passes `silent: true`; `killCharacter` names `takeFadedFor`
          * before the card, its card's `death` and its `playSfxForUsers` both stand behind `sounds` (the cause not
          * "executed"), the card's flag carries `not` and the addressed sound plays to `deathHearers`. What each browser
-         * hears is scenario 98's. Red at 9ad2174e: none of the five.
+         * hears is scenario 78's. Red at 9ad2174e: none of the five.
          */
         const sources = await moduleSources();
         must(["trial-progress.mjs", "chapter.mjs"].every(f => sources.has(f)), "trial-progress.mjs or chapter.mjs is not served - this would measure nothing");
@@ -57126,9 +57126,9 @@ const INVARIANTS = [
         "{the living convict killed silently; the death's sound behind the cause; the faded taken before the card; the card's flag leaves them out; the addressed sound leaves them out}");
     }],
 
-    ["R5874 - one Spectator a student, whoever made it (spectator-dead.mjs `watchersOf`, `keptWatcher`, `settleWatchers`; scenario 97 part gm2, 13.11.2026): of a student's flagged watchers the smallest id is kept, the same on every browser; other students' and unflagged actors are not counted", async () => {
+    ["R5874 - one Spectator a student, whoever made it (spectator-dead.mjs `watchersOf`, `keptWatcher`, `settleWatchers`; scenario 77 part gm2, 13.11.2026): of a student's flagged watchers the smallest id is kept, the same on every browser; other students' and unflagged actors are not counted", async () => {
         /*
-         * Two GMs making one student's Spectator at the same moment each made an actor and a token (scenario 97 measured
+         * Two GMs making one student's Spectator at the same moment each made an actor and a token (scenario 77 measured
          * two Spectator tokens at ceb9e9c8). The primary settles it after: it keeps `keptWatcher` and deletes the rest
          * (`settleWatchers`, on the scenario's two GMs). Read on stand-in actors: which are a student's watchers, which is
          * kept whatever order they arrive in, and none of none. Red at ceb9e9c8: none of the three is exported.
