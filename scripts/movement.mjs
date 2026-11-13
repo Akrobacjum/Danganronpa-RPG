@@ -62,6 +62,7 @@ import { actsAsMastermind } from "./passages-gm.mjs";
 import { eclipseMoveStore, crossingStore, watchStore, lockpickStore, lockpickCopy, timedCrossingsOf } from "./gm-stores.mjs";
 // E89 fix FG2 (G3): the waits for a token at rest counted (perf-counters.mjs; a leaf, no cycle).
 import { count } from "./perf-counters.mjs";
+import { isCubToken, isMonocubCorpse } from "./spectator.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -1137,7 +1138,8 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
  * which the veto asks before them). Pure but for the settings those rules read.
  */
 function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
-    if (isCorpse(student)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead"), rule: "corpse" };
+    // A Monocub's corpse beside the token it walks too (E62 C3b fix): the GMs' judge holds the body where the veto does.
+    if (isCorpse(student) || isCorpseToken(tokenDoc)) return { code: "cannotNow", text: game.i18n.localize("DRPG.Move.dead"), rule: "corpse" };
     // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
     // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
     // Scenario 41 b1 read it on 12.10.2026: the hall linked after its tokens were recorded in its
@@ -1513,8 +1515,8 @@ export function gmSpotWhy(tokenDoc, was = null) {
  * Passage's searcher and a show's two students here, where it read the token's document, which the player's own
  * browser writes - a console's jump through a wall found the passage beyond it. On the primary GM.
  */
-export function gmPlaceOf(actor, { sceneId = null } = {}) {
-    const place = locateActor(actor, { sceneId });
+export function gmPlaceOf(actor, { sceneId = null, body = false } = {}) {
+    const place = locateActor(actor, { sceneId, body });
     const spot = place ? gmSpotOf(place.tokenDoc) : null;
     if (!spot) return null;
     return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomAtSpot(place.tokenDoc, spot), level: spot.level ?? levelOf(place.tokenDoc) };
@@ -1558,7 +1560,8 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         // carry `deceased` for the rules that count the living, and `monocub`
         // for everything about being a person on the map - the same pair the
         // sheet's own action panels test.
-        if (isCorpse(actor)) {
+        // And a Monocub's corpse beside the token it walks (E62 C3b fix): the body stays where it fell.
+        if (isCorpseToken(tokenDoc)) {
             ui.notifications.warn(game.i18n.localize("DRPG.Move.dead"));
             return false;
         }
@@ -1606,6 +1609,16 @@ function onPreUpdateToken(tokenDoc, changes, options) {
  * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
  * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
  */
+/**
+ * Whether this token is a body that does not walk (E62 C3b fix; the e93 review's F3): its actor a corpse (`isCorpse`), or
+ * a Monocub's corpse beside the token it walks (spectator.mjs `isMonocubCorpse`). The veto, the GMs' judge and the body
+ * tile's follow (body-tile.mjs `followBody`) ask it.
+ */
+export function isCorpseToken(tokenDoc) {
+    const actor = tokenDoc?.actor ?? null;
+    return Boolean(actor && isCorpse(actor)) || isMonocubCorpse(tokenDoc);
+}
+
 export function isCorpse(actor) {
     try {
         if (!isDeadForGm(actor) && !isMutedDead(actor)) return false;
@@ -3517,7 +3530,7 @@ export function roomOfActor(actor) {
  * @param {string|null} [options.sceneId]  The scene to prefer, among the character's own.
  * @returns {{tokenDoc: TokenDocument, scene: Scene, room: string|null, level: *}|null}
  */
-export function locateActor(actor, { sceneId = null } = {}) {
+export function locateActor(actor, { sceneId = null, body = false } = {}) {
     if (!actor) return null;
     const places = [];
     for (const scene of game.scenes ?? []) {
@@ -3526,9 +3539,21 @@ export function locateActor(actor, { sceneId = null } = {}) {
             if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene });
         }
     }
-    const place = chosenPlace(places, sceneId);
+    const place = chosenPlace(walkerOrBody(places, body), sceneId);
     if (!place) return null;
     return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomOfToken(place.tokenDoc), level: levelOf(place.tokenDoc) };
+}
+
+/*
+ * A MONOCUB WALKS ITS OWN TOKEN, AND ITS BODY LIES (E62 C3b fix, 13.11.2026; the coordinator's 7). A Monocub made from a
+ * dead student's Spectator holds two tokens (scripts/spectator.mjs `isCubToken`, `isMonocubCorpse`): where it stands is
+ * the token it walks, where its body lies the other. `body` asks for the body; otherwise the walker. A character with no
+ * marked token keeps every token, as before.
+ */
+function walkerOrBody(places, body = false) {
+    if (!places.some(place => isCubToken(place.tokenDoc))) return places;
+    const kept = places.filter(place => isCubToken(place.tokenDoc) !== body);
+    return kept.length ? kept : places;
 }
 
 /** `locateActor`'s choice among several tokens, in the order its comment gives. */
@@ -3567,7 +3592,8 @@ export function placesOf(actor) {
             if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene, room: roomOfToken(tokenDoc) });
         }
     }
-    return places;
+    // A Monocub's places are where it walks, not where its body lies (`walkerOrBody`).
+    return walkerOrBody(places);
 }
 
 /**

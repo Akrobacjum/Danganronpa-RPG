@@ -43,7 +43,7 @@ import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import { roomActions } from "./facilities.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
-    listOver, isTrialScene, homeScene, sceneHoldsRooms
+    listOver, isTrialScene, homeScene
 } from "./rooms.mjs";
 import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
@@ -376,7 +376,9 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
    after Doors (E79 C5; the plan's D31 mockup): a secret passage is a way between two rooms, as a
    door is. Its panel is passages-tab.mjs's (`passagesTabHtml`), and its buttons write at once. */
 export const ROOM_SETUP_TABS = Object.freeze([
-    ["bedrooms", "DRPG.Vault.tabBedrooms"],
+    // Rooms since E101 item 4: what a room is - a room at all, whose bedroom, counted private or not. Its key stays
+    // `bedrooms`, as every opener of it names it.
+    ["bedrooms", "DRPG.Vault.tabRooms"],
     ["doors", "DRPG.Vault.tabDoors"],
     ["passages", "DRPG.Vault.tabPassages"],
     ["search", "DRPG.Vault.tabSearching"],
@@ -385,18 +387,19 @@ export const ROOM_SETUP_TABS = Object.freeze([
     ["rest", "DRPG.Vault.tabFacilities"],
     ["stashes", "DRPG.Vault.tabStashes"],
     ["description", "DRPG.Vault.tabDescription"],
-    ["fog", "DRPG.Vault.tabFog"],
-    ["scenes", "DRPG.Vault.tabScenes"]
+    ["fog", "DRPG.Vault.tabFog"]
+    // No Scenes tab since E101 item 5 (the owner's yes of 12.11.2026 to the GM screens' review): the school and the trial
+    // hall are the season's, the same on every scene, and stand in Season setup (season-setup.mjs `openSeasonSetup`).
 ]);
 
 /**
- * The tab Room Setup opens on: the one asked for when it is a tab, else Bedrooms on a scene that
- * holds a room and Scenes on one that holds none (Q-E13-1 e) - a GM who opens Room Setup on a new
- * map, or before any room is marked, has nothing to set on the room tabs yet.
+ * The tab Room Setup opens on: the one asked for when it is a tab, else Rooms. Until E101 item 5 a scene holding no room
+ * opened on Scenes (Q-E13-1 e); the Scenes are Season setup's now, and Rooms on a new map lists the regions still to be
+ * marked, under the line that says no room is marked yet.
  */
-export function roomSetupTab(tab, holdsRooms) {
+export function roomSetupTab(tab) {
     if (ROOM_SETUP_TABS.some(([key]) => key === tab)) return tab;
-    return holdsRooms ? "bedrooms" : "scenes";
+    return "bedrooms";
 }
 
 /*
@@ -431,7 +434,7 @@ const ROOM_SETUP_HEAD = {
 };
 
 /** The window's body: the tab strip and one panel per tab, dealt from the same cells. */
-function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens, scenesPanel, passagesPanel = "" }) {
+function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens, passagesPanel = "" }) {
     // The kit's tables (E46-C2a): the room first, its kind "room"; then the tab's columns in their order, or the students.
     const roomColumn = { key: "name", label: game.i18n.localize("DRPG.Vault.room"), cls: "room" };
     const tableFor = cols => dataTable({ columns: [roomColumn, ...cols.map(key =>
@@ -439,21 +442,31 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
     const matrix = rows => dataTable({ columns: [roomColumn, ...studentColumns(students)], rows });
 
     // Each tab's pane, by its key; the bar and the panes are the kit's (`kitTabs`), in ROOM_SETUP_TABS's order.
+    /*
+     * ROOMS, THEN DOORS (E101 item 4; the owner's yes of 12.11.2026 to the GM screens' review). The Bedrooms tab was one
+     * column, and Doors held two that are not about doors - This is a room and No privacy - whose heads ran into
+     * Neighbours'. Rooms holds what a room is, with the count those two columns change; Doors the locks and the
+     * neighbours. The cells, their names and Apply's read are the same (`roomCells`, `readRoomSetupForm`): only the
+     * pane a column stands in moved. The neighbours' rules stay whole in the line's tooltip.
+     */
     const panes = {
         bedrooms: `
-            <p>${game.i18n.localize("DRPG.Vault.bedroomsIntro")}</p>
+            <p>${game.i18n.localize("DRPG.Vault.roomsIntro")}</p>
             ${/* a warning box (E46-C2a; E21's carried site ~431), shown only while a student has two bedrooms */ ""}
             <div data-drpg-two-rooms-box hidden>${box("warning", `<p data-drpg-two-rooms></p>`)}</div>
-            ${tableFor(["owner"])}
-        `,
-
-        doors: `
-            <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
             ${/* information, not a warning (D11; audit S06-59, E22 C6b): the count advises and changes no rule */ ""}
             ${box("info", `<p class="notes" data-drpg-ratio></p>`)}
-            ${tableFor(["isroom", "locked", "startlocked", "broken", "notshared", "neighbours"])}
-            <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
+            ${tableFor(["isroom", "owner", "notshared"])}
+            <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedLine")}</p>
+        `,
+
+        /* The neighbours' rules in a fold the keyboard opens (the r112 review's S7, 13.11.2026): a tooltip on a <p> was the
+           pointer's alone, and they say what an empty cell means and that a link works both ways. R4470. */
+        doors: `
+            <p>${game.i18n.localize("DRPG.Vault.doorsLine")}</p>
+            ${tableFor(["locked", "startlocked", "broken", "neighbours"])}
+            <details class="notes" data-drpg-neighbours><summary>${game.i18n.localize("DRPG.Vault.neighboursLine")}</summary>
+                <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.neighboursNote"))}</p></details>
         `,
 
         passages: passagesPanel,
@@ -462,7 +475,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             <p>${game.i18n.localize("DRPG.Vault.searchIntro")}</p>
             ${tableFor(["nosearch", "tokens", "table", "place"])}
             <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
-            <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupNote",
+            ${/* E101 item 3: the tokens' line without the arrows the tab has not had since the kit's stepper (- and +) */ ""}
+            <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupLine",
                 { max: maxTokens })}</p>
             <p class="notes">${game.i18n.localize("DRPG.SearchTokens.sealedNote")}</p>
         `,
@@ -470,7 +484,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
         rest: `
             <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
             ${tableFor(["short", "long", "facilities"])}
-            <p class="notes">${game.i18n.localize("DRPG.Facility.editor.tabNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Facility.editor.tabLine")}</p>
         `,
 
         stashes: `
@@ -497,14 +511,13 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
                     game.i18n.localize("DRPG.Vault.hideAll")}</button>
             </div>
             ${matrix(fogRows)}
-            <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
-        `,
-
-        scenes: scenesPanel
+        `
     };
 
     return dialogContent(`<form>
-            <p class="notes">${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
+            ${/* WHAT APPLY SAVES, SAID ONCE (E101 item 3): every tab at once, and the three that write at once - until
+               then the rule stood over the tabs and again in five of them */ ""}
+            <p class="notes" data-drpg-apply-line>${game.i18n.localize("DRPG.Vault.applyLine")}</p>
             ${/* information, not a warning (E46-C2a; E21's carried site ~499): a new map has no room yet */ ""}
             ${cells.length ? "" : box("info", `<p>${game.i18n.localize("DRPG.Vault.noRooms")}</p>`)}
             ${kitTabs(ROOM_SETUP_TABS.map(([key, label]) => ({ key, label: game.i18n.localize(label), html: panes[key] })), { active: initial })}
@@ -1221,7 +1234,6 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         return null;
     }
     const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
-    const scenesTab = await import("./trial-scene.mjs");
     const passagesTab = await import("./passages-tab.mjs");
 
     const { studentActors, studentCensus } = await import("./monokuma.mjs");
@@ -1263,7 +1275,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const stashRows = stashMatrixRows(rooms, students, scene);
     const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
 
-    const initial = roomSetupTab(tab, sceneHoldsRooms(scene));
+    const initial = roomSetupTab(tab);
 
     const result = await drpgWindow({
         title: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: scene?.name ?? "" }),
@@ -1278,12 +1290,11 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         // is showing and jumps between 708px and 1504px as the GM switches.
         fit: true,
         body: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens,
-            scenesPanel: scenesTab.scenesTabHtml(), passagesPanel: passagesTab.passagesTabHtml(scene, { students }) }).innerHTML,
+            passagesPanel: passagesTab.passagesTabHtml(scene, { students }) }).innerHTML,
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Panel.apply"),
-                callback: (e, b, d) => ({ ...readRoomSetupForm(d, { rooms, students, categories }),
-                    scenes: scenesTab.readScenesTab(d.element) })
+                callback: (e, b, d) => readRoomSetupForm(d, { rooms, students, categories })
             },
             close: { role: "cancel", action: "cancel" }
         },
@@ -1302,7 +1313,6 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             wireFogButtons(root);
             wireKitTabs(root, { win: root, app: dialog });
             wireTwoRoomsCheck(root, rooms);
-            scenesTab.wireScenesTab(root, reason => setApplyBlock(root, "scenes", reason));
             passagesTab.wirePassagesTab(root, scene, { dialog, students });
 
             const recount = where => recountTokenCells(where, scene);
@@ -1354,18 +1364,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     if (!Array.isArray(rowResults)) return null;
 
     if (bedroomClaimedTwice(rowResults)) return null;
-    // The Scenes tab's backstop, as `bedroomClaimedTwice` is the Bedrooms tab's: nothing is written.
-    if (scenesTab.scenesClash(result.scenes)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.sameScene"));
-        return null;
-    }
-    // And its second: the trial hall is not linked, relinked or unlinked while a Class Trial runs (E13 fix r1-F2;
-    // the reason for a first hall since r2-H2).
-    const hallLock = scenesTab.hallLockReason(result.scenes);
-    if (hallLock) {
-        ui.notifications.warn(game.i18n.localize(hallLock));
-        return null;
-    }
+    // The Scenes tab's two backstops (a clash, a hall locked by a running trial) went with it to Season setup (E101 item 5).
 
     await applyDiscoveryChanges(scene, result.fogChanges ?? []);
 
@@ -1389,8 +1388,6 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     // assigned before keys existed are all of those. Not silent: a key arriving
     // on your sheet is news, and the sweep only writes when one was missing.
     await reconcileBedroomKeys({ silent: false });
-
-    await scenesTab.applyScenesTab(result.scenes);
 
     ui.notifications.info(plural("DRPG.Vault.appliedOn", { count: changed.size, scene: scene?.name ?? "" }, "count"));
     return changed.size;

@@ -34,6 +34,9 @@ import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
 import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines, dropOldGmLines } from "./secret.mjs";
+
+import { tipText, setTip } from "./ui-kit.mjs";
+
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -268,7 +271,7 @@ export class DrpgMessengerApp extends DrpgApp() {
         const made = document.createElement("template");
         made.innerHTML = kitTabBar([
             { key: "chat", label: game.i18n.localize("DRPG.Messenger.tabChat") },
-            { key: "note", label: game.i18n.localize("DRPG.Note.tab") }
+            { key: "note", label: game.i18n.localize("DRPG.Note.tab"), tooltip: tipText("DRPG.Tips.Setup.chatNoteTabsTooltip") }
         ], { active: this.tab });
         const bar = made.content.firstElementChild;
         if (context.note.trim()) {
@@ -319,6 +322,7 @@ export class DrpgMessengerApp extends DrpgApp() {
             const fill = document.createElement("button");
             fill.type = "button";
             fill.className = "drpg-messenger-note-template";
+            setTip(fill, "DRPG.Tips.Setup.useTheTemplateTooltip");
             fill.textContent = game.i18n.localize("DRPG.Note.useTemplate");
             fill.addEventListener("click", () => { area.value = noteTemplate(); area.focus(); });
             row.append(fill);

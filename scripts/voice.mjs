@@ -51,7 +51,7 @@ import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } fro
 import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore } from "./gm-stores.mjs";
-import { VOICE, ROOM_PREFIX, deadRoomFor, isDeadRoom, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 // E88 C6: a token outside every room counted, and its room kept (`keepRoomsThroughGaps`); an increment each, nothing timed.
@@ -866,22 +866,43 @@ export async function voiceTargets() {
     standDownRoomsKept();
     const gaps = keepRoomsThroughGaps(isPrimaryGm() ? roomsKept : new Map(), actor => locateActor(actor));
     const { rows, byUser, claims, waits, held } = await placeVoices({
-        actors: game.actors.filter(a => a.type === "character"), eclipse, trial,
+        actors: game.actors.filter(a => a.type === "character" && !watchesForTheDead(a)), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
         locate: gaps.locate,
         users: game.users.filter(u => u.active)
     });
     gaps.done();
 
-    // Only a real disagreement counts. Two characters in the same room, or two
-    // that both want the main room, are not a conflict - they are one answer
-    // arrived at twice.
-    const contested = new Map();
-    for (const [userId, list] of claims) {
-        if (new Set(list.map(r => r.target ?? null)).size > 1) contested.set(userId, list);
-    }
+    const contested = contestedOf(claims);
 
     return { rows, byUser, contested, eclipse, trial, waits, held };
+}
+
+/**
+ * The accounts whose voice the ranking settled by actor id alone between two places: `claims` (`placeVoices`' map of an
+ * account's connected rows) cut to the accounts whose rows that tie with the strongest - the same claim, and alike in
+ * whether a dead student's voice is still in its room (`voiceRowFor`'s first two rules) - send them to more than one
+ * target. Each keeps its whole list, for the warning and the plan.
+ *
+ * NO FALSE CONFLICT (E43, 13.11.2026; the plan's item 4). Until E43 an account counted when its rows' targets differed at
+ * all, so a living student outranking a dead one, a victim keeping its room by A9's rule, or a spare whose token stands
+ * on no room - the warning's own advice, "leave their tokens off the map" - was warned of on every pass: each is settled
+ * by a rule, the same on every client. Two characters in one room, or two that both want the main room, are one answer
+ * arrived at twice and never counted. R5202 asks it on plain rows.
+ *
+ * @param {Map<string, Array>} claims
+ * @returns {Map<string, Array>}
+ */
+export function contestedOf(claims) {
+    const contested = new Map();
+    for (const [userId, list] of claims) {
+        const top = Math.max(...list.map(r => r.claim ?? 0));
+        const strongest = list.filter(r => (r.claim ?? 0) === top);
+        const there = strongest.some(stillThere);
+        const tied = strongest.filter(r => stillThere(r) === there);
+        if (new Set(tied.map(r => r.target ?? null)).size > 1) contested.set(userId, list);
+    }
+    return contested;
 }
 
 /**
@@ -894,7 +915,8 @@ export async function voiceTargets() {
  * After it a death kept secret (`!isDeceased`) talks in the dead channel, where the living hear nothing of it, and
  * until E72 C8 a public one in the main room, as before C3 every death did at once - which put a secret victim beside
  * every player in the main room (known-leaks A9-K3, closed here). Since E72 C8 (12.11.2026) the dead channel is a room
- * of the account's own (voice-client.mjs `deadRoomFor`), for a public death as for a secret one. While the cast is unknown on this browser (null),
+ * of the account's own (voice-client.mjs `deadRoomFor`), for a public death as for a secret one; since E62 C3b (13.11.2026,
+ * the owner's Q-C3b-5) it is the Spectators' room (`SPECTATOR_ROOM`), where the dead talk with the Spectators. While the cast is unknown on this browser (null),
  * the row is `keep`: the reconcile sends that account nothing, and the cast's arrival runs the pass again.
  *
  * THE WITNESS IS THE SECOND PASS. "A living student from outside the cast in the same room" can only be read once
@@ -933,7 +955,7 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
             })
         };
         // A kept row's answer to its own browser's question (`answerWhoAmI`, E19 fix r1-G1): the room after A9's
-        // trigger - the account's own dead room, for a public death as for a secret one since E72 C8 - which no living
+        // trigger - the Spectators' room, for a public death as for a secret one since E62 C3b - which no living
         // player in a room hears. Never the room it keeps, which the cast may already have closed to it.
         if (row.keep) row.standIn = voiceClaim({ user, silenced: () => true, secret: () => !isDeceased(actor) }).target ?? null;
         return row;
@@ -1124,8 +1146,8 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  *     held; the module's own reason is named first when both stand;
  *   - "eclipseHeard": a Monocub in an Eclipse - out of voice like every player (E19 C4), so the tile must not pretend
  *     somebody hears it, but a Monocub is never held (the design's P6), so this is a line of information.
- *   - "deadAlone": the primary GM put this account in its own dead room (E19 C3; A9; since E72 C8 one room per account,
- *     voice-client.mjs `deadRoomFor`, for a public death as for a secret one): the living neither hear it nor are heard
+ *   - "deadAlone": the primary GM put this account, no Spectator's, in the Spectators' room (E62 C3b, Q-C3b-5; E19 C3's
+ *     dead channel until then, one room per account from E72 C8, voice-client.mjs `deadRoomFor`): the living neither hear it nor are heard
  *     there - a line of information, not held (E19 fix r1-G1; the review's E19-C3-1). Until E72 C8 the dead channel was
  *     one room for every secret death, so two victims heard each other: the module silences nobody there, and the microphone stays
  *     its owner's to open and mute, as a Monocub's in an Eclipse. Until the fix it was held, which froze it as it
@@ -1170,7 +1192,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
-    if (!user.isGM && room === deadRoomFor(user.id)) return { reason: "deadAlone", held: false };
+    // The dead talk with the Spectators (E62 C3b, Q-C3b-5): an account no Spectator's sent to their room is a dead one's.
+    if (!user.isGM && room === SPECTATOR_ROOM) return { reason: "deadAlone", held: false };
     return null;
 }
 
@@ -1200,6 +1223,27 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
+}
+
+/**
+ * A DEAD STUDENT'S SPECTATOR HAS NO VOICE OF ITS OWN (E62 C3b, 13.11.2026; spectator-dead.mjs). It is a Spectator's
+ * character (E92's flag) owned by an account that still owns its dead student, so the account is no Spectator's
+ * (`spectatorAccount`) and its voice is the dead student's - the Spectators' room below (`voiceClaim`). Left in the
+ * rows, the Spectator's token would claim the room it walks into as a living character's and outrank the dead.
+ *
+ * THE ACCOUNT BY OWNERSHIP, NOT BY CONNECTION (13.11.2026, the 1.2.112 tree; CI 43479554811, scenario 41 h1; R5469).
+ * Until then the account was `voiceUserOf`'s, the connected owner alone: a watcher no player owns - chapter.mjs makes one
+ * for every dead student, scenario 41's "S41 Ghost" whom nobody plays - and the watcher of a player who is away read no
+ * account, so stood in `voiceTargets`' rows (h1: eight, the Ghost twice) and in `trialVoicesPending` as an E92 Spectator.
+ * Now the connected owner, else any player who owns it; a Spectator's character no player owns is nobody's voice and
+ * has no row. An E92 Spectator's account, connected or away, is still read as one (`spectatorAccount`) and keeps its row.
+ */
+export function watchesForTheDead(actor, { actors = null } = {}) {
+    if (!isSpectator(actor)) return false;
+    const user = voiceUserOf(actor, false)
+        ?? game.users?.find?.(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")) ?? null;
+    if (!user) return true;
+    return !user.isGM && !spectatorAccount(user, { actors });
 }
 
 /**
@@ -1244,7 +1288,8 @@ function spectatorTalks(user, { actors = null, held = actor => actor } = {}) {
  * character is listed is the trial's to hold (`trialVoiceActorOf` asks the same).
  */
 function accountRow(user, { actors, eclipse = false, trial = false, silenced, listed = null }) {
-    let mine = actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id);
+    let mine = (actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id))
+        .filter(a => !watchesForTheDead(a));
     if (trial && listed?.length) {
         const free = mine.filter(actor => !listed.includes(actor.id));
         if (free.length) mine = free;
@@ -1338,6 +1383,9 @@ export function trialVoiceActorOf(user, actors = game.actors, listed = []) {
     let held = null;
     for (const actor of actors ?? []) {
         if (actor?.type !== "character" || isMonokuma(actor) || !actor.testUserPermission?.(user, "OWNER")) continue;
+        // A dead student's Spectator is no voice of its own (E62 C3b, `watchesForTheDead`): left in, it was the account's
+        // character off the list, and the dead player's microphone stayed open in the trial (scenario 30, 13.11.2026).
+        if (watchesForTheDead(actor, { actors })) continue;
         const free = !off.has(actor.id);
         if (!held || (free && off.has(held.id)) || (free === !off.has(held.id) && actor.id < held.id)) held = actor;
     }
@@ -1519,9 +1567,11 @@ export async function askTrialVoices() {
 let settleTimer = null;
 function trialVoicesPending() {
     const stored = getSetting(SETTINGS.trialProgress) ?? {};
-    // Or a Spectator in the world (E92 C2): its block is written outside any trial.
+    // Or a Spectator in the world (E92 C2): its block is written outside any trial. Not a dead student's Spectator
+    // (E62 C3b, `watchesForTheDead`): its account is a dead student's, held by the trial's own list once a road in
+    // writes it - counted here, it settled the voices of a trial written raw (tier 2's fixtures) and blocked the dead.
     return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0
-        || Boolean(game.actors?.some?.(actor => isSpectator(actor)));
+        || Boolean(game.actors?.some?.(actor => isSpectator(actor) && !watchesForTheDead(actor)));
 }
 function scheduleTrialVoices() {
     if (!isPrimaryGm() || !trialVoicesPending()) return;
@@ -1573,7 +1623,7 @@ function broadcastAllowed(user) {
  * by the branch that needs them: nothing here asks where anybody stands, or who
  * is dead, during an Eclipse or the trial. `secret` (E19 C3) is asked of the
  * silenced alone, for the reason's words only since E72 C8: every silenced
- * death talks in its account's own dead room (`deadRoomFor`), public or not.
+ * death talks in the Spectators' room since E62 C3b (`SPECTATOR_ROOM`), public or not.
  */
 export function voiceClaim({ user, monokuma = false, eclipse = false, trial = false,
     silenced = () => false, secret = () => false, locate = () => null }) {
@@ -1643,16 +1693,18 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // there would hear the victim, and the tile would name them (A9-K3).
         // Nor for a public one since E72 C8 (12.11.2026; S18-53, the
         // coordinator's decision of 12.11): the living heard the dead there.
-        // Every silenced death goes to the account's own room
-        // (`deadRoomFor`), which nobody else is sent - not one room for the
-        // dead, where a victim heard a second death nobody had found. No
-        // document is written: the trial's block (E70) stays the trial's.
+        // Every silenced death went to the account's own room until E62 C3b
+        // (13.11.2026; the owner's Q-C3b-5, "Tak"): the dead talk with the
+        // Spectators now (`SPECTATOR_ROOM`), the room E92's Spectators talk in.
+        // The owner's accepted trade-off: another dead student or a Spectator
+        // may hear of a death nobody has found. No document is written: the
+        // trial's block (E70) stays the trial's.
         // `secret` is said in the reason only, for the GM's plan.
         row.claim = CLAIM.dead;
-        row.target = deadRoomFor(user.id);
+        row.target = SPECTATOR_ROOM;
         row.why = secret()
-            ? "dead, the death not public - the account's own dead room"
-            : "dead, and not back as a Monocub - the account's own dead room";
+            ? "dead, the death not public - the Spectators' room"
+            : "dead, and not back as a Monocub - the Spectators' room";
     } else {
         // Located without the canvas, per actor. Reading `canvas.scene`
         // instead only ever sees the scene the GM is LOOKING AT, so a GM
@@ -1953,8 +2005,8 @@ export function contestedWarning(userId, list, chosen) {
  * @param {{main: string, dead: string}} words
  * @returns {string}
  */
-function placeName(row, { main, dead }) {
-    if (isDeadRoom(row?.target)) return dead;
+export function placeName(row, { main, dead }) {
+    if (isDeadRoom(row?.target) || row?.claim === CLAIM.dead) return dead;
     return row?.room ?? main;
 }
 
@@ -2189,23 +2241,43 @@ export async function voicePlan({ toChat = false, targets } = {}) {
     }
     lines.push("");
 
+    /* GROUPED BY WHERE EACH ACCOUNT IS SENT (E43, 13.11.2026; the plan's item 4). Each group is a target: the row that
+       speaks for an account (`byUser`), named by where it sends it (`targetName`) - so a Spectator talking with the
+       Spectators stands under their room, not its token's. A character that sends nobody anywhere - its owner is not
+       connected, nobody holds it, or its account's ranking passed it over - is under "(sent nowhere)", never in the main
+       room it does not reach; and an account with no character has its own section, with where it goes. Until E43 every
+       character was grouped by its own room and an account with no character was not printed. R5201. */
+    const targetName = row => eclipse ? "(Eclipse - no player in voice)"
+        : row?.target === SPECTATOR_ROOM ? "(Spectators' room)"
+            : placeName(row, { main: "(main room)", dead: "(dead channel)" });
     const rooms = new Map();
-    for (const row of rows) {
-        const key = eclipse ? "(Eclipse - no player in voice)" : placeName(row, { main: "(main room)", dead: "(dead channel)" });
+    const add = (key, line) => {
         if (!rooms.has(key)) rooms.set(key, []);
+        rooms.get(key).push(line);
+    };
+    const NOWHERE = "(sent nowhere)";
+    for (const row of rows) {
         const chosen = byUser.get(row.user?.id);
-        // An account pulled two ways is only actually going to one of them, and
-        // the plan has to show which - otherwise it reads as though both apply.
-        const ignored = chosen && chosen !== row ? "   ← ignored, see CONFLICTS" : "";
+        const speaks = Boolean(chosen && chosen.actor === row.actor);
+        // An account pulled two ways is only actually going to one of them, and the plan has to show which.
+        const ignored = chosen && !speaks ? `   ← ignored, ${row.user?.name ?? "its account"} is sent with ${chosen.actor?.name ?? "another row"}${
+            contested.has(row.user?.id) ? " (see CONFLICTS)" : ""}` : "";
         // Sent nothing until the GMs' cast arrives here (`keep`, `held`; E19 C3 and fix r1-G1).
-        const waiting = chosen === row && (row.keep || held?.has(row.user?.id)) ? "   ← sent nothing until the cast arrives" : "";
-        rooms.get(key).push(`${row.actor.name}${row.monokuma ? " [Monokuma]" : ""} - ${
-            row.user?.name ?? "nobody"} · ${row.why}${ignored}${waiting}`);
+        const waiting = speaks && (row.keep || held?.has(row.user?.id)) ? "   ← sent nothing until the cast arrives" : "";
+        add(speaks ? targetName(chosen) : NOWHERE, `${row.actor.name}${row.monokuma ? " [Monokuma]" : ""} - ${
+            row.user?.name ?? "nobody"} · ${speaks ? chosen.why : row.why}${ignored}${waiting}`);
     }
-
-    for (const [room, who] of [...rooms.entries()].sort()) {
+    const sorted = [...rooms.entries()].sort(([a], [b]) => (a === NOWHERE) - (b === NOWHERE) || a.localeCompare(b));
+    for (const [room, who] of sorted) {
         lines.push(`${room}  (${who.length})`);
         for (const line of who) lines.push(`   ${line}`);
+    }
+
+    const alone = [...byUser.values()].filter(row => !row.actor && row.user);
+    if (alone.length) {
+        lines.push("");
+        lines.push(`ACCOUNTS WITH NO CHARACTER  (${alone.length})`);
+        for (const row of alone) lines.push(`   ${row.user.name}${row.user.isGM ? " [GM]" : ""} → ${targetName(row)} · ${row.why || "no character"}`);
     }
 
     // ONE ACCOUNT, ONE ROOM. Found by this very function on the test world - one
@@ -2220,7 +2292,7 @@ export async function voicePlan({ toChat = false, targets } = {}) {
             const name = game.users.get(userId)?.name ?? userId;
             lines.push(`   ${name}`);
             for (const row of list) {
-                const chosen = byUser.get(userId) === row;
+                const chosen = byUser.get(userId)?.actor === row.actor;
                 lines.push(`      ${chosen ? "→" : " "} ${row.actor.name} · ${placeName(row, { main: "the main room", dead: "the dead channel" })}${
                     chosen ? "   (this one is applied)" : ""}`);
             }

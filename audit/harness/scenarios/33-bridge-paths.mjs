@@ -35,6 +35,9 @@
  *      call on the GM and its request window do the same and post no card (E18 C0); and a
  *      pre-session note, which is kept on the player's browser until a GM connects (E05).
  *   D  no exception escaped into Foundry on any client (until E31's runner, the two B injects were excused).
+ *   H  the hostile-client matrix (E43 C5): every request whose guards hold a character to its owner or the road to a
+ *      GM, sent from p1's console naming p2's student, delivered to the GM first and refused by its own guard after,
+ *      nothing written.
  * The two exceptions are injected through world objects the handlers write - Aiko's token's
  * `update` for the send-back, `game.settings.set` for the sabotage - so the same injection works
  * before the table exists and after it.
@@ -45,6 +48,7 @@
  * bullet - live check 21 and LIVE-E31-01 in audit/AUDIT-1.2.42.md 9.2.
  */
 export const layers = ["ci"];
+import { hostileMatrix } from "../lib/fuzz.mjs";
 export const accounts = [{ who: "ag", id: "USERAG0000000000", name: "Assistant", role: 3, character: null, color: "#aa66ff" }];
 
 const MOD = "danganronpa-rpg";
@@ -1899,7 +1903,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await trustedWrite(a, { "system.resources.actions.value": ${JSON.stringify(e69a.before?.actions ?? 3)}, "flags.${MOD}.freeMoveGrants": ${JSON.stringify(e69a.before?.free ?? 0)} }, { reason: "gmRuling" });
         return true;`, { timeout: 30000 });
     await settle(500);
-    const e69Band = t => (t >= 18 ? 2 : t >= 12 ? 1 : 0);
+    // The bands of config.mjs INFILTRATE.dash, the owner's of 13.11.2026 (a success beats a plain crossing).
+    const e69Band = t => (t >= 18 ? 3 : t >= 12 ? 2 : 0);
     check("E69-A: p1's Dash is paid with one action, its Leg roll drawn on the GM, and the free crossings it earns are granted by the GM - none refused",
         typeof e69a.p1?.total === "number" && e69a.p1.moves === e69Band(e69a.p1.total) && e69a.p1.actions === 2 && e69a.p1.free === e69a.p1.moves
             && e69a.logged.length === 0,
@@ -2075,6 +2080,27 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         e74c.in?.pass === true && e74c.in?.room === "Dorm B" && JSON.stringify(e74c.inRow) === JSON.stringify(["Dorm B", true])
             && e74c.out?.room === "Dorm A" && e74c.outRow === null && e74c.again?.pass === false && e74c.again?.room === "Dorm A",
         JSON.stringify(e74c).slice(0, 2000), { flow: "door-pick" });
+
+    /* ------------------------------------------- H. the hostile-client matrix (E43 C5) */
+
+    /* E43 C5, 13.11.2026; the plan's item 3, its "32-case-security" (lib/fuzz.mjs `hostileMatrix` says what each cell
+       sends and reads). Every request of the four tables whose guards hold a character to its owner or the road to a GM,
+       from p1's console, each id filled as a real request would be - Botan, p2's student, in the field the owner's guard
+       covers, his token and the scene beside it - so that who sent it is the one thing wrong. First the packet reached the
+       GM (a listener there counts it by its request id); then its effect: nothing written, refused by the guard the cell
+       is about, in the GM's log, and told to p1 with its code (a quiet declaration tells nobody). Not covered here: a
+       project a player may not see (`canSeeProject`, scenario 30's forged requests) and a Spectator's guard (scenario 93). */
+    phase("H: the hostile-client matrix");
+    const mxWho = await gm.eval(`const b = game.actors.get("${IDS.botan}"); const t = canvas.scene.tokens.find(t => t.actorId === b.id);
+        return { victimActor: b.id, victimToken: t?.id ?? null, sceneId: canvas.scene.id };`);
+    const mx = await hostileMatrix({ gm, p1, p2, settle, opLog, settingLog, repoUrl }, mxWho);
+    const mxBad = mx.rows.filter(r => !r.delivered || r.by !== "own" || (!r.quiet && r.answer !== "none" && !r.told.some(t => t.startsWith("bridge.refused:"))));
+    const mxEvidence = JSON.stringify({ cells: mx.rows.length, kinds: mx.rows.reduce((n, r) => ({ ...n, [r.kind]: (n[r.kind] ?? 0) + 1 }), {}),
+        bad: mxBad, writes: mx.writes, who: mxWho });
+    check("H1: every cell's packet reached the GM before its effect was read",
+        mx.rows.length >= 60 && mx.rows.filter(r => r.kind === "a GM's road").length >= 20 && mx.rows.every(r => r.delivered), mxEvidence);
+    check("H2: every cell was refused by the guard it is about, in the GM's log and to p1 with its code, and nothing was written",
+        mxBad.length === 0 && mx.writes.length === 0, mxEvidence);
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

@@ -54,6 +54,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { log, ownerIdsOf, isPrimaryGm, serialWrite } from "./utils.mjs";
 import { projectSecretStore, projectSightCopy } from "./gm-stores.mjs";
+import { registerSecretFields } from "./gm-store.mjs";
 import { spectatorUserIds } from "./spectator.mjs";
 
 export const DH = "daggerheart";
@@ -109,6 +110,7 @@ export function metaFor(countdownId) {
  */
 export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "sabotageAsk", "passage", "target", "foundBy",
     "proposerTold", "secretName", "viewers"]);
+registerSecretFields("projectMeta", PROJECT_SECRET_FIELDS);
 
 /*
  * A SECRET PROJECT'S NAME AND WHO IS IN ON IT ARE THE GMS' (known leak S17-31; the coordinator's task of 12.11.2026).

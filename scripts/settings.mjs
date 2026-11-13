@@ -42,6 +42,13 @@ export const SETTINGS = {
      * written by that browser alone and held as the switches are; every browser lays it on its throws (dice-look.mjs).
      */
     diceDualityLook: "diceDualityLook",
+    /**
+     * Which look the forced dice take (E108), read only with `forceDiceLook` on (`diceLookChoice`): "dsn", the source full
+     * Gamemaster's Dice So Nice look (the switch's look before E108), or "daggerheart", that look with Daggerheart's own
+     * colorsets on every Hope, Despair, advantage and disadvantage die (dice-look.mjs `DAGGERHEART_DICE`). Held as the
+     * switches are (dice-sync.mjs `SWITCHES`).
+     */
+    diceLookKind: "diceLookKind",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
     searchTokens: "searchTokens",
@@ -1099,7 +1106,7 @@ const CAMPAIGN_SETTINGS = [
  * their before-values, the migration's version, and the frozen keys a GM store's claim reads once (`legacy*`).
  */
 const TABLE_SETTINGS = [
-    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.diceDualityLook, SETTINGS.enforceAnonymity,
+    SETTINGS.forcePrivateRolls, SETTINGS.forceDiceLook, SETTINGS.diceLookKind, SETTINGS.diceLookSource, SETTINGS.diceLookWorld, SETTINGS.diceDualityLook, SETTINGS.enforceAnonymity,
     SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
     SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
@@ -1345,6 +1352,46 @@ export function staleSilencesCleared() {
     return [...staleCleared];
 }
 
+/*
+ * THE TABLE'S DICE LOOK, ONE CHOICE OF THREE (E108, 13.11.2026; the owner's report of 13.11, "Chcialbym miec wybor kostek z
+ * dice so nice vs z daggerheart", and the coordinator's default, owner to confirm). The game's settings window shows one
+ * choice where the switch stood: each player's own look, one look for the table that is Dice So Nice's, or one that is
+ * Daggerheart's. It is held in two world settings, not one: `forceDiceLook` (off is each player's own) and `diceLookKind`.
+ * So a world from before reads `true` as Dice So Nice's and `false` as each player's own, with no write - a read-time
+ * mapping, not a migration - and every rule of the forced look, the Assistant's put-back and the tests that read the
+ * Boolean read it as before (docs/dev/e108/STATUS.md, "How an existing world reads it").
+ */
+export const DICE_LOOK_CHOICES = Object.freeze(["own", "dsn", "daggerheart"]);
+
+/** The table's dice look: "own", "dsn" or "daggerheart". `read` is a setting's reader, `game.settings.get` by default. */
+export function diceLookChoice(read = key => game.settings.get(MODULE_ID, key)) {
+    try {
+        if (read(SETTINGS.forceDiceLook) !== true) return "own";
+    } catch {
+        return "own";
+    }
+    let kind = "dsn";
+    try { kind = read(SETTINGS.diceLookKind); } catch { kind = "dsn"; }
+    return kind === "daggerheart" ? "daggerheart" : "dsn";
+}
+
+/**
+ * The writes that make `choice` the table's dice look, as `[key, value]` in order - the kind before the switch, so a world
+ * that reloads on the switch reads the kind it was given. None for the look already chosen, nor for a choice not of the
+ * three. Each player's own leaves the kind as it was, for the day the switch is on again.
+ */
+export function diceLookWrites(choice, read = key => game.settings.get(MODULE_ID, key)) {
+    if (!DICE_LOOK_CHOICES.includes(choice)) return [];
+    let on = false, kind = "dsn";
+    try { on = read(SETTINGS.forceDiceLook) === true; } catch { on = false; }
+    if (choice === "own") return on ? [[SETTINGS.forceDiceLook, false]] : [];
+    try { kind = read(SETTINGS.diceLookKind); } catch { kind = undefined; }
+    const out = [];
+    if (kind !== choice) out.push([SETTINGS.diceLookKind, choice]);
+    if (!on) out.push([SETTINGS.forceDiceLook, true]);
+    return out;
+}
+
 export function registerSettings() {
     staleCleared = clearStaleSilences();
     // The hint names the one roll this leaves public: a GM's `game.drpg.publicRoll` (E33 C12), a macro
@@ -1367,6 +1414,14 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         requiresReload: true
+    });
+
+    // The look the switch forces (E108): read through `diceLookChoice`, written with it by the game's settings window.
+    game.settings.register(MODULE_ID, SETTINGS.diceLookKind, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: "dsn"
     });
 
     game.settings.register(MODULE_ID, SETTINGS.diceLookSource, {

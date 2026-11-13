@@ -3,16 +3,16 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.111"
+    "version": "1.2.112"
   },
-  "commit": "6079d18132a41d1fbb14e4e00fecaa6e8a08d4ba",
+  "commit": "77d05eddc5bbc04cdb13b30947922b167b64cc8d",
   "bound": {
-    "scripts": "4d379979fd6685e4dd32776fe27ee3b2257d7483",
-    "styles": "817c26c2cbe1877017a1995480542ac948dcc774",
-    "lang": "fe9027abdbdcc66db7753c60a987d1c30d54ea8e",
+    "scripts": "3295f53dd07808235d0fcb4170a44d1ca9f56af3",
+    "styles": "2b360d4d71f08dfef35c0b074d8f5840b34b1c30",
+    "lang": "f64283b930cf5366024754495c95e6ea63668d58",
     "fonts": "5250eed77d36e450eee937cf01d159f78e36b47b",
     "icons": "809722363d795147d045b9ab79b8e96e848632c6",
-    "module.json": "f69de6987fdd577c46da772e59e382b19389e6ef",
+    "module.json": "9f0aa492cea4d0886b8c6fe38aaf3ec8412d895c",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "4c31bef421cc6337a06a6cd8304dc799aae1b7d9",
     "audit/live": "0f1efdcbd589f52a69c14c13e91963e632b83146",
@@ -21,10 +21,10 @@
     "audit/harness/scenarios/60-ledger.mjs": "62ae55bdb85a1708f04045dffa44971cdb1af282",
     "audit/harness/scenarios/81-render-budget.mjs": "4f0c592c86e2f988c7f49aad46f838e9966b37dc",
     "audit/harness/scenarios/83-roll-integrity.mjs": "d6deca0eaeab2803ed202824725fdde3d6e22151",
-    "audit/harness/scenarios/84-viewports.mjs": "fcc7933d6f753787663c1523b494c491863c243e"
+    "audit/harness/scenarios/84-viewports.mjs": "728b2c2ae9533e178568cb1acaaf8fe11817e083"
   },
-  "startedAt": "2026-11-13T14:45:19.670Z",
-  "finishedAt": "2026-11-13T14:45:19.795Z",
+  "startedAt": "2026-11-13T19:03:02.004Z",
+  "finishedAt": "2026-11-13T19:03:02.125Z",
   "host": {
     "node": "v22.22.0",
     "platform": "linux-x64",
@@ -125,6 +125,6 @@
     "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:76ec5c28108d9575aa91ff64cb5ebf7db0cc57c93968e74e461c54ee88b2d071",
+  "digest": "sha256:e98609411e6096a3c37f510cd3a63c20bde32f17b864a7c438aa8741dcd3d53b",
   "hmac": null
 }

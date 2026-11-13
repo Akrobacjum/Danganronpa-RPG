@@ -360,10 +360,7 @@ export async function report(actor, def, roll, outcome) {
                 popupTitle: def.label,
                 // See `rollTone`, which the five cards that go through
                 // `rollHead` share with this one.
-                popupTone: rollTone(roll),
-                // A hidden stash's step (`stashStep`): the dice it read, the one it set aside
-                // or rolled, and the total that counts - with the words, to the card's readers.
-                ...(outcome.stash ? { stashStep: outcome.stash } : {})
+                popupTone: rollTone(roll)
             }
         },
         summary: {

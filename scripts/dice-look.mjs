@@ -32,7 +32,7 @@
  */
 
 import { MODULE_ID, moduleVersion } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, diceLookChoice } from "./settings.mjs";
 import { esc, error, markFired } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { canonicalLook, holdsTableLook, isForced, fuseStoppedFor, tableLookSource, dualityPresetHere } from "./dice-sync.mjs";
@@ -100,15 +100,23 @@ function onRollStart(messageId, context) {
  * So Nice draws `context.dsnRoll` where a listener set one, else `context.roll` (6.2.9 Dice3D.js `showForRoll`), so with
  * the table's look forced each throw this browser draws - a roll the GM drew, a Reroll's, Daggerheart's own, one thrown
  * with no GM - is handed a copy whose Hope, Fear and advantage dice carry the world's copy of the source's preset. The
- * roll itself, the message's, is never touched: display only. Not on Daggerheart 2.10 and later (roles): forcing those is
- * E76's (row 1.2.106, compatibility with newer Daggerheart and Foundry), with Dice So Nice 6.3's missing
- * `ALL_CUSTOMIZATION`, 6.4's `DEFAULT_SFX` and Daggerheart 2.12's `MoveContext` (E60's fix round, FG5).
+ * roll itself, the message's, is never touched: display only.
+ *
+ * DAGGERHEART 2.10 AND LATER (E108, 13.11.2026; docs/dev/e108/STATUS.md). Those keep no preset: Daggerheart registers
+ * four Dice So Nice colorsets and four roles that use them (2.12.8 module/config/dsnConfig.mjs), and Dice So Nice 6.4.5
+ * lays a role's look from its defaults, the world's role scopes and the thrower's own `roleAppearance`, last wins
+ * (engine/DiceRoleRegistry.js `resolveRoleSlot`). Until E108 nothing was laid there, so the table could not be given
+ * Daggerheart's dice. With the table's choice Daggerheart's (settings.mjs `diceLookChoice`), each duality die of the copy
+ * carries its kind's colorset as its term's own `options.colorset`, which Dice So Nice puts above every role layer and a
+ * library die (engine/DiceFactory.js:2183-2186, "priority 1"), whoever throws - a full Gamemaster too. With Dice So
+ * Nice's chosen nothing is laid on those versions, as before: each role keeps the look Dice So Nice gives it. `system`
+ * stands in for `game.system` (the tier-2 test hands a 2.12.8 one; the harness's system answers module.json's 2.6.5).
  */
-function layOnThrow(context) {
+export function layOnThrow(context, system = game.system) {
     if (!context?.roll) return false;
-    const look = tableDualityLook();
+    const look = tableDualityLook(system);
     if (!look) return false;
-    const json = layDualityLook(context.dsnRoll ?? context.roll, look);
+    const json = layDualityLook(context.dsnRoll ?? context.roll, look, { colorset: look === DAGGERHEART_DICE });
     if (!json) return false;
     const laid = Roll.fromData(json);
     // Each die's options as laid, wherever `fromData` leaves them out (the harness's Die keeps none; Foundry's keeps them).
@@ -128,16 +136,32 @@ function layOnThrow(context) {
     return true;
 }
 
-/** The table's Hope and Despair look this browser lays on each throw, or null: the switch off, no look kept, or Daggerheart 2.10 and later (roles). */
-function tableDualityLook() {
-    let look = null;
-    try {
-        if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== true) return null;
-        look = game.settings.get(MODULE_ID, SETTINGS.diceDualityLook);
-    } catch { return null; }
-    const version = game.system?.version;
-    if (game.system?.id === "daggerheart" && typeof version === "string" && foundry.utils.isNewerVersion(version, "2.9.99")) return null;
-    return look && typeof look === "object" ? look : null;
+/**
+ * Daggerheart's own dice (E108): per duality die its Dice So Nice colorset, as Daggerheart 2.12.8 registers them
+ * (module/config/dsnConfig.mjs:1-56, `daggerheart-<kind>-colorset`), and the system its roles default to (`systemDefaults`,
+ * "standard"). Every browser running Daggerheart registers them at Dice So Nice's ready (daggerheart.mjs:417-429).
+ */
+export const DAGGERHEART_DICE = Object.freeze(Object.fromEntries(["hope", "fear", "advantage", "disadvantage"]
+    .map(kind => [kind, Object.freeze({ colorset: `daggerheart-${kind}-colorset`, system: "standard" })])));
+
+/**
+ * The Hope and Despair look laid on each throw, or null, from the table's `choice` (settings.mjs `diceLookChoice`), the
+ * system and the world's copy of the source's `preset`: none for each player's own look; on Daggerheart 2.9 and older
+ * (and on no Daggerheart) the preset, whichever look the table took, since that preset is Daggerheart's own look there;
+ * on 2.10 and later Daggerheart's colorsets for Daggerheart's look, and nothing for Dice So Nice's. Pure.
+ */
+export function tableDualityLookFor({ choice, systemId, version, preset }) {
+    if (choice !== "dsn" && choice !== "daggerheart") return null;
+    const roles = systemId === "daggerheart" && typeof version === "string" && foundry.utils.isNewerVersion(version, "2.9.99");
+    if (!roles) return preset && typeof preset === "object" ? preset : null;
+    return choice === "daggerheart" ? DAGGERHEART_DICE : null;
+}
+
+/** The table's Hope and Despair look this browser lays on each throw, or null (`tableDualityLookFor`). */
+function tableDualityLook(system = game.system) {
+    let preset = null;
+    try { preset = game.settings.get(MODULE_ID, SETTINGS.diceDualityLook); } catch { return null; }
+    return tableDualityLookFor({ choice: diceLookChoice(), systemId: system?.id, version: system?.version, preset });
 }
 
 /** The table's look as the diagnostic reads it, per duality die (`presetOf`), or null where this browser lays none (E60 fix FG3). */
@@ -151,8 +175,11 @@ function tableLookHere() {
 /**
  * A copy of `roll` (a Roll or its JSON) as JSON, whose duality dice carry `look[kind]` over their own appearance, or
  * null where no die of it is one or `look` names none of theirs. Pure: the roll handed in is not changed (R1298).
+ * With `colorset` (Daggerheart's dice, E108) a die whose look names a colorset takes it as its term's own
+ * `options.colorset` and the look alone as its appearance: an appearance of its own would be merged over the colorset's
+ * colours (Dice So Nice 6.4.5 engine/DiceFactory.js:2210-2213). Its effect and model file stay (R5462).
  */
-export function layDualityLook(roll, look) {
+export function layDualityLook(roll, look, { colorset = false } = {}) {
     if (!roll || !look || typeof look !== "object") return null;
     const json = foundry.utils.deepClone(typeof roll.toJSON === "function" ? roll.toJSON() : roll);
     let laid = false;
@@ -164,6 +191,11 @@ export function layDualityLook(roll, look) {
             ? Object.fromEntries(PRESET_KEYS.filter(key => typeof look[kind][key] === "string" && look[kind][key].length <= 64).map(key => [key, look[kind][key]]))
             : null;
         if (!preset || !Object.keys(preset).length) continue;
+        if (colorset && typeof preset.colorset === "string") {
+            term.options = { ...(term.options ?? {}), colorset: preset.colorset, appearance: { ...preset } };
+            laid = true;
+            continue;
+        }
         const own = term.options?.appearance && typeof term.options.appearance === "object" ? term.options.appearance : {};
         term.options = { ...(term.options ?? {}), appearance: { ...own, ...preset } };
         laid = true;
@@ -386,7 +418,8 @@ export function lookFindings(view) {
     const kinds = { system: "missingSystem", colorset: "missingColorset", texture: "missingTexture", material: "missingMaterial" };
     for (const row of browser.registry?.missing ?? []) if (kinds[row.kind]) say(me, kinds[row.kind], { name: row.name });
     if (browser.dsn?.active && browser.dsn.api?.allCustomization === false) say(me, "dsnApiMoved", { version: browser.dsn.version ?? "?" });
-    if (browser.system?.roles === true) say(me, "rolesUnforced", { version: browser.system.version ?? "?" });
+    // Not where this browser lays Daggerheart's dice on each throw (E108, R5465): the sentence would be false there.
+    if (browser.system?.roles === true && !browser.tableLook) say(me, "rolesUnforced", { version: browser.system.version ?? "?" });
     return out;
 }
 

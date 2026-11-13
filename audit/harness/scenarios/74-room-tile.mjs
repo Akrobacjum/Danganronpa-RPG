@@ -740,26 +740,37 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     J(eclipseH));
 
     /* Aiko marked dead where she stands (chapter.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which
-       asks for the dead) with actions to walk on, and p1 takes her back into Dorm A; then alive again. */
+       asks for the dead) with actions to walk on, and p1 takes her back into Dorm A; then alive again.
+       Since E62 C3b (13.11.2026, the owner's Q-C3b-7, confirmed "E62 c3b wszystko sie zgadza"; merged into 1.2.112 at
+       3b0d8075) the death leaves Aiko's own token the corpse, which no player moves, and gives her Spectator a token
+       where it lies; the Monocub walks that token, re-linked to Aiko (`FLAGS.cubToken`, spectator-dead.mjs
+       `watcherBecomesMonocub`), and the revive takes it away, leaving Aiko where her body lay. Until then p1 walked
+       Aiko's own token: CI 43479554811 (af9792c5) read that move refused - the token, the tile and the view all still
+       the Porch. So p1 walks the Monocub's token here, the corpse is read to stay in the Porch, and Aiko is read back in
+       the Porch after the revive, where H3 finds her. */
     const deadH = { set: await gm.eval(`${AIKO} const C = await import("${repoUrl}/scripts/chapter.mjs");
         await C.markDeceased(aiko); ${SLEEP(1200)} return [game.drpg.isDeadForGm(aiko), M.roomOfToken(t)];`, { timeout: 30000 }) };
     deadH.body = await p1.eval(`${VIEW} return seen(() => false, 0);`);
     deadH.cub = await gm.eval(`${AIKO} const Mc = await import("${repoUrl}/scripts/monocub.mjs");
         const made = Boolean(await Mc.setMonocub(aiko, true)); await game.drpg.setActions(aiko, 3); ${SLEEP(1200)} return [made, Mc.isMonocub(aiko)];`,
     { timeout: 30000 });
-    deadH.cubTile = await p1.eval(`${VIEW} return seen(() => false, 0);`);
-    deadH.cross = await p1.eval(`${AIKO} ${VIEW} await t.update(M.positionIn("Dorm A", t));
-        return { ...await seen(() => read()?.name === "Dorm A"), token: M.roomOfToken(t) };`, { timeout: 30000 });
+    const CUB = `const cub = academy.tokens.find(x => x.actorId === aiko.id && x.getFlag("${MOD}", "cubToken"));`;
+    deadH.cubTile = await p1.eval(`${AIKO} ${CUB} ${VIEW} return { ...await seen(() => false, 0), cubAt: cub ? M.roomOfToken(cub) : null };`);
+    deadH.cross = await p1.eval(`${AIKO} ${CUB} ${VIEW} if (cub) await cub.update(M.positionIn("Dorm A", cub));
+        return { ...await seen(() => read()?.name === "Dorm A"), token: cub ? M.roomOfToken(cub) : null, body: M.roomOfToken(t) };`, { timeout: 30000 });
     deadH.back = await gm.eval(`${AIKO} const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
         await Mc.setMonocub(aiko, false); await C.reviveCharacter(aiko, { quiet: true }); ${SLEEP(800)}
-        return [game.drpg.isDeadForGm(aiko), Mc.isMonocub(aiko)];`, { timeout: 30000 });
-    check("H2: dead, p1's tile keeps the Porch her body lies in, unpainted; a Monocub, the same, and it follows her walk into Dorm A, "
-        + "painted once",
+        return [game.drpg.isDeadForGm(aiko), Mc.isMonocub(aiko), academy.tokens.filter(x => x.actorId === aiko.id).length, M.roomOfToken(t)];`,
+    { timeout: 30000 });
+    check("H2: dead, p1's tile keeps the Porch her body lies in, unpainted; a Monocub, the same, and it follows the Monocub's own token's "
+        + "walk into Dorm A, painted once, while the corpse stays in the Porch; revived, Aiko is her one token, in the Porch (E62 C3b)",
     J(deadH.set) === J([true, "74 Porch"]) && deadH.body.state === "room" && deadH.body.name === "74 Porch"
         && J(deadH.body.view) === J(["room", "74 Porch"]) && J(deadH.body.painted) === "[]"
-        && J(deadH.cub) === J([true, true]) && deadH.cubTile.name === "74 Porch" && J(deadH.cubTile.view) === J(["room", "74 Porch"])
-        && J(deadH.cubTile.painted) === "[]" && deadH.cross.token === "Dorm A" && deadH.cross.name === "Dorm A"
-        && J(deadH.cross.view) === J(["room", "Dorm A"]) && J(deadH.cross.painted) === J(["Dorm A"]) && J(deadH.back) === J([false, false]),
+        && J(deadH.cub) === J([true, true]) && deadH.cubTile.cubAt === "74 Porch" && deadH.cubTile.name === "74 Porch"
+        && J(deadH.cubTile.view) === J(["room", "74 Porch"]) && J(deadH.cubTile.painted) === "[]"
+        && deadH.cross.token === "Dorm A" && deadH.cross.body === "74 Porch" && deadH.cross.name === "Dorm A"
+        && J(deadH.cross.view) === J(["room", "Dorm A"]) && J(deadH.cross.painted) === J(["Dorm A"])
+        && J(deadH.back) === J([false, false, 1, "74 Porch"]),
     J(deadH));
 
     /* A Class Trial opened as 01-runtests and 10 open one (`setClock({ phase: "classTrial" })`; no hall is linked in this
@@ -775,14 +786,15 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
             located: M.locateActor(H.viewerActor())?.room ?? null };`;
     for (const [who, c] of [["p1", p1], ["p2", p2], ["gm", gm]]) trialH[who] = await c.eval(TRIAL);
     trialH.end = await gm.eval(`await game.drpg.setClock(globalThis.__s74.clock); ${SLEEP(1200)} return game.drpg.getClock().phase;`, { timeout: 30000 });
-    trialH.after = await p1.eval(`${VIEW} return seen(() => read()?.name === "Dorm A");`);
+    trialH.after = await p1.eval(`${VIEW} return seen(() => read()?.name === "74 Porch");`);
     check("H3: in a Class Trial every tile - p1's, p2's and the GM's - is the trial's, painted once, though each viewer still stands in a "
-        + "school room, and shows the trial's label with no hall linked (E79 C11); after it p1's tile is Dorm A again",
+        + "school room, and shows the trial's label with no hall linked (E79 C11); after it p1's tile is the Porch Aiko was revived in "
+        + "again (E62 C3b)",
     trialH.set === "classTrial" && ["p1", "p2", "gm"].every(who => trialH[who].state === "roomBare" && trialH[who].name === trialH[who].label
             && trialH[who].hidden === null && J(trialH[who].view) === J(["trial", null]))
-        && J(["p1", "p2", "gm"].map(who => trialH[who].located)) === J(["Dorm A", "74 Shed", "Hall"])
+        && J(["p1", "p2", "gm"].map(who => trialH[who].located)) === J(["74 Porch", "74 Shed", "Hall"])
         && J(trialH.p1.painted) === J([trialH.p1.label]) && trialH.end !== "classTrial"
-        && trialH.after.name === "Dorm A" && J(trialH.after.view) === J(["room", "Dorm A"]) && J(trialH.after.painted) === J(["Dorm A"]),
+        && trialH.after.name === "74 Porch" && J(trialH.after.view) === J(["room", "74 Porch"]) && J(trialH.after.painted) === J(["74 Porch"]),
     J(trialH));
 
     /* p4 gets a character of its own, S74 Daku, whose only token stands on a scene of two floors built here: a Lab on the

@@ -92,7 +92,9 @@ the mood worked out on the GM who advances the clock are final.
 ## Defaults taken, owner to confirm
 
 - Q-E94-2: "the GM starts the day" is the Night-to-Morning advance; no new button.
-- Q-E94-4: a client that loads after the day began gets no board (the engine's rule: nothing plays from before ready).
+- Q-E94-4: ~~a client that loads after the day began gets no board (the engine's rule: nothing plays from before ready).~~
+  **Answered by the owner, 13.11.2026: "Przez 10 minut"** (with Q-E61-1): within 10 minutes of the day's start a browser that
+  loads plays the start-of-day board once; the end-of-day board is not played late. claude/gaps-111, 1.2.111 (R4934, scenario 96).
 - Q-E94-3: the mood is three words; a player never gets a number (and since the owner's word of 12.11, the end board shows no Hope or Despair either).
 - Q-E94-5: the Night's own summary folds into the end board while the switch is on (one card, not two); with the switch
   off the summary shows as before. A Night Eclipse's summary at its start is unchanged.

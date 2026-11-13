@@ -37,6 +37,8 @@ import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 import { choiceRowHtml } from "./ui-columns.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 
 /* ==========================================================================
  * THE CALL WINDOW
@@ -319,7 +321,7 @@ async function pickText(ask) {
             sync();
         },
         footer: { primary: {
-            action: "ok", label: game.i18n.localize("DRPG.Calls.next"),
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), tooltip: tipText("DRPG.Tips.Actions.nextTooltip"),
             callback: (e, b, d) => d.element.querySelector("[name=text]").value.trim()
         } }
     });
@@ -550,7 +552,7 @@ async function choose(ask, promptKey, options, icon = "fa-user") {
         title: game.i18n.localize(promptKey),
         body: `<form>${callRowsHtml(options.map(o => ({ icon, ...o })), { prompt: game.i18n.localize(promptKey) })}</form>`,
         footer: { primary: {
-            action: "ok", label: game.i18n.localize("DRPG.Calls.next"),
+            action: "ok", label: game.i18n.localize("DRPG.Calls.next"), tooltip: tipText("DRPG.Tips.Actions.nextTooltip"),
             callback: (e, b, d) => pickedRow(d.element)
         } }
     });

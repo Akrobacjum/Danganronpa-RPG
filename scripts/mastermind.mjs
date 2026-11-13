@@ -42,6 +42,7 @@ import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStor
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
+import { tipAttr, tipText } from "./ui-kit.mjs";
 // E41 C10b (1.2.97): the Final Trial's verdict is verdict.mjs's, on the ordinary verdict's lock, list, card and summary;
 // re-exported here for every importer (the Mastermind window's own button went on 12.11.2026: the Class Trial console
 // opens it). verdict.mjs reads this file by `import()` alone, so the static graph has no cycle (R161).
@@ -522,8 +523,8 @@ function mastermindHopeBox({ monokumas, donorLabel }) {
             held: mastermindActor()?.system?.resources?.hope?.value ?? 0
         })}</p>
         <select name="donor" data-drpg-enter="[data-drpg-give]">${buildDonors()}</select>
-        ${stepper({ name: "amount", value: 1, min: 1, attrs: { style: "width:4em", "data-drpg-enter": "[data-drpg-give]" } })}
-        <button type="button" class="drpg-mini-button" data-drpg-give>
+        ${stepper({ name: "amount", value: 1, min: 1, attrs: { style: "width:4em", "data-drpg-enter": "[data-drpg-give]", "data-tooltip": tipText("DRPG.Tips.Trial.amountTooltip") } })}
+        <button type="button" class="drpg-mini-button" data-drpg-give${tipAttr("DRPG.Tips.Trial.giveTooltip")}>
             ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
 }
 

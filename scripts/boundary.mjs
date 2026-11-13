@@ -75,6 +75,8 @@ import { drpgWindow } from "./ui-kit.mjs";
 import { showPopup } from "./popup.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 /**
  * Start the Eclipse, or end the running one (D44b).
  *

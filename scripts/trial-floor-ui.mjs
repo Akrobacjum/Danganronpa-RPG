@@ -27,6 +27,8 @@ import { stepper, stepperId, drpgWindow, drpgConfirm, liveFooter, box } from "./
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 
+import { tipAttr, tipText } from "./ui-kit.mjs";
+
 /* ON THE KIT'S FRAME (E21 C4, 06.11.2026). Every window of the trial's console is ui-kit.mjs `drpgWindow` (or its
    `drpgConfirm`): the screen's height, one body that scrolls, the footer by roles - the closing word, the secondary and the
    destructive ones on the left, the primary on the right and first in the tree, so Enter presses it (the kit's header). The
@@ -399,7 +401,7 @@ export async function openRoundWindow(mode) {
     const range = turnRange(mode);
     const offered = mode === FLOOR_MODES.panic ? T.panicSuggest(actors.length) : T.testimonyOffer();
     const row = actor => `<li data-drpg-round-id="${esc(actor.id)}"><span>${esc(actor.name)}</span>
-                    <button type="button" data-drpg-round-up>${esc(game.i18n.localize("DRPG.Floor.roundWindow.up"))}</button></li>`;
+                    <button type="button" data-drpg-round-up${tipAttr("DRPG.Tips.Trial.upTooltip")}>${esc(game.i18n.localize("DRPG.Floor.roundWindow.up"))}</button></li>`;
     const byId = new Map(actors.map(a => [a.id, a]));
     const drawn = drawOrder(actors.map(a => a.id)).map(id => byId.get(id));
     const secondsId = stepperId();
@@ -924,7 +926,7 @@ function closingNames() {
 /** A button of the Closing's row. */
 function closingButton(op, label, actorId = null) {
     return `<button type="button" class="drpg-trial-bar-op" data-drpg-bar="closing" data-drpg-closing="${op}"${actorId
-        ? ` data-drpg-actor="${esc(actorId)}"` : ""}>${esc(label)}</button>`;
+        ? ` data-drpg-actor="${esc(actorId)}"` : ""}${op === "confirm" ? tipAttr("DRPG.Tips.Trial.aClosingArgumentTooltip") : ""}>${esc(label)}</button>`;
 }
 
 /**
@@ -991,7 +993,7 @@ async function pickClosingDialog() {
         body: `<form><label>${game.i18n.localize("DRPG.Floor.closing.pickLabel")}
             <select name="actor">${actors.map(option).join("")}</select></label></form>`,
         footer: {
-            primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"),
+            primary: { action: "ok", label: game.i18n.localize("DRPG.Floor.closing.pick"), tooltip: tipText("DRPG.Tips.Trial.pickASpeakerTooltip"),
                 callback: (e, b, d) => d.element.querySelector("[name=actor]")?.value ?? null },
             close: "cancel"
         },
@@ -1108,8 +1110,8 @@ function trialBar({ floor, running, barNext }) {
 function logButton(view = {}) {
     // The trial's Findings (E73 C6) beside the log: the zone modes' and the GM's, each press public.
     const n = Array.isArray(view.progress?.findings) ? view.progress.findings.length : 0;
-    return `<p class="drpg-trial-log"><button type="button" data-drpg-console="log">${esc(game.i18n.localize("DRPG.Trial.logTitle"))}</button>
-                <button type="button" data-drpg-console="findings">${esc(game.i18n.format("DRPG.Zones.findings.button", { n }))}</button></p>`;
+    return `<p class="drpg-trial-log"><button type="button" data-drpg-console="log"${tipAttr("DRPG.Tips.Trial.trialEvidenceLogTooltip")}>${esc(game.i18n.localize("DRPG.Trial.logTitle"))}</button>
+                <button type="button" data-drpg-console="findings"${tipAttr("DRPG.Tips.Trial.findingsNTooltip")}>${esc(game.i18n.format("DRPG.Zones.findings.button", { n }))}</button></p>`;
 }
 
 /**

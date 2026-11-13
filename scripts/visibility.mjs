@@ -26,7 +26,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { flaggedSpectator, spectatorViewer } from "./spectator.mjs";
+import { flaggedSpectator, spectatorViewer, isMonocubCorpse } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
@@ -938,8 +938,17 @@ function myRooms() {
     count("visibility.myRooms.walk");
 
     const rooms = new Set();
+    /* A DEAD STUDENT'S SPECTATOR IS NO EYE (E62 C3b, 13.11.2026; the coordinator's scope B: "only what a dead student
+       sees today"). The player who owns a student and its Spectator (spectator-dead.mjs) is no Spectator viewer, so the
+       room rule holds for them - and the Spectator's token, which walks anywhere, would show them every room it walks
+       into. It is left out; a Spectator viewer (E92) returns before this rule in `tokenShownTo`. */
+    const watcherIsNoEye = !spectatorViewer();
     for (const token of canvas.tokens?.placeables ?? []) {
         if (!token.isOwner || token.actor?.type !== "character") continue;
+        if (watcherIsNoEye && flaggedSpectator(token.actor)) continue;
+        // Nor is a Monocub's corpse beside the token it walks (E62 C3b fix, the coordinator's 7): the body's room is no
+        // room the Monocub stands in.
+        if (isMonocubCorpse(token.document)) continue;
         const room = roomOfToken(token.document);
         if (room) rooms.add(room);
     }

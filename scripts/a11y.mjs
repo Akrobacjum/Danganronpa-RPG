@@ -282,9 +282,43 @@ export function a11yReport() {
     };
     const rows = live.map(([kind, info, el]) => `  ${kind} in ${whereOf(el, info)}\n    ${el ? el.outerHTML.slice(0, 120) : info.html}`);
     const closed = gone.length ? `\n${gone.length} more kind(s) met without a name only in windows no longer on the page: ${gone.map(([kind]) => kind).join(", ")}` : "";
+    const shown = disclosuresOnPage(whereOf);
     return (rows.length
         ? `${rows.length} control kinds carry no name a screen reader can read:\n${rows.join("\n")}`
-        : "every control in the module's own chrome has a name") + closed;
+        : "every control in the module's own chrome has a name") + closed
+        + (shown.length ? `\n${shown.length} disclosure(s) on the page:\n${shown.join("\n")}` : "");
+}
+
+/*
+ * THE DISCLOSURES (gaps-111, 13.11.2026; 1.2.105's Known gaps: "`game.drpg.a11y()` does not list Details yet"). A control
+ * that opens a region - `aria-expanded`, the region named by `aria-controls`: an action window's Details
+ * (action-menus.mjs `detailsHtml`), the tray's fold, the room tile, the case map's nodes - has a name, so the list
+ * above never showed it, and nothing asked whether its region is there for a screen reader. One line each, on the
+ * module's surfaces: its name, whether it is open, and its region - on the page, named (`aria-label`, or an
+ * `aria-labelledby` that points at something), and while shut out of reach (`inert`, `hidden`, or under either). What
+ * does not hold is said in capitals, as the list above says a missing name. Read headless (R4930); what a reader makes
+ * of it is a real reader's.
+ */
+function disclosuresOnPage(whereOf) {
+    const out = [];
+    for (const el of document.querySelectorAll(SURFACES.map(s => `${s} [aria-expanded]`).join(","))) {
+        if (!el.isConnected) continue;
+        const name = el.getAttribute("aria-label")?.trim() || (el.textContent ?? "").replace(/\s+/g, " ").trim() || "(no name)";
+        const open = el.getAttribute("aria-expanded") === "true";
+        const id = el.getAttribute("aria-controls");
+        const region = id ? document.getElementById(id) : null;
+        let says;
+        if (!id) says = "no region named (no aria-controls)";
+        else if (!region) says = `its region #${id} NOT on the page`;
+        else {
+            const by = region.getAttribute("aria-labelledby");
+            const named = Boolean(region.getAttribute("aria-label")?.trim() || (by && by.split(/\s+/).every(ref => document.getElementById(ref))));
+            const away = Boolean(region.closest("[inert], [hidden]"));
+            says = `its region #${id} ${named ? "named" : "NOT named"}${open ? "" : away ? " and out of reach" : " and STILL IN REACH while shut"}`;
+        }
+        out.push(`  "${name}" ${el.id ? `#${el.id}` : `(${kindOf(el)})`}: ${open ? "open" : "shut"}, ${says}, in ${whereOf(el, {})}`);
+    }
+    return out;
 }
 
 /** Called once at ready. */

@@ -28,6 +28,8 @@ import { equippedFor } from "./use-items.mjs";
 import { briefingBlock, tamperThresholdFacts } from "./action-briefing.mjs";
 import { chooseVariant } from "./action-menus.mjs";
 
+import { tipAttr } from "./ui-kit.mjs";
+
 /* ==========================================================================
  * TAMPER
  * ========================================================================== */
@@ -116,7 +118,7 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
                     `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
             </label>` : ""}${candidates.length ? `<label class="drpg-specific-note" data-drpg-when="frame">
                 <span>${game.i18n.localize("DRPG.Cleanup.trailWho")}</span>
-                <select name="who">${candidates.map(a =>
+                <select name="who"${tipAttr("DRPG.Tips.Actions.frameStudentTooltip")}>${candidates.map(a =>
                     `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
             </label>` : ""}`
     });

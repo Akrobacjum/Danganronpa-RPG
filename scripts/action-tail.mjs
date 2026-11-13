@@ -55,7 +55,8 @@ export async function performTail(actor, options = {}) {
             </form>`,
             footer: {
                 primary: {
-                    action: "ok", label: game.i18n.localize("DRPG.Action.proceed"),
+                    // Roll, as Search's (E100 item 6's one word per kind, R4105; e93's Tail met it in the r112 merge, 13.11.2026).
+                    action: "ok", label: game.i18n.localize("DRPG.Action.roll"),
                     callback: (e, b, d) => ({ targetId: d.element.querySelector("[name=who]")?.value ?? null, ...readProposal(d.element, traits) })
                 },
                 close: "cancel"

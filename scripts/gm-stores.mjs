@@ -27,10 +27,13 @@ import { emptyOption, drpgWindow, drpgConfirm, box, checkList } from "./ui-kit.m
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
-    raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp, fileSection
+    raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp, fileSection, registerSecretFields
 } from "./gm-store.mjs";
+import { WORLD_SECRET_RULES } from "./world-secrets.mjs";
 import { plainWhat } from "./relay-guard.mjs";
 import { keepRoom } from "./notice-history.mjs";
+
+import { tipText } from "./ui-kit.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -395,6 +398,11 @@ export const CAST_FIELDS = Object.freeze([
        the GMs' alone - in no player's copy (incident-store.mjs `castCopyFor`). */
     "silencedDead"
 ]);
+/* The cast's fields and a trace's answer key in gm-store.mjs's one registry (E43; R5203). The answer key's list is
+   world-secrets.mjs's, which imports nothing so that Node reads it as the module does; it is registered here, beside the
+   stores that hold a trace's rows. */
+registerSecretFields("cast", CAST_FIELDS);
+registerSecretFields("answerKey", WORLD_SECRET_RULES.everySetting.fields);
 
 /**
  * WHO IS IN THE INCIDENT (E04 C6; audit S04-24, the cast half of S06-19). One
@@ -941,10 +949,11 @@ export const lootRollStore = defineGmStore({
 
 /**
  * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
- * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at }`, the
+ * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at, unseen }`, `at` the
  * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time
- * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`). A Search's find
- * writes and reads none: it paid an action for its reach. The audit's fix named an actor flag (`FLAGS.rifled`) on
+ * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`); `unseen` (1.2.112)
+ * a reach that took something while the stash's owner was not in the room, whose notice waits for the owner's next
+ * crossing into it (`tellStashDisturbed`), then false. Until 1.2.112 a Search's find wrote and read none. The audit's fix named an actor flag (`FLAGS.rifled`) on
  * the thief, which the thief's own console could clear - the GMs' memory instead (design note 14). Written and read
  * by the GM that serves the reach, synced so that another GM serves the next one alike; not backed up: a row is worth
  * one time of day, and a restore that lost one gives one reach back. Cut by the reset's "stashesFound" group with the
@@ -2591,15 +2600,15 @@ export async function runHealthCheck() {
             body: healthBody(report, { restorable }),
             footer: {
                 // The H4 decision: Keep (the default) stamps the pick again; Clear clears it.
-                primary: decide ? { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind") }
+                primary: decide ? { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind"), tooltip: tipText("DRPG.Tips.Gm.keepTheMastermindTooltip") }
                     : { action: "continue", label: game.i18n.localize("DRPG.Case.continue") },
                 secondary: [
-                    ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
+                    ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }] : []),
                     ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
                     ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
                     ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : [])
                 ],
-                destructive: decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind") }] : []
+                destructive: decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind"), tooltip: tipText("DRPG.Tips.Gm.clearTheMastermindTooltip") }] : []
             },
             rejectClose: false
         });
@@ -2689,8 +2698,8 @@ export async function openCaseWindow() {
         // The age a fact row in the kit's body ink (components.css `.drpg-briefing-facts`), the health report's own words.
         body: `<p class="drpg-briefing-facts" data-drpg-case-age>${esc(age)}</p>`,
         footer: {
-            primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup") },
-            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }],
+            primary: { action: "backup", label: game.i18n.localize("DRPG.Case.backup"), tooltip: tipText("DRPG.Tips.Gm.backUpTooltip") },
+            secondary: [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile"), tooltip: tipText("DRPG.Tips.Gm.restoreFromAFileTooltip") }],
             close: { role: "close", action: "close" }
         },
         rejectClose: false
@@ -2724,7 +2733,7 @@ export async function enterCastByHand() {
         body: `<form><p>${esc(game.i18n.localize("DRPG.Case.castIntro"))}</p>
             ${seat("killerId", "DRPG.Case.castKiller")}${seat("victimId", "DRPG.Case.castVictim")}${seat("thirdId", "DRPG.Case.castThird")}</form>`,
         footer: {
-            primary: { action: "enter", label: game.i18n.localize("DRPG.Case.castEnter"),
+            primary: { action: "enter", label: game.i18n.localize("DRPG.Case.castEnter"), tooltip: tipText("DRPG.Tips.Gm.enterTooltip"),
                 callback: (e, b, d) => Object.fromEntries(["killerId", "victimId", "thirdId"]
                     .map(name => [name, d.element.querySelector(`[name=${name}]`)?.value || null])) },
             close: { role: "cancel", action: "cancel" }

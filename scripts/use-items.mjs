@@ -45,6 +45,8 @@ import { overflowBlocksHope } from "./overflow.mjs";
 import { whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
 
+import { tipText } from "./ui-kit.mjs";
+
 
 /** Flag marking the one item of its category the character is holding ready. */
 export const EQUIPPED_FLAG = "equipped";
@@ -643,7 +645,7 @@ async function askWhichResource(item, effect) {
         </form>`,
         footer: {
             primary: {
-                action: "ok", label: game.i18n.localize("DRPG.Items.useConfirm"),
+                action: "ok", label: game.i18n.localize("DRPG.Items.useConfirm"), tooltip: tipText("DRPG.Tips.Actions.useItTooltip"),
                 callback: (e, b, d) =>
                     d.element.querySelector('input[name="what"]:checked')?.value ?? null
             },

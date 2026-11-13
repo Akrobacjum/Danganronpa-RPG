@@ -251,7 +251,19 @@ export const FLAGS = {
      * (sheet-audit.mjs `GM_FLAGS`). Who watches is no secret - every player may know a Spectator is at the table, as
      * who is a student is the table's to know - so world-secrets.mjs has no rule for it.
      */
-    spectator: "spectator"
+    spectator: "spectator",
+    /**
+     * Character: the watcher of a dead student whose death is the table's (E62 C3b, 13.11.2026; spectator-dead.mjs): the
+     * student's actor id, on the new actor the student's player watches through. Written by a GM only, and only once
+     * the death is public (a kept death's link is the GMs' `deaths` row, never a flag); a player's write of it is put back
+     * by the GMs' audit (sheet-audit.mjs `GM_FLAGS`).
+     */
+    watcherOf: "watcherOf",
+    /**
+     * Token: a dead student's Spectator token the student walks as a Monocub (E62 C3b; Q-C3b-7's default), so that a
+     * Monocub no more gets that token back as its Spectator's (spectator-dead.mjs `monocubBecomesWatcher`). A GM's write.
+     */
+    cubToken: "cubToken"
 };
 
 /**
@@ -1400,10 +1412,13 @@ export const KEY_REMNANTS = {
  *   an Objection   1 action, else 1 Hope, else 1 Sanity
  *   Analyze        the same three - but only inside a Class Trial; anywhere
  *                  else it costs its action or nothing happens
- *   Tamper         1 action, else 1 Sanity. No Hope step, deliberately: an
- *                  Objection buys a moment of the trial's attention, and this
- *                  buys the destruction of evidence - Hope is the wrong currency
- *                  for it, and Tamper was the one action already priced twice.
+ *   Tamper         1 action, else 1 Sanity - but since E64 (12.11.2026) only the
+ *                  killer's own Stage 6 reaches the Sanity step: anyone else's
+ *                  Tamper costs 1 action and no Sanity, and with no action left
+ *                  there is no Tamper (cleanup.mjs `tamperPriceSkip`). No Hope
+ *                  step, deliberately: an Objection buys a moment of the trial's
+ *                  attention, and this buys the destruction of evidence - Hope is
+ *                  the wrong currency for it.
  *
  * ARRAY ORDER IS PAYMENT ORDER, and `steps[0].amount` is also the action cost
  * the tile shows, so `ACTIONS.<key>.cost` and this table must agree - there is a
@@ -1458,17 +1473,23 @@ export const PRICE_CHAINS = {
  * declares which traits may roll it and what it costs.
  * ========================================================================== */
 /**
- * `kind` on each entry below, and the ORDER they are written in.
+ * `kind` on each entry below.
  *
- * The sheet draws every `universal` entry as the action grid, in exactly this
- * order - so the table is the layout, and moving a tile means moving a block
- * of text here rather than editing a list somewhere else that could disagree
- * with it. Ten of them, two rows of five.
+ * The sheet draws every `universal` entry as the action grid - ten of them,
+ * two rows of five - in the order `ACTION_GRID` (below the table) names them.
+ * Until E103 the table's own key order was the layout; the owner's order of
+ * 13.11.2026 moved Infiltrate and Palm into the first row, and a list of ten
+ * keys says that where moving three blocks of this table would also have moved
+ * every reader that walks ACTIONS in order (`ruledDefinitions`, the suite's
+ * loops) for no reason of theirs. The suite holds the list to the universal
+ * entries, each once (R5300, and "the action grid is two rows of five").
  *
  * The other two kinds are entries that are NOT tiles and must not be deleted:
  *
- *   panel    drawn by a panel of its own. `move` is the Monocub's, whose
- *            grid is exactly Move and Meddle.
+ *   panel    no tile draws it. `move` was the Monocub's first tile until E103
+ *            (the owner, 13.11.2026: "kafel move u monocuba usuwamy"); a
+ *            Monocub moves by its token, and `performAction` still dispatches
+ *            it (`MONOCUB.dispatchable`) to the Move's own briefing.
  *   variant  reached through another action's menu. `sabotage` is the third
  *            branch of Projects, and `reroll.mjs` still dispatches on
  *            `case "sabotage"` while `briefingBlock` reads its description -
@@ -1725,8 +1746,8 @@ export const ACTIONS = {
      * first question the window asks.
      *
      * Not the stash, in either direction. Stealing from one has its own route
-     * with its own conditions (`rifleStashDialog`, and the Search branch for
-     * concealed ones); a Palm that reached into a stash would walk past all of
+     * with its own conditions (`rifleStashDialog`: an open stash, or a hidden one
+     * Find Stash found); a Palm that reached into a stash would walk past all of
      * them, and planting into one would be the same hole in reverse.
      */
     palm: {
@@ -1797,12 +1818,13 @@ export const ACTIONS = {
      * unreachable, and made planting a false trail a privilege of the one
      * person who least needs to be believed.
      *
-     * ONE PRICE ON BOTH ROADS, AND IT IS A CHAIN (T-1, Dawid 17.09). An attempt
-     * costs 1 action, and only with no action left 1 Sanity - see
-     * `PRICE_CHAINS.tamper`. It used to cost an action AND a Sanity mark on this
-     * tile (the paragraph here said otherwise from 29.08 until T-1, and the code
-     * charged both), which made Tamper the one action priced twice. The killer on
-     * their own night pays no action, so for them the chain starts at the Sanity.
+     * ONE ACTION, NO SANITY (E64, 12.11.2026; the owner's answer: "Tamper kosztuje
+     * 1 akcje, domyslnie bez Sanity"). An attempt costs 1 action, and with no
+     * action left there is no Tamper: cleanup.mjs `tamperPriceSkip` skips the
+     * Sanity step of `PRICE_CHAINS.tamper` for everyone but the killer on their own
+     * night, who pays no action, so for them the chain starts at the Sanity (D3).
+     * From T-1 (Dawid 17.09) until 1.2.105 the chain went on to 1 Sanity with no
+     * action left; before T-1 this tile charged an action AND a Sanity mark.
      * Both roads end in `attemptCleanup` / `attemptStageSix` with a flag saying
      * which door they came through - see `viaAction` in cleanup.mjs.
      */
@@ -1855,10 +1877,13 @@ export const ACTIONS = {
         icon: "fa-shoe-prints",
         traits: [],
         cost: 0,
+        // "A free crossing", not "Sprint" (1.2.112): a Dash and a Facilities room action bank theirs in the same counter
+        // as a Sprint (actions.mjs `grantFreeMoves`), and a crossing takes whichever is there (`takeMove`).
         hint: "Moving inside a room is free. Each time of day, your first crossing into another room uses your Free "
-            + "Move; each crossing after that costs an action, or one of the extra crossings you bought with Sprint.",
+            + "Move; each crossing after that takes a free crossing if you hold one (Sprint, Dash, Facilities), or "
+            + "an action.",
         description: "Moving inside your room is free. Each time of day, crossing into another room uses your Free "
-            + "Move, then Sprint crossings, then actions; with none left, the crossing is undone. An Overflow can "
+            + "Move, then your free crossings, then actions; with none left, the crossing is undone. An Overflow can "
             + "block the Free Move, and the GMs can turn the charge off.",
         instruction: "Drag your token. Crossing into another room is what counts - the cost "
             + "is applied when you arrive."
@@ -1895,6 +1920,15 @@ export const ACTIONS = {
         leavesRemnant: { type: "prep", faint: true }
     }
 };
+
+/**
+ * THE ACTION GRID'S ORDER (E103, 13.11.2026; the owner: "Zmieniamy tylko kolejnosc akcji u gracza"): the first row
+ * Search, Observe, Analyze, Infiltrate (`listen`), Palm; the second Projects, Facilities (`rest`), Dynamic, then Tamper
+ * and Direct Murder, which the owner's words did not name and which keep the last two places (the stage's default, owner
+ * to confirm). Every `universal` key of ACTIONS once, nothing else; sheet.mjs `injectActionPanel` draws them in this
+ * order. Until E103: Search, Observe, Analyze, Projects, Dynamic | Facilities, Infiltrate, Palm, Tamper, Direct Murder.
+ */
+export const ACTION_GRID = Object.freeze(["search", "observe", "analyze", "listen", "palm", "project", "rest", "dynamic", "tamper", "directMurder"]);
 
 /* ==========================================================================
  * WHAT THE STATE-DEPENDENT `callsGm` PREDICATES ASK
@@ -2134,16 +2168,18 @@ export const REST = {
  *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
  *           `perDay` null: no daily limit, one active tail per tailer (DA26). What a tail does is tail-gm.mjs's.
  *   dash    Dash: Leg, free crossings by band (`bands`: the highest reached; `critical`), granted through actions.mjs
- *           `grantFreeMoves`. The plan names "0-3 by band" and no numbers: a miss 0, 12+ 1, 18+ 2, a critical 3 - a
- *           default taken (docs/dev/e69/SPEC.md).
+ *           `grantFreeMoves`. The plan named "0-3 by band" and no numbers, and E69 took a miss 0, 12+ 1, 18+ 2, a
+ *           critical 3 as a default (docs/dev/e69/SPEC.md). The owner's decision of 13.11.2026 ("Opcję A bierzemy"): a
+ *           miss 0, 12+ 2, 18+ 3, a critical 4. A crossing after the Free Move costs one action and a Dash costs one, so
+ *           a Dash at 12 that gave one crossing bought what walking buys; a success must beat a plain crossing.
  */
 export const INFILTRATE = Object.freeze({
     listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
     tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
         unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
     dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
-        bands: Object.freeze([Object.freeze({ min: 12, moves: 1 }), Object.freeze({ min: 18, moves: 2 })]),
-        critical: Object.freeze({ moves: 3 }) }),
+        bands: Object.freeze([Object.freeze({ min: 12, moves: 2 }), Object.freeze({ min: 18, moves: 3 })]),
+        critical: Object.freeze({ moves: 4 }) }),
     // Shut the Door (E74 C2; DA25 = 1): Body, its total the barricade's strength; a room with at most `maxExits` open doors.
     shut: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, maxExits: 2 }),
     // Force the Door (E74 C3; DA9, DA31 = 2, DA43 = 1, DA52): Body against what holds the door - a barricade by its strength,
@@ -3400,8 +3436,9 @@ export const MONOCUB = {
      * The only ACTIONS keys a Monocub may dispatch through `performAction`
      * (ACT-13, Dawid's list, 20.09).
      *
-     * Moving is how a Monocub is anywhere at all, and it is what their own panel
-     * offers beside Confusion. Everything else on the grid belongs to the living:
+     * Moving is how a Monocub is anywhere at all; their panel drew it as a tile
+     * beside Confusion until E103, and the token is the Move now (the owner,
+     * 13.11.2026), the key kept for the Move's briefing. Everything else on the grid belongs to the living:
      * a Monocub searching a room, working a project or analysing evidence is a
      * dead student playing the game they are out of.
      *
@@ -3829,13 +3866,20 @@ export const CRISIS_ACTIONS = {
     secureTrace: {
         side: "victim", label: "Secure a Trace", icon: "fa-hand-holding",
         threshold: 15, traits: ["hand", "leg", "shadow"],
-        hint: "On a hit, you secure a Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and "
-            + "Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and "
-            + "a critical leaves two.",
+        hint: "On a hit, you leave a Reinforced Remnant tied to the crime at the scene: Evident with Hope, Subtle with "
+            + "Despair, Obvious on a critical, and your turn goes on. In an indirect murder, a critical leaves two.",
         // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
-        short: "On a hit, take a Remnant tied to the crime with you.",
+        short: "On a hit, leave a Reinforced Remnant tied to the crime at the scene.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
-        criticalReinforced: true,
+        /*
+         * REINFORCED ON EVERY HIT (1.2.112; the owner's decision of 13.11.2026). Until then this entry was Leave a
+         * Clue's at 15 instead of 12 - the same Remnants, Reinforced on a critical alone - so the harder roll bought
+         * nothing. What it buys now is a trace the killer cannot wipe in Stage 6, whatever the band: murder-rules.mjs
+         * `applyRemnant` reads `alwaysReinforced` beside `criticalReinforced` and the indirect table's `reinforced`.
+         * The Remnant is left at the scene, as every incident Remnant is; nothing goes into the victim's hands.
+         * Tier 2's "Secure a Trace leaves a Reinforced Remnant at the scene on every hit ..." reads it.
+         */
+        alwaysReinforced: true,
         // G-17, as on Leave a clue.
         criticalKeepsTurn: true,
         failure: "No Remnant, but advantage on the next attempt. Only on a Hope failure.",
@@ -4782,7 +4826,8 @@ export const LOOT = Object.freeze({
  * gave were whatever the roller's browser had armed. This is the one list of it, each row read on
  * the GM by one reader of the same name (roll-draw.mjs `LEGAL_READERS`) from what that GM holds:
  *   - `kind` says how it reaches the roll: the faces of a die, a flat number, advantage dice, the
- *     face a die is forced to, a step taken after the dice, or the roll's own kind;
+ *     face a die is forced to, or the roll's own kind (a hidden stash's step taken after the dice,
+ *     `stashStep`, was a row until 1.2.112);
  *   - `reader` names where the GM reads it (a path on the character or the store it comes from);
  *   - `bound` is the number the reader holds it to: a die's faces where the rules say none, one
  *     experience, Breakdown's one die, the hostile Call's grace;
@@ -4809,7 +4854,6 @@ export const LEGAL_ROLL_MODIFIERS = Object.freeze([
     { key: "breakdown", kind: "dice", reader: "system.resources.stress", bound: -1, label: "DRPG.Rolls.legal.breakdown" },
     { key: "situation", kind: "dice", reader: "actionKey", bound: null, label: "DRPG.Rolls.legal.situation" },
     { key: "loadedDie", kind: "face", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.loadedDie" },
-    { key: "stashStep", kind: "after", reader: "vault", bound: null, label: "DRPG.Rolls.legal.stashStep" },
     { key: "kind", kind: "kind", reader: "appliedEffects", bound: null, label: "DRPG.Rolls.legal.kind" }
 ].map(row => Object.freeze(row)));
 
@@ -5224,6 +5268,12 @@ export const SFX_EVENTS = {
         hint: "Heard by the GMs and by everyone whose character was part of the incident. Nobody else learns of a death this way.",
         category: "incident"
     },
+    deathFade: {
+        label: "Death fade",
+        hint: "Heard by the dead student's player alone, as their screen fades out at the death. Empty: the death's sound plays. Never for a GM's correction.",
+        category: "incident",
+        fallsBackTo: "death"
+    },
     bodyFound: {
         label: "A body is found",
         hint: "Heard by the whole table. The moment the chapter changes genre.",
@@ -5475,6 +5525,7 @@ export const DRPG = {
     observeDc,
     KEY_REMNANTS,
     ACTIONS,
+    ACTION_GRID,
     INDIRECT_MURDER,
     BROKEN_ITEMS,
     SABOTAGE_CONCEAL,

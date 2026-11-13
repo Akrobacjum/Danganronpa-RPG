@@ -631,8 +631,7 @@ export function lockTrait(root, app, armed) {
 // disadvantage a Monokuma just paid two Despair for.
 //
 // Two sources feed in - a Call somebody paid Hope or Despair for, and the
-// situation itself (searching a fitting room, digging through a hidden
-// stash). They are added and clamped, so they cancel rather than one
+// situation itself (searching a fitting room). They are added and clamped, so they cancel rather than one
 // silently outranking the other: a Monokuma's Obstacle against a player
 // rummaging in exactly the right place is a fair fight, not a loss for
 // whichever mechanism happens to be read second.
@@ -1048,9 +1047,8 @@ function stateGrant(actor) {
  * beyond the first was silently free: a Hope Call spent in a room that favours
  * exactly what you are looking for bought nothing the room had not already
  * given. And the arithmetic being thrown away was real - `performSearch` sums a
- * favouring room and a hindering room (a concealed stash was the third term until E06 C11;
- * since E32+E07 C11e it is the same step of disadvantage, taken on the dice once they have
- * landed - action-search.mjs `stashStep`, which reads this cap); a crisis roll sums a
+ * favouring room and a hindering room (a concealed stash was the third term until E06 C11, and
+ * a step taken on the dice after them from E32+E07 C11e until 1.2.112); a crisis roll sums a
  * weapon in hand, a second try after a miss and the guide's compensation for
  * dying alone to a trap. All of it computed, then rounded to a sign.
  *
