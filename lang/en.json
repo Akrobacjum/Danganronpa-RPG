@@ -517,6 +517,14 @@
       "descriptionLocked": "Only a GM edits what an item says. What a thing is is part of the evidence.",
       "itemLocked": "Only a GM edits an item's name, picture or description. What a thing is is part of the evidence."
     },
+    "Mask": {
+      "askTitle": "Stay hidden?",
+      "ask": "Your opening went well: the victim and everyone in the room see you as \"?\", and your microphone is off. Reveal yourself now, or stay hidden until the time of day ends.",
+      "reveal": "Reveal yourself",
+      "stay": "Stay hidden",
+      "card": "You are hidden behind a \"?\" and your microphone is off, until you reveal yourself or the time of day ends. Reveal yourself is on your voice tile.",
+      "ended": "You are no longer hidden: the time of day is over."
+    },
     "Listen": {
       "prompt": "You are in {room}. Which neighbouring room?",
       "which": "Room",
@@ -1995,6 +2003,8 @@
         "aStudentSNameStartTooltip": "Known again after each season reset, not now"
       },
       "More": {
+        "maskRevealTooltip": "The victim and the room see your token and your name again, and your microphone comes back.",
+        "maskStayTooltip": "Stay behind the \"?\" until the time of day ends. Reveal yourself stays on your voice tile.",
         "volumeTooltip": "How loud this person is for you alone, and unmutes them; the others hear them as before",
         "changeTheKeyTooltip": "Opens Foundry's controls, where you set the push-to-talk key"
       }
@@ -2611,6 +2621,7 @@
         "dead": "one of the two is no longer alive"
       },
       "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. On your character sheet, under Actions, press Fight back.",
+      "victimSomeoneMoves": "<strong>Someone is moving on you.</strong> The incident has begun and the first turn is yours. On your character sheet, under Actions, press Fight back.",
       "victimTrapSprung": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours - on your character sheet, under Actions, press Fight back.",
       "tileCrisis": "Crisis actions",
       "tileFightBack": "Fight back",
@@ -4390,6 +4401,7 @@
         "listen.eavesdrop": "Listen at a door",
         "listen.stop": "Stop listening",
         "listen.echoes": "Echoes",
+        "mask.reveal": "Reveal yourself",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
@@ -5474,6 +5486,7 @@
         "connected": "Connected to your voice channel.",
         "deadMuted": "Your character is dead: you listen to the trial, and your microphone stays off until it ends.",
         "listening": "Listening at a door: your microphone stays off until you stop.",
+        "masked": "Hidden behind a \"?\": your microphone stays off until you reveal yourself.",
         "cubSpeak": "Discussion: you may speak.",
         "cubListen": "Mode: {mode}. You listen.",
         "cubVote": "The vote: you listen.",
@@ -6495,6 +6508,7 @@
         "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "lockpicks": "Who may walk through a lock they picked, into which room",
         "eavesdrops": "Who listens at which door, from which room, and which room they may listen at again for free",
+        "masks": "Which killer hides behind a \"?\" after a murder's opening, and what their token looked like",
         "timedEffects": "What room actions gave each character for a while, and when it ends",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",

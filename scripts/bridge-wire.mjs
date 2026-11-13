@@ -124,6 +124,8 @@ export const ACTION_LISTEN_EAVESDROP = "listen.eavesdrop";
 export const ACTION_LISTEN_STOP = "listen.stop";
 /** player -> primary GM: Echoes, the nearest room with a living student of another player (E69 C7; echoes-gm.mjs). */
 export const ACTION_LISTEN_ECHOES = "listen.echoes";
+/** player -> primary GM: a killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
+export const ACTION_MASK_REVEAL = "mask.reveal";
 /** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
 export const ACTION_DOOR_SHUT = "door.shut";
 /** player -> primary GM: a door forced, its Body roll on the GMs' record (E74 C3; doors-gm.mjs `forceDoor`). */

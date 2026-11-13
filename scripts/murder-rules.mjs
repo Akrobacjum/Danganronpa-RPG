@@ -638,8 +638,11 @@ async function tellVictimTheIncidentBegan(state) {
     try {
         const victim = game.actors.get(state?.victimId ?? "");
         if (!victim) return;
-        const key = state.indirect ? "victimTrapSprung" : "victimUnderAttackBy";
-        const data = state.indirect ? {} : { killer: esc(game.actors.get(state.killerId ?? "")?.name ?? "?") };
+        // A killer behind a "?" (E69 C8) is "someone" to the victim: the whisper names nobody.
+        const { maskStands } = await import("./mask-gm.mjs");
+        const masked = !state.indirect && maskStands(state.killerId);
+        const key = state.indirect ? "victimTrapSprung" : masked ? "victimSomeoneMoves" : "victimUnderAttackBy";
+        const data = state.indirect || masked ? {} : { killer: esc(game.actors.get(state.killerId ?? "")?.name ?? "?") };
         await whisperToOwner(victim, `<p>${game.i18n.format(`DRPG.Murder.${key}`, data)}</p>`);
     } catch (err) {
         // The incident has already started in world state; a message that fails
@@ -751,10 +754,20 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
     const patch = { stage: "incident", keyRemnants: keys, turn: 1, turnSide: "victim" };
 
+    /* THE MURDER'S PRIVACY (E69 C8, 13.11.2026; mask-gm.mjs): an opening on Hope or a critical hides the killer behind a
+       "?". The mask is written BEFORE the stage, whose write sends the victim the cast: the copy it sends then holds no
+       killer (incident-store.mjs `castCopyFor`). A stage that lost its race takes the mask back. */
+    const { opensMask, maskKiller, endMask } = await import("./mask-gm.mjs");
+    const masks = opensMask({ success, band, indirect: state.indirect, selfInflicted: state.selfInflicted });
+    if (masks) await maskKiller(state);
+
     // A Despair success costs the victim their Sanity and their way out - the Sanity
     // after the stage is written (E32 C4), so an opening that lost its race marks no sheet.
     if (band === "despair") patch.deniedToVictim = ["roleReversal"];
-    if (!await writeState(patch, { expect: opening })) return null;
+    if (!await writeState(patch, { expect: opening })) {
+        if (masks) await endMask(state.killerId, "lost");
+        return null;
+    }
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {

@@ -29,7 +29,7 @@ R numbers R6020-R6026.
 | --- | --- | --- |
 | C6 | The eavesdrop: after a good Listen roll (14+, or a critical), the card first (Q-E69-2), then `listen.eavesdrop` asks the primary GM, which reads the roll off its record, keeps a row (gm-stores.mjs `eavesdropStore`, an owner's copy `eavesdropCopy`), and the voice decision sends the listener into the room's channel (voice.mjs `listeningRow`, one rule in `placeVoices` after the Spectators' room, the design of every other voice rule); the microphone blocked by the trial's own BROADCAST_AUDIO write (`settleTrialVoices`, a `trialMuteStore` row); Stop listening on the voice tile (`listen.stop`); the GM's list Who you hear holds a line per listener (glyph `listening`, the button `stop-listening`); a free repeat on the same room in the same time of day; the ends as the plan lists | R6020, R6021, R6022, R6025, R6026; E69-T5; scenarios 30 (a console's packets) and 33 E69-C; LIVE-E69-03 |
 | C7 | Echoes: a row of the Infiltrate window, one action, no roll (`listen.echoes`); the nearest room by crossings (doors, stairs, the tunnels the asker knows) with a living student of another player, read on the GM (echoes-gm.mjs); ties at random; struck through in an Eclipse (Q-E69-3) | R6023, R6024, R6026; E69-T6; scenarios 30 and 33 E69-C; LIVE-E69-06 |
-| C8 | Not built here: Q-E69-4's default (its own stage after E74) stands. E69 lays the forced-mute helper C6 needs, and it is that: a block the module writes and gives back exactly as found (`settleTrialVoices` with `eavesdropMutedIds`), which a later murder-privacy stage can ask with one more reason | - |
+| C8 | Built after all (the coordinator, 13.11: the owner's decision of 13.11 overrides Q-E69-4's default). An opening on Hope or a critical of a direct murder hides the killer (mask-gm.mjs, GmStore `maskStore`): their tokens a "?" with the mystery man and one flag `masked`, the look kept by the GMs alone; every cast copy but the killers' holds no killer (incident-store.mjs `castCopyFor`); the victim's whisper says "someone"; another player's sheet of the killer closes (anonymity.mjs `maskedSheetClosed`); the microphone blocked by C6's block with one more reason (`maskMutedIds`); the killer asked to reveal (`mask.reveal`, and a Reveal yourself on the voice tile); ends at the reveal or the next time of day | R6027-R6031; E69-T7; 30-security "the killer behind a ?, read from a console"; LIVE-E69-05 |
 | C9 | Handbooks EN and PL: the player handbook's eavesdrop and Echoes, the GM handbook's 9.5 paragraph; AUDIT 9.2 rows LIVE-E69-03 and LIVE-E69-06; no `game.drpg` name added, so no api-surface row | check text, parity, live |
 
 Defaults taken (owner may revise):
@@ -46,6 +46,13 @@ Defaults taken (owner may revise):
 - Echoes does not name the asker's own room; names the room by its region's name even when the asker has not explored
   it (as a tail's card does); refused in an Eclipse, a Class Trial and an incident; with no GM connected nothing is paid.
 - The plan's "GM's voice panel" is read as the GM's list Who you hear on the voice tile, the panel a GM has per voice.
+- C8: a GM and a Spectator see through the "?" (the coordinator's default), from the documents they hold; the killer's own
+  browser shows the "?" too; the mask does not end with the incident, only at the reveal or the next time of day; the
+  mask is written before the incident's stage, so the copy the stage sends the victim already holds no killer.
+- C8, what stays: a token document keeps its `actorId`, so a console resolves the "?" to the killer (Foundry's limit);
+  30-security records it with a note, not a known-leaks.json entry, because a foundryLimit entry needs its paragraph in
+  the root README.md, which this line may not edit. LiveKit names the killer among the channel's participants in the
+  voice list. Both are LIVE-E69-05.
 
 ## What a console can still do
 

@@ -50,7 +50,7 @@ import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs
 import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
-import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy } from "./gm-stores.mjs";
+import { deathStore, trialMuteStore, eavesdropStore, eavesdropCopy, maskStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, isDeadRoom, SPECTATOR_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport, serialWrite, forcedDeletion, whisperToGms, esc } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -1067,6 +1067,24 @@ export function listeningRow(row, listens = new Map()) {
  * The LiveKit room this browser's own character listens into, from the owner's copy (E69 C6), or null: `micHold`'s
  * "listening" is asked of the room the primary sent this browser, so a stale copy holds nothing.
  */
+/** On a GM: the accounts whose character stands behind a "?" now, from the GMs' rows (E69 C8). */
+function maskedIds() {
+    if (!game.user?.isGM) return new Set();
+    return new Set(Object.values(maskStore.entries() ?? {}).flatMap(row => row?.userIds ?? []));
+}
+
+/**
+ * Whether this browser's own character stands behind a "?" (E69 C8), read off the one flag of its tokens: a player
+ * knows their own mask. Inline rather than mask-gm.mjs's `myMask`, which voice.mjs would import back through its run.
+ */
+function ownMasked(user = game.user) {
+    if (!user || user.id !== game.user?.id || user.isGM) return false;
+    for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) {
+        if (token.flags?.[MODULE_ID]?.masked && token.actor?.testUserPermission?.(user, "OWNER")) return true;
+    }
+    return false;
+}
+
 /** On a GM: the accounts whose character listens at a door now, from the GMs' rows (E69 C6). */
 function listeningIds() {
     if (!game.user?.isGM) return new Set();
@@ -1214,7 +1232,8 @@ const stillThere = row => Boolean(row?.fallen && row.gone !== true);
  * and not external, and a renamed Room or `state` as offline.
  */
 export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
-    canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts(), listening = ownListenRoom(user) } = {}) {
+    canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts(), listening = ownListenRoom(user),
+    masked = ownMasked(user) } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
     // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere -
@@ -1237,6 +1256,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     // Listening at a door (E69 C6): HELD, named before the block the eavesdrop wrote, while the primary has this
     // browser in the room it listens into.
     if (listening && room === listening) return { reason: "listening", held: true };
+    // Behind a "?" after a murder's opening (E69 C8): HELD, until the reveal or the end of the time of day.
+    if (masked) return { reason: "masked", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     if (speaker && isMonocub(speaker)) return cubLine(speaker, trial);
@@ -1261,8 +1282,10 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
  * nobody is located at all. The facts can be handed in, as `micHold`'s.
  */
 export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
-    dead = isDeadForGm, listening = listeningIds() } = {}) {
+    dead = isDeadForGm, listening = listeningIds(), masked = maskedIds() } = {}) {
     if (!game.user?.isGM || !user) return null;
+    // Behind a "?" (E69 C8): the mask's block, which the GM's own is not offered over either.
+    if (masked.has(user.id)) return { reason: "masked", held: true };
     // Listening at a door (E69 C6): the eavesdrop's block, which the GM's own is not offered over.
     if (listening.has(user.id)) return { reason: "listening", held: true };
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
@@ -1552,6 +1575,9 @@ export async function settleTrialVoices({ release = false } = {}) {
     // Listen's eavesdrop blocks by the same write (E69 C6, eavesdrop-gm.mjs): a listener's account, and for a moment after.
     const eavesdrop = await import("./eavesdrop-gm.mjs");
     await eavesdropStore.whenHydrated();
+    // And the murder's privacy (E69 C8, mask-gm.mjs): a killer behind a "?", one more reason of the same block.
+    const mask = await import("./mask-gm.mjs");
+    await maskStore.whenHydrated();
     if (await deathStore.whenHydrated() === "timedOut") warn("The trial's dead are listed from the deaths this GM holds: the other GMs' have not arrived.");
     await trialMuteStore.whenHydrated();
     const vote = await import("./vote.mjs");
@@ -1592,7 +1618,8 @@ export async function settleTrialVoices({ release = false } = {}) {
             // While it talks in the Spectators' room the block is lifted (E92 C6), and written again when it leaves.
             const watching = !release && spectatorAccount(user, { held: flagsHeldNow }) && !talkSwitchOn(user);
             const listening = !release && eavesdrop.eavesdropMutedIds().has(user.id);
-            if (watching || listening || (voice && listed.has(voice.id))) {
+            const masked = !release && mask.maskMutedIds().has(user.id);
+            if (watching || listening || masked || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }

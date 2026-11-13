@@ -522,6 +522,14 @@
       "descriptionLocked": "Tylko GM edytuje opis przedmiotu. To, czym rzecz jest, jest częścią dowodu.",
       "itemLocked": "Tylko GM edytuje nazwę, obrazek i opis przedmiotu. To, czym rzecz jest, jest częścią dowodu."
     },
+    "Mask": {
+      "askTitle": "Zostać w ukryciu?",
+      "ask": "Twoje otwarcie się udało: ofiara i wszyscy w pokoju widzą cię jako „?”, a twój mikrofon jest wyłączony. Ujawnij się teraz albo zostań w ukryciu do końca pory dnia.",
+      "reveal": "Ujawnij się",
+      "stay": "Zostań w ukryciu",
+      "card": "Ukrywasz się za „?”, a twój mikrofon jest wyłączony, dopóki się nie ujawnisz albo nie skończy się pora dnia. Ujawnij się jest na twoim kaflu głosu.",
+      "ended": "Nie jesteś już w ukryciu: pora dnia się skończyła."
+    },
     "Listen": {
       "prompt": "Jesteś w: {room}. Który sąsiedni pokój?",
       "which": "Pokój",
@@ -2082,6 +2090,8 @@
         "aStudentSNameStartTooltip": "Zna je znowu po każdym resecie sezonu, ale nie teraz"
       },
       "More": {
+        "maskRevealTooltip": "Ofiara i pokój znów widzą twój token i twoje imię, a mikrofon wraca.",
+        "maskStayTooltip": "Zostań za „?” do końca pory dnia. Ujawnij się zostaje na twoim kaflu głosu.",
         "volumeTooltip": "Jak głośno słyszysz tę osobę, tylko u siebie, i wyłącza jej wyciszenie; inni słyszą ją jak wcześniej",
         "changeTheKeyTooltip": "Otwiera sterowanie Foundry, gdzie ustawiasz klawisz mówienia"
       }
@@ -2771,6 +2781,7 @@
         "dead": "jedna z dwóch osób już nie żyje"
       },
       "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+      "victimSomeoneMoves": "<strong>Ktoś rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
       "victimTrapSprung": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
       "tileCrisis": "Akcje kryzysowe",
       "tileFightBack": "Broń się",
@@ -4721,6 +4732,7 @@
         "listen.eavesdrop": "Listen pod drzwiami",
         "listen.stop": "Przestań słuchać",
         "listen.echoes": "Echoes",
+        "mask.reveal": "Ujawnij się",
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
@@ -5896,6 +5908,7 @@
         "connected": "Połączono z kanałem głosowym.",
         "deadMuted": "Twoja postać nie żyje: słuchasz rozprawy, a twój mikrofon jest wyłączony do jej końca.",
         "listening": "Słuchasz pod drzwiami: mikrofon jest wyłączony, dopóki nie przestaniesz.",
+        "masked": "Ukrywasz się za „?”: mikrofon jest wyłączony, dopóki się nie ujawnisz.",
         "cubSpeak": "Dyskusja: możesz mówić.",
         "cubListen": "Tryb: {mode}. Słuchasz.",
         "cubVote": "Głosowanie: słuchasz.",
@@ -8283,6 +8296,7 @@
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
         "eavesdrops": "Kto podsłuchuje pod którymi drzwiami, z którego pokoju, i którego pokoju może znów posłuchać za darmo",
+        "masks": "Który zabójca ukrywa się za „?” po otwarciu morderstwa i jak wyglądał jego token",
         "timedEffects": "Co akcje w pokojach dały każdej postaci na jakiś czas i kiedy to mija",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",

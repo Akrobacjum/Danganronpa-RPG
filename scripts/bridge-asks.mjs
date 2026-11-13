@@ -35,7 +35,7 @@ import {
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT, ACTION_DOOR_FORCE, ACTION_DOOR_PICK, ACTION_WATCH_DECLARE, ACTION_DOOR_KNOCK,
-    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES
+    ACTION_LISTEN_EAVESDROP, ACTION_LISTEN_STOP, ACTION_LISTEN_ECHOES, ACTION_MASK_REVEAL
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -130,6 +130,13 @@ export function requestEavesdropStop({ actorId }) {
 export function requestEchoes({ actorId }) {
     return ask(ACTION_LISTEN_ECHOES, { actorId }, {
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleEchoes({ actorId }, game.user))
+    });
+}
+
+/** A killer behind a "?" reveals themselves (E69 C8). */
+export function requestMaskReveal({ actorId }) {
+    return ask(ACTION_MASK_REVEAL, { actorId }, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleMaskReveal({ actorId }, game.user))
     });
 }
 

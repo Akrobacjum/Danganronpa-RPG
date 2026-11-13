@@ -1085,6 +1085,20 @@ export const eavesdropStore = defineGmStore({
 });
 
 /**
+ * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c), the plan's C8). A row per killer behind a "?", keyed by the
+ * killer's actor id: `{ killerId, victimId, userIds, mark, tokens, at }` - `userIds` the killer's owners, whose
+ * microphone the mask blocks, `mark` the time of day it began in (it ends with it), `tokens` each masked token's
+ * `{ sceneId, tokenId, look }`, what it looked like (mask-gm.mjs `lookOf`), written back at the end. Written, read and
+ * dropped by the primary alone (mask-gm.mjs); synced, so a new primary ends it; backed up. Cut by the reset's "actions"
+ * group. No player copy - a player reads only the token's flag, which names nobody - and no old key.
+ */
+export const maskStore = defineGmStore({
+    name: "masks", key: SETTINGS.gmMasks,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * AN OWNER'S EAVESDROPS (E69 C6): `{ actorId: { sceneId, from, into, mark, active } }` for the characters this user owns,
  * as the primary GM sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the voice
  * tile (its Stop listening, the microphone's reason) and the Listen window (a free repeat).

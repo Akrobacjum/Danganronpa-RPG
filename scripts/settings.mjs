@@ -503,6 +503,12 @@ export const SETTINGS = {
     gmEavesdrops: "gmEavesdrops",
     mineEavesdrops: "mineEavesdrops",
     /**
+     * THE MASKS (E69 C8, 13.11.2026; the owner's 10.11 (c)): a GM store (gm-stores.mjs `maskStore`), a row per killer
+     * behind a "?" `{ killerId, victimId, userIds, mark, tokens, at }`, `tokens` each masked token's look as it was. No
+     * player copy: a player reads the one token flag. Synced and backed up.
+     */
+    gmMasks: "gmMasks",
+    /**
      * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
      * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
      * characters' rows (`mineTimedEffects`, `timedEffectCopy`), which their sheet reads. Synced and backed up.
@@ -2272,6 +2278,13 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => Hooks.callAll("drpgEavesdropCopy")
+    });
+    // The masks (E69 C8): no `onChange` - read by the primary (mask-gm.mjs) and by every GM's cast copies.
+    game.settings.register(MODULE_ID, SETTINGS.gmMasks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
     // The barricades standing (E74 C2): no `onChange` - the table reads the public flag (doors-gm.mjs).
     game.settings.register(MODULE_ID, SETTINGS.gmBarricades, {

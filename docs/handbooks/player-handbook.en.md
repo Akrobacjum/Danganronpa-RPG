@@ -641,6 +641,8 @@ There is exactly one, and the kind of murder decides whose it is.
 
 **You propose the statistic.** When you declare a Direct Murder in an Eclipse, the window asks *Which statistic do you propose?* - Body or Hand, Body to start - under your sentence of how. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass. A betrayal's confirmation asks the same (and *How do you do it?* outside an Eclipse); the GM rules on it as the opening rolls, and you are told *The GM is ruling on the statistic you proposed for your opening.* A trap's victim proposes nothing: the GM picks.
 
+**Behind a "?"** (since 1.2.113). A direct murder whose opening succeeds with Hope, or is a critical, hides the killer. The victim and everyone else see the killer's token as a "?" with no name, the victim is told only that *someone* is moving on them, another player's window for the killer's sheet closes, and the killer's microphone is off. A GM and a Spectator see who it is. As the killer you are asked *Stay hidden?*: **Reveal yourself** gives everyone your token and your name back and turns your microphone on again; **Stay hidden** keeps the "?" until the time of day ends, and **Reveal yourself** stays on your voice tile until then. What it cannot hide: a player who opens the browser's console can still read which character the "?" token belongs to, and the voice list may name the killer among those in the channel.
+
 | Killer's roll | What happens |
 |---|---|
 | Failure | nothing happens and the victim never learns anything was attempted |

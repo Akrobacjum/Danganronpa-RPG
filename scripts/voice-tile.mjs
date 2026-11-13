@@ -139,6 +139,7 @@ import { tileRow } from "./narrow.mjs";
 import { objectionControl, renderHud } from "./hud.mjs";
 import { trialFloor } from "./trial-floor.mjs";
 import { myEavesdrop, eavesdropsUnderWay } from "./eavesdrop-gm.mjs";
+import { myMask, requestReveal } from "./mask-gm.mjs";
 
 import { setTip } from "./ui-kit.mjs";
 
@@ -1050,6 +1051,7 @@ export function paintControls(watch = live, gone = null) {
         paintObjection(watch.tile);
         paintSpectatorTalk(watch.tile);
         paintStopListening(watch.tile);
+        paintReveal(watch.tile);
         paintFloorMark(watch.tile, watch.shown ? watch.userOf(watch.shown) : null);
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
@@ -1172,6 +1174,46 @@ export function paintStopListening(tile, { listening = myEavesdrop(), onStop = s
     }
     return button;
 }
+
+/**
+ * REVEAL YOURSELF (E69 C8, 13.11.2026; mask-gm.mjs). A mini button after the speaker's while this browser's own character
+ * stands behind a "?" (`myMask`, read off its own token's flag), so a killer who chose to stay hidden can still reveal
+ * themselves before the time of day ends: a press asks the primary GM (`mask.reveal`). Legacy's query mark, `query`.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} [given]  the suite's: `masked` (an actor or null) and the click's `onReveal`
+ * @returns {HTMLElement|null}
+ */
+export function paintReveal(tile, { masked = myMask(), onReveal = requestReveal } = {}) {
+    const controls = tile?.querySelector(".drpg-voice-tile-controls");
+    if (!controls) return null;
+    let button = controls.querySelector(".drpg-voice-reveal");
+    if (!masked) {
+        button?.remove();
+        return null;
+    }
+    if (!button) {
+        button = miniButton("drpg-voice-reveal", "query", "");
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            Promise.resolve().then(() => revealToggles.get(button)?.()).catch(err => error("Could not reveal", err));
+        });
+        const speaker = controls.querySelector(".drpg-voice-speaker");
+        if (speaker) speaker.after(button);
+        else controls.append(button);
+    }
+    revealToggles.set(button, () => onReveal(masked));
+    const label = game.i18n.localize("DRPG.Mask.reveal");
+    if (button.getAttribute("aria-label") !== label) {
+        button.setAttribute("aria-label", label);
+        button.dataset.tooltipText = label;
+    }
+    return button;
+}
+
+/* What a press of a tile's Reveal yourself calls, kept per button. */
+const revealToggles = new WeakMap();
 
 /* What a press of a tile's Stop listening calls, kept per button. */
 const stopToggles = new WeakMap();
@@ -1778,6 +1820,8 @@ export function registerVoiceTile() {
     Hooks.on("drpgVoiceApplying", () => onVoiceApplying());
     // Listen's eavesdrop (E69 C6): the owner's copy changed (Stop listening, the microphone's reason), a GM's rows.
     Hooks.on("drpgEavesdropCopy", () => paintControls());
+    // The murder's privacy (E69 C8): this browser's character went behind a "?" or came out.
+    Hooks.on("drpgMaskChanged", () => paintControls());
     Hooks.on("drpgEavesdropChanged", () => { if (live?.list && !live.list.hidden) paintList(live); });
     /* THE TRIAL'S LINES FOLLOW THE TRIAL (E70 fix p1-G1, 28.10.2026; the review's E70P1-R03). A Monocub's line and the
        dead's (voice.mjs `micHold`: "cubSpeak", "cubListen", "cubVote", "ownCase", "deadMuted") are read off the clock,

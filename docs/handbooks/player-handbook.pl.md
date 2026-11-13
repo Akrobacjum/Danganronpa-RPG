@@ -641,6 +641,8 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 
 **Proponujesz statystykę.** Gdy zgłaszasz Direct Murder podczas Eclipse, okno pyta *Którą statystykę proponujesz?* - Body albo Hand, na start Body - pod twoim zdaniem o tym, jak to robisz. GM odpowiada na jednej karcie: pozwala na twoją propozycję, zmienia ją na drugą albo odmawia. Do zapalenia świateł nic nie słyszysz; otwarcie rzuca się potem na statystyce, na którą GM pozwolił, bez drugiego okna i bez rezygnacji. Potwierdzenie zdrady pyta o to samo (a poza Eclipse także *Jak to robisz?*); GM rozstrzyga o tym, gdy rzut otwarcia wychodzi, a ty czytasz *GM rozstrzyga o statystyce zaproponowanej do twojego rzutu otwarcia.* Ofiara pułapki nic nie proponuje: wybiera GM.
 
+**Za „?”** (od 1.2.113). Direct Murder, którego otwarcie udaje się z Hope albo jest krytykiem, ukrywa zabójcę. Ofiara i wszyscy inni widzą token zabójcy jako „?” bez imienia, ofiara dowiaduje się tylko, że *ktoś* na nią rusza, okno karty zabójcy u innego gracza się zamyka, a mikrofon zabójcy jest wyłączony. GM i Widz widzą, kto to jest. Jako zabójca dostajesz pytanie *Zostać w ukryciu?*: **Ujawnij się** oddaje wszystkim twój token i imię i włącza mikrofon; **Zostań w ukryciu** trzyma „?” do końca pory dnia, a **Ujawnij się** zostaje do tego czasu na twoim kaflu głosu. Czego nie ukryje: gracz, który otworzy konsolę przeglądarki, nadal może odczytać, do której postaci należy token „?”, a lista głosu może wymieniać zabójcę wśród osób na kanale.
+
 | Rzut zabójcy | Co się dzieje |
 |---|---|
 | Porażka | nic się nie dzieje, a ofiara nigdy się nie dowie, że cokolwiek próbowano |

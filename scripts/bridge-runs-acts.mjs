@@ -304,6 +304,14 @@ export async function handleEavesdropStop(payload) {
     return {};
 }
 
+/** A killer behind a "?" reveals themselves (E69 C8; mask-gm.mjs `revealMask`). */
+export async function handleMaskReveal(payload) {
+    const { revealMask } = await import("./mask-gm.mjs");
+    const out = await revealMask(payload.actorId ?? "");
+    if (out.refused) return { refused: out.refused };
+    return {};
+}
+
 /**
  * ECHOES (E69 C7, 13.11.2026; echoes-gm.mjs). The nearest room by crossings with a living student of another player, read
  * on this GM. Answers `{ reply: { room, steps } }`, `room` null when there is none.

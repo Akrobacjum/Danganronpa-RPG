@@ -95975,6 +95975,75 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(stableJson(read), stableJson({ found: [true, true, true, true], theirs: "notYours", none: { room: null, steps: 0 } }),
             "{found: [a room that holds one, not the asker's, none nearer, its crossings]; theirs; none: every other token hidden} - Echoes on the GM");
     }],
+    ["E69-T7 - a killer behind a \"?\" on the GMs' record: the tokens masked and given back exactly, the victim's copy of the cast holds no killer, the killer's microphone blocked and given back, the reveal the killer's own road, the time of day its end (scripts/mask-gm.mjs, incident-store.mjs `castFor`, voice.mjs `settleTrialVoices`, bridge-table.mjs `mask.reveal`; E69 C8, the owner's 10.11 (c)): `maskKiller` writes \"?\" on the killer's tokens with the flag and keeps their look in the GMs' store; the victim's copy holds `killerId` null and the killer's its own; the killer's player is blocked; another player's reveal is notYours, the killer's ends it - every token's look as it was, no flag, the block lifted - and a second is refused; a new time of day ends a mask", async () => {
+        /*
+         * E69 C8, 13.11.2026. The incident's state handed in as a fixture (`castFor`'s `state`), nothing of a real incident
+         * opened. Put back: the store, the tokens' looks, the block. Red at f7e1721d: no mask-gm.mjs, no `mask.reveal`.
+         */
+        needs(env.primaryGm(), "the mask is written on the primary GM");
+        needs(world.atLeast("playerAccounts", 2), "the killer's player and the victim's are two players");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const K = await import("./mask-gm.mjs");
+        const I = await import("./incident-store.mjs");
+        const V = await import("./voice.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const owners = a => game.users.filter(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const killer = game.actors.find(a => a.type === "character" && owners(a).length && game.scenes.some(s => s.tokens.some(t => t.actorId === a.id)));
+        must(killer, "no player's character with a token - this would measure nothing");
+        const kp = owners(killer)[0];
+        const victim = game.actors.find(a => a.type === "character" && a.id !== killer.id && owners(a).length && !owners(a).some(u => u.id === kp.id));
+        must(victim, "no character of another player - this would measure nothing");
+        const vp = owners(victim)[0];
+        const tokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.actorId === killer.id));
+        const looks = () => tokens().map(t => [K.lookOf(t), K.isMaskedToken(t)]);
+        const before = looks();
+        const permsWere = kp._source?.permissions ? { ...kp._source.permissions } : {};
+        const blocked = () => (game.users.get(kp.id)?._source?.permissions ?? {}).BROADCAST_AUDIO === false;
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const told = [];
+        const ask = async (sender, packet) => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "mask.reveal", requestId: `E69T7${foundry.utils.randomID(8)}`, ...packet },
+                sender.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : "done";
+        };
+        const state = { active: true, stage: "incident", killerId: killer.id, victimId: victim.id, indirect: false };
+        const cast = { killerId: killer.id, victimId: victim.id, killerTurnId: killer.id, indirect: false };
+        const read = {};
+        await S.maskStore.whenHydrated();
+        try {
+            read.masked = await K.maskKiller(state);
+            await settle();
+            read.tokens = tokens().map(t => [t.name, t.texture.src, K.isMaskedToken(t)]);
+            read.kept = JSON.stringify((S.maskStore.get(killer.id)?.tokens ?? []).map(r => r.look)) === JSON.stringify(before.map(([look]) => look));
+            read.copies = [I.castFor(vp.id, cast, state)?.killerId ?? null, I.castFor(kp.id, cast, state)?.killerId ?? null];
+            read.block = [K.maskMutedIds().has(kp.id), blocked()];
+            read.theirs = await ask(vp, { actorId: killer.id });
+            read.reveal = await ask(kp, { actorId: killer.id });
+            read.back = [JSON.stringify(looks()) === JSON.stringify(before), S.maskStore.get(killer.id) ?? null, K.maskMutedIds().has(kp.id), blocked(),
+                I.castFor(vp.id, cast, state)?.killerId === killer.id];
+            read.again = await ask(kp, { actorId: killer.id });
+            await K.maskKiller(state);
+            await settle();
+            read.timeOfDay = [await K.masksAtNewTimeOfDay(), JSON.stringify(looks()) === JSON.stringify(before), S.maskStore.get(killer.id) ?? null];
+        } finally {
+            if (S.maskStore.get(killer.id)) await K.endMask(killer.id, "suite");
+            await V.settleTrialVoices();
+            if (blocked() && permsWere.BROADCAST_AUDIO !== false) {
+                const gone = (await import("./utils.mjs")).forcedDeletion();
+                await game.users.get(kp.id).update({ "permissions.BROADCAST_AUDIO": Object.hasOwn(permsWere, "BROADCAST_AUDIO") ? permsWere.BROADCAST_AUDIO : gone });
+            }
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ masked: true, tokens: tokens().map(() => ["?", "icons/svg/mystery-man.svg", true]), kept: true,
+            copies: [null, killer.id], block: [true, true], theirs: "notYours", reveal: "done", back: [true, null, false, false, true],
+            again: "refused", timeOfDay: [1, true, null] }),
+            "{masked; tokens [name, picture, flag]; kept: the looks in the GMs' store; copies [victim's killerId, killer's]; block [muted, blocked]; theirs; reveal; back [looks as before, row, muted, blocked, victim's copy names the killer]; again; timeOfDay [ended, looks, row]} - the mask");
+    }],
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*
          * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`

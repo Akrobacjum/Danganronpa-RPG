@@ -30,6 +30,7 @@ import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
 import { registerEavesdrops } from "./eavesdrop-gm.mjs";
+import { registerMasks } from "./mask-gm.mjs";
 import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerCaseAsk } from "./case-realize.mjs";
 import { registerActionResource } from "./resources.mjs";
@@ -252,6 +253,8 @@ Hooks.once("init", () => {
     safely("the pick's passes", registerLockpicks);
     // Listen's eavesdrop (E69 C6): the owner's copy, and on the primary GM every end of one.
     safely("the eavesdrops", registerEavesdrops);
+    // The murder's privacy (E69 C8): the killer behind a "?", its end at a new time of day, the killer's question.
+    safely("the masks", registerMasks);
     safely("the timed effects", registerTimedEffects);
     // E97 C11: the case's question at a body, on the primary GM, once a chapter
     safely("the case's question at a body", registerCaseAsk);

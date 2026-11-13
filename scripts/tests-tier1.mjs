@@ -55727,6 +55727,102 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([[true, true, true, ["listen", "eavesdrop", "rollId"], "reply"], [true, true, true, null, "ack"], [true, true, true, null, "reply"]]),
             "per road [declared, its label in English, in Polish, its roll [kind, settles, when], its answer]");
     }],
+    ["R6027 - a murder's opening on Hope or a critical hides the killer behind a \"?\" (scripts/mask-gm.mjs `opensMask`; E69 C8, the owner's 10.11 (c)): a direct murder's success with Hope and a critical open a mask; a success on Despair, a failure, a trap and a self-inflicted death do not", async () => {
+        /* E69 C8, 13.11.2026. Pure readings. Red at f7e1721d: no mask-gm.mjs. */
+        let K = null;
+        try { K = await import("./mask-gm.mjs"); } catch { K = null; }
+        ok(typeof K?.opensMask === "function", "mask-gm.mjs has no opensMask: nobody is ever hidden");
+        if (typeof K?.opensMask !== "function") return;
+        const read = [
+            K.opensMask({ success: true, band: "hope" }), K.opensMask({ success: true, band: "critical" }),
+            K.opensMask({ success: true, band: "despair" }), K.opensMask({ success: false, band: "hope" }),
+            K.opensMask({ success: true, band: "hope", indirect: true }), K.opensMask({ success: true, band: "critical", selfInflicted: true })
+        ];
+        equal(stableJson(read), stableJson([true, true, false, false, false, false]),
+            "[Hope, critical, Despair, a failure, a trap, self-inflicted] - whether the opening hides the killer");
+    }],
+    ["R6028 - a masked token is a \"?\" with Foundry's mystery man and one flag that names nobody, and its look comes back exactly (scripts/mask-gm.mjs `lookOf`, `maskPatch`, `restorePatch`, `isMaskedToken`; E69 C8): the patch writes the name \"?\", the mystery man, no ring, no name or bars drawn and `masked`; the look kept is the token's own name, picture, ring and display modes; the patch back writes those and takes the flag off; the flag alone marks a token masked", async () => {
+        /* E69 C8, 13.11.2026. Pure readings. Red at f7e1721d. */
+        let K = null;
+        try { K = await import("./mask-gm.mjs"); } catch { K = null; }
+        ok(typeof K?.maskPatch === "function", "mask-gm.mjs has no maskPatch");
+        if (typeof K?.maskPatch !== "function") return;
+        const token = { _source: { name: "Aiko Mori", texture: { src: "tokens/aiko.webp" }, ring: { enabled: true }, displayName: 30, displayBars: 20 } };
+        const look = K.lookOf(token);
+        const read = {
+            patch: K.maskPatch(), look, back: K.restorePatch(look, "GONE"),
+            flag: [K.isMaskedToken({ flags: { [MODULE_ID]: { masked: true } } }), K.isMaskedToken({ flags: {} }), K.isMaskedToken({ name: "?" })],
+            namesNobody: !JSON.stringify(K.maskPatch()).includes("Aiko")
+        };
+        equal(stableJson(read), stableJson({
+            patch: { name: "?", "texture.src": "icons/svg/mystery-man.svg", "ring.enabled": false, displayName: 0, displayBars: 0, [`flags.${MODULE_ID}.masked`]: true },
+            look: { name: "Aiko Mori", src: "tokens/aiko.webp", ring: true, displayName: 30, displayBars: 20 },
+            back: { name: "Aiko Mori", "texture.src": "tokens/aiko.webp", "ring.enabled": true, displayName: 30, displayBars: 20, [`flags.${MODULE_ID}.masked`]: "GONE" },
+            flag: [true, false, false], namesNobody: true
+        }), "{patch; look kept; patch back; flag: [flagged, not, a token merely named ?]; the patch names nobody}");
+    }],
+    ["R6029 - a killer behind a \"?\" is muted by the module and closed to other players (scripts/voice.mjs `micHold`, `moduleHoldsMic`, `settleTrialVoices`; anonymity.mjs `maskedSheetClosed`; E69 C8): the killer's own `micHold` holds it, reason masked; a GM's `moduleHoldsMic` holds a masked account; the trial's settle blocks it (`maskMutedIds`); a masked character's sheet closes for another player and stays open for its owner, a GM and a Spectator; the words in English and Polish", async () => {
+        /* E69 C8, 13.11.2026. Plain facts and source; nothing written. Red at f7e1721d. */
+        needs(env.primaryGm(), "a GM's `moduleHoldsMic` answers on a GM's browser alone");
+        const V = await import("./voice.mjs");
+        const A = await import("./anonymity.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/voice.mjs`).then(lfText), "settleTrialVoices") ?? "");
+        const user = { id: "R6029USER0000000", name: "R6029", isGM: false, active: true };
+        const actor = { id: "R6029ACTOR000000", testUserPermission: (u, level) => u.id === user.id && level === "OWNER" };
+        const other = { id: "R6029OTHER000000", isGM: false };
+        const hold = masked => V.micHold({ user, room: "drpg-x", external: false, connected: true, canBroadcastAudio: false, actors: [], trial: null, listening: null, masked });
+        const closed = typeof A.maskedSheetClosed === "function"
+            ? [A.maskedSheetClosed(actor, other, { masked: true, spectator: false }), A.maskedSheetClosed(actor, user, { masked: true, spectator: false }),
+                A.maskedSheetClosed(actor, { id: "GM", isGM: true }, { masked: true, spectator: false }), A.maskedSheetClosed(actor, other, { masked: true, spectator: true }),
+                A.maskedSheetClosed(actor, other, { masked: false, spectator: false })] : null;
+        const read = {
+            hold: [hold(true)?.reason ?? null, hold(true)?.held ?? null, hold(false)?.reason ?? null],
+            gm: V.moduleHoldsMic(user, { actors: [], eclipse: false, trial: false, dead: () => false, listening: new Set(), masked: new Set([user.id]) })?.reason ?? null,
+            settle: src.includes("maskMutedIds()"),
+            closed,
+            words: [game.i18n.has("DRPG.Voice.held.masked"), typeof pl?.DRPG?.Voice?.held?.masked === "string"]
+        };
+        equal(stableJson(read), stableJson({ hold: ["masked", true, "gmBlock"], gm: "masked", settle: true,
+            closed: [true, false, false, false, false], words: [true, true] }),
+            "{hold: [masked: reason, held; not masked]; gm; settle blocks a masked account; closed: [another player, the owner, a GM, a Spectator, no mask]; words}");
+    }],
+    ["R6030 - the mask is opened before the stage that sends the victim the cast, and taken back where the stage is lost (scripts/murder-rules.mjs `resolveKillerOpening`, `tellVictimTheIncidentBegan`; bridge-table.mjs `mask.reveal`; E69 C8): `maskKiller` is asked before the incident's stage is written and `endMask` where the write fails; the victim's first whisper of a masked killer is the line that names nobody; `mask.reveal` is a road owned by the sender's character, named in English and Polish, and the reveal's question has its words in both", async () => {
+        /* E69 C8, 13.11.2026. Source and table read; nothing written. Red at f7e1721d. */
+        const R = await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText);
+        const open = stripComments(fnSource(R, "resolveKillerOpening") ?? "");
+        const tell = stripComments(fnSource(R, "tellVictimTheIncidentBegan") ?? "");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const mask = open.indexOf("maskKiller(state)"), stage = open.indexOf("writeState(patch, { expect: opening })");
+        const decl = BRIDGE_ACTIONS["mask.reveal"];
+        const read = {
+            order: mask > 0 && stage > mask, lost: /writeState\(patch, \{ expect: opening \}\)\)\s*\{\s*if \(masks\) await endMask\(/.test(open),
+            whisper: tell.includes("victimSomeoneMoves") && game.i18n.has("DRPG.Murder.victimSomeoneMoves") && typeof pl?.DRPG?.Murder?.victimSomeoneMoves === "string",
+            road: [Boolean(decl), Boolean(decl && game.i18n.has(decl.label)), typeof pl?.DRPG?.Bridge?.what?.["mask.reveal"] === "string", decl?.answer ?? null],
+            words: ["askTitle", "ask", "reveal", "stay", "card", "ended"].every(k => game.i18n.has(`DRPG.Mask.${k}`) && typeof pl?.DRPG?.Mask?.[k] === "string")
+        };
+        equal(stableJson(read), stableJson({ order: true, lost: true, whisper: true, road: [true, true, true, "ack"], words: true }),
+            "{order: the mask before the stage; lost: taken back where the stage is lost; whisper; road [declared, EN, PL, answer]; words}");
+    }],
+    ["R6031 - the voice tile's Reveal yourself stands while its viewer's character is behind a \"?\" (scripts/voice-tile.mjs `paintReveal`; E69 C8): drawn for a masked character, a press asks to reveal it, gone once it is not masked", async () => {
+        /* E69 C8, 13.11.2026. A detached tile of the test's own; nothing written, nothing sent. Red at f7e1721d. */
+        const T = await import("./voice-tile.mjs");
+        ok(typeof T.paintReveal === "function", "voice-tile.mjs has no paintReveal");
+        if (typeof T.paintReveal !== "function") return;
+        const tile = document.createElement("div");
+        const controls = document.createElement("div");
+        controls.className = "drpg-voice-tile-controls";
+        tile.append(controls);
+        const pressed = [];
+        const drawn = T.paintReveal(tile, { masked: { id: "R6031ACTOR000000" }, onReveal: a => pressed.push(a.id) });
+        drawn?.click();
+        await new Promise(r => setTimeout(r, 0));
+        const label = drawn?.getAttribute("aria-label") ?? null;
+        T.paintReveal(tile, { masked: null });
+        equal(stableJson([Boolean(drawn), label === game.i18n.localize("DRPG.Mask.reveal"), pressed, controls.querySelectorAll(".drpg-voice-reveal").length]),
+            stableJson([true, true, ["R6031ACTOR000000"], 0]), "[drawn, its name, a press asks to reveal, gone once not masked]");
+    }],
     ["R3757 - a GM's room action is drawn only on a payment of its whole price (E93 C3, C6; the coordinator's fix of 12.11.2026, from E93's watched gap): the GM's price is one action, two under Toll; a payment's size is what its one write took down, a Burst's covering any price; a ticket of one action does not cover two, one of two and a Burst's do", async () => {
         /*
          * Pure readings, so tier 1 changes nothing. Until this test a ticket was "one payment" whatever it took down

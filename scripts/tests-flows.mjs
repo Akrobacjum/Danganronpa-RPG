@@ -111,6 +111,10 @@ export const FLOWS = Object.freeze([
     // packets; tier 2's E69-T5 and E69-T6 run the rolled eavesdrop and Echoes' distances. The copy is eavesdrop-gm.mjs's socket.
     { id: "eavesdrop", what: "Listen's eavesdrop and Echoes: the Listen roll read on the GM, the listener moved into the room's voice channel with the microphone blocked, ended by Stop listening or by the GM; Echoes' room read on the GM",
         entry: { bridge: ["listen.eavesdrop", "listen.stop", "listen.echoes"], sockets: ["eavesdrop-gm.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "covered", stage: "1.2.113" },
+    // E69 C8 (13.11.2026): 30 reads a victim's and a witness's console behind the "?" and refuses another's reveal; tier 2's
+    // E69-T7 masks and reveals on the GMs' record. The killer's own reveal from their page is tier 2's alone.
+    { id: "mask", what: "The murder's privacy: a killer behind a \"?\" after an opening on Hope or a critical, their microphone blocked, the cast's copies holding no killer, ended by the killer's reveal or the time of day",
+        entry: { bridge: ["mask.reveal"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
     // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
     // Q-E93-3 (12.11.2026): a timed effect a room action gives is kept by the GMs and copied to its owner (timed-effects.mjs's
     // socket), which the owner's sheet reads.

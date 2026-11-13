@@ -54,6 +54,8 @@ import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
+import { isMaskedActor } from "./mask-gm.mjs";
+import { spectatorViewer } from "./spectator.mjs";
 
 import { tipAttr, setTip } from "./ui-kit.mjs";
 
@@ -113,8 +115,15 @@ function onRenderSheet(app, element) {
     const root = element instanceof HTMLElement ? element : element?.[0];
 
     try {
-        if (!enforcing()) return;
         const actor = app?.document;
+        // A KILLER BEHIND A "?" (E69 C8; mask-gm.mjs): another player's browser closes the sheet, whatever this world's
+        // anonymity says, read off the token flag it holds. A GM and a Spectator see through the mask.
+        if (actor?.type === "character" && maskedSheetClosed(actor, game.user)) {
+            if (root) root.style.display = "none";
+            app?.close?.({ force: true, animate: false })?.catch?.(() => {});
+            return;
+        }
+        if (!enforcing()) return;
         if (!actor || actor.type !== "character") return;
 
         // Nobody may open the settings sheet, their own included (Dawid,
@@ -142,6 +151,16 @@ function onRenderSheet(app, element) {
             // Nothing left to try. The error above is the record.
         }
     }
+}
+
+/**
+ * Whether `user`'s browser closes `actor`'s sheet because the actor stands behind a "?" (E69 C8): not a GM, not an owner,
+ * not a Spectator, and a token of the actor masked (`masked` the suite's, R6031).
+ */
+export function maskedSheetClosed(actor, user, { masked = isMaskedActor(actor), spectator = spectatorViewer() } = {}) {
+    if (!actor || !user || user.isGM || spectator) return false;
+    if (actor.testUserPermission?.(user, "OWNER")) return false;
+    return Boolean(masked);
 }
 
 /**
