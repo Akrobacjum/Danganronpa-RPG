@@ -133,6 +133,18 @@ export function movesLeft(actor, clock = getClock()) {
  * (the API's road too) still refuses itself. Each refusal keeps its record below.
  */
 export async function startRefusal(clock = getClock()) {
+    const { murderState } = await import("./murder.mjs");
+    return startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() });
+}
+
+/**
+ * `startRefusal`'s three refusals over what it reads handed in, synchronous: the body's record (`bodyDiscovery()`) and
+ * the incident (`murderState()`). ONE ANSWER FOR THE GATE AND THE CHEVRON (A113-C2-7, 13.11.2026): hud.mjs
+ * `buildTimeRow` dimmed the GM's chevron by its own copy of the body and incident checks, which agreed with these and
+ * would not have followed a change to them; it reads this now, with the HUD's clock. Pure, so R6002 asks it over
+ * every state the two checked.
+ */
+export function startRefusalOf(clock, { body = null, incident = null } = {}) {
     /*
      * NOT OVER A BODY NOBODY HAS ANSWERED (E11 C3, 1.2.73; audit S06-05). A body found holds the
      * game until the Investigation starts (`bodyDiscovery`, whose record lasts until the phase
@@ -150,7 +162,7 @@ export async function startRefusal(clock = getClock()) {
      * Investigation was refused with "start the Investigation first" (E11 fix r1-G3; early review
      * EARLY-C3-1; tier 2 "a body announced in the Investigation holds no Eclipse").
      */
-    if (bodyDiscovery() && clock.phase !== "investigation") return "DRPG.Eclipse.bodyFirst";
+    if (body && clock.phase !== "investigation") return "DRPG.Eclipse.bodyFirst";
 
     /*
      * NOT OVER A RUNNING INCIDENT (E17 C7, 26.10.2026; audit S10-07, the owner's Q3 (a) of 19.10: "najpierw zamknij
@@ -170,8 +182,7 @@ export async function startRefusal(clock = getClock()) {
      * offer comes back and the betrayer is told" opens it there; measured 26.10.2026, it failed with "the Eclipse did
      * not start" while the refusal took Stage 6 too). So the refusal holds while the stage is not `resolution`.
      */
-    const { murderState } = await import("./murder.mjs");
-    if (murderState() && murderState().stage !== "resolution") return "DRPG.Eclipse.incidentFirst";
+    if (incident && incident.stage !== "resolution") return "DRPG.Eclipse.incidentFirst";
 
     /*
      * NOT IN A CLASS TRIAL (E13 fix r1-F3, 12.10.2026; the orchestrator's default of the same day,

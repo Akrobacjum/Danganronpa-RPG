@@ -35035,6 +35035,44 @@ const INVARIANTS = [
             stableJson([[], [true, true, true], false, 0]),
             "the pips layout reads a missing place, does not name the bar's three as drawn without, names a pip place as absent, or says it [missing | bar named | pips absent | said]");
     }],
+    ["R6002 - the HUD's chevron is dimmed by the Eclipse's own refusal: one function answers the chevron and `startRefusal`, over a body, an incident's stages and a trial", async () => {
+        /*
+         * A113-C2-7 (audit 113, 13.11.2026). hud.mjs `buildTimeRow` dimmed the GM's chevron by recomputing the body hold
+         * and the incident check by hand, a copy of eclipse.mjs `startRefusal` - the gate the press reaches (boundary.mjs
+         * `toggleEclipse`). The two agreed; a change to one would not have reached the other (the Facilities kind,
+         * fix-113f). Now both read `startRefusalOf(clock, { body, incident })`, synchronous, which `startRefusal` calls
+         * with the world's body record and incident. Here: the function over the states the two checked (body or none,
+         * Investigation or not, no incident or each stage, a trial), the async gate agreeing with it on the world as
+         * found, and buildTimeRow reading it with no phase or stage of its own.
+         * Red at ceb9e9c8: no startRefusalOf.
+         */
+        const E = await import("./eclipse.mjs");
+        ok(typeof E.startRefusalOf === "function", "eclipse.mjs has no startRefusalOf - the HUD and the gate answer apart");
+        if (typeof E.startRefusalOf !== "function") return;
+        const body = { at: 1 }, BODY = "DRPG.Eclipse.bodyFirst", INC = "DRPG.Eclipse.incidentFirst", TRIAL = "DRPG.Eclipse.trialFirst";
+        const cases = [
+            [{ phase: "dailyLife" }, {}, null],
+            [{ phase: "dailyLife" }, { body }, BODY],
+            [{ phase: "investigation" }, { body }, null],
+            [{ phase: "dailyLife" }, { incident: { stage: "opening" } }, INC],
+            [{ phase: "dailyLife" }, { incident: { stage: "crisis" } }, INC],
+            [{ phase: "dailyLife" }, { incident: { stage: "resolution" } }, null],
+            [{ phase: "dailyLife" }, { body, incident: { stage: "crisis" } }, BODY],
+            [{ phase: "investigation" }, { body, incident: { stage: "crisis" } }, INC],
+            [{ phase: "classTrial" }, {}, TRIAL]
+        ];
+        equal(stableJson(cases.map(([clock, world]) => E.startRefusalOf(clock, world))), stableJson(cases.map(c => c[2])),
+            "startRefusalOf does not answer the body's hold, the incident's stages and the trial as startRefusal did");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const clock = getClock();
+        equal(await E.startRefusal(clock), E.startRefusalOf(clock, { body: bodyDiscovery(), incident: murderState() }),
+            "startRefusal answers otherwise than startRefusalOf on the world as found");
+        const row = fnSource(stripComments((await moduleSources()).get("hud.mjs")), "buildTimeRow");
+        must(/\bfunction buildTimeRow\b/.test(row) && /fa-chevron-right/.test(row), "hud.mjs buildTimeRow was not found - this test would read nothing");
+        equal(stableJson([/\bstartRefusalOf\(/.test(row), /["']investigation["']/.test(row), /["']resolution["']/.test(row)]), stableJson([true, false, false]),
+            "buildTimeRow does not dim the chevron by startRefusalOf, or still judges the body's hold or the incident's stage itself [reads it | Investigation | Stage 6]");
+    }],
     ["R6001 - a user whose Daggerheart countdown types leave out \"narrative\" has it put back on their own User, once, and the tray drawn again; a user with it, or with no flag, is not written", async () => {
         /*
          * A113-C1-2 (audit 113, 13.11.2026). projects-ui.mjs removes Daggerheart's type toggles for everyone, and a
