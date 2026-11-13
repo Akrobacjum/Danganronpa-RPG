@@ -38451,9 +38451,9 @@ const INVARIANTS = [
             ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", discard: "cancel" },
-                // Cancel's action "discard" since the planner's review for 1.2.111 (13.11.2026): "close" is ApplicationV2's own
-                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "discard"]],
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", close: "close" },
+                // Close, which keeps an open node's text, since the owner's 13.11.2026 (a discarding Cancel before it)
+                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "close"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */

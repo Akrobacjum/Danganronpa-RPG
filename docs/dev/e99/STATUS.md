@@ -598,3 +598,17 @@ Defaults, as built (the owner may revise):
 - (5) The Autopsy test asks `needs(env.primaryGm())`, a skip on a second GM.
 - (6) `DRPG.CaseMap.autopsySent`: "Sent to the students." / "Wysłany uczniom." (DB24).
 
+
+## The case editor's Close saves (13.11.2026; the owner through the coordinator: "Nie, ma zapisywac")
+
+- The owner reversed the discarding Cancel of 4bab736/da352a8: the Investigation window's closing word keeps what was
+  typed in an open node, as the X, Escape and the footer's other buttons do. A word that saves is not a Cancel
+  (docs/glossary.json: `cancel-word` withdraws a question, `close-word` closes a window with nothing left to answer),
+  so the footer's word is the kit's **Close** / **Zamknij** (`role: "close"`, DRPG.Kit.close; no new key). Its action is
+  "close", ApplicationV2's own: at a table the press answers null, as the X does (LIVE-E21-06); headless it answers
+  "close". Both write the open node.
+- The Table's changed fields still wait for **Save**, as with the X (default: "like every other close"; the owner's
+  answer was about the node's text).
+- Red, then green: tier 2 "planner autosave: a node's write that fails ..." (at da352a8 the footer had a Cancel,
+  action "discard", and the typed name stayed unwritten) and R1358's row for the window (the closing word `close`).
+- GM handbook EN/PL: "**Close** saves them too." / "**Zamknij** też je zapisuje." in place of the Cancel sentence.

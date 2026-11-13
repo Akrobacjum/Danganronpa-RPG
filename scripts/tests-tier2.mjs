@@ -27159,22 +27159,21 @@ const SCENARIOS = [
             "{the name after the editor's Close, no Save; the name after the window closed mid-edit}");
     }],
 
-    ["planner autosave: a node's write that fails is told and keeps the GM's text in its field, written at the next close; Cancel writes nothing (perf-open's review for 1.2.111, section 2; 13.11.2026)", async () => {
+    ["planner autosave: a node's write that fails is told and keeps the GM's text in its field, written at the next close; the footer's Close writes it too (perf-open's review for 1.2.111, section 2; the owner, 13.11.2026: \"Nie, ma zapisywac\")", async () => {
         /*
          * The review asked whether "Your text is still in the fields" holds after a failed write: the node closes and
          * the region is redrawn. A fixture deduction drawn on the Map, its node opened, its name changed, the GMs' case
          * store made to refuse the write, the node closed: the error told, the store unchanged, the field still holding
-         * the text. The store given back, the node opened and closed with nothing typed: the text written. Then Cancel,
-         * a discard (the coordinator's default for the owner's question): a name typed and Cancel pressed writes nothing.
-         * Red at c598d3c: Cancel wrote the node's name.
+         * the text. The store given back, the node opened and closed with nothing typed: the text written. Then the
+         * footer's closing word: a Close, not a Cancel (the owner's "Nie, ma zapisywac", 13.11.2026), and a name typed
+         * and Close pressed is written. Red at da352a81: the footer had a Cancel, which discarded the name.
          *
-         * CANCEL PRESSED AS A TABLE PRESSES IT (the planner's review for 1.2.111, 13.11.2026). The footer's cancel-role
-         * button is found by its role, not by its action, and pressed the way Foundry v14 dispatches it: a button whose
+         * PRESSED AS A TABLE PRESSES IT (the planner's review for 1.2.111, 13.11.2026). The footer's closing word is
+         * found by its role, not by its action, and pressed the way Foundry v14 dispatches it: a button whose
          * action is "close" is ApplicationV2's own close and answers null, never reaching DialogV2 (ui-kit.mjs, "A
          * CLOSING WORD WHOSE ACTION IS "close"", measured at a table on 11.09, trial-floor-ui.mjs `openVoteDialog`'s
          * note; LIVE-E21-06 is the live check). The harness's DialogV2 does not model that dispatch, so this test does:
-         * until 13.11 it clicked `[data-action="close"]` and read "close", green on a path no table takes. Red at
-         * 4bab7361 pressed this way: Cancel wrote the node's name.
+         * until 13.11 it clicked `[data-action="close"]` and read "close", green on a path no table takes.
          */
         const S = await import("./case-schema.mjs");
         const { caseSchemaStore } = await import("./gm-stores.mjs");
@@ -27214,16 +27213,16 @@ const SCENARIOS = [
             seen.next = label();
             edit = await openNode();
             must(edit, "the fixture node did not open a third time");
-            win.field(`${base}:label`).value = "SUITE autofail cancelled";
-            const cancel = root.querySelector("footer.form-footer button.drpg-role-cancel");
-            must(cancel, "the window's footer has no Cancel - this would measure nothing");
-            seen.cancelAction = cancel.dataset.action ?? null;
+            win.field(`${base}:label`).value = "SUITE autofail closed";
+            const word = root.querySelector("footer.form-footer button.drpg-role-close, footer.form-footer button.drpg-role-cancel");
+            must(word, "the window's footer has no closing word - this would measure nothing");
+            seen.word = { role: word.classList.contains("drpg-role-close") ? "close" : "cancel", text: word.textContent.trim(), action: word.dataset.action ?? null };
             // ApplicationV2's own "close" (v14), or the button DialogV2 answers with its action
-            if (cancel.dataset.action === "close") await win.app.close(); else cancel.click();
+            if (word.dataset.action === "close") await win.app.close(); else word.click();
             await Promise.race([win.answer, wait(5000)]);
             await gmStoresIdle();
-            await wait(400);
-            seen.cancel = label();
+            await until(() => label() === "SUITE autofail closed", 3000).catch(() => {});
+            seen.closed = label();
             await win.close();
             win = null;
         } finally {
@@ -27233,8 +27232,9 @@ const SCENARIOS = [
             await S.dropCaseNode(chapter, id).catch(() => {});
             await gmStoresIdle();
         }
-        equal(stableJson(seen), stableJson({ failed: { told: true, stored: "SUITE autofail as drawn", field: "SUITE autofail typed" }, next: "SUITE autofail typed", cancelAction: "discard", cancel: "SUITE autofail typed" }),
-            "{after the refused write: the error told, the stored name, the field's text; the name after the next close; Cancel's action; the name after Cancel, pressed as v14 dispatches it}");
+        equal(stableJson(seen), stableJson({ failed: { told: true, stored: "SUITE autofail as drawn", field: "SUITE autofail typed" }, next: "SUITE autofail typed",
+            word: { role: "close", text: game.i18n.localize("DRPG.Kit.close"), action: "close" }, closed: "SUITE autofail closed" }),
+            "{after the refused write: the error told, the stored name, the field's text; the name after the next close; the footer's closing word: role, text, action; the name after it was pressed as v14 dispatches it}");
     }],
 
     ["E97 C6: a case node's name, mode and inputs edited on the Map are saved by the panel's Save, and a name another GM moved under the window is refused and told", async () => {
