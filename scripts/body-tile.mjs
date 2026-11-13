@@ -389,6 +389,12 @@ export function drawBodyMark(tile, { actors = game.actors, gm = Boolean(game.use
     if (kept) return kept;
     group.name = BODY_MARK_NAME;
     group.drpgKey = key;
+    /* NO CLICK (E106, 13.11.2026; the owner: the Monocub's token "nie pozwala odpalic karty postaci"). The mark stands over
+       the tile laid where the token stood, and every other drawing the module lays on the map takes no pointer
+       (gm-overlay.mjs, own-ring.mjs, remnant-ring.mjs); whether v14 hands a token's double-click to a tile's child was not
+       read (LIVE-E106-01), so the mark takes none whatever it does. Tier 1 R5402. */
+    group.eventMode = "none";
+    group.interactiveChildren = false;
     const sign = PIXI.Sprite.from(icon);
     const side = Math.round(Math.min(width, height) * 0.6);
     sign.width = side;

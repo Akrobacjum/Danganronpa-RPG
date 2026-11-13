@@ -53374,6 +53374,70 @@ const INVARIANTS = [
             stableJson({ owner: { phase: "fade", silent: false, studentId: null, tokenId: "R4553t" }, other: null, gm: null, plain: null, hook: "drpgDeadSpectator" }),
             "the moment read ([the owner's, another player's, a GM's, a hook without the option, the curtain's hook name])");
     }],
+    ["R5400 - the Spectator's token, and so the Monocub's it becomes, wears the body's token's look: spectator-dead.mjs `tokenLookOf` copies the whole texture (its scale, fit, anchor, offset, tint), the squares, the rotation, the alpha, the ring and the rotation lock off a token, as a copy", async () => {
+        /*
+         * E106, 13.11.2026 (the owner: "Token monocuba jest mniejszy niz oryginalny token"). Until E106 the Spectator's
+         * token (spectator-dead.mjs `ensureDeadSpectator`) took the body's token's squares and the picture's file alone,
+         * so a token drawn at a texture scale over 1, or inside Foundry's ring, came back drawn at scale 1 and without the
+         * ring: a smaller picture, and the Monocub walks that token from E62 C3b (`watcherBecomesMonocub` re-links it).
+         * Read on a stand-in token of plain fields (its `toObject` preferred, as a document hands its source). Red at
+         * E106's base: spectator-dead.mjs exports no `tokenLookOf`.
+         */
+        let D = null;
+        try {
+            D = await import("./spectator-dead.mjs");
+        } catch {
+            D = null;
+        }
+        must(typeof D?.tokenLookOf === "function", "spectator-dead.mjs exports no tokenLookOf");
+        const source = { name: "R5400 Chie", x: 300, y: 400, actorId: "R5400ACTOR", width: 2, height: 2, rotation: 15, alpha: 0.9, lockRotation: true,
+            texture: { src: "r5400/chie.webp", scaleX: 1.4, scaleY: 1.4, fit: "cover", anchorX: 0.5, anchorY: 0.6, offsetX: 3, offsetY: -2, tint: "#ffeedd" },
+            ring: { enabled: true, subject: { scale: 1.1, texture: "r5400/subject.webp" }, colors: { ring: "#ff0000" } } };
+        const tokenDoc = { toObject: () => foundry.utils.deepClone(source), texture: { src: "wrong-if-read" } };
+        const look = D.tokenLookOf(tokenDoc);
+        equal(stableJson(look), stableJson({ alpha: 0.9, height: 2, lockRotation: true, ring: source.ring, rotation: 15, texture: source.texture, width: 2 }),
+            "the look copied off a token (the corner, the name and the actor left out)");
+        look.texture.scaleX = 9;
+        look.ring.subject.scale = 9;
+        ok(source.texture.scaleX === 1.4 && source.ring.subject.scale === 1.1, "the look is a copy: changing it changes nothing of the token's");
+        const plain = D.tokenLookOf({ width: 1, height: 1, texture: { src: "r5400/p.webp", scaleX: 0.8 } });
+        equal(stableJson({ plain, none: D.tokenLookOf(null) }), stableJson({ plain: { height: 1, texture: { scaleX: 0.8, src: "r5400/p.webp" }, width: 1 }, none: {} }),
+            "a token with no toObject read off its fields, and no token none");
+    }],
+    ["R5401 - the Spectator is made with the body's token's look, on its token and its prototype, and the picture as the body's token's or the student's (spectator-dead.mjs `ensureDeadSpectator`, E106)", async () => {
+        /*
+         * E106, 13.11.2026. The source of `ensureDeadSpectator`: the watcher's prototype token and the token laid where
+         * the body's stands both spread `tokenLookOf` (R5400), so neither is laid at the picture's file alone. Red at
+         * E106's base: both wrote `texture: { src: tokenImg }` and no look.
+         */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/spectator-dead.mjs`).then(lfText);
+        const make = bodyOf(src, "export async function ensureDeadSpectator", { until: "export async function" });
+        ok(make.length > 200, "ensureDeadSpectator read");
+        const proto = /prototypeToken:\s*\{[^}]*\.\.\.look\b/.test(make);
+        const token = /getTokenDocument\(\{[^)]*\.\.\.look\b/.test(make);
+        equal(stableJson({ proto, token }), stableJson({ proto: true, token: true }), "the prototype and the token spread the look");
+        ok(/const look = tokenLookOf\(/.test(make), "the look read off tokenLookOf");
+    }],
+    ["R5402 - a body tile's death sign and caption take no click: the mark's group is `eventMode` \"none\" and holds no interactive child (body-tile.mjs `drawBodyMark`, E106)", async () => {
+        /*
+         * E106, 13.11.2026 (the owner: the Monocub's token "nie pozwala odpalic karty postaci (przynajmniej z poziomu
+         * GMa)"). The tile is laid where the token stands, and its mark is drawn as a child of the Tile placeable, over
+         * the token's picture; every other drawing the module lays on the map (gm-overlay.mjs, own-ring.mjs,
+         * remnant-ring.mjs) is `eventMode` "none", and the mark was not. Whether v14 routes a token's double-click to a
+         * tile's child was not read (LIVE-E106-01): the mark is made to take none whatever v14 does. On a stand-in tile
+         * as R3144's. Red at E106's base: the group's eventMode was PIXI's default.
+         */
+        const B = await import("./body-tile.mjs");
+        const grid = 100, V = "SUITER5402VICTIM";
+        const tile = new PIXI.Container();
+        tile.document = { width: 100, height: 100, hidden: false, parent: { grid: { size: grid } },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? { actorId: V, deathId: null, level: null, at: 1 } : undefined) };
+        const mark = B.drawBodyMark(tile, { actors: { get: id => (id === V ? { name: "R5402 Daichi" } : undefined) }, gm: true });
+        ok(mark !== null, "the mark drawn");
+        equal(stableJson({ mode: mark?.eventMode ?? null, children: mark?.interactiveChildren ?? null }), stableJson({ mode: "none", children: false }),
+            "the mark's group ([eventMode, interactiveChildren])");
+        tile.destroy({ children: true });
+    }],
 ];
 
 /**

@@ -53,7 +53,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         globalThis.__drpg94Vol = foundry.utils.deepClone(ST.getSetting(ST.SETTINGS.sfxVolumes) ?? {}); await SFX.setSfxVolume("sound", 0.8); return SFX.sfxVolume("sound");`;
     await p1.eval(volume);
     await p3.eval(volume);
-    const start = await gm.eval(`const t = canvas.scene.tokens.get("TOKCHIE000000000"); return { x: t.x, y: t.y, scene: canvas.scene.id };`);
+    /* E106 (13.11.2026): Chie's token drawn at a texture scale over 1, fitted to cover and inside Foundry's ring, put back
+       in the finally; the Monocub's token is held to it below. */
+    const start = await gm.eval(`const t = canvas.scene.tokens.get("TOKCHIE000000000");
+        const look = { texture: foundry.utils.deepClone(t.toObject().texture ?? {}), ring: foundry.utils.deepClone(t.toObject().ring ?? null) };
+        await t.update({ "texture.scaleX": 1.4, "texture.scaleY": 1.4, "texture.fit": "cover", ring: { enabled: true, subject: { scale: 1.1 } } });
+        return { x: t.x, y: t.y, scene: canvas.scene.id, look };`);
     check("setup: the Death fade mapped for the run, Chie's token read", sfx === "sounds/s94-fade.ogg" && Number.isFinite(start?.x), JSON.stringify({ sfx, start }));
     await settle(800);
 
@@ -132,7 +137,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             await C.publishDeath(chie); await MC.setMonocub(chie, true, { quiet: true });
             const cub = canvas.scene.tokens.get("${watcherToken ?? ""}");
             await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 350, y: 1400 }, { animate: false });
-            return { cub: cub?.actorId === chie.id, located: M.locateActor(chie)?.tokenDoc?.id ?? null };`, { timeout: 60000 });
+            /* E106: the Monocub's token wears the body's token's look, and Foundry's double-click opens its actor's sheet
+               (\`token.actor.sheet\`): the actor is the student's, linked. The harness's sheet is a stand-in that fires no
+               render hook, so the Monocub's panel on it is the table's to see (LIVE-E106-02). */
+            const shape = t => { const o = t?.toObject?.() ?? {}; return JSON.stringify([o.width, o.height, o.texture?.scaleX, o.texture?.scaleY, o.texture?.fit, o.ring?.enabled, o.ring?.subject?.scale]); };
+            const body = canvas.scene.tokens.get("TOKCHIE000000000");
+            const sheet = { actor: cub?.actor?.id ?? null, link: cub?.actorLink ?? null, same: cub?.actor === chie, monocub: MC.isMonocub(cub?.actor) };
+            return { cub: cub?.actorId === chie.id, located: M.locateActor(chie)?.tokenDoc?.id ?? null, look: [shape(cub), shape(body)], sheet };`, { timeout: 60000 });
         await settle(1500);
         const corpseDrag = await p3.eval(`const t = canvas.scene.tokens.get("TOKCHIE000000000"); const was = [t.x, t.y];
             try { await t.update({ x: 1400, y: 400 }); } catch { /* refused */ }
@@ -144,6 +155,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const litAsCub = await p3.eval(BARE);
         check("monocub: Chie's Spectator token becomes her Monocub's and is where she stands; p3 cannot drag the corpse, and Aiko in the corpse's room stays hidden on p3's browser",
             cubbed?.cub === true && cubbed.located === watcherToken && corpseDrag?.stayed === true && eye === "hide", JSON.stringify({ cubbed, corpseDrag, eye }));
+        check("look: Chie's Monocub token wears her body's token's look (squares, texture scale and fit, ring), and its double-click's actor is Chie, linked, a Monocub (E106)",
+            Boolean(cubbed?.look) && cubbed.look[0] === cubbed.look[1] && cubbed.look[1] === JSON.stringify([1, 1, 1.4, 1.4, "cover", true, 1.1])
+            && cubbed.sheet?.actor === IDS.chie && cubbed.sheet?.link === true && cubbed.sheet?.same === true && cubbed.sheet?.monocub === true, JSON.stringify(cubbed?.look ? { look: cubbed.look, sheet: cubbed.sheet } : cubbed));
         check("curtain: after the Monocub's return p3's curtain is lit again (E62 C3)", litAsCub === false, JSON.stringify({ litAsCub }));
         const unCub = await gm.eval(`const MC = ${imp("monocub.mjs")}, D = ${imp("spectator-dead.mjs")};
             const chie = game.actors.get("${IDS.chie}");
@@ -193,6 +207,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             if (chie.getFlag("danganronpa-rpg", "monocub")) await chie.unsetFlag("danganronpa-rpg", "monocub");
             await game.scenes.get("${start?.scene}")?.tokens.get("TOKAIKO000000000")?.update({ x: 300, y: 300 }, { animate: false });
             await game.scenes.get("${start?.scene}")?.tokens.get("TOKCHIE000000000")?.update({ x: ${start?.x ?? 350}, y: ${start?.y ?? 1300} }, { animate: false });
+            const look = ${JSON.stringify(start?.look ?? null)};
+            if (look) await game.scenes.get("${start?.scene}")?.tokens.get("TOKCHIE000000000")?.update({ texture: look.texture, ring: look.ring });
             await ST.setSetting(ST.SETTINGS.sfxMap, globalThis.__drpg94Sfx ?? {}); delete globalThis.__drpg94Sfx;
             const botan = game.actors.get("${IDS.botan}");
             if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true, silent: true });

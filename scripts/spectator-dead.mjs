@@ -81,6 +81,26 @@ function tokenImageOf(student, tokenDoc) {
     return tokenDoc?.texture?.src ?? student?.prototypeToken?.texture?.src ?? student?.img ?? null;
 }
 
+/**
+ * THE TOKEN'S LOOK (E106, 13.11.2026; the owner: "Token monocuba jest mniejszy niz oryginalny token"). What a token is
+ * drawn with besides its place: the whole texture (its scale, fit, anchor, offset, tint), its squares, rotation, alpha,
+ * Foundry's ring and the rotation lock - as a copy, read off the document's source where it hands one. Until E106 the
+ * Spectator's token took the squares and the picture's file alone, so a student drawn at a texture scale over 1 or inside
+ * the ring came back smaller, and from E62 C3b the Monocub walks that token (`watcherBecomesMonocub`). The trial hall
+ * copies the same fields (trial-scene.mjs `HALL_TOKEN_LOOK`); its list is not imported, as it carries the name, light
+ * and sight a Spectator does not take. {} for no token.
+ */
+const TOKEN_LOOK = Object.freeze(["texture", "width", "height", "rotation", "alpha", "ring", "lockRotation"]);
+export function tokenLookOf(tokenDoc) {
+    if (!tokenDoc) return {};
+    const data = typeof tokenDoc.toObject === "function" ? tokenDoc.toObject() : tokenDoc;
+    const look = {};
+    for (const key of TOKEN_LOOK) {
+        if (data?.[key] !== undefined) look[key] = foundry.utils.deepClone(data[key]);
+    }
+    return look;
+}
+
 /** The non-GM owners of `student`, the watcher's owners. */
 function playerOwners(student) {
     return (game.users ?? []).filter(u => !u.isGM && student.testUserPermission?.(u, "OWNER")).map(u => u.id);
@@ -117,11 +137,14 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
     const ownership = { default: NONE };
     for (const id of playerOwners(student)) ownership[id] = OWNER;
     const tokenImg = tokenImageOf(student, place?.tokenDoc);
+    // The body's token's look where it stands, else the student's prototype's (E106): the picture as `tokenImageOf` reads it.
+    const look = tokenLookOf(place?.tokenDoc ?? student.prototypeToken);
+    look.texture = { ...(look.texture ?? {}), src: tokenImg };
     let watcher = null;
     try {
         watcher = await Actor.create({
             name: student.name, type: "character", img: student.img, ownership,
-            prototypeToken: { name: student.name, actorLink: true, texture: { src: tokenImg }, disposition: student.prototypeToken?.disposition ?? 0 },
+            prototypeToken: { ...look, name: student.name, actorLink: true, disposition: student.prototypeToken?.disposition ?? 0 },
             flags: { [MODULE_ID]: { [FLAGS.spectator]: true, ...(kept ? {} : { [FLAGS.watcherOf]: student.id }) } }
         }, { [DEAD_SPECTATOR_OPTION]: { phase: "make", silent: true } });
     } catch (err) {
@@ -133,8 +156,7 @@ export async function ensureDeadSpectator(student, { silent = false, kept = fals
     if (place?.tokenDoc && place.scene) {
         const at = place.tokenDoc;
         try {
-            const data = (await watcher.getTokenDocument({ x: at.x, y: at.y, elevation: at.elevation ?? 0,
-                width: at.width, height: at.height, texture: { src: tokenImg }, hidden: false })).toObject();
+            const data = (await watcher.getTokenDocument({ ...look, x: at.x, y: at.y, elevation: at.elevation ?? 0, hidden: false })).toObject();
             const level = at.level ?? at._source?.level;
             if (level !== undefined) data.level = level;
             await place.scene.createEmbeddedDocuments("Token", [data], { [DEAD_SPECTATOR_OPTION]: { phase: "fade", silent } });
