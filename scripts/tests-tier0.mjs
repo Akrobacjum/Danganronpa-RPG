@@ -23141,7 +23141,7 @@ const REGRESSIONS = [
         }), JSON.stringify({
             at: [{ x: g.pad, y: g.head + g.pad }, { x: g.pad + g.nodeW + g.colGap, y: g.head + g.pad }, g.head + g.pad + layout.gapAt * g.pitch + Math.round(g.nodeH / 2)],
             // a node's least width is MAP_GEOMETRY's (196 at C5, 240 since the E97 fix): the curve's start and middle follow it
-            edges: [`M${g.nodeW} 27 C${Math.round((g.nodeW + 244) / 2)} 27 ${Math.round((g.nodeW + 244) / 2)} 93 244 93`, `M244 159 H232 V93 H244`],
+            edges: [`M${g.nodeW} 27 C${Math.round((g.nodeW + 244) / 2)} 27 ${Math.round((g.nodeW + 244) / 2)} 93 244 93`, `M244 159 H${244 - Math.round(g.colGap / 4)} V93 H244`],
             states: [["S.T1", "held"], ["S.T2", "onMap"], ["key:0", "planned"], ["d-a", "schema"], ["c-b", "schema"]],
             open: {
                 buttons: layout.columns.flat().map(id => {

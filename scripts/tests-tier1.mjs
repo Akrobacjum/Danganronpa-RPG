@@ -8897,6 +8897,20 @@ const INVARIANTS = [
             skipped: [null, "skipped", false], second: "Q2 the time?", rule: true }),
             "{marker: the truth's marker in a floor; truthField: a truth field on a floor; tie: [no floor, its outcome, a record]; tie cards naming the true answer; skipped: [no floor, outcome, a record]; second: Q2 on the floor after a right answer; rule: world-secrets keeps truth out of trialQueue}");
     }],
+    ["R4452 - the case map's columns stand 80 px apart, not 48 (the owner, 13.11.2026: \"Wnioski w planerze/schemacie sprawy sa za blisko bulletow i za blisko siebie\"): the evidence, each column of deductions and the solution, on the Map and in the trial console's schema", async () => {
+        /*
+         * The owner through the coordinator, 13.11.2026 ~01:20: the gaps between columns, not rows. One gap for every column
+         * (case-view.mjs MAP_GEOMETRY.colGap, which `mapPlace` lays both the Map and the console's schema out with), 1.67x
+         * the 48 px it was. Measured in Chromium in the commit (STATUS): the widths and the fit at 1366x768. Red at 0f5591d.
+         */
+        const V = await import("./case-view.mjs");
+        const layout = { positions: { e: { col: 0, row: 0 }, d1: { col: 1, row: 0 }, d2: { col: 2, row: 0 }, s: { col: 3, row: 0 } }, gapAt: null, unrelated: [] };
+        const placed = V.mapPlace(layout);
+        const g = V.MAP_GEOMETRY;
+        equal(stableJson({ colGap: g.colGap, gaps: ["d1", "d2", "s"].map((id, i) => placed.at[id].x - (placed.at[["e", "d1", "d2"][i]].x + g.nodeW)), width: placed.width }),
+            stableJson({ colGap: 80, gaps: [80, 80, 80], width: 2 * g.pad + 4 * g.nodeW + 3 * 80 }),
+            "{MAP_GEOMETRY's column gap; the gaps evidence -> deduction -> deduction -> solution as mapPlace lays them; the canvas's width}");
+    }],
     ["R4451 - a node's trial mode is never OBJECTION or Rebuttal (the owner, 13.11.2026: \"usuwamy objection i rebuttal\"; players start them, never a node): the planner's list keeps no mode and the seven a GM starts, and a node stored with either reads as no mode", async () => {
         /*
          * The owner through the coordinator, 13.11.2026 ~01:30. `caseModes` is the list the node's select draws (after its

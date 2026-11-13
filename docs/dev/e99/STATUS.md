@@ -470,3 +470,22 @@ Defaults, as built (the owner may revise):
   next Save writes what its select then holds (only if the GM changes it, as every field).
 - R4451 (tier 1), red at 91ec405; R3373 (tier 0) reads the shorter list.
 - GM handbook (EN, PL), the schema at the trial: the sentence about OBJECTION and Rebuttal having no start button is gone.
+
+## The case map's columns farther apart (13.11.2026; the owner through the coordinator: "Wnioski ... sa za blisko bulletow i za blisko siebie. Chodzi o odstep miedzy kolumnami")
+
+- case-view.mjs `MAP_GEOMETRY.colGap` 48 -> 80 px (1.67x): every gap between columns (evidence, each deduction column,
+  the solution), on the Map and in the trial console's schema, which `mapPlace` lays out alike. Rows unchanged. A
+  bracket between two nodes of one column stands `colGap / 4` left of them, 20 px now (12 before).
+- R4452 (tier 1), red at 0f5591d; R3651 reads the bracket from the geometry.
+- Measured, case-map sweep, Chromium, 1366x768 (PL; EN the same widths), 32 pages, 0 failing before and after:
+
+| Where | Theme | Before | After |
+| --- | --- | --- | --- |
+| Map, nothing open (viewport 972 px) | both | canvas 840 px | 904 px, fits |
+| Map, a node open | both | canvas 952 px | 1016 px: 44 px past the viewport, reached by dragging (as the open node's height already is) |
+| Console schema, no mode (viewport 1242 px) | both | 840 px, fit 0.753 glass / 1 legacy | 904 px, the same fits |
+| Console schema, a debate (viewport 667 px) | glass | fit 0.601, smallest text 12.6 px | fit 0.601, 12.6 px (the height decides) |
+| Console schema, a debate | legacy | fit 0.794, 8.7 px | fit 0.738, 8.1 px |
+
+- Monokuma Legacy's fitted text in a debate goes from 8.7 to 8.1 px; it is outside the 11 px rule (glass only), and
+  100% zoom with dragging reads it, as the owner accepted for 8.7.
