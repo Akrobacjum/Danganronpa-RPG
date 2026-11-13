@@ -23205,12 +23205,15 @@ const REGRESSIONS = [
             lootAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker \}\)/.test(fnSource(src("handover.mjs"), "lootBody")),
             transferLoot: /if \(mode === "loot"\) return personActionRefusal\(actor, other, \{ body: true, user \}\);/.test(fnSource(src("inventory.mjs"), "transferRefusal")),
             transferReads: calls(fnSource(src("inventory.mjs"), "transferRefusal")),
-            greyReads: calls(fnSource(src("anonymity.mjs"), "greyRefused")),
-            greyAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker: game\.user \}\)/.test(fnSource(src("anonymity.mjs"), "greyRefused"))
+            /* Since 1.2.113 (A113-C5-7) the greying is Take from the Body's window's, and its reading `lootReading` (`greyRefused`
+               paints what it answers). Its one place read, `locateActor`, is the scene whose stash takes a full hand's overflow,
+               as inventory.mjs `grantItem` reads it - no room of its own for the gate. */
+            greyReads: calls(fnSource(src("anonymity.mjs"), "lootReading")),
+            greyAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker: game\.user \}\)/.test(fnSource(src("anonymity.mjs"), "lootReading"))
         };
         equal(JSON.stringify(read), JSON.stringify({
             gateReads: ["gmPlaceOf", "bodyPlaceOf", "gmPlaceOf"], bodyBranch: true, hiddenFromPlace: true, friskImports: true,
-            lootBody: [], lootAsks: true, transferLoot: true, transferReads: [], greyReads: [], greyAsks: true
+            lootBody: [], lootAsks: true, transferLoot: true, transferReads: [], greyReads: ["locateActor"], greyAsks: true
         }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
     }],
 
@@ -23240,7 +23243,7 @@ const REGRESSIONS = [
         JSON.stringify([["chapter.mjs#BODY_ANNOUNCED_HOOK"], ["chapter.mjs#callBodyAnnounced"], ["chapter.mjs#announceArrivedBodies", "chapter.mjs#announceBody"], true, true]),
         "[where the hook's name is spelt, where it is called, who calls callBodyAnnounced, the stamp before the call in announceBody, the announcement before the gather in runDiscovery]");
     }],
-    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen; Move's briefing until E100 item 1 took it away) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
+    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen, Take from the Body since 1.2.113; Move's briefing until E100 item 1 took it away) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
         /*
          * E68 C12, 10.11.2026. Round M (S/stages/E68/mockups/NOTES.md) drew the actions' windows in two layouts; the owner
          * took B, Observe's columns, for every action window ("layout B for every action window"), and asked the blocks of
@@ -23275,7 +23278,9 @@ const REGRESSIONS = [
         const OPENERS = {
             "action-observe.mjs": ["askDeclaration"], "action-search.mjs": ["chooseSearchCategory"], "action-analyze.mjs": ["askWhatToAnalyze"],
             "action-tamper.mjs": ["chooseTamper"], "action-rest.mjs": ["performRest"], "action-project.mjs": ["performProject", "chooseProject"],
-            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"]
+            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"],
+            // Take from the Body since 1.2.113 (A113-C5-7: the owner's E68 decision, "zastosowac to do wszystkich akcji").
+            "anonymity.mjs": ["openBodyLoot"]
         };
         for (const file of [...Object.keys(OPENERS), "action-menus.mjs", "ui-columns.mjs", "level-up.mjs", "call-gm.mjs", "action-dynamic.mjs"]) {
             src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : ""));

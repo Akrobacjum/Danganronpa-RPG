@@ -2568,15 +2568,41 @@ async function withLootTrace(run) {
     });
 }
 
+/**
+ * Take from the Body's window for `taker` off `body`, drawn on this GM as the body's sheet opens it (anonymity.mjs
+ * `openBodyLoot`; 1.2.113, A113-C5-7: the owner's E68 decision carried to the last action left on the sheet's own list).
+ * Answers null where no window was drawn within 6 s (or no `openBodyLoot`, as before 1.2.113), else `{ el, take, rows,
+ * close }`: `take()` the window's Take as [disabled, tooltip], `rows()` per row [item id, disabled, its line], and
+ * `close()` closes the window and waits for the opener's answer. The caller closes it, in a finally.
+ */
+async function lootWindowFor(body, taker, opts = {}) {
+    const A = await import("./anonymity.mjs");
+    if (typeof A.openBodyLoot !== "function") return null;
+    const list = `.drpg-loot-list[data-drpg-body="${CSS.escape(body.id)}"][data-drpg-taker="${CSS.escape(taker.id)}"]`;
+    const drawn = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.element.querySelector(list)) ?? null;
+    const run = A.openBodyLoot(body, { taker, ...opts }).catch(() => null);
+    if (!await until(() => Boolean(drawn()?.element?.querySelector(".drpg-loot-take")), 6000)) {
+        await drawn()?.close?.();
+        await run;
+        return null;
+    }
+    const app = drawn(), el = app.element;
+    const take = () => { const b = el.querySelector(".drpg-loot-take"); return b ? [b.disabled, b.dataset.tooltip ?? ""] : null; };
+    const rows = () => [...el.querySelectorAll(`${list} input[name="item"]`)].map(box =>
+        [box.value, box.disabled, box.closest(".drpg-choice")?.querySelector(".drpg-choice-text small")?.textContent.trim() ?? null]);
+    const close = async () => { if (app.rendered) await app.close(); return run; };
+    return { app, el, take, rows, close };
+}
+
 async function withBodyTile(run) {
     const { isPrimaryGm } = await import("./utils.mjs");
     must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
     needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body, each a token on the scene on screen");
     needs(world.atLeast("namedRooms", 2), "a room for the two and another to lay the tile in");
+    needs(env.dialogs(), "Take from the Body's window is drawn and its Take read (`drawn`)");
     const Mv = await import("./movement.mjs");
     const B = await import("./body-tile.mjs");
     const INV = await import("./inventory.mjs");
-    const A = await import("./anonymity.mjs");
     const { levelOf } = await import("./rooms.mjs");
     const { deathRecord } = await import("./settings.mjs");
     const { livingStudents } = await import("./chapter.mjs");
@@ -2594,16 +2620,16 @@ async function withBodyTile(run) {
         must(Mv.roomOfToken(takerToken) === room, `the taker could not be stood in ${room} - this would measure nothing`);
     };
     const NAME = "SUITE E95 C1 a lighter on the body";
+    // The Take of Take from the Body's window (1.2.113; `lootWindowFor`), read once it is drawn and closed again.
     const drawn = async () => {
-        const root = document.createElement("div");
-        root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
         const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
         await sheetAuditIdle();
-        await A.buildBodyLoot?.(root, body, taker);
-        const take = root.querySelector(".drpg-loot-take");
+        const win = await lootWindowFor(body, taker);
+        const take = win ? win.take() : null;
+        await win?.close();
         if (item) await item.delete();
         await sheetAuditIdle();
-        return take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+        return take;
     };
     let tile = null;
     try {
@@ -73296,7 +73322,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
     ["the body's loot window opens and shuts its Take again as the taker walks out of and into the body's room and as the Class Trial begins and ends, with no new draw (E14-06, S11-06)", async () => {
         /*
          * E14 fix e1-G6, 24.10.2026; the review's E14R-07 (goal). C1 greyed a Take the one gate refuses when the sheet was
-         * drawn (anonymity.mjs `buildBodyLoot`), and read it never again: a viewer who walked into the body's room with
+         * drawn (anonymity.mjs `buildBodyLoot`; since 1.2.113 Take from the Body's window, `openBodyLoot`), and read it never again: a viewer who walked into the body's room with
          * the sheet open found the Take still shut "not where it needs to be", and one whose Class Trial began found it
          * open, until the sheet was opened again. Two students alone together, the second dead on a published death (its
          * things kept), a Tool on the body; its loot window drawn once for the first into the page; then the first's token
@@ -73305,7 +73331,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          */
         needs(world.atLeast("namedRooms", 3), "a room for the two and another to walk the first to");
         needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
-        const A = await import("./anonymity.mjs");
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
         const Mv = await import("./movement.mjs");
         const INV = await import("./inventory.mjs");
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
@@ -73318,18 +73344,16 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         const NAME = "SUITE E14 fix e1-G6 a body's crowbar";
         const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
         const read = {};
-        let root = null, back = null;
+        let win = null, back = null;
         try {
             back = await handFreeFor(taker, "tool");
             await whileDead(body, async () => {
                 const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
                 await sheetAuditIdle();
                 must(item, "the body's Tool was not made - this would measure nothing");
-                root = document.createElement("div");
-                root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
-                document.body.append(root);
-                await A.buildBodyLoot(root, body, taker);
-                const take = () => { const b = root.querySelector(".drpg-loot-take"); return b ? [b.disabled, b.dataset.tooltip ?? ""] : null; };
+                // Take from the Body's window since 1.2.113 (`lootWindowFor`); the sheet's row Take until then.
+                win = await lootWindowFor(body, taker);
+                const take = () => (win ? win.take() : null);
                 const after = async change => { await change(); await settle(); await wait(200); return take(); };
                 read.drawn = take();
                 read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE));
@@ -73339,7 +73363,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
             });
         } finally {
-            root?.remove();
+            await win?.close();
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
             for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
             if (back) await back();
@@ -73348,7 +73372,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         const open = [false, game.i18n.localize("DRPG.Loot.takeTooltip")], why = code => [true, game.i18n.localize(`DRPG.Bridge.why.${code}`)];
         equal(stableJson(read), stableJson({ drawn: open, away: why("notThere"), back: open, trial: why("cannotNow"), over: open }),
-            "the body's open loot window did not read the gate again ([disabled, tooltip] of the Take: as drawn beside the body, after the taker walked "
+            "Take from the Body's open window did not read the gate again ([disabled, tooltip] of the Take: as drawn beside the body, after the taker walked "
             + "to another room, back, the Class Trial begun, ended)");
     }],
 
@@ -73462,7 +73486,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * dead spectator. Two students and a third, the first and the second alone together; the second a body (a
          * published death, then one the GMs keep), a Tool of its put on it, looted by the first through `lootBody` as the
          * bridge's run calls it (`askedBy`: a player's id, or none for a GM). Read: "taken", or the code of the refusal.
-         * Then the loot window (anonymity.mjs `buildBodyLoot`, drawn for the first) on a body in the room and on one in
+         * Then the loot window (anonymity.mjs `buildBodyLoot`, drawn for the first; since 1.2.113 Take from the Body's window, `lootWindowFor`) on a body in the room and on one in
          * another: whether its Take is pressable, and the words on it. Red at 7f002130 (measured on a copy of this tree with
          * the commit's scripts put back): every case reads "taken" but three - a living body and an unknown death read null
          * (told as "refused"), the body itself "refused" - and `buildBodyLoot` is not exported ([null, null]).
@@ -73471,9 +73495,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
         needs(world.atLeast("studentTokensOnScreen", 3), "the taker, the body and a third, each a token on the scene on screen");
         needs(world.atLeast("namedRooms", 3), "a room for the two and another to stand the body in");
+        needs(env.dialogs(), "Take from the Body's window is drawn and its Take read");
         const INV = await import("./inventory.mjs");
         const H = await import("./handover.mjs");
-        const A = await import("./anonymity.mjs");
         const Mv = await import("./movement.mjs");
         const M = await import("./murder.mjs");
         const { reasonOf } = await import("./bridge-guards.mjs");
@@ -73503,14 +73527,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
             return out;
         };
+        // Take from the Body's window since 1.2.113 (`lootWindowFor`): its Take as [disabled, tooltip], the window closed again.
         const drawn = async () => {
-            const root = document.createElement("div");
-            root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
             const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
             await sheetAuditIdle();
-            await A.buildBodyLoot?.(root, body, taker);
-            const take = root.querySelector(".drpg-loot-take");
-            const row = take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+            const win = await lootWindowFor(body, taker);
+            const row = win ? win.take() : null;
+            await win?.close();
             if (item) await item.delete();
             return row;
         };
@@ -92712,13 +92735,13 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * (body-tile.mjs `bodyPlaceOf`), and anonymity.mjs `regreyOpenLoot` heard the taker's and the body's token and
          * the clock: a GM's write on the tile moved the gate and the open window kept the Take it had. The fixture of
          * the C1 tests (`withBodyTile`), the taker stood beside the tile, a loot window for the taker put on the page
-         * (anonymity.mjs `buildBodyLoot` into a root in the document, where `regreyOpenLoot` looks), and five writes on
+         * (anonymity.mjs `buildBodyLoot` into a root in the document, where `regreyOpenLoot` looks; since 1.2.113 Take from the Body's window, `lootWindowFor`), and five writes on
          * the tile by this GM. Read: whether the Take is greyed after each, waited for up to 2 s (the greying imports
          * and asks the gate after the hook). Red at E95 C2: no write on a tile re-read the gate, so the Take stayed open
          * after every one.
          */
         await withBodyTile(async ({ taker, body, tile, room, tileRoom, standTaker }) => {
-            const A = await import("./anonymity.mjs");
+            needs(env.dialogs(), "Take from the Body's window is drawn and read");
             const INV = await import("./inventory.mjs");
             const Mv = await import("./movement.mjs");
             const { sheetAuditIdle } = await import("./sheet-audit.mjs");
@@ -92726,18 +92749,17 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             const bodyToken = canvas.scene.tokens.find(t => t.actorId === body.id);
             const spot = Mv.positionIn(room, bodyToken);
             must(spot, `no spot in ${room} to move the tile to - this would measure nothing`);
-            const root = document.createElement("div");
-            root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
-            document.body.append(root);
             const read = {};
-            let item = null;
+            let item = null, win = null;
             try {
                 await standTaker(tileRoom);
                 item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
                 await sheetAuditIdle();
                 must(item, "the item on the body was not made - this would measure nothing");
-                await A.buildBodyLoot(root, body, taker);
-                const take = root.querySelector(".drpg-loot-take");
+                // Take from the Body's window since 1.2.113 (`lootWindowFor`), where `regreyOpenLoot` looks.
+                win = await lootWindowFor(body, taker);
+                must(win, "Take from the Body's window was not drawn - this would measure nothing");
+                const take = win.el.querySelector(".drpg-loot-take");
                 must(take && !take.disabled, "the Take beside the tile is not open before the tile is written - this would measure nothing");
                 const after = async (write, shut) => {
                     await write();
@@ -92752,13 +92774,230 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 read.movedBack = await after(() => tile.update(back), false);
                 read.deleted = await after(() => tile.delete(), true);
             } finally {
-                root.remove();
+                await win?.close();
                 if (item && body.items.has(item.id)) await item.delete();
                 await sheetAuditIdle();
             }
             equal(stableJson(read), stableJson({ hidden: true, shown: false, moved: true, movedBack: false, deleted: true }),
                 "the open loot window's Take greyed, beside the tile, after the GM [hid the tile, showed it, moved it into the token's room, moved it back, deleted it]");
         });
+    }],
+
+    ["A113-C5-7-T1 - Take from the Body opens an action window on the shared two-column layout (1.2.113; A113-C5-7, the owner's E68 decision of 10.11.2026: \"Q4 ... zastosowac to do wszystkich akcji\"): anonymity.mjs `openBodyLoot` draws action-menus.mjs `actionWindow` - the briefing (`drpg-briefing-block`, naming the body) in the left column and the body's things as ticked rows in the right, one checkbox an item - and the body's sheet lists what it carries with no Take of its own and one button that opens that window", async () => {
+        /*
+         * 1.2.113, 13.11.2026; A113-C5-7 (docs/dev/audit-113/FINDINGS.md, on the 1.2.113 audit's branch). E68 C12 put every action's
+         * window on one layout; Take from the Body stayed the sheet's Inventory list, a Take on each row and a Take for the
+         * ticked under it (v1.2.104.md:256 recorded it as a gap). Two students alone together, the second dead on a
+         * published death, two things of the module's on the body (a Tool and a Usable). Read: the window drawn for the
+         * first (`lootWindowFor`) - its classes, the briefing block in the left column and whether it names the body, the
+         * rows in the right (their kind, name and value, sorted), and the Take in its footer; then the body's sheet pane as
+         * `buildBodyLoot` draws it into a detached root - its rows, controls on them, and the button that opens the window,
+         * pressed (a Take from the Body window drawn, for whoever this browser plays). Red at ceb9e9c8: there is no
+         * `openBodyLoot` (`window` null), and the sheet's pane holds two row Takes, two ticks and Take the ticked.
+         */
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body are stood in one room by their tokens");
+        const A = await import("./anonymity.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [taker, body] = cast(2);
+        const fixture = await aloneTogether(taker, body);
+        const NAMES = ["SUITE A113-T1 a body's crowbar", "SUITE A113-T1 a body's plaster"];
+        const any = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.options?.classes?.includes("drpg-loot-window"));
+        const read = {};
+        let win = null, back = null;
+        try {
+            back = await handFreeFor(taker, "tool");
+            await whileDead(body, async () => {
+                const made = [await INV.grantItem(body, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true }),
+                    await INV.grantItem(body, { name: NAMES[1], category: "usable", tier: 1, override: true, quiet: true })];
+                await sheetAuditIdle();
+                must(made.every(Boolean), "the body's two things were not made - this would measure nothing");
+                const ids = made.map(i => i.id).sort();
+                win = await lootWindowFor(body, taker);
+                if (win) {
+                    const el = win.el, left = el.querySelector(".drpg-variant-brief"), right = el.querySelector(".drpg-variant-ask");
+                    const ours = [...el.querySelectorAll('.drpg-loot-list input[name="item"]')].filter(box => ids.includes(box.value));
+                    read.window = {
+                        classes: ["drpg-action-window", "drpg-loot-window"].map(c => el.classList.contains(c)),
+                        brief: [Boolean(left?.querySelector(".drpg-briefing-block")), (left?.textContent ?? "").includes(body.name)],
+                        rows: ours.map(box => [box.type, box.closest("label.drpg-choice")?.querySelector("strong")?.textContent ?? null, box.value]).sort((a, b) => String(a[2]).localeCompare(String(b[2]))),
+                        inRight: ours.every(box => right?.contains(box)),
+                        take: Boolean(el.querySelector('footer .drpg-loot-take, .form-footer .drpg-loot-take'))
+                    };
+                    await win.close();
+                    win = null;
+                } else read.window = null;
+                const root = document.createElement("div");
+                root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+                A.buildBodyLoot(root, body);
+                const before = any().length;
+                const open = root.querySelectorAll(".drpg-loot-open");
+                open[0]?.click();
+                const opened = await until(() => any().length > before, 6000);
+                for (const app of any()) await app.close();
+                read.sheet = {
+                    rows: [...root.querySelectorAll(".drpg-loot-items li")].map(li => li.textContent.trim()).filter(t => NAMES.includes(t)).sort(),
+                    controls: root.querySelectorAll(".drpg-loot-items input, .drpg-loot-items button, .drpg-loot-take, .drpg-loot-pick, .drpg-loot-take-picked").length,
+                    open: open.length,
+                    opened
+                };
+                for (const i of body.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            });
+        } finally {
+            await win?.close();
+            for (const a of [taker, body]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const byId = Object.fromEntries((read.window?.rows ?? []).map(r => [r[2], r[1]]));
+        equal(stableJson({ ...read, window: read.window && { ...read.window, rows: read.window.rows.map(r => [r[0], r[1]]) } }), stableJson({
+            window: { classes: [true, true], brief: [true, true], rows: Object.keys(byId).length === 2 ? Object.keys(byId).sort().map(id => ["checkbox", byId[id]]) : [], inRight: true, take: true },
+            sheet: { rows: [...NAMES].sort(), controls: 0, open: 1, opened: true }
+        }), "[the window: action window and loot window; the briefing block on the left, naming the body; the body's two things as checkbox rows; "
+            + "every row in the right column; the Take in the footer] [the sheet's pane: its rows; controls on them or any Take; the button that opens "
+            + "the window; a window drawn when it is pressed]");
+        equal(Object.values(byId).sort().join("|"), [...NAMES].sort().join("|"), "the window's rows are not the body's two things");
+    }],
+
+    ["A113-C5-7-T2 - Take from the Body greys a refused row with its reason: every row and the Take with the gate's sentence while the taker stands in another room, and a row of its own with the full-hands sentence while the taker carries the most of its kind and has no stash; open again as each is put right (1.2.113; A113-C5-7; E14 part 1 C1, S11-06)", async () => {
+        /*
+         * 1.2.113, 13.11.2026; A113-C5-7. The sheet's row greyed its Take with the one gate's sentence (inventory.mjs
+         * `transferRefusal`, mode "loot"); the window keeps that and adds the carry limit (inventory.mjs `canCarry`), which
+         * the GM's `transferItem` refuses only where there is no stash to take the rest (TRANSFER_POLICY.loot "overflow").
+         * A taker with no stash and a body alone together, the body dead on a published death with a Tool on it. Read, in
+         * a window drawn for the taker (`lootWindowFor`) as each is set: the Tool's row [disabled, its line] and the Take
+         * [disabled, tooltip] - beside the body with a hand free; the taker walked to another room; back; then Tools put in
+         * the taker's hands until `canCarry` refuses one; and those taken off again. Red at ceb9e9c8: no `openBodyLoot`,
+         * every read null.
+         */
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
+        needs(world.atLeast("namedRooms", 2), "a room for the two and another to walk the taker to");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body are stood in one room by their tokens");
+        const INV = await import("./inventory.mjs");
+        const Mv = await import("./movement.mjs");
+        const { primaryStashRoom } = await import("./vault.mjs");
+        const { homeScene } = await import("./rooms.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const onScene = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const taker = onScene.find(a => !primaryStashRoom(a, Mv.locateActor(a)?.scene ?? homeScene()));
+        const body = onScene.find(a => a !== taker);
+        must(taker && body, "no student on the scene without a stash, or no second one - this would measure nothing");
+        const fixture = await aloneTogether(taker, body);
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id);
+        const elsewhere = Mv.allRooms(scene).find(r => r !== fixture.room);
+        must(takerToken && elsewhere, "the taker has no token on the scene on screen, or there is no other room - this would measure nothing");
+        const NAME = "SUITE A113-T2 a body's crowbar", FILL = "SUITE A113-T2 a tool in hand";
+        const read = {};
+        let back = null;
+        const look = async () => {
+            const win = await lootWindowFor(body, taker);
+            if (!win) return null;
+            const row = win.rows().find(r => body.items.get(r[0])?.name === NAME) ?? null;
+            const out = { row: row && [row[1], row[2]], take: win.take() };
+            await win.close();
+            return out;
+        };
+        try {
+            back = await handFreeFor(taker, "tool");
+            await whileDead(body, async () => {
+                const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the body's Tool was not made - this would measure nothing");
+                read.open = await look();
+                await takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE);
+                await settle();
+                read.away = await look();
+                await takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE);
+                await settle();
+                read.back = await look();
+                for (let n = 0; n < 6 && INV.canCarry(taker, "tool").ok; n++) {
+                    await INV.grantItem(taker, { name: FILL, category: "tool", tier: 1, override: true, quiet: true });
+                    await sheetAuditIdle();
+                }
+                must(!INV.canCarry(taker, "tool").ok, "the taker's hands could not be filled with Tools - this would measure nothing");
+                read.limit = INV.canCarry(taker, "tool").limit;
+                read.full = await look();
+                for (const i of taker.items.filter(i => i.name === FILL)) await i.delete();
+                await sheetAuditIdle();
+                read.emptied = await look();
+                for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+            });
+        } finally {
+            for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME || i.name === FILL)) await i.delete();
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const { capacityLabel } = await import("./inventory.mjs");
+        const kind = capacityLabel("tool"), notThere = game.i18n.localize("DRPG.Bridge.why.notThere");
+        const full = game.i18n.format("DRPG.Loot.rowHandsFull", { category: kind, limit: read.limit });
+        const open = { row: [false, kind], take: [false, game.i18n.localize("DRPG.Loot.takeTooltip")] };
+        equal(stableJson({ open: read.open, away: read.away, back: read.back, full: read.full, emptied: read.emptied }), stableJson({
+            open, away: { row: [true, notThere], take: [true, notThere] }, back: open, full: { row: [true, full], take: [true, full] }, emptied: open
+        }), "the Tool's row [disabled, its line] and the Take [disabled, tooltip]: beside the body; the taker in another room; back; the taker's hands "
+            + "full of Tools with no stash; emptied again");
+    }],
+
+    ["A113-C5-7-T3 - Take from the Body's open window reads the gate again as the table moves: its rows and Take grey when the taker walks out of the body's room and open when they walk back, with no new draw (1.2.113; A113-C5-7; E14 fix e1-G6, E95 C3: anonymity.mjs `regreyOpenLoot` on the token, the clock, the body's tile and an announcement)", async () => {
+        /*
+         * 1.2.113, 13.11.2026; A113-C5-7. The sheet's list was read again on registerAnonymity's hooks (`regreyOpenLoot`);
+         * the window carries the body and the taker on its list (`data-drpg-body`, `data-drpg-taker`) so the same hooks
+         * read it. Two students alone together, the second dead on a published death with a Tool on it; one window drawn
+         * for the first (`lootWindowFor`), held open while the first's token is moved to another room and back. Read after
+         * each, waited for up to 2 s: per row [disabled, its line], and the Take [disabled, tooltip]. Red at ceb9e9c8: no
+         * window (null throughout).
+         */
+        needs(env.dialogs(), "Take from the Body's window is drawn and read");
+        needs(world.atLeast("namedRooms", 2), "a room for the two and another to walk the first to");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        const INV = await import("./inventory.mjs");
+        const Mv = await import("./movement.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [taker, body] = cast(2);
+        const fixture = await aloneTogether(taker, body);
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id);
+        const elsewhere = Mv.allRooms(scene).find(r => r !== fixture.room);
+        must(takerToken && elsewhere, "the first has no token on the scene on screen, or there is no other room - this would measure nothing");
+        const NAME = "SUITE A113-T3 a body's crowbar";
+        const read = {};
+        let win = null, back = null;
+        try {
+            back = await handFreeFor(taker, "tool");
+            await whileDead(body, async () => {
+                const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the body's Tool was not made - this would measure nothing");
+                win = await lootWindowFor(body, taker);
+                const state = () => (win ? { row: win.rows().filter(r => r[0] === item.id).map(r => [r[1], r[2]])[0] ?? null, take: win.take() } : null);
+                const after = async (move, shut) => {
+                    await move();
+                    await settle();
+                    await until(() => win?.take()?.[0] === shut, 2000);
+                    return state();
+                };
+                read.drawn = state();
+                read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE), true);
+                read.back = await after(() => takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE), false);
+                for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+            });
+        } finally {
+            await win?.close();
+            for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const { capacityLabel } = await import("./inventory.mjs");
+        const notThere = game.i18n.localize("DRPG.Bridge.why.notThere"), open = game.i18n.localize("DRPG.Loot.takeTooltip");
+        const kind = capacityLabel("tool");
+        equal(stableJson(read), stableJson({
+            drawn: { row: [false, kind], take: [false, open] }, away: { row: [true, notThere], take: [true, notThere] }, back: { row: [false, kind], take: [false, open] }
+        }), "the open window's Tool row [disabled, its line] and Take [disabled, tooltip]: as drawn beside the body; after the taker walked to another room; back");
     }],
 
     ["two body tiles of one death (E95 C3; risk 4, STATUS E95 Open 7): the loot gate reads the one laid first by its `at`, whichever was made first, both wear the caption, and a revive removes both", async () => {
